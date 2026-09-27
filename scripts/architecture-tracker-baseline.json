@@ -83,11 +83,6 @@
         "FANOUT:20"
       ]
     },
-    "lib/risk-classify.js": {
-      "band": "recorded",
-      "lines": 734,
-      "signals": []
-    },
     "lib/verify-numeric-text.js": {
       "band": "structural",
       "lines": 82,
@@ -877,6 +872,10 @@
       "lib/release-evaluation-record.js": "Core",
       "lib/repo-file-pin.js": "Core",
       "lib/residency-rule-miner.js": "Core",
+      "lib/risk-classify-normalize.js": "Core",
+      "lib/risk-classify-receipt.js": "Core",
+      "lib/risk-classify-rules.js": "Core",
+      "lib/risk-classify-targets.js": "Core",
       "lib/risk-classify.js": "Core",
       "lib/risk-policy-constants.js": "Core",
       "lib/risk-rules.js": "Core",
@@ -4220,11 +4219,32 @@
       "lib/residency-rule-miner.js": [
         "lib/is-plain-object.js"
       ],
-      "lib/risk-classify.js": [
-        "lib/financial-action-policy.js",
+      "lib/risk-classify-normalize.js": [
         "lib/is-plain-object.js",
+        "lib/risk-policy-constants.js"
+      ],
+      "lib/risk-classify-receipt.js": [
+        "lib/is-plain-object.js",
+        "lib/risk-classify-normalize.js",
+        "lib/risk-policy-constants.js"
+      ],
+      "lib/risk-classify-rules.js": [
+        "lib/financial-action-policy.js",
+        "lib/risk-classify-normalize.js",
+        "lib/risk-classify-targets.js",
         "lib/risk-policy-constants.js",
         "lib/risk-target-markers.js"
+      ],
+      "lib/risk-classify-targets.js": [
+        "lib/risk-classify-normalize.js",
+        "lib/risk-policy-constants.js"
+      ],
+      "lib/risk-classify.js": [
+        "lib/risk-classify-normalize.js",
+        "lib/risk-classify-receipt.js",
+        "lib/risk-classify-rules.js",
+        "lib/risk-classify-targets.js",
+        "lib/risk-policy-constants.js"
       ],
       "lib/risk-rules.js": [
         "lib/adversarial-signals.js",
