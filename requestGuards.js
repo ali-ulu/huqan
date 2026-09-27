@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const apiAuthOptOut = require('./lib/http/api-auth-opt-out');
 const commandPolicy = require('./requestGuards-command-policy');
 const rateLimit = require('./requestGuards-rate-limit');
 const body = require('./requestGuards-body');
@@ -25,23 +26,9 @@ function constantTimeEqual(left, right) {
   return crypto.timingSafeEqual(a, b);
 }
 
-const API_AUTH_OPT_OUT_VALUES = new Set(['true', '1']);
-let apiAuthOptOutAnnounced = false;
-
-// Single-operator installs that bind to loopback can trade the API key for
-// convenience. The opt-out is deliberately explicit and off by default, so a
-// fresh clone is never served unauthenticated by accident.
-function isApiAuthDisabled() {
-  const raw = readCompatibleEnvironmentVariable('DISABLE_API_AUTH') || '';
-  return API_AUTH_OPT_OUT_VALUES.has(String(raw).trim().toLowerCase());
-}
-
 function requireApiKey(req, configuredKey = readCompatibleEnvironmentVariable('API_KEY') || '') {
-  if (isApiAuthDisabled()) {
-    if (!apiAuthOptOutAnnounced) {
-      apiAuthOptOutAnnounced = true;
-      console.warn('[auth] HUQAN_DISABLE_API_AUTH is set; every API request is served without authentication');
-    }
+  if (apiAuthOptOut.isApiAuthDisabled()) {
+    apiAuthOptOut.announceApiAuthOptOutOnce();
     return { ok: true };
   }
 
@@ -77,7 +64,7 @@ module.exports = {
   DEFAULT_RATE_LIMIT_MAX: rateLimit.DEFAULT_RATE_LIMIT_MAX,
   DEFAULT_RATE_LIMIT_MAX_ENTRIES: rateLimit.DEFAULT_RATE_LIMIT_MAX_ENTRIES,
   DEFAULT_RATE_LIMIT_WINDOW: rateLimit.DEFAULT_RATE_LIMIT_WINDOW,
-  DEFAULT_ALLOWED_PUBLIC_COMMANDS: commandPolicy.DEFAULT_ALLOWED_PUBLIC_COMMANDS,
+  API_AUTH_OPT_OUT_VALUES: apiAuthOptOut.API_AUTH_OPT_OUT_VALUES,
   UNAUTHENTICATED_PUBLIC_COMMANDS: commandPolicy.UNAUTHENTICATED_PUBLIC_COMMANDS,
   AUTHENTICATED_API_COMMANDS: commandPolicy.AUTHENTICATED_API_COMMANDS,
   clearExpiredRateLimitEntries: rateLimit.clearExpiredRateLimitEntries,
@@ -87,7 +74,7 @@ module.exports = {
   enforceRateLimitCap: rateLimit.enforceRateLimitCap,
   extractApiKey,
   isAllowedPublicCommand: commandPolicy.isAllowedPublicCommand,
-  isApiAuthDisabled,
+  isApiAuthDisabled: apiAuthOptOut.isApiAuthDisabled,
   isUnsafePublicApiCommand: commandPolicy.isUnsafePublicApiCommand,
   readJsonBody: body.readJsonBody,
   rateLimitMap: rateLimit.rateLimitMap,

@@ -4,6 +4,7 @@ const {
   readCompatibleEnvironmentVariable,
   validateEnvironmentCompatibility,
 } = require('../lib/environment-compat');
+const { enforceApiAuthOptOutPolicy } = require('../lib/http/api-auth-opt-out');
 
 // AGENT_VERSION is deliberately absent (#774). agentRuntime pins AgentV3 as
 // the canonical agent and rejects every non-empty selector other than 'v3', so
@@ -34,6 +35,12 @@ function prepareContainerEnvironment(environment = process.env) {
       environment[`HUQAN_${suffix}`] = value;
     }
   }
+  // #3018: this bootstrap defaults HOST to 0.0.0.0 -- exactly where the
+  // API-auth opt-out becomes dangerous. HOST is explicit by the time the
+  // guard runs, so a container that asks for the opt-out on the default bind
+  // without HUQAN_DISABLE_API_AUTH_ALLOW_REMOTE stops here, before any
+  // listener exists.
+  enforceApiAuthOptOutPolicy(environment);
   return environment;
 }
 
