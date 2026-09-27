@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { createExecutionScope } = require('./lib/goal-binding');
-const { createDefaultAgentV3BaseAgent } = require('./lib/agent-v3-base-agent-factory');
+const Agent = require('./agent');
 const { normalizeAgentV3WorkspaceId } = require('./lib/agent-v3-workspace');
 const { annotatePlanWithGoalMemory } = require('./lib/agent-v3-plan-memory');
 const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
@@ -43,9 +43,10 @@ class AgentV3 {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
     this.dream = opts.dream || (this.kernel ? new (require('./dream'))(this.kernel) : null);
-    this.baseAgent = opts.baseAgent || createDefaultAgentV3BaseAgent({
+    this.baseAgent = opts.baseAgent || new Agent({
       kernel: this.kernel,
       dream: this.dream,
+      memoryPath: null,
       maxSteps: opts.maxSteps || 4,
       storage: createToolApprovalSeam(() => this.storage),
     });

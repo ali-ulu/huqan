@@ -10,7 +10,7 @@
   ],
   "threshold": 400,
   "files": {
-    "agent.v3.js": 622,
+    "agent.v3.js": 623,
     "dream.js": 624,
     "kernel.js": 842,
     "lib/atp-conformance.js": 504,

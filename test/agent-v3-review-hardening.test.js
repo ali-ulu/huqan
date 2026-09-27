@@ -11,9 +11,12 @@
  *    so a non-string id failed with a TypeError from inside the store rather
  *    than a structured refusal, and the two entry points could disagree on a
  *    blank id.
- *  - the base agent was constructed inline in the constructor, which the
- *    architecture tracker recorded as a DIP coupling. It now comes from
- *    lib/agent-v3-base-agent-factory.js (a registered composition root).
+ *
+ * The third finding -- the base Agent constructed inline in the constructor,
+ * recorded as a DIP signal -- is deliberately left as recorded debt: a flat
+ * lib/ module is ring-assigned Core, and both candidate homes (the plane it
+ * would wrap, agent.js, and lib/storage/) sit outward, so extracting it needs
+ * an Application-ring assembly surface first. See the PR body's findings.
  */
 
 const test = require('node:test');
@@ -24,8 +27,9 @@ const path = require('node:path');
 
 const Kernel = require('../kernel');
 const AgentV3 = require('../agent.v3');
-const { createDefaultAgentV3BaseAgent } = require('../lib/agent-v3-base-agent-factory');
 const { normalizeAgentV3WorkspaceId } = require('../lib/agent-v3-workspace');
+const { buildGoalMemoryBlock } = require('../lib/agent-v3-plan-memory');
+const { goalMemoryKey } = require('../lib/storage/run-state-keys');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-agent-v3-harden-'));
 test.after(() => {
@@ -87,6 +91,18 @@ test('plan() and run() refuse a non-string workspaceId the same way, not with a 
   }
 });
 
+test('a goal is scoped to the normalized workspace, matching the storage key (#757)', () => {
+  const agent = makeAgent();
+  try {
+    // Whitespace around the id must not create a second workspace.
+    const plan = agent.plan('hedef', { workspaceId: '  tenant-a  ' });
+    assert.equal(plan.ok, true);
+    assert.equal(plan.data.memory.storage.key, goalMemoryKey('hedef', 'tenant-a').split('\u001f')[1]);
+  } finally {
+    agent.storage.close?.();
+  }
+});
+
 test('normalizeAgentV3WorkspaceId mirrors lib/workspace-id.js policy', () => {
   for (const blank of [undefined, null, '', '   ']) {
     assert.deepEqual(normalizeAgentV3WorkspaceId(blank), { ok: true, workspaceId: 'default' }, String(blank));
@@ -96,19 +112,10 @@ test('normalizeAgentV3WorkspaceId mirrors lib/workspace-id.js policy', () => {
   assert.equal(normalizeAgentV3WorkspaceId({}).ok, false);
 });
 
-test('the base-agent factory builds the storage-less Agent v3 wraps, and an injected one still wins', () => {
-  const kernel = makeKernel();
-  const built = createDefaultAgentV3BaseAgent({ kernel, dream: null, maxSteps: 4, storage: null });
-  assert.equal(built.storage, null, 'the base agent must not reach v1 run/goal-memory persistence');
-
-  const agent = new AgentV3({ kernel, storage: null, dbPath: path.join(tempDir, 'seam.db') });
-  const injected = { plan: () => ({ ok: true, data: {}, evidence: [], meta: {} }) };
-  const custom = new AgentV3({ kernel, baseAgent: injected, dbPath: path.join(tempDir, 'injected.db') });
-  try {
-    assert.equal(custom.baseAgent, injected, 'an injected baseAgent must be left exactly as built');
-    assert.notEqual(agent.baseAgent, injected);
-  } finally {
-    agent.storage.close?.();
-    custom.storage.close?.();
-  }
+// lib/agent-v3-plan-memory.js is Core and must not require lib/storage/
+// (Adapters), so it repeats the storage key helpers instead of importing them.
+// This locks the two copies together: both trim before lowercasing.
+test('the plan-memory key helpers stay identical to the storage ones', () => {
+  assert.equal(buildGoalMemoryBlock(null, '  Karar  ').key, goalMemoryKey('  Karar  ', 'default').split('\u001f')[1]);
+  assert.equal(buildGoalMemoryBlock(null, 'Karar').key, 'karar');
 });

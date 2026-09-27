@@ -3,8 +3,10 @@
   "entries": {
     "agent.v3.js": {
       "band": "recorded",
-      "lines": 622,
-      "signals": []
+      "lines": 623,
+      "signals": [
+        "DIP"
+      ]
     },
     "cli.js": {
       "band": "structural",
@@ -205,8 +207,10 @@
       "lib/agent-step-executor.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
+      "lib/agent-v3-plan-memory.js": "Core",
       "lib/agent-v3-run-state.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
+      "lib/agent-v3-workspace.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
@@ -1280,14 +1284,17 @@
         "toolPolicy.js"
       ],
       "agent.v3.js": [
+        "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
         "lib/agent-memory-persistence.js",
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
+        "lib/agent-v3-plan-memory.js",
         "lib/agent-v3-run-state.js",
         "lib/agent-v3-storage-factory.js",
+        "lib/agent-v3-workspace.js",
         "lib/goal-binding.js"
       ],
       "agentRuntime.js": [

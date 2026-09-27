@@ -17,7 +17,7 @@ Tracked in total: **20**
 | `lib/receipt/receipt-read-index.js` | 637 | — |
 | `plugins/company-brain.js` | 630 | — |
 | `dream.js` | 624 | — |
-| `agent.v3.js` | 622 | — |
+| `agent.v3.js` | 623 | DIP |
 | `lib/conflict-detector.js` | 616 | — |
 | `lib/external-action-receipt.js` | 589 | — |
 | `lib/memory-store.js` | 578 | FANOUT:20 |

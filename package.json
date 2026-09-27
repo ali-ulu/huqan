@@ -217,7 +217,6 @@
     "lib/goal-integrity-gate.js",
     "lib/agent-v3-dream-loop-adapter.js",
     "lib/agent-v3-loop-budget.js",
-    "lib/agent-v3-base-agent-factory.js",
     "lib/agent-v3-workspace.js",
     "lib/agent-v3-plan-memory.js",
     "lib/experience/runtime-seam.js",
