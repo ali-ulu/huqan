@@ -14,7 +14,7 @@ Tracked in total: **20**
 | File | Lines | Signals |
 |---|---:|---|
 | `lib/risk-classify.js` | 734 | — |
-| `lib/receipt/receipt-read-index.js` | 637 | — |
+| `lib/receipt/receipt-read-index.js` | 635 | — |
 | `plugins/company-brain.js` | 630 | — |
 | `dream.js` | 624 | — |
 | `agent.v3.js` | 623 | DIP |

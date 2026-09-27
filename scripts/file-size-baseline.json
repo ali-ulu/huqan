@@ -22,7 +22,7 @@
     "lib/huqan-package-format.js": 428,
     "lib/learn-use-case.js": 432,
     "lib/memory-store.js": 578,
-    "lib/receipt/receipt-read-index.js": 637,
+    "lib/receipt/receipt-read-index.js": 635,
     "lib/risk-classify.js": 734,
     "plugins/company-brain.js": 630,
     "sandboxRunner.js": 530

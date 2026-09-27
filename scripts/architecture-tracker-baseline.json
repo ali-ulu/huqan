@@ -90,7 +90,7 @@
     },
     "lib/receipt/receipt-read-index.js": {
       "band": "recorded",
-      "lines": 637,
+      "lines": 635,
       "signals": []
     },
     "lib/risk-classify.js": {
