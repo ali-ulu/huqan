@@ -107,7 +107,7 @@
     },
     "plugins/company-brain.js": {
       "band": "recorded",
-      "lines": 678,
+      "lines": 630,
       "signals": []
     },
     "sandboxRunner.js": {

@@ -24,7 +24,7 @@
     "lib/memory-store.js": 578,
     "lib/receipt/receipt-read-index.js": 637,
     "lib/risk-classify.js": 734,
-    "plugins/company-brain.js": 678,
+    "plugins/company-brain.js": 630,
     "sandboxRunner.js": 530
   },
   "reviews": {

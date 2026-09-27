@@ -1,58 +1,13 @@
-const crypto = require('crypto');
 const LLMAdapter = require('../llmAdapter');
 const { adjustedConfidence } = require('../evidence-ranker');
 const { normalizeAlias, resolveEntity } = require('../lib/entity-resolution');
+const { slug, identityKey, fallbackTargetId, extractTokens } = require('../lib/company-brain-identity');
 const { gateCompanyIngest } = require('../lib/company-ingest-gate');
 const { withCausalStrength } = require('../lib/causal-edge-strength');
 const { recordIngestError, summarizeIngestErrors } = require('../lib/bounded-ingest-errors');
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-/**
- * Readable, lossy label for a node id. Never an identity on its own -- see
- * `identityKey`.
- *
- * Turkish-aware lowercasing matters here: plain `.toLowerCase()` maps `İ`
- * (U+0130) to `i` + U+0307, and the combining dot is outside the allowed class,
- * so every `İ` split its word in two ("ÜRÜN İADE POLİTİKASI" became
- * "ürün-i-ade-poli-ti-kasi"). NFC keeps ç/ğ/ö/ş/ü composed -- NFKD would strip
- * them to bare ASCII, which is a different and unwanted change -- and any
- * combining mark that still survives is removed rather than turned into a
- * separator.
- */
-function slug(text) {
-  return String(text || '')
-    .normalize('NFC')
-    .toLocaleLowerCase('tr')
-    .replace(/\p{M}+/gu, '')
-    .replace(/[^a-z0-9çğıöşü]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48) || 'decision';
-}
-
-/**
- * Identity for a company-brain node: the readable slug plus a digest over the
- * *whole* input.
- *
- * The slug alone was the distinguishing part of these ids, and it truncates at
- * 48 characters. Two decisions on the same date whose titles diverged after
- * character 48 collapsed onto one node -- silently, both calls returning
- * ok:true -- so two contradictory policies ended up filed as evidence for the
- * same decision, and contradiction detection could not see a conflict because
- * the graph held only one. `manual-note` was worse: it keyed on the first 24
- * characters of the note text.
- *
- * @param {...string} parts Everything that makes this node distinct.
- * @returns {string}
- */
-function identityKey(...parts) {
-  const label = slug(parts[0]);
-  // JSON-encoding the parts keeps the field boundary unambiguous, so
-  // ('ab', 'c') and ('a', 'bc') cannot hash alike.
-  const digest = crypto.createHash('sha256').update(JSON.stringify(parts.map(part => String(part ?? ''))), 'utf8').digest('hex').slice(0, 12);
-  return `${label}-${digest}`;
 }
 
 const INGEST_STATE_KEY = '_companyBrainIngestState';
@@ -185,14 +140,6 @@ function buildEntityResolutionMeta(text, subject, domain) {
   };
 }
 
-function extractTokens(text) {
-  return String(text || '')
-    .toLowerCase()
-    .split(/[^a-z0-9çğıöşü_:/.-]+/i)
-    .map(item => item.trim())
-    .filter(item => item.length >= 3);
-}
-
 // REFACTOR-4D AC-5.5 (Package 03 — 03A queryCompanyBrain):
 // Migrate private `kernel.graph?._nodes` access to the public
 // `graph.getNodes(workspaceId)` API. `queryCompanyBrain` is a dynamic-
@@ -248,7 +195,7 @@ function rankGraphMatches(kernel, tokens, workspaceId = null) {
   const scored = [];
   for (const node of nodes) {
     if (workspaceId && (node.workspaceId || 'default') !== workspaceId) continue;
-    const hay = `${node.id} ${node.label}`.toLowerCase();
+    const hay = normalizeAlias(`${node.id} ${node.label}`);
     let score = 0;
     for (const token of tokens) {
       if (hay.includes(token)) score += 1;
@@ -412,11 +359,16 @@ function ingestManual(kernel, input = {}) {
       meta: entityMeta,
     });
     proposals.push(...factEdge.proposals, ...evidenceEdge.proposals);
+    // Both edges are counted, matching ingestDecision and the repo-memory
+    // connectors. Counting only `factEdge` under-reported `added`, and since
+    // the same number feeds trackSuccess, `ingestStatus.distribution.manual`
+    // ran low with every fact-bearing note.
     if (factEdge.edge) added += 1;
+    if (evidenceEdge.edge) added += 1;
   }
 
   if (matchedFacts === 0) {
-    const fallbackEdge = addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
+    const fallbackEdge = addCompanyEdge(kernel, noteNode, fallbackTargetId(text), 'not', {
       source: 'manual',
       sourceRef,
       sourceType: 'manual',
@@ -559,7 +511,7 @@ function ingestApi(kernel, input = {}) {
   const noteNode = `api-note:${identityKey(sourceRef)}:${date}`;
   const proposals = [];
 
-  const edge = addCompanyEdge(kernel, noteNode, text.slice(0, 96), 'not', {
+  const edge = addCompanyEdge(kernel, noteNode, fallbackTargetId(text, 'api-note'), 'not', {
     source: 'api',
     sourceRef,
     sourceType: 'api',

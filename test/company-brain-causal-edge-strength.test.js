@@ -64,7 +64,10 @@ for (const [text, relation] of [
     });
 
     assert.equal(result.ok, true, `ingest failed: ${result.error || ''}`);
-    assert.equal(result.added, 1);
+    // Two edges, both counted: the causal fact edge plus the note -> subject
+    // support edge. `added` only counted the fact edge before, which under-
+    // reported the run and the `manual` share of ingestStatus.distribution.
+    assert.equal(result.added, 2);
     assert.equal(result.admission.outcome, 'allow');
     assert.equal(result.admission.graphWrite, true);
 

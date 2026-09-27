@@ -145,7 +145,9 @@ test('company-brain: ingest status distribution reports api ingests and separate
   assert.equal(status.ok, true);
   assert.equal(status.distribution.api, 3);
   assert.equal(status.distribution.decision, 1);
-  assert.equal(status.distribution.manual, 1);
+  // The manual note writes two edges (the extracted fact plus the note ->
+  // subject support edge) and `added` now counts both.
+  assert.equal(status.distribution.manual, 2);
 });
 
 test('company-brain: ingest status distribution reports all known source types as zero on a fresh kernel (#1314)', async () => {
