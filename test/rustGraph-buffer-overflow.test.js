@@ -4,7 +4,7 @@ const RustGraph = require('../rustGraph');
 
 function makeFakeRustGraph() {
   const rg = new RustGraph({ memoryPath: 'unused.json', requestTimeoutMs: 500 });
-  rg._start = function () {
+  rg.start = function () {
     if (this._proc) return;
     this._proc = {
       ref() {},
@@ -19,7 +19,7 @@ function makeFakeRustGraph() {
 
 test('rustGraph _onData resets and rejects pending requests instead of growing the buffer without bound (#372)', async () => {
   const rg = makeFakeRustGraph();
-  rg._start();
+  rg.start();
 
   const pending = rg.send({ cmd: 'add_node', id: 'x' });
 
@@ -37,7 +37,7 @@ test('rustGraph _onData resets and rejects pending requests instead of growing t
 
 test('rustGraph _onData keeps working normally after a buffer-overflow reset', async () => {
   const rg = makeFakeRustGraph();
-  rg._start();
+  rg.start();
 
   rg._onData(Buffer.alloc(11 * 1024 * 1024, 'a'));
 

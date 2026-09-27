@@ -41,7 +41,7 @@ test('fallback persistence goes to the JavaScript Graph and never to the process
   bridge.send = () => { throw new Error('fallback persistence must not reach the process'); };
 
   await withMissingBinary(async () => {
-    bridge._start();
+    bridge.start();
     assert.equal(bridge._storePort.backend(), 'js-fallback');
     assert.equal(await bridge.save('other.json'), undefined);
     assert.equal(await bridge.load('other.json'), undefined);
@@ -75,7 +75,7 @@ test('process persistence sends the save/load wire commands and returns res.ok',
   const sent = [];
   const replies = [{ ok: true }, { ok: false }, null];
   const bridge = new RustGraph({ memoryPath: 'default-memory.json' });
-  bridge._start = () => {}; // This test supplies the process reply through send().
+  bridge.start = () => {}; // This test supplies the process reply through send().
   bridge.send = async (cmd) => { sent.push(cmd); return replies.shift(); };
 
   assert.equal(await bridge.save(), true);

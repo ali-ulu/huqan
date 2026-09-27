@@ -30,6 +30,11 @@ describe('RustGraph.send is the public IPC surface (#2350)', () => {
     assert.equal(RustGraph.prototype._send, undefined, '_send must be gone');
   });
 
+  it('start is public and the private _start name is gone (#2963)', () => {
+    assert.equal(typeof RustGraph.prototype.start, 'function', 'start must be public');
+    assert.equal(RustGraph.prototype._start, undefined, '_start must be gone');
+  });
+
   it('the reason sandbox learns and asks through the public send', async () => {
     const { sent, graph } = publicSendGraph((cmd) => (
       cmd.commands[0].cmd === 'learn'

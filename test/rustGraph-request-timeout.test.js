@@ -8,7 +8,7 @@ const RustGraph = require('../rustGraph');
 // without the request timeout (#373).
 function makeHangingRustGraph(requestTimeoutMs) {
   const rg = new RustGraph({ memoryPath: 'unused.json', requestTimeoutMs });
-  rg._start = function () {
+  rg.start = function () {
     if (this._proc) return;
     this._proc = {
       ref() {},
@@ -38,7 +38,7 @@ test('rustGraph send resolves with request_timeout instead of hanging forever (#
 
 test('rustGraph clears the timer once a real reply arrives (no leaked resolve)', async () => {
   const rg = makeHangingRustGraph(500);
-  rg._start();
+  rg.start();
   const pending = rg.send({ cmd: 'add_node', id: 'y' });
   const [reqId] = rg._pending.keys();
   rg._onData(Buffer.from(JSON.stringify({ _reqId: reqId, ok: true }) + '\n'));
@@ -49,7 +49,7 @@ test('rustGraph clears the timer once a real reply arrives (no leaked resolve)',
 
 test('rustGraph send does not crash when the process is gone before write (#373)', async () => {
   const rg = new RustGraph({ memoryPath: 'unused.json' });
-  rg._start = function () {
+  rg.start = function () {
     this._proc = null;
     this._fallback = null;
     this._ready = true;

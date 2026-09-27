@@ -80,9 +80,12 @@ class RustGraph {
     this._storePort = createRustGraphStorePort(this);
   }
 
-  _start() {
+  start() {
+    // Public (#2963): the store port calls start() before its fallback check
+    // so a bridge whose binary is missing routes its first save/load to the
+    // fallback Graph instead of dropping it.
     // Both branches below are one-shot: once a Rust process is spawned OR the
-    // JS fallback Graph is built, _start must not run again. Guarding only on
+    // JS fallback Graph is built, start must not run again. Guarding only on
     // _proc meant every send() rebuilt the fallback from scratch whenever the
     // Rust binary was absent, so addNode/addEdge/getStats each ran against a
     // different Graph instance and no state ever accumulated.
@@ -151,13 +154,13 @@ class RustGraph {
 
   send(cmd) {
     return new Promise((resolve) => {
-      this._start();
+      this.start();
       if (this._fallback) {
         resolve(this._fallback);
         return;
       }
       if (!this._proc || !this._proc.stdin) {
-        // Process died between _start() and here (async 'exit'/'error');
+        // Process died between start() and here (async 'exit'/'error');
         // don't crash on a write to a torn-down stdin (#373).
         resolve({ ok: false, error: 'process_unavailable' });
         return;

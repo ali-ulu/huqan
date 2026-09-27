@@ -73,13 +73,12 @@ queries only. The adapter keeps the public methods and their results intact.
   #2906 scope.
 - Candidates listed in #2401 / #2402 are not reassigned by this map.
 
-## Known behavior kept as-is
+## First-call fallback persistence (#2963)
 
-When the huqan-core binary is missing and a `RustGraph` has not started yet,
-the first `save()`/`load()` builds the fallback inside `send()` and returns
-`undefined` without calling the fallback Graph. This predates the port and is
-preserved because the change must not alter behavior; it is tracked in
-[#2963](https://github.com/ali-ulu/huqan/issues/2963).
+When the huqan-core binary is missing, `RustGraph.start()` is public and the
+store port calls it **before** its fallback check: the first `save()`/`load()`
+routes persistence to the fallback Graph instead of dropping it. `start()` is
+idempotent and the process `send()` path is unchanged.
 
 ## Evidence
 
