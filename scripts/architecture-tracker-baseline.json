@@ -15,11 +15,6 @@
         "FANOUT:24"
       ]
     },
-    "dream.js": {
-      "band": "recorded",
-      "lines": 624,
-      "signals": []
-    },
     "graph.js": {
       "band": "structural",
       "lines": 392,
@@ -343,6 +338,9 @@
       "lib/deterministic-task-runner.js": "Core",
       "lib/dream-embedding.js": "Core",
       "lib/dream-experiment-loop.js": "Core",
+      "lib/dream-graph-paths.js": "Core",
+      "lib/dream-hypothesis-finders.js": "Core",
+      "lib/dream-hypothesis-scoring.js": "Core",
       "lib/dream-hypothesis-semantics.js": "Core",
       "lib/emergency-stop-chain.js": "Core",
       "lib/emergency-stop.js": "Core",
@@ -1362,6 +1360,9 @@
       ],
       "dream.js": [
         "lib/dream-embedding.js",
+        "lib/dream-graph-paths.js",
+        "lib/dream-hypothesis-finders.js",
+        "lib/dream-hypothesis-scoring.js",
         "lib/dream-hypothesis-semantics.js",
         "lib/graph-record-utils.js"
       ],
@@ -2165,6 +2166,12 @@
       "lib/dream-experiment-loop.js": [
         "causalSimulator.js",
         "lib/workspace-id.js"
+      ],
+      "lib/dream-hypothesis-finders.js": [
+        "lib/dream-hypothesis-semantics.js"
+      ],
+      "lib/dream-hypothesis-scoring.js": [
+        "lib/graph-record-utils.js"
       ],
       "lib/dream-hypothesis-semantics.js": [
         "lib/type-lattice.js"
