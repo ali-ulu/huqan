@@ -50,10 +50,32 @@ test('fallback persistence goes to the JavaScript Graph and never to the process
   assert.deepEqual(calls, [['save', []], ['load', []]]);
 });
 
+test('first save and load initialize the missing-binary fallback before persisting', async () => {
+  const calls = [];
+  const fallback = {
+    save() { calls.push('save'); },
+    load() { calls.push('load'); },
+  };
+
+  await withMissingBinary(async () => {
+    const saving = new RustGraph({ memoryPath: 'virtual-memory.json', createFallbackGraph: () => fallback });
+    assert.equal(saving._storePort.backend(), 'unstarted');
+    assert.equal(await saving.save(), undefined);
+    assert.equal(saving._storePort.backend(), 'js-fallback');
+
+    const loading = new RustGraph({ memoryPath: 'virtual-memory.json', createFallbackGraph: () => fallback });
+    assert.equal(loading._storePort.backend(), 'unstarted');
+    assert.equal(await loading.load(), undefined);
+    assert.equal(loading._storePort.backend(), 'js-fallback');
+  });
+  assert.deepEqual(calls, ['save', 'load']);
+});
+
 test('process persistence sends the save/load wire commands and returns res.ok', async () => {
   const sent = [];
   const replies = [{ ok: true }, { ok: false }, null];
   const bridge = new RustGraph({ memoryPath: 'default-memory.json' });
+  bridge._start = () => {}; // This test supplies the process reply through send().
   bridge.send = async (cmd) => { sent.push(cmd); return replies.shift(); };
 
   assert.equal(await bridge.save(), true);
