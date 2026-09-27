@@ -321,6 +321,25 @@ test('[json] nested canonical mutations fail before the inner callback or persis
   assert.equal(fs.existsSync(graph.memoryPath), false);
 });
 
+test('[sqlite] nested canonical mutations fail before the inner callback or persistence', () => {
+  const graph = makeGraph('nested-canonical', 'sqlite');
+  let innerCalled = false;
+  assert.throws(() => graph.runMutationOnce('outer', () => {
+    graph.addNode('outer');
+    return graph.runMutationOnce('inner', () => {
+      innerCalled = true;
+      graph.addNode('inner');
+      return { ok: true };
+    });
+  }), { code: 'GRAPH_NESTED_MUTATION' });
+  assert.equal(innerCalled, false);
+  assert.equal(graph.getNode('outer'), null);
+  assert.equal(graph.getNode('inner'), null);
+  assert.equal(graph.getCommittedMutationResultByOperation('inner'), null);
+  assert.equal(graph.getCommittedMutationResultByOperation('outer'), null);
+  graph.close();
+});
+
 test('[json] a dead directory-lock owner is reclaimed without deleting a live successor lock', () => {
   const journalPath = path.join(root, 'stale-lock.mutations.json');
   const lockPath = lockPathFor(journalPath);

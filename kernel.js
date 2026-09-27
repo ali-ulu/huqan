@@ -17,13 +17,13 @@ const { runLearnDocument } = require('./lib/kernel-learn-document');
 const { runSelfLearn } = require('./lib/kernel-self-learn');
 const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
 const { runDream } = require('./lib/kernel-dream');
-const { runSelfEvolve, buildSelfEvolveCollaborators } = require('./lib/kernel-self-evolve');
+const { runSelfEvolve, buildSelfEvolveCollaborators, runAutoMaintain } = require('./lib/kernel-self-evolve');
 const { runAlternatives } = require('./lib/kernel-alternatives');
 const { runContextSimilarity } = require('./lib/kernel-context-similarity');
 const { runAutoThinkTick } = require('./lib/kernel-auto-think');
 const { runCrossLink } = require('./lib/kernel-cross-link');
 const { runProposeNode } = require('./lib/kernel-propose-node');
-const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath } = require('./lib/memory-store-utils');
+const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath, hookGraphCloseForMemoryStore } = require('./lib/memory-store-utils');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
@@ -181,16 +181,8 @@ class Kernel {
       memoryPath: opts.memoryStorePath || (opts.memoryPath ? siblingPersistencePath(opts.memoryPath, '.memory-store.json') : undefined),
     });
 
-    // Hook graph.close to also close memory store db connection
-    const originalClose = this.graph.close;
-    this.graph.close = () => {
-      if (typeof originalClose === 'function') {
-        originalClose.call(this.graph);
-      }
-      if (this.memory && typeof this.memory.close === 'function') {
-        this.memory.close();
-      }
-    };
+    // Hook graph.close to also close the memory store (see memory-store-utils).
+    hookGraphCloseForMemoryStore(this);
   }
 
   /**
@@ -817,18 +809,13 @@ class Kernel {
     return runSelfLearn(() => this.detectGaps(), this.graph);
   }
 
-  /**
-   * Periyodik bakım — öğrenme sayacını takip eder, eşik aşılınca selfEvolve çalıştırır.
-   */
+  // Periyodik bakım — sayım ve guard lib/kernel-self-evolve içindedir.
   _learnCount = 0;
   maintenanceEvery = 5;
+  _maintenanceRunning = false;
 
   _autoMaintain() {
-    this._learnCount = (this._learnCount || 0) + 1;
-    if (this._learnCount >= this.maintenanceEvery) {
-      this._learnCount = 0;
-      this.selfEvolve();
-    }
+    runAutoMaintain(this);
   }
 }
 
