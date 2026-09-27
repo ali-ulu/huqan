@@ -134,4 +134,33 @@ REOPEN olarak kaydedilmiş ve kendi PR'larıyla kapatılmıştır.
 | #2299 | `lib/storage/schema.js` | 256 | KEEP | Ağırlıkla SQL şema metni; `applyStorageSchema` 37 satır. Şema tek dosyada olmalı. Test: `test/storage-schema.test.js`, `test/recovery/recovery-invariants.test.js`. |
 | #2300 | `lib/github-app-beta-handler.js` | 247 | KEEP | 9 fonksiyon, en uzunu 40 satır. Test: `test/v5-c7-github-app-beta-http.test.js`. |
 
-Açık kalan: #2301'den başlayan adaylar (sonraki partiler).
+## Parti 6 — `lib/`, `adapters/` (#2302–#2323)
+
+İnceleme tabanı: `origin/main` @ `e32711d`. `scripts/knowledge-graph-demo.js` (#2301) Parti 1'de REFACTORED.
+
+| Issue | Dosya | Satır | Karar | Kaynak sembolleri / korunan invariant / test / gerekçe |
+|---|---|---:|---|---|
+| #2302 | `lib/memory-mutation-gate/memory-mutation-normalizer.js` | 243 | KEEP | 15 normalizasyon yardımcısı, en uzunu `normalizeEntry` 41 satır; `deleted`'ın `tombstoned`'u miras almaması (#1257) ve `metadataOnly`'nin yalnız açık `true` ile sayılması (#378) burada. Test: `test/classifier-downgrade-fail-closed.test.js`, `test/memory-mutation-classifier-characterization.test.js`. |
+| #2303 | `lib/data-egress-gate.js` | 242 | KEEP | 10 fonksiyon, en uzunu `findPiiInText` 30 satır; tek egress kararı. Test: `test/data-egress-gate.test.js`. |
+| #2304 | `lib/external-action-adapter.js` | 259 | KEEP | 9 fonksiyon, en uzunu `normalizeHookInvocation` 69 satır; hook çağrısını tek zarf biçimine çevirir. Test: `test/external-action-guard.test.js`. |
+| #2305 | `lib/identity-privilege-escalation.js` | 251 | KEEP | 7 fonksiyon, en uzunu 33 satır. Test: `test/identity-privilege-escalation.test.js`. |
+| #2306 | `lib/mcp-human-oversight-adapter.js` | 323 | KEEP | 14 fonksiyon; en uzunu `buildMcpOversightInput` 77 satır ama tek dallı nesne kurucusu. Karar işleyicisi `52f2fd95` ile ayrılmıştı. Test: `test/oversight-case-helpers.test.js`. |
+| #2307 | `lib/mcp-ingest-execute-tool.js` | 241 | KEEP | 6 fonksiyon, en uzunu `decideMcpIngestApproval` 50 satır. Test: `test/mcp-tool-dispatch.test.js`, `test/mcp-ingest-audit-duplicate.test.js`. |
+| #2308 | `lib/a2a/delegation-audit-log.js` | 239 | KEEP | `createA2aDelegationAuditLog` fabrikası iki kapanış (`append`, `read`); symlink/kısa ad reddi dahil tek dosya-kök defteri. Test: `test/a2a-symlinked-ancestor-refusal.test.js`. |
+| #2309 | `lib/reasoning-trace.js` | 239 | KEEP | `buildReasoningTrace` (91 satır) tek dallı iz nesnesi kurucusu. Test: `test/reasoning-trace.test.js`. |
+| #2310 | `lib/coder/derivation-record.js` | 237 | KEEP | 11 fonksiyon, en uzunu 20 satır; tek kayıt şeması ve hash. Test: `test/coder-derivation.test.js`. |
+| #2311 | `lib/entity-resolution.js` | 237 | KEEP | 9 fonksiyon, en uzunu `resolveEntity` 69 satır. Test: `test/verify-entity-resolution.test.js`. |
+| #2312 | `lib/connectors/entry-ingest-flow.js` | 236 | REFACTORED | `85a39561`: altı giriş connector'ı tek akışta birleştirildi; dosya o ortak yürüyüşün kendisi. Test: `test/ingest-root-ownership.test.js`. |
+| #2313 | `lib/risk-policy-constants.js` | 250 | KEEP | Ağırlıkla sabit tablolar (`freezeSet` tek fonksiyon); `633e5179` ile sınıflandırıcıdan ayrılmıştı. Tek kaynak olmalı. Test: `test/risk-classify-boundaries-mutation.test.js`. |
+| #2314 | `lib/post-action-monitor.js` | 270 | KEEP | `evaluatePostActionBehavior` (100 satır): aktivasyon yoksa erken gözlem, varsa baseline → değerlendirme → bulgu → receipt özeti; tek gözlem kararı. Test: `test/post-action-monitor.test.js`. |
+| #2315 | `lib/external-action-envelope.js` | 229 | KEEP | `normalizeExternalActionEnvelope` (74 satır) tek zarf sözleşmesi. Test: `test/blast-radius.test.js`. |
+| #2316 | `adapters/yaml-adapter.js` | 227 | KEEP | `parseYaml` (64 satır) tek ayrıştırıcı; ortak learn akışı `adapters/utils/learn-entries.js`'te. Test: `test/ingest-content-hash-pinning.test.js`. |
+| #2317 | `lib/memory-query-engine.js` | 264 | KEEP | `runQuery` (89 satır) sekiz koşullu filtre adımı; history/SQLite yolları `101d04af` ile ayrılmıştı. Test: `test/memory-query-delegation-contract.test.js`. |
+| #2318 | `lib/self-healer/safety-decision.js` | 224 | KEEP | `decideSelfHealerAction` (74 satır) tek güvenlik kararı. Test: `test/self-healer-safety-decision.test.js`. |
+| #2319 | `lib/cli-hypotheses.js` | 223 | KEEP | 13 fonksiyon, en uzunu 29 satır. Test: `test/graph-hypotheses-cli.test.js`. |
+| #2320 | `lib/cli-audit.js` | 222 | KEEP | `buildAuditReport` (87 satır) tek dallı rapor kurucusu. Test: `test/cli-audit.test.js`. |
+| #2321 | `lib/memory-mutation-gate/memory-mutation-decision.js` | 221 | DEFER | `evaluateMemoryMutation` (135 satır) sınıflandırma özetinin üstüne sıralı yükseltmeler uygular (malformed, boş, bilinmeyen işlem, kirli repo, main'e yazım, sır, çoklu workspace, genişlik, kategori tabanı, politika tabanı) ve `decision`/`reason`'ı üzerine yazar; sıra politikanın kendisi. Tetikleyici: bir sonraki yükseltme kuralı; o zaman `[condition, escalation]` listesine çevir, önce karakterizasyon. Test: `test/inline-enforcement-matrix.test.js`, `test/mcp-gate-risk-block-wiring.test.js`. |
+| #2322 | `lib/coder/verify-derivation.js` | 217 | KEEP | `verifyDerivation` (106 satır) sıralı doğrulama: bütünlük → şema sürümü (v1 "doğrulanamaz", hata değil) → runner durumu → taban ağacı uyumu → yeniden çalıştırma → hash → diff; her erken çıkış yorumla gerekçeli. Test: `test/coder-verify-derivation.test.js`. |
+| #2323 | `lib/pilot/trust-receipt-pilot.js` | 217 | KEEP | 16 fonksiyon, en uzunu 34 satır. Test: `test/trust-receipt-pilot.test.js`. |
+
+Açık kalan: #2324'ten başlayan adaylar (son parti).
