@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "entries": {
     "agent.v3.js": {
-      "band": "structural",
-      "lines": 1,
+      "band": "recorded",
+      "lines": 623,
       "signals": [
         "DIP"
       ]
