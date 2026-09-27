@@ -742,6 +742,7 @@
     "lib/pr-guardian/policy.js",
     "lib/pr-guardian/snapshot.js",
     "lib/pr-guardian/review-service.js",
+    "lib/pr-guardian/review-service-execute.js",
     "lib/pr-guardian/review-receipt.js",
     "lib/pilot/trust-receipt-pilot.js",
     "lib/pilot/trust-receipt-pilot-archive.js",
