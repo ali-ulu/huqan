@@ -11,7 +11,6 @@
   "threshold": 400,
   "files": {
     "agent.v3.js": 623,
-    "dream.js": 624,
     "kernel.js": 842,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
@@ -22,16 +21,11 @@
     "lib/huqan-package-format.js": 428,
     "lib/learn-use-case.js": 432,
     "lib/memory-store.js": 578,
-    "lib/receipt/receipt-read-index.js": 635,
     "plugins/company-brain.js": 630,
     "sandboxRunner.js": 530
   },
   "reviews": {
     "agent.v3.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "dream.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
@@ -74,10 +68,6 @@
     "lib/memory-store.js": {
       "why": "Kept as the thin facade over its delegates (#2129, 2026-09-26). 971 -> 594 by moving logic into memory-* delegate modules; cross-module private calls are 0. What remains is the public MemoryStore surface (facade methods and their JSDoc) plus the _*StoreApi()/_*ReadContext() builders, and ten test/memory-*-delegation-contract.test.js files pin exactly that shape in this file: each delegate required once here, each facade body, and exact call-site counts. Moving a builder into its delegate needs private-state promotions (_findMemory, _snapshotInMemoryState, _restoreInMemoryState, _makeMemoryKey) and duplicated edges, adding more coupling than it removes; a prototype-mixin split broke 25 of those contracts.",
       "review_by": "2026-12-22"
-    },
-    "lib/receipt/receipt-read-index.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
     },
     "plugins/company-brain.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
