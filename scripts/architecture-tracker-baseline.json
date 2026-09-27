@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "entries": {
     "agent.v3.js": {
-      "band": "recorded",
-      "lines": 647,
+      "band": "structural",
+      "lines": 1,
       "signals": [
         "DIP"
       ]
@@ -207,8 +207,10 @@
       "lib/agent-step-executor.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
+      "lib/agent-v3-plan-memory.js": "Core",
       "lib/agent-v3-run-state.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
+      "lib/agent-v3-workspace.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
@@ -416,9 +418,11 @@
       "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
+      "lib/external-action-receipt-batch.js": "Core",
       "lib/external-action-receipt-collector-fleet.js": "Core",
       "lib/external-action-receipt-collector-store.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
+      "lib/external-action-receipt-cursor.js": "Core",
       "lib/external-action-receipt-reader.js": "Core",
       "lib/external-action-receipt-shipper.js": "Core",
       "lib/external-action-receipt-writer-factory.js": "Core",
@@ -1291,8 +1295,10 @@
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
+        "lib/agent-v3-plan-memory.js",
         "lib/agent-v3-run-state.js",
         "lib/agent-v3-storage-factory.js",
+        "lib/agent-v3-workspace.js",
         "lib/goal-binding.js"
       ],
       "agentRuntime.js": [
@@ -2409,6 +2415,10 @@
         "lib/external-action-identity-signing.js",
         "lib/human-sponsor-authority.js"
       ],
+      "lib/external-action-receipt-batch.js": [
+        "lib/external-action-identity-log.js",
+        "lib/receipt/signed-receipt-batch.js"
+      ],
       "lib/external-action-receipt-collector-fleet.js": [
         "lib/external-action-identity-log.js",
         "lib/external-action-receipt-collector-store.js"
@@ -2431,6 +2441,8 @@
       ],
       "lib/external-action-receipt-shipper.js": [
         "lib/external-action-identity-log.js",
+        "lib/external-action-receipt-batch.js",
+        "lib/external-action-receipt-cursor.js",
         "lib/external-action-receipt.js"
       ],
       "lib/external-action-receipt-writer-factory.js": [
@@ -5528,6 +5540,12 @@
       {
         "from": "lib/external-action-identity-signing.js",
         "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt-batch.js",
+        "to": "lib/receipt/signed-receipt-batch.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },

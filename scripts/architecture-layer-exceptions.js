@@ -34,6 +34,15 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' it owns --journal, and pass the handle in.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/external-action-receipt-batch.js',
+    to: 'lib/receipt/signed-receipt-batch.js',
+    why: 'The batch envelope signs itself with the receipt signing primitive; the envelope builder'
+      + ' lives flat in lib/ (Core) while signing lives with receipts (Application). The follow-up'
+      + ' fix is to evaluate whether the signing primitive belongs in a shared helper, or the'
+      + ' envelope beside it in lib/receipt/.',
+    review_by: '2026-12-31',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {
