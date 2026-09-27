@@ -37,7 +37,7 @@ describe('Dream - Hayal Kurma', () => {
 });
 
 describe('Dream - Amplifikasyon', () => {
-  it('amplify: doğru cevabın weighti en yüksek olur', () => {
+  it('amplify: ranks verified candidates and leaves the graph untouched', () => {
     const { k, d } = fresh();
     k.learn('Köpek hayvandır');
     k.learn('Köpek havlar');
@@ -49,7 +49,11 @@ describe('Dream - Amplifikasyon', () => {
 
     assert.ok(result.length > 0);
     assert.strictEqual(result[0], 'hayvan');
-    assert.ok(after >= before);
+    // The old loop wrote `edge.weight` onto the clone `getEdge()` returns, so it
+    // reported reinforcement while the graph never changed. Until there is a
+    // receipted edge-weight write port the weight must stay put, and the ranking
+    // is the whole contract.
+    assert.strictEqual(after, before);
   });
 });
 
@@ -261,24 +265,27 @@ describe('Dream - Node2Vec Gömmeler', () => {
     ]);
   });
 
-  it('embedding: processes all workspace nodes in global storage insertion order', () => {
+  it('embedding: walks every node of the requested workspace by bare id', () => {
     const { d } = fresh();
     d.graph.addNode('shared', 'first', null, { workspaceId: 'one' });
-    d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
-    const storageOrder = Object.keys(d.graph._nodes);
+    d.graph.addNode('other', 'second', null, { workspaceId: 'one' });
+    d.graph.addNode('foreign', 'third', null, { workspaceId: 'two' });
     const walkStarts = [];
     d._biasedWalk = start => {
       walkStarts.push(start);
       return [start];
     };
 
-    const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
+    const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1, workspaceId: 'one' });
 
+    // Walk starts are the bare ids `getEdges` accepts, not the scope-prefixed
+    // storage keys -- passing a storage key made every non-default walk stop
+    // at length 1 (#1189).
     assert.strictEqual(result.nodes, 2);
-    assert.deepStrictEqual(walkStarts, storageOrder);
-    for (const storageKey of storageOrder) {
-      assert.ok(d.graph._nodes[storageKey].embedding instanceof Float64Array);
-    }
+    assert.deepStrictEqual(walkStarts.slice().sort(), ['other', 'shared']);
+    assert.ok(d.graph._nodes['one::shared'].embedding instanceof Float64Array);
+    assert.ok(d.graph._nodes['one::other'].embedding instanceof Float64Array);
+    assert.strictEqual(d.graph._nodes['two::foreign'].embedding, undefined);
   });
 
   it('embedding: preserves node identity, replaces embedding, and avoids graph access', () => {
@@ -371,11 +378,11 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.deepStrictEqual(events, ['beforeEmbedding']);
   });
 
-  it('embedding: delegates each computed vector once in storage-key order', () => {
+  it('embedding: assigns each computed vector once, under its storage key', () => {
     const { d } = fresh();
-    d.graph.addNode('shared', 'first', null, { workspaceId: 'one' });
-    d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
-    const storageOrder = Object.keys(d.graph._nodes);
+    d.graph.addNode('shared', 'first');
+    d.graph.addNode('other', 'second');
+    d.graph.addNode('foreign', 'third', null, { workspaceId: 'two' });
     const assignments = [];
     d.graph.assignEmbedding = (storageKey, embedding) => {
       assignments.push({ storageKey, embedding });
@@ -383,13 +390,15 @@ describe('Dream - Node2Vec Gömmeler', () => {
 
     const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
 
-    assert.deepStrictEqual(assignments.map(({ storageKey }) => storageKey), storageOrder);
-    assert.strictEqual(assignments.length, storageOrder.length);
+    // Vectors are written under the scope-prefixed storage key, and only for
+    // the requested workspace's nodes.
+    assert.deepStrictEqual(assignments.map(({ storageKey }) => storageKey).sort(), ['other', 'shared']);
+    assert.strictEqual(assignments.length, 2);
     for (const { embedding } of assignments) {
       assert.ok(embedding instanceof Float64Array);
       assert.strictEqual(embedding.length, 4);
     }
-    assert.deepStrictEqual(result, { dimensions: 4, nodes: storageOrder.length });
+    assert.deepStrictEqual(result, { dimensions: 4, nodes: 2 });
   });
 });
 

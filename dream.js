@@ -1,5 +1,10 @@
 const { normalizeWorkspaceId } = require('./lib/graph-record-utils');
 const { isSymmetricRelation, nodesAreDisjoint, isEligibleHypothesisNode } = require('./lib/dream-hypothesis-semantics');
+const {
+  projectionWeight,
+  nodeSignatureWeight,
+  runEmbedding,
+} = require('./lib/dream-embedding');
 
 const MAX_DREAM_COMPARISONS = 10_000;
 const MAX_DREAM_WORK = 50_000;
@@ -63,120 +68,20 @@ class Dream {
   // ─── Embedding ────────────────────────────────────────────────────────────
 
   embedding(opts = {}) {
-    this._emit('beforeEmbedding', opts);
-    const dims        = opts.dimensions   || 64;
-    const walksPerNode = opts.walksPerNode || 10;
-    const walkLength  = opts.walkLength   || 20;
-    const windowSize  = opts.windowSize   || 5;
-    const p           = opts.p            || 1.0;
-    const q           = opts.q            || 1.0;
-    // Embeddings must be reproducible by default; callers can inject a random
-    // source for experiments without making the normal path flaky.
-    const random = typeof opts.random === 'function'
-      ? opts.random
-      : this._seededRandom(opts.seed ?? 'huqan-dream-embedding');
-
-    const nodes = Object.keys(this.graph._nodes);
-    if (nodes.length < 2) return null;
-
-    // Random walk'lar
-    const walks = [];
-    for (const id of nodes) {
-      for (let w = 0; w < walksPerNode; w++) {
-        walks.push(this._biasedWalk(id, walkLength, p, q, random));
-      }
-    }
-
-    // Co-occurrence matrisi
-    const cooc = new Map();
-    for (const walk of walks) {
-      for (let i = 0; i < walk.length; i++) {
-        const center = walk[i];
-        if (!cooc.has(center)) cooc.set(center, new Map());
-        const ctx = cooc.get(center);
-        const start = Math.max(0, i - windowSize);
-        const end   = Math.min(walk.length - 1, i + windowSize);
-        for (let j = start; j <= end; j++) {
-          if (i === j) continue;
-          ctx.set(walk[j], (ctx.get(walk[j]) || 0) + 1);
-        }
-      }
-    }
-
-    // Vektör üret — geliştirilmiş random projection (sadece +1/-1 yerine sürekli değer)
-    for (const id of nodes) {
-      const ctx = cooc.get(id) || new Map();
-      const vec = new Float64Array(dims);
-      const node = this.graph._nodes[id];
-      for (let d = 0; d < dims; d++) {
-        let sum = 0;
-        for (const [contextId, count] of ctx) {
-          sum += count * this._projectionWeight(contextId, d, dims);
-        }
-        const signature = this._nodeSignatureWeight(node, d, dims);
-        vec[d] = sum + signature * 0.18;
-      }
-      // L2 normalize
-      let mag = 0;
-      for (let d = 0; d < dims; d++) mag += vec[d] * vec[d];
-      mag = Math.sqrt(mag);
-      if (mag > 0) for (let d = 0; d < dims; d++) vec[d] /= mag;
-      this.graph.assignEmbedding(id, vec);
-    }
-
-    const result = { dimensions: dims, nodes: nodes.length };
-    this._emit('afterEmbedding', result);
-    return result;
+    return runEmbedding(this, opts);
   }
 
-  /**
-   * Geliştirilmiş projeksiyon ağırlığı.
-   * Eski _hash sadece +1/-1 döndürüyordu — bu çok kaba.
-   * Şimdi Gaussian benzeri sürekli değer üretiyoruz (FNV-1a tabanlı).
-   */
   _projectionWeight(str, dim, totalDims) {
-    // FNV-1a hash — daha iyi dağılım
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    // Dim'e göre farklı seed ile ikinci hash
-    let h2 = h ^ (dim * 2654435761);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 0x45d9f3b);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 0x45d9f3b);
-    h2 = h2 ^ (h2 >>> 16);
-
-    // h2 zaten signed 32-bit aralığındadır: [-2^31, 2^31 - 1].
-    // Bölme onu doğrudan [-1, 1) aralığına taşır.
-    return h2 / 2147483648;
+    return projectionWeight(str, dim, totalDims);
   }
 
-  _nodeSignatureWeight(node, dim, totalDims) {
-    const edges = this.graph.getEdges(node.id);
-    const inEdges = this.graph.getInEdges(node.id);
-    const label = String(node.label || node.id || '');
-    const relationProfile = edges
-      .map(e => `${e.relation}:${e.to}`)
-      .sort()
-      .join('|');
-    const seed = [
-      `id:${node.id}`,
-      `label:${label}`,
-      `deg:${edges.length}`,
-      `indeg:${inEdges.length}`,
-      `rels:${relationProfile}`,
-    ].join('::');
-
-    const idSignal = this._projectionWeight(seed, dim, totalDims);
-    const labelSignal = this._projectionWeight(`label:${label}`, dim, totalDims);
-    const degreeSignal = this._projectionWeight(`degree:${edges.length}:${inEdges.length}`, dim, totalDims);
-    return (idSignal * 0.58) + (labelSignal * 0.27) + (degreeSignal * 0.15);
+  _nodeSignatureWeight(node, dim, totalDims, workspaceId = 'default') {
+    return nodeSignatureWeight(this.graph, node, dim, totalDims, workspaceId);
   }
 
-  nodeSimilarity(a, b) {
-    const va = this.graph._nodes[a]?.embedding;
-    const vb = this.graph._nodes[b]?.embedding;
+  nodeSimilarity(a, b, workspaceId = 'default') {
+    const va = this.graph.getNode(a, workspaceId)?.embedding;
+    const vb = this.graph.getNode(b, workspaceId)?.embedding;
     if (!va || !vb) return 0;
     let dot = 0, magA = 0, magB = 0;
     for (let i = 0; i < va.length; i++) {
@@ -188,11 +93,14 @@ class Dream {
     return mag === 0 ? 0 : dot / mag;
   }
 
-  findSimilar(nodeId, n = 5) {
-    const ids = Object.keys(this.graph._nodes);
+  findSimilar(nodeId, n = 5, opts = {}) {
+    const workspaceId = normalizeWorkspaceId(opts && typeof opts === 'object' ? opts.workspaceId : opts);
+    const ids = Object.values(this.graph._nodes)
+      .filter(node => normalizeWorkspaceId(node.workspaceId) === workspaceId)
+      .map(node => node.id);
     const scored = ids
       .filter(id => id !== nodeId)
-      .map(id => ({ id, score: this.nodeSimilarity(nodeId, id) }))
+      .map(id => ({ id, score: this.nodeSimilarity(nodeId, id, workspaceId) }))
       .filter(s => s.score > 0);
     return scored.sort((a, b) => b.score - a.score).slice(0, n);
   }
@@ -213,14 +121,14 @@ class Dream {
     };
   }
 
-  _biasedWalk(start, length, p, q, random = Math.random) {
+  _biasedWalk(start, length, p, q, random = Math.random, workspaceId = 'default') {
     const path    = [start];
     const visited = new Set([start]); // döngü önleme için Set kullan
     let prev      = null;
     let current   = start;
 
     for (let i = 0; i < length; i++) {
-      const edges = this.graph.getEdges(current);
+      const edges = this.graph.getEdges(current, workspaceId);
       // Ziyaret edilmemiş komşuları filtrele
       const candidates = edges.filter(e => !visited.has(e.to));
       if (candidates.length === 0) break;
@@ -229,7 +137,7 @@ class Dream {
       const weights = candidates.map(e => {
         if (prev === null) return e.weight;
         if (e.to === prev) return e.weight / p;                    // geri dön
-        const prevEdges = this.graph.getEdges(prev);
+        const prevEdges = this.graph.getEdges(prev, workspaceId);
         const connected = prevEdges.some(pe => pe.to === e.to);
         return e.weight / (connected ? 1.0 : q);                   // BFS vs DFS
       });
@@ -606,6 +514,17 @@ class Dream {
 
   // ─── Amplify / Simulate / Verify ─────────────────────────────────────────
 
+  /**
+   * Rank candidates for an amplified subject, highest score first.
+   *
+   * `graph.getEdge()` returns a clone, so the previous five-iteration loop
+   * wrote `edge.weight` onto a throwaway object: it changed nothing, in the
+   * graph or anywhere else, while the method's shape implied the answer had
+   * been reinforced. There is no receipted edge-weight write port on the graph
+   * -- `addEdge` is the only mutation, and re-adding would replace the record --
+   * so the honest state is to expose the intended delta alongside the ranking
+   * and let a caller with a mutation path apply it.
+   */
   amplify(subject, candidates, relation, opts = {}) {
     const workspaceId = normalizeWorkspaceId(opts && typeof opts === 'object' ? opts.workspaceId : opts);
     const scored = candidates.map(c => {
@@ -620,18 +539,9 @@ class Dream {
       };
     });
 
-    for (let iter = 0; iter < 5; iter++) {
-      const totalScore = scored.reduce((sum, s) => sum + s.score, 0);
-      if (totalScore === 0) break;
-      for (const s of scored) {
-        if (s.score > 0) {
-          const edge = this.graph.getEdge(subject, s.answer, relation, workspaceId);
-          if (edge) {
-            const ratio = s.score / totalScore;
-            edge.weight = Math.min(1, edge.weight + ratio * 0.1);
-          }
-        }
-      }
+    const totalScore = scored.reduce((sum, s) => sum + s.score, 0);
+    for (const s of scored) {
+      s.weightDelta = s.score > 0 && totalScore > 0 ? Math.min(0.1, (s.score / totalScore) * 0.1) : 0;
     }
 
     return scored.sort((a, b) => b.score - a.score).map(s => s.answer);

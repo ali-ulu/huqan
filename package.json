@@ -469,6 +469,7 @@
     "lib/unexpected-egress-gate.js",
     "lib/residency-rule-miner.js",
     "lib/deterministic-json-copy.js",
+    "lib/dream-embedding.js",
     "lib/dream-experiment-loop.js",
     "lib/dream-hypothesis-semantics.js",
     "lib/evidence-ladder.js",

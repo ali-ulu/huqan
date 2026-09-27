@@ -77,6 +77,31 @@ test('legacy calls retain default-workspace behavior', () => {
   assert.deepEqual(dream.walk('source', 1), ['source', 'target']);
 });
 
+test('embedding stays inside the requested workspace and is not degenerate', () => {
+  const { dream, graph } = fixture();
+  addPath(graph, 'default', 'shared-source', 'default-target', 0.9);
+  addPath(graph, 'tenant-b', 'shared-source', 'tenant-hub', 0.9);
+  addPath(graph, 'tenant-b', 'tenant-sibling', 'tenant-hub', 0.9);
+
+  dream.embedding({ dimensions: 16, walksPerNode: 4, walkLength: 6, workspaceId: ' tenant-b ' });
+
+  // Every walk must be able to leave its start node. Reading `_nodes` by storage
+  // key instead of id left non-default walks at length 1, so every vector was the
+  // node's own signature and every similarity came back 0 (#1189).
+  const similar = dream.findSimilar('shared-source', 5, { workspaceId: ' tenant-b ' });
+  // shared-source and tenant-sibling both point at tenant-hub, so the walk
+  // co-occurrence must make them similar -- a non-zero score is exactly what
+  // the degeneracy erased.
+  assert.ok(
+    similar.some(item => item.id === 'tenant-sibling' && item.score > 0),
+    `expected a non-zero similarity to tenant-sibling, got ${JSON.stringify(similar)}`,
+  );
+  assert.ok(similar.every(item => item.id !== 'default-target'));
+
+  assert.equal(graph.getNode('shared-source', 'tenant-b').embedding.length, 16);
+  assert.equal(graph.getNode('shared-source', 'default').embedding, undefined);
+});
+
 test('all graph reads receive the same normalized workspace value', () => {
   const { dream, graph } = fixture();
   addPath(graph, 'tenant-b', 'source', 'target', 0.9);

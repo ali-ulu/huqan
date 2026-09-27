@@ -17,7 +17,7 @@
     },
     "dream.js": {
       "band": "recorded",
-      "lines": 726,
+      "lines": 636,
       "signals": []
     },
     "graph.js": {
@@ -868,6 +868,7 @@
       "lib/risk-policy-constants.js": "Core",
       "lib/risk-rules.js": "Core",
       "lib/risk-scale.js": "Core",
+      "lib/risk-target-markers.js": "Core",
       "lib/run-impact.js": "Core",
       "lib/runtime-watchdog-audit.js": "Core",
       "lib/runtime-watchdog.js": "Core",
@@ -4120,7 +4121,8 @@
       "lib/risk-classify.js": [
         "lib/financial-action-policy.js",
         "lib/is-plain-object.js",
-        "lib/risk-policy-constants.js"
+        "lib/risk-policy-constants.js",
+        "lib/risk-target-markers.js"
       ],
       "lib/risk-rules.js": [
         "lib/adversarial-signals.js",
