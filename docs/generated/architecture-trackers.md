@@ -3,13 +3,12 @@
 
 Tracked in total: **20**
 
-## Decomposition owed, over 800 lines (1)
+## Decomposition owed, over 800 lines (0)
 
 | File | Lines | Signals |
 |---|---:|---|
-| `kernel.js` | 842 | FANOUT:39 |
 
-## Recorded debt, 401-800 lines (15)
+## Recorded debt, 401-800 lines (16)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -25,6 +24,7 @@ Tracked in total: **20**
 | `sandboxRunner.js` | 530 | OCP:8 |
 | `lib/github-connector.js` | 518 | — |
 | `lib/atp-conformance.js` | 504 | — |
+| `kernel.js` | 495 | FANOUT:37 |
 | `lib/http/workflow-data-routes.js` | 477 | — |
 | `lib/learn-use-case.js` | 432 | — |
 | `lib/huqan-package-format.js` | 428 | — |

@@ -136,10 +136,12 @@ test('the fifteen discarding sites are five caller functions', () => {
   // method. #2127 extracted _crossLink's body to lib/kernel-cross-link.js
   // and proposeNode's body to lib/kernel-propose-node.js (dilim 2); dilim 3
   // moved learn()'s body to lib/kernel-learn-transaction.js, leaving a
-  // one-line facade. Current pins: learn facade at 529, _crossLink facade
-  // at 587. The strict-provenance helper added before executeLearn shifts
-  // its pinned sites by 29 lines.
-  assert.deepEqual(new Set(enclosing('kernel.js', [529, 587])), new Set(['learn', '_crossLink']));
+  // one-line facade. #2122 moved kernel.js's read, primitive, capability,
+  // persistence and learn-input method groups to lib/kernel-*-methods.js.
+  // Current pins: learn facade at 332, _crossLink facade at 375. The
+  // strict-provenance helper added before executeLearn shifts its pinned
+  // sites by 29 lines.
+  assert.deepEqual(new Set(enclosing('kernel.js', [332, 375])), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
   assert.deepEqual(

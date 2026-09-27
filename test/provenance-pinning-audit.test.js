@@ -40,6 +40,7 @@ const PROVENANCE_PATHS = [
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
   'lib/provenance-ingest-adapter.js',
+  'lib/kernel-learn-input-methods.js',
 ];
 
 /**
@@ -102,6 +103,11 @@ const NOT_PINNED = {
     + 'already built. It reads no external content itself, so there is nothing of '
     + 'its own to pin: a caller-supplied contentHash and sourceVersion pass '
     + 'straight through the builder, which carries the pin. No production caller yet.',
+  'lib/kernel-learn-input-methods.js':
+    'is Kernel._normalizeProvenanceInput, moved out of kernel.js (#2122). It shapes '
+    + 'the provenance a learn() caller supplied through buildProvenance and reads no '
+    + 'external content itself, so there is nothing of its own to pin: the '
+    + 'caller-supplied contentHash and sourceVersion pass straight through the builder.',
 };
 
 function sourceOf(rel) {

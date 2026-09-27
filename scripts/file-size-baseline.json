@@ -12,7 +12,7 @@
   "files": {
     "agent.v3.js": 623,
     "dream.js": 624,
-    "kernel.js": 842,
+    "kernel.js": 495,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
     "lib/dream-experiment-loop.js": 533,
@@ -37,8 +37,8 @@
       "review_by": "2027-03-31"
     },
     "kernel.js": {
-      "why": "Kernel is the public compatibility facade and composition root for the v1 runtime: it assembles Graph, MemoryStore, PluginManager, VerifyService and the ephemeral sandbox Kernel. Moving those constructions outward would leak runtime assembly into callers; further size reduction is still owed where cohesive seams can be extracted without increasing coupling. Review alongside #2127 successor decomposition work.",
-      "review_by": "2026-12-31"
+      "why": "Split 842 -> 495 (#2122, 2026-09-27): the read, primitive (NLP/envelope/predicate/traversal), capability, persistence and learn-input method groups moved to lib/kernel-*-methods.js, installed on Kernel.prototype with unchanged descriptors. What remains is kept on purpose. (1) Composition root (ENTRYPOINTS in scripts/architecture-snapshot-scope.js, test/kernel-composition-root-policy.test.js): the constructor assembles Graph, MemoryStore, PluginManager, VerifyService and the read use cases; moving that into lib/ would put DIP constructions in a non-root module. (2) The admission/audit chokepoint: _appendAuditEvent is the one graph.appendAuditEvent call and learn/proposeNode/_crossLink/commitBackgroundEdge are its four call sites (test/audit-family-independence.test.js, test/pre-site-refusal-survives-audit-failure.test.js, test/mutation-admission-boundary.contract.test.js sinks addEdge 2 / appendAuditEvent 1); the candidate-claim facades route through admit*. (3) ADMISSION_BYPASS_TOKEN is module-private by design (#357), so _isLearnAdmissionBypass, reasonSandbox and createAdmissionBypassOpts must share this file. (4) dream, learnDocument, learnFromLLM, selfEvolve, selfLearn, alternatives, contextSimilarity and _autoThinkTick are one-line delegates whose text test/kernel-*-delegation-contract.test.js pins in kernel.js; the auto-think timer needs dream.js, a recorded Core->Application edge that a lib/ split cannot carry while dream() keeps it here. Next seam, if any: the auto-think timer once Dream is injected.",
+      "review_by": "2027-03-31"
     },
     "lib/atp-conformance.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",

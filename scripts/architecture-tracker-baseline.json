@@ -28,10 +28,10 @@
       ]
     },
     "kernel.js": {
-      "band": "decompose",
-      "lines": 842,
+      "band": "recorded",
+      "lines": 495,
       "signals": [
-        "FANOUT:39"
+        "FANOUT:37"
       ]
     },
     "kernel.v2.js": {
@@ -634,6 +634,7 @@
       "lib/json-utf8-size.js": "Core",
       "lib/kernel-alternatives.js": "Core",
       "lib/kernel-auto-think.js": "Core",
+      "lib/kernel-capability-methods.js": "Core",
       "lib/kernel-context-similarity.js": "Core",
       "lib/kernel-contract.js": "Core",
       "lib/kernel-cross-link.js": "Core",
@@ -644,9 +645,14 @@
       "lib/kernel-learn-admission.js": "Core",
       "lib/kernel-learn-document.js": "Core",
       "lib/kernel-learn-from-llm.js": "Core",
+      "lib/kernel-learn-input-methods.js": "Core",
       "lib/kernel-learn-transaction.js": "Core",
+      "lib/kernel-method-install.js": "Core",
       "lib/kernel-mutation-admission.js": "Core",
+      "lib/kernel-persistence-methods.js": "Core",
+      "lib/kernel-primitive-methods.js": "Core",
       "lib/kernel-propose-node.js": "Core",
+      "lib/kernel-read-methods.js": "Core",
       "lib/kernel-read-use-cases-analysis.js": "Core",
       "lib/kernel-read-use-cases-ask.js": "Core",
       "lib/kernel-read-use-cases-language.js": "Core",
@@ -1438,35 +1444,33 @@
         "dream.js",
         "graph.js",
         "lib/background-provenance.js",
-        "lib/cli-mutation-audit-intent.js",
         "lib/cli-mutation-audit.js",
         "lib/conflict-detector.js",
         "lib/environment-compat.js",
         "lib/errors/provenance-error.js",
-        "lib/graph-traversal.js",
         "lib/kernel-alternatives.js",
         "lib/kernel-auto-think.js",
+        "lib/kernel-capability-methods.js",
         "lib/kernel-context-similarity.js",
         "lib/kernel-contract.js",
         "lib/kernel-cross-link.js",
         "lib/kernel-dream.js",
-        "lib/kernel-envelope.js",
-        "lib/kernel-introspect-report.js",
         "lib/kernel-learn-admission.js",
         "lib/kernel-learn-document.js",
         "lib/kernel-learn-from-llm.js",
+        "lib/kernel-learn-input-methods.js",
         "lib/kernel-learn-transaction.js",
         "lib/kernel-mutation-admission.js",
+        "lib/kernel-persistence-methods.js",
+        "lib/kernel-primitive-methods.js",
         "lib/kernel-propose-node.js",
+        "lib/kernel-read-methods.js",
         "lib/kernel-read-use-cases.js",
         "lib/kernel-self-evolve.js",
         "lib/kernel-self-learn.js",
-        "lib/learn-edge-options.js",
         "lib/learn-use-case.js",
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
-        "lib/predicate-parser.js",
-        "lib/provenance-ingest.js",
         "lib/reason-sandbox.js",
         "lib/receipt/canonical-receipt.js",
         "lib/verdict/action-verdict.js",
@@ -3211,6 +3215,10 @@
         "lib/environment-compat.js",
         "lib/receipt/issuer-seal.js"
       ],
+      "lib/kernel-capability-methods.js": [
+        "lib/kernel-contract.js",
+        "lib/kernel-method-install.js"
+      ],
       "lib/kernel-dream.js": [
         "lib/workspace-id.js"
       ],
@@ -3230,6 +3238,11 @@
         "lib/human-approval-toggle.js",
         "lib/kernel-contract.js"
       ],
+      "lib/kernel-learn-input-methods.js": [
+        "lib/kernel-method-install.js",
+        "lib/learn-edge-options.js",
+        "lib/provenance-ingest.js"
+      ],
       "lib/kernel-learn-transaction.js": [
         "lib/cli-mutation-audit-intent.js",
         "lib/errors/provenance-error.js"
@@ -3238,9 +3251,23 @@
         "lib/conflict-detector.js",
         "lib/mutation-admission.js"
       ],
+      "lib/kernel-persistence-methods.js": [
+        "lib/kernel-method-install.js"
+      ],
+      "lib/kernel-primitive-methods.js": [
+        "lib/graph-traversal.js",
+        "lib/kernel-envelope.js",
+        "lib/kernel-method-install.js",
+        "lib/predicate-parser.js"
+      ],
       "lib/kernel-propose-node.js": [
         "lib/background-provenance.js",
         "lib/cli-mutation-audit-intent.js"
+      ],
+      "lib/kernel-read-methods.js": [
+        "lib/cli-mutation-audit-intent.js",
+        "lib/kernel-introspect-report.js",
+        "lib/kernel-method-install.js"
       ],
       "lib/kernel-read-use-cases-ask.js": [
         "lib/kernel-read-use-cases-language.js"
