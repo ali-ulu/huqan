@@ -91,7 +91,10 @@ test('the opt-out on a non-loopback bind is refused at boot with a specific code
       assert.throws(() => enforceApiAuthOptOutPolicy(), (error) => {
         assert.equal(error.code, 'HUQAN_API_AUTH_OPT_OUT_UNSAFE');
         assert.match(error.message, /only safe on a loopback bind/);
-        assert.match(error.message, new RegExp(host.replace(/\./g, '\\.')));
+        assert.ok(
+          error.message.includes(`the configured bind is ${host}`),
+          `message must name the bind ${host}`,
+        );
         return true;
       }, `host ${host} must be refused`);
     });
