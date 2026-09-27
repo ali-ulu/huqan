@@ -11,7 +11,6 @@
   "threshold": 400,
   "files": {
     "agent.v3.js": 623,
-    "dream.js": 624,
     "kernel.js": 495,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
@@ -22,7 +21,6 @@
     "lib/huqan-package-format.js": 428,
     "lib/learn-use-case.js": 432,
     "lib/memory-store.js": 578,
-    "lib/receipt/receipt-read-index.js": 635,
     "lib/risk-classify.js": 734,
     "plugins/company-brain.js": 630,
     "sandboxRunner.js": 530
@@ -32,13 +30,9 @@
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     },
-    "dream.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "kernel.js": {
-      "why": "Split 842 -> 495 (#2122, 2026-09-27): the read, primitive (NLP/envelope/predicate/traversal), capability, persistence and learn-input method groups moved to lib/kernel-*-methods.js, installed on Kernel.prototype with unchanged descriptors. What remains is kept on purpose. (1) Composition root (ENTRYPOINTS in scripts/architecture-snapshot-scope.js, test/kernel-composition-root-policy.test.js): the constructor assembles Graph, MemoryStore, PluginManager, VerifyService and the read use cases; moving that into lib/ would put DIP constructions in a non-root module. (2) The admission/audit chokepoint: _appendAuditEvent is the one graph.appendAuditEvent call and learn/proposeNode/_crossLink/commitBackgroundEdge are its four call sites (test/audit-family-independence.test.js, test/pre-site-refusal-survives-audit-failure.test.js, test/mutation-admission-boundary.contract.test.js sinks addEdge 2 / appendAuditEvent 1); the candidate-claim facades route through admit*. (3) ADMISSION_BYPASS_TOKEN is module-private by design (#357), so _isLearnAdmissionBypass, reasonSandbox and createAdmissionBypassOpts must share this file. (4) dream, learnDocument, learnFromLLM, selfEvolve, selfLearn, alternatives, contextSimilarity and _autoThinkTick are one-line delegates whose text test/kernel-*-delegation-contract.test.js pins in kernel.js; the auto-think timer needs dream.js, a recorded Core->Application edge that a lib/ split cannot carry while dream() keeps it here. Next seam, if any: the auto-think timer once Dream is injected.",
-      "review_by": "2027-03-31"
+      "why": "Kernel is the public compatibility facade and composition root for the v1 runtime: it assembles Graph, MemoryStore, PluginManager, VerifyService and the ephemeral sandbox Kernel. Moving those constructions outward would leak runtime assembly into callers; further size reduction is still owed where cohesive seams can be extracted without increasing coupling. Review alongside #2127 successor decomposition work.",
+      "review_by": "2026-12-31"
     },
     "lib/atp-conformance.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
@@ -75,10 +69,6 @@
     "lib/memory-store.js": {
       "why": "Kept as the thin facade over its delegates (#2129, 2026-09-26). 971 -> 594 by moving logic into memory-* delegate modules; cross-module private calls are 0. What remains is the public MemoryStore surface (facade methods and their JSDoc) plus the _*StoreApi()/_*ReadContext() builders, and ten test/memory-*-delegation-contract.test.js files pin exactly that shape in this file: each delegate required once here, each facade body, and exact call-site counts. Moving a builder into its delegate needs private-state promotions (_findMemory, _snapshotInMemoryState, _restoreInMemoryState, _makeMemoryKey) and duplicated edges, adding more coupling than it removes; a prototype-mixin split broke 25 of those contracts.",
       "review_by": "2026-12-22"
-    },
-    "lib/receipt/receipt-read-index.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
     },
     "lib/risk-classify.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",

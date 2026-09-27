@@ -15,11 +15,6 @@
         "FANOUT:24"
       ]
     },
-    "dream.js": {
-      "band": "recorded",
-      "lines": 624,
-      "signals": []
-    },
     "graph.js": {
       "band": "structural",
       "lines": 392,
@@ -87,11 +82,6 @@
       "signals": [
         "FANOUT:20"
       ]
-    },
-    "lib/receipt/receipt-read-index.js": {
-      "band": "recorded",
-      "lines": 635,
-      "signals": []
     },
     "lib/risk-classify.js": {
       "band": "recorded",
@@ -343,6 +333,9 @@
       "lib/deterministic-task-runner.js": "Core",
       "lib/dream-embedding.js": "Core",
       "lib/dream-experiment-loop.js": "Core",
+      "lib/dream-graph-paths.js": "Core",
+      "lib/dream-hypothesis-finders.js": "Core",
+      "lib/dream-hypothesis-scoring.js": "Core",
       "lib/dream-hypothesis-semantics.js": "Core",
       "lib/emergency-stop-chain.js": "Core",
       "lib/emergency-stop.js": "Core",
@@ -865,6 +858,8 @@
       "lib/receipt/receipt-export.js": "Application",
       "lib/receipt/receipt-exporter-paths.js": "Application",
       "lib/receipt/receipt-exporter-pdf.js": "Application",
+      "lib/receipt/receipt-read-index-anchor.js": "Application",
+      "lib/receipt/receipt-read-index-entries.js": "Application",
       "lib/receipt/receipt-read-index.js": "Application",
       "lib/receipt/receipt-stamp.js": "Application",
       "lib/receipt/receipt-validation-cache.js": "Application",
@@ -1368,6 +1363,9 @@
       ],
       "dream.js": [
         "lib/dream-embedding.js",
+        "lib/dream-graph-paths.js",
+        "lib/dream-hypothesis-finders.js",
+        "lib/dream-hypothesis-scoring.js",
         "lib/dream-hypothesis-semantics.js",
         "lib/graph-record-utils.js"
       ],
@@ -2030,7 +2028,8 @@
       ],
       "lib/coder/experience-reporter.js": [
         "lib/experience/adapter-scope.js",
-        "lib/experience/contract.js"
+        "lib/experience/contract.js",
+        "lib/experience/verifier.js"
       ],
       "lib/coder/journal-store.js": [
         "lib/experience/journal.js",
@@ -2169,6 +2168,12 @@
       "lib/dream-experiment-loop.js": [
         "causalSimulator.js",
         "lib/workspace-id.js"
+      ],
+      "lib/dream-hypothesis-finders.js": [
+        "lib/dream-hypothesis-semantics.js"
+      ],
+      "lib/dream-hypothesis-scoring.js": [
+        "lib/graph-record-utils.js"
       ],
       "lib/dream-hypothesis-semantics.js": [
         "lib/type-lattice.js"
@@ -4133,15 +4138,28 @@
         "lib/path-safety.js",
         "lib/receipt/receipt-exporter-paths.js"
       ],
-      "lib/receipt/receipt-read-index.js": [
+      "lib/receipt/receipt-read-index-anchor.js": [
+        "lib/json-clone.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-read-index-entries.js",
+        "lib/receipt/v4-receipt-family.js"
+      ],
+      "lib/receipt/receipt-read-index-entries.js": [
         "lib/is-plain-object.js",
         "lib/json-clone.js",
         "lib/receipt/canonical-receipt-v2.js",
         "lib/receipt/canonical-receipt.js",
-        "lib/receipt/receipt-chain.js",
-        "lib/receipt/receipt-export.js",
         "lib/receipt/v4-receipt-family.js",
         "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/receipt-read-index.js": [
+        "lib/json-clone.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-export.js",
+        "lib/receipt/receipt-read-index-anchor.js",
+        "lib/receipt/receipt-read-index-entries.js",
+        "lib/receipt/v4-receipt-family.js"
       ],
       "lib/receipt/receipt-stamp.js": [
         "lib/graph-record-utils.js",

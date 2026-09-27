@@ -20,14 +20,26 @@ const { buildCanonicalReceiptPayload } = require('../lib/receipt/canonical-recei
 const ROOT = path.join(__dirname, '..');
 const PRIVATE_NAMES = /\b_readJsonJournal\b|\b_readMutationReceiptFromJsonJournal\b/;
 
-const READER_MODULES = ['mutation-journal.js', 'receipt-read-index.js'];
+// receipt-read-index.js is split into receipt-read-index-<part>.js modules
+// (#2120); the durable chain anchor that reads the journal lives in one of them,
+// so every part of the read index counts as a reader.
+const READER_MODULE_PATTERN = /[\\/](?:mutation-journal|receipt-read-index(?:-[a-z]+)*)\.js\b/;
 
-/** Throws only when the direct caller is one of the two reader modules. */
+function readerSourceFiles() {
+  const receiptDir = path.join(ROOT, 'lib', 'receipt');
+  const readIndexParts = fs.readdirSync(receiptDir)
+    .filter((name) => /^receipt-read-index(?:-[a-z]+)*\.js$/.test(name))
+    .map((name) => path.posix.join('lib/receipt', name));
+  assert.ok(readIndexParts.includes('lib/receipt/receipt-read-index.js'), 'the read-index entry file must be scanned');
+  return ['lib/mutation-journal.js', ...readIndexParts];
+}
+
+/** Throws only when the direct caller is one of the reader modules. */
 function guardAgainstReaders(graph, name) {
   const original = graph[name].bind(graph);
   graph[name] = (...args) => {
     const caller = String(new Error().stack).split('\n')[2] || '';
-    if (READER_MODULES.some(file => caller.includes(file))) {
+    if (READER_MODULE_PATTERN.test(caller)) {
       throw new Error(`private Graph#${name} used from ${caller.trim()}`);
     }
     return original(...args);
@@ -92,7 +104,7 @@ test('a receipt read anchors its chain through the public journal surface', () =
 });
 
 test('neither reader names the private Graph journal members', () => {
-  for (const rel of ['lib/mutation-journal.js', 'lib/receipt/receipt-read-index.js']) {
+  for (const rel of readerSourceFiles()) {
     assert.doesNotMatch(fs.readFileSync(path.join(ROOT, rel), 'utf8'), PRIVATE_NAMES, `${rel} must use the public surface`);
   }
 });
