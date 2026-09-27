@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const { createExecutionScope } = require('./lib/goal-binding');
-const Agent = require('./agent');
+const { createDefaultAgentV3BaseAgent } = require('./lib/agent-v3-base-agent-factory');
+const { normalizeAgentV3WorkspaceId } = require('./lib/agent-v3-workspace');
+const { annotatePlanWithGoalMemory } = require('./lib/agent-v3-plan-memory');
 const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
 const { evaluateAgentV3LoopBudget, unavailableBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-v3-loop-budget');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
@@ -9,16 +11,8 @@ const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
 const { finalizeAgentRun } = require('./lib/agent-run-finalization');
 const { cloneValue, hydrateRunState, saveRunCheckpoint } = require('./lib/agent-v3-run-state');
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
 function normalizeGoal(goal) {
   return String(goal || '').trim();
-}
-
-function lower(goal) {
-  return normalizeGoal(goal).toLowerCase();
 }
 
 /**
@@ -49,10 +43,9 @@ class AgentV3 {
   constructor(opts = {}) {
     this.kernel = opts.kernel;
     this.dream = opts.dream || (this.kernel ? new (require('./dream'))(this.kernel) : null);
-    this.baseAgent = opts.baseAgent || new Agent({
+    this.baseAgent = opts.baseAgent || createDefaultAgentV3BaseAgent({
       kernel: this.kernel,
       dream: this.dream,
-      memoryPath: null,
       maxSteps: opts.maxSteps || 4,
       storage: createToolApprovalSeam(() => this.storage),
     });
@@ -190,40 +183,20 @@ class AgentV3 {
     const result = this.baseAgent.plan(goal, { ...opts, maxSteps: opts.maxSteps || this.maxSteps });
     if (!result || result.ok === false) return result;
     // Scoped: goal memory used to be global by goal text, so planning the same
-    // goal returned another workspace's history (#757).
-    const memory = this.storage.getGoalMemory(goal, opts.workspaceId);
+    // goal returned another workspace's history (#757). Normalized so this read
+    // keys the workspace run() will use, and so a non-string id fails
+    // structurally below rather than as a raw storage TypeError.
+    const workspace = normalizeAgentV3WorkspaceId(opts.workspaceId);
+    if (!workspace.ok) return this.fail('agent', 'AGENT_WORKSPACE_ID_INVALID', workspace.message, [], { workspaceId: opts.workspaceId });
+    let memory;
+    try {
+      memory = this.storage.getGoalMemory(goal, workspace.workspaceId);
+    } catch (err) {
+      return this._storageFailure('getGoalMemory', err);
+    }
     const data = cloneValue(result.data);
     labelPlanDataForDreamLoop(data, opts, this.kernel, this.dreamExperimentLoop);
-    data.memory = {
-      ...(data.memory || {}),
-      storage: {
-        goal: normalizeGoal(goal),
-        key: lower(goal),
-        tracked: Boolean(memory),
-        goalMemory: memory
-          ? {
-              successCount: Number(memory.success_count || 0),
-              blockedCount: Number(memory.blocked_count || 0),
-              errorCount: Number(memory.error_count || 0),
-              resumedCount: Number(memory.resumed_count || 0),
-              lastStatus: memory.last_status || 'unknown',
-              pattern: memory.pattern || {},
-            }
-          : {
-              successCount: 0,
-              blockedCount: 0,
-              errorCount: 0,
-              resumedCount: 0,
-              lastStatus: 'unknown',
-              pattern: {},
-            },
-      },
-    };
-    if (data.policy && Array.isArray(data.policy.signals) && memory) {
-      if (!data.policy.signals.includes('goal-memory')) {
-        data.policy.signals.push('goal-memory');
-      }
-    }
+    annotatePlanWithGoalMemory(data, memory, goal);
     data.recommendations = this._runtime().buildRunRecommendations({
       goal: data.goal,
       objective: data.objective,
@@ -290,7 +263,9 @@ class AgentV3 {
     // Resolve the workspace before loading a checkpoint: checkpoints are
     // workspace-scoped, and looking one up by goal alone would let a run in
     // one workspace hydrate another workspace's paused state.
-    const workspaceId = String(opts.workspaceId || 'default').trim() || 'default';
+    const workspace = normalizeAgentV3WorkspaceId(opts.workspaceId);
+    if (!workspace.ok) return this.fail('agent', 'AGENT_WORKSPACE_ID_INVALID', workspace.message, [], { workspaceId: opts.workspaceId });
+    const workspaceId = workspace.workspaceId;
     const requestedCheckpointId = normalizeGoal(opts.checkpointId);
     const requestedResumeToken = normalizeGoal(opts.resumeToken);
     if (requestedCheckpointId || requestedResumeToken) {

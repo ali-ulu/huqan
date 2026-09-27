@@ -36,6 +36,7 @@ const ENTRYPOINTS = ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRu
 const COMPOSITION_ROOTS = Object.freeze([
   { file: 'lib/kernel-factory.js', why: 'Assembles KernelV2 for the CLI, server and MCP entrypoints.', review_by: '2027-03-31' },
   { file: 'lib/agent-v3-storage-factory.js', why: 'Opens the HuqanStorage an AgentV3 is handed when the caller passes none.', review_by: '2027-03-31' },
+  { file: 'lib/agent-v3-base-agent-factory.js', why: 'Builds the storage-less Agent an AgentV3 wraps as its baseAgent when the caller passes none.', review_by: '2027-03-31' },
   { file: 'lib/mcp-approval-store-factory.js', why: 'Opens the HuqanStorage behind the MCP approval store.', review_by: '2027-03-31' },
   { file: 'lib/external-action-receipt-writer-factory.js', why: 'Builds the Graph an external-action receipt writer persists to.', review_by: '2027-03-31' },
   { file: 'lib/rust-graph-fallback-factory.js', why: 'Builds the JavaScript Graph used when the Rust accelerator is unavailable.', review_by: '2027-03-31' },
