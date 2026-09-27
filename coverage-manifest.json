@@ -203,21 +203,6 @@
       ]
     },
     {
-      "file": "lib/cli-coder-journal.js",
-      "role": "operator_tool",
-      "why": "creates the operator-named journal database directory on explicit coder --journal invocation; mkdir only, the database itself is opened by better-sqlite3 and the journal rows are the gated pilot evidence",
-      "capabilities": [
-        "fs_write"
-      ],
-      "sites": [
-        {
-          "line": 34,
-          "capability": "fs_write",
-          "call": "nodeFs.mkdirSync"
-        }
-      ]
-    },
-    {
       "file": "lib/cli-coder-verify.js",
       "role": "adapter_read",
       "why": "execFileSync of git show to read a file as of a base ref while re-deriving a recorded transform; argv is fixed in source, no shell is involved, and the command only reads history",
@@ -274,6 +259,21 @@
           "line": 137,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/journal-store.js",
+      "role": "operator_tool",
+      "why": "creates the operator-named journal database directory on explicit coder --journal invocation; mkdir only, the database itself is opened by better-sqlite3 and the journal rows are the gated pilot evidence",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 34,
+          "capability": "fs_write",
+          "call": "nodeFs.mkdirSync"
         }
       ]
     },

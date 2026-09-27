@@ -192,7 +192,7 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure',
   }),
-  'lib/cli-coder-journal.js': Object.freeze({
+  'lib/coder/journal-store.js': Object.freeze({
     role: 'operator_tool',
     why: 'creates the operator-named journal database directory on explicit coder --journal invocation; mkdir only, the database itself is opened by better-sqlite3 and the journal rows are the gated pilot evidence',
   }),
