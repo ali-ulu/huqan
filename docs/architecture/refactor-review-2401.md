@@ -109,4 +109,29 @@ REOPEN olarak kaydedilmiş ve kendi PR'larıyla kapatılmıştır.
 | #2276 | `lib/http/public-badge-route.js` | 278 | KEEP | 13 fonksiyon, en uzunu 33 satır; tek rota. Test: `test/public-badge-route.test.js`. |
 | #2277 | `lib/trust-evidence-ledger.js` | 365 | KEEP | 12 fonksiyon, en uzunu `buildTrustEvidencePayload` 59 satır; tek defter. Test: `test/mcp-ingest-trust-evidence-ledger.test.js`. |
 
-Açık kalan: #2280'den başlayan adaylar (sonraki partiler).
+## Parti 5 — `lib/`, `plugins/`, `public/` (#2280–#2300)
+
+İnceleme tabanı: `origin/main` @ `e32711d`. `scripts/comment-pr-guardian-block.js` (#2286) Parti 1'de karara bağlandı.
+
+| Issue | Dosya | Satır | Karar | Kaynak sembolleri / korunan invariant / test / gerekçe |
+|---|---|---:|---|---|
+| #2280 | `lib/pr-guardian/review-service.js` | 251 | KEEP | Receipt kurucusu `review-receipt.js`'e ayrılmıştı (`addf3855`). `createReviewService` içinde `execute` (113 satır) onaylı yürütmenin fail-closed koruma sırası: kayıt → durum → önceki yürütme → operatör token → claim desteği → hedef değişmedi mi → preflight politika → istemci → action desteği, **claim en sonda** ("decided before the claim so an action this service cannot perform is refused without consuming the approval"). Sıra invariantın kendisi. Test: `test/pr-guardian-execute-once.test.js`, `test/pr-guardian.test.js`. |
+| #2281 | `lib/mcp-agent-approval-execution.js` | 271 | KEEP | 6 fonksiyon, en uzunu 31 satır; enjekte edilebilir onaylı ajan yürütmesi (`f382673f`). Test: `test/h-07-agent-claim-lease-recovery.test.js`. |
+| #2282 | `lib/registry/registry-record-shape.js` | 272 | KEEP | 9 kısa şekil/versiyon fonksiyonu (en uzunu 19 satır); tek kayıt şeması. Test: `test/registry-record-shape.test.js`. |
+| #2284 | `lib/coder/apply-derivation.js` | 269 | KEEP | `applyDerivation` (101 satır) sıralı boru hattı: bildirilen dosyaları oku → `runTask` → patch özeti → `evaluateCodeChange` gate → dry-run → `writePatch`; gate yazmadan önce, dry-run gate'ten sonra. Adımlar zaten ayrı fonksiyonlar. Test: `test/coder-verify-derivation.test.js`, `test/pr-guardian-derivation.test.js`. |
+| #2285 | `lib/observability/notification-adapter.js` | 270 | KEEP | 19 küçük fonksiyon (en uzunu 13 satır): kanal başına bildirim biçimleyicileri. Test: `test/observability-notification-adapter.test.js`. |
+| #2287 | `lib/claim-decomposition.js` | 264 | KEEP | 12 fonksiyon, en uzunu `decomposeClaim` 55 satır; tek ayrıştırıcı. Test: `test/claim-decomposition.test.js`. |
+| #2288 | `lib/memory-recall-gate.js` | 272 | KEEP | `evaluateMemoryRecall` (95 satır): girdi doğrulama + kayıt başına karar döngüsü (admitted/degraded/withheld + ledger olayları). Tek gate kararı. Test: `test/memory-recall-gate-query-wiring.test.js`, `test/memory-expiry.test.js`. |
+| #2290 | `lib/receipt/cryptographic-profile-contract.js` | 262 | KEEP | 11 fonksiyon, en uzunu 39 satır; tek kriptografik profil sözleşmesi ve kanonik serileştirme. Test: `test/v5-cryptographic-profile-contract.test.js`. |
+| #2291 | `plugins/evidence-validator.js` | 263 | KEEP | 9 fonksiyon, en uzunu 47 satır; tek eklenti. Test: `test/secret-and-sourceref-redaction.test.js`. |
+| #2292 | `lib/observability/client.js` | 262 | KEEP | `createObservabilityTelemetryClient` fabrikası, kapanışları kısa (`startRun`, `recordStep`, `recordGateDecision`, `finishRun`; en uzunu 33 satır). Test: `test/observability-client.test.js`. |
+| #2293 | `lib/self-healer/finding-classifier.js` | 260 | KEEP | 10 fonksiyon, en uzunu 51 satır. Test: `test/self-healer-finding-classifier.test.js`. |
+| #2294 | `lib/mutation-admission.js` | 259 | KEEP | `createMutationAdmission` tek `admit` kapanışı (84 satır): beş kontrolün her biri yorumla gerekçeli; saat alıcıya ait, verilen saat yok sayılmaz reddedilir. Tek admission kararı. Test: `test/mutation-admission.test.js`. |
+| #2295 | `lib/registry/registry-route.js` | 255 | KEEP | `createRegistryBoundary` kapanışları (`route` 66, `handleRegistration` 43 satır); tek rota sınırı. Test: `test/registry-route.test.js`. |
+| #2296 | `public/js/i18n.js` | 255 | KEEP | Tarayıcı varlığı: 15 fonksiyon, en uzunu 32 satır; çeviri tablosu ve çözümleyici tek modül olarak sayfaya yüklenir. Test: `test/i18n-localization.test.js`. |
+| #2297 | `lib/http/read-workflow-actions.js` | 253 | KEEP | 10 fonksiyon, en uzunu `runReadWorkflow` 67 satır; salt-okunur iş akışı eylemleri. Test: `test/workflow-search-field-scope.test.js`. |
+| #2298 | `lib/approval-schema.js` | 250 | KEEP | 13 fonksiyon, en uzunu `validateApprovalRequest` 61 satır; tek şema. Test: `test/approval-schema.test.js`. |
+| #2299 | `lib/storage/schema.js` | 256 | KEEP | Ağırlıkla SQL şema metni; `applyStorageSchema` 37 satır. Şema tek dosyada olmalı. Test: `test/storage-schema.test.js`, `test/recovery/recovery-invariants.test.js`. |
+| #2300 | `lib/github-app-beta-handler.js` | 247 | KEEP | 9 fonksiyon, en uzunu 40 satır. Test: `test/v5-c7-github-app-beta-http.test.js`. |
+
+Açık kalan: #2301'den başlayan adaylar (sonraki partiler).
