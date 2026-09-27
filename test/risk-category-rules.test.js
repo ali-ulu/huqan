@@ -13,7 +13,7 @@ const { describe, it } = require('node:test');
 // flag x allowlist matrix to digests recorded on main, so any drift in any
 // category is caught byte for byte.
 
-const { ACTION_CATEGORIES, classifyAgentAction } = require('../lib/risk-classify');
+const { ACTION_CATEGORIES, FLAGS, classifyAgentAction } = require('../lib/risk-classify');
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const TARGETS = [
@@ -48,9 +48,12 @@ function outputsFor(category) {
 
 const digest = (value) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
-// Recorded on main at c326f6dc, before the change.
+// Recorded on main at c326f6dc, before the change. READ_ONLY was re-recorded
+// when a read URL outside the allowlist stopped falling through to ALLOW
+// (URL_OUTSIDE_ALLOWLIST, see the destination test below); every other
+// category is byte-identical.
 const GOLDEN = {
-  READ_ONLY: '68912f7f9443eff5d36921d60b7ac31f155f53dddf9a2848fac53bfdc664bf25',
+  READ_ONLY: '320eadb347edcd850f9c0d67df7966434949c62446ff5f8082cd4acbc1da600d',
   MEMORY_WRITE: '59e158e07c9fff17c3a2af6e865966fd01a5f94ade5d94746b88ac8fb6d54c29',
   CANONICAL_GRAPH_WRITE: '32970d86e06371182e0b0fca5137efd095f1c450cc048de5f12a74f261dfb71d',
   CODE_CHANGE: 'a30f6e1cdfddb24877751a37f350c1259cf47241a20c544720768e5b0b0c4d82',
@@ -105,5 +108,47 @@ describe('the category rules are a registry (#2150)', () => {
     const row = require('../scripts/architecture-snapshot').snapshot().find((item) => item.file === 'lib/risk-classify.js');
     assert.ok(row, 'the file is measured');
     assert.ok(!row.signals.some((signal) => signal.startsWith('OCP')), JSON.stringify(row.signals));
+  });
+});
+
+// The digest above would stay green through any change that is made
+// deliberately; these assert what the decisions are, so a read cannot be
+// decided without its destination being consulted.
+describe('READ_ONLY decides with its destination, not only its path', () => {
+  it('escalates a read URL outside the allowlist instead of allowing it', () => {
+    const out = classifyAgentAction({ category: 'READ_ONLY', target: { url: 'http://evil.example/x' } });
+    assert.equal(out.decision, 'HUMAN_REVIEW');
+    assert.equal(out.riskLevel, 'HIGH');
+    assert.ok(out.flags.includes(FLAGS.URL_OUTSIDE_ALLOWLIST));
+  });
+
+  it('allows a read URL on the allowlist', () => {
+    const out = classifyAgentAction(
+      { category: 'READ_ONLY', target: { url: 'https://api.axiom.local/health' } },
+      { allowlistedUrls: ['https://api.axiom.local'] },
+    );
+    assert.equal(out.decision, 'ALLOW');
+    assert.ok(!out.flags.includes(FLAGS.URL_OUTSIDE_ALLOWLIST));
+  });
+
+  it('allows a read with neither path nor url', () => {
+    const out = classifyAgentAction({ category: 'READ_ONLY' });
+    assert.equal(out.decision, 'ALLOW');
+    assert.equal(out.riskLevel, 'LOW');
+  });
+});
+
+describe('a write aimed at a production directory is production-side', () => {
+  it('hard-blocks when the production destination is only in the path', () => {
+    const out = classifyAgentAction({ category: 'MEMORY_WRITE', target: { path: '/srv/prod/app.js' } });
+    assert.equal(out.decision, 'BLOCK');
+    assert.equal(out.hardBlocked, true);
+    assert.ok(out.flags.includes(FLAGS.PRODUCTION_SIDE));
+  });
+
+  it('does not treat a path segment that merely contains prod as production', () => {
+    const out = classifyAgentAction({ category: 'MEMORY_WRITE', target: { path: '/srv/reproducer/app.js' } });
+    assert.equal(out.hardBlocked, false);
+    assert.ok(!out.flags.includes(FLAGS.PRODUCTION_SIDE));
   });
 });

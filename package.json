@@ -831,6 +831,7 @@
     "lib/risk-classify.js",
     "lib/risk-policy-constants.js",
     "lib/risk-rules.js",
+    "lib/risk-target-markers.js",
     "lib/safe-file-walk.js",
     "lib/sandbox-escape-ledger.js",
     "lib/sandbox-escape-producer.js",
