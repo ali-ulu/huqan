@@ -31,6 +31,7 @@ const { listSourceFiles, stripComments } = require('./check-import-cycles.js');
 
 const repoRoot = path.resolve(__dirname, '..');
 const BASELINE_PATH = path.join(__dirname, 'module-boundary-baseline.json');
+const OWNERSHIP_PATH = path.join(__dirname, 'context-ownership.json');
 const IS_TEST = /(\.test\.js$|(^|\/)test\/|(^|\/)benchmarks\/|(^|\/)demo)/;
 
 // `owner._member(` where owner is a plain identifier or `this.field`. `this`
@@ -81,6 +82,68 @@ function measure() {
   return { counts, detail };
 }
 
+/**
+ * Context ownership (#2446 Enforce). The map lives in context-ownership.json,
+ * generated from docs/architecture/ownership-map-2446.md; directory entries
+ * exist only where the map names that directory with evidence, never inferred
+ * from the directory name.
+ *
+ * Deliberate limit, stated so nobody over-reads the gate: a violation records
+ * the caller's file and the `owner._member()` text, not the callee's file --
+ * the owner binding cannot be resolved to a file without parsing scopes. The
+ * gate therefore names the CALLER's context and refuses to guess the callee's.
+ */
+function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
+  const raw = JSON.parse(fs.readFileSync(ownershipPath, 'utf8'));
+  const contexts = new Set(Array.isArray(raw.contexts) ? raw.contexts : []);
+  const owners = raw.owners && typeof raw.owners === 'object' ? raw.owners : {};
+  for (const [entryPath, entry] of Object.entries(owners)) {
+    if (!entry || !contexts.has(entry.context)) {
+      throw new Error(`context-ownership.json: unknown context for ${entryPath}`);
+    }
+  }
+  const unassigned = raw.unassigned && typeof raw.unassigned === 'object' ? raw.unassigned : {};
+  return { contexts, owners, unassigned };
+}
+
+function ownerOf(file, ownership) {
+  if (Object.hasOwn(ownership.owners, file)) {
+    return { context: ownership.owners[file].context, status: ownership.owners[file].status || 'assigned' };
+  }
+  let best = null;
+  for (const entryPath of Object.keys(ownership.owners)) {
+    if (entryPath.endsWith('/') && file.startsWith(entryPath)) {
+      if (!best || entryPath.length > best.length) best = entryPath;
+    }
+  }
+  if (best) {
+    return { context: ownership.owners[best].context, status: ownership.owners[best].status || 'assigned' };
+  }
+  if (Object.hasOwn(ownership.unassigned, file)) {
+    return { context: null, status: ownership.unassigned[file].status || 'resists' };
+  }
+  for (const entryPath of Object.keys(ownership.unassigned)) {
+    if (entryPath.endsWith('/') && file.startsWith(entryPath)) {
+      return { context: null, status: ownership.unassigned[entryPath].status || 'resists' };
+    }
+  }
+  return { context: null, status: 'never-examined' };
+}
+
+/**
+ * The context-aware reading of one violation. Strictness is unchanged -- every
+ * cross-module private call still fails -- but the message names the boundary
+ * from the map: which context reaches out, or that the caller has no recorded
+ * owning context and must be assigned in context-ownership.json first.
+ */
+function describeCall(file, hit, ownership) {
+  const owner = ownerOf(file, ownership);
+  if (!owner.context) {
+    return `${file} (${owner.status}: no owning context recorded) reaches into another module's ${hit.call} -- assign it in context-ownership.json first`;
+  }
+  return `${file} (${owner.context}) reaches into another module's ${hit.call} -- contexts talk only through public contracts (#2446 rule 2)`;
+}
+
 function readBaseline() {
   if (!fs.existsSync(BASELINE_PATH)) return {};
   return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')).files || {};
@@ -109,6 +172,7 @@ function writeBaseline(counts) {
 function main() {
   const update = process.argv.includes('--update');
   const { counts, detail } = measure();
+  const ownership = loadOwnership();
 
   if (update) {
     writeBaseline(counts);
@@ -135,13 +199,16 @@ function main() {
   const problems = grew.length + added.length + shrank.length + cleared.length + expired.length;
   if (problems === 0) {
     const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
+    const assigned = Object.keys(ownership.owners).length;
+    const resists = Object.keys(ownership.unassigned).length;
     console.log(`OK: ${total} recorded cross-module private calls in ${counts.size} files, none added.`);
+    console.log(`Context-aware (#2446): ${assigned} ownership entries, ${resists} resists-unassigned, 0 calls.`);
     return 0;
   }
 
   for (const { file, count, detail: hits } of added) {
     console.error(`FAIL new: ${file} makes ${count} cross-module private call(s).`);
-    for (const hit of hits.slice(0, 5)) console.error(`    ${file}:${hit.line}  ${hit.call}`);
+    for (const hit of hits.slice(0, 5)) console.error(`    ${describeCall(file, hit, ownership)} (line ${hit.line})`);
   }
   for (const { file, count, was } of grew) {
     console.error(`FAIL grew: ${file} ${was} -> ${count} cross-module private call(s).`);
@@ -165,4 +232,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { measure, violationsIn };
+module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall };

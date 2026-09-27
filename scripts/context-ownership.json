@@ -1,0 +1,23 @@
+{
+  "$comment": "Machine-readable side of docs/architecture/ownership-map-2446.md (#2446). Every entry cites the map row it comes from; a directory entry is allowed only when the map names that directory explicitly with evidence -- never inferred from the directory name. Files the map leaves undecided are listed under unassigned with the reason, so the gate can tell 'deliberately unassigned' apart from 'never examined'.",
+  "schemaVersion": 1,
+  "issue": 2446,
+  "contexts": ["Knowledge", "Trust", "AgentAction", "Memory", "Observability"],
+  "owners": {
+    "kernel.v2.js": { "context": "AgentAction", "evidence": "ownership-map-2446.md:24", "status": "assigned" },
+    "graph.js": { "context": "Knowledge", "evidence": "ownership-map-2446.md:25", "status": "assigned" },
+    "rustGraph.js": { "context": "Knowledge", "evidence": "ownership-map-2446.md:26,51", "status": "assigned" },
+    "lib/receipt/": { "context": "Trust", "evidence": "ownership-map-2446.md:28", "status": "assigned" },
+    "lib/storage/": { "context": "AgentAction", "evidence": "ownership-map-2446.md:29", "status": "assigned", "note": "schema.js checkpoints read as Memory temporal state but serve the agent loop (map:45); a finer split may reassign that file alone" },
+    "lib/memory-mutation-gate/": { "context": "AgentAction", "evidence": "ownership-map-2446.md:30", "status": "assigned" },
+    "lib/verdict/action-verdict.js": { "context": "AgentAction", "evidence": "ownership-map-2446.md:31", "status": "assigned" },
+    "lib/observability/": { "context": "Observability", "evidence": "ownership-map-2446.md:33", "status": "assigned" },
+    "lib/causal/": { "context": "Knowledge", "evidence": "ownership-map-2446.md:34", "status": "assigned" },
+    "lib/memory-store.js": { "context": "Memory", "evidence": "ownership-map-2446.md:35", "status": "assigned" }
+  },
+  "unassigned": {
+    "kernel.js": { "reason": "orchestrator spanning four contexts; exactly-one requires a split, not a relabel", "evidence": "ownership-map-2446.md:23,41", "status": "resists" },
+    "server.js": { "reason": "transport and composition root over all contexts; any single label lies", "evidence": "ownership-map-2446.md:27,43", "status": "resists" },
+    "lib/experience/": { "reason": "SPLIT REQUIRED: durable record wants Trust, read-model wants Observability; no single owner decided", "evidence": "ownership-map-2446.md:32,44", "status": "resists" }
+  }
+}

@@ -12,9 +12,9 @@ Current: `node scripts/check-module-boundary.js` → OK, 0 recorded in 0 files, 
 - [x] #2117 closed (canonical KernelV1 → KernelV2 contract). Verified Closed on GitHub 2026-09-27.
 - [x] Cross-module private call count at/near zero. Verified 2026-09-27 on `origin/main` @ `00cb5c37`: OK, 0 recorded in 0 files, baseline `{"threshold":0,"files":{}}`. Snapshot: 1096 source files, owed 1, debt 15, signal 4, tracked 20.
 - [x] Storage-portability scope note exists (#2115 Phase 2, Memory owns that port). Published with this PR: `docs/architecture/storage-portability-scope.md`.
-- [x] Ownership map produced from source/caller evidence with disagreements recorded. THIS DOCUMENT (published with this PR, not yet gate-enforced).
+- [x] Ownership map produced from source/caller evidence with disagreements recorded. THIS DOCUMENT (published with #2994, gate-enforced with the Enforce PR: `scripts/context-ownership.json` + context-aware `check-module-boundary`).
 
-Conclusion: Map and Publish complete with this PR. Enforce (context-aware gate) and Move remain BLOCKED until a follow-up wires the map into `check-module-boundary`.
+Conclusion: Map, Publish and Enforce complete. Enforce keeps the existing strictness (every cross-module private call fails) and adds the map's voice: failures name the caller's context, callers with no recorded context fail with an assignment instruction, and the map file fails closed on unknown contexts. Move: the map proves no module misplaced (only resists), so no moves.
 
 ## Candidate ownership (source + caller evidence, not dir names)
 
