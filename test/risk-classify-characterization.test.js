@@ -12,6 +12,7 @@ const { describe, it } = require('node:test');
 // byte goes red here.
 
 const rc = require('../lib/risk-classify');
+const normalize = require('../lib/risk-classify-normalize');
 const { CATEGORY_ALIASES } = require('../lib/risk-policy-constants');
 
 const digest = (value) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -136,4 +137,126 @@ describe('risk-classify public surface is byte-identical across the #2120 split'
       assert.equal(digest(run()), GOLDEN[name]);
     });
   }
+});
+
+// Mutation edge coverage for the #2120 split: every branch the digest grid
+// leaves unobserved in lib/risk-classify-normalize.js and lib/risk-classify.js.
+describe('risk-classify split edge branches (mutation)', () => {
+  it('deepFreeze freezes nested objects and passes frozen/primitive input through', () => {
+    const nested = { leaf: 1 };
+    const root = { nested, list: [1] };
+    const frozen = normalize.deepFreeze(root);
+    assert.equal(frozen, root);
+    assert.equal(Object.isFrozen(root), true);
+    assert.equal(Object.isFrozen(nested), true);
+    const already = Object.freeze({ inner: {} });
+    assert.equal(normalize.deepFreeze(already), already);
+    assert.equal(Object.isFrozen(already.inner), false);
+    assert.equal(normalize.deepFreeze(42), 42);
+    assert.equal(normalize.deepFreeze(null), null);
+  });
+
+  it('toArray and uniqueStrings coerce arrays element-wise', () => {
+    assert.deepEqual(normalize.toArray([0, 'a', '', null, 'b']), ['a', 'b']);
+    assert.deepEqual(normalize.toArray('x'), ['x']);
+    assert.deepEqual(normalize.toArray(null), []);
+    assert.deepEqual(normalize.uniqueStrings(['a', '', null, 'a']), ['a']);
+  });
+
+  it('normalizeActionType rejects empty input and accepts canonical tokens', () => {
+    assert.equal(normalize.normalizeActionType(null), null);
+    assert.equal(normalize.normalizeActionType(''), null);
+    assert.equal(normalize.normalizeActionType('   '), null);
+    const canonical = Object.values(rc.ACTION_CATEGORIES)[0];
+    assert.equal(normalize.normalizeActionType(canonical), canonical);
+  });
+
+  it('normalizeCategoryToken collapses triple separators', () => {
+    assert.equal(normalize.normalizeActionType('code___change'), 'CODE_CHANGE');
+    assert.equal(normalize.normalizeActionType('code---change'), 'CODE_CHANGE');
+  });
+
+  it('normalizeTimestamp accepts null, Date, epoch and blank input', () => {
+    assert.equal(normalize.normalizeTimestamp(null), null);
+    assert.equal(normalize.normalizeTimestamp(undefined), null);
+    assert.equal(normalize.normalizeTimestamp(new Date(0)), '1970-01-01T00:00:00.000Z');
+    assert.equal(normalize.normalizeTimestamp(0), '1970-01-01T00:00:00.000Z');
+    assert.equal(normalize.normalizeTimestamp(NaN), null);
+    assert.equal(normalize.normalizeTimestamp('  '), null);
+    assert.equal(normalize.normalizeTimestamp('2026-01-01'), '2026-01-01');
+  });
+
+  it('cloneTarget wraps string targets', () => {
+    assert.deepEqual(normalize.cloneTarget('plain-string'), { value: 'plain-string' });
+    assert.equal(normalize.cloneTarget(null), null);
+  });
+
+  it('normalizeFlags folds case, dashes and triple underscores into aliases', () => {
+    assert.deepEqual(normalize.normalizeFlags(['Bypass-Admission']), [rc.FLAGS.BYPASS_ADMISSION]);
+    assert.deepEqual(normalize.normalizeFlags([' AUTO_MERGE ']), [rc.FLAGS.AUTO_MERGE]);
+    assert.deepEqual(normalize.normalizeFlags(['auto-merge']), [rc.FLAGS.AUTO_MERGE]);
+    assert.deepEqual(normalize.normalizeFlags(['auto___merge']), [rc.FLAGS.AUTO_MERGE]);
+  });
+
+  it('classifyAgentAction defaults allowlists to empty and reviews plain reads', () => {
+    const out = rc.classifyAgentAction({ category: 'read', target: { path: 'docs/x.md' } });
+    assert.equal(out.decision, rc.ACTION_DECISIONS.HUMAN_REVIEW);
+  });
+
+  it('classifyAgentAction echoes an explicit timestamp option in the trust receipt', () => {
+    const out = rc.classifyAgentAction(
+      { category: 'deploy' },
+      { now: '2026-06-01T00:00:00.000Z' },
+    );
+    assert.equal(out.trustReceipt.timestamp, '2026-06-01T00:00:00.000Z');
+  });
+
+  it('classifyAgentAction hard-blocks auto-merge with flag and rule reason', () => {
+    const out = rc.classifyAgentAction({ category: 'read', flags: ['auto-merge'] });
+    assert.equal(out.decision, rc.ACTION_DECISIONS.BLOCK);
+    assert.equal(out.flags.includes(rc.FLAGS.HARD_BLOCKED), true);
+    assert.equal(out.reason, 'Read-only action stays low risk.');
+  });
+
+  it('classifyAgentAction honors context allowlists for writes', () => {
+    const allowed = rc.classifyAgentAction(
+      { category: 'fs-write', target: { path: 'docs/x.md' }, context: { allowlistedPaths: ['docs'] } },
+      { now: NOW },
+    );
+    const denied = rc.classifyAgentAction(
+      { category: 'fs-write', target: { path: 'docs/x.md' } },
+      { now: NOW },
+    );
+    assert.notEqual(allowed.decision, denied.decision);
+  });
+
+  it('classifyAgentAction default-deny matches no invented allowlist entry', () => {
+    const pathOut = rc.classifyAgentAction(
+      { category: 'fs-write', target: { path: 'Stryker was here' } },
+      { now: NOW },
+    );
+    assert.equal(pathOut.decision, rc.ACTION_DECISIONS.HUMAN_REVIEW);
+    assert.equal(pathOut.reason, 'Filesystem write requires review.');
+    const urlOut = rc.classifyAgentAction(
+      { category: 'NETWORK_CALL', target: { url: 'https://stryker-was-here.invalid/x' } },
+      { now: NOW },
+    );
+    assert.equal(urlOut.decision, rc.ACTION_DECISIONS.HUMAN_REVIEW);
+  });
+
+  it('classifyAgentAction marks security policy blocks as hard-blocked', () => {
+    const out = rc.classifyAgentAction({ category: 'SECURITY_POLICY_CHANGE' }, { now: NOW });
+    assert.equal(out.decision, rc.ACTION_DECISIONS.BLOCK);
+    assert.equal(out.flags.includes(rc.FLAGS.HARD_BLOCKED), true);
+  });
+
+  it('classifyAgentAction hard-blocks over-mandate financial transfers', () => {
+    const out = rc.classifyAgentAction(
+      { category: 'FINANCIAL_TRANSACTION', context: { financial: { amount: 5000, currency: 'USD', destination: 'acct', reversible: true } } },
+      { now: NOW },
+    );
+    assert.equal(out.decision, rc.ACTION_DECISIONS.BLOCK);
+    assert.equal(out.flags.includes(rc.FLAGS.HARD_BLOCKED), true);
+    assert.equal(out.reason, 'FINANCIAL_TIER_MANDATE_BLOCK');
+  });
 });
