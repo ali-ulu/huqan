@@ -111,7 +111,11 @@ const CLASSIFIED = Object.freeze({
   }),
   'lib/external-action-receipt-shipper.js': Object.freeze({
     role: 'evidence',
-    why: 'writes the outbound batch queue and its frozen trail; append-only and under the shipper state root',
+    why: 'appends collector counter-seals beside the trail; the cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split',
+  }),
+  'lib/external-action-receipt-cursor.js': Object.freeze({
+    role: 'evidence',
+    why: 'the shipped-position cursor beside the receipt trail (mode 0o600, dir 0o700); advancing it past an unshipped receipt would lose evidence, which is why the resync check lives beside it',
   }),
   'lib/receipt/public-trust-receipt.js': Object.freeze({
     role: 'evidence',

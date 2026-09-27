@@ -436,6 +436,8 @@
     "lib/external-action-receipt-writer-factory.js",
     "lib/external-action-receipt.js",
     "lib/external-action-receipt-shipper.js",
+    "lib/external-action-receipt-batch.js",
+    "lib/external-action-receipt-cursor.js",
     "lib/external-action-receipt-reader.js",
     "lib/external-action-receipt-collector.js",
     "lib/external-action-receipt-collector-fleet.js",

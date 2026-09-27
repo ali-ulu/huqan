@@ -3,7 +3,7 @@
   "entries": {
     "agent.v3.js": {
       "band": "recorded",
-      "lines": 623,
+      "lines": 647,
       "signals": [
         "DIP"
       ]
@@ -207,10 +207,8 @@
       "lib/agent-step-executor.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
-      "lib/agent-v3-plan-memory.js": "Core",
       "lib/agent-v3-run-state.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
-      "lib/agent-v3-workspace.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
@@ -302,6 +300,7 @@
       "lib/coder/apply-derivation.js": "Application",
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/experience-reporter.js": "Application",
+      "lib/coder/journal-store.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/collector-seal-config.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
@@ -1116,6 +1115,7 @@
       "scripts/api-snapshot.js": "UI",
       "scripts/architecture-carried-violations.js": "UI",
       "scripts/architecture-dependency-graph.js": "UI",
+      "scripts/architecture-layer-exceptions.js": "UI",
       "scripts/architecture-mermaid.js": "UI",
       "scripts/architecture-review-queue.js": "UI",
       "scripts/architecture-snapshot-scope.js": "UI",
@@ -1291,10 +1291,8 @@
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
-        "lib/agent-v3-plan-memory.js",
         "lib/agent-v3-run-state.js",
         "lib/agent-v3-storage-factory.js",
-        "lib/agent-v3-workspace.js",
         "lib/goal-binding.js"
       ],
       "agentRuntime.js": [
@@ -1887,7 +1885,8 @@
       "lib/cli-coder.js": [
         "lib/cli-coder-verify.js",
         "lib/coder/apply-derivation.js",
-        "lib/coder/derivation-record.js"
+        "lib/coder/derivation-record.js",
+        "lib/coder/journal-store.js"
       ],
       "lib/cli-company-ingest.js": [
         "lib/cli-helpers.js"
@@ -2020,7 +2019,13 @@
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/coder/experience-reporter.js": [
+        "lib/experience/adapter-scope.js",
         "lib/experience/contract.js"
+      ],
+      "lib/coder/journal-store.js": [
+        "lib/experience/journal.js",
+        "lib/sqlite-availability.js",
+        "lib/sqlite-durability.js"
       ],
       "lib/coder/verify-derivation.js": [
         "lib/coder/derivation-record.js",
@@ -2426,8 +2431,7 @@
       ],
       "lib/external-action-receipt-shipper.js": [
         "lib/external-action-identity-log.js",
-        "lib/external-action-receipt.js",
-        "lib/receipt/signed-receipt-batch.js"
+        "lib/external-action-receipt.js"
       ],
       "lib/external-action-receipt-writer-factory.js": [
         "graph.js"
@@ -4914,7 +4918,8 @@
         "scripts/api-snapshot-surface.js"
       ],
       "scripts/architecture-dependency-graph.js": [
-        "scripts/architecture-carried-violations.js"
+        "scripts/architecture-carried-violations.js",
+        "scripts/architecture-layer-exceptions.js"
       ],
       "scripts/architecture-mermaid.js": [
         "scripts/check-layers.js"
@@ -5413,6 +5418,12 @@
         "toLayer": "Application"
       },
       {
+        "from": "lib/cli-coder.js",
+        "to": "lib/coder/journal-store.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
         "from": "lib/cli-doctor.js",
         "to": "lib/sqlite-availability.js",
         "fromLayer": "Core",
@@ -5528,12 +5539,6 @@
       },
       {
         "from": "lib/external-action-receipt-collector-store.js",
-        "to": "lib/receipt/signed-receipt-batch.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/external-action-receipt-shipper.js",
         "to": "lib/receipt/signed-receipt-batch.js",
         "fromLayer": "Core",
         "toLayer": "Application"
