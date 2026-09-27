@@ -327,22 +327,22 @@
       ],
       "sites": [
         {
-          "line": 119,
+          "line": 121,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 120,
+          "line": 122,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 134,
+          "line": 136,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 135,
+          "line": 137,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
