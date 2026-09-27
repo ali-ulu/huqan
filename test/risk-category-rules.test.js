@@ -98,16 +98,46 @@ describe('classifyAgentAction per-category outputs (unchanged)', () => {
   }
 });
 
+// #2120: the classifier is split into lib/risk-classify-*.js parts. The source
+// checks read the entry file AND every ./risk-classify-* file it reaches, so a
+// dispatch moved into a part cannot escape them.
+function classifierSourceFiles() {
+  const libDir = path.join(__dirname, '..', 'lib');
+  const seen = new Set();
+  const queue = ['risk-classify.js'];
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const source = fs.readFileSync(path.join(libDir, file), 'utf8');
+    for (const match of source.matchAll(/require\(\s*['"]\.\/(risk-classify-[\w-]+)(?:\.js)?['"]\s*\)/g)) {
+      queue.push(`${match[1]}.js`);
+    }
+  }
+  return [...seen].map((file) => `lib/${file}`);
+}
+
 describe('the category rules are a registry (#2150)', () => {
-  it('lib/risk-classify.js no longer switches on the category', () => {
-    const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'risk-classify.js'), 'utf8');
-    assert.doesNotMatch(source, /switch\s*\(\s*category\s*\)/);
+  it('reaches every classifier part from the entry file', () => {
+    const files = classifierSourceFiles();
+    assert.ok(files.includes('lib/risk-classify-rules.js'), JSON.stringify(files));
+    assert.ok(files.length >= 5, JSON.stringify(files));
+  });
+
+  it('no classifier file switches on the category', () => {
+    for (const file of classifierSourceFiles()) {
+      const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+      assert.doesNotMatch(source, /switch\s*\(\s*category\s*\)/, file);
+    }
   });
 
   it('the architecture snapshot no longer sees a growing dispatch here', () => {
-    const row = require('../scripts/architecture-snapshot').snapshot().find((item) => item.file === 'lib/risk-classify.js');
-    assert.ok(row, 'the file is measured');
-    assert.ok(!row.signals.some((signal) => signal.startsWith('OCP')), JSON.stringify(row.signals));
+    const rows = require('../scripts/architecture-snapshot').snapshot();
+    for (const file of classifierSourceFiles()) {
+      const row = rows.find((item) => item.file === file);
+      assert.ok(row, `${file} is measured`);
+      assert.ok(!row.signals.some((signal) => signal.startsWith('OCP')), `${file}: ${JSON.stringify(row.signals)}`);
+    }
   });
 });
 
