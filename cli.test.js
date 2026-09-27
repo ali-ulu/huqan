@@ -11,8 +11,15 @@ const { createAgent } = require('./agentRuntime');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 const testPersistenceDirs = new Set();
+// CLIs built by freshCLI(): most never run closeManagedCLI(), and HuqanStorage
+// (+ the journal's EVIDENCE connection, #2915) keeps memory.db open inside the
+// temp dir. Windows then refuses the exit-handler rmSync with EBUSY (#2991).
+const testPersistenceCLIs = new Set();
 
 process.once('exit', () => {
+  for (const cli of testPersistenceCLIs) {
+    try { closeManagedCLI(cli); } catch (_) {}
+  }
   for (const dir of testPersistenceDirs) fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -28,16 +35,26 @@ function freshCLI(kernelOpts = {}) {
   const kernel = new Kernel({ noLoad: true, ...isolatedDefaults, ...kernelOpts });
   const cli = new CLI({ kernelInstance: kernel });
   cli.__testPersistenceDir = tempDir;
+  if (tempDir) testPersistenceCLIs.add(cli);
   return cli;
 }
 
 function closeManagedCLI(cli) {
+  testPersistenceCLIs.delete(cli);
   if (cli?.approvalStore && typeof cli.approvalStore.close === 'function') {
     cli.approvalStore.close();
   }
+  // The agent's Experience journal owns a second EVIDENCE handle on the same
+  // memory.db (#2915, closed with storage). Tests that close storage first and
+  // then remove the directory (Windows EBUSY, #2990/#2991) must close it here;
+  // its reopen() still works for restore paths.
+  const journalConnection = cli?.kernel?.experienceJournalConnection;
   const storage = cli?.agent?.storage;
   if (storage && typeof storage.close === 'function' && storage.db?.open !== false) {
     storage.close();
+  }
+  if (journalConnection && typeof journalConnection.close === 'function') {
+    journalConnection.close();
   }
   if (cli?.kernel?.graph && typeof cli.kernel.graph.close === 'function') {
     cli.kernel.graph.close();
