@@ -29,7 +29,7 @@
     },
     "kernel.js": {
       "band": "decompose",
-      "lines": 855,
+      "lines": 842,
       "signals": [
         "FANOUT:39"
       ]

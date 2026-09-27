@@ -12,7 +12,7 @@
   "files": {
     "agent.v3.js": 647,
     "dream.js": 636,
-    "kernel.js": 855,
+    "kernel.js": 842,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
     "lib/dream-experiment-loop.js": 533,
