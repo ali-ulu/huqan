@@ -27,7 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { listSourceFiles, stripComments } = require('./check-import-cycles.js');
+const { listSourceFiles, stripComments, buildGraph } = require('./check-import-cycles.js');
 
 const repoRoot = path.resolve(__dirname, '..');
 const BASELINE_PATH = path.join(__dirname, 'module-boundary-baseline.json');
@@ -103,7 +103,23 @@ function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
     }
   }
   const unassigned = raw.unassigned && typeof raw.unassigned === 'object' ? raw.unassigned : {};
-  return { contexts, owners, unassigned };
+  const publishedPorts = raw.publishedPorts || {};
+  const legacyEdges = raw.legacyEdges || {};
+  for (const [port, rule] of Object.entries(publishedPorts)) {
+    if (ownerOf(port, { owners, unassigned }).context !== rule.owner
+      || !Array.isArray(rule.consumers)
+      || rule.consumers.some((context) => !contexts.has(context))
+      || typeof rule.evidence !== 'string' || !rule.evidence) {
+      throw new Error(`context-ownership.json: invalid published port ${port}`);
+    }
+  }
+  for (const [edge, rule] of Object.entries(legacyEdges)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rule.reviewBy || '')
+      || Number.isNaN(Date.parse(rule.reviewBy)) || !rule.reason) {
+      throw new Error(`context-ownership.json: invalid legacy edge ${edge}`);
+    }
+  }
+  return { contexts, owners, unassigned, publishedPorts, legacyEdges };
 }
 
 function ownerOf(file, ownership) {
@@ -144,6 +160,36 @@ function describeCall(file, hit, ownership) {
   return `${file} (${owner.context}) reaches into another module's ${hit.call} -- contexts talk only through public contracts (#2446 rule 2)`;
 }
 
+/** Enforce published imports for the source/caller-backed portion of the map. */
+function checkContextPorts(graph, ownership, today = new Date().toISOString().slice(0, 10)) {
+  const problems = [];
+  const activeLegacy = new Set();
+  let crossOwnerCount = 0;
+  for (const [from, deps] of graph) {
+    const fromContext = ownerOf(from, ownership).context;
+    if (!fromContext) continue;
+    for (const to of new Set(deps)) {
+      const toContext = ownerOf(to, ownership).context;
+      if (!toContext || fromContext === toContext) continue;
+      crossOwnerCount += 1;
+      const edge = `${from}>${to}`;
+      const port = (ownership.publishedPorts || {})[to];
+      if (port && port.owner === toContext && port.consumers.includes(fromContext)) continue;
+      const legacy = (ownership.legacyEdges || {})[edge];
+      if (legacy) {
+        activeLegacy.add(edge);
+        if (legacy.reviewBy < today) problems.push(`expired legacy context import: ${edge}`);
+      } else {
+        problems.push(`unpublished cross-owner import: ${from} (${fromContext}) -> ${to} (${toContext})`);
+      }
+    }
+  }
+  for (const edge of Object.keys(ownership.legacyEdges || {})) {
+    if (!activeLegacy.has(edge)) problems.push(`stale legacy context import: ${edge}`);
+  }
+  return { problems, crossOwnerCount };
+}
+
 function readBaseline() {
   if (!fs.existsSync(BASELINE_PATH)) return {};
   return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')).files || {};
@@ -173,8 +219,15 @@ function main() {
   const update = process.argv.includes('--update');
   const { counts, detail } = measure();
   const ownership = loadOwnership();
+  const files = listSourceFiles();
+  const graph = buildGraph(files, files.filter((file) => !IS_TEST.test(file)));
+  const ports = checkContextPorts(graph, ownership);
 
   if (update) {
+    if (ports.problems.length > 0) {
+      for (const problem of ports.problems) console.error(`FAIL ${problem}`);
+      return 1;
+    }
     writeBaseline(counts);
     const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
     console.log(`Baseline written: ${counts.size} files, ${total} calls.`);
@@ -196,13 +249,15 @@ function main() {
   const expired = Object.entries(baseline)
     .filter(([file, entry]) => counts.has(file) && entry.review_by < new Date().toISOString().slice(0, 10));
 
-  const problems = grew.length + added.length + shrank.length + cleared.length + expired.length;
+  const problems = grew.length + added.length + shrank.length + cleared.length + expired.length
+    + ports.problems.length;
   if (problems === 0) {
     const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
     const assigned = Object.keys(ownership.owners).length;
     const resists = Object.keys(ownership.unassigned).length;
     console.log(`OK: ${total} recorded cross-module private calls in ${counts.size} files, none added.`);
     console.log(`Context-aware (#2446): ${assigned} ownership entries, ${resists} resists-unassigned, 0 calls.`);
+    console.log(`Context ports: ${ports.crossOwnerCount} mapped cross-owner imports checked.`);
     return 0;
   }
 
@@ -222,6 +277,7 @@ function main() {
   for (const [file, entry] of expired) {
     console.error(`FAIL expired: ${file} was due for review by ${entry.review_by} and still has debt.`);
   }
+  for (const problem of ports.problems) console.error(`FAIL ${problem}`);
   console.error(
     '\nCall the other module through its public surface. If the member is'
     + '\nreally part of the contract, rename it without the underscore and'
@@ -232,4 +288,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall };
+module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall, checkContextPorts };
