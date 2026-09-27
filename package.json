@@ -828,6 +828,8 @@
     "lib/receipt/receipt-chain.js",
     "lib/receipt/receipt-export.js",
     "lib/receipt/receipt-read-index.js",
+    "lib/receipt/receipt-read-index-anchor.js",
+    "lib/receipt/receipt-read-index-entries.js",
     "lib/receipt/receipt-stamp.js",
     "lib/receipt/receipt-validation-cache.js",
     "lib/receipt/signed-bundle.js",

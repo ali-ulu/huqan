@@ -88,11 +88,6 @@
         "FANOUT:20"
       ]
     },
-    "lib/receipt/receipt-read-index.js": {
-      "band": "recorded",
-      "lines": 635,
-      "signals": []
-    },
     "lib/risk-classify.js": {
       "band": "recorded",
       "lines": 734,
@@ -859,6 +854,8 @@
       "lib/receipt/receipt-export.js": "Application",
       "lib/receipt/receipt-exporter-paths.js": "Application",
       "lib/receipt/receipt-exporter-pdf.js": "Application",
+      "lib/receipt/receipt-read-index-anchor.js": "Application",
+      "lib/receipt/receipt-read-index-entries.js": "Application",
       "lib/receipt/receipt-read-index.js": "Application",
       "lib/receipt/receipt-stamp.js": "Application",
       "lib/receipt/receipt-validation-cache.js": "Application",
@@ -4106,15 +4103,28 @@
         "lib/path-safety.js",
         "lib/receipt/receipt-exporter-paths.js"
       ],
-      "lib/receipt/receipt-read-index.js": [
+      "lib/receipt/receipt-read-index-anchor.js": [
+        "lib/json-clone.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-read-index-entries.js",
+        "lib/receipt/v4-receipt-family.js"
+      ],
+      "lib/receipt/receipt-read-index-entries.js": [
         "lib/is-plain-object.js",
         "lib/json-clone.js",
         "lib/receipt/canonical-receipt-v2.js",
         "lib/receipt/canonical-receipt.js",
-        "lib/receipt/receipt-chain.js",
-        "lib/receipt/receipt-export.js",
         "lib/receipt/v4-receipt-family.js",
         "lib/verdict/action-verdict.js"
+      ],
+      "lib/receipt/receipt-read-index.js": [
+        "lib/json-clone.js",
+        "lib/receipt/receipt-chain.js",
+        "lib/receipt/receipt-export.js",
+        "lib/receipt/receipt-read-index-anchor.js",
+        "lib/receipt/receipt-read-index-entries.js",
+        "lib/receipt/v4-receipt-family.js"
       ],
       "lib/receipt/receipt-stamp.js": [
         "lib/graph-record-utils.js",
