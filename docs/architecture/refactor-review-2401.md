@@ -163,4 +163,48 @@ REOPEN olarak kaydedilmiş ve kendi PR'larıyla kapatılmıştır.
 | #2322 | `lib/coder/verify-derivation.js` | 217 | KEEP | `verifyDerivation` (106 satır) sıralı doğrulama: bütünlük → şema sürümü (v1 "doğrulanamaz", hata değil) → runner durumu → taban ağacı uyumu → yeniden çalıştırma → hash → diff; her erken çıkış yorumla gerekçeli. Test: `test/coder-verify-derivation.test.js`. |
 | #2323 | `lib/pilot/trust-receipt-pilot.js` | 217 | KEEP | 16 fonksiyon, en uzunu 34 satır. Test: `test/trust-receipt-pilot.test.js`. |
 
-Açık kalan: #2324'ten başlayan adaylar (son parti).
+## Parti 7 — `lib/`, `public/`, kök (#2324–#2360)
+
+İnceleme tabanı: `origin/main` @ `12084a6`. #2337 (`nlp/lang-tr.js`) ve #2360 (`lib/kernel-factory.js`) issue gövdesinde KEEP olarak doğrulanmıştı; burada yalnız güncel durumları eklendi.
+
+| Issue | Dosya | Satır | Karar | Kaynak sembolleri / korunan invariant / test / gerekçe |
+|---|---|---:|---|---|
+| #2324 | `lib/http/memory-approval-routes.js` | 215 | KEEP | `createMemoryApprovalRoutes` → `route` tek rota: yol/metot eşleme → liste ya da karar; karar için gövde, operatör yetkisi kontrolünden **önce** ayrıştırılır ki yetki tam karar ve gerekçeye bağlansın ve onay deposuna dokunulmasın (yorumlu). Test: `test/operator-token-constant-time.test.js`. |
+| #2325 | `lib/ssrf-guard.js` | 216 | KEEP | 6 fonksiyon, en uzunu `resolveSafeAddress` 59 satır; özel IPv4/IPv6 sınıflandırması ve DNS çözümleme tek güvenlik sınırı (http-adapter her hop'ta çağırır). Test: `lib/ssrf-guard.test.js`, `test/http-adapter-redirect-robots.test.js`. |
+| #2326 | `lib/semantic-score.js` | 215 | KEEP | 13 fonksiyon, en uzunu `classifySemanticTrust` 47 satır. Test: `test/semantic-score.test.js`. |
+| #2327 | `lib/data-residency-gate.js` | 214 | KEEP | 5 fonksiyon, en uzunu 51 satır; tek residency kararı. Test: `test/data-residency-gate.test.js`. |
+| #2328 | `lib/receipt/receipt-validation-cache.js` | 214 | KEEP | `createReceiptValidationCache` fabrikası beş kısa kapanış (`get`, `put`, `invalidateSource`, `clear`, `stats`). Test: `test/receipt-validation-cache.test.js`, `test/receipt-validation-cache-mutation.test.js`. |
+| #2329 | `lib/error-prevention/engine.js` | 187 | KEEP | `ErrorPrevention` sınıfı, metotları en fazla 43 satır (`activateRule`, `supersedeRule`); kural yaşam döngüsü tek sınıfta. Test: `test/error-prevention.test.js`, `test/error-prevention-poisoning-scope.test.js`. |
+| #2330 | `lib/mcp-tool-names.js` | 217 | KEEP | Ağırlıkla araç adı/alias kataloğu, fonksiyonlar kısa (en uzunu 15). Test: `test/mcp-tool-dispatch.test.js`. |
+| #2331 | `lib/a2a/agent-card.js` | 211 | KEEP | 2 fonksiyon + kart şeması verisi; `buildAgentCard` 31 satır. Test: `test/a2a-agent-card-route.test.js`. |
+| #2332 | `public/js/onboarding-checklist.js` | 210 | KEEP | Tarayıcı IIFE'si (#1931), 10 küçük fonksiyon; sayfaya tek betik olarak yüklenir. Test: `test/i18n-localization.test.js`, `test/ui-claim-workspace-browser-smoke.test.js`. |
+| #2333 | `lib/web-research.js` | 210 | KEEP | 16 fonksiyon, en uzunu `nativeTransport` 44 satır. Test: `test/web-research.test.js`. |
+| #2334 | `lib/verdict/action-verdict.js` | 207 | KEEP | 6 fonksiyon, en uzunu 27 satır; tek kanonik karar biçimi. Test: `test/autonomy-state.test.js`. |
+| #2335 | `lib/observability/server-runtime.js` | 148 | REFACTORED | #2486: iş akışı gözlemlenebilirlik enstrümantasyonu ayrıldı (`787363a2`). Test: `test/observability-readiness-signal.test.js`. |
+| #2336 | `lib/self-healer/source-dogfood-simulator.js` | 202 | KEEP | 6 fonksiyon, en uzunu 44 satır. Test: `test/self-healer-source-dogfood-simulator.test.js`. |
+| #2337 | `nlp/lang-tr.js` | 204 | KEEP | Issue gövdesindeki gerekçe geçerli: dil-özel ses uyumu/ek tabloları tutarlı; en uzun fonksiyon `extractFacts` 47 satır. |
+| #2338 | `lib/verify-status-vocabulary.js` | 202 | KEEP | Ağırlıkla durum sözlüğü; fonksiyonlar kısa (en uzunu 28). Test: `test/verify-status-vocabulary.test.js`. |
+| #2339 | `lib/external-action-identity-signing.js` | 201 | KEEP | 10 fonksiyon, en uzunu 20 satır; tek imzalama yüzeyi. Test: `test/human-sponsor-authority.test.js`. |
+| #2340 | `lib/runtime-watchdog.js` | 138 | REFACTORED | #2483: denetim günlüğü `runtime-watchdog-audit.js`'e (`a1b48915`). Test: `test/runtime-watchdog.test.js`. |
+| #2355 | `workflow-runtime.js` | 100 | KEEP | Açık composition root (#2962 `COMPOSITION_ROOTS`): `createWorkflowRuntime` `WorkflowAgent` kurar ve kısa metotlar döndürür. Test: `workflow-runtime.test.js`, `test/agent-workflow-routes.test.js`. |
+| #2356 | `agentRuntime.js` | 184 | KEEP | Giriş noktası composition root'u; 10 fonksiyon, en uzunu `createAgent` 22 satır; journal bağlantısının storage ile kapanması burada (#2957). Test: `test/arch-4-agent-version-parity.contract.test.js`, `test/sqlite-durability-contract.test.js`. |
+| #2360 | `lib/kernel-factory.js` | 79 | KEEP | Issue gövdesindeki gerekçe geçerli ve artık açık `COMPOSITION_ROOTS` kaydı var (#2962). |
+| #2279 | `lib/observability/helpers.js` | 273 | KEEP | 17 küçük yardımcı (en uzunu `projectRun` 26 satır): limit/sayı normalizasyonu, cursor kodlama, `isSensitiveKey`/`safePayload` redaksiyonu ve run/event/rule/alert/job projeksiyonları; `lib/observability/service.js`'in ortak yardımcıları (service'in kendi bölünmesi #2145/#2147 kapsamında). Test: `test/observability-safe-payload-key-match.test.js`. |
+
+## Issue gövdesinde karara bağlananlar
+
+#2401'in kendi tablosunda REOPEN edilip dar PR'larla kapatılan ya da KAPALI işaretlenen dosyalar; kaydın eksiksiz olması için burada da listelenir.
+
+| Issue | Dosya | Karar | Kapatan PR |
+|---|---|---|---|
+| #2188 | `scripts/enforcement-coverage.js` | REFACTORED | #2411 (`01575466`) |
+| #2212 | `scripts/run-test-shard.js` | REFACTORED | #2407 (`1bef700f`) |
+| #2227 | `scripts/check-package-closure.js` | REFACTORED | #2409 (`5f30a66e`) |
+| #2235 | `lib/observability/http-router.js` | REFACTORED | #2405 (`e2bd3ee0`) — SSE yaşam döngüsü manuel incelemesi |
+| #2248 | `bin/huqan-gate-hook.js` | REFACTORED | #2412, #2413, #2416, #2425 (dört dilim) |
+| #2250 | `lib/deterministic-task-runner.js` | REFACTORED | #2410 (`13f4d870`) — lexer manuel incelemesi |
+| #2264 | `scripts/check-file-size.js` | REFACTORED | #2408 (`1c4654c6`) |
+
+## Kapanış özeti
+
+Envanterdeki 135 adayın hepsi dosya bazında karara bağlandı. Tarayıcı kör noktaları kapatıldı: paketlenen bin'ler ürün kapsamında (#2961), composition root açık ve tarihli liste (#2962), if/else-if zincirleri OCP sinyali (#2964). Bu inceleme sırasında dokuz REFACTOR kararı uygulandı (knowledge-graph-demo, http-adapter, verify-native, causal-edge, command-parser, memory-mutation-classifier ve if-zinciri önkoşulu olarak risk-classify, agent-planning-policy, workflow-agent-steps); davranış değiştiren her birinden önce karakterizasyon testi yazıldı. Bulunan tek yanlış davranış (#2253, erişilemeyen `malformed` dalı) refactor'da değiştirilmeden kayda geçti. DEFER kararlarının her biri adlandırılmış bir tetikleyiciye bağlıdır.
