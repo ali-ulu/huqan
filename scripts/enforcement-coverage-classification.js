@@ -121,10 +121,6 @@ const CLASSIFIED = Object.freeze({
     role: 'evidence',
     why: 'writes the allowlist-projected public form of a trust receipt to a caller-named export path',
   }),
-  'lib/graph-record-utils.js': Object.freeze({
-    role: 'evidence',
-    why: 'persists mutation receipt records beside the graph they attest to',
-  }),
   'lib/mutation-journal-lock.js': Object.freeze({
     role: 'evidence',
     why: 'the durable mutation journal lock; losing it would break replay idempotency',
@@ -141,9 +137,8 @@ const CLASSIFIED = Object.freeze({
   // ── the product datastore ──────────────────────────────────────────────
   'lib/graph-json-snapshot.js': Object.freeze({ role: 'persistence', why: 'writes the JSON graph snapshot to the configured memoryPath; the non-SQLite backend for the canonical graph' }),
   'lib/graph-json-transaction.js': Object.freeze({ role: 'persistence', why: 'the JSON graph write transaction: writes a temp file beside memoryPath and renames it, so a crash cannot leave a half-written graph' }),
-  'lib/memory-store-json-persistence.js': Object.freeze({ role: 'persistence', why: 'the JSON memory store backend, writing to the configured memoryStorePath rather than any agent-supplied path' }),
-  'lib/default-persistence-path.js': Object.freeze({ role: 'persistence', why: 'creates the resolved state directory before first write; mkdir only, at a path derived from configuration' }),
-  'persistencePaths.js': Object.freeze({ role: 'persistence', why: 'resolves and creates the product state directories on startup; the paths come from config and platform defaults, never from a request' }),
+  'lib/reason-sandbox.js': Object.freeze({ role: 'persistence', why: 'owns and removes the product-created per-request reasoning sandbox under the OS temp root; the sandbox path is created by HUQAN, never supplied by an agent' }),
+  'lib/secure-file-write.js': Object.freeze({ role: 'persistence', why: 'central private staging and atomic-replacement primitive for product persistence; callers select the target while this module performs exclusive bounded filesystem writes' }),
   'lib/a2a/replay-store.js': Object.freeze({ role: 'persistence', why: 'the A2A replay reservation store; its durability is what makes at-most-once delivery hold across a restart' }),
   'lib/a2a/task-store.js': Object.freeze({ role: 'persistence', why: 'the A2A task store backing at-most-once delivery, under the configured replay directory' }),
   'lib/a2a/delegation-audit-log.js': Object.freeze({ role: 'persistence', why: 'the A2A delegation audit trail, under the same configured replay directory; one exclusive-create file per exchange, and every write failure is swallowed so recording can never refuse a delegation' }),
