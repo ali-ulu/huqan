@@ -63,3 +63,12 @@ test('GitHub Release is downstream of container publication and carries the SBOM
   assert.match(workflow, /--verify-tag/);
   assert.match(workflow, /--generate-notes/);
 });
+
+test('the release carries a verifiable signature and refuses an unverified SBOM (#3068)', () => {
+  assert.match(workflow, /--name sbom-attestation-bundle/);
+  assert.match(workflow, /gh attestation verify/);
+  const verifyIndex = workflow.indexOf('gh attestation verify');
+  const createIndex = workflow.indexOf('gh release create');
+  assert.ok(verifyIndex > -1 && createIndex > verifyIndex, 'bundle verification must run before release creation');
+  assert.match(workflow, /SBOM Sigstore attestation bundle/);
+});

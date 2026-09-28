@@ -370,3 +370,90 @@ test('the setup-node auth placeholder is cleared before publishing', () => {
     'any _authToken line, placeholder or not, suppresses the OIDC exchange',
   );
 });
+
+// --- #3068: the release must be proven by a signed tag object ---
+
+/** Pull the `run: |` block of the signed-tag gate for execution, reusing the
+ * same extraction and Windows-bash machinery as the authority script. */
+const signedTagScript = extractRunScript('Require a signed release tag');
+
+/**
+ * A clone of the authority fixture, plus a tag object on the release commit.
+ * 'lightweight' creates a ref-only tag, which cannot carry a signature at
+ * all; 'annotated' and 'signed' both create a real tag object -- whether the
+ * signature on it verifies is GitHub's answer, so the difference between the
+ * two is which answer the stubbed gh returns.
+ */
+function makeTagRepo(version, mode) {
+  const repo = makeRepo(version);
+  // makeRepo configures identity in the upstream only; the clone has none and
+  // an annotated tag needs a committer to be created.
+  git(repo.workspace, 'config', 'user.email', 'test@example.com');
+  git(repo.workspace, 'config', 'user.name', 'Test');
+  if (mode === 'lightweight') {
+    git(repo.workspace, 'tag', `v${version}`, repo.releaseSha);
+  } else {
+    git(repo.workspace, 'tag', '-a', `v${version}`, repo.releaseSha, '-m', `release v${version}`);
+  }
+  return repo;
+}
+
+/** Run the signed-tag gate with a stubbed `gh` that answers the tags API from
+ * GH_VERIFIED, so the execution test covers both outcomes deterministically. */
+function runSignedTagGate(repo, { verified }) {
+  const scriptPath = path.join(repo.dir, 'signed-tag-gate.sh');
+  fs.writeFileSync(scriptPath, signedTagScript);
+  const outputPath = path.join(repo.dir, 'github_output');
+  fs.writeFileSync(outputPath, '');
+  const binDir = path.join(repo.dir, 'bin');
+  fs.mkdirSync(binDir, { recursive: true });
+  // The gate runs under bash on every platform (see the Windows bash selection
+  // above), so the stub must be a plain extensionless sh script: bash's PATH
+  // lookup never resolves `gh.cmd`, and on Windows runners only Git Bash
+  // executes the script anyway.
+  const stubPath = path.join(binDir, 'gh');
+  fs.writeFileSync(stubPath, '#!/bin/sh\nif [ "$GH_VERIFIED" = "true" ]; then echo true; else echo false; fi\n');
+  fs.chmodSync(stubPath, 0o755);
+  const env = {
+    ...process.env,
+    PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    GH_VERIFIED: verified ? 'true' : 'false',
+    GITHUB_OUTPUT: outputPath,
+    GITHUB_REF_TYPE: 'tag',
+    GITHUB_REF_NAME: 'v1.2.3',
+    GITHUB_SHA: repo.releaseSha,
+    GITHUB_REPOSITORY: 'ali-ulu/huqan',
+  };
+  const result = spawnBash(scriptPath, { cwd: repo.workspace, encoding: 'utf8', env });
+  return { result };
+}
+
+test('a lightweight release tag is refused because it cannot carry a signature', () => {
+  const repo = makeTagRepo('1.2.3', 'lightweight');
+  const { result } = runSignedTagGate(repo, { verified: true });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /lightweight tag/);
+});
+
+test('an annotated tag whose GitHub verification fails is refused', () => {
+  const repo = makeTagRepo('1.2.3', 'annotated');
+  const { result } = runSignedTagGate(repo, { verified: false });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /not cryptographically signed/);
+});
+
+test('an annotated tag GitHub verifies as signed passes the gate', () => {
+  const repo = makeTagRepo('1.2.3', 'signed');
+  const { result } = runSignedTagGate(repo, { verified: true });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /signed release tag/);
+});
+
+test('the signed-tag gate runs before any package installation or publish', () => {
+  const gateIndex = workflowSource.indexOf('- name: Require a signed release tag');
+  const npmCiIndex = workflowSource.indexOf('- run: npm ci');
+  const publishIndex = workflowSource.indexOf('- name: Publish');
+  assert.ok(gateIndex > -1, 'the signed-tag gate step is missing from publish.yml');
+  assert.ok(npmCiIndex > gateIndex, 'the gate must run before npm ci');
+  assert.ok(publishIndex > gateIndex, 'the gate must run before the publish step');
+});

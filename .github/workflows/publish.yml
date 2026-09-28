@@ -141,6 +141,38 @@ jobs:
           fi
           echo "${name}@${version} is not on the registry yet."
 
+      # Signed-Releases gate (#3068): a published release is proven by a
+      # cryptographically signed tag object, not by who pushed it or from
+      # where. The tag ruleset makes release tags immutable but does not
+      # require a signature, so the check has to run here, where a release is
+      # actually made, and fail closed: lightweight tags are rejected outright
+      # (they cannot carry one), and annotated tags must verify through the
+      # GitHub tags API, which checks signatures against the keys attached to
+      # the signer's GitHub account. A runner-side gpg keyring would be empty
+      # and always fail, so GitHub's own verification is the honest source.
+      - name: Require a signed release tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if ! git cat-file -e "refs/tags/${tag}" 2>/dev/null; then
+            echo "::error::Tag ${tag} does not exist in this checkout." >&2
+            exit 1
+          fi
+          object_type="$(git cat-file -t "refs/tags/${tag}")"
+          if [ "${object_type}" != "tag" ]; then
+            echo "::error::Tag ${tag} is a lightweight tag; releases must be annotated tag objects." >&2
+            exit 1
+          fi
+          tag_object="$(git rev-parse "refs/tags/${tag}")"
+          verified="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" --jq '.verification.verified' 2>/dev/null || echo false)"
+          if [ "${verified}" != "true" ]; then
+            reason="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" --jq '.verification.reason' 2>/dev/null || echo unknown)"
+            echo "::error::Tag ${tag} is not cryptographically signed (GitHub verification: ${reason})." >&2
+            echo "Sign and push the release tag: git tag -s ${tag} -m 'release ${tag}' && git push origin ${tag}." >&2
+            exit 1
+          fi
+          echo "Tag ${tag} is a signed release tag (GitHub verification passed)."
+
       - run: npm ci --include=optional
 
       - name: Enforce breaking API release semver
@@ -204,9 +236,33 @@ jobs:
       # workflow, release ref and commit without pretending it is the npm
       # package's provenance record.
       - name: Attest SBOM provenance
+        id: sbom-attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: huqan-${{ github.ref_name }}.cdx.json
+
+      # #3068: alongside the SBOM itself, export the Sigstore bundle the step
+      # above produced. The bundle is the verifiable signature; carrying it as
+      # an artifact lets the GitHub Release ship a directly verifiable
+      # signature file instead of depending on the attestations API to prove
+      # the SBOM later.
+      - name: Export SBOM attestation bundle
+        run: |
+          set -euo pipefail
+          bundle="${{ steps.sbom-attest.outputs.bundle-path }}"
+          if [ ! -s "${bundle}" ]; then
+            echo "::error::No attestation bundle was produced for the SBOM." >&2
+            exit 1
+          fi
+          mkdir -p sbom-bundle
+          cp "${bundle}" "sbom-bundle/huqan-${GITHUB_REF_NAME}.cdx.json.sigstore"
+          echo "Exported the Sigstore bundle for the SBOM attestation."
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-attestation-bundle
+          path: sbom-bundle/*.sigstore
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

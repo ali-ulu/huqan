@@ -213,11 +213,16 @@ jobs:
       - verify-source
       - container
     runs-on: ubuntu-latest
+    # #3068: attestations: read lets the job independently re-check the repo's
+    # attestation records while verifying the SBOM's Sigstore bundle locally
+    # (gh attestation verify --bundle needs no credential mint) before the
+    # signature file is published as a release asset.
     permissions:
       actions: read
       contents: write
+      attestations: read
     steps:
-      - name: Download SBOM from canonical npm publish run
+      - name: Download SBOM and attestation bundle from canonical npm publish run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -227,6 +232,10 @@ jobs:
           gh run download "${SOURCE_RUN_ID}" \
             --repo "${GITHUB_REPOSITORY}" \
             --name sbom-cyclonedx \
+            --dir release-artifacts
+          gh run download "${SOURCE_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name sbom-attestation-bundle \
             --dir release-artifacts
 
       - name: Publish release with generated notes and SBOM
@@ -244,12 +253,27 @@ jobs:
           fi
           sbom="${sboms[0]}"
 
+          # #3068: the release must carry a verifiable signature, not only
+          # downloadable bytes. The upstream publish run exported the Sigstore
+          # bundle for the SBOM attestation; verify the SBOM against it before
+          # publishing either file, so an unsigned release can never be created.
+          mapfile -t bundles < <(find release-artifacts -type f -name '*.sigstore' -print)
+          if [ "${#bundles[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one Sigstore attestation bundle artifact, found ${#bundles[@]}." >&2
+            exit 1
+          fi
+          bundle="${bundles[0]}"
+          if ! gh attestation verify "${sbom}" --bundle "${bundle}" --repo "${GITHUB_REPOSITORY}" >/dev/null; then
+            echo "::error::SBOM failed Sigstore bundle verification; refusing to publish a release whose signature does not check out." >&2
+            exit 1
+          fi
+
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             echo "Release ${TAG} already exists; refusing to recreate or mutate it."
             exit 0
           fi
 
-          gh release create "${TAG}" "${sbom}#CycloneDX SBOM" \
+          gh release create "${TAG}" "${sbom}#CycloneDX SBOM" "${bundle}#SBOM Sigstore attestation bundle" \
             --repo "${GITHUB_REPOSITORY}" \
             --verify-tag \
             --generate-notes \
