@@ -30,7 +30,12 @@ test('real server remains generic 404 for disabled and requested configuration',
       'replayProtectionReady','mutationAllowed','receiptWriterReady'].every((key) => contract[key] === false));
     const response = await probeRealServer(value);
     assert.equal(response.statusCode, 404);
-    assert.deepEqual(JSON.parse(response.body), { error: 'Not found' });
+    assert.deepEqual(JSON.parse(response.body), {
+      error: 'Not found',
+      errorCode: 'NOT_FOUND',
+      errorClass: 'routing',
+      operatorAction: 'verify_route_or_resource',
+    });
   }
   const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   assert.equal(source.includes(EXTERNAL_CLIENT_ENDPOINT_PATH), false);
