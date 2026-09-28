@@ -11,7 +11,7 @@ const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/serve
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
-const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
+const { CANONICAL_AGENT_VERSION, createAgent, resolveExperienceJournal } = require('./agentRuntime');
 const { callTool: callMcpTool } = require('./mcpServer');
 const { createServerRouteRuntime } = require('./lib/http/server-route-runtime');
 const { createServerRequestHandler } = require('./lib/http/server-request-handler');
@@ -107,6 +107,12 @@ const {
   handleReceiptReadRoute,
   handleTrustQueryRoutes,
 } = routeRuntime;
+
+// Experience reads share the same production journal as agent lifecycle writes.
+// The approval store already lives for the server lifetime; the Experience
+// EVIDENCE handle is tied to that store and is closed by ingestApprovalRuntime.
+resolveExperienceJournal({ kernel }, ingestApprovalRuntime.getStore());
+
 backgroundTimers.add(setInterval(() => {
   try { ingestApprovalRuntime.recover(); }
   catch (error) {
