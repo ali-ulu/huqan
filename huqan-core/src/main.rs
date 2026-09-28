@@ -591,7 +591,15 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let mut edge_list = graph.get_edges(&subject, &workspace);
             if !graph.nodes.contains_key(&storage_key(&subject, &workspace)) || edge_list.is_empty()
             {
-                return json!({ "ok": true, "answer": "Bilmiyorum" });
+                return json!({
+                    "ok": true,
+                    "answer": "Bilmiyorum",
+                    "subject": subject,
+                    "unknown": true,
+                    "verified": false,
+                    "verification": "naive-lookup",
+                    "verificationPhases": [],
+                });
             }
             edge_list.sort_by(|a, b| {
                 b.weight
@@ -605,9 +613,30 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                 }
             }
             if results.is_empty() {
-                json!({ "ok": true, "answer": "Bilmiyorum" })
+                json!({
+                    "ok": true,
+                    "answer": "Bilmiyorum",
+                    "subject": subject,
+                    "unknown": true,
+                    "verified": false,
+                    "verification": "naive-lookup",
+                    "verificationPhases": [],
+                })
             } else {
-                json!({ "ok": true, "answer": format!("{} {}", subject, results.join(", ")) })
+                // #3041: this branch ranks out-edges by weight and concatenates
+                // them. It runs none of the JS verify phases (numeric,
+                // negation, PREVENTS, type lattice), so it must not present
+                // itself as a verified answer. The marker is the honest half of
+                // the fix; porting the phases is the follow-up.
+                json!({
+                    "ok": true,
+                    "answer": format!("{} {}", subject, results.join(", ")),
+                    "subject": subject,
+                    "unknown": false,
+                    "verified": false,
+                    "verification": "naive-lookup",
+                    "verificationPhases": [],
+                })
             }
         }
         // #1142: the JS backend's Graph.query() is a real label lookup, so the
