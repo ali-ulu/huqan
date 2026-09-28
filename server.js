@@ -84,6 +84,7 @@ const routeRuntime = createServerRouteRuntime({
   createExternalClientProductionBoundary,
   createAgent,
   callMcpTool,
+  resolveExperienceJournal,
   agentVersion: CANONICAL_AGENT_VERSION,
 });
 const {
@@ -107,11 +108,6 @@ const {
   handleReceiptReadRoute,
   handleTrustQueryRoutes,
 } = routeRuntime;
-
-// Experience reads share the same production journal as agent lifecycle writes.
-// The approval store already lives for the server lifetime; the Experience
-// EVIDENCE handle is tied to that store and is closed by ingestApprovalRuntime.
-resolveExperienceJournal({ kernel }, ingestApprovalRuntime.getStore());
 
 backgroundTimers.add(setInterval(() => {
   try { ingestApprovalRuntime.recover(); }
