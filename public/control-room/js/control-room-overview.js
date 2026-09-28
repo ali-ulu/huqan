@@ -68,16 +68,16 @@ if (typeof window !== 'undefined') {
     if (!panel) return;
     const state = firstRun.snapshot();
     const done = { connect: state.connected, decision: state.decisionObserved, receipt: state.receiptOpened };
-    let waiting = true;
+    let currentAssigned = false;
     for (const name of ['connect', 'decision', 'receipt']) {
       const row = panel.querySelector(`[data-first-run-step="${name}"]`);
       if (!row) continue;
+      const current = !done[name] && !currentAssigned;
       row.classList.toggle('done', done[name]);
-      row.classList.toggle('current', waiting && !done[name]);
-      if (done[name]) waiting = false;
-      else if (waiting) waiting = false;
+      row.classList.toggle('current', current);
+      if (current) currentAssigned = true;
       const status = row.querySelector('[data-first-run-state]');
-      if (status) status.textContent = done[name] ? 'Done' : row.classList.contains('current') ? 'Next' : 'Waiting';
+      if (status) status.textContent = done[name] ? 'Done' : current ? 'Next' : 'Waiting';
     }
     panel.dataset.complete = String(state.complete);
     $('#first-run-summary').textContent = message || (state.complete
