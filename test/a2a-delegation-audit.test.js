@@ -192,3 +192,33 @@ test('delegation audit: recording never throws, so it cannot fail an exchange', 
   // And a read of a directory that no longer exists is empty, not a throw.
   assert.deepEqual(log.read(), { entries: [], unreadable: 0 });
 });
+
+
+test('delegation audit rows survive log restart', () => {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-a2a-audit-restart-'));
+  const first = createA2aDelegationAuditLog(root);
+  const written = first.append({
+    request: {
+      exchangeId: 'restart-exchange',
+      workspaceId: 'default',
+      source: { agentId: 'delegator' },
+      target: { agentId: 'delegate' },
+      requestedAction: { capability: 'read', riskTier: 'low' },
+      delegation: { chain: ['delegator', 'delegate'], hops: [{}] },
+    },
+    outcome: DELEGATION_OUTCOMES.ADMITTED,
+    decision: 'allow',
+    reason: 'ok',
+    taskId: 'task-restart',
+    recordedAt: '2026-09-28T20:00:00.000Z',
+  });
+  assert.ok(written);
+
+  const restarted = createA2aDelegationAuditLog(root);
+  const read = restarted.read();
+  assert.equal(read.unreadable, 0);
+  assert.equal(read.entries.length, 1);
+  assert.equal(read.entries[0].exchangeId, 'restart-exchange');
+  assert.equal(read.entries[0].taskId, 'task-restart');
+  fs.rmSync(root, { recursive: true, force: true });
+});
