@@ -1,13 +1,6 @@
 {
   "schemaVersion": 3,
   "entries": {
-    "agent.v3.js": {
-      "band": "structural",
-      "lines": 353,
-      "signals": [
-        "DIP"
-      ]
-    },
     "cli.js": {
       "band": "structural",
       "lines": 200,
@@ -27,13 +20,6 @@
       "lines": 379,
       "signals": [
         "FANOUT:28"
-      ]
-    },
-    "kernel.v2.js": {
-      "band": "structural",
-      "lines": 194,
-      "signals": [
-        "DIP"
       ]
     }
   },
@@ -1193,6 +1179,7 @@
       "scripts/spawn-windows-aware.js": "UI",
       "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
+      "scripts/update-shard-weights.js": "UI",
       "scripts/verify-package-tarball.js": "UI",
       "scripts/verify-published-round-trip.js": "UI",
       "scripts/verify-suite.js": "UI",

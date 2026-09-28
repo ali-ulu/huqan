@@ -33,6 +33,31 @@ test('the live exception list is neither expired nor stale', () => {
   assert.deepEqual(snapshotModule.dipExceptionViolations(), []);
 });
 
+// #3101: both are runtime classes whose collaborators are injected and
+// defaulted in the same constructor. The construction is a default, not a
+// collaborator the caller forgot to pass, so the regex reports it and the
+// dated exception records why it is not a defect.
+const RUNTIME_DEFAULTS = ['kernel.v2.js', 'agent.v3.js'];
+
+test('kernel.v2.js and agent.v3.js are recorded, dated DIP exceptions', () => {
+  const { DIP_ALLOWED } = snapshotModule;
+  for (const file of RUNTIME_DEFAULTS) {
+    const entry = DIP_ALLOWED.find((item) => item.file === file);
+    assert.ok(entry, `${file} must be recorded`);
+    assert.ok(entry.why.trim().length > 50, 'an exception states why in a sentence');
+    assert.match(entry.review_by, /^\d{4}-\d{2}-\d{2}$/, 'an exception has a review date');
+  }
+});
+
+test('their recorded exceptions remove the DIP signal but nothing else', () => {
+  const rows = snapshotModule.snapshot();
+  for (const file of RUNTIME_DEFAULTS) {
+    const row = rows.find((item) => item.file === file);
+    assert.ok(row, `${file} is measured`);
+    assert.ok(!row.signals.includes('DIP'), `${file} still reports ${JSON.stringify(row.signals)}`);
+  }
+});
+
 test('an expired, a stale and a composition-root entry are each reported', () => {
   const { dipExceptionViolations } = snapshotModule;
   const sources = {

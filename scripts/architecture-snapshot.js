@@ -70,6 +70,8 @@ const DIP_ALLOWED = Object.freeze([
       + 'server-ingest-workflow-runtime.js, left as its own change.',
     review_by: '2026-12-31',
   },
+  { file: 'kernel.v2.js', why: 'opts.kernel is passed through and unwrapped (#329); new Kernel(opts) runs only when the caller passed none, so the construction is a default rather than a collaborator the caller failed to inject.', review_by: '2026-12-31' },
+  { file: 'agent.v3.js', why: 'opts.baseAgent is the injection point and new Agent({...}) builds the default when the caller passes none; opts.dream and opts.storage default the same way in the same constructor.', review_by: '2026-12-31' },
 ]);
 
 const isDipAllowed = (file) => DIP_ALLOWED.some((entry) => entry.file === file);
