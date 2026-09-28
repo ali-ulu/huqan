@@ -39,6 +39,10 @@ test('two-hop rule derives a previously unstored candidate fact', () => {
   assert.equal(result.derivedCandidates.length, 1);
   assert.deepEqual(result.derivedCandidates[0].fact, fact('affects', 'smoking', 'disease'));
   assert.equal(result.derivedCandidates[0].ruleId, 'rule:affects-through-type');
+  assert.deepEqual(result.derivedCandidates[0].directSupports, [
+    fact('CAUSES', 'smoking', 'cancer'),
+    fact('is_a', 'cancer', 'disease'),
+  ]);
 });
 
 test('subsequent rounds are driven by delta facts, not the accumulated fact set', () => {
