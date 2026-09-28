@@ -20,7 +20,7 @@ describe('the status command lives in lib/ (#2136)', () => {
     const { runStatusCommand } = require('../lib/cli-status-command');
     assert.equal(typeof runStatusCommand, 'function');
     assert.equal(runStatusCommand.length, 1);
-    const source = fs.readFileSync(path.join(__dirname, '..', 'cli.js'), 'utf8');
+    const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'cli-command-handlers.js'), 'utf8');
     assert.match(source, /'durum': \(cli\) => runStatusCommand\(cli\),/);
   });
 

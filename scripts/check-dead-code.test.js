@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { checkDeadCode, checkMcpToolSurface } = require('./check-dead-code');
+const { checkDeadCode, checkMcpToolSurface, checkCliCommandSurface } = require('./check-dead-code');
 
 const REPO_ROOT = path.join(__dirname, '..');
 
@@ -21,6 +21,12 @@ test('repo root passes dead-code check (reachability + MCP surface)', () => {
 
 test('MCP tool surface is consistent on the real tree', () => {
   const result = checkMcpToolSurface({ root: REPO_ROOT });
+  assert.equal(result.ok, true, result.report);
+  assert.equal(result.gaps.length, 0);
+});
+
+test('CLI command surface is consistent on the real tree', () => {
+  const result = checkCliCommandSurface({ root: REPO_ROOT });
   assert.equal(result.ok, true, result.report);
   assert.equal(result.gaps.length, 0);
 });
@@ -41,6 +47,7 @@ test('an unclassified orphan fails the gate', () => {
     fs.writeFileSync(path.join(root, 'lib', 'workflow-contract.js'),
       'const CLI_COMMAND_CAPABILITIES = Object.freeze([].map(Boolean));\n');
     fs.writeFileSync(path.join(root, 'lib', 'cli-workflow-adapter.js'), '// no CLI adapter commands\n');
+    fs.writeFileSync(path.join(root, 'lib', 'cli-command-handlers.js'), '// no CLI command rows\n');
 
     const result = checkDeadCode({ root });
     assert.equal(result.ok, false);

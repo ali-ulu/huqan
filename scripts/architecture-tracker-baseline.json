@@ -1,13 +1,6 @@
 {
   "schemaVersion": 3,
   "entries": {
-    "cli.js": {
-      "band": "structural",
-      "lines": 200,
-      "signals": [
-        "FANOUT:24"
-      ]
-    },
     "graph.js": {
       "band": "structural",
       "lines": 392,
@@ -184,6 +177,7 @@
       "lib/cli-capability-commands.js": "Core",
       "lib/cli-coder-verify.js": "Core",
       "lib/cli-coder.js": "Core",
+      "lib/cli-command-handlers.js": "Core",
       "lib/cli-company-ingest.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-experience-read.js": "Core",
@@ -1308,19 +1302,12 @@
       "cli.js": [
         "agentRuntime.js",
         "dream.js",
-        "lib/cli-agent-commands.js",
-        "lib/cli-approval-commands.js",
-        "lib/cli-backup-commands.js",
-        "lib/cli-capability-commands.js",
-        "lib/cli-company-ingest.js",
+        "lib/cli-command-handlers.js",
         "lib/cli-gate-evaluation.js",
-        "lib/cli-help.js",
         "lib/cli-helpers.js",
-        "lib/cli-knowledge-commands.js",
         "lib/cli-mutation-gate.js",
         "lib/cli-repl.js",
         "lib/cli-runtime-methods.js",
-        "lib/cli-status-command.js",
         "lib/cli-workflow-adapter.js",
         "lib/command-parser.js",
         "lib/environment-compat.js",
@@ -1882,6 +1869,16 @@
         "lib/coder/apply-derivation.js",
         "lib/coder/derivation-record.js",
         "lib/coder/journal-store.js"
+      ],
+      "lib/cli-command-handlers.js": [
+        "lib/cli-agent-commands.js",
+        "lib/cli-approval-commands.js",
+        "lib/cli-backup-commands.js",
+        "lib/cli-capability-commands.js",
+        "lib/cli-company-ingest.js",
+        "lib/cli-help.js",
+        "lib/cli-knowledge-commands.js",
+        "lib/cli-status-command.js"
       ],
       "lib/cli-company-ingest.js": [
         "lib/cli-helpers.js"

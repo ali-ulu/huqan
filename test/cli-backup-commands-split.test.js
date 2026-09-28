@@ -24,7 +24,7 @@ describe('the backup and restore commands live in lib/ (#2136)', () => {
     const { runBackupCommand, runRestoreCommand } = require('../lib/cli-backup-commands');
     assert.equal(runBackupCommand.length, 1);
     assert.equal(runRestoreCommand.length, 3);
-    const source = read('cli.js');
+    const source = read('lib', 'cli-command-handlers.js');
     assert.match(source, /'backup': \(cli\) => runBackupCommand\(cli\),/);
     assert.match(source, /'restore': \(cli, args, opts\) => runRestoreCommand\(cli, args, opts\),/);
   });
