@@ -25,7 +25,7 @@ const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePat
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
-const { runRustSandbox } = require('./lib/reason-sandbox');
+const { runRustSandboxResult } = require('./lib/reason-sandbox');
 const { install: installCapabilityMethods } = require('./lib/kernel-capability-methods');
 const { install: installPrimitiveMethods } = require('./lib/kernel-primitive-methods');
 const { install: installReadMethods, workspaceIdFrom } = require('./lib/kernel-read-methods');
@@ -183,8 +183,8 @@ class Kernel {
       // Deliberately NOT this._rust: huqan-core keeps one mutable Graph for the
       // life of its process, so the kernel's shared bridge is not a sandbox.
       // runRustSandbox spawns a private process per call and tears it down (#758).
-      const answers = await runRustSandbox({ learn, ask });
-      if (answers) return { backend: 'rust', answers };
+      const result = await runRustSandboxResult({ learn, ask });
+      if (result) return result;
       // Rust unusable or died mid-flight: fall through to the JS sandbox below.
     }
     // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
