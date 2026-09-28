@@ -10,7 +10,6 @@
   ],
   "threshold": 400,
   "files": {
-    "agent.v3.js": 623,
     "kernel.js": 495,
     "lib/atp-conformance.js": 504,
     "lib/conflict-detector.js": 616,
@@ -25,10 +24,6 @@
     "sandboxRunner.js": 530
   },
   "reviews": {
-    "agent.v3.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
     "kernel.js": {
       "why": "Kernel is the public compatibility facade and composition root for the v1 runtime: it assembles Graph, MemoryStore, PluginManager, VerifyService and the ephemeral sandbox Kernel. Moving those constructions outward would leak runtime assembly into callers; further size reduction is still owed where cohesive seams can be extracted without increasing coupling. Review alongside #2127 successor decomposition work.",
       "review_by": "2026-12-31"

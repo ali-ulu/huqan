@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "entries": {
     "agent.v3.js": {
-      "band": "recorded",
-      "lines": 623,
+      "band": "structural",
+      "lines": 377,
       "signals": [
         "DIP"
       ]
@@ -190,12 +190,19 @@
       "lib/agent-run-finalization.js": "Core",
       "lib/agent-run-guidance.js": "Core",
       "lib/agent-step-executor.js": "Core",
+      "lib/agent-v3-approval-methods.js": "Core",
+      "lib/agent-v3-budget-methods.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
+      "lib/agent-v3-method-install.js": "Core",
       "lib/agent-v3-plan-memory.js": "Core",
+      "lib/agent-v3-plan-methods.js": "Core",
+      "lib/agent-v3-result-methods.js": "Core",
       "lib/agent-v3-run-state.js": "Core",
+      "lib/agent-v3-status-methods.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/agent-v3-workspace.js": "Core",
+      "lib/api-auth-opt-out.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
@@ -1293,10 +1300,14 @@
         "lib/agent-behavioral-integrity.js",
         "lib/agent-memory-persistence.js",
         "lib/agent-run-finalization.js",
+        "lib/agent-v3-approval-methods.js",
+        "lib/agent-v3-budget-methods.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
-        "lib/agent-v3-plan-memory.js",
-        "lib/agent-v3-run-state.js",
+        "lib/agent-v3-method-install.js",
+        "lib/agent-v3-plan-methods.js",
+        "lib/agent-v3-result-methods.js",
+        "lib/agent-v3-status-methods.js",
         "lib/agent-v3-storage-factory.js",
         "lib/agent-v3-workspace.js",
         "lib/goal-binding.js"
@@ -1672,6 +1683,9 @@
         "lib/goal-binding.js",
         "toolPolicy.js"
       ],
+      "lib/agent-v3-budget-methods.js": [
+        "lib/agent-v3-loop-budget.js"
+      ],
       "lib/agent-v3-dream-loop-adapter.js": [
         "lib/dream-experiment-loop.js"
       ],
@@ -1679,11 +1693,23 @@
         "lib/agent-loop-budget-gate.js",
         "lib/gate-telemetry.js"
       ],
+      "lib/agent-v3-plan-methods.js": [
+        "lib/agent-v3-dream-loop-adapter.js",
+        "lib/agent-v3-plan-memory.js",
+        "lib/agent-v3-run-state.js",
+        "lib/agent-v3-workspace.js"
+      ],
       "lib/agent-v3-run-state.js": [
         "lib/agent-v3-dream-loop-adapter.js"
       ],
+      "lib/agent-v3-status-methods.js": [
+        "lib/agent-v3-run-state.js"
+      ],
       "lib/agent-v3-storage-factory.js": [
         "storage.js"
+      ],
+      "lib/api-auth-opt-out.js": [
+        "lib/environment-compat.js"
       ],
       "lib/approval-execution-evidence.js": [
         "lib/receipt/receipt-read-index.js"
@@ -1899,6 +1925,7 @@
         "lib/cli-helpers.js"
       ],
       "lib/cli-doctor.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "lib/sqlite-availability.js",
         "lib/storage/schema.js",
@@ -3007,6 +3034,7 @@
         "requestGuards.js"
       ],
       "lib/http/server-boot.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "lib/http/graceful-shutdown.js",
         "lib/http/process-failure-handlers.js",
@@ -4890,6 +4918,7 @@
         "lib/gate-telemetry.js"
       ],
       "requestGuards.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "requestGuards-body.js",
         "requestGuards-command-policy.js",
@@ -5084,6 +5113,7 @@
         "scripts/ci-impact-rules.js"
       ],
       "scripts/container-server.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "server.js"
       ],
