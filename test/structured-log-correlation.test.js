@@ -92,6 +92,7 @@ test('structured correlation logging contract', async t => {
       method: 'GET',
       url: '/health',
       headers: { host: 'localhost', 'x-request-id': 'caller-controlled' },
+      socket: { remoteAddress: '198.51.100.212' },
     };
     const res = new EventEmitter();
     res.headersSent = false;
