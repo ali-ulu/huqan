@@ -69,17 +69,28 @@
     }).join('') : '<tr><td colspan="6" class="empty">No actions match these filters, or nothing has loaded yet.</td></tr>';
   }
 
-  function openRow(auditId) {
+  async function openRow(auditId) {
     const it = items.find((x) => x.auditId === auditId);
     if (!it) return;
     const r = it.receipt;
+    let receiptVerified = false;
+    if (r?.receiptId) {
+      const proof = await Data.fetchReceipt(r.receiptId);
+      receiptVerified = Boolean(proof.ok && proof.receipt);
+      if (receiptVerified) {
+        window.dispatchEvent(new CustomEvent('huqan:first-run-receipt-opened', {
+          detail: { ok: true, receiptId: r.receiptId },
+        }));
+      }
+    }
     const step = (cls, mark, title, sub) => `<li><span class="node ${cls}">${mark}</span><div><b>${title}</b><span>${sub}</span></div></li>`;
     const chain = [step('c-muted', '1', 'Agent asked', `<span class="mono">${esc(it.actor)}</span> triggered <span class="mono">${esc(it.eventType)}</span>${it.tool ? ` via <span class="mono">${esc(it.tool)}</span>` : ''}`)];
     if (r) {
       const cls = decisionClass(r.decision);
       chain.push(step(cls, r.decision === 'block' ? '✕' : r.decision === 'review' ? '…' : '✓', `Policy: ${esc(decisionLabel(r.decision))}`, esc(r.reason || 'no reason recorded')));
       chain.push(r.receiptId
-        ? step('c-pass', '✓', 'Receipt', `<span class="mono">${esc(r.receiptId)}</span>`)
+        ? step(receiptVerified ? 'c-pass' : 'c-muted', receiptVerified ? '✓' : '…', 'Receipt',
+          `<span class="mono">${esc(r.receiptId)}</span> · ${receiptVerified ? 'verified from the live receipt endpoint' : 'could not be verified right now'}`)
         : step('c-muted', '–', 'Receipt', 'No receipt attached to this event'));
     } else {
       chain.push(step('c-muted', '–', 'Decision', 'unattributed — no receipt found for this event'));
@@ -117,6 +128,17 @@
       return;
     }
     items = items.concat(result.items);
+    const observed = result.items.find((item) => item.receipt?.receiptId
+      && ['allow', 'review', 'block'].includes(String(item.receipt.decision || '')));
+    if (observed) {
+      window.dispatchEvent(new CustomEvent('huqan:first-run-decision-observed', {
+        detail: {
+          ok: true,
+          decision: observed.receipt.decision,
+          receiptId: observed.receipt.receiptId,
+        },
+      }));
+    }
     nextCursor = result.hasMore ? result.nextCursor : null;
     $('#act-more').hidden = !nextCursor;
     $('#act-status').textContent = loaded ? '' : (items.length ? '' : 'No activity recorded yet.');
