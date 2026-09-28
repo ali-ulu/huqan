@@ -3,7 +3,7 @@
   "entries": {
     "agent.v3.js": {
       "band": "structural",
-      "lines": 377,
+      "lines": 353,
       "signals": [
         "DIP"
       ]
@@ -1298,8 +1298,6 @@
         "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
-        "lib/agent-memory-persistence.js",
-        "lib/agent-run-finalization.js",
         "lib/agent-v3-approval-methods.js",
         "lib/agent-v3-budget-methods.js",
         "lib/agent-v3-dream-loop-adapter.js",
@@ -1703,6 +1701,9 @@
         "lib/agent-v3-dream-loop-adapter.js"
       ],
       "lib/agent-v3-status-methods.js": [
+        "lib/agent-memory-persistence.js",
+        "lib/agent-run-finalization.js",
+        "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-run-state.js"
       ],
       "lib/agent-v3-storage-factory.js": [

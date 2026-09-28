@@ -5,9 +5,7 @@ const { normalizeAgentV3WorkspaceId } = require('./lib/agent-v3-workspace');
 const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
 const { DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-v3-loop-budget');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
-const { loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction } = require('./lib/agent-v3-dream-loop-adapter');
-const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
-const { finalizeAgentRun } = require('./lib/agent-run-finalization');
+const { loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep } = require('./lib/agent-v3-dream-loop-adapter');
 const { normalizeGoal, createToolApprovalSeam } = require('./lib/agent-v3-approval-methods');
 const { installAgentV3Methods } = require('./lib/agent-v3-method-install');
 const { AgentV3BudgetMethods } = require('./lib/agent-v3-budget-methods');
@@ -39,6 +37,40 @@ class AgentV3 {
     this.lastPlan = null;
     this.lastRun = null;
   }
+  /**
+   * Records an AB10 gate outcome. Audit persistence must not convert a
+   * fail-closed refusal into a thrown exception, so a failing write is
+   * swallowed here -- the same protection kernel._appendAuditEvent gives,
+   * which this path bypasses by calling graph directly.
+   *
+   * graph.appendAuditEvent() is called directly rather than
+   * kernel._appendAuditEvent(): KernelV2 is a facade over an internal Kernel
+   * instance and does not proxy that private method, but both Kernel and
+   * KernelV2 expose .graph identically, so this works for either kernel
+   * implementation passed into AgentV3.
+   */
+  _recordBudgetAuditEvent(goal, workspaceId, budgetCheck) {
+    if (!this.kernel?.graph || typeof this.kernel.graph.appendAuditEvent !== 'function') return;
+    try {
+      this.kernel.graph.appendAuditEvent({
+        eventType: budgetCheck.decision === 'block' ? 'REJECT' : 'REVIEW',
+        targetType: 'agent_loop_budget',
+        targetId: goal,
+        details: {
+          gate: 'AB10',
+          reason: budgetCheck.reason,
+          iterationsUsed: budgetCheck.iterationsUsed,
+          maxIterationsPerWindow: budgetCheck.maxIterationsPerWindow,
+          usageKnown: budgetCheck.usageKnown !== false,
+        },
+      }, { workspaceId });
+    } catch (_) {
+      // Refusing the run is the safety behavior; losing its audit line must
+      // not escalate into an exception that hides the refusal.
+    }
+  }
+
+
 
   run(goal, opts = {}) {
     const scopeResult = createExecutionScope(goal, opts);
@@ -279,65 +311,9 @@ class AgentV3 {
       }
     }
 
-    if (state.status === 'running') {
-      if (queued.length > 0) {
-        state.status = 'paused';
-        state.pauseReason = state.pauseReason || 'budget_or_iteration_limit';
-      } else {
-        const finalStep = state.steps[state.steps.length - 1];
-        state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : 'completed';
-      }
-    }
+    const runFinal = this._finalizeRunState(state, { goal, workspaceId, activePlan, dreamLoopActive, queued });
+    if (runFinal.failed) return runFinal.result;
 
-    const finalStep = state.steps[state.steps.length - 1];
-    const finalSummary = finalStep ? this._runtime().extractAgentSummary(finalStep.result) : { text: '' };
-    state.finalAnswer = finalSummary.text || 'Agent completed but no short summary could be produced.';
-    attachStepErrorSummary(state);
-    state.completedSteps = state.steps.length;
-    state.remainingSteps = queued.length;
-    state.recommendations = this._runtime().buildRunRecommendations(state);
-    state.nextAction = selectDreamNextAction(
-      dreamLoopActive,
-      state,
-      this._runtime().suggestNextAction(state),
-    );
-    state.report = this._renderReport(state);
-    let goalMemory;
-    let runs;
-    try {
-      goalMemory = this.storage.getGoalMemory(goal, workspaceId);
-      runs = this.storage.countRuns();
-    } catch (err) {
-      return this._storageFailure('readRunMemory', err, state);
-    }
-    state.memory = { path: this.storage.dbPath, goalMemory, runs };
-    state.checkpointId = state.checkpointId || state.resumeToken || null;
-    state.resumeToken = state.checkpointId;
-
-    // What this run() spent, not the goal's running total: summing the
-    // cumulative figure would count a resumed run's earlier iterations again
-    // on every resume, exhausting the window budget long before it was
-    // genuinely spent.
-    state.iterationsDelta = Math.max(0, Number(state.iteration || 0) - Number(state.iterationsAtRunStart || 0));
-
-    const finalized = finalizeAgentRun({
-      storage: this.storage,
-      state,
-      goalMemory: {
-        goal,
-        workspaceId,
-        objective: activePlan.objective,
-        status: state.status,
-        completedSteps: state.completedSteps,
-        finalAnswer: state.finalAnswer,
-        resumed: state.resumed,
-        selectedTools: activePlan.selectedTools,
-      },
-      saveCheckpoint: current => this._saveCheckpoint(current),
-    });
-    if (!finalized.ok) {
-      return this._storageFailure(finalized.operation, finalized.error, state);
-    }
 
     this.lastRun = state;
 

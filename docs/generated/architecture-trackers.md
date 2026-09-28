@@ -30,7 +30,7 @@ Tracked in total: **17**
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 392 | FANOUT:31 |
-| `agent.v3.js` | 377 | DIP |
+| `agent.v3.js` | 353 | DIP |
 | `cli.js` | 200 | FANOUT:24 |
 | `kernel.v2.js` | 194 | DIP |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |
