@@ -1,8 +1,8 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const Kernel = require('./kernel');
 const Dream = require('./dream');
 
@@ -13,7 +13,8 @@ function fresh() {
   // journal, and sharing the repo's real memory.json/memory.mutations.json
   // would both pollute user data and let stale locks from an aborted run
   // wedge every subsequent test (see lib/mutation-journal-lock.js).
-  const iso = path.join(os.tmpdir(), `huqan-dream-test-${process.pid}-${crypto.randomUUID()}`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-dream-test-'));
+  const iso = path.join(root, 'memory.json');
   const k = new Kernel({ noLoad: true, memoryPath: iso });
   const learn = k.learn.bind(k);
   k.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });

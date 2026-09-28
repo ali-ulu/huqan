@@ -2,15 +2,16 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const Kernel = require('../kernel');
 
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function fresh() {
-  const iso = path.join(os.tmpdir(), `huqan-h20-${process.pid}-${crypto.randomUUID()}`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-h20-'));
+  const iso = path.join(root, 'memory.json');
   const k = new Kernel({ noLoad: true, memoryPath: iso });
   const learn = k.learn.bind(k);
   k.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
