@@ -9,7 +9,7 @@ HUQAN is a local gate between an AI agent's output and the state it would change
 [![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ali-ulu/huqan/badge)](https://scorecard.dev/viewer/?uri=github.com/ali-ulu/huqan)
 
-## Sixty seconds
+## Try it in 30 seconds
 
 ```console
 $ npx -y huqan quickstart
@@ -23,6 +23,8 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
 Read line 1 again: the write **did not happen**. It was held, then allowed at line 3 once something approved it, and line 4 is the durable record of why. That gap is the whole product.
 
 The quickstart runs against a throwaway store in your temp directory. It never touches your own memory and never relaxes a gate.
+
+Prefer no install? The same flow runs in the browser at [huqan.com](https://huqan.com) — a static simulation, no backend. For a bigger map of what to run when, see [product surfaces](./docs/product-surfaces.md).
 
 ## Install
 
@@ -55,7 +57,7 @@ Which outcomes are reachable depends on the gate. A tool call returns `allow`, `
 
 A passing verification is not a certificate of truth. It is a result produced inside one configured boundary, and the receipt names which one.
 
-## Wiring it in
+## Connect your agent
 
 **MCP** — for Claude, Cursor, or anything else speaking the protocol:
 
@@ -75,6 +77,8 @@ A passing verification is not a certificate of truth. It is a result produced in
 Three operator tools — `huqan.approve`, `huqan.approvals`, `huqan.agent_resume` — are withheld from `tools/list` and need `HUQAN_MCP_OPERATOR_TOKEN`. A model that proposes a mutation cannot approve it through the catalog it can see. Operator capabilities are single-use, and the record of a spent one survives restarts and workers; if it cannot be written, verification fails closed.
 
 **Any other agent** — `huqan-gate` takes a brand-independent envelope and ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It enforces only when the client calls it *before* executing; a hookless client needs a wrapper, gateway or sandbox. [Details](./docs/external-action-guard.md).
+
+## Use it directly
 
 **As a library:**
 
@@ -106,9 +110,7 @@ Four tools get compared to HUQAN. Each owns a different boundary, and one system
 | [Docker MCP Gateway](https://docs.docker.com/ai/mcp-catalog-and-toolkit/mcp-gateway/) | MCP server lifecycle, credentials, routing, container isolation | The decision inside the call, not the isolation around it |
 | [DeepEval](https://deepeval.com/docs/evaluation-introduction) | Scoring model quality against datasets, in CI | The single live action, judged before it lands |
 
-This is a comparison of focus, not a claim that any of them lacks features outside its primary documentation. Evals score a model offline; tracing says what happened last night; IAM says who may call the API. HUQAN answers what none of them ask: *should this specific output be trusted, right now, before it lands?*
-
-Full reasoning, sources, and the cases where HUQAN is the **wrong** choice: [competitive positioning](./docs/competitive-positioning.md).
+This is a comparison of focus, not a claim that any of them lacks features outside its primary documentation. Evals score a model offline, tracing says what happened last night, IAM says who may call the API. HUQAN answers what none of them ask: *should this specific output be trusted, right now, before it lands?* Full reasoning, sources, and the cases where HUQAN is the **wrong** choice: [competitive positioning](./docs/competitive-positioning.md).
 
 ## More
 
