@@ -9,7 +9,10 @@ const test = require('node:test');
 const Kernel = require('../kernel');
 
 function makeKernel(label, overrides = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-read-use-cases-${label}-`));
+  // `root` lets a caller supply the directory (so a test can assert on exact
+  // paths); otherwise each kernel gets its own mkdtemp directory.
+  const { root: rootOverride, ...kernelOptions } = overrides;
+  const root = rootOverride || fs.mkdtempSync(path.join(os.tmpdir(), `huqan-read-use-cases-${label}-`));
   return new Kernel({
     noLoad: true,
     loadPlugins: false,
@@ -19,7 +22,7 @@ function makeKernel(label, overrides = {}) {
     dbPath: path.join(root, 'memory.db'),
     memoryStorePath: path.join(root, 'memory-store.json'),
     memoryStoreDbPath: path.join(root, 'memory-store.db'),
-    ...overrides,
+    ...kernelOptions,
   });
 }
 
@@ -88,6 +91,9 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
 test('read use cases preserve persistence descriptor observable results', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-read-use-cases-persistence-descriptor-'));
   const kernel = makeKernel('persistence-descriptor', {
+    root,
+    // Deliberately a different dbPath: the descriptor must derive dbPath from
+    // memoryPath, not echo the configured dbPath.
     dbPath: path.join(root, 'independent.db'),
   });
 
