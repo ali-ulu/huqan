@@ -36,7 +36,7 @@ const PROVENANCE_PATHS = [
   'lib/connectors/entry-ingest-flow.js',
   'lib/connectors/repo-memory-github.js',
   'lib/connectors/repo-memory-path-ingest.js',
-  'lib/github-connector.js',
+  'lib/github-connector-provenance.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
   'lib/provenance-ingest-adapter.js',
@@ -55,8 +55,10 @@ const PINNED = new Set([
   'adapters/pdf-adapter.js',
   'adapters/yaml-adapter.js',
   // Closed after #671, each for a different reason -- see the notes that used to
-  // sit in NOT_PINNED and are preserved in the commit that moved them.
-  'lib/github-connector.js',
+  // sit in NOT_PINNED and are preserved in the commit that moved them. The
+  // connector's pinning moved to lib/github-connector-provenance.js with the
+  // #2120 split.
+  'lib/github-connector-provenance.js',
   'plugins/repo-memory.js',
   // Where repo-memory's pinning lives, after the file-size ratchet required it
   // to move out of the plugin. It computes the hash, so it is classified here
@@ -187,7 +189,7 @@ test.describe('provenance pinning coverage', () => {
     // that. repo-memory records a commit it already held; the connector records
     // a version its caller states, because it fetches nothing and cannot resolve
     // one itself.
-    for (const rel of ['plugins/repo-memory.js', 'lib/github-connector.js']) {
+    for (const rel of ['plugins/repo-memory.js', 'lib/github-connector-provenance.js']) {
       assert.ok(recordsContentHash(rel), `${rel} records no content hash`);
       assert.ok(PINNED.has(rel), `${rel} is not classified as pinned`);
       assert.ok(!Object.prototype.hasOwnProperty.call(NOT_PINNED, rel),
@@ -200,7 +202,7 @@ test.describe('provenance pinning coverage', () => {
     assert.ok(!/resolveCommitSha|git\/trees|raw\.githubusercontent/.test(repoMemory),
       'repo-memory grew its own fetch path; it was meant to record what it already had');
 
-    const connector = sourceOf('lib/github-connector.js');
+    const connector = sourceOf('lib/github-connector-provenance.js');
     assert.match(connector, /sourceVersionKind/,
       'the connector does not record which kind of version it was given');
     assert.ok(!/fetch\(|api\.github\.com/.test(connector),
