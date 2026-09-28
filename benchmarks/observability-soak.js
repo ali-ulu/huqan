@@ -111,9 +111,20 @@ function assertSoakTargets(report, targets) {
     ['dbBytesPerEvent', report.resources.dbBytesPerEvent, targets.maxDbBytesPerEvent],
     ['queueLagMs', report.resources.queueLagMs, targets.maxQueueLagMs],
     ['subscriberCountAfter', report.reconnect.subscriberCountAfter, targets.maxSubscriberCountAfter],
+    ['heapSlopeBytesPerCycle', report.resources.curve.heapSlopeBytesPerCycle, targets.maxHeapSlopeBytesPerCycle],
+    ['rssSlopeBytesPerCycle', report.resources.curve.rssSlopeBytesPerCycle, targets.maxRssSlopeBytesPerCycle],
+    ['activeResourceDeltaAfterCleanup', report.resources.lifecycle.activeResourceDeltaAfterCleanup, targets.maxActiveResourceDeltaAfterCleanup],
+    ['activeHandleDeltaAfterCleanup', report.resources.lifecycle.activeHandleDeltaAfterCleanup, targets.maxActiveHandleDeltaAfterCleanup],
+    ['timerDeltaAfterCleanup', report.resources.lifecycle.timerDeltaAfterCleanup, targets.maxTimerDeltaAfterCleanup],
+    ['childProcessDeltaAfterCleanup', report.resources.lifecycle.childProcessDeltaAfterCleanup, targets.maxChildProcessDeltaAfterCleanup],
   ];
   for (const [name, value, limit] of checks) {
     if (!Number.isFinite(value) || value > limit) failures.push(`${name}=${value} (max ${limit})`);
+  }
+  if (report.runtime.procFdAvailable
+      && (!Number.isFinite(report.resources.lifecycle.openFileDescriptorDeltaAfterCleanup)
+        || report.resources.lifecycle.openFileDescriptorDeltaAfterCleanup > targets.maxOpenFileDescriptorDeltaAfterCleanup)) {
+    failures.push(`openFileDescriptorDeltaAfterCleanup=${report.resources.lifecycle.openFileDescriptorDeltaAfterCleanup} (max ${targets.maxOpenFileDescriptorDeltaAfterCleanup})`);
   }
   if (report.reconnect.longLivedDeliveries !== report.reconnect.expectedLongLivedDeliveries) {
     failures.push(`longLivedDeliveries=${report.reconnect.longLivedDeliveries}`);
