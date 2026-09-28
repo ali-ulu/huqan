@@ -73,11 +73,6 @@
         "OCP:8"
       ]
     },
-    "plugins/company-brain.js": {
-      "band": "recorded",
-      "lines": 630,
-      "signals": []
-    },
     "sandboxRunner.js": {
       "band": "recorded",
       "lines": 530,
@@ -287,6 +282,9 @@
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/company-brain-identity.js": "Core",
+      "lib/company-brain-ingest.js": "Core",
+      "lib/company-brain-query.js": "Core",
+      "lib/company-brain-state.js": "Core",
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
       "lib/conflict-detector.js": "Core",
@@ -602,6 +600,11 @@
       "lib/inference-abduction.js": "Core",
       "lib/inference-backward-values.js": "Core",
       "lib/inference-backward.js": "Core",
+      "lib/inference-belief-revision-values.js": "Core",
+      "lib/inference-belief-revision.js": "Core",
+      "lib/inference-derived-admission.js": "Core",
+      "lib/inference-derived-dependency.js": "Core",
+      "lib/inference-derived-record.js": "Core",
       "lib/inference-rule-ir.js": "Core",
       "lib/inference-semi-naive-join.js": "Core",
       "lib/inference-semi-naive-values.js": "Core",
@@ -2093,6 +2096,21 @@
       "lib/company-brain-identity.js": [
         "lib/entity-resolution.js"
       ],
+      "lib/company-brain-ingest.js": [
+        "evidence-ranker.js",
+        "lib/causal-edge-strength.js",
+        "lib/company-brain-identity.js",
+        "lib/company-brain-query.js",
+        "lib/company-brain-state.js",
+        "lib/company-ingest-gate.js"
+      ],
+      "lib/company-brain-query.js": [
+        "lib/company-brain-identity.js",
+        "lib/entity-resolution.js"
+      ],
+      "lib/company-brain-state.js": [
+        "lib/bounded-ingest-errors.js"
+      ],
       "lib/company-ingest-gate.js": [
         "lib/data-egress-gate.js",
         "lib/secret-scrub-gate.js"
@@ -3235,6 +3253,21 @@
       "lib/inference-backward.js": [
         "lib/inference-backward-values.js",
         "lib/inference-unification.js"
+      ],
+      "lib/inference-belief-revision.js": [
+        "lib/inference-belief-revision-values.js",
+        "lib/inference-derived-record.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/inference-derived-admission.js": [
+        "lib/inference-derived-record.js"
+      ],
+      "lib/inference-derived-dependency.js": [
+        "lib/inference-derived-record.js",
+        "lib/inference-semi-naive-values.js"
+      ],
+      "lib/inference-derived-record.js": [
+        "lib/inference-semi-naive-values.js"
       ],
       "lib/inference-rule-ir.js": [
         "lib/is-plain-object.js"
@@ -4893,12 +4926,9 @@
         "lib/plugin-verification.js"
       ],
       "plugins/company-brain.js": [
-        "evidence-ranker.js",
-        "lib/bounded-ingest-errors.js",
-        "lib/causal-edge-strength.js",
-        "lib/company-brain-identity.js",
-        "lib/company-ingest-gate.js",
-        "lib/entity-resolution.js",
+        "lib/company-brain-ingest.js",
+        "lib/company-brain-query.js",
+        "lib/company-brain-state.js",
         "llmAdapter.js"
       ],
       "plugins/contradiction-alert.js": [
