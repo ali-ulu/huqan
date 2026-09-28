@@ -8,7 +8,7 @@ Tracked in total: **16**
 | File | Lines | Signals |
 |---|---:|---|
 
-## Recorded debt, 401-800 lines (12)
+## Recorded debt, 401-800 lines (11)
 
 | File | Lines | Signals |
 |---|---:|---|
