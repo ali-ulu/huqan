@@ -146,6 +146,60 @@ test('same candidate, snapshots and supports reproduce the same derivation ident
   assert.deepEqual(left.bindings, right.bindings);
 });
 
+test('inactive or non-admitted derived supports cannot seed a new derivation', () => {
+  const candidate = deriveAffectsCandidate();
+
+  assert.throws(() => buildDerivedRecord(candidate, {
+    workspaceId: 'ws-inference',
+    graphSnapshotId: 'g',
+    ruleSnapshotId: 'r',
+    derivedAt: DERIVED_AT,
+    supportDetails: [
+      {
+        fact: fact('CAUSES', 'smoking', 'cancer'),
+        provenanceRefs: ['prov_source_causes'],
+        state: 'withdrawn',
+      },
+      {
+        fact: fact('is_a', 'cancer', 'disease'),
+        provenanceRefs: ['prov_source_type'],
+      },
+    ],
+  }), /not active\/admitted/);
+
+  assert.throws(() => buildDerivedRecord(candidate, {
+    workspaceId: 'ws-inference',
+    graphSnapshotId: 'g',
+    ruleSnapshotId: 'r',
+    derivedAt: DERIVED_AT,
+    supportDetails: [
+      {
+        fact: fact('CAUSES', 'smoking', 'cancer'),
+        provenanceRefs: ['prov_source_causes'],
+        derivedRecordId: 'prov_parent',
+        state: 'active',
+      },
+      {
+        fact: fact('is_a', 'cancer', 'disease'),
+        provenanceRefs: ['prov_source_type'],
+      },
+    ],
+  }), /must be admitted/);
+});
+
+test('terminal derived states cannot be silently reopened as admitted', () => {
+  const withdrawn = transitionDerivedRecord(buildRecord(), DERIVED_STATES.WITHDRAWN, {
+    at: '2026-09-28T01:11:00.000Z',
+    reason: 'support_withdrawn',
+  });
+  assert.throws(() => transitionDerivedRecord(withdrawn, DERIVED_STATES.ADMITTED, {
+    at: '2026-09-28T01:12:00.000Z',
+    reason: 'reopen',
+    receiptId: 'receipt-reopen',
+  }), /is not allowed/);
+  assert.equal(canBackTrustReceipt(withdrawn, 'receipt-reopen'), false);
+});
+
 test('derived history refuses a transition earlier than the current timeline', () => {
   const record = buildRecord();
   const admitted = transitionDerivedRecord(record, DERIVED_STATES.ADMITTED, {
