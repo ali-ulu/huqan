@@ -2,7 +2,15 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
+const Graph = require('../graph');
+const {
+  recordPrediction,
+  recordOutcome,
+} = require('../lib/prediction-outcome-pairs');
 const {
   DERIVED_RECORD_SCHEMA_VERSION,
 } = require('../lib/inference-derived-record');
@@ -12,6 +20,7 @@ const {
   CALIBRATION_STATUS,
   EFFECT_KIND,
   calibrateRuleBelief,
+  calibrateRuleBeliefFromStore,
   ruleBeliefAt,
   reviseDerivedConclusionBeliefs,
   derivedBeliefAt,
@@ -204,7 +213,7 @@ test('declared confidence remains separate from calibrated and system confidence
   assert.notEqual(result.calibratedConfidence, result.declaredConfidence);
   assert.equal(
     result.systemConfidence,
-    Math.min(result.declaredConfidence, result.calibratedConfidence),
+    Number(Math.min(result.declaredConfidence, result.calibratedConfidence).toFixed(6)),
   );
 });
 
@@ -322,4 +331,60 @@ test('defeated rule belief defeats dependent derived conclusion without mutating
 
   assert.equal(revised.status, 'defeated');
   assert.equal(record.state, 'admitted');
+});
+
+test('calibrateRuleBeliefFromStore reads the persisted prediction pairs', (t) => {
+  // The store-backed entrypoint had no repository consumer; this exercises it
+  // end to end so the export is not a dead end and its wiring to
+  // prediction-outcome-pairs is pinned.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-belief-store-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
+
+  const ruleId = 'rule:store';
+  const actionClass = `inference-rule:${ruleId}`;
+  const at = '2026-09-01T00:00:00.000Z';
+  for (const id of ['d1', 'd2', 'd3', 'd4', 'd5']) {
+    recordPrediction(graph, { decisionId: id, score: 80, actionClass, at });
+  }
+  recordOutcome(graph, { decisionId: 'd1', outcome: 'confirmed', idempotencyKey: 'o1', at });
+  recordOutcome(graph, { decisionId: 'd2', outcome: 'confirmed', idempotencyKey: 'o2', at });
+  for (const [id, key] of [['d3', 'o3'], ['d4', 'o4'], ['d5', 'o5']]) {
+    recordOutcome(graph, { decisionId: id, outcome: 'incident', idempotencyKey: key, at });
+  }
+
+  const result = calibrateRuleBeliefFromStore(graph, {
+    ruleId,
+    declaredConfidence: 0.9,
+    at: '2026-09-10T00:00:00.000Z',
+    effectEvidence: ['d1', 'd2', 'd3', 'd4', 'd5'].map((decisionId) => ({
+      decisionId,
+      kind: EFFECT_KIND.OBSERVED,
+    })),
+  });
+
+  assert.equal(result.status, CALIBRATION_STATUS.DEGRADED);
+  assert.equal(result.observedSamples, 5);
+  assert.equal(result.observedSuccesses, 2);
+  assert.equal(result.observedFailures, 3);
+  // Same input through the direct call agrees: the store read is the only
+  // difference, so the calibration itself must not diverge.
+  const direct = calibrateRuleBelief({
+    ruleId,
+    declaredConfidence: 0.9,
+    at: '2026-09-10T00:00:00.000Z',
+    pairs: pairsObject([
+      pair('d1', ruleId, 'confirmed'),
+      pair('d2', ruleId, 'confirmed'),
+      pair('d3', ruleId, 'incident'),
+      pair('d4', ruleId, 'incident'),
+      pair('d5', ruleId, 'incident'),
+    ]),
+    effectEvidence: ['d1', 'd2', 'd3', 'd4', 'd5'].map((decisionId) => ({
+      decisionId,
+      kind: EFFECT_KIND.OBSERVED,
+    })),
+  });
+  assert.equal(result.systemConfidence, direct.systemConfidence);
+  assert.equal(result.calibratedConfidence, direct.calibratedConfidence);
 });
