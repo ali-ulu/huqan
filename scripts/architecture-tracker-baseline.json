@@ -41,11 +41,6 @@
       "lines": 504,
       "signals": []
     },
-    "lib/github-connector.js": {
-      "band": "recorded",
-      "lines": 518,
-      "signals": []
-    },
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",
       "lines": 477,
@@ -464,6 +459,9 @@
       "lib/github-app-streaming-trust-store-records.js": "Core",
       "lib/github-app-streaming-trust-store.js": "Core",
       "lib/github-app-streaming-trust.js": "Core",
+      "lib/github-connector-ingest.js": "Core",
+      "lib/github-connector-normalize.js": "Core",
+      "lib/github-connector-provenance.js": "Core",
       "lib/github-connector.js": "Core",
       "lib/github-url.js": "Core",
       "lib/goal-binding.js": "Core",
@@ -2780,13 +2778,26 @@
         "lib/github-app-streaming-trust-github-api.js",
         "lib/github-app-streaming-trust-receipt.js"
       ],
-      "lib/github-connector.js": [
+      "lib/github-connector-ingest.js": [
         "lib/audit-log.js",
         "lib/conflict-detector.js",
-        "lib/content-hash.js",
-        "lib/github-url.js",
-        "lib/provenance-ingest.js",
+        "lib/github-connector-normalize.js",
+        "lib/github-connector-provenance.js",
         "lib/workspace-id.js"
+      ],
+      "lib/github-connector-normalize.js": [
+        "lib/github-url.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/github-connector-provenance.js": [
+        "lib/content-hash.js",
+        "lib/github-connector-normalize.js",
+        "lib/provenance-ingest.js"
+      ],
+      "lib/github-connector.js": [
+        "lib/github-connector-ingest.js",
+        "lib/github-connector-normalize.js",
+        "lib/github-connector-provenance.js"
       ],
       "lib/graduated-autonomy.js": [
         "lib/autonomy-receipt-history.js",
