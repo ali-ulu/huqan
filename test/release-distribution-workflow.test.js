@@ -17,10 +17,22 @@ test('release distribution only follows the canonical npm publish workflow', () 
   assert.match(workflow, /workflow_run\.event == 'push'/);
 });
 
-test('distribution is pinned to the exact upstream published commit', () => {
-  assert.match(workflow, /github\.event\.workflow_run\.head_sha/);
+test('distribution validates the upstream published commit before any source checkout', () => {
+  assert.match(workflow, /SOURCE_SHA:\s*\$\{\{ github\.event\.workflow_run\.head_sha \}\}/);
+  assert.doesNotMatch(
+    workflow,
+    /uses: actions\/checkout@[^\n]+\n\s+with:\n\s+ref:\s*\$\{\{ github\.event\.workflow_run\.head_sha \}\}/,
+  );
+
+  const ancestryCheck = workflow.indexOf('git merge-base --is-ancestor');
+  const sourceRead = workflow.indexOf('git show "${SOURCE_SHA}:package.json"');
+  const downstreamCheckout = workflow.indexOf('ref: ${{ needs.verify-source.outputs.source_sha }}');
+
+  assert.ok(ancestryCheck > -1, 'release source must be proven on the default branch');
+  assert.ok(sourceRead > ancestryCheck, 'source bytes must not be read before ancestry is trusted');
+  assert.ok(downstreamCheckout > sourceRead, 'only the verified source may be checked out for execution');
+
   assert.match(workflow, /git rev-list -n 1/);
-  assert.match(workflow, /git merge-base --is-ancestor/);
   assert.match(workflow, /tag_sha.*SOURCE_SHA/);
 });
 
