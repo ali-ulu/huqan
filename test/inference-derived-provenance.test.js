@@ -409,7 +409,7 @@ test('withdrawing one source support cascades to downstream derivations and inva
   assert.deepEqual(
     findDependents([first, second], { provenanceId: 'prov_source_causes' })
       .map((record) => record.derivationId),
-    [first.derivationId],
+    [first.derivationId, second.derivationId].sort(),
   );
 
   const withdrawn = withdrawDependents(
