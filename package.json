@@ -653,6 +653,8 @@
     "lib/http/ingest-approval-audit-writer.js",
     "lib/human-approval-toggle.js",
     "lib/huqan-package-format.js",
+    "lib/huqan-package-format-primitives.js",
+    "lib/huqan-package-format-validators.js",
     "lib/hypothesis-feedback.js",
     "lib/hypothesis-fitness.js",
     "lib/hypothesis-review.js",
