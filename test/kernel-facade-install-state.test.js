@@ -16,7 +16,7 @@ function fixture(installResult) {
   const context = vm.createContext({
     assert, path, process, REPO_ROOT: __dirname,
     os: { tmpdir: () => __dirname },
-    fs: { mkdirSync() {}, existsSync: () => true },
+    fs: { mkdirSync() {}, mkdtempSync: prefix => `${prefix}fixture`, existsSync: () => true },
     cp: { spawnSync(command, args, options = {}) {
       calls.push(args[0]);
       timeouts.push([args[0], options.timeout]);
