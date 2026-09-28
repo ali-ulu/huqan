@@ -14,11 +14,11 @@ const createCompanyBrainPlugin = require('../plugins/company-brain').create;
 // boundary #2441 drew for contradiction-alert.
 
 const PLUGIN_SOURCES = [
-  'company-brain.js',
-  'company-brain-state.js',
-  'company-brain-query.js',
-  'company-brain-ingest.js',
-].map((name) => path.join(__dirname, '..', 'plugins', name));
+  path.join(__dirname, '..', 'plugins', 'company-brain.js'),
+  path.join(__dirname, '..', 'lib', 'company-brain-state.js'),
+  path.join(__dirname, '..', 'lib', 'company-brain-query.js'),
+  path.join(__dirname, '..', 'lib', 'company-brain-ingest.js'),
+];
 
 test('company-brain uses the public predicate parser boundary', () => {
   const sources = PLUGIN_SOURCES.map((file) => fs.readFileSync(file, 'utf8'));

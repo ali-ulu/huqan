@@ -2,9 +2,9 @@ const LLMAdapter = require('../llmAdapter');
 // #2120: state, query and ingest live in plugins/company-brain-*.js; this
 // file keeps the plugin capability wiring and the public surface
 // (module.exports shape) unchanged.
-const { ensureCompanyState, trackError, getIngestStatus } = require('./company-brain-state');
-const { queryCompanyBrain } = require('./company-brain-query');
-const { ingestManual, ingestDecision, ingestApi } = require('./company-brain-ingest');
+const { ensureCompanyState, trackError, getIngestStatus } = require('../lib/company-brain-state');
+const { queryCompanyBrain } = require('../lib/company-brain-query');
+const { ingestManual, ingestDecision, ingestApi } = require('../lib/company-brain-ingest');
 
 function createCompanyBrainPlugin() {
   return {
@@ -45,6 +45,9 @@ function createCompanyBrainPlugin() {
         if (action === 'ingestapi' || action === 'api' || input.sourceType === 'api') {
           return ingestApi(kernel, input);
         }
+        // The query fallback constructs nothing itself (layer rule); the entry
+        // owns the LLM adapter, so ensure it before delegating.
+        if (!this.adapter) this.adapter = new LLMAdapter();
         return await queryCompanyBrain(kernel, this, input);
       } catch (err) {
         trackError(kernel, input.sourceType || action || 'manual', err.message || String(err));

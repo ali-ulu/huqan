@@ -293,6 +293,9 @@
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/company-brain-identity.js": "Core",
+      "lib/company-brain-ingest.js": "Core",
+      "lib/company-brain-query.js": "Core",
+      "lib/company-brain-state.js": "Core",
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
       "lib/conflict-detector.js": "Core",
@@ -1040,9 +1043,6 @@
       "packages/huqan-verify/index.js": "Adapters",
       "persistencePaths.js": "Adapters",
       "plugin.js": "Application",
-      "plugins/company-brain-ingest.js": "Application",
-      "plugins/company-brain-query.js": "Application",
-      "plugins/company-brain-state.js": "Application",
       "plugins/company-brain.js": "Application",
       "plugins/contradiction-alert.js": "Application",
       "plugins/daily-digest.js": "Application",
@@ -2068,6 +2068,21 @@
       ],
       "lib/company-brain-identity.js": [
         "lib/entity-resolution.js"
+      ],
+      "lib/company-brain-ingest.js": [
+        "evidence-ranker.js",
+        "lib/causal-edge-strength.js",
+        "lib/company-brain-identity.js",
+        "lib/company-brain-query.js",
+        "lib/company-brain-state.js",
+        "lib/company-ingest-gate.js"
+      ],
+      "lib/company-brain-query.js": [
+        "lib/company-brain-identity.js",
+        "lib/entity-resolution.js"
+      ],
+      "lib/company-brain-state.js": [
+        "lib/bounded-ingest-errors.js"
       ],
       "lib/company-ingest-gate.js": [
         "lib/data-egress-gate.js",
@@ -4816,27 +4831,11 @@
         "lib/plugin-provenance-registry.js",
         "lib/plugin-verification.js"
       ],
-      "plugins/company-brain-ingest.js": [
-        "evidence-ranker.js",
-        "lib/causal-edge-strength.js",
-        "lib/company-brain-identity.js",
-        "lib/company-ingest-gate.js",
-        "plugins/company-brain-query.js",
-        "plugins/company-brain-state.js"
-      ],
-      "plugins/company-brain-query.js": [
-        "lib/company-brain-identity.js",
-        "lib/entity-resolution.js",
-        "llmAdapter.js"
-      ],
-      "plugins/company-brain-state.js": [
-        "lib/bounded-ingest-errors.js"
-      ],
       "plugins/company-brain.js": [
-        "llmAdapter.js",
-        "plugins/company-brain-ingest.js",
-        "plugins/company-brain-query.js",
-        "plugins/company-brain-state.js"
+        "lib/company-brain-ingest.js",
+        "lib/company-brain-query.js",
+        "lib/company-brain-state.js",
+        "llmAdapter.js"
       ],
       "plugins/contradiction-alert.js": [
         "evidence-ranker.js",
