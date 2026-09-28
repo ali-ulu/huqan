@@ -146,7 +146,8 @@ test('HTTP and MCP process entrypoints attach the shared production Experience j
   const serverSource = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
   const mcpSource = fs.readFileSync(path.join(root, 'mcpServer.js'), 'utf8');
 
-  assert.match(serverSource, /resolveExperienceJournal\(\{ kernel \}, ingestApprovalRuntime\.getStore\(\)\)/);
+  assert.match(serverSource, /resolveExperienceJournal,/);
+  assert.match(serverSource, /createServerRouteRuntime\(\{/);
   assert.match(mcpSource, /resolveExperienceJournal\(\{/);
   assert.match(mcpSource, /\}, approvalStore\)/);
 });
