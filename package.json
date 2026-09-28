@@ -507,6 +507,7 @@
     "lib/entity-resolution.js",
     "lib/environment-compat.js",
     "lib/error-prevention",
+    "lib/error-taxonomy.js",
     "lib/errors/provenance-error.js",
     "lib/experience/canary.js",
     "lib/experience/capability-trust.js",
