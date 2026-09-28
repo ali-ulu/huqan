@@ -31,23 +31,27 @@ Repository-native collaboration metadata also includes:
 
 ## Verified main-branch protection
 
-Live repository inspection on 2026-09-28 reports `main` as protected by **both**
-a classic branch protection and an active repository Ruleset:
+Live repository inspection on 2026-09-28 (second pass, after the #3068
+live-settings update) reports `main` as protected by **both** a classic branch
+protection and an active repository Ruleset:
 
-- Ruleset `HUQAN main protection` (id 23629798, `enforcement: active`, target
+- Ruleset `HUQAN main protection` (id 23629799, `enforcement: active`, target
   `branch`) carries `deletion`, `non_fast_forward`, `required_signatures`,
   `pull_request` and `required_status_checks` rules;
 - classic branch protection on `main` additionally lists the same required
   checks and reports `enforce_admins: false`.
 
-Honest gaps recorded with the same inspection (#3068): the `pull_request` rule
-sets `required_approving_review_count: 0`, classic protection has no
-`required_pull_request_reviews` block, and admin bypass is not enforced
-against, so merges do happen without any approving review (PRs #3061, #3063
-and #3064 all merged with zero reviews on 2026-09-28). Closing that gap is a
-live-settings change — raise `required_approving_review_count` to at least 1
-and add CODEOWNERS review — and must land as a deliberate maintainer action,
-not silently.
+The #3068 review gap is now **closed** at the Ruleset level: the `pull_request`
+rule requires `required_approving_review_count: 1` with `require_code_owner_review: true`
+(the `CODEOWNERS` file names @ali-ulu as the sole owner of every path) and
+`dismiss_stale_reviews_on_push: true`. The only bypass actor is @ali-ulu
+(user id 305066106) in `pull_request` mode — deliberate, because this is a
+single-maintainer repository where every PR is opened from the maintainer's
+own account and could otherwise never receive a second-actor approval.
+Historical evidence for the original gap (PRs #3061, #3063 and #3064 all
+merged with zero reviews on 2026-09-28, before this change) is kept in
+#3068. The classic-protection mirror of the review requirement remains a
+live-settings audit item.
 
 The checks currently required by the Ruleset are:
 
@@ -101,16 +105,14 @@ Migrate only when equivalent behavior is confirmed.
 
 Release tags matching `v*` are protected from deletion or replacement once
 published: the Ruleset `HUQAN immutable release tags` (id 23629798,
-`enforcement: active`, target `tag`) currently carries `deletion` and
-`non_fast_forward` rules. Verified live on 2026-09-28.
-
-Honest gap recorded with the same inspection (#3068): the tag Ruleset does
-**not** carry a `required_signatures` rule yet, so GitHub does not refuse an
-unsigned release tag. As the workflow-level counterpart, `publish.yml` now
-rejects lightweight tags and requires GitHub-verified signature on the tag
-object before any publish step, so a release cannot be made from an unsigned
-tag even while the ruleset gap stands. Adding `required_signatures` to the tag
-Ruleset is still the stronger control and remains a live-settings action.
+`enforcement: active`, target `tag`) now carries `deletion`,
+`non_fast_forward` **and `required_signatures`** rules. Verified live on
+2026-09-28 after the #3068 live-settings update; the signature path itself
+was proven end-to-end first (an SSH-signed tag pushed from the maintainer
+machine verified as `verified: true` through the GitHub tags API, then
+deleted). The signature requirement is also mirrored in the workflow layer:
+`publish.yml` rejects lightweight tags and requires a GitHub-verified tag
+object before any publish step.
 
 Release authority remains defined by `.github/workflows/publish.yml`:
 
