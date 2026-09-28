@@ -39,6 +39,31 @@ Use the actual release version in the filename.
 Verification proves provenance of the downloaded SBOM artifact. It does not by
 itself prove that a running deployment uses the same dependency set.
 
+## Verify the GHCR container image signature
+
+Since #3078, every published image digest is signed keylessly with cosign:
+the signature identity is the GitHub OIDC token of the exact
+`release-distribution.yml` run that pushed the image, and the signing job
+verifies the signature itself before the run can succeed.
+
+Signatures are always made and verified against the **digest**, never the
+mutable tag:
+
+```bash
+# Resolve the digest of the version you pulled
+digest="$(docker buildx imagetools inspect ghcr.io/ali-ulu/huqan:v<version> \
+  --format '{{json .Manifest.Digest}}' | tr -d '"')"
+
+cosign verify "ghcr.io/ali-ulu/huqan@${digest}" \
+  --certificate-identity-regexp "^https://github.com/ali-ulu/huqan/\.github/workflows/" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+```
+
+A passing verify proves the image bytes came from a `release-distribution.yml`
+run of this repository — the same class of claim npm provenance makes for the
+package tarball. It does not by itself prove the image is the one your cluster
+is running; pin deployments by digest.
+
 ## Release immutability
 
 GitHub release immutability is a separate repository setting. When enabled, it

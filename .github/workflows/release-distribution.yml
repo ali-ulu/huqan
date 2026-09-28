@@ -199,6 +199,39 @@ jobs:
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
           echo "Pushed ${IMAGE}:${VERSION}@${digest}"
 
+      # #3078: keyless Sigstore signature over the pushed digest, verified in
+      # the same job before anything downstream runs. The registry tag is
+      # mutable, so the signature is made and verified against the digest,
+      # never the tag. cosign signs with the GitHub OIDC identity of this
+      # exact workflow run, so a consumer can pin the issuer and the identity
+      # regexp in their verify command. The provenance attestation below rides
+      # the same trust chain: one more independently verifiable artifact, not
+      # a substitute for the signature.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign the pushed image (keyless, digest-based)
+        id: sign
+        shell: bash
+        env:
+          IMAGE: ${{ needs.verify-source.outputs.image }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+          echo "Signed ${IMAGE}@${DIGEST} with the keyless Sigstore identity of this workflow run."
+
+      - name: Verify the signature before the job may report success
+        shell: bash
+        env:
+          IMAGE: ${{ needs.verify-source.outputs.image }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          cosign verify "${IMAGE}@${DIGEST}" \
+            --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/\.github/workflows/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
       - name: Attest pushed container provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
