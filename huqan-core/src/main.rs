@@ -6,6 +6,7 @@ use std::io::{self, BufRead, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod hypotheses;
+mod predicate;
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -443,44 +444,6 @@ fn edge_to_json(e: &Edge) -> Value {
     })
 }
 
-struct Parsed {
-    object: String,
-    relation: String,
-}
-
-fn parse_predicate(predicate: &str) -> Parsed {
-    let p = predicate.to_lowercase();
-    let tir_suffixes = ["dır", "dir", "dur", "dür", "tır", "tir", "tur", "tür"];
-    for s in &tir_suffixes {
-        if p.ends_with(s) && p.len() > s.len() {
-            let stem = &p[..p.len() - s.len()];
-            return Parsed {
-                object: stem.to_string(),
-                relation: "tür".to_string(),
-            };
-        }
-    }
-    let verb_suffixes = ["ar", "er", "ır", "ir", "ur", "ür", "mek", "mak"];
-    for s in &verb_suffixes {
-        if p.ends_with(s) {
-            return Parsed {
-                object: p.clone(),
-                relation: "yapabilir".to_string(),
-            };
-        }
-    }
-    if p.ends_with('r') && p.len() > 2 {
-        return Parsed {
-            object: p.clone(),
-            relation: "yapabilir".to_string(),
-        };
-    }
-    Parsed {
-        object: p,
-        relation: "özellik".to_string(),
-    }
-}
-
 fn get_str(cmd: &Value, key: &str) -> String {
     match cmd.get(key) {
         Some(Value::String(s)) => s.clone(),
@@ -606,7 +569,7 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                 let subject = parts[0].to_string();
                 let predicate = parts[1..].join(" ");
                 graph.add_node(&subject, &subject, cmd);
-                let parsed = parse_predicate(&predicate);
+                let parsed = predicate::parse_predicate(&predicate);
                 graph.add_node(&parsed.object, &parsed.object, cmd);
                 graph.add_edge(&subject, &parsed.object, &parsed.relation, cmd);
                 let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
