@@ -32,7 +32,7 @@ const PROVENANCE_PATHS = [
   'adapters/yaml-adapter.js',
   'lib/background-provenance.js',
   'lib/background-provenance-projection.js',
-  'lib/conflict-detector.js',
+  'lib/conflict-claim.js',
   'lib/connectors/entry-ingest-flow.js',
   'lib/connectors/repo-memory-github.js',
   'lib/connectors/repo-memory-path-ingest.js',
@@ -85,9 +85,10 @@ const NOT_PINNED = {
     + 'external content, so it has nothing of its own to pin -- but it forwards '
     + 'a caller\'s pin through provenanceFieldsFrom, which is what carries '
     + 'company-brain API ingest.',
-  'lib/conflict-detector.js':
-    'records a conflict between claims already in the graph. No external content '
-    + 'is read, so there is nothing to pin.',
+  'lib/conflict-claim.js':
+    'builds the candidate-claim provenance, moved out of lib/conflict-detector.js '
+    + 'by the #2120 split. It records a conflict between claims already in the '
+    + 'graph. No external content is read, so there is nothing to pin.',
   'lib/connectors/entry-ingest-flow.js':
     'is the shared walk the entry-based connectors in plugins/repo-memory.js '
     + 'run. It reads nothing itself: every entry, including its sourceRef, is '
@@ -218,6 +219,6 @@ test.describe('provenance pinning coverage', () => {
     const openGaps = Object.entries(NOT_PINNED).filter(([, reason]) => /OPEN GAP/.test(reason));
     assert.deepStrictEqual(openGaps.map(([rel]) => rel), [],
       'an open gap is recorded here; it belongs in a tracked issue as well');
-    assert.ok(!/OPEN GAP/.test(NOT_PINNED['lib/conflict-detector.js']));
+    assert.ok(!/OPEN GAP/.test(NOT_PINNED['lib/conflict-claim.js']));
   });
 });
