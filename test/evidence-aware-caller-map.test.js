@@ -148,8 +148,11 @@ test('the fifteen discarding sites are five caller functions', () => {
     new Set(enclosing('lib/learn-use-case.js', [59, 78, 106, 262, 290, 322, 369])),
     new Set(['executeLearn']),
   );
+  // #2120 split lib/conflict-detector.js into lib/conflict-claim.js and
+  // lib/conflict-detect.js; the two accept-path audit sinks stayed in the
+  // detector and moved up to 72 and 113.
   assert.deepEqual(
-    new Set(enclosing('lib/conflict-detector.js', [412, 453])),
+    new Set(enclosing('lib/conflict-detector.js', [72, 113])),
     new Set(['acceptCandidateClaimJournaled']),
   );
 });
