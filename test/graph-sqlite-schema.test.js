@@ -35,6 +35,45 @@ test('#2126: initGraphSchema creates every table the store prepares statements f
   db.close();
 });
 
+// #3010: SQLite is a durable mirror, not a query engine. Reads go through the
+// in-memory indexes, so a prepared read statement with no caller implies a
+// capability that does not exist. This pins the statement set to exactly what
+// the persistence/read paths call, so a dead statement cannot be reintroduced
+// without a test having to say so.
+test('#3010: the statement set is exactly the statements the runtime calls', () => {
+  const Database = require('better-sqlite3');
+  const { dbPath } = tempDb('stmts-exact');
+  const db = new Database(dbPath);
+  initGraphSchema(db, {});
+
+  const stmts = createGraphStmts(db);
+  assert.deepEqual(
+    Object.keys(stmts).sort(),
+    [
+      'allAuditEvents', 'allCandidateClaims', 'allEdges', 'allNodes',
+      'countAuditEvents', 'deleteEdgesOf', 'deleteNode',
+      'getLatestMutationReceiptHash', 'getMutationJournal',
+      'getMutationReceiptById', 'getMutationReceiptByOperation', 'getNode',
+      'insertAuditEvent', 'insertMutationJournal', 'insertMutationReceipt',
+      'pruneEdges', 'touchNode', 'updateEdgeWeight', 'upsertCandidateClaim',
+      'upsertEdge', 'upsertNode',
+    ],
+    'the prepared-statement set must match the callers in source',
+  );
+
+  // The eight #3010 removals, named so a reintroduction fails here and not in
+  // production. Each had zero callers; the in-memory read path covers the
+  // equivalent read/delete behaviour.
+  for (const removed of [
+    'getEdge', 'getEdges', 'getInEdges', 'getCandidateClaim',
+    'countNodes', 'countEdges', 'deleteEdge', 'updateNodeVector',
+  ]) {
+    assert.ok(!Object.hasOwn(stmts, removed), `${removed} was removed by #3010 and must not return dead`);
+  }
+
+  db.close();
+});
+
 test('#2126: legacy single-PK nodes table migrates with data preserved', () => {
   const Database = require('better-sqlite3');
   const { dir, dbPath, memoryPath } = tempDb('legacy');
