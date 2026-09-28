@@ -46,6 +46,9 @@ test('GRAPH: optimize preserves scoped decay removal and persistence callbacks',
   const storeApi = {
     prune: scope => { prunedScopes.push(scope); return 2; },
     getNodes: () => nodes,
+    // #3009: optimize iterates the workspace's storage keys from the index
+    // instead of scanning the whole node map. The fake mirrors that contract.
+    workspaceKeys: scope => Object.keys(nodes).filter(key => key.startsWith(`${scope}::`)),
     getEdges: (nodeId, workspaceId) => nodeId === 'connected' && workspaceId === 'default' ? [{ from: nodeId }] : [],
     getInEdges: () => [],
     decayLambda: 0.5,

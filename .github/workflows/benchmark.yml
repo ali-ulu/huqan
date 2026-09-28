@@ -140,7 +140,7 @@ jobs:
           is_perf_file() {
             # Performance-sensitive files trigger the benchmark regression gate.
             case "$1" in
-              benchmarks/bench.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
+              benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
               benchmarks/snapshot-memory.js|benchmarks/verifBench.js|benchmarks/results.json|\
               benchmarks/fixtures/*|graph.js|kernel.js|kernel.v2.js|storage.js|causalSimulator.js|\
               finalizer.js|rustGraph.js|lib/memory-store.js|lib/ingest.js|lib/causal/*|\

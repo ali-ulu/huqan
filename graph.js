@@ -13,6 +13,7 @@ const {
 } = require('./lib/graph-store-adapters');
 const { isSqliteAvailable, openGraphSqlite: runOpenSqlite, closeGraphSqlite: runCloseSqlite, reopenGraphSqlite: runReopenSqlite, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
+const { createLabelIndex, indexNode: indexLabelNode, deindexNode: deindexLabelNode, rebuildLabelIndex, workspaceKeys } = require('./lib/graph-label-index');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
 // Method groups that moved out of this file (#3101). Each is installed with
@@ -46,6 +47,7 @@ class Graph {
     this._auditEvents = [];
     this._outIndex = new Map();
     this._inIndex = new Map();
+    this._labelIndex = createLabelIndex();
     this._auditQueryStmts = new Map();
     this._edgeTouchScope = null;
 
@@ -109,7 +111,41 @@ class Graph {
     this._inIndex.get(inKey).push(edge);
   }
 
+  // #3009: label index maintenance. Both write paths call these through the
+  // node store API; rebuildIndex() reconstructs the whole index from `_nodes`,
+  // so load/restore/rollback/consolidate stay correct without patching.
+  // Lazily created so instances built via Object.create(Graph.prototype) in
+  // tests keep working without carrying the constructor's initialization.
+  _labelIndexOrCreate() {
+    if (!this._labelIndex) this._labelIndex = createLabelIndex();
+    return this._labelIndex;
+  }
+
+  _indexLabelNode(storageKey, node) {
+    indexLabelNode(this._labelIndexOrCreate(), storageKey, node);
+  }
+
+  _deindexLabelNode(storageKey) {
+    deindexLabelNode(this._labelIndexOrCreate(), storageKey);
+  }
+
+  // Storage keys of every node in a workspace, from the index (#3009).
+  _workspaceNodeKeys(workspaceId = 'default') {
+    return workspaceKeys(this._labelIndexOrCreate(), workspaceId);
+  }
+
   rebuildIndex() {
+    this._rebuildEdgeIndex();
+    rebuildLabelIndex(this._labelIndexOrCreate(), this._nodes);
+  }
+
+  // #3009: prune() and removeNode() only ever change `_edges`; the node label
+  // index is maintained incrementally on those paths. Rebuilding the whole
+  // label index (an O(N) scan of `_nodes`) there was the "rebuild on every
+  // deletion" cost the issue calls out, so the edge-only rebuild is split out.
+  // Load, restore, rollback and consolidate still call rebuildIndex() because
+  // they can replace `_nodes` wholesale.
+  _rebuildEdgeIndex() {
     this._outIndex.clear();
     this._inIndex.clear();
     for (const e of this._edges) this._indexEdge(e);

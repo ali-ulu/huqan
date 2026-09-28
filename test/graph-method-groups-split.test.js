@@ -12,10 +12,13 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // persistence wiring the constructor owns, the audit append and the
 // consolidate maintenance audit stay in graph.js.
 //
-// The prototype surface is pinned to a digest recorded on main before the
-// move: every name, its arity and its descriptor flags.
+// The prototype surface is pinned to a digest: every name, its arity and its
+// descriptor flags. #3009 added five internal label-index/rebuild helpers
+// (_labelIndexOrCreate, _indexLabelNode, _deindexLabelNode, _workspaceNodeKeys,
+// _rebuildEdgeIndex), so the count and digest moved with them. The public method
+// names above are unchanged.
 
-const MAIN_SURFACE = { count: 77, sha256: 'ef64220c6be39a479fbbf4c9ff2c5adcf4555db2bf99420cfd949e0c26782bce' };
+const MAIN_SURFACE = { count: 82, sha256: '2a30abc5c91a0e961d66b13107cfeb4e81a08aaafe91b310069a647b407afe51' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;
