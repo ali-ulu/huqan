@@ -215,6 +215,14 @@
       "response": {"owner": "lib/workbench/activity-route.js"}
     },
     {
+      "family": "experience-read",
+      "routeIds": ["experience-read"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/experience-read-route.js", "evidence": ["method_not_allowed"]},
+      "response": {"owner": "lib/http/experience-read-route.js"}
+    },
+    {
       "family": "observability",
       "routeIds": ["observability"],
       "exposure": "authenticated",
