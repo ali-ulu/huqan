@@ -7,13 +7,6 @@
       "signals": [
         "FANOUT:31"
       ]
-    },
-    "kernel.js": {
-      "band": "structural",
-      "lines": 379,
-      "signals": [
-        "FANOUT:28"
-      ]
     }
   },
   "dependencyGraph": {
@@ -1094,6 +1087,7 @@
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
       "scripts/check-control-chars.js": "UI",
+      "scripts/check-coverage.js": "UI",
       "scripts/check-dead-code.js": "UI",
       "scripts/check-deprecations.js": "UI",
       "scripts/check-deterministic-path.js": "UI",

@@ -30,7 +30,6 @@ const BASELINE_PATH = path.join(__dirname, 'architecture-tracker-baseline.json')
 const IS_TEST = /(\.test\.js$|(^|\/)test\/|(^|\/)benchmarks\/|(^|\/)demo)/;
 const ACCEPTED = 400;
 const DECOMPOSE = 800;
-const FAN_OUT_SIGNAL = 20;
 
 // The counter scripts/check-file-size.js enforces: newlines, plus one when the
 // file does not end in one. Anything else disagrees with the gate by one line
@@ -45,7 +44,8 @@ function countLines(file) {
 }
 
 const scope = require('./architecture-snapshot-scope');
-const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain, isOcpAllowed, ocpSignal, ocpExceptionViolations, OCP_ALLOWED } = scope;
+const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain, isOcpAllowed, ocpSignal, ocpExceptionViolations, OCP_ALLOWED, FAN_OUT_SIGNAL, FANOUT_ALLOWED, isFanoutAllowed } = scope;
+const fanoutExceptionViolations = (entries, opts = {}) => scope.fanoutExceptionViolations(entries, { fanOutOf: (file) => snapshot().find((row) => row.file === file)?.fanOut ?? null, ...opts });
 
 /**
  * Constructions the DIP regex matches that are not a coupling defect (#2268).
@@ -122,7 +122,7 @@ function snapshot(state = sourceGraph()) {
     const ocp = ocpSignal(body);
     if (ocp !== null && !isOcpAllowed(file)) signals.push(`OCP:${ocp}`);
     const fanOut = new Set(graph.get(file) || []).size;
-    if (fanOut >= FAN_OUT_SIGNAL) signals.push(`FANOUT:${fanOut}`);
+    if (fanOut >= FAN_OUT_SIGNAL && !isFanoutAllowed(file, fanOut)) signals.push(`FANOUT:${fanOut}`);
     return { file, lines: countLines(file), signals, fanOut };
   });
 }
@@ -325,9 +325,9 @@ function main(argv = process.argv.slice(2)) {
       console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
       return 1;
     }
-    const exceptionViolations = [...dipExceptionViolations(), ...ocpExceptionViolations(), ...compositionRootViolations()];
+    const exceptionViolations = [...dipExceptionViolations(), ...ocpExceptionViolations(), ...fanoutExceptionViolations(), ...compositionRootViolations()];
     if (exceptionViolations.length > 0) {
-      console.error('DIP/OCP exception or composition root list is out of date:');
+      console.error('DIP/OCP/FANOUT exception or composition root list is out of date:');
       for (const violation of exceptionViolations) console.error(`  ${violation}`);
       return 1;
     }
@@ -383,6 +383,7 @@ module.exports = {
   baselineEvolutionViolations,
   DIP_ALLOWED,
   OCP_ALLOWED,
+  FANOUT_ALLOWED, isFanoutAllowed, fanoutExceptionViolations,
   isOcpAllowed,
   ocpSignal,
   ocpExceptionViolations,

@@ -159,7 +159,55 @@ function ocpExceptionViolations(entries = OCP_ALLOWED, { today = new Date().toIS
   return violations;
 }
 
+const FAN_OUT_SIGNAL = 20;
+
+/**
+ * Entrypoints whose fan-out is recorded rather than reported (#3101). DIP
+ * exempts composition roots; FANOUT has no such exemption, so an entrypoint
+ * whose remaining requires are wiring it must own is named here with the
+ * reason, a review date and a ceiling equal to its fan-out. Only an entrypoint
+ * can be recorded, growth past the ceiling brings the signal back, and
+ * `--check` fails on an expired, stale or loose entry.
+ */
+const FANOUT_ALLOWED = Object.freeze([
+  {
+    file: 'kernel.js',
+    ceiling: 28,
+    why: 'The remaining requires wire the admission-gated learn() chokepoint and its single audit sink, which '
+      + 'lib/kernel-learn-input-methods.js, ADR-012 and the audit contracts pin to kernel.js; the admission bypass '
+      + 'Symbol is module-private here. The movable method groups already left (#2122, #3097).',
+    review_by: '2026-12-31',
+  },
+]);
+
+const isFanoutAllowed = (file, fanOut, entries = FANOUT_ALLOWED) => ENTRYPOINTS.includes(file)
+  && entries.some((entry) => entry.file === file && fanOut <= entry.ceiling);
+
+function fanoutExceptionViolations(entries = FANOUT_ALLOWED, { today = new Date().toISOString().slice(0, 10), fanOutOf } = {}) {
+  const violations = [];
+  for (const entry of entries) {
+    if (entry.review_by < today) {
+      violations.push(`${entry.file}: FANOUT exception expired on ${entry.review_by}`);
+      continue;
+    }
+    if (!ENTRYPOINTS.includes(entry.file)) {
+      violations.push(`${entry.file}: FANOUT exception is only for an entrypoint`);
+      continue;
+    }
+    const fanOut = fanOutOf(entry.file);
+    if (fanOut === null) violations.push(`${entry.file}: FANOUT exception is stale, the file is gone`);
+    else if (fanOut < FAN_OUT_SIGNAL) violations.push(`${entry.file}: FANOUT exception is stale, fan-out ${fanOut} is under the signal`);
+    else if (fanOut > entry.ceiling) violations.push(`${entry.file}: fan-out ${fanOut} is above the ceiling ${entry.ceiling}`);
+    else if (fanOut < entry.ceiling) violations.push(`${entry.file}: fan-out fell to ${fanOut}; lower the ceiling to ${fanOut}`);
+  }
+  return violations;
+}
+
 module.exports = {
+  FAN_OUT_SIGNAL,
+  FANOUT_ALLOWED,
+  isFanoutAllowed,
+  fanoutExceptionViolations,
   longestIfChain,
   OCP_ALLOWED,
   isOcpAllowed,
