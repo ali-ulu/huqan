@@ -485,16 +485,6 @@ jobs:
           name: shard-failures-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-failures.json
           if-no-files-found: warn
-      # Per-file wall times, read back by refresh-shard-weights below to
-      # rebalance the shards. `always()`, because a shard that failed still
-      # measured the files it ran.
-      - name: Upload shard timing sidecar
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: shard-timings-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
-          path: artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-timings.json
-          if-no-files-found: warn
 
   runtime-test-skip:
     name: npm test (runtime/test)
@@ -723,10 +713,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - name: Download shard timing sidecars
+      - name: Download shard failure sidecars
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: shard-timings-*-attempt-${{ github.run_attempt }}
+          pattern: shard-failures-*-attempt-${{ github.run_attempt }}
           path: artifacts
           merge-multiple: true
       - name: Regenerate the weights from the measured timings

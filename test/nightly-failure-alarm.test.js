@@ -219,6 +219,12 @@ test('a real shard run writes the sidecar the alarm depends on', () => {
   assert.equal(parsed.shard, 1);
   assert.deepEqual(parsed.failedFiles, []);
   assert.deepEqual(collectFailedFiles(dir), []);
+  // The same sidecar carries the per-file wall times the weight feedback loop
+  // reads back. A missing or empty map would let the weights silently freeze
+  // again, which is the drift this loop exists to stop.
+  assert.ok(parsed.timings && typeof parsed.timings === 'object', 'the sidecar must carry per-file timings');
+  assert.ok(parsed.timings['test/is-plain-object.test.js'] > 0,
+    `expected a positive timing for the file the shard ran, got ${JSON.stringify(parsed.timings)}`);
 });
 
 test('the workflow arms the alarm only on a failed scheduled run', () => {

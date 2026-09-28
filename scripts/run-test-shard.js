@@ -83,31 +83,21 @@ function defaultReportPath(shard) {
 }
 
 /**
- * Where this shard records which files failed, beside its JUnit report.
+ * Where this shard records which files failed and how long each ran, beside
+ * its JUnit report.
  *
- * The merged JUnit report cannot answer that question: it is assembled from
+ * The merged JUnit report cannot answer either question: it is assembled from
  * <testsuite> blocks, and a file declaring only top-level `test(...)` calls
  * emits none, so every result in it -- pass and fail alike -- is dropped. On
  * 2026-09-05 shard 5 exited non-zero on test/enforcement-coverage.test.js and
- * uploaded a report saying failures="0". The nightly alarm reads this sidecar.
+ * uploaded a report saying failures="0". The nightly alarm reads `failedFiles`;
+ * `timings` is read back by scripts/update-shard-weights.js to rebalance the
+ * shards, since the JUnit report names describes, not files, and so cannot say
+ * how long any file took.
  */
 function failuresSidecarPath(reportPath, shard) {
   const stem = path.basename(reportPath, path.extname(reportPath));
   return path.join(path.dirname(reportPath), `${stem}-failures.json`);
-}
-
-/**
- * Where this shard records each file's real wall time, beside its JUnit report.
- *
- * The JUnit report merges <testsuite> blocks (describe names), not files, so
- * it cannot answer "how long did this file take" — the question
- * scripts/update-shard-weights.js needs to rebalance shards. Written in
- * `finally` and best-effort: a timing file that failed to write must not
- * change the shard's verdict, and only files that completed are recorded.
- */
-function timingsSidecarPath(reportPath, shard) {
-  const stem = path.basename(reportPath, path.extname(reportPath));
-  return path.join(path.dirname(reportPath), `${stem}-timings.json`);
 }
 
 function loadSelection(selectionPath, knownFiles) {
@@ -272,20 +262,10 @@ async function run(options) {
     try {
       fs.writeFileSync(
         failuresSidecarPath(reportPath, options.shard),
-        `${JSON.stringify({ shard: options.shard, total: options.total, failedFiles }, null, 2)}\n`,
+        `${JSON.stringify({ shard: options.shard, total: options.total, failedFiles, timings: fileTimings }, null, 2)}\n`,
       );
     } catch (error) {
       console.error(`warning: failed to write the shard failure sidecar: ${error.message}`);
-    }
-    // The per-file timings the weight feedback loop reads back. Best-effort
-    // for the same reason as the sidecar above.
-    try {
-      fs.writeFileSync(
-        timingsSidecarPath(reportPath, options.shard),
-        `${JSON.stringify({ shard: options.shard, total: options.total, timings: fileTimings }, null, 2)}\n`,
-      );
-    } catch (error) {
-      console.error(`warning: failed to write the shard timing sidecar: ${error.message}`);
     }
   }
 
@@ -330,5 +310,4 @@ module.exports = {
   mergeJunitParts,
   parseArgs,
   run,
-  timingsSidecarPath,
 };

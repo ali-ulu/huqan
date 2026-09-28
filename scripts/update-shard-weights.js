@@ -13,9 +13,9 @@
  * critical path 36s above the 97.6s ideal. Nothing fed the real times back, so
  * the imbalance could only grow as files were added.
  *
- * This reads each file's real wall time from the JSON sidecars
- * `run-test-shard.js` now writes beside its JUnit report
- * (`<report>-timings.json`) and regenerates the weights. The nightly
+ * This reads each file's real wall time from the `timings` map in the shard
+ * sidecar `run-test-shard.js` already writes beside its JUnit report
+ * (`<report>-failures.json`) and regenerates the weights. The nightly
  * `refresh-shard-weights` job runs it and opens a PR when the numbers move;
  * a human merges it like any other change.
  *
@@ -33,9 +33,9 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_MIN_WEIGHT_SECONDS = 1.0;
 
 /**
- * Every `<stem>-timings.json` under `root`, flattened.
+ * Every shard sidecar under `root`, flattened.
  *
- * Recursive because CI uploads the sidecar as its own artifact and
+ * Recursive because CI uploads each sidecar as its own artifact and
  * `actions/download-artifact` with `merge-multiple` can place them directly or
  * under a per-artifact directory depending on the caller.
  */
@@ -48,7 +48,7 @@ function findTimingFiles(root) {
     throw error;
   }
   return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith('-timings.json'))
+    .filter((entry) => entry.isFile() && entry.name.startsWith('test-') && entry.name.endsWith('-failures.json'))
     .map((entry) => path.join(entry.parentPath || root, entry.name))
     .sort();
 }

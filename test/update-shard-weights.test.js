@@ -41,11 +41,12 @@ test('timing sidecars are discovered recursively', () => {
   const directory = makeDir();
   try {
     fs.mkdirSync(path.join(directory, 'nested'), { recursive: true });
-    fs.writeFileSync(path.join(directory, 'a-timings.json'), '{}');
-    fs.writeFileSync(path.join(directory, 'nested', 'b-timings.json'), '{}');
-    fs.writeFileSync(path.join(directory, 'c.xml'), '<testsuites/>');
+    fs.writeFileSync(path.join(directory, 'test-ubuntu-shard-1-failures.json'), '{}');
+    fs.writeFileSync(path.join(directory, 'nested', 'test-ubuntu-shard-2-failures.json'), '{}');
+    fs.writeFileSync(path.join(directory, 'test-ubuntu-shard-1.xml'), '<testsuites/>');
+    fs.writeFileSync(path.join(directory, 'unrelated.json'), '{}');
     const found = findTimingFiles(directory).map((file) => path.basename(file)).sort();
-    assert.deepEqual(found, ['a-timings.json', 'b-timings.json']);
+    assert.deepEqual(found, ['test-ubuntu-shard-1-failures.json', 'test-ubuntu-shard-2-failures.json']);
     assert.deepEqual(findTimingFiles(path.join(directory, 'absent')), []);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -55,8 +56,8 @@ test('timing sidecars are discovered recursively', () => {
 test('collectTimings merges sidecars and takes the median across runs', () => {
   const directory = makeDir();
   try {
-    const first = path.join(directory, 'shard-1-timings.json');
-    const second = path.join(directory, 'shard-2-timings.json');
+    const first = path.join(directory, 'test-shard-1-failures.json');
+    const second = path.join(directory, 'test-shard-2-failures.json');
     fs.writeFileSync(first, JSON.stringify({ timings: { 'test/a.test.js': 4, 'test/b.test.js': 0.2 } }));
     fs.writeFileSync(second, JSON.stringify({ timings: { 'test/a.test.js': 8, 'test/c.test.js': 1 } }));
     const merged = collectTimings([first, second]);
@@ -71,7 +72,7 @@ test('collectTimings merges sidecars and takes the median across runs', () => {
 test('collectTimings rejects a sidecar that is not readable json', () => {
   const directory = makeDir();
   try {
-    const broken = path.join(directory, 'broken-timings.json');
+    const broken = path.join(directory, 'test-shard-1-failures.json');
     fs.writeFileSync(broken, '{ not json');
     assert.throws(() => collectTimings([broken]), /could not read/);
   } finally {
@@ -118,10 +119,10 @@ test('parseArgs accepts a directory, threshold and output, and rejects junk', ()
 test('end to end: a directory of sidecars produces a weights document', () => {
   const directory = makeDir();
   try {
-    fs.writeFileSync(path.join(directory, 'shard-1-timings.json'),
-      JSON.stringify({ timings: { 'test/slow.test.js': 12, 'test/fast.test.js': 0.05 } }));
-    fs.writeFileSync(path.join(directory, 'shard-2-timings.json'),
-      JSON.stringify({ timings: { 'test/other.test.js': 3 } }));
+    fs.writeFileSync(path.join(directory, 'test-ubuntu-shard-1-failures.json'),
+      JSON.stringify({ failedFiles: [], timings: { 'test/slow.test.js': 12, 'test/fast.test.js': 0.05 } }));
+    fs.writeFileSync(path.join(directory, 'test-ubuntu-shard-2-failures.json'),
+      JSON.stringify({ failedFiles: [], timings: { 'test/other.test.js': 3 } }));
     const out = path.join(directory, 'shard-weights.json');
     const status = main([directory, '--out=' + out]);
     assert.equal(status, 0);
