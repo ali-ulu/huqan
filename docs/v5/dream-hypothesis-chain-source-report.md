@@ -71,9 +71,17 @@ Dream bağlamında düğümlerin çıkış ve giriş kenarları, hedef kümeleri
 | Alt tür | Kaynakta doğrulanan koşul | Üretilen temel alanlar |
 |---|---|---|
 | `benzerlik` | İki düğümün ortak hedefleri bulunur ve aralarında mevcut benzerlik ilişkisi yoktur | `from`, `to`, `via`, `confidence`, `ortak_sayısı` |
-| `vektör-benzerlik` | Cosine similarity değeri `0.5` üzerindedir ve düğümler arasında doğrudan kenar yoktur | `from`, `to`, `confidence`, `benzerlik` |
+| `vektör-benzerlik` | Cosine similarity değeri `0.5` üzerindedir ve düğümler arasında doğrudan kenar yoktur | `from`, `to`, `confidence`, `benzerlik`, `kind`, `semantic` |
 
 Bu aşamada en fazla 50 aday eklenir. [1]
+
+> Not (#3040): `graph.vector`, `Graph#addTag`'in `v[dim] += weight` ile beslediği
+> seyrek bir etiket sayacıdır. Bu yüzden `cosineSimilarity` gerçek bir embedding
+> benzerliği değil, etiket birlikteliğini (co-occurrence) ölçer. Aday bu nedenle
+> `kind: 'co-occurrence-similarity'` ve `semantic: false` ile işaretlenir; güven
+> tavanı `0.3`'e düşürülür ve receipt `_evidence.kind` alanı bu adı taşır. Ortak
+> etiket dışında hiçbir bağı olmayan iki düğüm yüksek güvenli "anlamsal benzerlik"
+> olarak sunulmaz.
 
 ### 3.4. Geçişli/zincir hipotezleri
 
