@@ -32,7 +32,12 @@ test('the first screen offers a runnable command', () => {
 });
 
 test('the first screen links a no-install browser demo (#3081)', () => {
-  assert.match(firstScreen(), /https:\/\/huqan\.com/, 'the opening must link the hosted demo');
+  // A plain substring check, not a URL regex: this asserts what the README
+  // says, and a regex here would (correctly) trip CodeQL's URL-anchor rule.
+  assert.ok(
+    firstScreen().includes('https://huqan.com'),
+    'the opening must link the hosted demo',
+  );
 });
 
 test('the first screen points at the product-surfaces chooser (#3081)', () => {
