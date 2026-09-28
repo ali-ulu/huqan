@@ -8,7 +8,7 @@ Tracked in total: **17**
 | File | Lines | Signals |
 |---|---:|---|
 
-## Recorded debt, 401-800 lines (13)
+## Recorded debt, 401-800 lines (12)
 
 | File | Lines | Signals |
 |---|---:|---|
@@ -18,7 +18,6 @@ Tracked in total: **17**
 | `lib/external-action-receipt.js` | 589 | — |
 | `lib/memory-store.js` | 578 | FANOUT:20 |
 | `lib/dream-experiment-loop.js` | 533 | — |
-| `sandboxRunner.js` | 530 | OCP:8 |
 | `lib/github-connector.js` | 518 | — |
 | `lib/atp-conformance.js` | 504 | — |
 | `kernel.js` | 495 | FANOUT:37 |
@@ -26,11 +25,12 @@ Tracked in total: **17**
 | `lib/learn-use-case.js` | 432 | — |
 | `lib/huqan-package-format.js` | 428 | — |
 
-## At or under 400 lines, tracked for a signal (4)
+## At or under 400 lines, tracked for a signal (5)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 392 | FANOUT:31 |
+| `sandboxRunner.js` | 326 | OCP:8 |
 | `cli.js` | 200 | FANOUT:24 |
 | `kernel.v2.js` | 194 | DIP |
 | `lib/verify-numeric-text.js` | 82 | OCP:8 |

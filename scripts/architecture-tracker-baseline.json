@@ -96,8 +96,8 @@
       "signals": []
     },
     "sandboxRunner.js": {
-      "band": "recorded",
-      "lines": 530,
+      "band": "structural",
+      "lines": 326,
       "signals": [
         "OCP:8"
       ]
@@ -1091,6 +1091,9 @@
       "requestGuards-rate-limit.js": "Core",
       "requestGuards.js": "Core",
       "rustGraph.js": "Adapters",
+      "sandboxRunner-child.js": "Adapters",
+      "sandboxRunner-context.js": "Adapters",
+      "sandboxRunner-limits.js": "Adapters",
       "sandboxRunner.js": "Adapters",
       "schemas/v5/agent-identity-conformance.js": "Core",
       "schemas/v5/agent-identity-coverage.js": "Core",
@@ -4900,8 +4903,18 @@
         "lib/rust-graph-fallback-factory.js",
         "lib/rust-graph-store-port.js"
       ],
+      "sandboxRunner-child.js": [
+        "sandboxRunner-context.js",
+        "sandboxRunner-limits.js"
+      ],
+      "sandboxRunner-context.js": [
+        "sandboxRunner-limits.js"
+      ],
       "sandboxRunner.js": [
-        "lib/sandbox-isolation.js"
+        "lib/sandbox-isolation.js",
+        "sandboxRunner-child.js",
+        "sandboxRunner-context.js",
+        "sandboxRunner-limits.js"
       ],
       "schemas/v5/agent-identity-conformance.js": [
         "schemas/v5/agent-identity-validator.js"

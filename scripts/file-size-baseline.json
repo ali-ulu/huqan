@@ -21,8 +21,7 @@
     "lib/huqan-package-format.js": 428,
     "lib/learn-use-case.js": 432,
     "lib/memory-store.js": 578,
-    "plugins/company-brain.js": 630,
-    "sandboxRunner.js": 530
+    "plugins/company-brain.js": 630
   },
   "reviews": {
     "agent.v3.js": {
@@ -70,10 +69,6 @@
       "review_by": "2026-12-22"
     },
     "plugins/company-brain.js": {
-      "why": "Pre-existing debt recorded when the banded budget was introduced.",
-      "review_by": "2027-03-31"
-    },
-    "sandboxRunner.js": {
       "why": "Pre-existing debt recorded when the banded budget was introduced.",
       "review_by": "2027-03-31"
     }
