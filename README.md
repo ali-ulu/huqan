@@ -20,9 +20,9 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
   4. OK   receipt: receiptId … (status canonical)
 ```
 
-Read line 1 again: the write **did not happen**. It was held, then allowed at line 3 after something approved it, and line 4 is the durable record of why. That gap is the whole product.
+Read line 1 again: the write **did not happen**. It was held, then allowed at line 3 once something approved it, and line 4 is the durable record of why. That gap is the whole product.
 
-The quickstart runs against a throwaway store in your temp directory — it never touches your own memory and never relaxes a gate.
+The quickstart runs against a throwaway store in your temp directory. It never touches your own memory and never relaxes a gate.
 
 ## Install
 
@@ -32,7 +32,7 @@ Node.js 22.13.0 or newer.
 npm install -g huqan
 ```
 
-Three binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for external agents). PDF ingest and PDF receipt export are optional dependencies — `--omit=optional` drops both; JSON export is unaffected.
+Three binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for external agents). PDF ingest and PDF receipt export are optional dependencies — `--omit=optional` drops both, and JSON export is unaffected.
 
 ## The decision
 
