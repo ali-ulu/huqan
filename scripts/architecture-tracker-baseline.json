@@ -46,11 +46,6 @@
       "lines": 616,
       "signals": []
     },
-    "lib/dream-experiment-loop.js": {
-      "band": "recorded",
-      "lines": 533,
-      "signals": []
-    },
     "lib/external-action-receipt.js": {
       "band": "recorded",
       "lines": 589,
@@ -196,6 +191,7 @@
       "lib/agent-v3-run-state.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/agent-v3-workspace.js": "Core",
+      "lib/api-auth-opt-out.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
@@ -327,6 +323,8 @@
       "lib/deterministic-json-copy.js": "Core",
       "lib/deterministic-task-runner.js": "Core",
       "lib/dream-embedding.js": "Core",
+      "lib/dream-experiment-loop-hypotheses.js": "Core",
+      "lib/dream-experiment-loop-verify.js": "Core",
       "lib/dream-experiment-loop.js": "Core",
       "lib/dream-graph-paths.js": "Core",
       "lib/dream-hypothesis-finders.js": "Core",
@@ -1685,6 +1683,9 @@
       "lib/agent-v3-storage-factory.js": [
         "storage.js"
       ],
+      "lib/api-auth-opt-out.js": [
+        "lib/environment-compat.js"
+      ],
       "lib/approval-execution-evidence.js": [
         "lib/receipt/receipt-read-index.js"
       ],
@@ -1899,6 +1900,7 @@
         "lib/cli-helpers.js"
       ],
       "lib/cli-doctor.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "lib/sqlite-availability.js",
         "lib/storage/schema.js",
@@ -2164,8 +2166,13 @@
       "lib/dream-embedding.js": [
         "lib/graph-record-utils.js"
       ],
-      "lib/dream-experiment-loop.js": [
+      "lib/dream-experiment-loop-verify.js": [
         "causalSimulator.js",
+        "lib/dream-experiment-loop-hypotheses.js"
+      ],
+      "lib/dream-experiment-loop.js": [
+        "lib/dream-experiment-loop-hypotheses.js",
+        "lib/dream-experiment-loop-verify.js",
         "lib/workspace-id.js"
       ],
       "lib/dream-hypothesis-finders.js": [
@@ -3007,6 +3014,7 @@
         "requestGuards.js"
       ],
       "lib/http/server-boot.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "lib/http/graceful-shutdown.js",
         "lib/http/process-failure-handlers.js",
@@ -4890,6 +4898,7 @@
         "lib/gate-telemetry.js"
       ],
       "requestGuards.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "requestGuards-body.js",
         "requestGuards-command-policy.js",
@@ -5084,6 +5093,7 @@
         "scripts/ci-impact-rules.js"
       ],
       "scripts/container-server.js": [
+        "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "server.js"
       ],
