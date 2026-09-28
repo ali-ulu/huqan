@@ -2,7 +2,7 @@
 
 An agent proposes something. HUQAN decides whether it lands.
 
-It is a local gate between what an AI agent produces and the state that output would change — a memory entry, a repository, a tool call. Every decision leaves a Trust Receipt: what the evidence was, which policy applied, who approved it. No model, no cloud, no API key.
+A local gate between what an AI agent produces and the state it would change — a memory entry, a repository, a tool call. Every decision leaves a Trust Receipt: the evidence, the policy, the approver. No model, no cloud, no API key.
 
 [![npm](https://img.shields.io/npm/v/huqan?logo=npm&color=cb3837)](https://www.npmjs.com/package/huqan)
 [![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -20,9 +20,9 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
   4. OK   receipt: receiptId … (status canonical)
 ```
 
-Read line 1 again: the write **did not happen**. It was held. It happened at line 3, after something approved it, and line 4 is the durable record of why. That gap is the entire product.
+Read line 1 again: the write **did not happen**. It was held, then allowed at line 3 after something approved it, and line 4 is the durable record of why. That gap is the whole product.
 
-The quickstart runs against a throwaway store in your temp directory. It does not touch your own memory and does not relax a gate.
+The quickstart runs against a throwaway store in your temp directory — it never touches your own memory and never relaxes a gate.
 
 ## Install
 
@@ -32,7 +32,7 @@ Node.js 22.13.0 or newer.
 npm install -g huqan
 ```
 
-Three binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for external agents). PDF ingest and PDF receipt export are optional dependencies — `--omit=optional` drops both, JSON export is unaffected.
+Three binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for external agents). PDF ingest and PDF receipt export are optional dependencies — `--omit=optional` drops both; JSON export is unaffected.
 
 ## The decision
 
@@ -49,9 +49,9 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-Which of them are reachable depends on the gate. A tool call can come back `allow`, `review`, `dry_run_only` or `block`. A memory write adds `quarantine` and `reject`, because a write can be set aside for inspection rather than refused outright.
+Which are reachable depends on the gate. A tool call returns `allow`, `review`, `dry_run_only` or `block`; a memory write adds `quarantine` and `reject`, because a write can be set aside for inspection rather than refused outright.
 
-**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated` instead of deciding it, and nothing executes until the authority it was raised to answers. That requires a second approver, so it is simply absent in a single-user install. The decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
+**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated` instead of deciding it, and nothing executes until the authority it was raised to answers. That needs a second approver, so it is absent in a single-user install. The decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
 A passing verification is not a certificate of truth. It is a result produced inside one configured boundary, and the receipt names which one.
 
@@ -72,9 +72,9 @@ A passing verification is not a certificate of truth. It is a result produced in
 
 `--package=huqan` is required: the binary name differs from the package name.
 
-Three operator tools — `huqan.approve`, `huqan.approvals`, `huqan.agent_resume` — are withheld from `tools/list` and need `HUQAN_MCP_OPERATOR_TOKEN`. **A model that proposes a mutation cannot approve it through the catalog it can see.** Operator capabilities are single-use and the record of a spent one survives restarts and workers; if it cannot be written, verification fails closed.
+Three operator tools — `huqan.approve`, `huqan.approvals`, `huqan.agent_resume` — are withheld from `tools/list` and need `HUQAN_MCP_OPERATOR_TOKEN`. A model that proposes a mutation cannot approve it through the catalog it can see. Operator capabilities are single-use, and the record of a spent one survives restarts and workers; if it cannot be written, verification fails closed.
 
-**Any other agent** — `huqan-gate` takes a brand-independent envelope and ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It is enforcement only when the client calls it *before* executing; a hookless client needs a wrapper, gateway or sandbox. [Details](./docs/external-action-guard.md).
+**Any other agent** — `huqan-gate` takes a brand-independent envelope and ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It enforces only when the client calls it *before* executing; a hookless client needs a wrapper, gateway or sandbox. [Details](./docs/external-action-guard.md).
 
 **As a library:**
 
@@ -106,7 +106,7 @@ Four tools get compared to HUQAN. Each owns a different boundary, and one system
 | [Docker MCP Gateway](https://docs.docker.com/ai/mcp-catalog-and-toolkit/mcp-gateway/) | MCP server lifecycle, credentials, routing, container isolation | The decision inside the call, not the isolation around it |
 | [DeepEval](https://deepeval.com/docs/evaluation-introduction) | Scoring model quality against datasets, in CI | The single live action, judged before it lands |
 
-This is a comparison of focus, not a claim that any of them lacks features outside its primary documentation. Evals score a model offline. Tracing says what happened last night. IAM says who may call the API. HUQAN answers the question none of them ask: *should this specific output be trusted, right now, before it lands?*
+This is a comparison of focus, not a claim that any of them lacks features outside its primary documentation. Evals score a model offline; tracing says what happened last night; IAM says who may call the API. HUQAN answers what none of them ask: *should this specific output be trusted, right now, before it lands?*
 
 Full reasoning, sources, and the cases where HUQAN is the **wrong** choice: [competitive positioning](./docs/competitive-positioning.md).
 
@@ -141,4 +141,4 @@ When a summary and the repository disagree, the repository wins: [product surfac
 
 If HUQAN saves you from a bad write, consider supporting the project:
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-aliulu-ffdd00?logo=buy-me-a-coffee\&logoColor=black)](https://buymeacoffee.com/aliulu)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-aliulu-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/aliulu)
