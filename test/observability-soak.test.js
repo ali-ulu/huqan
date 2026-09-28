@@ -16,6 +16,8 @@ const TEST_CONFIG = {
   targets: {
     ...DEFAULT_CONFIG.targets,
     maxCpuRatio: Number.POSITIVE_INFINITY,
+    maxHeapSlopeBytesPerCycle: Number.POSITIVE_INFINITY,
+    maxRssSlopeBytesPerCycle: Number.POSITIVE_INFINITY,
   },
 };
 
@@ -54,6 +56,15 @@ test('bounded soak gate fails closed on an exceeded resource target', () => {
   assert.throws(
     () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxDbFileBytes: 0 }),
     /OBSERVABILITY_SOAK_TARGET_FAILED:.*dbFileBytes=/,
+  );
+});
+
+test('bounded soak gate fails closed on leaked process resources', () => {
+  const report = runSoak({ config: TEST_CONFIG });
+  report.resources.lifecycle.activeHandleDeltaAfterCleanup = 1;
+  assert.throws(
+    () => assertSoakTargets(report, TEST_CONFIG.targets),
+    /OBSERVABILITY_SOAK_TARGET_FAILED:.*activeHandleDeltaAfterCleanup=1/,
   );
 });
 
