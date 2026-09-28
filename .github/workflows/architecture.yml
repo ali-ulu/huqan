@@ -81,6 +81,9 @@ jobs:
       - name: Require every V5 document to declare its status
         run: node scripts/check-doc-status.js
 
+      - name: Require identity documents to name HUQAN, not AXIOM (#3029)
+        run: npm run check:naming-conformance
+
   source-gates:
     name: Architecture source gates
     runs-on: ubuntu-latest
