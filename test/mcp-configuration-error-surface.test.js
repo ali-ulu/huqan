@@ -17,6 +17,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -28,7 +29,7 @@ const {
 } = require('../lib/mcp-configuration-errors');
 
 function makeKernel(label) {
-  const root = path.join(os.tmpdir(), `huqan-mcp-config-error-${process.pid}-${label}`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-mcp-config-error-${label}-`));
   return new Kernel({
     noLoad: true,
     loadPlugins: false,

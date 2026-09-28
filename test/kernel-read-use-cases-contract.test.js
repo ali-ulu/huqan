@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -8,7 +9,7 @@ const test = require('node:test');
 const Kernel = require('../kernel');
 
 function makeKernel(label, overrides = {}) {
-  const root = path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-${label}`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-read-use-cases-${label}-`));
   return new Kernel({
     noLoad: true,
     loadPlugins: false,
@@ -85,7 +86,7 @@ test('Kernel delegates entropy and gap inspection through read use cases', () =>
 });
 
 test('read use cases preserve persistence descriptor observable results', () => {
-  const root = path.join(os.tmpdir(), `huqan-read-use-cases-${process.pid}-persistence-descriptor`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-read-use-cases-persistence-descriptor-'));
   const kernel = makeKernel('persistence-descriptor', {
     dbPath: path.join(root, 'independent.db'),
   });
