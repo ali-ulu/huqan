@@ -36,11 +36,6 @@
         "DIP"
       ]
     },
-    "lib/atp-conformance.js": {
-      "band": "recorded",
-      "lines": 504,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
@@ -1730,9 +1725,6 @@
       ],
       "lib/approval-schema.js": [
         "lib/json-clone.js"
-      ],
-      "lib/atp-conformance.js": [
-        "lib/is-plain-object.js"
       ],
       "lib/audit-bounded-read.js": [
         "lib/audit-log.js",

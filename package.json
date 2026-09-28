@@ -306,6 +306,8 @@
     "lib/approval-receipts.js",
     "lib/approval-schema.js",
     "lib/atp-conformance.js",
+    "lib/atp-conformance-primitives.js",
+    "lib/atp-conformance-validators.js",
     "lib/audit-bounded-read.js",
     "lib/audit-log.js",
     "lib/audit-query-primitives.js",
