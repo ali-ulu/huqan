@@ -15,6 +15,16 @@ This is the honest operating model:
 - Release tags require clean test and smoke gates.
 - Auto-merge is not part of the canonical release path.
 
+## Licensing
+
+HUQAN is distributed under `AGPL-3.0-only`. The canonical licensing status and
+decision record is [`docs/legal/dual-licensing-status.md`](./legal/dual-licensing-status.md).
+As of 2026-09-28, commercial dual-licensing is deferred with reason and `CLA.md`
+remains a non-operative review draft; future contribution rights and any
+commercial licensing decision follow that record. License changes are
+project-owner decisions and are never merged through an ordinary pull request
+without the owner's explicit approval of the exact scope.
+
 ## What this project is not claiming
 
 - not a large multi-maintainer foundation project

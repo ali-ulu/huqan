@@ -5,6 +5,8 @@
 > **Draft identifier:** `HUQAN-COMMERCIAL-v1.0-review`
 > **Prepared:** 2026-08-27
 >
+> **Decision (2026-09-28):** Commercial dual-licensing is deferred with reason; this draft remains non-operative and no commercial license is offered. The canonical status record is [`dual-licensing-status.md`](./dual-licensing-status.md) (issue #3082).
+>
 > This document is a prepared working draft for qualified legal review. It is not an offer, quote, invoice, binding license, or legal advice. No commercial rights are granted by publishing, linking, or discussing this document. It must not be signed or presented as an operative license until the Project Owner, covered components, commercial terms, legal provisions, and execution process have been approved.
 
 ## 1. Parties and purpose
