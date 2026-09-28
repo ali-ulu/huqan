@@ -435,6 +435,8 @@
     "lib/external-action-identity-log.js",
     "lib/external-action-receipt-writer-factory.js",
     "lib/external-action-receipt.js",
+    "lib/external-action-receipt-admission.js",
+    "lib/external-action-receipt-outcome.js",
     "lib/external-action-receipt-shipper.js",
     "lib/external-action-receipt-batch.js",
     "lib/external-action-receipt-cursor.js",
