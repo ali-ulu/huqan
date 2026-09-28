@@ -96,6 +96,20 @@ function failuresSidecarPath(reportPath, shard) {
   return path.join(path.dirname(reportPath), `${stem}-failures.json`);
 }
 
+/**
+ * Where this shard records each file's real wall time, beside its JUnit report.
+ *
+ * The JUnit report merges <testsuite> blocks (describe names), not files, so
+ * it cannot answer "how long did this file take" — the question
+ * scripts/update-shard-weights.js needs to rebalance shards. Written in
+ * `finally` and best-effort: a timing file that failed to write must not
+ * change the shard's verdict, and only files that completed are recorded.
+ */
+function timingsSidecarPath(reportPath, shard) {
+  const stem = path.basename(reportPath, path.extname(reportPath));
+  return path.join(path.dirname(reportPath), `${stem}-timings.json`);
+}
+
 function loadSelection(selectionPath, knownFiles) {
   const absolute = path.resolve(selectionPath);
   const plan = JSON.parse(fs.readFileSync(absolute, 'utf8'));
@@ -156,6 +170,7 @@ async function run(options) {
 
   const partPaths = [];
   const failedFiles = [];
+  const fileTimings = {};
   let overallStatus = 0;
   let lastSignal = null;
 
@@ -242,6 +257,7 @@ async function run(options) {
       }
       const status = result.status === 0 ? 0 : (result.status || 1);
       const elapsed = ((Date.now() - startedMs) / 1000).toFixed(3);
+      fileTimings[file] = Number(elapsed);
       console.log(`[shard ${options.shard}/${options.total}] finished ${index + 1}/${selected.files.length}: ${file} -> status ${status} in ${elapsed}s`);
       if (status !== 0) {
         failedFiles.push({ file, status });
@@ -260,6 +276,16 @@ async function run(options) {
       );
     } catch (error) {
       console.error(`warning: failed to write the shard failure sidecar: ${error.message}`);
+    }
+    // The per-file timings the weight feedback loop reads back. Best-effort
+    // for the same reason as the sidecar above.
+    try {
+      fs.writeFileSync(
+        timingsSidecarPath(reportPath, options.shard),
+        `${JSON.stringify({ shard: options.shard, total: options.total, timings: fileTimings }, null, 2)}\n`,
+      );
+    } catch (error) {
+      console.error(`warning: failed to write the shard timing sidecar: ${error.message}`);
     }
   }
 
@@ -304,4 +330,5 @@ module.exports = {
   mergeJunitParts,
   parseArgs,
   run,
+  timingsSidecarPath,
 };

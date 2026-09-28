@@ -5,22 +5,38 @@ const path = require('node:path');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const DEFAULT_SHARDS = 3;
+// Files the config treats as negligible get this instead of their measured
+// time, so a shard of fast files still sorts against one slow file without the
+// sum being dominated by hundreds of sub-second entries.
 const DEFAULT_UNKNOWN_WEIGHT = 1;
 
-// Historical wall-time weights from the last green 5,047-test run. Unknown
-// files receive a conservative unit weight and are rebalanced on every run.
-const HISTORICAL_WEIGHTS_SECONDS = Object.freeze({
-  'test/v4-receipt-materialization-read-index.test.js': 25.314727,
-  'test/stress-ingest-scale-smoke.test.js': 23.655566,
-  'test/real-user-smoke-blockers.test.js': 14.695228,
-  'test/v4-wb1-trust-receipt-inspector.test.js': 12.988540,
-  'test/ui-claim-workspace-browser-smoke.test.js': 6.820305,
-  'test/v5-c5-external-conformance.test.js': 5.581764,
-  'test/reason-sandbox-isolation.test.js': 4.754675,
-  'test/v4-b2b-ingest-approval-authority-gap.test.js': 2.339606,
-  'test/memory-store-surface-audit.test.js': 1.206009,
-  'test/sandbox-host-realm-escape.test.js': 0.850229,
-});
+/**
+ * Per-file wall-time weights, read from config/shard-weights.json.
+ *
+ * These used to be a frozen literal in this file, described as "from the last
+ * green run" and never updated. All but ten of the 1,045 test files therefore
+ * took the default weight of 1, and the "weighted" assignment degenerated to
+ * file-count balancing: measured against the real per-file times of run
+ * 36109910520, the five shards that scheme produced carried
+ * [61.5, 122.2, 134.0, 50.3, 120.2]s of work — 2.67x between the fastest and
+ * slowest, with the critical path 36s above the 97.6s ideal. The measured
+ * weights in the config bring that spread to 1.001.
+ *
+ * scripts/update-shard-weights.js regenerates the config from the nightly
+ * test-timings artifacts. A missing or unreadable config falls back to the
+ * unit weight, so a broken file degrades to file-count balancing rather than
+ * failing the run.
+ */
+function loadShardWeights(configPath = path.join(REPO_ROOT, 'config', 'shard-weights.json')) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const weights = parsed && parsed.weights;
+    if (weights && typeof weights === 'object') return weights;
+  } catch { /* missing config: fall through to the unit weight */ }
+  return {};
+}
+
+const DEFAULT_SHARD_WEIGHTS = Object.freeze(loadShardWeights());
 
 function isTestFile(relativePath) {
   const normalized = relativePath.split(path.sep).join('/');
@@ -57,12 +73,12 @@ function discoverTestFiles(root = REPO_ROOT) {
   return walk(root).sort();
 }
 
-function weightFor(relativePath, weights = HISTORICAL_WEIGHTS_SECONDS) {
+function weightFor(relativePath, weights = DEFAULT_SHARD_WEIGHTS) {
   const weight = Number(weights[relativePath]);
   return Number.isFinite(weight) && weight > 0 ? weight : DEFAULT_UNKNOWN_WEIGHT;
 }
 
-function assignWeightedShards(files, shardCount = DEFAULT_SHARDS, weights = HISTORICAL_WEIGHTS_SECONDS) {
+function assignWeightedShards(files, shardCount = DEFAULT_SHARDS, weights = DEFAULT_SHARD_WEIGHTS) {
   if (!Number.isInteger(shardCount) || shardCount < 1) {
     throw new Error(`shardCount must be a positive integer, got ${shardCount}`);
   }
@@ -91,7 +107,7 @@ function assignWeightedShards(files, shardCount = DEFAULT_SHARDS, weights = HIST
   return shards;
 }
 
-function getShard(files, shard, total, weights = HISTORICAL_WEIGHTS_SECONDS) {
+function getShard(files, shard, total, weights = DEFAULT_SHARD_WEIGHTS) {
   if (!Number.isInteger(shard) || shard < 1 || shard > total) {
     throw new Error(`shard must be between 1 and ${total}, got ${shard}`);
   }
@@ -116,7 +132,8 @@ if (require.main === module) {
 module.exports = {
   DEFAULT_SHARDS,
   DEFAULT_UNKNOWN_WEIGHT,
-  HISTORICAL_WEIGHTS_SECONDS,
+  DEFAULT_SHARD_WEIGHTS,
+  loadShardWeights,
   REPO_ROOT,
   assignWeightedShards,
   discoverTestFiles,
