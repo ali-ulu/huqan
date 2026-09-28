@@ -9,7 +9,7 @@ const {
   buildLegacyErrorPayload,
   buildStructuredErrorPayload,
   classifyHttpError,
-} = require('../lib/http/error-taxonomy');
+} = require('../lib/error-taxonomy');
 const { writeApiError } = require('../lib/server-response-helpers');
 
 test('HTTP error taxonomy assigns stable classes and operator actions', () => {
