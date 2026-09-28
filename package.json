@@ -453,6 +453,8 @@
     "lib/connector-action-firewall-summary.js",
     "lib/connector-local-path.js",
     "lib/conflict-candidate-review.js",
+    "lib/conflict-claim.js",
+    "lib/conflict-detect.js",
     "lib/conflict-detector.js",
     "lib/connectors/entry-ingest-flow.js",
     "lib/connectors/repo-memory-firewall.js",
