@@ -141,7 +141,7 @@ test('the fifteen discarding sites are five caller functions', () => {
   // Current pins: learn facade at 332, _crossLink facade at 375. The
   // strict-provenance helper added before executeLearn shifts its pinned
   // sites by 29 lines.
-  assert.deepEqual(new Set([...enclosing('kernel.js', [323]), ...enclosing('lib/kernel-cognition-methods.js', [37])]), new Set(['learn', '_crossLink']));
+  assert.deepEqual(new Set([...enclosing('kernel.js', [323]), ...enclosing('lib/kernel-cognition-methods.js', [43])]), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
   assert.deepEqual(
