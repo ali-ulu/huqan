@@ -20,12 +20,27 @@ function recordingKernel() {
 }
 
 const malformedSourceTypeArb = fc.oneof(
+  fc.constant(Object.create(null)),
   fc.constant(null),
   fc.boolean(),
   fc.integer(),
   fc.array(fc.jsonValue(), { maxLength: 6 }),
   fc.dictionary(fc.string({ maxLength: 24 }), fc.jsonValue(), { maxKeys: 6 }),
 );
+
+test('ingest fuzz: non-coercible sourceType fails closed without capability execution', async () => {
+  const { kernel, calls } = recordingKernel();
+  const result = await handleIngest({
+    kernel,
+    data: { sourceType: Object.create(null) },
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    error: 'sourceType must be one of github|markdown|manual|decision',
+  });
+  assert.deepEqual(calls, []);
+});
 
 test('ingest fuzz: malformed sourceType values fail closed without capability execution', { timeout: 10000 }, async () => {
   await fc.assert(
