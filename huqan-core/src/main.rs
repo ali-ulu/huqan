@@ -6,6 +6,7 @@ use std::io::{self, BufRead, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod hypotheses;
+mod predicate;
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -103,6 +104,12 @@ pub struct Graph {
     in_index: HashMap<String, Vec<usize>>,
     decay_lambda: f64,
     prune_threshold: f64,
+    // #3043: 0 disables the policy. Above 0, a *connected* node whose decayed
+    // weight falls below this threshold is removed even though it still has
+    // edges, so a graph of weakly-linked stale nodes cannot grow forever. The
+    // default keeps the old isolated-only behaviour, so existing callers are
+    // unaffected.
+    connected_weak_threshold: f64,
 }
 
 impl Graph {
@@ -115,6 +122,22 @@ impl Graph {
             in_index: HashMap::new(),
             decay_lambda: 0.05,
             prune_threshold: 0.01,
+            connected_weak_threshold: 0.0,
+        }
+    }
+
+    // #3043: maintenance thresholds used to be baked into `new()`. A caller can
+    // now set them before issuing learn/optimize, so `decay_lambda` and
+    // `prune_threshold` are configurable rather than hardcoded.
+    fn apply_config(&mut self, cmd: &Value) {
+        if let Some(v) = get_f64_opt(cmd, "decayLambda") {
+            self.decay_lambda = v;
+        }
+        if let Some(v) = get_f64_opt(cmd, "pruneThreshold") {
+            self.prune_threshold = v;
+        }
+        if let Some(v) = get_f64_opt(cmd, "connectedWeakThreshold") {
+            self.connected_weak_threshold = v;
         }
     }
 
@@ -280,10 +303,29 @@ impl Graph {
         p
     }
 
-    fn optimize(&mut self) -> (usize, usize) {
-        let pruned = self.prune(self.prune_threshold);
+    /// #3043: maintenance must leave a receipt naming what it removed and with
+    /// which threshold, the way the JS backend's `persistPrune` does. The same
+    /// threshold drives edge pruning and the connected-weak node policy.
+    fn optimize_with_receipt(
+        &mut self,
+        threshold: f64,
+        connected_weak_threshold: f64,
+    ) -> (usize, usize, Value) {
+        // Capture connectivity before pruning: prune() may intentionally remove
+        // weak edges, but that must not turn their endpoints into deletion
+        // candidates in the same pass (mirrors lib/graph-optimize.js).
+        let connected_before: std::collections::HashSet<String> = self
+            .nodes
+            .iter()
+            .filter(|(_, n)| {
+                let ws = normalize_workspace(&n.workspace_id);
+                !self.get_edges(&n.id, &ws).is_empty() || !self.get_in_edges(&n.id, &ws).is_empty()
+            })
+            .map(|(key, _)| key.clone())
+            .collect();
+
+        let pruned = self.prune(threshold);
         let now = now_ms();
-        // (storage key, node id, workspace): the key deletes, the pair reads.
         let entries: Vec<(String, String, String)> = self
             .nodes
             .iter()
@@ -296,19 +338,72 @@ impl Graph {
             })
             .collect();
         let mut removed = 0;
+        let mut removed_isolated = 0;
+        let mut removed_connected_weak = 0;
+        let mut removed_nodes: Vec<Value> = Vec::new();
         for (key, id, ws) in &entries {
-            if let Some(n) = self.nodes.get(key) {
+            let snapshot = self.nodes.get(key).map(|n| {
                 let elapsed = (now - n.last_accessed) as f64 / 1000.0;
-                let decayed = n.weight * (-self.decay_lambda * elapsed).exp();
-                if decayed < 0.01
-                    && self.get_edges(id, ws).is_empty()
-                    && self.get_in_edges(id, ws).is_empty()
-                {
-                    self.nodes.remove(key);
-                    removed += 1;
-                }
+                (
+                    n.id.clone(),
+                    n.weight * (-self.decay_lambda * elapsed).exp(),
+                )
+            });
+            let (node_id, decayed) = match snapshot {
+                Some(pair) => pair,
+                None => continue,
+            };
+            let isolated =
+                self.get_edges(id, ws).is_empty() && self.get_in_edges(id, ws).is_empty();
+            // Isolated nodes keep their historical `< 0.01` rule; the
+            // connected-weak policy is the only one the threshold gates.
+            let dying_isolated = isolated && decayed < 0.01;
+            let dying_connected_weak = connected_weak_threshold > 0.0
+                && decayed < connected_weak_threshold
+                && connected_before.contains(key);
+            if !dying_isolated && !dying_connected_weak {
+                continue;
             }
+            self.nodes.remove(key);
+            removed += 1;
+            if dying_isolated {
+                removed_isolated += 1;
+            } else {
+                removed_connected_weak += 1;
+            }
+            removed_nodes.push(json!({
+                "id": node_id,
+                "workspaceId": ws,
+                "decayedWeight": decayed,
+                "connected": !isolated,
+            }));
         }
+        if removed > 0 {
+            // Edges of a removed node would otherwise dangle in the indexes.
+            self.edges.retain(|e| {
+                let ws = normalize_workspace(&e.workspace_id);
+                self.nodes.contains_key(&storage_key(&e.from, &ws))
+                    && self.nodes.contains_key(&storage_key(&e.to, &ws))
+            });
+            self.rebuild_index();
+        }
+        let receipt = json!({
+            "kind": "prune",
+            "threshold": threshold,
+            "connectedWeakThreshold": connected_weak_threshold,
+            "prunedEdges": pruned,
+            "removedNodes": removed,
+            "removedIsolated": removed_isolated,
+            "removedConnectedWeak": removed_connected_weak,
+            "nodes": removed_nodes,
+        });
+        (pruned, removed, receipt)
+    }
+
+    fn optimize(&mut self) -> (usize, usize) {
+        let threshold = self.prune_threshold;
+        let connected_weak = self.connected_weak_threshold;
+        let (pruned, removed, _) = self.optimize_with_receipt(threshold, connected_weak);
         (pruned, removed)
     }
 
@@ -443,44 +538,6 @@ fn edge_to_json(e: &Edge) -> Value {
     })
 }
 
-struct Parsed {
-    object: String,
-    relation: String,
-}
-
-fn parse_predicate(predicate: &str) -> Parsed {
-    let p = predicate.to_lowercase();
-    let tir_suffixes = ["dır", "dir", "dur", "dür", "tır", "tir", "tur", "tür"];
-    for s in &tir_suffixes {
-        if p.ends_with(s) && p.len() > s.len() {
-            let stem = &p[..p.len() - s.len()];
-            return Parsed {
-                object: stem.to_string(),
-                relation: "tür".to_string(),
-            };
-        }
-    }
-    let verb_suffixes = ["ar", "er", "ır", "ir", "ur", "ür", "mek", "mak"];
-    for s in &verb_suffixes {
-        if p.ends_with(s) {
-            return Parsed {
-                object: p.clone(),
-                relation: "yapabilir".to_string(),
-            };
-        }
-    }
-    if p.ends_with('r') && p.len() > 2 {
-        return Parsed {
-            object: p.clone(),
-            relation: "yapabilir".to_string(),
-        };
-    }
-    Parsed {
-        object: p,
-        relation: "özellik".to_string(),
-    }
-}
-
 fn get_str(cmd: &Value, key: &str) -> String {
     match cmd.get(key) {
         Some(Value::String(s)) => s.clone(),
@@ -593,11 +650,40 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         "prune" => {
             let threshold = get_f64(cmd, "threshold", graph.prune_threshold);
             let pruned = graph.prune(threshold);
-            json!({ "ok": true, "pruned": pruned })
+            json!({
+                "ok": true,
+                "pruned": pruned,
+                // #3043: the removal is receipted, not silent.
+                "receipt": {
+                    "kind": "prune",
+                    "threshold": threshold,
+                    "prunedEdges": pruned,
+                }
+            })
         }
         "optimize" => {
-            let (pruned, removed) = graph.optimize();
-            json!({ "ok": true, "pruned": pruned, "removed_nodes": removed })
+            graph.apply_config(cmd);
+            let threshold = get_f64(cmd, "threshold", graph.prune_threshold);
+            let connected_weak = get_f64(
+                cmd,
+                "connectedWeakThreshold",
+                graph.connected_weak_threshold,
+            );
+            let (pruned, removed, receipt) = graph.optimize_with_receipt(threshold, connected_weak);
+            json!({ "ok": true, "pruned": pruned, "removed_nodes": removed, "receipt": receipt })
+        }
+        // #3043: set maintenance thresholds on the running graph. Their values
+        // used to be hardcoded in `Graph::new()`.
+        "config" => {
+            graph.apply_config(cmd);
+            json!({
+                "ok": true,
+                "config": {
+                    "decay_lambda": graph.decay_lambda,
+                    "prune_threshold": graph.prune_threshold,
+                    "connected_weak_threshold": graph.connected_weak_threshold,
+                }
+            })
         }
         "learn" => {
             let text = get_str(cmd, "text");
@@ -606,7 +692,7 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                 let subject = parts[0].to_string();
                 let predicate = parts[1..].join(" ");
                 graph.add_node(&subject, &subject, cmd);
-                let parsed = parse_predicate(&predicate);
+                let parsed = predicate::parse_predicate(&predicate);
                 graph.add_node(&parsed.object, &parsed.object, cmd);
                 graph.add_edge(&subject, &parsed.object, &parsed.relation, cmd);
                 let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
@@ -628,7 +714,15 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let mut edge_list = graph.get_edges(&subject, &workspace);
             if !graph.nodes.contains_key(&storage_key(&subject, &workspace)) || edge_list.is_empty()
             {
-                return json!({ "ok": true, "answer": "Bilmiyorum" });
+                return json!({
+                    "ok": true,
+                    "answer": "Bilmiyorum",
+                    "subject": subject,
+                    "unknown": true,
+                    "verified": false,
+                    "verification": "naive-lookup",
+                    "verificationPhases": [],
+                });
             }
             edge_list.sort_by(|a, b| {
                 b.weight
@@ -642,9 +736,30 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                 }
             }
             if results.is_empty() {
-                json!({ "ok": true, "answer": "Bilmiyorum" })
+                json!({
+                    "ok": true,
+                    "answer": "Bilmiyorum",
+                    "subject": subject,
+                    "unknown": true,
+                    "verified": false,
+                    "verification": "naive-lookup",
+                    "verificationPhases": [],
+                })
             } else {
-                json!({ "ok": true, "answer": format!("{} {}", subject, results.join(", ")) })
+                // #3041: this branch ranks out-edges by weight and concatenates
+                // them. It runs none of the JS verify phases (numeric,
+                // negation, PREVENTS, type lattice), so it must not present
+                // itself as a verified answer. The marker is the honest half of
+                // the fix; porting the phases is the follow-up.
+                json!({
+                    "ok": true,
+                    "answer": format!("{} {}", subject, results.join(", ")),
+                    "subject": subject,
+                    "unknown": false,
+                    "verified": false,
+                    "verification": "naive-lookup",
+                    "verificationPhases": [],
+                })
             }
         }
         // #1142: the JS backend's Graph.query() is a real label lookup, so the
@@ -708,6 +823,10 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                     "nodes": graph.nodes.len(),
                     "edges": graph.edges.len(),
                     "decay_lambda": graph.decay_lambda,
+                    // #3043: the maintenance thresholds are observable, so a
+                    // caller can verify the config it set actually applies.
+                    "prune_threshold": graph.prune_threshold,
+                    "connected_weak_threshold": graph.connected_weak_threshold,
                 }
             })
         }
