@@ -19,10 +19,10 @@
  * appearing for something classified as unused, should show up in review rather
  * than in a later archaeology session.
  *
- * Scope. This audit classifies the surface; it does not move code. Splitting
- * lib/memory-store.js is recorded debt under docs/architecture-policy.md and
- * happens on that burn-down schedule, which no longer requires a runtime PR
- * to justify it.
+  * Scope. This audit classifies the surface; it does not move code. Splitting
+  * lib/memory-store.js was recorded debt under docs/architecture-policy.md and
+  * closed by moving the read/write facades to lib/memory-store-*-methods.js
+  * (#2120); the classification below holds over the installed prototype.
  */
 
 const assert = require('node:assert/strict');

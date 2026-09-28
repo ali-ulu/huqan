@@ -12,7 +12,10 @@ const STORE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-store.js');
 const DELEGATE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-supersede.js');
 const DELEGATE_REQUIRE_REGEX = /require\('\.\/memory-supersede'\)/;
 
-const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8');
+const { readMemoryStoreChain } = require('./helpers/memory-store-chain-source');
+// #2120: the store implementation is the entry plus its installed method-group
+// chain; moved facades keep their verbatim shape, so the pins below hold.
+const storeSource = readMemoryStoreChain(STORE_SOURCE);
 const delegateSource = fs.readFileSync(DELEGATE_SOURCE, 'utf8');
 
 test('MS: supersede logic is delegated to lib/memory-supersede.js (only ownership moved)', () => {
