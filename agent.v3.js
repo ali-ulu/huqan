@@ -2,42 +2,17 @@ const crypto = require('crypto');
 const { createExecutionScope } = require('./lib/goal-binding');
 const Agent = require('./agent');
 const { normalizeAgentV3WorkspaceId } = require('./lib/agent-v3-workspace');
-const { annotatePlanWithGoalMemory } = require('./lib/agent-v3-plan-memory');
 const { createDefaultAgentV3Storage } = require('./lib/agent-v3-storage-factory');
-const { evaluateAgentV3LoopBudget, unavailableBudget, DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-v3-loop-budget');
+const { DEFAULT_MAX_ITERATIONS_PER_WINDOW, DEFAULT_WINDOW_MS } = require('./lib/agent-v3-loop-budget');
 const { initializeBehavioralState } = require('./lib/agent-behavioral-integrity');
-const { loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep, selectDreamNextAction, labelPlanDataForDreamLoop } = require('./lib/agent-v3-dream-loop-adapter');
-const { attachStepErrorSummary } = require('./lib/agent-memory-persistence');
-const { finalizeAgentRun } = require('./lib/agent-run-finalization');
-const { cloneValue, hydrateRunState, saveRunCheckpoint } = require('./lib/agent-v3-run-state');
-
-function normalizeGoal(goal) {
-  return String(goal || '').trim();
-}
-
-/**
- * #329: the baseAgent below is built without storage on purpose -- plan() and
- * the step executors share that instance, so a full storage object would
- * switch on agent.js's own saveRun()/saveGoalMemory() paths underneath v3,
- * which owns that persistence itself. But Agent.inspectToolPolicy() queues its
- * approval record through this.storage.saveToolApproval(), so a storage-less
- * baseAgent made the v3 approval gate record nothing at all.
- *
- * This is the narrowest seam that closes it: one capability, forwarded lazily
- * to v3's storage (which is constructed after baseAgent). Every other v1
- * persistence path stays disabled by its own
- * `typeof this.storage.X === 'function'` guard, because those methods are
- * simply absent here.
- */
-function createToolApprovalSeam(getStorage) {
-  return {
-    saveToolApproval(record) {
-      const storage = getStorage();
-      if (!storage || typeof storage.saveToolApproval !== 'function') return null;
-      return storage.saveToolApproval(record);
-    },
-  };
-}
+const { loopEnabled, isDreamExperimentVerificationStep, prepareDreamExperiment, prepareDreamQueue, processDreamStep } = require('./lib/agent-v3-dream-loop-adapter');
+const { normalizeGoal, createToolApprovalSeam } = require('./lib/agent-v3-approval-methods');
+const { installAgentV3Methods } = require('./lib/agent-v3-method-install');
+const { AgentV3BudgetMethods } = require('./lib/agent-v3-budget-methods');
+const { AgentV3ResultMethods } = require('./lib/agent-v3-result-methods');
+const { AgentV3ApprovalMethods } = require('./lib/agent-v3-approval-methods');
+const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
+const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 
 class AgentV3 {
   constructor(opts = {}) {
@@ -62,55 +37,10 @@ class AgentV3 {
     this.lastPlan = null;
     this.lastRun = null;
   }
-
-  /**
-   * AB10: looks up durable per-workspace usage and evaluates it against the
-   * budget gate. Fail-closed behavior and rationale live in
-   * lib/agent-v3-loop-budget.js, which this delegates to.
-   *
-   * @param {string} workspaceId
-   * @param {object} [opts]
-   * @param {number} [requestedIterations] iterations this run can actually
-   *   perform; defaults to the configured per-call ceiling when not supplied.
-   */
-  _checkAgentLoopBudget(workspaceId, opts = {}, requestedIterations = null) {
-    return evaluateAgentV3LoopBudget({
-      storage: this.storage,
-      kernel: this.kernel,
-      maxIterationsPerWindow: this.maxIterationsPerWindow,
-      agentLoopBudgetWindowMs: this.agentLoopBudgetWindowMs,
-      maxIterations: this.maxIterations,
-    }, workspaceId, opts, requestedIterations);
-  }
-
-  /**
-   * Returns `opts` with the run's workspace forced onto the per-tool option
-   * bags agent.js reads.
-   *
-   * The run-level workspace is authoritative and overrides a per-tool value
-   * on purpose: the alternative is a run whose budget and run record name one
-   * workspace while its steps mutate another, which makes the durable AB10
-   * accounting describe a workspace that was never touched.
-   */
-  _withWorkspaceScope(opts = {}, workspaceId) {
-    const scoped = { ...opts, workspaceId };
-    for (const key of ['learnOpts', 'askOpts', 'verifyOpts', 'reasonOpts', 'compareOpts', 'dreamOpts']) {
-      const existing = opts[key] && typeof opts[key] === 'object' && !Array.isArray(opts[key])
-        ? opts[key]
-        : {};
-      scoped[key] = { ...existing, workspaceId };
-    }
-    return scoped;
-  }
-
-  _unavailableBudget(maxIterationsPerWindow, detail) {
-    return unavailableBudget(maxIterationsPerWindow, detail);
-  }
-
   /**
    * Records an AB10 gate outcome. Audit persistence must not convert a
    * fail-closed refusal into a thrown exception, so a failing write is
-   * swallowed here -- the same protection `kernel._appendAuditEvent` gives,
+   * swallowed here -- the same protection kernel._appendAuditEvent gives,
    * which this path bypasses by calling graph directly.
    *
    * graph.appendAuditEvent() is called directly rather than
@@ -140,120 +70,7 @@ class AgentV3 {
     }
   }
 
-  ok(type, data = null, evidence = [], meta = {}) {
-    if (this.kernel && typeof this.kernel.ok === 'function') {
-      return this.kernel.ok(type, data, evidence, meta);
-    }
-    return {
-      ok: true,
-      type,
-      data,
-      evidence: Array.isArray(evidence) ? evidence : [],
-      error: null,
-      meta,
-    };
-  }
 
-  fail(type, code, message, evidence = [], meta = {}, data = null) {
-    if (this.kernel && typeof this.kernel.fail === 'function') {
-      const result = this.kernel.fail(type, code, message, meta);
-      result.data = data;
-      if (Array.isArray(evidence) && evidence.length) {
-        result.evidence = evidence;
-      }
-      return result;
-    }
-    return {
-      ok: false,
-      type,
-      data,
-      evidence: Array.isArray(evidence) ? evidence : [],
-      error: { code, message },
-      meta,
-    };
-  }
-
-  _storageFailure(operation, err, state = null) {
-    const detail = err && err.message ? err.message : 'unknown error';
-    return this.fail('agent', 'AGENT_STORAGE_ERROR',
-      `Agent storage operation "${operation}" failed: ${detail}.`,
-      state?.evidence || [], { operation }, state);
-  }
-
-  plan(goal, opts = {}) {
-    const result = this.baseAgent.plan(goal, { ...opts, maxSteps: opts.maxSteps || this.maxSteps });
-    if (!result || result.ok === false) return result;
-    // Scoped: goal memory used to be global by goal text, so planning the same
-    // goal returned another workspace's history (#757). Normalized so this read
-    // keys the workspace run() will use, and so a non-string id fails
-    // structurally below rather than as a raw storage TypeError.
-    const workspace = normalizeAgentV3WorkspaceId(opts.workspaceId);
-    if (!workspace.ok) return this.fail('agent', 'AGENT_WORKSPACE_ID_INVALID', workspace.message, [], { workspaceId: opts.workspaceId });
-    let memory;
-    try {
-      memory = this.storage.getGoalMemory(goal, workspace.workspaceId);
-    } catch (err) {
-      return this._storageFailure('getGoalMemory', err);
-    }
-    const data = cloneValue(result.data);
-    labelPlanDataForDreamLoop(data, opts, this.kernel, this.dreamExperimentLoop);
-    annotatePlanWithGoalMemory(data, memory, goal);
-    data.recommendations = this._runtime().buildRunRecommendations({
-      goal: data.goal,
-      objective: data.objective,
-      steps: [],
-      progress: { stalledCount: 0, lastSummary: '' },
-      status: 'running',
-    });
-    this.lastPlan = data;
-    return this.ok('plan', data, result.evidence || [], result.meta || {});
-  }
-
-  inspectToolPolicy(tool, input = '', context = {}) {
-    return this.baseAgent.inspectToolPolicy(tool, input, context);
-  }
-
-  // The read half of the approval surface. inspectToolPolicy() writes through
-  // the baseAgent seam above; these read straight from v3's storage, mirroring
-  // the guards agent.js uses so a storage without the approval tables degrades
-  // to empty rather than throwing.
-  listPendingToolApprovals(limit = 20, workspaceId = 'default') {
-    if (!this.storage || typeof this.storage.listPendingToolApprovals !== 'function') return [];
-    return this.storage.listPendingToolApprovals(limit, workspaceId);
-  }
-
-  countPendingToolApprovals(workspaceId = 'default') {
-    if (!this.storage || typeof this.storage.countPendingToolApprovals !== 'function') return 0;
-    return this.storage.countPendingToolApprovals(workspaceId);
-  }
-
-  _hydrateState(activePlan, checkpoint = null) {
-    return hydrateRunState(activePlan, checkpoint, { timeBudgetMs: this.timeBudgetMs });
-  }
-
-  _saveCheckpoint(state) {
-    return saveRunCheckpoint(state, { storage: this.storage });
-  }
-
-  _renderReport(state) {
-    const baseReport = this._runtime().renderReport(state);
-    return [
-      `Checkpoint: ${state.checkpointId || 'none'}`,
-      `Resume: ${state.resumed ? 'yes' : 'no'}`,
-      `Budget remaining: ${Number(state.budgetRemaining || 0)}`,
-      baseReport,
-    ].join('\n');
-  }
-
-  /** The step-execution seam of the agent underneath. See Agent.stepRuntime. */
-  stepRuntime() {
-    return this._runtime();
-  }
-
-  _runtime() {
-    if (!this._baseRuntime) this._baseRuntime = this.baseAgent.stepRuntime();
-    return this._baseRuntime;
-  }
 
   run(goal, opts = {}) {
     const scopeResult = createExecutionScope(goal, opts);
@@ -494,65 +311,9 @@ class AgentV3 {
       }
     }
 
-    if (state.status === 'running') {
-      if (queued.length > 0) {
-        state.status = 'paused';
-        state.pauseReason = state.pauseReason || 'budget_or_iteration_limit';
-      } else {
-        const finalStep = state.steps[state.steps.length - 1];
-        state.status = finalStep && finalStep.result && finalStep.result.ok === false ? 'blocked' : 'completed';
-      }
-    }
+    const runFinal = this._finalizeRunState(state, { goal, workspaceId, activePlan, dreamLoopActive, queued });
+    if (runFinal.failed) return runFinal.result;
 
-    const finalStep = state.steps[state.steps.length - 1];
-    const finalSummary = finalStep ? this._runtime().extractAgentSummary(finalStep.result) : { text: '' };
-    state.finalAnswer = finalSummary.text || 'Agent completed but no short summary could be produced.';
-    attachStepErrorSummary(state);
-    state.completedSteps = state.steps.length;
-    state.remainingSteps = queued.length;
-    state.recommendations = this._runtime().buildRunRecommendations(state);
-    state.nextAction = selectDreamNextAction(
-      dreamLoopActive,
-      state,
-      this._runtime().suggestNextAction(state),
-    );
-    state.report = this._renderReport(state);
-    let goalMemory;
-    let runs;
-    try {
-      goalMemory = this.storage.getGoalMemory(goal, workspaceId);
-      runs = this.storage.countRuns();
-    } catch (err) {
-      return this._storageFailure('readRunMemory', err, state);
-    }
-    state.memory = { path: this.storage.dbPath, goalMemory, runs };
-    state.checkpointId = state.checkpointId || state.resumeToken || null;
-    state.resumeToken = state.checkpointId;
-
-    // What this run() spent, not the goal's running total: summing the
-    // cumulative figure would count a resumed run's earlier iterations again
-    // on every resume, exhausting the window budget long before it was
-    // genuinely spent.
-    state.iterationsDelta = Math.max(0, Number(state.iteration || 0) - Number(state.iterationsAtRunStart || 0));
-
-    const finalized = finalizeAgentRun({
-      storage: this.storage,
-      state,
-      goalMemory: {
-        goal,
-        workspaceId,
-        objective: activePlan.objective,
-        status: state.status,
-        completedSteps: state.completedSteps,
-        finalAnswer: state.finalAnswer,
-        resumed: state.resumed,
-        selectedTools: activePlan.selectedTools,
-      },
-      saveCheckpoint: current => this._saveCheckpoint(current),
-    });
-    if (!finalized.ok) {
-      return this._storageFailure(finalized.operation, finalized.error, state);
-    }
 
     this.lastRun = state;
 
@@ -581,43 +342,12 @@ class AgentV3 {
     });
   }
 
-  getStatus(workspaceId = 'default') {
-    const goals = this.storage ? this.storage.countGoals() : 0;
-    const checkpoints = this.storage ? this.storage.countCheckpoints() : 0;
-    const runs = this.storage ? this.storage.countRuns() : 0;
-    const pendingApprovals = this.storage && typeof this.storage.countPendingToolApprovals === 'function'
-      ? this.storage.countPendingToolApprovals(workspaceId)
-      : 0;
-    const recentApprovals = this.storage && typeof this.storage.listPendingToolApprovals === 'function'
-      ? this.storage.listPendingToolApprovals(5, workspaceId).map(item => ({
-          id: item.id,
-          tool: item.tool,
-          status: item.status,
-          approvalKey: item.approval_key || item.approvalKey || null,
-        }))
-      : [];
-    return {
-      agent: 'v3',
-      goals,
-      checkpoints,
-      runs,
-      pendingApprovals,
-      recentApprovals,
-      lastPlan: this.lastPlan
-        ? { goal: this.lastPlan.goal, steps: this.lastPlan.steps.length }
-        : null,
-      lastRun: this.lastRun
-        ? {
-            status: this.lastRun.status,
-            goal: this.lastRun.goal,
-            completedSteps: this.lastRun.completedSteps,
-            resumeToken: this.lastRun.resumeToken || null,
-            remainingSteps: this.lastRun.remainingSteps,
-            finalAnswer: this.lastRun.finalAnswer
-          }
-        : null
-    };
-  }
 }
+
+installAgentV3Methods(AgentV3, AgentV3BudgetMethods);
+installAgentV3Methods(AgentV3, AgentV3ResultMethods);
+installAgentV3Methods(AgentV3, AgentV3ApprovalMethods);
+installAgentV3Methods(AgentV3, AgentV3StatusMethods);
+installAgentV3Methods(AgentV3, AgentV3PlanMethods);
 
 module.exports = AgentV3;
