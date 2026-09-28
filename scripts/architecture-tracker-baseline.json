@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "entries": {
     "agent.v3.js": {
-      "band": "recorded",
-      "lines": 623,
+      "band": "structural",
+      "lines": 353,
       "signals": [
         "DIP"
       ]
@@ -46,9 +46,9 @@
       "lines": 616,
       "signals": []
     },
-    "lib/dream-experiment-loop.js": {
+    "lib/external-action-receipt.js": {
       "band": "recorded",
-      "lines": 533,
+      "lines": 589,
       "signals": []
     },
     "lib/github-connector.js": {
@@ -178,10 +178,16 @@
       "lib/agent-run-finalization.js": "Core",
       "lib/agent-run-guidance.js": "Core",
       "lib/agent-step-executor.js": "Core",
+      "lib/agent-v3-approval-methods.js": "Core",
+      "lib/agent-v3-budget-methods.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
       "lib/agent-v3-loop-budget.js": "Core",
+      "lib/agent-v3-method-install.js": "Core",
       "lib/agent-v3-plan-memory.js": "Core",
+      "lib/agent-v3-plan-methods.js": "Core",
+      "lib/agent-v3-result-methods.js": "Core",
       "lib/agent-v3-run-state.js": "Core",
+      "lib/agent-v3-status-methods.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/agent-v3-workspace.js": "Core",
       "lib/api-auth-opt-out.js": "Core",
@@ -316,6 +322,8 @@
       "lib/deterministic-json-copy.js": "Core",
       "lib/deterministic-task-runner.js": "Core",
       "lib/dream-embedding.js": "Core",
+      "lib/dream-experiment-loop-hypotheses.js": "Core",
+      "lib/dream-experiment-loop-verify.js": "Core",
       "lib/dream-experiment-loop.js": "Core",
       "lib/dream-graph-paths.js": "Core",
       "lib/dream-hypothesis-finders.js": "Core",
@@ -395,13 +403,11 @@
       "lib/external-action-identity-records.js": "Core",
       "lib/external-action-identity-signing.js": "Core",
       "lib/external-action-identity.js": "Core",
-      "lib/external-action-receipt-admission.js": "Core",
       "lib/external-action-receipt-batch.js": "Core",
       "lib/external-action-receipt-collector-fleet.js": "Core",
       "lib/external-action-receipt-collector-store.js": "Core",
       "lib/external-action-receipt-collector.js": "Core",
       "lib/external-action-receipt-cursor.js": "Core",
-      "lib/external-action-receipt-outcome.js": "Core",
       "lib/external-action-receipt-reader.js": "Core",
       "lib/external-action-receipt-shipper.js": "Core",
       "lib/external-action-receipt-writer-factory.js": "Core",
@@ -1285,12 +1291,14 @@
         "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
-        "lib/agent-memory-persistence.js",
-        "lib/agent-run-finalization.js",
+        "lib/agent-v3-approval-methods.js",
+        "lib/agent-v3-budget-methods.js",
         "lib/agent-v3-dream-loop-adapter.js",
         "lib/agent-v3-loop-budget.js",
-        "lib/agent-v3-plan-memory.js",
-        "lib/agent-v3-run-state.js",
+        "lib/agent-v3-method-install.js",
+        "lib/agent-v3-plan-methods.js",
+        "lib/agent-v3-result-methods.js",
+        "lib/agent-v3-status-methods.js",
         "lib/agent-v3-storage-factory.js",
         "lib/agent-v3-workspace.js",
         "lib/goal-binding.js"
@@ -1666,6 +1674,9 @@
         "lib/goal-binding.js",
         "toolPolicy.js"
       ],
+      "lib/agent-v3-budget-methods.js": [
+        "lib/agent-v3-loop-budget.js"
+      ],
       "lib/agent-v3-dream-loop-adapter.js": [
         "lib/dream-experiment-loop.js"
       ],
@@ -1673,8 +1684,20 @@
         "lib/agent-loop-budget-gate.js",
         "lib/gate-telemetry.js"
       ],
+      "lib/agent-v3-plan-methods.js": [
+        "lib/agent-v3-dream-loop-adapter.js",
+        "lib/agent-v3-plan-memory.js",
+        "lib/agent-v3-run-state.js",
+        "lib/agent-v3-workspace.js"
+      ],
       "lib/agent-v3-run-state.js": [
         "lib/agent-v3-dream-loop-adapter.js"
+      ],
+      "lib/agent-v3-status-methods.js": [
+        "lib/agent-memory-persistence.js",
+        "lib/agent-run-finalization.js",
+        "lib/agent-v3-dream-loop-adapter.js",
+        "lib/agent-v3-run-state.js"
       ],
       "lib/agent-v3-storage-factory.js": [
         "storage.js"
@@ -2162,8 +2185,13 @@
       "lib/dream-embedding.js": [
         "lib/graph-record-utils.js"
       ],
-      "lib/dream-experiment-loop.js": [
+      "lib/dream-experiment-loop-verify.js": [
         "causalSimulator.js",
+        "lib/dream-experiment-loop-hypotheses.js"
+      ],
+      "lib/dream-experiment-loop.js": [
+        "lib/dream-experiment-loop-hypotheses.js",
+        "lib/dream-experiment-loop-verify.js",
         "lib/workspace-id.js"
       ],
       "lib/dream-hypothesis-finders.js": [
@@ -2421,13 +2449,6 @@
         "lib/external-action-identity-signing.js",
         "lib/human-sponsor-authority.js"
       ],
-      "lib/external-action-receipt-admission.js": [
-        "lib/blast-radius.js",
-        "lib/external-action-envelope.js",
-        "lib/external-action-identity.js",
-        "lib/receipt/canonical-receipt.js",
-        "lib/verdict/action-verdict.js"
-      ],
       "lib/external-action-receipt-batch.js": [
         "lib/external-action-identity-log.js",
         "lib/receipt/signed-receipt-batch.js"
@@ -2448,10 +2469,6 @@
         "lib/external-action-receipt-collector-fleet.js",
         "lib/external-action-receipt-collector-store.js"
       ],
-      "lib/external-action-receipt-outcome.js": [
-        "lib/external-action-receipt-admission.js",
-        "lib/file-effect-sensor.js"
-      ],
       "lib/external-action-receipt-reader.js": [
         "lib/external-action-receipt.js",
         "lib/is-plain-object.js"
@@ -2466,10 +2483,14 @@
         "graph.js"
       ],
       "lib/external-action-receipt.js": [
-        "lib/external-action-receipt-admission.js",
-        "lib/external-action-receipt-outcome.js",
+        "lib/blast-radius.js",
+        "lib/external-action-envelope.js",
+        "lib/external-action-identity.js",
         "lib/external-action-receipt-writer-factory.js",
-        "lib/huqan-state-root.js"
+        "lib/file-effect-sensor.js",
+        "lib/huqan-state-root.js",
+        "lib/receipt/canonical-receipt.js",
+        "lib/verdict/action-verdict.js"
       ],
       "lib/external-client-authority.js": [
         "lib/deterministic-json-copy.js",
@@ -5625,18 +5646,6 @@
         "toLayer": "Application"
       },
       {
-        "from": "lib/external-action-receipt-admission.js",
-        "to": "lib/receipt/canonical-receipt.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/external-action-receipt-admission.js",
-        "to": "lib/verdict/action-verdict.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
         "from": "lib/external-action-receipt-batch.js",
         "to": "lib/receipt/signed-receipt-batch.js",
         "fromLayer": "Core",
@@ -5651,6 +5660,18 @@
       {
         "from": "lib/external-action-receipt-collector-store.js",
         "to": "lib/receipt/signed-receipt-batch.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt.js",
+        "to": "lib/receipt/canonical-receipt.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/external-action-receipt.js",
+        "to": "lib/verdict/action-verdict.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
