@@ -36,19 +36,9 @@
         "DIP"
       ]
     },
-    "lib/atp-conformance.js": {
-      "band": "recorded",
-      "lines": 504,
-      "signals": []
-    },
     "lib/http/workflow-data-routes.js": {
       "band": "recorded",
       "lines": 477,
-      "signals": []
-    },
-    "lib/huqan-package-format.js": {
-      "band": "recorded",
-      "lines": 428,
       "signals": []
     },
     "lib/learn-use-case.js": {
@@ -1728,9 +1718,6 @@
       ],
       "lib/approval-schema.js": [
         "lib/json-clone.js"
-      ],
-      "lib/atp-conformance.js": [
-        "lib/is-plain-object.js"
       ],
       "lib/audit-bounded-read.js": [
         "lib/audit-log.js",
