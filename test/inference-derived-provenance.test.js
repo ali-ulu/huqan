@@ -110,6 +110,10 @@ test('derived record pins rule, exact supports, transitive provenance and uncali
     'prov_source_causes',
     'prov_source_type',
   ]);
+  assert.deepEqual(record.transitiveSourceRefs, [
+    'doc:causes',
+    'doc:types',
+  ]);
   assert.equal(record.belief.value, null);
   assert.equal(record.belief.semantics, BELIEF_SEMANTICS);
   assert.match(record.derivationId, /^prov_[0-9a-f]{32}$/);
@@ -140,6 +144,20 @@ test('same candidate, snapshots and supports reproduce the same derivation ident
   assert.equal(left.derivationId, right.derivationId);
   assert.deepEqual(left.directSupportKeys, right.directSupportKeys);
   assert.deepEqual(left.bindings, right.bindings);
+});
+
+test('derived history refuses a transition earlier than the current timeline', () => {
+  const record = buildRecord();
+  const admitted = transitionDerivedRecord(record, DERIVED_STATES.ADMITTED, {
+    at: '2026-09-28T01:13:00.000Z',
+    reason: 'candidate_admitted',
+    receiptId: 'receipt-time',
+  });
+
+  assert.throws(() => transitionDerivedRecord(admitted, DERIVED_STATES.WITHDRAWN, {
+    at: '2026-09-28T01:12:59.999Z',
+    reason: 'support_withdrawn',
+  }), /cannot precede/);
 });
 
 test('support detail coverage is exact and missing provenance fails closed', () => {
