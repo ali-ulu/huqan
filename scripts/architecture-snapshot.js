@@ -45,7 +45,7 @@ function countLines(file) {
 }
 
 const scope = require('./architecture-snapshot-scope');
-const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain } = scope;
+const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain, isOcpAllowed, ocpSignal, ocpExceptionViolations, OCP_ALLOWED } = scope;
 
 /**
  * Constructions the DIP regex matches that are not a coupling defect (#2268).
@@ -117,14 +117,8 @@ function snapshot(state = sourceGraph()) {
     const signals = [];
     if (boundary[file]) signals.push(`ISP:${boundary[file].calls}`);
     if (!isCompositionRoot(file) && !isDipAllowed(file) && body.match(CONSTRUCTS)) signals.push('DIP');
-    for (const match of body.matchAll(/switch\s*\(([^)]{0,60})\)\s*\{/g)) {
-      const tail = body.slice(match.index);
-      const end = tail.indexOf('\n}');
-      const cases = (tail.slice(0, end > 0 ? end : 4000).match(/\bcase\s/g) || []).length;
-      if (cases >= 6) { signals.push(`OCP:${cases}`); break; }
-    }
-    const ifChain = longestIfChain(body);
-    if (ifChain >= 6 && !signals.some((signal) => signal.startsWith('OCP:'))) signals.push(`OCP:${ifChain}`);
+    const ocp = ocpSignal(body);
+    if (ocp !== null && !isOcpAllowed(file)) signals.push(`OCP:${ocp}`);
     const fanOut = new Set(graph.get(file) || []).size;
     if (fanOut >= FAN_OUT_SIGNAL) signals.push(`FANOUT:${fanOut}`);
     return { file, lines: countLines(file), signals, fanOut };
@@ -329,10 +323,10 @@ function main(argv = process.argv.slice(2)) {
       console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
       return 1;
     }
-    const dipViolations = [...dipExceptionViolations(), ...compositionRootViolations()];
-    if (dipViolations.length > 0) {
-      console.error('DIP exception or composition root list is out of date:');
-      for (const violation of dipViolations) console.error(`  ${violation}`);
+    const exceptionViolations = [...dipExceptionViolations(), ...ocpExceptionViolations(), ...compositionRootViolations()];
+    if (exceptionViolations.length > 0) {
+      console.error('DIP/OCP exception or composition root list is out of date:');
+      for (const violation of exceptionViolations) console.error(`  ${violation}`);
       return 1;
     }
     // The layer graph is checked against the same artifact (#2641): no ring, a
@@ -386,6 +380,10 @@ module.exports = {
   trackerBaselineViolations,
   baselineEvolutionViolations,
   DIP_ALLOWED,
+  OCP_ALLOWED,
+  isOcpAllowed,
+  ocpSignal,
+  ocpExceptionViolations,
   isCompositionRoot,
   isProduct,
   packagedBins,

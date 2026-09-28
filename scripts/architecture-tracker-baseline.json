@@ -35,20 +35,6 @@
       "signals": [
         "DIP"
       ]
-    },
-    "lib/verify-numeric-text.js": {
-      "band": "structural",
-      "lines": 82,
-      "signals": [
-        "OCP:8"
-      ]
-    },
-    "sandboxRunner.js": {
-      "band": "structural",
-      "lines": 326,
-      "signals": [
-        "OCP:8"
-      ]
     }
   },
   "dependencyGraph": {
