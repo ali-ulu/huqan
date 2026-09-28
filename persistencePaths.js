@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const { resolveContainedPath, siblingPersistencePath } = require('./lib/memory-store-utils');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { probeWritablePathSync } = require('./lib/secure-file-write');
 
 function resolvePersistencePaths(opts = {}) {
   const cwd = path.resolve(opts.rootDir || process.cwd());
@@ -55,15 +56,9 @@ function resolveGateTelemetryPath(environment = process.env) {
   return path.join(resolveStateRoot(environment), 'gate-telemetry.json');
 }
 
-function canWriteTo(targetPath, kind = 'file') {  try {
-    const probePath = kind === 'dir'
-      ? path.join(targetPath, `.axiom-write-${process.pid}-${Date.now()}.tmp`)
-      : `${targetPath}.axiom-write-${process.pid}-${Date.now()}.tmp`;
-    const parentDir = kind === 'dir' ? targetPath : path.dirname(targetPath);
-    fs.mkdirSync(parentDir, { recursive: true });
-    fs.writeFileSync(probePath, 'ok');
-    fs.rmSync(probePath, { force: true });
-    return true;
+function canWriteTo(targetPath, kind = 'file') {
+  try {
+    return probeWritablePathSync(targetPath, kind);
   } catch (_) {
     return false;
   }

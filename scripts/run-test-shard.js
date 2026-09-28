@@ -78,8 +78,13 @@ function assertPositiveInteger(value, name) {
   if (!Number.isInteger(value) || value < 1) throw new Error(`${name} must be a positive integer, got ${value}`);
 }
 
+let defaultReportDirectory = null;
+
 function defaultReportPath(shard) {
-  return path.join(os.tmpdir(), `huqan-test-shard-${shard}.xml`);
+  if (defaultReportDirectory === null) {
+    defaultReportDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-test-shard-'));
+  }
+  return path.join(defaultReportDirectory, `shard-${shard}.xml`);
 }
 
 /**
