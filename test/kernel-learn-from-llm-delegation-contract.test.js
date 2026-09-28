@@ -6,7 +6,7 @@ const path = require('node:path');
 const { test } = require('node:test');
 const { runLearnFromLLM } = require('../lib/kernel-learn-from-llm');
 
-const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8');
+const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-cognition-methods.js'), 'utf8');
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-learn-from-llm.js'), 'utf8');
 const kernelV2Source = fs.readFileSync(path.join(__dirname, '..', 'kernel.v2.js'), 'utf8');
 const { prepareRiskAwareLearnFromLLM } = require('../lib/text-safety-scorer');

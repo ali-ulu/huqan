@@ -6,7 +6,7 @@ const path = require('node:path');
 const { test } = require('node:test');
 const { runDream } = require('../lib/kernel-dream');
 
-const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8');
+const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-cognition-methods.js'), 'utf8');
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-dream.js'), 'utf8');
 
 function methodBody(source, methodName) {

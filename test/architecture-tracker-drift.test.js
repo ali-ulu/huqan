@@ -124,8 +124,8 @@ test('real CLI rejects count and baseline increased together', (t) => {
 
 test('real CLI rejects same-count tracked-file churn', (t) => {
   const result = runFixtureGate(t, (groups) => {
-    const removed = groups.recorded.shift();
-    groups.recorded.push({ ...removed, file: 'lib/replacement-debt.js' });
+    const removed = groups.structural.shift();
+    groups.structural.push({ ...removed, file: 'lib/replacement-debt.js' });
   });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /replacement-debt\.js is newly tracked/);

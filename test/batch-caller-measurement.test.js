@@ -202,5 +202,5 @@ test('_crossLink returns evidence that executeLearn still discards', () => {
   // ...and the value on the other side is real.
   // #2127: produced in lib/kernel-cross-link.js now; kernel.js delegates.
   assert.match(readCode('lib/kernel-cross-link.js'), /return \{ written, audits, skipped \};/);
-  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
+  assert.match(readCode('lib/kernel-cognition-methods.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });

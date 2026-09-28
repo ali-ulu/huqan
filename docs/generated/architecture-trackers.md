@@ -8,17 +8,17 @@ Tracked in total: **7**
 | File | Lines | Signals |
 |---|---:|---|
 
-## Recorded debt, 401-800 lines (1)
+## Recorded debt, 401-800 lines (0)
 
 | File | Lines | Signals |
 |---|---:|---|
-| `kernel.js` | 495 | FANOUT:37 |
 
-## At or under 400 lines, tracked for a signal (6)
+## At or under 400 lines, tracked for a signal (7)
 
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 392 | FANOUT:31 |
+| `kernel.js` | 384 | FANOUT:28 |
 | `agent.v3.js` | 353 | DIP |
 | `sandboxRunner.js` | 326 | OCP:8 |
 | `cli.js` | 200 | FANOUT:24 |

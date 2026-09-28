@@ -707,6 +707,7 @@
     "lib/kernel-read-methods.js",
     "lib/kernel-persistence-methods.js",
     "lib/kernel-learn-input-methods.js",
+    "lib/kernel-cognition-methods.js",
     "lib/kernel-v2-native.js",
     "lib/kernel-v2-evidence.js",
     "lib/kernel-v2-evidence-methods.js",

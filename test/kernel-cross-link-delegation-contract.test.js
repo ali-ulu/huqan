@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { runCrossLink } = require('../lib/kernel-cross-link');
 
-const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8').replace(/\r\n/g, '\n');
+const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-cognition-methods.js'), 'utf8').replace(/\r\n/g, '\n');
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-cross-link.js'), 'utf8').replace(/\r\n/g, '\n');
 
 test('Kernel._crossLink is a one-line, cycle-free delegation (#2127)', () => {

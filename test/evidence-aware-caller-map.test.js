@@ -110,7 +110,7 @@ test('both _crossLink branches now guard the counter the same way', () => {
   assert.match(source, /if \(result\.audit\) audits\+\+;/);
   // And the unconditional form is gone rather than merely shadowed.
   assert.doesNotMatch(source, /workspaceId\);\s*audits\+\+;/);
-  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
+  assert.match(readCode('lib/kernel-cognition-methods.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });
 
 test('the fifteen discarding sites are five caller functions', () => {
@@ -141,7 +141,7 @@ test('the fifteen discarding sites are five caller functions', () => {
   // Current pins: learn facade at 332, _crossLink facade at 375. The
   // strict-provenance helper added before executeLearn shifts its pinned
   // sites by 29 lines.
-  assert.deepEqual(new Set(enclosing('kernel.js', [332, 375])), new Set(['learn', '_crossLink']));
+  assert.deepEqual(new Set([...enclosing('kernel.js', [323]), ...enclosing('lib/kernel-cognition-methods.js', [37])]), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
   assert.deepEqual(
@@ -181,13 +181,13 @@ test('all four batch callers already return somewhere to report a gap', () => {
   // each caller already has a field for this answer.
   // #2127: the { written, audits, skipped } producer moved verbatim to
   // lib/kernel-cross-link.js; kernel.js keeps the delegation.
-  const kernel = readCode('kernel.js');
+  const cognition = readCode('lib/kernel-cognition-methods.js');
   const crossLink = readCode('lib/kernel-cross-link.js');
   const conflict = readCode('lib/conflict-detector.js');
   const learnUseCase = readCode('lib/learn-use-case.js');
 
   assert.match(crossLink, /return \{ written, audits, skipped \};/);
-  assert.match(kernel, /return runCrossLink\(\{ graph: this\.graph,/);
+  assert.match(cognition, /return runCrossLink\(\{ graph: this\.graph,/);
   assert.equal((conflict.match(/warnings: built\.warnings/g) || []).length >= 3, true);
   assert.match(learnUseCase, /provenanceWarnings/);
 });

@@ -119,7 +119,7 @@ test('the kernel chokepoint straddles both positions', () => {
   // contract behind one method, it is two. Routing it as a single unit would
   // impose one error contract on both halves, and either choice is wrong for
   // one of them.
-  const source = readSource('kernel.js');
+  const source = readSource('kernel.js') + readSource('lib/kernel-cognition-methods.js');
 
   // Post-mutation: the audit follows a completed graph write on the same path.
   // The window has to tolerate a gap -- the derived-edge site writes through

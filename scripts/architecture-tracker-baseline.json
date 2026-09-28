@@ -23,10 +23,10 @@
       ]
     },
     "kernel.js": {
-      "band": "recorded",
-      "lines": 495,
+      "band": "structural",
+      "lines": 384,
       "signals": [
-        "FANOUT:37"
+        "FANOUT:28"
       ]
     },
     "kernel.v2.js": {
@@ -156,6 +156,8 @@
       "lib/approval-flow.js": "Core",
       "lib/approval-receipts.js": "Core",
       "lib/approval-schema.js": "Core",
+      "lib/atp-conformance-primitives.js": "Core",
+      "lib/atp-conformance-validators.js": "Core",
       "lib/atp-conformance.js": "Core",
       "lib/audit-bounded-read.js": "Core",
       "lib/audit-log.js": "Core",
@@ -546,6 +548,8 @@
       "lib/http/v5-route-mounts.js": "UI",
       "lib/http/viewer-mount.js": "UI",
       "lib/http/workflow-contract-route.js": "UI",
+      "lib/http/workflow-data-approval-helpers.js": "UI",
+      "lib/http/workflow-data-route-groups.js": "UI",
       "lib/http/workflow-data-routes.js": "UI",
       "lib/http/workflow-envelope.js": "UI",
       "lib/http/workflow-request-validation.js": "UI",
@@ -559,6 +563,8 @@
       "lib/human-oversight-approval-runtime-state.js": "Core",
       "lib/human-oversight-approval-runtime.js": "Core",
       "lib/human-sponsor-authority.js": "Core",
+      "lib/huqan-package-format-primitives.js": "Core",
+      "lib/huqan-package-format-validators.js": "Core",
       "lib/huqan-package-format.js": "Core",
       "lib/huqan-state-root.js": "Core",
       "lib/hypothesis-feedback.js": "Core",
@@ -637,6 +643,8 @@
       "lib/kernel-v2-verify.js": "Core",
       "lib/learn-admission-request.js": "Core",
       "lib/learn-edge-options.js": "Core",
+      "lib/learn-use-case-provenance.js": "Core",
+      "lib/learn-use-case-steps.js": "Core",
       "lib/learn-use-case.js": "Core",
       "lib/legacy-alias-usage.js": "Core",
       "lib/llm-proxy/proxy-config.js": "Adapters",
@@ -1434,16 +1442,9 @@
         "lib/conflict-detector.js",
         "lib/environment-compat.js",
         "lib/errors/provenance-error.js",
-        "lib/kernel-alternatives.js",
-        "lib/kernel-auto-think.js",
         "lib/kernel-capability-methods.js",
-        "lib/kernel-context-similarity.js",
         "lib/kernel-contract.js",
-        "lib/kernel-cross-link.js",
-        "lib/kernel-dream.js",
         "lib/kernel-learn-admission.js",
-        "lib/kernel-learn-document.js",
-        "lib/kernel-learn-from-llm.js",
         "lib/kernel-learn-input-methods.js",
         "lib/kernel-learn-transaction.js",
         "lib/kernel-mutation-admission.js",
@@ -1452,8 +1453,6 @@
         "lib/kernel-propose-node.js",
         "lib/kernel-read-methods.js",
         "lib/kernel-read-use-cases.js",
-        "lib/kernel-self-evolve.js",
-        "lib/kernel-self-learn.js",
         "lib/learn-use-case.js",
         "lib/memory-store-utils.js",
         "lib/memory-store.js",
@@ -1708,6 +1707,17 @@
       ],
       "lib/approval-schema.js": [
         "lib/json-clone.js"
+      ],
+      "lib/atp-conformance-primitives.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/atp-conformance-validators.js": [
+        "lib/atp-conformance-primitives.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/atp-conformance.js": [
+        "lib/atp-conformance-primitives.js",
+        "lib/atp-conformance-validators.js"
       ],
       "lib/audit-bounded-read.js": [
         "lib/audit-log.js",
@@ -3148,6 +3158,26 @@
         "lib/server-response-helpers.js",
         "lib/workflow-contract.js"
       ],
+      "lib/http/workflow-data-approval-helpers.js": [
+        "lib/mcp-approval-decision-handler.js",
+        "lib/mcp-tool-names.js"
+      ],
+      "lib/http/workflow-data-route-groups.js": [
+        "lib/http/agent-workflow-routes.js",
+        "lib/http/exact-workspace.js",
+        "lib/http/http-provenance.js",
+        "lib/http/receipt-read-failures.js",
+        "lib/http/workflow-data-approval-helpers.js",
+        "lib/http/workflow-envelope.js",
+        "lib/http/workflow-request-validation.js",
+        "lib/ingest-workflow-preview.js",
+        "lib/ingest-workflow-run.js",
+        "lib/mcp-approval-views.js"
+      ],
+      "lib/http/workflow-data-routes.js": [
+        "lib/http/workflow-data-approval-helpers.js",
+        "lib/http/workflow-data-route-groups.js"
+      ],
       "lib/http/workflow-envelope.js": [
         "lib/workflow-contract.js"
       ],
@@ -3196,9 +3226,20 @@
         "lib/external-action-identity-signing.js",
         "lib/is-plain-object.js"
       ],
+      "lib/huqan-package-format-primitives.js": [
+        "lib/atp-conformance.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/huqan-package-format-validators.js": [
+        "lib/atp-conformance.js",
+        "lib/huqan-package-format-primitives.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/huqan-package-format.js": [
         "lib/atp-conformance.js",
         "lib/deterministic-json-copy.js",
+        "lib/huqan-package-format-primitives.js",
+        "lib/huqan-package-format-validators.js",
         "lib/is-plain-object.js"
       ],
       "lib/hypothesis-feedback.js": [
@@ -3404,6 +3445,8 @@
         "lib/is-plain-object.js"
       ],
       "lib/learn-use-case.js": [
+        "lib/learn-use-case-provenance.js",
+        "lib/learn-use-case-steps.js",
         "lib/type-lattice.js"
       ],
       "lib/llm-proxy/proxy-config.js": [

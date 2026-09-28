@@ -31,7 +31,7 @@ function readCode(relPath) {
 }
 
 test('the 19 audit writes are split across private Kernel and public Graph boundaries (#2166)', () => {
-  const kernel = readCode('kernel.js');
+  const kernel = readCode('kernel.js') + readCode('lib/kernel-cognition-methods.js');
   const learnUseCase = readCode('lib/learn-use-case.js');
   const conflict = readCode('lib/conflict-detector.js');
 
@@ -96,7 +96,7 @@ test('exactly one production consumer is evidence-aware', () => {
 
   assert.match(crossLink, /if \(result\.audit\) audits\+\+;/);
   assert.equal((crossLink.match(/result\.audit/g) || []).length, 1, 'only one evidence-aware read');
-  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
+  assert.match(readCode('lib/kernel-cognition-methods.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });
 
 /** Runs `body` against a kernel whose audit sink throws, and one where it works. */
