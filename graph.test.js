@@ -537,6 +537,10 @@ describe('Graph - JSON save is atomic', { concurrency: false }, () => {
     return path.join(dir, 'memory.json');
   }
 
+  function isAtomicStagingFile(name) {
+    return name.startsWith('.memory.json.') && name.endsWith('.tmp');
+  }
+
   it('leaves no leftover .tmp- file after a successful save', () => {
     const memoryPath = tempMemoryPath('axiom-graph-atomic-ok-');
     const g = new Graph({ memoryPath, useSQLite: false });
@@ -544,7 +548,7 @@ describe('Graph - JSON save is atomic', { concurrency: false }, () => {
     g.save();
 
     const dirEntries = fs.readdirSync(path.dirname(memoryPath));
-    assert.ok(!dirEntries.some(name => name.includes('.tmp-')), 'no temp file should remain after a successful save');
+    assert.ok(!dirEntries.some(isAtomicStagingFile), 'no temp file should remain after a successful save');
     assert.ok(fs.existsSync(memoryPath));
   });
 
@@ -558,7 +562,7 @@ describe('Graph - JSON save is atomic', { concurrency: false }, () => {
     g.addNode('kopek', 'hayvan');
     const originalWrite = fs.writeFileSync;
     fs.writeFileSync = (targetPath, ...rest) => {
-      if (String(targetPath).includes('.tmp-')) {
+      if (Number.isInteger(targetPath)) {
         throw new Error('simulated crash mid-write');
       }
       return originalWrite(targetPath, ...rest);
@@ -572,7 +576,7 @@ describe('Graph - JSON save is atomic', { concurrency: false }, () => {
     const afterContent = fs.readFileSync(memoryPath, 'utf8');
     assert.strictEqual(afterContent, originalContent, 'memoryPath must be untouched (old content), never a partial/torn write');
     const dirEntries = fs.readdirSync(path.dirname(memoryPath));
-    assert.ok(!dirEntries.some(name => name.includes('.tmp-')), 'the failed temp file should not be left dangling either way once the process would clean up on retry');
+    assert.ok(!dirEntries.some(isAtomicStagingFile), 'the failed temp file should not be left dangling either way once the process would clean up on retry');
   });
 
   it('rename step failing also leaves memoryPath at its prior content, not a torn write', () => {
