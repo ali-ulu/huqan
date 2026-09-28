@@ -1,0 +1,335 @@
+{
+  "schemaVersion": 1,
+  "description": "Auditable REST contract ownership for the HTTP surface declared by route-auth-policy. Paths for non-deployment routes are derived from the live route policy; deployment-gated path patterns are recorded here.",
+  "nonRestDeploymentRouteIds": [
+    "pr-guardian-ui"
+  ],
+  "contracts": [
+    {
+      "family": "core-public-read",
+      "routeIds": ["health", "graph-data", "v2-status"],
+      "exposure": "public",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/core-http-routes.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/core-http-routes.js"}
+    },
+    {
+      "family": "public-api-command",
+      "routeIds": ["public-api-command"],
+      "exposure": "public",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/public-api-route.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/public-api-route.js"}
+    },
+    {
+      "family": "workflow-metadata",
+      "routeIds": ["workflow-capabilities", "workflow-openapi"],
+      "exposure": "public",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/workflow-contract-route.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/workflow-contract.js"}
+    },
+    {
+      "family": "observability-openapi",
+      "routeIds": ["observability-openapi"],
+      "exposure": "public",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/observability/http-router.js", "evidence": ["OBSERVABILITY_OPENAPI_PATH"]},
+      "response": {"owner": "lib/observability/api-contract.js"}
+    },
+    {
+      "family": "public-badge-json",
+      "routeIds": ["public-badge-json"],
+      "exposure": "public",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/public-badge-route.js", "evidence": ["parsePublicBadgePath"]},
+      "response": {"owner": "lib/http/public-badge-route.js"}
+    },
+
+    {
+      "family": "v2-verify",
+      "routeIds": ["v2-verify"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/core-http-routes.js", "evidence": ["parseJsonRequest", "claim, statement or text is required"]},
+      "response": {"owner": "lib/http/core-http-routes.js"}
+    },
+    {
+      "family": "workflow-read-actions",
+      "routeIds": ["workflow-research", "workflow-ask", "workflow-verify", "workflow-advocate", "workflow-search"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "schema", "owner": "lib/http/read-workflow-actions.js", "evidence": ["validateWorkflowHttpRequest"]},
+      "response": {"owner": "lib/http/read-workflow-actions.js"}
+    },
+    {
+      "family": "workflow-learn",
+      "routeIds": ["workflow-learn"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "schema", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["validateWorkflowHttpRequest"]},
+      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+    },
+    {
+      "family": "legacy-core-post",
+      "routeIds": ["llm-sor", "dogrula", "verify", "yukle", "upload"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/core-http-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/core-http-routes.js"}
+    },
+    {
+      "family": "answer",
+      "routeIds": ["answer"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/answer-route.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/answer-route.js"}
+    },
+    {
+      "family": "ingest",
+      "routeIds": ["ingest"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/ingest-http-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/ingest-http-routes.js"}
+    },
+    {
+      "family": "ingest-status",
+      "routeIds": ["ingest-status"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/ingest-http-routes.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/ingest-http-routes.js"}
+    },
+    {
+      "family": "ingest-approvals",
+      "routeIds": ["ingest-approvals"],
+      "exposure": "authenticated",
+      "methods": ["GET", "POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/ingest-http-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/ingest-http-routes.js"}
+    },
+    {
+      "family": "workflow-ingest-mutations",
+      "routeIds": ["workflow-ingest-preview", "workflow-ingest-execute"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "schema", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["validateWorkflowHttpRequest"]},
+      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+    },
+    {
+      "family": "workflow-ingest-run",
+      "routeIds": ["workflow-ingest-runs"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+    },
+    {
+      "family": "workflow-approvals",
+      "routeIds": ["workflow-approvals"],
+      "exposure": "authenticated",
+      "methods": ["GET", "POST"],
+      "request": {"mode": "schema", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["validateWorkflowHttpRequest"]},
+      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+    },
+    {
+      "family": "workflow-trust-receipts",
+      "routeIds": ["workflow-trust-receipts"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+    },
+    {
+      "family": "workflow-agents",
+      "routeIds": ["workflow-agent-plan", "workflow-agent-runs"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "schema", "owner": "lib/http/agent-workflow-routes.js", "evidence": ["validateWorkflowHttpRequest"]},
+      "response": {"owner": "lib/http/agent-workflow-routes.js"}
+    },
+    {
+      "family": "trust-query-read",
+      "routeIds": ["provenance", "audit", "candidate-claims", "trust-receipt"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/trust-query-routes.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/trust-query-routes.js"}
+    },
+    {
+      "family": "v5-package-import",
+      "routeIds": ["v5-package-import"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "schema", "owner": "lib/http/v5-package-import-route.js", "evidence": ["validateSharedTrustPackage"]},
+      "response": {"owner": "lib/http/v5-package-import-route.js"}
+    },
+    {
+      "family": "v5-preflight",
+      "routeIds": ["v5-preflight-reader", "v5-preflight-structural-signing"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/v5-preflight-route.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/v5-preflight-route.js"}
+    },
+    {
+      "family": "trust-receipt-by-id",
+      "routeIds": ["trust-receipt-by-id"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/receipt-read-route.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/receipt-read-route.js"}
+    },
+    {
+      "family": "llm-proxy-chat",
+      "routeIds": ["llm-proxy-chat"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/llm-proxy/proxy-handler.js", "evidence": ["Request body must be a JSON object"]},
+      "response": {"owner": "lib/llm-proxy/proxy-handler.js"}
+    },
+    {
+      "family": "llm-proxy-models",
+      "routeIds": ["llm-proxy-models"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/llm-proxy/proxy-handler.js", "evidence": ["parseLlmProxyPath"]},
+      "response": {"owner": "lib/llm-proxy/proxy-handler.js"}
+    },
+    {
+      "family": "workbench-read",
+      "routeIds": ["workbench-trust-receipt", "workbench-memory-context", "workbench-receipt-bundle"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/workbench/workbench-read-http-router.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/workbench/workbench-read-http-router.js"}
+    },
+    {
+      "family": "workbench-activity",
+      "routeIds": ["workbench-activity"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/workbench/activity-route.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/workbench/activity-route.js"}
+    },
+    {
+      "family": "observability",
+      "routeIds": ["observability"],
+      "exposure": "authenticated",
+      "methods": ["GET", "POST", "DELETE"],
+      "request": {"mode": "bounded-parser", "owner": "lib/observability/http-router.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/observability/api-contract.js"}
+    },
+
+    {
+      "family": "command-policy",
+      "routeIds": ["command-policy"],
+      "exposure": "deployment-gated",
+      "path": "/api/command-policy*",
+      "methods": ["GET", "PUT", "POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/command-policy-route.js", "evidence": ["readJsonBody"]},
+      "response": {"owner": "lib/http/command-policy-route.js"}
+    },
+    {
+      "family": "receipt-collector",
+      "routeIds": ["receipt-collector-ingest"],
+      "exposure": "deployment-gated",
+      "path": "/api/v5/receipts/batches",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/external-action-receipt-collector-route.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/external-action-receipt-collector-route.js"}
+    },
+    {
+      "family": "external-client-admission",
+      "routeIds": ["external-client-admission"],
+      "exposure": "deployment-gated",
+      "path": "/api/external-client/packages/admit",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/external-client-http-adapter.js", "evidence": ["EXTERNAL_CLIENT_HTTP_MAX_BODY_BYTES"]},
+      "response": {"owner": "lib/external-client-http-adapter.js"}
+    },
+    {
+      "family": "memory-approvals",
+      "routeIds": ["memory-approvals"],
+      "exposure": "deployment-gated",
+      "path": "/api/v2/memory-approvals*",
+      "methods": ["GET", "POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/memory-approval-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/memory-approval-routes.js"}
+    },
+    {
+      "family": "emergency-stops",
+      "routeIds": ["emergency-stops"],
+      "exposure": "deployment-gated",
+      "path": "/api/v2/emergency-stops",
+      "methods": ["GET", "POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/emergency-stop-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/emergency-stop-routes.js"}
+    },
+    {
+      "family": "pr-guardian-webhook",
+      "routeIds": ["pr-guardian-webhook"],
+      "exposure": "deployment-gated",
+      "path": "/api/v2/pr-guardian/webhooks/github",
+      "methods": ["POST"],
+      "request": {"mode": "signed-body", "owner": "lib/http/pr-guardian-webhook-route.js", "evidence": ["verifySignature"]},
+      "response": {"owner": "lib/http/pr-guardian-webhook-route.js"}
+    },
+    {
+      "family": "pr-guardian",
+      "routeIds": ["pr-guardian"],
+      "exposure": "deployment-gated",
+      "path": "/api/v2/pr-guardian/*",
+      "methods": ["GET", "POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/pr-guardian-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/pr-guardian-routes.js"}
+    },
+    {
+      "family": "a2a-exchange",
+      "routeIds": ["a2a-exchange"],
+      "exposure": "deployment-gated",
+      "path": "/api/a2a/exchange",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/a2a/exchange-route.js", "evidence": ["readJsonBody"]},
+      "response": {"owner": "lib/a2a/exchange-route.js"}
+    },
+    {
+      "family": "a2a-agent-card",
+      "routeIds": ["a2a-agent-card"],
+      "exposure": "deployment-gated",
+      "path": "/.well-known/agent-card.json",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/a2a/agent-card-route.js", "evidence": ["METHOD"]},
+      "response": {"owner": "lib/a2a/agent-card-route.js"}
+    },
+    {
+      "family": "a2a-negotiate",
+      "routeIds": ["a2a-negotiate"],
+      "exposure": "deployment-gated",
+      "path": "/api/a2a/negotiate",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/a2a/negotiate-route.js", "evidence": ["readJsonBody"]},
+      "response": {"owner": "lib/a2a/negotiate-route.js"}
+    },
+    {
+      "family": "registry-records",
+      "routeIds": ["registry-records"],
+      "exposure": "deployment-gated",
+      "path": "/api/registry/records*",
+      "methods": ["GET", "POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/registry/registry-route.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/registry/registry-route.js"}
+    },
+    {
+      "family": "a2a-task-read",
+      "routeIds": ["a2a-task-read"],
+      "exposure": "deployment-gated",
+      "path": "/api/a2a/tasks/*",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/a2a/task-route.js", "evidence": ["METHOD"]},
+      "response": {"owner": "lib/a2a/task-route.js"}
+    }
+  ]
+}
