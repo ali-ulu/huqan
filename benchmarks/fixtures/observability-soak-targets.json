@@ -1,5 +1,5 @@
 {
-  "name": "observability-bounded-soak-v1",
+  "name": "observability-bounded-resource-soak-v2",
   "workspaceId": "observability-soak",
   "cycles": 20,
   "eventWritesPerCycle": 100,
