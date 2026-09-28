@@ -15,10 +15,11 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // The prototype surface is pinned to a digest: every name, its arity and its
 // descriptor flags. #3009 added five internal label-index/rebuild helpers
 // (_labelIndexOrCreate, _indexLabelNode, _deindexLabelNode, _workspaceNodeKeys,
-// _rebuildEdgeIndex), so the count and digest moved with them. The public method
-// names above are unchanged.
+// _rebuildEdgeIndex), so the count and digest moved with them. #3139 added
+// _edgeWorkspaceCountsOrCreate for the per-workspace edge counter. The public
+// method names above are unchanged.
 
-const MAIN_SURFACE = { count: 82, sha256: '2a30abc5c91a0e961d66b13107cfeb4e81a08aaafe91b310069a647b407afe51' };
+const MAIN_SURFACE = { count: 83, sha256: '6272c21281db02fc51f18afa8ad6642c93948404caf6af793784a6664cba2be0' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;

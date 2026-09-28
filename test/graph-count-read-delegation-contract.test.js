@@ -23,7 +23,7 @@ function methodBody(source, methodName) {
 
 test('GRAPH: nodeCount and edgeCount are one-line delegates', () => {
   assert.equal(methodBody(graphSource, 'nodeCount'), 'return runNodeCount(this._nodes, workspaceId, this._labelIndex);');
-  assert.equal(methodBody(graphSource, 'edgeCount'), 'return runEdgeCount(this._edges, workspaceId);');
+  assert.equal(methodBody(graphSource, 'edgeCount'), 'return runEdgeCount(this._edges, workspaceId, this._edgeWorkspaceCounts);');
 });
 
 test('GRAPH: count-read delegate is narrow and cycle-free', () => {
@@ -56,4 +56,8 @@ test('GRAPH: count-read delegate preserves total and workspace-scoped counts', (
   assert.equal(countEdges(edges, ''), 3);
   assert.equal(countEdges(edges, 'workspace-a'), 2);
   assert.equal(countEdges(edges, 'missing'), 0);
+  const edgeCounts = new Map([['default', 1], ['workspace-a', 2]]);
+  assert.equal(countEdges(edges, 'workspace-a', edgeCounts), 2);
+  assert.equal(countEdges(edges, 'missing', edgeCounts), 0);
+  assert.equal(countEdges(edges, undefined, edgeCounts), 3);
 });

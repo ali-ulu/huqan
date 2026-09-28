@@ -48,6 +48,7 @@ class Graph {
     this._outIndex = new Map();
     this._inIndex = new Map();
     this._labelIndex = createLabelIndex();
+    this._edgeWorkspaceCounts = new Map();
     this._auditQueryStmts = new Map();
     this._edgeTouchScope = null;
 
@@ -109,6 +110,18 @@ class Graph {
     this._outIndex.get(outKey).push(edge);
     if (!this._inIndex.has(inKey)) this._inIndex.set(inKey, []);
     this._inIndex.get(inKey).push(edge);
+    const counts = this._edgeWorkspaceCountsOrCreate();
+    const workspaceId = normalizeWorkspaceId(edge.workspaceId);
+    counts.set(workspaceId, (counts.get(workspaceId) || 0) + 1);
+  }
+
+  // #3139: per-workspace edge counter, derived from `_edges` exactly like the
+  // adjacency indexes: incremented here, reset by _rebuildEdgeIndex(), which
+  // every edge-removing path (node delete, prune, consolidate, rollback, load)
+  // already ends in. Lazy for Object.create(Graph.prototype) test instances.
+  _edgeWorkspaceCountsOrCreate() {
+    if (!this._edgeWorkspaceCounts) this._edgeWorkspaceCounts = new Map();
+    return this._edgeWorkspaceCounts;
   }
 
   // #3009: label index maintenance. Both write paths call these through the
@@ -148,6 +161,7 @@ class Graph {
   _rebuildEdgeIndex() {
     this._outIndex.clear();
     this._inIndex.clear();
+    this._edgeWorkspaceCountsOrCreate().clear();
     for (const e of this._edges) this._indexEdge(e);
   }
 
