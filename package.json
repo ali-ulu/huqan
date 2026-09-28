@@ -708,6 +708,8 @@
     "lib/learn-admission-request.js",
     "lib/learn-edge-options.js",
     "lib/learn-use-case.js",
+    "lib/learn-use-case-provenance.js",
+    "lib/learn-use-case-steps.js",
     "lib/mcp-agent-continuation.js",
     "lib/mcp-agent-approval-execution.js",
     "lib/mcp-approval-admission.js",
