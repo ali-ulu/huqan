@@ -69,6 +69,7 @@ test('generic production HTTP boundaries do not regress to the known free-text-o
     'lib/http/core-http-routes.js',
     'lib/http/fitness-dashboard-route.js',
     'lib/http/static-assets.js',
+    'lib/http/ingest-http-routes.js',
   ];
   const forbidden = [
     "{ error: 'Bad request' }",
