@@ -32,10 +32,13 @@ test('the first screen offers a runnable command', () => {
 });
 
 test('the first screen links a no-install browser demo (#3081)', () => {
-  // A plain substring check, not a URL regex: this asserts what the README
-  // says, and a regex here would (correctly) trip CodeQL's URL-anchor rule.
+  // Compare parsed link targets by equality rather than substring-matching a
+  // URL: a `.includes('https://…')` check trips CodeQL's incomplete-URL rule
+  // and is the wrong shape anyway -- we want a link *to* the demo, not a
+  // mention of its host anywhere in the prose.
+  const hrefs = [...firstScreen().matchAll(/\]\(([^)]+)\)/g)].map((match) => match[1]);
   assert.ok(
-    firstScreen().includes('https://huqan.com'),
+    hrefs.some((href) => href === 'https://huqan.com'),
     'the opening must link the hosted demo',
   );
 });
