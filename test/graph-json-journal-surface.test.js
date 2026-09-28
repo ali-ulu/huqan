@@ -9,6 +9,7 @@ const path = require('node:path');
 const Graph = require('../graph');
 const { writeCurrentState, saveSnapshot } = require('../lib/graph-json-snapshot');
 const { commitJsonTransaction, recoverJsonTransaction, redoPathFor } = require('../lib/graph-json-transaction');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
 const ROOT = path.join(__dirname, '..');
 const COLLABORATORS = ['graph-json-snapshot.js', 'graph-json-transaction.js'];
@@ -189,7 +190,7 @@ describe('Graph JSON journal surface is public (#2343, #2353)', { concurrency: f
         assert.doesNotMatch(source, new RegExp(privateName), `${name} must not name ${privateName}`);
       }
     }
-    const graphSource = fs.readFileSync(path.join(ROOT, 'graph.js'), 'utf8');
+    const graphSource = readGraphSurfaceSource();
     for (const privateName of ['_jsonJournalPath', '_stripEmbeddings', '_writeStrippedState']) {
       assert.doesNotMatch(graphSource, new RegExp(privateName),
         `graph.js must neither define nor alias ${privateName}`);

@@ -24,13 +24,13 @@ test('kernel.js is recorded with a reason, a review date and its current fan-out
   assert.ok(Number.isInteger(entry.ceiling), 'an exception has a ceiling');
 });
 
-test('a recorded entrypoint loses the FANOUT signal; an unrecorded file keeps it', () => {
+test('a recorded entrypoint loses the FANOUT signal; a non-entrypoint cannot', () => {
   const rows = snapshotModule.snapshot();
   const kernel = rows.find((item) => item.file === 'kernel.js');
   assert.ok(kernel, 'kernel.js is measured');
   assert.ok(!kernel.signals.some((signal) => signal.startsWith('FANOUT')), JSON.stringify(kernel));
-  const graph = rows.find((item) => item.file === 'graph.js');
-  assert.ok(graph.signals.some((signal) => signal.startsWith('FANOUT')), 'graph.js is not an entrypoint and stays tracked');
+  // graph.js left the tracker by extraction (#3101); it could never have been recorded.
+  assert.equal(snapshotModule.isFanoutAllowed('graph.js', 31), false, 'graph.js is not an entrypoint');
 });
 
 test('the live exception list is neither expired, stale nor loose', () => {

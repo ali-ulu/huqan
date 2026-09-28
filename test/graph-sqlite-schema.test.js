@@ -13,6 +13,7 @@ const path = require('node:path');
 
 const { initGraphSchema, createGraphStmts } = require('../lib/graph-sqlite-schema');
 const Graph = require('../graph');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
 function tempDb(name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-2126-${name}-`));
@@ -100,7 +101,7 @@ test('#2126: legacy single-PK nodes table migrates with data preserved', () => {
 });
 
 test('#2126: graph.js _initDB is a thin delegation with no inline SQL', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+  const source = readGraphSurfaceSource();
   assert.ok(source.includes("require('./lib/graph-sqlite-schema')"), 'graph requires the schema module');
   assert.ok(!source.includes('CREATE TABLE IF NOT EXISTS nodes'), 'node DDL moved out');
   assert.ok(!source.includes('CREATE TABLE IF NOT EXISTS edges'), 'edge DDL moved out');

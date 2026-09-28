@@ -5,9 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const GRAPH_SOURCE = path.join(__dirname, '..', 'graph.js');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
+
 const DELEGATE_SOURCE = path.join(__dirname, '..', 'lib', 'graph-causal-chain.js');
-const graphSource = fs.readFileSync(GRAPH_SOURCE, 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(DELEGATE_SOURCE, 'utf8');
 const delegateCode = delegateSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -16,9 +17,11 @@ const delegateCode = delegateSource
   .join('\n');
 
 test('GRAPH: causal-chain traversal is delegated to its dedicated module', () => {
-  assert.ok(
-    graphSource.includes("const { getCausalChain: runCausalChain } = require('./lib/graph-causal-chain');"),
-    'graph.js imports the causal-chain runner',
+  // #3101: the method may live in a graph method holder under lib/, which requires './graph-causal-chain'.
+  assert.match(
+    graphSource,
+    /const \{ getCausalChain: runCausalChain \} = require\('\.\/(lib\/)?graph-causal-chain'\);/,
+    'Graph imports the causal-chain runner',
   );
   const methodMatch = graphSource.match(/\n  getCausalChain\(fromId, maxDepthOrOpts = 10\) \{[\s\S]*?\n  \}/);
   assert.ok(methodMatch, 'getCausalChain method still exists');
@@ -46,7 +49,7 @@ test('GRAPH: causal-chain traversal is delegated to its dedicated module', () =>
 });
 
 test('GRAPH: causal-chain delegate is receiver-free and cycle-free', () => {
-  assert.equal((graphSource.match(/require\('\.\/lib\/graph-causal-chain'\)/g) || []).length, 1, 'delegate require appears once');
+  assert.equal((graphSource.match(/require\('\.\/(lib\/)?graph-causal-chain'\)/g) || []).length, 1, 'delegate require appears once');
   assert.equal((graphSource.match(/runCausalChain\(/g) || []).length, 1, 'runner has one call site');
   assert.equal((delegateCode.match(/this\./g) || []).length, 0, 'delegate has no this receiver access');
   assert.ok(!delegateCode.includes("require('../graph')"), 'delegate has no cycle back into graph.js');

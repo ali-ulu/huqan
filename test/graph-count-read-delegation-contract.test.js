@@ -5,8 +5,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { countNodes, countEdges } = require('../lib/graph-count-read');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-count-read.js'), 'utf8');
 
 function methodBody(source, methodName) {
