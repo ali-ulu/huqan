@@ -41,11 +41,6 @@
       "lines": 504,
       "signals": []
     },
-    "lib/conflict-detector.js": {
-      "band": "recorded",
-      "lines": 616,
-      "signals": []
-    },
     "lib/github-connector.js": {
       "band": "recorded",
       "lines": 518,
@@ -74,8 +69,8 @@
       ]
     },
     "sandboxRunner.js": {
-      "band": "recorded",
-      "lines": 530,
+      "band": "structural",
+      "lines": 326,
       "signals": [
         "OCP:8"
       ]
@@ -287,6 +282,8 @@
       "lib/company-brain-state.js": "Core",
       "lib/company-ingest-gate.js": "Core",
       "lib/conflict-candidate-review.js": "Core",
+      "lib/conflict-claim.js": "Core",
+      "lib/conflict-detect.js": "Core",
       "lib/conflict-detector.js": "Core",
       "lib/connector-action-firewall-contracts.js": "Core",
       "lib/connector-action-firewall-normalize.js": "Core",
@@ -1100,6 +1097,9 @@
       "requestGuards-rate-limit.js": "Core",
       "requestGuards.js": "Core",
       "rustGraph.js": "Adapters",
+      "sandboxRunner-child.js": "Adapters",
+      "sandboxRunner-context.js": "Adapters",
+      "sandboxRunner-limits.js": "Adapters",
       "sandboxRunner.js": "Adapters",
       "schemas/v5/agent-identity-conformance.js": "Core",
       "schemas/v5/agent-identity-coverage.js": "Core",
@@ -2119,11 +2119,21 @@
         "lib/audit-log.js",
         "lib/hypothesis-review-audit.js"
       ],
+      "lib/conflict-claim.js": [
+        "lib/is-plain-object.js",
+        "lib/provenance-ingest.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/conflict-detect.js": [
+        "lib/conflict-claim.js",
+        "lib/is-plain-object.js",
+        "lib/workspace-id.js"
+      ],
       "lib/conflict-detector.js": [
         "lib/audit-log.js",
         "lib/background-provenance.js",
-        "lib/is-plain-object.js",
-        "lib/provenance-ingest.js",
+        "lib/conflict-claim.js",
+        "lib/conflict-detect.js",
         "lib/receipt/canonical-receipt.js",
         "lib/verdict/action-verdict.js",
         "lib/workspace-id.js"
@@ -5011,8 +5021,18 @@
         "lib/rust-graph-fallback-factory.js",
         "lib/rust-graph-store-port.js"
       ],
+      "sandboxRunner-child.js": [
+        "sandboxRunner-context.js",
+        "sandboxRunner-limits.js"
+      ],
+      "sandboxRunner-context.js": [
+        "sandboxRunner-limits.js"
+      ],
       "sandboxRunner.js": [
-        "lib/sandbox-isolation.js"
+        "lib/sandbox-isolation.js",
+        "sandboxRunner-child.js",
+        "sandboxRunner-context.js",
+        "sandboxRunner-limits.js"
       ],
       "schemas/v5/agent-identity-conformance.js": [
         "schemas/v5/agent-identity-validator.js"
