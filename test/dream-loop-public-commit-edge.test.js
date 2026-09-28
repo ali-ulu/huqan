@@ -71,6 +71,13 @@ test('a verified hypothesis is committed through the public commitBackgroundEdge
 });
 
 test('the dream experiment loop source names no private _commitBackgroundEdge', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'dream-experiment-loop.js'), 'utf8');
+  // #2120 split: the loop is composed of the entry file plus its
+  // ./dream-experiment-loop-* require chain; every part must stay public-only.
+  const entry = path.join(__dirname, '..', 'lib', 'dream-experiment-loop.js');
+  const entrySource = fs.readFileSync(entry, 'utf8');
+  const chain = [...entrySource.matchAll(/require\('(\.\/dream-experiment-loop-[^']+)'\)/g)]
+    .map(match => path.join(__dirname, '..', 'lib', `${match[1].slice(2)}.js`));
+  assert.ok(chain.length > 0, 'expected the entry to require its ./dream-experiment-loop-* chain');
+  const source = [entry, ...chain].map(file => fs.readFileSync(file, 'utf8')).join('\n');
   assert.doesNotMatch(source, /_commitBackgroundEdge/);
 });

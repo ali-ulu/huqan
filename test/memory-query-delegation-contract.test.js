@@ -13,7 +13,10 @@ const ENGINE_SOURCE = path.join(__dirname, '..', 'lib', 'memory-query-engine.js'
 const ENGINE_IMPORT = "const { runQuery, runMemoriesBetween } = require('./memory-query-engine');";
 const ENGINE_REQUIRE_REGEX = /require\('\.\/memory-query-engine'\)/;
 
-const storeSource = fs.readFileSync(STORE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
+const { readMemoryStoreChain } = require('./helpers/memory-store-chain-source');
+// #2120: the store implementation is the entry plus its installed method-group
+// chain; moved facades keep their verbatim shape, so the pins below hold.
+const storeSource = readMemoryStoreChain(STORE_SOURCE).replace(/\r\n/g, '\n');
 const engineSource = fs.readFileSync(ENGINE_SOURCE, 'utf8').replace(/\r\n/g, '\n');
 
 // Strip comment lines before structural checks so example delegation snippets
