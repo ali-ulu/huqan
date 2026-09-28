@@ -36,11 +36,6 @@
         "DIP"
       ]
     },
-    "lib/http/workflow-data-routes.js": {
-      "band": "recorded",
-      "lines": 477,
-      "signals": []
-    },
     "lib/learn-use-case.js": {
       "band": "recorded",
       "lines": 432,
@@ -3157,19 +3152,6 @@
         "lib/http/workflow-envelope.js",
         "lib/server-response-helpers.js",
         "lib/workflow-contract.js"
-      ],
-      "lib/http/workflow-data-routes.js": [
-        "lib/http/agent-workflow-routes.js",
-        "lib/http/exact-workspace.js",
-        "lib/http/http-provenance.js",
-        "lib/http/receipt-read-failures.js",
-        "lib/http/workflow-envelope.js",
-        "lib/http/workflow-request-validation.js",
-        "lib/ingest-workflow-preview.js",
-        "lib/ingest-workflow-run.js",
-        "lib/mcp-approval-decision-handler.js",
-        "lib/mcp-approval-views.js",
-        "lib/mcp-tool-names.js"
       ],
       "lib/http/workflow-envelope.js": [
         "lib/workflow-contract.js"
