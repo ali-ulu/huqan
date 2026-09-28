@@ -40,10 +40,13 @@ function seed(journal) {
 
 test('Experience read is production-reachable through CLI, MCP and authenticated HTTP with one projection', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-read-wiring-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const kernel = {};
   const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
-  t.after(() => storage.close());
+  // Close before removing: Windows cannot unlink an open SQLite file.
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
 
   const journal = resolveExperienceJournal({ kernel }, storage);
   assert.ok(journal, 'production Experience journal must be available');
