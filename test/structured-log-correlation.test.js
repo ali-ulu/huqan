@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { EventEmitter } = require('node:events');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -8,6 +9,7 @@ const {
   normalizeId,
   writeStructuredLog,
 } = require('../lib/http/structured-log');
+const { createServerRequestHandler } = require('../lib/http/server-request-handler');
 
 const requestHandlerSource = fs.readFileSync('lib/http/server-request-handler.js', 'utf8');
 const runtimeSource = fs.readFileSync('lib/observability/server-runtime.js', 'utf8');
@@ -82,6 +84,86 @@ test('structured correlation logging contract', async t => {
 
   await t.test('never lets a logger failure alter the caller path', () => {
     assert.doesNotThrow(() => writeStructuredLog({ error() { throw new Error('sink down'); } }, 'error', 'http.failed', { requestId: 'req-1' }, { errorCode: 'FAILED' }));
+  });
+
+
+  await t.test('keeps one correlation identity from the HTTP response header through the structured error log', async () => {
+    const req = {
+      method: 'GET',
+      url: '/health',
+      headers: { host: 'localhost', 'x-request-id': 'caller-controlled' },
+    };
+    const res = new EventEmitter();
+    res.headersSent = false;
+    res.headers = {};
+    res.statusCode = null;
+    res.body = '';
+    res.setHeader = (name, value) => { res.headers[name] = value; };
+    res.writeHead = (status, headers = {}) => {
+      res.statusCode = status;
+      Object.assign(res.headers, headers);
+      res.headersSent = true;
+    };
+    res.end = (body = '') => {
+      res.body += String(body || '');
+      res.emit('finish');
+    };
+
+    let releases = 0;
+    const notHandled = async () => false;
+    const handler = createServerRequestHandler({
+      kernel: { graph: {} },
+      concurrencyLimiter: {
+        tryAcquire: () => true,
+        release: () => { releases += 1; },
+      },
+      denyIfUnauthorized: () => true,
+      viewerMount: {
+        isViewerPath: () => false,
+        checkRateLimit: () => true,
+        handle: async () => {},
+      },
+      externalClientBoundary: null,
+      optionalRoutes: { authContext: {}, route: notHandled },
+      handleObservabilityRoute: notHandled,
+      handleV5PackageImportRoute: notHandled,
+      handleV5PreflightRoute: notHandled,
+      handleReadWorkflow: notHandled,
+      handleWorkflowDataRoute: notHandled,
+      handleFitnessDashboardRoute: notHandled,
+      handleCoreRoutes: async () => {
+        const error = new Error('forced correlation probe');
+        error.code = 'CORRELATION_PROBE_FAILED';
+        throw error;
+      },
+      handleIngestHttpRoutes: notHandled,
+      handleReceiptReadRoute: () => false,
+      handleWorkbenchRead: () => false,
+      handleTrustQueryRoutes: () => false,
+      handlePublicApiRoute: notHandled,
+    });
+
+    const lines = [];
+    const originalError = console.error;
+    console.error = (line) => { lines.push(String(line)); };
+    try {
+      await handler(req, res);
+    } finally {
+      console.error = originalError;
+    }
+
+    assert.equal(res.statusCode, 500);
+    assert.equal(releases, 1);
+    assert.equal(lines.length, 1);
+    assert.match(res.headers['X-Request-Id'], /^req-[0-9a-f-]{36}$/);
+    assert.notEqual(res.headers['X-Request-Id'], req.headers['x-request-id']);
+
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.event, 'http.unhandled_error');
+    assert.equal(record.reason, 'CORRELATION_PROBE_FAILED');
+    assert.equal(record.requestId, res.headers['X-Request-Id']);
+    assert.equal(record.request_id, res.headers['X-Request-Id'].slice(4));
+    assert.equal(record.traceId, req.huqanCorrelation.traceId);
   });
 
   await t.test('wires the context and structured logger at production boundaries', () => {
