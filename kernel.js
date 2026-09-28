@@ -7,7 +7,6 @@ const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
 const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
 const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
-const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const { runLearnTransaction } = require('./lib/kernel-learn-transaction');
@@ -334,10 +333,6 @@ class Kernel {
       return [];
     }
     return this.graph.getCandidateClaims(filters);
-  }
-
-  detectClaimConflict(claim, opts = {}) {
-    return detectClaimConflict(this, claim, opts);
   }
 
   ingestCandidateClaim(input = {}, opts = {}) {

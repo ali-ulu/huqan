@@ -18,7 +18,7 @@ Tracked in total: **7**
 | File | Lines | Signals |
 |---|---:|---|
 | `graph.js` | 392 | FANOUT:31 |
-| `kernel.js` | 384 | FANOUT:29 |
+| `kernel.js` | 379 | FANOUT:28 |
 | `agent.v3.js` | 353 | DIP |
 | `sandboxRunner.js` | 326 | OCP:8 |
 | `cli.js` | 200 | FANOUT:24 |

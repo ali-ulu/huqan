@@ -24,7 +24,7 @@
     },
     "kernel.js": {
       "band": "structural",
-      "lines": 384,
+      "lines": 379,
       "signals": [
         "FANOUT:28"
       ]
@@ -610,6 +610,7 @@
       "lib/kernel-alternatives.js": "Core",
       "lib/kernel-auto-think.js": "Core",
       "lib/kernel-capability-methods.js": "Core",
+      "lib/kernel-cognition-methods.js": "Core",
       "lib/kernel-context-similarity.js": "Core",
       "lib/kernel-contract.js": "Core",
       "lib/kernel-cross-link.js": "Core",
@@ -1439,10 +1440,10 @@
         "graph.js",
         "lib/background-provenance.js",
         "lib/cli-mutation-audit.js",
-        "lib/conflict-detector.js",
         "lib/environment-compat.js",
         "lib/errors/provenance-error.js",
         "lib/kernel-capability-methods.js",
+        "lib/kernel-cognition-methods.js",
         "lib/kernel-contract.js",
         "lib/kernel-learn-admission.js",
         "lib/kernel-learn-input-methods.js",
@@ -3353,6 +3354,20 @@
       "lib/kernel-capability-methods.js": [
         "lib/kernel-contract.js",
         "lib/kernel-method-install.js"
+      ],
+      "lib/kernel-cognition-methods.js": [
+        "lib/conflict-detector.js",
+        "lib/kernel-alternatives.js",
+        "lib/kernel-auto-think.js",
+        "lib/kernel-context-similarity.js",
+        "lib/kernel-cross-link.js",
+        "lib/kernel-dream.js",
+        "lib/kernel-learn-document.js",
+        "lib/kernel-learn-from-llm.js",
+        "lib/kernel-method-install.js",
+        "lib/kernel-read-methods.js",
+        "lib/kernel-self-evolve.js",
+        "lib/kernel-self-learn.js"
       ],
       "lib/kernel-dream.js": [
         "lib/workspace-id.js"
