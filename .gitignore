@@ -46,3 +46,7 @@ reports/mutation/
 # Local progress state for scripts/architecture-review-queue.js (#2924) --
 # which queue items a reviewer has already marked done. Not shared state.
 .architecture-review-queue-state.json
+
+# c8 coverage scratch and reports (#3077)
+coverage/
+.nyc_output/

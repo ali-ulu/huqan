@@ -48,6 +48,13 @@ merges:
 - `Enforce the large-file threshold`
 - `Enforce a lint-clean tree`
 - `Require architecture tracker snapshot to be current`
+- `Coverage gate`
+
+`Coverage gate` is the numeric coverage ratchet from issue #3077. The
+`coverage` job in `benchmark.yml` measures the suite under `c8` and
+`scripts/check-coverage.js` fails when a global or per-file line/branch ratio
+drops below the floor in `config/coverage-baseline.json`. `--update` may only
+lower a floor: a regression keeps its old floor, so it cannot be spent.
 
 The repository Rulesets collection currently returns an empty list, so the
 observed enforcement is classic branch protection rather than a repository

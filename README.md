@@ -2,7 +2,7 @@
 
 An agent proposes something. HUQAN decides whether it lands.
 
-A local gate between what an AI agent produces and the state it would change — a memory entry, a repository, a tool call. Every decision leaves a Trust Receipt: the evidence, the policy, the approver. No model, no cloud, no API key.
+HUQAN is a local gate between an AI agent's output and the state it would change — a memory entry, a repository, a tool call. Every decision leaves a Trust Receipt: the evidence, the policy, the approver. No model, no cloud, no API key.
 
 [![npm](https://img.shields.io/npm/v/huqan?logo=npm&color=cb3837)](https://www.npmjs.com/package/huqan)
 [![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -49,7 +49,7 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-Which are reachable depends on the gate. A tool call returns `allow`, `review`, `dry_run_only` or `block`; a memory write adds `quarantine` and `reject`, because a write can be set aside for inspection rather than refused outright.
+Which outcomes are reachable depends on the gate. A tool call returns `allow`, `review`, `dry_run_only` or `block`. A memory write adds `quarantine` and `reject`, because a write can be set aside for inspection rather than refused outright.
 
 **Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated` instead of deciding it, and nothing executes until the authority it was raised to answers. That needs a second approver, so it is absent in a single-user install. The decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 

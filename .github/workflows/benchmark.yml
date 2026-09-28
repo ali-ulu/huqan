@@ -50,6 +50,7 @@ jobs:
       perf: ${{ steps.classify.outputs.perf }}
       docker: ${{ steps.classify.outputs.docker }}
       nightly: ${{ steps.classify.outputs.nightly }}
+      source_only: ${{ steps.classify.outputs.source_only }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -162,12 +163,36 @@ jobs:
                 ;;
             esac
           }
+
+          is_source_file() {
+            # A file the coverage ratchet scores. It reads the same lib/,
+            # scripts/ and root-JavaScript surfaces lib/module-reachability.js
+            # publishes, so a change to a measured module is what triggers a
+            # new measurement. Test-only edits do not: the ratio is of the
+            # source, and re-measuring the whole suite for one assertion is
+            # cost without signal.
+            case "$1" in
+              lib/*|scripts/*|packages/*)
+                return 0
+                ;;
+              */*)
+                return 1
+                ;;
+              *.js)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
+          }
           # CI_CLASSIFIER_FUNCTIONS_END
 
           runtime_or_test=no
           perf=no
           docker=no
           nightly=no
+          source_only=no
           if [ "${GITHUB_EVENT_NAME}" = "schedule" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             nightly=yes
           fi
@@ -180,10 +205,20 @@ jobs:
             if is_docker_file   "${f}"; then docker=yes; fi
           done <<< "${CHANGED}"
 
+          # The ratchet runs when any measured source changed. `git ls-files`
+          # on an empty diff (a scheduled run has no parent change) would mark
+          # every tracked file and always run it, which is the wanted behavior
+          # on the nightly full-suite pass.
+          while IFS= read -r f; do
+            [ -z "${f}" ] && continue
+            if is_source_file "${f}"; then source_only=yes; fi
+          done <<< "${CHANGED}"
+
           echo "runtime_or_test=${runtime_or_test}" >> "${GITHUB_OUTPUT}"
           echo "perf=${perf}"                         >> "${GITHUB_OUTPUT}"
           echo "docker=${docker}"                     >> "${GITHUB_OUTPUT}"
           echo "nightly=${nightly}"                   >> "${GITHUB_OUTPUT}"
+          echo "source_only=${source_only}"           >> "${GITHUB_OUTPUT}"
 
           {
             echo "## CI change classification"
@@ -750,6 +785,65 @@ jobs:
           gh pr create --title "chore(ci): refresh shard weights from nightly timings" --body-file pr-body.md --base main --head "$branch"
 
   # ---------------------------------------------------------------------
+  # Numeric coverage ratchet (#3077). Measured once, on ubuntu / Node 22,
+  # against main. The gate is a stable name so branch protection can require
+  # it without depending on the matrix.
+  # ---------------------------------------------------------------------
+  coverage:
+    name: Coverage
+    needs: [classify]
+    if: ${{ needs.classify.outputs.source_only == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      # The full suite needs the same browser and global-WebSocket support the
+      # runtime shards require; a smoke that skips silently would measure a
+      # different (and lower) coverage set than the one the baseline records.
+      - name: Install Chromium for the browser smokes
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+      - name: Measure the suite under c8
+        env:
+          HUQAN_REQUIRE_BROWSER_SMOKE: '1'
+        # The npm test gate owns test correctness; this job owns the ratio. A
+        # single flaky test must not turn the ratchet red, but a run that never
+        # produced a summary must, so the summary is the pass condition here.
+        run: |
+          set +e
+          npm run coverage
+          status=$?
+          set -e
+          test -f coverage/coverage-summary.json || { echo "c8 produced no coverage summary" >&2; exit 1; }
+          if [ "${status}" -ne 0 ]; then
+            echo "::warning::the suite had failures while measuring coverage; the npm test gate owns correctness, the ratchet below owns the ratio"
+          fi
+      - name: Enforce the coverage ratchet
+        run: npm run check:coverage
+      - name: Upload the coverage summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          if-no-files-found: warn
+
+  coverage-skip:
+    name: Coverage (NOT_APPLICABLE)
+    needs: [classify]
+    if: ${{ needs.classify.outputs.source_only != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "no source change; coverage ratchet not applicable"
+
+  # ---------------------------------------------------------------------
   # Stable required checks. These aggregate the run/skip pairs so branch
   # protection does not depend on matrix-generated or conditional job names.
   # ---------------------------------------------------------------------
@@ -777,6 +871,25 @@ jobs:
           test "${PLAN_RESULT}" = success
           if [ "${TEST_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
             echo "Neither the test job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi
+
+  coverage-gate:
+    name: Coverage gate
+    needs: [classify, coverage, coverage-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable coverage path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          COVERAGE_RESULT: ${{ needs.coverage.result }}
+          SKIP_RESULT: ${{ needs['coverage-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${COVERAGE_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the coverage job nor its NOT_APPLICABLE job passed." >&2
             exit 1
           fi
 

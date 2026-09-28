@@ -189,11 +189,24 @@ const HANGING_FIXTURE = [
 ].join('\n');
 
 function isAlive(pid) {
+  // A killed process with no living parent is reparented and left as a zombie
+  // until some init reaps it; a zombie still answers signal 0, so the bare
+  // probe below would report a process that is not running as alive. The
+  // assertion these helpers serve is "nothing is left running", and a zombie
+  // is not running, so read the state directly where the kernel exposes it.
   try {
-    process.kill(pid, 0);
-    return true;
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
+    return state !== 'Z' && state !== 'X';
   } catch {
-    return false;
+    // No /proc entry (macOS, Windows, or a pid that is truly gone): use the
+    // signal probe, which answers correctly whenever the pid is not a zombie.
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

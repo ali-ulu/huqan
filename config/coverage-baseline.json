@@ -1,0 +1,4209 @@
+{
+  "note": "Numeric coverage ratchet (#3077). Global and per-file line/branch floors measured from the full suite under c8 on ubuntu-latest / Node 22. scripts/check-coverage.js fails when a metric drops below its floor; `--update` may only lower a floor. Regenerate with `npm run coverage` then `node scripts/check-coverage.js --update`.",
+  "measuredFrom": {
+    "workflow": "push main",
+    "node": 22
+  },
+  "slackPoints": 0.1,
+  "minFileLines": 20,
+  "totals": {
+    "lines": 92.16,
+    "statements": 92.16,
+    "functions": 94.94,
+    "branches": 81.97
+  },
+  "files": {
+    "agent.js": {
+      "lines": 95.85,
+      "branches": 88.23
+    },
+    "agent.v3.js": {
+      "lines": 89.8,
+      "branches": 82.67
+    },
+    "agentRuntime.js": {
+      "lines": 98.91,
+      "branches": 93.87
+    },
+    "backupRestore.js": {
+      "lines": 100,
+      "branches": 50
+    },
+    "causalSimulator.js": {
+      "lines": 98.59,
+      "branches": 85.1
+    },
+    "cli.js": {
+      "lines": 99,
+      "branches": 95.06
+    },
+    "demo-causal-autolearn.js": {
+      "lines": 90.09,
+      "branches": 36
+    },
+    "dream.js": {
+      "lines": 98.91,
+      "branches": 82.35
+    },
+    "evidence-ranker.js": {
+      "lines": 100,
+      "branches": 92.3
+    },
+    "github-app-server.js": {
+      "lines": 94,
+      "branches": 78.04
+    },
+    "graph.js": {
+      "lines": 98.97,
+      "branches": 95.95
+    },
+    "index.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "kernel.js": {
+      "lines": 99.47,
+      "branches": 91.3
+    },
+    "kernel.v2.js": {
+      "lines": 88.65,
+      "branches": 87.8
+    },
+    "lib/a2a/agent-card-route.js": {
+      "lines": 97.89,
+      "branches": 81.25
+    },
+    "lib/a2a/agent-card.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/a2a/bounded-exchange-authority.js": {
+      "lines": 100,
+      "branches": 71.11
+    },
+    "lib/a2a/bounded-exchange-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/a2a/bounded-exchange-signing.js": {
+      "lines": 94.11,
+      "branches": 72.22
+    },
+    "lib/a2a/bounded-exchange-validation.js": {
+      "lines": 99.01,
+      "branches": 93.07
+    },
+    "lib/a2a/bounded-exchange-values.js": {
+      "lines": 95.27,
+      "branches": 83.33
+    },
+    "lib/a2a/bounded-exchange.js": {
+      "lines": 98.61,
+      "branches": 96.03
+    },
+    "lib/a2a/capability-negotiation.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/a2a/delegation-audit-log.js": {
+      "lines": 98.74,
+      "branches": 90.19
+    },
+    "lib/a2a/exchange-route-authority.js": {
+      "lines": 100,
+      "branches": 89.18
+    },
+    "lib/a2a/exchange-route-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/a2a/exchange-route-firewall.js": {
+      "lines": 79.34,
+      "branches": 20.83
+    },
+    "lib/a2a/exchange-route-handler.js": {
+      "lines": 93.83,
+      "branches": 79.41
+    },
+    "lib/a2a/exchange-route-refusals.js": {
+      "lines": 94.82,
+      "branches": 66.66
+    },
+    "lib/a2a/exchange-route.js": {
+      "lines": 100,
+      "branches": 95.23
+    },
+    "lib/a2a/inter-agent-receipt-chain.js": {
+      "lines": 100,
+      "branches": 96.82
+    },
+    "lib/a2a/negotiate-route.js": {
+      "lines": 96.49,
+      "branches": 83.78
+    },
+    "lib/a2a/replay-store.js": {
+      "lines": 93.61,
+      "branches": 78.57
+    },
+    "lib/a2a/retry-classification.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/a2a/routes.js": {
+      "lines": 100,
+      "branches": 76.92
+    },
+    "lib/a2a/task-route.js": {
+      "lines": 93.51,
+      "branches": 87.5
+    },
+    "lib/a2a/task-store.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/admission-horizon.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/adversarial-signals.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/agent-action-decisions.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/agent-action-firewall.js": {
+      "lines": 97.41,
+      "branches": 91.66
+    },
+    "lib/agent-action-signals.js": {
+      "lines": 100,
+      "branches": 84.48
+    },
+    "lib/agent-action-step-enforcement.js": {
+      "lines": 100,
+      "branches": 90.9
+    },
+    "lib/agent-behavioral-integrity.js": {
+      "lines": 88.96,
+      "branches": 75.63
+    },
+    "lib/agent-capability-report.js": {
+      "lines": 98.41,
+      "branches": 88.23
+    },
+    "lib/agent-identity-runtime-resolve.js": {
+      "lines": 79.77,
+      "branches": 77.08
+    },
+    "lib/agent-identity-runtime-shape.js": {
+      "lines": 98.95,
+      "branches": 71.42
+    },
+    "lib/agent-identity-runtime.js": {
+      "lines": 88.05,
+      "branches": 71.79
+    },
+    "lib/agent-loop-budget-gate.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/agent-memory-persistence.js": {
+      "lines": 100,
+      "branches": 70
+    },
+    "lib/agent-memory-records.js": {
+      "lines": 100,
+      "branches": 92.59
+    },
+    "lib/agent-memory-runtime.js": {
+      "lines": 100,
+      "branches": 67.64
+    },
+    "lib/agent-memory-state.js": {
+      "lines": 98.83,
+      "branches": 82.6
+    },
+    "lib/agent-plan-runtime.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/agent-planning-policy.js": {
+      "lines": 100,
+      "branches": 92.85
+    },
+    "lib/agent-report-renderer.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/agent-run-finalization.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/agent-run-guidance.js": {
+      "lines": 93.29,
+      "branches": 92.43
+    },
+    "lib/agent-step-executor.js": {
+      "lines": 97.87,
+      "branches": 78.74
+    },
+    "lib/agent-v3-approval-methods.js": {
+      "lines": 100,
+      "branches": 72.72
+    },
+    "lib/agent-v3-budget-methods.js": {
+      "lines": 96.29,
+      "branches": 100
+    },
+    "lib/agent-v3-dream-loop-adapter.js": {
+      "lines": 95.23,
+      "branches": 85
+    },
+    "lib/agent-v3-loop-budget.js": {
+      "lines": 100,
+      "branches": 91.66
+    },
+    "lib/agent-v3-plan-memory.js": {
+      "lines": 100,
+      "branches": 82.35
+    },
+    "lib/agent-v3-plan-methods.js": {
+      "lines": 96.15,
+      "branches": 100
+    },
+    "lib/agent-v3-result-methods.js": {
+      "lines": 100,
+      "branches": 81.25
+    },
+    "lib/agent-v3-run-state.js": {
+      "lines": 100,
+      "branches": 64.28
+    },
+    "lib/agent-v3-status-methods.js": {
+      "lines": 97.03,
+      "branches": 71.79
+    },
+    "lib/agent-v3-storage-factory.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/agent-v3-workspace.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/api-auth-opt-out.js": {
+      "lines": 99.3,
+      "branches": 95.34
+    },
+    "lib/approval-execution-evidence.js": {
+      "lines": 100,
+      "branches": 46.15
+    },
+    "lib/approval-flow-utils.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/approval-flow.js": {
+      "lines": 100,
+      "branches": 84
+    },
+    "lib/approval-receipts.js": {
+      "lines": 100,
+      "branches": 86.66
+    },
+    "lib/approval-schema.js": {
+      "lines": 95.2,
+      "branches": 57.74
+    },
+    "lib/atp-conformance-primitives.js": {
+      "lines": 93.68,
+      "branches": 82.05
+    },
+    "lib/atp-conformance-validators.js": {
+      "lines": 87.5,
+      "branches": 81.05
+    },
+    "lib/atp-conformance.js": {
+      "lines": 79.36,
+      "branches": 30.76
+    },
+    "lib/audit-bounded-read.js": {
+      "lines": 90.5,
+      "branches": 63.46
+    },
+    "lib/audit-log.js": {
+      "lines": 97.72,
+      "branches": 83.92
+    },
+    "lib/audit-query-primitives.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/audit-query.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/automation-safety-gate/automation-findings-summary.js": {
+      "lines": 86.98,
+      "branches": 88.46
+    },
+    "lib/automation-safety-gate/automation-input-normalizer.js": {
+      "lines": 99.69,
+      "branches": 92.5
+    },
+    "lib/automation-safety-gate/automation-operation-classifier-delivery.js": {
+      "lines": 55.93,
+      "branches": 78.57
+    },
+    "lib/automation-safety-gate/automation-operation-classifier-entry.js": {
+      "lines": 100,
+      "branches": 96.42
+    },
+    "lib/automation-safety-gate/automation-operation-classifier-fallback.js": {
+      "lines": 70.11,
+      "branches": 61.53
+    },
+    "lib/automation-safety-gate/automation-operation-classifier-hazards.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/automation-safety-gate/automation-operation-classifier.js": {
+      "lines": 100,
+      "branches": 94.11
+    },
+    "lib/automation-safety-gate/automation-safety-decision.js": {
+      "lines": 95.1,
+      "branches": 65.21
+    },
+    "lib/automation-safety-gate/automation-safety-vocabulary.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/automation-safety-gate/index.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/autonomy-receipt-history.js": {
+      "lines": 93.1,
+      "branches": 88.88
+    },
+    "lib/autonomy-state.js": {
+      "lines": 98.63,
+      "branches": 84.72
+    },
+    "lib/autonomy-trust-score.js": {
+      "lines": 100,
+      "branches": 91.83
+    },
+    "lib/background-provenance-projection.js": {
+      "lines": 100,
+      "branches": 96.42
+    },
+    "lib/background-provenance.js": {
+      "lines": 98.18,
+      "branches": 85.71
+    },
+    "lib/behavioral-stop-bridge.js": {
+      "lines": 96.09,
+      "branches": 72.85
+    },
+    "lib/blast-radius.js": {
+      "lines": 99.22,
+      "branches": 90.47
+    },
+    "lib/bounded-ingest-errors.js": {
+      "lines": 100,
+      "branches": 78.57
+    },
+    "lib/browser-hook-outcome.js": {
+      "lines": 96.87,
+      "branches": 75
+    },
+    "lib/browser-session-observer.js": {
+      "lines": 81.15,
+      "branches": 57.52
+    },
+    "lib/bypass-response.js": {
+      "lines": 98.47,
+      "branches": 86.66
+    },
+    "lib/bypass-signal-state.js": {
+      "lines": 94.7,
+      "branches": 80.64
+    },
+    "lib/canonical-target-match.js": {
+      "lines": 100,
+      "branches": 70
+    },
+    "lib/causal-edge-strength.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/causal-simulator-chains.js": {
+      "lines": 98.56,
+      "branches": 80.76
+    },
+    "lib/causal-simulator-report.js": {
+      "lines": 93.47,
+      "branches": 88.88
+    },
+    "lib/causal-simulator-scoring.js": {
+      "lines": 98.81,
+      "branches": 80.19
+    },
+    "lib/causal/causal-edge-errors.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/causal/causal-edge.js": {
+      "lines": 99.61,
+      "branches": 96.66
+    },
+    "lib/causal/causal-traversal-edges.js": {
+      "lines": 92.21,
+      "branches": 61.95
+    },
+    "lib/causal/causal-traversal-resolvers.js": {
+      "lines": 64.88,
+      "branches": 60
+    },
+    "lib/causal/causal-traversal.js": {
+      "lines": 100,
+      "branches": 96.77
+    },
+    "lib/causal/causal-verdict-normalize.js": {
+      "lines": 81.16,
+      "branches": 59.66
+    },
+    "lib/causal/causal-verdict-score.js": {
+      "lines": 100,
+      "branches": 56.52
+    },
+    "lib/causal/causal-verdict-trace.js": {
+      "lines": 100,
+      "branches": 97.22
+    },
+    "lib/causal/causal-verdict-weights.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/causal/causal-verdict.js": {
+      "lines": 97.79,
+      "branches": 97.29
+    },
+    "lib/claim-decomposition.js": {
+      "lines": 95.83,
+      "branches": 87.61
+    },
+    "lib/claim-read.js": {
+      "lines": 97.92,
+      "branches": 89.74
+    },
+    "lib/cli-agent-commands.js": {
+      "lines": 100,
+      "branches": 89.74
+    },
+    "lib/cli-approval-commands.js": {
+      "lines": 100,
+      "branches": 97.14
+    },
+    "lib/cli-audit.js": {
+      "lines": 96.84,
+      "branches": 70.83
+    },
+    "lib/cli-backup-commands.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-capabilities.js": {
+      "lines": 93.93,
+      "branches": 88.88
+    },
+    "lib/cli-capability-commands.js": {
+      "lines": 100,
+      "branches": 67.79
+    },
+    "lib/cli-coder-verify.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "lib/cli-coder.js": {
+      "lines": 90.87,
+      "branches": 62.5
+    },
+    "lib/cli-company-ingest.js": {
+      "lines": 100,
+      "branches": 78.04
+    },
+    "lib/cli-doctor.js": {
+      "lines": 27.52,
+      "branches": 56.25
+    },
+    "lib/cli-experience-read.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "lib/cli-gate-evaluation.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-gate-message.js": {
+      "lines": 100,
+      "branches": 92.85
+    },
+    "lib/cli-help.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-helpers.js": {
+      "lines": 95.74,
+      "branches": 64.28
+    },
+    "lib/cli-hypotheses.js": {
+      "lines": 69.05,
+      "branches": 66.66
+    },
+    "lib/cli-ingest-batch.js": {
+      "lines": 94.7,
+      "branches": 63.41
+    },
+    "lib/cli-ingest-preview.js": {
+      "lines": 89.06,
+      "branches": 66.66
+    },
+    "lib/cli-knowledge-commands.js": {
+      "lines": 100,
+      "branches": 90.56
+    },
+    "lib/cli-mutation-audit-intent.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-mutation-audit.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-mutation-gate.js": {
+      "lines": 98.98,
+      "branches": 87.5
+    },
+    "lib/cli-plugin-status.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-repl.js": {
+      "lines": 98.88,
+      "branches": 76.66
+    },
+    "lib/cli-runtime-methods.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/cli-status-command.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/cli-trust-receipt.js": {
+      "lines": 69.23,
+      "branches": 28.57
+    },
+    "lib/cli-workflow-adapter.js": {
+      "lines": 78.96,
+      "branches": 83.09
+    },
+    "lib/cli-workflow-envelope.js": {
+      "lines": 100,
+      "branches": 97.91
+    },
+    "lib/code-change-blast-radius.js": {
+      "lines": 88.14,
+      "branches": 92.5
+    },
+    "lib/code-change-decision-summary.js": {
+      "lines": 100,
+      "branches": 94.2
+    },
+    "lib/code-change-file-classifier.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/code-change-gate-vocabulary.js": {
+      "lines": 99.25,
+      "branches": 89.87
+    },
+    "lib/code-change-gate.js": {
+      "lines": 94.6,
+      "branches": 85.18
+    },
+    "lib/code-change-input.js": {
+      "lines": 100,
+      "branches": 94.82
+    },
+    "lib/code-change-path-classification.js": {
+      "lines": 100,
+      "branches": 77.77
+    },
+    "lib/coder/apply-derivation.js": {
+      "lines": 94.02,
+      "branches": 80.28
+    },
+    "lib/coder/derivation-record.js": {
+      "lines": 97.89,
+      "branches": 78.84
+    },
+    "lib/coder/experience-reporter.js": {
+      "lines": 99.33,
+      "branches": 70
+    },
+    "lib/coder/journal-store.js": {
+      "lines": 90.41,
+      "branches": 50
+    },
+    "lib/coder/verify-derivation.js": {
+      "lines": 94.47,
+      "branches": 75.67
+    },
+    "lib/collector-seal-config.js": {
+      "lines": 97.14,
+      "branches": 91.66
+    },
+    "lib/command-exec-gate-structure.js": {
+      "lines": 100,
+      "branches": 91
+    },
+    "lib/command-exec-gate-targets.js": {
+      "lines": 100,
+      "branches": 96
+    },
+    "lib/command-exec-gate-vocabulary.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/command-exec-gate.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/command-parser.js": {
+      "lines": 98.41,
+      "branches": 88.97
+    },
+    "lib/command-policy-editor.js": {
+      "lines": 97.61,
+      "branches": 85.71
+    },
+    "lib/company-brain-identity.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/company-brain-ingest.js": {
+      "lines": 95.16,
+      "branches": 77.01
+    },
+    "lib/company-brain-query.js": {
+      "lines": 90.29,
+      "branches": 66.21
+    },
+    "lib/company-brain-state.js": {
+      "lines": 100,
+      "branches": 90
+    },
+    "lib/company-ingest-gate.js": {
+      "lines": 100,
+      "branches": 50
+    },
+    "lib/conflict-candidate-review.js": {
+      "lines": 100,
+      "branches": 85.71
+    },
+    "lib/conflict-claim.js": {
+      "lines": 96.6,
+      "branches": 77.57
+    },
+    "lib/conflict-detect.js": {
+      "lines": 93.08,
+      "branches": 69.44
+    },
+    "lib/conflict-detector.js": {
+      "lines": 100,
+      "branches": 61.66
+    },
+    "lib/connector-action-firewall-contracts.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/connector-action-firewall-normalize.js": {
+      "lines": 91.39,
+      "branches": 80.59
+    },
+    "lib/connector-action-firewall-summary.js": {
+      "lines": 100,
+      "branches": 23.52
+    },
+    "lib/connector-action-firewall.js": {
+      "lines": 100,
+      "branches": 92.3
+    },
+    "lib/connector-local-path.js": {
+      "lines": 96.96,
+      "branches": 89.47
+    },
+    "lib/connectors/entry-ingest-flow.js": {
+      "lines": 100,
+      "branches": 91.66
+    },
+    "lib/connectors/repo-memory-firewall.js": {
+      "lines": 100,
+      "branches": 55.88
+    },
+    "lib/connectors/repo-memory-github.js": {
+      "lines": 100,
+      "branches": 81.25
+    },
+    "lib/connectors/repo-memory-path-ingest.js": {
+      "lines": 100,
+      "branches": 89.47
+    },
+    "lib/connectors/repo-memory-records.js": {
+      "lines": 100,
+      "branches": 57.37
+    },
+    "lib/content-hash.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/contested-read-policy.js": {
+      "lines": 100,
+      "branches": 84.9
+    },
+    "lib/contradiction-rules-opposition-detectors.js": {
+      "lines": 100,
+      "branches": 83.33
+    },
+    "lib/contradiction-rules-text.js": {
+      "lines": 91.37,
+      "branches": 75.43
+    },
+    "lib/contradiction-rules-value-detectors.js": {
+      "lines": 100,
+      "branches": 76.31
+    },
+    "lib/contradiction-rules-vocabulary.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/contradiction-rules.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/control-plane-paths.js": {
+      "lines": 100,
+      "branches": 89.65
+    },
+    "lib/cross-workspace-access-gate.js": {
+      "lines": 100,
+      "branches": 97.95
+    },
+    "lib/data-egress-gate.js": {
+      "lines": 97.93,
+      "branches": 86.48
+    },
+    "lib/data-residency-gate.js": {
+      "lines": 100,
+      "branches": 97.72
+    },
+    "lib/default-persistence-path.js": {
+      "lines": 100,
+      "branches": 90.9
+    },
+    "lib/delegation-rate-counter.js": {
+      "lines": 96.18,
+      "branches": 85.36
+    },
+    "lib/delegation-service.js": {
+      "lines": 100,
+      "branches": 95.65
+    },
+    "lib/deterministic-json-copy.js": {
+      "lines": 96.66,
+      "branches": 94
+    },
+    "lib/deterministic-task-runner.js": {
+      "lines": 93.29,
+      "branches": 78.08
+    },
+    "lib/dream-embedding.js": {
+      "lines": 100,
+      "branches": 86.2
+    },
+    "lib/dream-experiment-loop-hypotheses.js": {
+      "lines": 93.06,
+      "branches": 53.57
+    },
+    "lib/dream-experiment-loop-verify.js": {
+      "lines": 85.6,
+      "branches": 66.66
+    },
+    "lib/dream-experiment-loop.js": {
+      "lines": 84.16,
+      "branches": 73.78
+    },
+    "lib/dream-graph-paths.js": {
+      "lines": 100,
+      "branches": 79.16
+    },
+    "lib/dream-hypothesis-finders.js": {
+      "lines": 100,
+      "branches": 82.56
+    },
+    "lib/dream-hypothesis-scoring.js": {
+      "lines": 100,
+      "branches": 89.28
+    },
+    "lib/dream-hypothesis-semantics.js": {
+      "lines": 100,
+      "branches": 94.59
+    },
+    "lib/emergency-stop-chain.js": {
+      "lines": 85.52,
+      "branches": 79.03
+    },
+    "lib/emergency-stop.js": {
+      "lines": 92.09,
+      "branches": 74.43
+    },
+    "lib/entity-resolution.js": {
+      "lines": 98.73,
+      "branches": 97.14
+    },
+    "lib/environment-compat.js": {
+      "lines": 99.4,
+      "branches": 90
+    },
+    "lib/error-prevention/admission.js": {
+      "lines": 100,
+      "branches": 46.15
+    },
+    "lib/error-prevention/audit.js": {
+      "lines": 100,
+      "branches": 69.23
+    },
+    "lib/error-prevention/authority.js": {
+      "lines": 88,
+      "branches": 74.07
+    },
+    "lib/error-prevention/decision.js": {
+      "lines": 99.04,
+      "branches": 93.75
+    },
+    "lib/error-prevention/engine.js": {
+      "lines": 94.11,
+      "branches": 58.82
+    },
+    "lib/error-prevention/evidence.js": {
+      "lines": 94.59,
+      "branches": 33.33
+    },
+    "lib/error-prevention/fingerprint.js": {
+      "lines": 100,
+      "branches": 78.94
+    },
+    "lib/error-prevention/index.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/error-prevention/input.js": {
+      "lines": 100,
+      "branches": 88.88
+    },
+    "lib/error-prevention/integrity.js": {
+      "lines": 82.69,
+      "branches": 61.9
+    },
+    "lib/error-prevention/lifecycle.js": {
+      "lines": 72.72,
+      "branches": 61.53
+    },
+    "lib/error-prevention/rule-proposal.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "lib/error-prevention/store.js": {
+      "lines": 93.33,
+      "branches": 47.05
+    },
+    "lib/error-prevention/subject.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/error-prevention/trust.js": {
+      "lines": 95.34,
+      "branches": 81.25
+    },
+    "lib/errors/provenance-error.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/evidence-ladder.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/experience/adapter-scope.js": {
+      "lines": 100,
+      "branches": 95.55
+    },
+    "lib/experience/canary.js": {
+      "lines": 94.62,
+      "branches": 70.37
+    },
+    "lib/experience/capability-trust-canary-extension.js": {
+      "lines": 97.51,
+      "branches": 65.38
+    },
+    "lib/experience/capability-trust-fallback-extension.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "lib/experience/capability-trust.js": {
+      "lines": 97.74,
+      "branches": 75.67
+    },
+    "lib/experience/compiler.js": {
+      "lines": 95.37,
+      "branches": 87.71
+    },
+    "lib/experience/contract.js": {
+      "lines": 98.51,
+      "branches": 88.88
+    },
+    "lib/experience/journal-connection.js": {
+      "lines": 95.27,
+      "branches": 79.31
+    },
+    "lib/experience/journal.js": {
+      "lines": 94.5,
+      "branches": 89.78
+    },
+    "lib/experience/learning.js": {
+      "lines": 99.36,
+      "branches": 85.1
+    },
+    "lib/experience/optimization-hypothesis.js": {
+      "lines": 99.15,
+      "branches": 75.75
+    },
+    "lib/experience/permitted-fallback-trust.js": {
+      "lines": 94.78,
+      "branches": 81.25
+    },
+    "lib/experience/permitted-fallback.js": {
+      "lines": 94.48,
+      "branches": 74.57
+    },
+    "lib/experience/personal-execution-model.js": {
+      "lines": 98.16,
+      "branches": 72.13
+    },
+    "lib/experience/procedure-registry.js": {
+      "lines": 97.08,
+      "branches": 77.77
+    },
+    "lib/experience/read-model.js": {
+      "lines": 91.95,
+      "branches": 73.07
+    },
+    "lib/experience/reconciliation.js": {
+      "lines": 97.78,
+      "branches": 82.95
+    },
+    "lib/experience/repair.js": {
+      "lines": 100,
+      "branches": 91.89
+    },
+    "lib/experience/router.js": {
+      "lines": 94.11,
+      "branches": 86
+    },
+    "lib/experience/runtime-seam.js": {
+      "lines": 99.2,
+      "branches": 82.05
+    },
+    "lib/experience/verifier.js": {
+      "lines": 99.21,
+      "branches": 75.71
+    },
+    "lib/experience/write-cost-budget.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-action-action-binding.js": {
+      "lines": 100,
+      "branches": 84.61
+    },
+    "lib/external-action-adapter-generator.js": {
+      "lines": 94.02,
+      "branches": 47.05
+    },
+    "lib/external-action-adapter.js": {
+      "lines": 99.61,
+      "branches": 70.37
+    },
+    "lib/external-action-agent-detection.js": {
+      "lines": 97.8,
+      "branches": 73.68
+    },
+    "lib/external-action-agent-overview.js": {
+      "lines": 96.52,
+      "branches": 83.33
+    },
+    "lib/external-action-agent-roster.js": {
+      "lines": 98.67,
+      "branches": 75.86
+    },
+    "lib/external-action-command-policy.js": {
+      "lines": 100,
+      "branches": 84.31
+    },
+    "lib/external-action-custom-agent-status.js": {
+      "lines": 100,
+      "branches": 73.33
+    },
+    "lib/external-action-egress-gates.js": {
+      "lines": 100,
+      "branches": 86.36
+    },
+    "lib/external-action-envelope.js": {
+      "lines": 97.37,
+      "branches": 90.06
+    },
+    "lib/external-action-gate-install-command.js": {
+      "lines": 90.59,
+      "branches": 51.42
+    },
+    "lib/external-action-gate-install-files.js": {
+      "lines": 95.55,
+      "branches": 86.53
+    },
+    "lib/external-action-gate-install-hooks.js": {
+      "lines": 100,
+      "branches": 84.41
+    },
+    "lib/external-action-gate-install-host-trust.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "lib/external-action-gate-install-sentinel.js": {
+      "lines": 94.85,
+      "branches": 70.58
+    },
+    "lib/external-action-gate-install-spec.js": {
+      "lines": 100,
+      "branches": 89.28
+    },
+    "lib/external-action-gate-install-validate.js": {
+      "lines": 96.12,
+      "branches": 58.33
+    },
+    "lib/external-action-gate-install.js": {
+      "lines": 91.35,
+      "branches": 82.81
+    },
+    "lib/external-action-gate-sentinel.js": {
+      "lines": 98.75,
+      "branches": 57.14
+    },
+    "lib/external-action-guard-gate-phase.js": {
+      "lines": 88.97,
+      "branches": 70.37
+    },
+    "lib/external-action-guard-gates.js": {
+      "lines": 96.55,
+      "branches": 82.14
+    },
+    "lib/external-action-guard-identity.js": {
+      "lines": 93.33,
+      "branches": 90
+    },
+    "lib/external-action-guard-records.js": {
+      "lines": 100,
+      "branches": 70.37
+    },
+    "lib/external-action-guard-rules.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-action-guard.js": {
+      "lines": 100,
+      "branches": 95.83
+    },
+    "lib/external-action-identity-card.js": {
+      "lines": 100,
+      "branches": 94.11
+    },
+    "lib/external-action-identity-log.js": {
+      "lines": 97.94,
+      "branches": 67.7
+    },
+    "lib/external-action-identity-records.js": {
+      "lines": 100,
+      "branches": 94.11
+    },
+    "lib/external-action-identity-signing.js": {
+      "lines": 95.02,
+      "branches": 72.58
+    },
+    "lib/external-action-identity.js": {
+      "lines": 100,
+      "branches": 98.97
+    },
+    "lib/external-action-receipt-admission.js": {
+      "lines": 100,
+      "branches": 87.32
+    },
+    "lib/external-action-receipt-batch.js": {
+      "lines": 99.11,
+      "branches": 80
+    },
+    "lib/external-action-receipt-collector-fleet.js": {
+      "lines": 100,
+      "branches": 65.27
+    },
+    "lib/external-action-receipt-collector-store.js": {
+      "lines": 100,
+      "branches": 79.71
+    },
+    "lib/external-action-receipt-collector.js": {
+      "lines": 100,
+      "branches": 87.09
+    },
+    "lib/external-action-receipt-cursor.js": {
+      "lines": 95,
+      "branches": 82.35
+    },
+    "lib/external-action-receipt-outcome.js": {
+      "lines": 97.92,
+      "branches": 80.76
+    },
+    "lib/external-action-receipt-reader.js": {
+      "lines": 90.9,
+      "branches": 70
+    },
+    "lib/external-action-receipt-shipper.js": {
+      "lines": 100,
+      "branches": 71.42
+    },
+    "lib/external-action-receipt-writer-factory.js": {
+      "lines": 100,
+      "branches": 90.9
+    },
+    "lib/external-action-receipt.js": {
+      "lines": 96.68,
+      "branches": 88.63
+    },
+    "lib/external-client-authority-errors.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-client-authority-primitives.js": {
+      "lines": 100,
+      "branches": 85.71
+    },
+    "lib/external-client-authority.js": {
+      "lines": 100,
+      "branches": 95.71
+    },
+    "lib/external-client-endpoint-contract.js": {
+      "lines": 96.69,
+      "branches": 96.22
+    },
+    "lib/external-client-http-adapter.js": {
+      "lines": 97.66,
+      "branches": 84.83
+    },
+    "lib/external-client-mutation-receipt-owner-candidate.js": {
+      "lines": 95.18,
+      "branches": 90.47
+    },
+    "lib/external-client-mutation-receipt-owner-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-client-mutation-receipt-owner-dependencies.js": {
+      "lines": 94.73,
+      "branches": 82.35
+    },
+    "lib/external-client-mutation-receipt-owner-json.js": {
+      "lines": 92.1,
+      "branches": 81.94
+    },
+    "lib/external-client-mutation-receipt-owner-records.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-client-mutation-receipt-owner-snapshot.js": {
+      "lines": 93.16,
+      "branches": 85.71
+    },
+    "lib/external-client-mutation-receipt-owner.js": {
+      "lines": 92.59,
+      "branches": 91.83
+    },
+    "lib/external-client-package-gate-inputs.js": {
+      "lines": 85,
+      "branches": 82.35
+    },
+    "lib/external-client-package-gate-verify.js": {
+      "lines": 83.33,
+      "branches": 80
+    },
+    "lib/external-client-package-gate.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-client-production-boundary.js": {
+      "lines": 93.14,
+      "branches": 74
+    },
+    "lib/external-client-replay-store-contract.js": {
+      "lines": 97.82,
+      "branches": 80
+    },
+    "lib/external-client-replay-store-schema.js": {
+      "lines": 87.64,
+      "branches": 68.96
+    },
+    "lib/external-client-replay-store-snapshot.js": {
+      "lines": 94.85,
+      "branches": 88.52
+    },
+    "lib/external-client-replay-store.js": {
+      "lines": 97.59,
+      "branches": 95.23
+    },
+    "lib/external-client-trust-config-guards.js": {
+      "lines": 94.18,
+      "branches": 89.09
+    },
+    "lib/external-client-trust-config-keys.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/external-client-trust-config.js": {
+      "lines": 96.62,
+      "branches": 91.66
+    },
+    "lib/external-client-trusted-key-snapshot.js": {
+      "lines": 95.2,
+      "branches": 84.48
+    },
+    "lib/file-effect-sensor.js": {
+      "lines": 98.63,
+      "branches": 97.36
+    },
+    "lib/finalizer-causal-normalize.js": {
+      "lines": 93.28,
+      "branches": 67.85
+    },
+    "lib/finalizer-causal-summary.js": {
+      "lines": 100,
+      "branches": 85.85
+    },
+    "lib/finalizer-run-summary.js": {
+      "lines": 97.72,
+      "branches": 82.41
+    },
+    "lib/finalizer-text.js": {
+      "lines": 98.14,
+      "branches": 80.95
+    },
+    "lib/financial-action-policy.js": {
+      "lines": 98.92,
+      "branches": 94.52
+    },
+    "lib/financial-aggregation.js": {
+      "lines": 93.44,
+      "branches": 71.95
+    },
+    "lib/fitness-history.js": {
+      "lines": 87.5,
+      "branches": 77.77
+    },
+    "lib/fluent-answer.js": {
+      "lines": 88.65,
+      "branches": 72
+    },
+    "lib/fractal-learn-autotune.js": {
+      "lines": 100,
+      "branches": 85.71
+    },
+    "lib/fractal-learn.js": {
+      "lines": 94.8,
+      "branches": 69.23
+    },
+    "lib/fuzzy-normalization.js": {
+      "lines": 100,
+      "branches": 81.81
+    },
+    "lib/gate-hook-evaluate.js": {
+      "lines": 87.5,
+      "branches": 78.78
+    },
+    "lib/gate-hook-identity.js": {
+      "lines": 100,
+      "branches": 25
+    },
+    "lib/gate-hook-input.js": {
+      "lines": 76.05,
+      "branches": 90.9
+    },
+    "lib/gate-hook-management.js": {
+      "lines": 32.37,
+      "branches": 40
+    },
+    "lib/gate-hook-reports.js": {
+      "lines": 32,
+      "branches": 100
+    },
+    "lib/gate-telemetry.js": {
+      "lines": 100,
+      "branches": 96
+    },
+    "lib/github-app-beta-auth.js": {
+      "lines": 88.71,
+      "branches": 70
+    },
+    "lib/github-app-beta-handler.js": {
+      "lines": 92.71,
+      "branches": 74.57
+    },
+    "lib/github-app-beta-http-boundary.js": {
+      "lines": 94.2,
+      "branches": 66.66
+    },
+    "lib/github-app-beta-http-config.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/github-app-beta-http-errors.js": {
+      "lines": 75.25,
+      "branches": 68.75
+    },
+    "lib/github-app-beta-http-responses.js": {
+      "lines": 97.29,
+      "branches": 56
+    },
+    "lib/github-app-beta-store.js": {
+      "lines": 83.33,
+      "branches": 71.87
+    },
+    "lib/github-app-streaming-auth.js": {
+      "lines": 97.53,
+      "branches": 96.55
+    },
+    "lib/github-app-streaming-trust-binding.js": {
+      "lines": 95.91,
+      "branches": 66.66
+    },
+    "lib/github-app-streaming-trust-check-run.js": {
+      "lines": 97.01,
+      "branches": 88.23
+    },
+    "lib/github-app-streaming-trust-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/github-app-streaming-trust-github-api.js": {
+      "lines": 87.86,
+      "branches": 78
+    },
+    "lib/github-app-streaming-trust-handler.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/github-app-streaming-trust-receipt.js": {
+      "lines": 99.03,
+      "branches": 78.94
+    },
+    "lib/github-app-streaming-trust-store-files.js": {
+      "lines": 74.48,
+      "branches": 50
+    },
+    "lib/github-app-streaming-trust-store-records.js": {
+      "lines": 94.4,
+      "branches": 68.75
+    },
+    "lib/github-app-streaming-trust-store.js": {
+      "lines": 86.22,
+      "branches": 74.5
+    },
+    "lib/github-app-streaming-trust.js": {
+      "lines": 89.75,
+      "branches": 81.81
+    },
+    "lib/github-connector-ingest.js": {
+      "lines": 93.75,
+      "branches": 48.07
+    },
+    "lib/github-connector-normalize.js": {
+      "lines": 94.33,
+      "branches": 82.02
+    },
+    "lib/github-connector-provenance.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "lib/github-url.js": {
+      "lines": 95.55,
+      "branches": 86.66
+    },
+    "lib/goal-binding.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/goal-integrity-gate.js": {
+      "lines": 100,
+      "branches": 88.23
+    },
+    "lib/graduated-autonomy.js": {
+      "lines": 97.63,
+      "branches": 83.63
+    },
+    "lib/graph-candidate-claims-read.js": {
+      "lines": 96.77,
+      "branches": 68.75
+    },
+    "lib/graph-candidate-claims-write.js": {
+      "lines": 100,
+      "branches": 91.66
+    },
+    "lib/graph-causal-chain.js": {
+      "lines": 100,
+      "branches": 91.3
+    },
+    "lib/graph-chain-traversal.js": {
+      "lines": 100,
+      "branches": 85.36
+    },
+    "lib/graph-consolidate-edges.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-cycle-search.js": {
+      "lines": 98.21,
+      "branches": 94.11
+    },
+    "lib/graph-edge-mutations.js": {
+      "lines": 100,
+      "branches": 81.63
+    },
+    "lib/graph-edge-read.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-edge-write.js": {
+      "lines": 100,
+      "branches": 79.16
+    },
+    "lib/graph-hypotheses.js": {
+      "lines": 98.79,
+      "branches": 83.92
+    },
+    "lib/graph-json-persistence.js": {
+      "lines": 100,
+      "branches": 96.77
+    },
+    "lib/graph-json-snapshot.js": {
+      "lines": 100,
+      "branches": 90.9
+    },
+    "lib/graph-json-transaction.js": {
+      "lines": 96.36,
+      "branches": 77.77
+    },
+    "lib/graph-mutation-receipt-read.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-mutation-receipt-schema.js": {
+      "lines": 95.23,
+      "branches": 93.33
+    },
+    "lib/graph-mutation-receipt-write.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-mutation-rollback.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/graph-mutation-runtime.js": {
+      "lines": 87.95,
+      "branches": 87.34
+    },
+    "lib/graph-node-read.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-node-write.js": {
+      "lines": 100,
+      "branches": 97.05
+    },
+    "lib/graph-optimize.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-path-search.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-persistence-runtime.js": {
+      "lines": 100,
+      "branches": 51.78
+    },
+    "lib/graph-record-utils-edges.js": {
+      "lines": 89.26,
+      "branches": 58.69
+    },
+    "lib/graph-record-utils-nodes.js": {
+      "lines": 88.88,
+      "branches": 86.95
+    },
+    "lib/graph-record-utils.js": {
+      "lines": 100,
+      "branches": 81.81
+    },
+    "lib/graph-sqlite-pragmas.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/graph-sqlite-schema.js": {
+      "lines": 100,
+      "branches": 65.85
+    },
+    "lib/graph-store-adapters.js": {
+      "lines": 100,
+      "branches": 86.25
+    },
+    "lib/graph-store-port.js": {
+      "lines": 97.67,
+      "branches": 90.47
+    },
+    "lib/graph-traversal.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http-human-oversight-adapter-identity.js": {
+      "lines": 84.04,
+      "branches": 38.88
+    },
+    "lib/http-human-oversight-adapter-input.js": {
+      "lines": 93.49,
+      "branches": 54.83
+    },
+    "lib/http-human-oversight-adapter.js": {
+      "lines": 89.56,
+      "branches": 62.16
+    },
+    "lib/http-trust-query.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/agent-workflow-routes.js": {
+      "lines": 93.54,
+      "branches": 73.68
+    },
+    "lib/http/answer-route.js": {
+      "lines": 32.87,
+      "branches": 100
+    },
+    "lib/http/background-timers.js": {
+      "lines": 97.77,
+      "branches": 100
+    },
+    "lib/http/claim-read-route.js": {
+      "lines": 95.23,
+      "branches": 95.23
+    },
+    "lib/http/command-policy-route.js": {
+      "lines": 100,
+      "branches": 82.35
+    },
+    "lib/http/core-http-routes.js": {
+      "lines": 75.94,
+      "branches": 80.48
+    },
+    "lib/http/crash-recovery-inventory.js": {
+      "lines": 97.11,
+      "branches": 100
+    },
+    "lib/http/deployment-gated-route-auth.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/emergency-stop-routes.js": {
+      "lines": 100,
+      "branches": 92.68
+    },
+    "lib/http/experience-read-route.js": {
+      "lines": 95.23,
+      "branches": 61.9
+    },
+    "lib/http/external-action-receipt-collector-route.js": {
+      "lines": 95.58,
+      "branches": 65.38
+    },
+    "lib/http/fitness-dashboard-route.js": {
+      "lines": 40.84,
+      "branches": 75
+    },
+    "lib/http/graceful-shutdown.js": {
+      "lines": 89.36,
+      "branches": 53.84
+    },
+    "lib/http/http-provenance.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/identity-mutation-admission.js": {
+      "lines": 90,
+      "branches": 35.29
+    },
+    "lib/http/ingest-approval-audit-writer.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/http/ingest-approval-runtime.js": {
+      "lines": 74.6,
+      "branches": 66.66
+    },
+    "lib/http/ingest-http-routes.js": {
+      "lines": 67.3,
+      "branches": 59.45
+    },
+    "lib/http/memory-approval-routes.js": {
+      "lines": 96.74,
+      "branches": 78.57
+    },
+    "lib/http/optional-boundaries.js": {
+      "lines": 100,
+      "branches": 91.17
+    },
+    "lib/http/pr-guardian-auth.js": {
+      "lines": 100,
+      "branches": 93.33
+    },
+    "lib/http/pr-guardian-body.js": {
+      "lines": 100,
+      "branches": 89.47
+    },
+    "lib/http/pr-guardian-routes.js": {
+      "lines": 77.48,
+      "branches": 83.63
+    },
+    "lib/http/pr-guardian-ui-route.js": {
+      "lines": 83.33,
+      "branches": 60
+    },
+    "lib/http/pr-guardian-webhook-route.js": {
+      "lines": 63.33,
+      "branches": 38.88
+    },
+    "lib/http/process-failure-handlers.js": {
+      "lines": 95.83,
+      "branches": 93.54
+    },
+    "lib/http/public-api-commands.js": {
+      "lines": 94.73,
+      "branches": 75
+    },
+    "lib/http/public-api-route.js": {
+      "lines": 81.81,
+      "branches": 84.61
+    },
+    "lib/http/public-badge-route.js": {
+      "lines": 84.89,
+      "branches": 58.44
+    },
+    "lib/http/read-workflow-actions.js": {
+      "lines": 92.88,
+      "branches": 82.1
+    },
+    "lib/http/receipt-read-failures.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/receipt-read-route.js": {
+      "lines": 95.38,
+      "branches": 85.71
+    },
+    "lib/http/request-origin.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/route-auth-policy.js": {
+      "lines": 99.75,
+      "branches": 93.02
+    },
+    "lib/http/runtime-status.js": {
+      "lines": 97.29,
+      "branches": 63.63
+    },
+    "lib/http/server-boot.js": {
+      "lines": 93.44,
+      "branches": 71.42
+    },
+    "lib/http/server-ingest-workflow-runtime.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/server-read-route-runtime.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/server-request-handler.js": {
+      "lines": 75.28,
+      "branches": 92.2
+    },
+    "lib/http/server-route-runtime.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/server-timeouts.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/static-assets.js": {
+      "lines": 98.81,
+      "branches": 69.23
+    },
+    "lib/http/structured-log.js": {
+      "lines": 100,
+      "branches": 85.24
+    },
+    "lib/http/trust-query-routes.js": {
+      "lines": 95.16,
+      "branches": 92.5
+    },
+    "lib/http/upload-admission-contract.js": {
+      "lines": 100,
+      "branches": 86.36
+    },
+    "lib/http/v2-status-phases.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/v5-package-import-route.js": {
+      "lines": 90.35,
+      "branches": 84.44
+    },
+    "lib/http/v5-preflight-route.js": {
+      "lines": 95.6,
+      "branches": 73.91
+    },
+    "lib/http/v5-route-mounts.js": {
+      "lines": 91.48,
+      "branches": 75
+    },
+    "lib/http/viewer-mount.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/http/workflow-contract-route.js": {
+      "lines": 88.88,
+      "branches": 90
+    },
+    "lib/http/workflow-data-approval-helpers.js": {
+      "lines": 67.92,
+      "branches": 73.33
+    },
+    "lib/http/workflow-data-route-groups.js": {
+      "lines": 84.8,
+      "branches": 69.71
+    },
+    "lib/http/workflow-data-routes.js": {
+      "lines": 94.73,
+      "branches": 83.33
+    },
+    "lib/http/workflow-envelope.js": {
+      "lines": 100,
+      "branches": 81.81
+    },
+    "lib/http/workflow-request-validation.js": {
+      "lines": 100,
+      "branches": 98.75
+    },
+    "lib/human-approval-toggle.js": {
+      "lines": 100,
+      "branches": 86.36
+    },
+    "lib/human-oversight-approval-runtime-cases.js": {
+      "lines": 95.45,
+      "branches": 62.5
+    },
+    "lib/human-oversight-approval-runtime-decide.js": {
+      "lines": 93.1,
+      "branches": 78.26
+    },
+    "lib/human-oversight-approval-runtime-execution.js": {
+      "lines": 91.7,
+      "branches": 67.03
+    },
+    "lib/human-oversight-approval-runtime-primitives-normalize.js": {
+      "lines": 93.24,
+      "branches": 78.26
+    },
+    "lib/human-oversight-approval-runtime-primitives-values.js": {
+      "lines": 97.51,
+      "branches": 62.85
+    },
+    "lib/human-oversight-approval-runtime-primitives.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/human-oversight-approval-runtime-state.js": {
+      "lines": 94.82,
+      "branches": 74.35
+    },
+    "lib/human-oversight-approval-runtime.js": {
+      "lines": 90.09,
+      "branches": 40
+    },
+    "lib/human-sponsor-authority.js": {
+      "lines": 100,
+      "branches": 93.54
+    },
+    "lib/huqan-package-format-primitives.js": {
+      "lines": 100,
+      "branches": 89.28
+    },
+    "lib/huqan-package-format-validators.js": {
+      "lines": 84.93,
+      "branches": 72.09
+    },
+    "lib/huqan-package-format.js": {
+      "lines": 85.44,
+      "branches": 79.31
+    },
+    "lib/huqan-state-root.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/hypothesis-feedback.js": {
+      "lines": 100,
+      "branches": 95.83
+    },
+    "lib/hypothesis-fitness.js": {
+      "lines": 99.28,
+      "branches": 90.9
+    },
+    "lib/hypothesis-review-audit.js": {
+      "lines": 88,
+      "branches": 40
+    },
+    "lib/hypothesis-review.js": {
+      "lines": 98.63,
+      "branches": 86.66
+    },
+    "lib/hypothesis-thresholds.js": {
+      "lines": 97.97,
+      "branches": 88.63
+    },
+    "lib/hypothesis-tuning.js": {
+      "lines": 100,
+      "branches": 81.81
+    },
+    "lib/identity-privilege-escalation.js": {
+      "lines": 100,
+      "branches": 85.24
+    },
+    "lib/impact-budget-gate.js": {
+      "lines": 95.29,
+      "branches": 85.96
+    },
+    "lib/impact-budget-ledger.js": {
+      "lines": 95.6,
+      "branches": 86
+    },
+    "lib/incident-envelope.js": {
+      "lines": 96.69,
+      "branches": 87.87
+    },
+    "lib/inference-abduction-values.js": {
+      "lines": 92.76,
+      "branches": 73.25
+    },
+    "lib/inference-abduction.js": {
+      "lines": 88.07,
+      "branches": 69.41
+    },
+    "lib/inference-backward-values.js": {
+      "lines": 98.29,
+      "branches": 88
+    },
+    "lib/inference-backward.js": {
+      "lines": 87,
+      "branches": 89.7
+    },
+    "lib/inference-belief-revision-values.js": {
+      "lines": 90.14,
+      "branches": 70.83
+    },
+    "lib/inference-belief-revision.js": {
+      "lines": 88.76,
+      "branches": 74.62
+    },
+    "lib/inference-derived-admission.js": {
+      "lines": 79.75,
+      "branches": 61.53
+    },
+    "lib/inference-derived-dependency.js": {
+      "lines": 89.28,
+      "branches": 61.4
+    },
+    "lib/inference-derived-record.js": {
+      "lines": 94.2,
+      "branches": 83.69
+    },
+    "lib/inference-rule-ir.js": {
+      "lines": 84.21,
+      "branches": 77.46
+    },
+    "lib/inference-semi-naive-join.js": {
+      "lines": 70.49,
+      "branches": 78.78
+    },
+    "lib/inference-semi-naive-values.js": {
+      "lines": 98.84,
+      "branches": 87.83
+    },
+    "lib/inference-semi-naive.js": {
+      "lines": 90.47,
+      "branches": 89.18
+    },
+    "lib/inference-unification.js": {
+      "lines": 80.43,
+      "branches": 80.43
+    },
+    "lib/ingest-approval.js": {
+      "lines": 91.39,
+      "branches": 85.29
+    },
+    "lib/ingest-capability.js": {
+      "lines": 98.05,
+      "branches": 70.12
+    },
+    "lib/ingest-snapshot-build.js": {
+      "lines": 91.75,
+      "branches": 78.31
+    },
+    "lib/ingest-snapshot-verify.js": {
+      "lines": 95.06,
+      "branches": 83.78
+    },
+    "lib/ingest-values.js": {
+      "lines": 99.14,
+      "branches": 88.88
+    },
+    "lib/ingest-workflow-preview.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/ingest-workflow-run.js": {
+      "lines": 100,
+      "branches": 88.23
+    },
+    "lib/ingest.js": {
+      "lines": 93.67,
+      "branches": 58.33
+    },
+    "lib/integrity-violation-notifier.js": {
+      "lines": 94.4,
+      "branches": 52.27
+    },
+    "lib/interop/otel-mapping.js": {
+      "lines": 95.06,
+      "branches": 71.79
+    },
+    "lib/interop/vc-mapping.js": {
+      "lines": 94.98,
+      "branches": 84.05
+    },
+    "lib/issuer-seal-config.js": {
+      "lines": 96.36,
+      "branches": 90.9
+    },
+    "lib/json-object.js": {
+      "lines": 100,
+      "branches": 92.3
+    },
+    "lib/json-utf8-size.js": {
+      "lines": 88.96,
+      "branches": 85.07
+    },
+    "lib/kernel-alternatives.js": {
+      "lines": 100,
+      "branches": 89.65
+    },
+    "lib/kernel-auto-think.js": {
+      "lines": 97.14,
+      "branches": 86.66
+    },
+    "lib/kernel-capability-methods.js": {
+      "lines": 97.14,
+      "branches": 96.15
+    },
+    "lib/kernel-cognition-methods.js": {
+      "lines": 84.21,
+      "branches": 100
+    },
+    "lib/kernel-context-similarity.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/kernel-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/kernel-cross-link.js": {
+      "lines": 100,
+      "branches": 90.9
+    },
+    "lib/kernel-dream.js": {
+      "lines": 100,
+      "branches": 84.21
+    },
+    "lib/kernel-envelope.js": {
+      "lines": 100,
+      "branches": 86.84
+    },
+    "lib/kernel-factory.js": {
+      "lines": 100,
+      "branches": 88.23
+    },
+    "lib/kernel-introspect-report.js": {
+      "lines": 100,
+      "branches": 86.66
+    },
+    "lib/kernel-learn-admission.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/kernel-learn-document.js": {
+      "lines": 100,
+      "branches": 93.33
+    },
+    "lib/kernel-learn-from-llm.js": {
+      "lines": 100,
+      "branches": 93.75
+    },
+    "lib/kernel-learn-input-methods.js": {
+      "lines": 97.67,
+      "branches": 68.75
+    },
+    "lib/kernel-learn-transaction.js": {
+      "lines": 100,
+      "branches": 88.23
+    },
+    "lib/kernel-mutation-admission.js": {
+      "lines": 100,
+      "branches": 97.77
+    },
+    "lib/kernel-persistence-methods.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/kernel-primitive-methods.js": {
+      "lines": 94.07,
+      "branches": 100
+    },
+    "lib/kernel-propose-node.js": {
+      "lines": 100,
+      "branches": 84
+    },
+    "lib/kernel-read-methods.js": {
+      "lines": 96.03,
+      "branches": 100
+    },
+    "lib/kernel-read-use-cases-analysis.js": {
+      "lines": 100,
+      "branches": 95
+    },
+    "lib/kernel-read-use-cases-ask.js": {
+      "lines": 98.66,
+      "branches": 78.33
+    },
+    "lib/kernel-read-use-cases-language.js": {
+      "lines": 95.6,
+      "branches": 83.33
+    },
+    "lib/kernel-read-use-cases.js": {
+      "lines": 95.34,
+      "branches": 60
+    },
+    "lib/kernel-self-evolve.js": {
+      "lines": 100,
+      "branches": 97.82
+    },
+    "lib/kernel-v2-contradiction.js": {
+      "lines": 100,
+      "branches": 92.1
+    },
+    "lib/kernel-v2-evidence-methods.js": {
+      "lines": 100,
+      "branches": 81.35
+    },
+    "lib/kernel-v2-evidence.js": {
+      "lines": 100,
+      "branches": 82.75
+    },
+    "lib/kernel-v2-forwarding.js": {
+      "lines": 91.3,
+      "branches": 80.55
+    },
+    "lib/kernel-v2-native.js": {
+      "lines": 100,
+      "branches": 84.44
+    },
+    "lib/kernel-v2-type-negation.js": {
+      "lines": 100,
+      "branches": 96.15
+    },
+    "lib/kernel-v2-verify.js": {
+      "lines": 100,
+      "branches": 87.09
+    },
+    "lib/learn-admission-request.js": {
+      "lines": 100,
+      "branches": 98.14
+    },
+    "lib/learn-edge-options.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "lib/learn-use-case-provenance.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/learn-use-case-steps.js": {
+      "lines": 97.82,
+      "branches": 75
+    },
+    "lib/learn-use-case.js": {
+      "lines": 77.69,
+      "branches": 78.78
+    },
+    "lib/legacy-alias-usage.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/llm-proxy/proxy-config.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/llm-proxy/proxy-handler.js": {
+      "lines": 93.94,
+      "branches": 76.13
+    },
+    "lib/llm-proxy/proxy-mount.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-agent-approval-execution.js": {
+      "lines": 70.11,
+      "branches": 53.06
+    },
+    "lib/mcp-agent-continuation.js": {
+      "lines": 79.28,
+      "branches": 69.09
+    },
+    "lib/mcp-approval-admission.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-approval-decision-handler.js": {
+      "lines": 93.96,
+      "branches": 80.59
+    },
+    "lib/mcp-approval-learn-execution.js": {
+      "lines": 81.25,
+      "branches": 84.37
+    },
+    "lib/mcp-approval-store.js": {
+      "lines": 98.82,
+      "branches": 95.23
+    },
+    "lib/mcp-approval-views.js": {
+      "lines": 98.28,
+      "branches": 78.99
+    },
+    "lib/mcp-capability-nonce-store.js": {
+      "lines": 94.73,
+      "branches": 80
+    },
+    "lib/mcp-configuration-errors.js": {
+      "lines": 98.46,
+      "branches": 95
+    },
+    "lib/mcp-envelope-format.js": {
+      "lines": 100,
+      "branches": 90
+    },
+    "lib/mcp-envelope-schema.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-gate-adapter-action-gates.js": {
+      "lines": 87.75,
+      "branches": 77.14
+    },
+    "lib/mcp-gate-adapter-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-gate-adapter-data-gates.js": {
+      "lines": 88.78,
+      "branches": 72.72
+    },
+    "lib/mcp-gate-adapter-decisions.js": {
+      "lines": 100,
+      "branches": 86.84
+    },
+    "lib/mcp-gate-adapter-inputs.js": {
+      "lines": 98.81,
+      "branches": 85.71
+    },
+    "lib/mcp-gate-adapter.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-human-oversight-adapter.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-ingest-execute-tool.js": {
+      "lines": 91.28,
+      "branches": 66.66
+    },
+    "lib/mcp-ingest-status-tool.js": {
+      "lines": 100,
+      "branches": 78.94
+    },
+    "lib/mcp-input-sanitizers.js": {
+      "lines": 98.96,
+      "branches": 95.23
+    },
+    "lib/mcp-operator-capability.js": {
+      "lines": 93.03,
+      "branches": 84.05
+    },
+    "lib/mcp-oversight-cases.js": {
+      "lines": 98.05,
+      "branches": 90.27
+    },
+    "lib/mcp-oversight-identity.js": {
+      "lines": 94.44,
+      "branches": 77.19
+    },
+    "lib/mcp-oversight-input.js": {
+      "lines": 98.62,
+      "branches": 84.9
+    },
+    "lib/mcp-tool-catalog-core.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-catalog-governance.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-catalog-ingest.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-catalog-reasoning.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-catalog-trust.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-catalog.js": {
+      "lines": 100,
+      "branches": 57.14
+    },
+    "lib/mcp-tool-data-schemas-agent.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-data-schemas-governance.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-data-schemas-ingest.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-data-schemas-knowledge.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-data-schemas-trust.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-data-schemas.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp-tool-names.js": {
+      "lines": 99.07,
+      "branches": 92.68
+    },
+    "lib/mcp-tool-policy.js": {
+      "lines": 100,
+      "branches": 88.88
+    },
+    "lib/mcp/approval-detail-tool.js": {
+      "lines": 94.79,
+      "branches": 92.85
+    },
+    "lib/mcp/compliance-audit-tool.js": {
+      "lines": 82.69,
+      "branches": 33.33
+    },
+    "lib/mcp/experience-read-tool.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/mcp/fractal-learn-tool.js": {
+      "lines": 54.54,
+      "branches": 100
+    },
+    "lib/mcp/gate-refusal.js": {
+      "lines": 92.5,
+      "branches": 80
+    },
+    "lib/mcp/json-rpc-handler.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp/operator-authorization.js": {
+      "lines": 100,
+      "branches": 91.66
+    },
+    "lib/mcp/operator-tool-schemas.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp/read-workflow-tools.js": {
+      "lines": 93.54,
+      "branches": 80.95
+    },
+    "lib/mcp/response-builders.js": {
+      "lines": 99.04,
+      "branches": 86.1
+    },
+    "lib/mcp/self-evolve-tool.js": {
+      "lines": 100,
+      "branches": 50
+    },
+    "lib/mcp/server-lifecycle.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp/stdio-transport.js": {
+      "lines": 80.13,
+      "branches": 76.19
+    },
+    "lib/mcp/system-status-tool.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/mcp/tool-dispatch.js": {
+      "lines": 93.92,
+      "branches": 95.08
+    },
+    "lib/mcp/tool-handlers.js": {
+      "lines": 93.75,
+      "branches": 89.18
+    },
+    "lib/mcp/tool-surface.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/mcp/transient-agent.js": {
+      "lines": 94.54,
+      "branches": 81.81
+    },
+    "lib/mcp/trust-receipt-detail-tool.js": {
+      "lines": 100,
+      "branches": 63.63
+    },
+    "lib/memory-admission-gate-contract.js": {
+      "lines": 99.02,
+      "branches": 82.92
+    },
+    "lib/memory-admission-gate-receipt.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/memory-admission-gate-request.js": {
+      "lines": 98.82,
+      "branches": 87.05
+    },
+    "lib/memory-admission-gate.js": {
+      "lines": 100,
+      "branches": 95.55
+    },
+    "lib/memory-blast-radius.js": {
+      "lines": 100,
+      "branches": 89.7
+    },
+    "lib/memory-event-read.js": {
+      "lines": 84.15,
+      "branches": 59.37
+    },
+    "lib/memory-link-read.js": {
+      "lines": 88.92,
+      "branches": 74.48
+    },
+    "lib/memory-link-write.js": {
+      "lines": 92.85,
+      "branches": 81.57
+    },
+    "lib/memory-mutation-gate/index.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-mutation-gate/memory-mutation-classifier.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-mutation-gate/memory-mutation-decision.js": {
+      "lines": 95.02,
+      "branches": 66.12
+    },
+    "lib/memory-mutation-gate/memory-mutation-entry-predicates.js": {
+      "lines": 100,
+      "branches": 97.29
+    },
+    "lib/memory-mutation-gate/memory-mutation-findings-summary.js": {
+      "lines": 91.27,
+      "branches": 69.38
+    },
+    "lib/memory-mutation-gate/memory-mutation-normalizer.js": {
+      "lines": 95.88,
+      "branches": 87.5
+    },
+    "lib/memory-mutation-gate/memory-mutation-vocabulary.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-package-export.js": {
+      "lines": 98.43,
+      "branches": 92.5
+    },
+    "lib/memory-package-import-runner.js": {
+      "lines": 94.38,
+      "branches": 91.3
+    },
+    "lib/memory-package-import.js": {
+      "lines": 95.2,
+      "branches": 91.3
+    },
+    "lib/memory-patch-metadata.js": {
+      "lines": 92.52,
+      "branches": 83.87
+    },
+    "lib/memory-persistence-paths.js": {
+      "lines": 92.85,
+      "branches": 82.35
+    },
+    "lib/memory-query-engine.js": {
+      "lines": 93.56,
+      "branches": 84.87
+    },
+    "lib/memory-recall-gate.js": {
+      "lines": 98.52,
+      "branches": 94.36
+    },
+    "lib/memory-record-read.js": {
+      "lines": 98.77,
+      "branches": 95.87
+    },
+    "lib/memory-record-utils.js": {
+      "lines": 98.55,
+      "branches": 60.82
+    },
+    "lib/memory-schema-checks.js": {
+      "lines": 91.95,
+      "branches": 88.88
+    },
+    "lib/memory-schema-normalize.js": {
+      "lines": 96.38,
+      "branches": 81.39
+    },
+    "lib/memory-schema-package.js": {
+      "lines": 88.32,
+      "branches": 68.62
+    },
+    "lib/memory-schema-types.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-schema-validate.js": {
+      "lines": 81.14,
+      "branches": 70
+    },
+    "lib/memory-schema.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-store-json-persistence.js": {
+      "lines": 89,
+      "branches": 80.72
+    },
+    "lib/memory-store-persistence-report.js": {
+      "lines": 100,
+      "branches": 92.85
+    },
+    "lib/memory-store-port.js": {
+      "lines": 100,
+      "branches": 97.36
+    },
+    "lib/memory-store-read-methods.js": {
+      "lines": 99.18,
+      "branches": 100
+    },
+    "lib/memory-store-reopen.js": {
+      "lines": 96.59,
+      "branches": 88.88
+    },
+    "lib/memory-store-rollback.js": {
+      "lines": 100,
+      "branches": 83.33
+    },
+    "lib/memory-store-sqlite-warmup.js": {
+      "lines": 92.12,
+      "branches": 73.68
+    },
+    "lib/memory-store-sqlite-writer.js": {
+      "lines": 100,
+      "branches": 97.22
+    },
+    "lib/memory-store-utils.js": {
+      "lines": 100,
+      "branches": 84.44
+    },
+    "lib/memory-store-write-methods.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-store-write.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-store.js": {
+      "lines": 100,
+      "branches": 90.69
+    },
+    "lib/memory-supersede.js": {
+      "lines": 94.7,
+      "branches": 75
+    },
+    "lib/memory-temporal.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/memory-tombstone.js": {
+      "lines": 92.94,
+      "branches": 80
+    },
+    "lib/module-reachability-walk.js": {
+      "lines": 89.82,
+      "branches": 83.92
+    },
+    "lib/module-reachability.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/multi-agent-cascade-guard.js": {
+      "lines": 95,
+      "branches": 86.53
+    },
+    "lib/mutation-admission.js": {
+      "lines": 97.68,
+      "branches": 93.84
+    },
+    "lib/mutation-journal-lock.js": {
+      "lines": 91.73,
+      "branches": 82.5
+    },
+    "lib/mutation-journal.js": {
+      "lines": 96.98,
+      "branches": 90.52
+    },
+    "lib/observability/agent-worker.js": {
+      "lines": 87.5,
+      "branches": 64.58
+    },
+    "lib/observability/alert-lifecycle.js": {
+      "lines": 96.55,
+      "branches": 73.17
+    },
+    "lib/observability/api-contract-schemas.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/observability/api-contract-spec.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/observability/api-contract.js": {
+      "lines": 90.38,
+      "branches": 100
+    },
+    "lib/observability/authorization.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/observability/client.js": {
+      "lines": 93.89,
+      "branches": 80
+    },
+    "lib/observability/health.js": {
+      "lines": 90.62,
+      "branches": 83.33
+    },
+    "lib/observability/helpers.js": {
+      "lines": 98.9,
+      "branches": 85.13
+    },
+    "lib/observability/http-router.js": {
+      "lines": 92.47,
+      "branches": 88.67
+    },
+    "lib/observability/instrumentation-marker.js": {
+      "lines": 90,
+      "branches": 50
+    },
+    "lib/observability/internal-metrics.js": {
+      "lines": 100,
+      "branches": 77.35
+    },
+    "lib/observability/kernel-sink.js": {
+      "lines": 93.42,
+      "branches": 94.44
+    },
+    "lib/observability/migrations.js": {
+      "lines": 93.02,
+      "branches": 80
+    },
+    "lib/observability/notification-adapter.js": {
+      "lines": 95.92,
+      "branches": 74.5
+    },
+    "lib/observability/rate-limiter.js": {
+      "lines": 91.78,
+      "branches": 75.51
+    },
+    "lib/observability/retention.js": {
+      "lines": 100,
+      "branches": 72.72
+    },
+    "lib/observability/schema.js": {
+      "lines": 98.52,
+      "branches": 83.33
+    },
+    "lib/observability/server-runtime.js": {
+      "lines": 70.27,
+      "branches": 60
+    },
+    "lib/observability/service-alert-rules.js": {
+      "lines": 80.35,
+      "branches": 76.47
+    },
+    "lib/observability/service-constants.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/observability/service-events.js": {
+      "lines": 92.92,
+      "branches": 82.85
+    },
+    "lib/observability/service-jobs.js": {
+      "lines": 97.05,
+      "branches": 61.11
+    },
+    "lib/observability/service-queries.js": {
+      "lines": 97.47,
+      "branches": 96.29
+    },
+    "lib/observability/service-runs.js": {
+      "lines": 97.72,
+      "branches": 72.65
+    },
+    "lib/observability/service-statements.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/observability/service.js": {
+      "lines": 98.31,
+      "branches": 86.66
+    },
+    "lib/observability/sse-stream-lifecycle.js": {
+      "lines": 94.23,
+      "branches": 54.54
+    },
+    "lib/observability/workflow-agent-instrumentation.js": {
+      "lines": 16.27,
+      "branches": 100
+    },
+    "lib/path-safety.js": {
+      "lines": 97.46,
+      "branches": 87.5
+    },
+    "lib/pilot/test-database-boundary.js": {
+      "lines": 100,
+      "branches": 93.33
+    },
+    "lib/pilot/trust-receipt-pilot-archive.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/pilot/trust-receipt-pilot.js": {
+      "lines": 95.39,
+      "branches": 84.25
+    },
+    "lib/plugin-capability-records.js": {
+      "lines": 100,
+      "branches": 90.47
+    },
+    "lib/plugin-manager-events.js": {
+      "lines": 100,
+      "branches": 86.95
+    },
+    "lib/plugin-manager-grants.js": {
+      "lines": 94.59,
+      "branches": 81.15
+    },
+    "lib/plugin-manager-provenance.js": {
+      "lines": 79.38,
+      "branches": 69.23
+    },
+    "lib/plugin-manager-register.js": {
+      "lines": 96.84,
+      "branches": 94.44
+    },
+    "lib/plugin-provenance-registry.js": {
+      "lines": 89.78,
+      "branches": 80.76
+    },
+    "lib/plugin-verification.js": {
+      "lines": 83.23,
+      "branches": 83.33
+    },
+    "lib/post-action-monitor.js": {
+      "lines": 100,
+      "branches": 85.96
+    },
+    "lib/post-incident-review.js": {
+      "lines": 96.34,
+      "branches": 75
+    },
+    "lib/pr-guardian/derivation-check.js": {
+      "lines": 100,
+      "branches": 95.45
+    },
+    "lib/pr-guardian/derivation-fetch.js": {
+      "lines": 98.33,
+      "branches": 77.14
+    },
+    "lib/pr-guardian/github-client.js": {
+      "lines": 84.73,
+      "branches": 50
+    },
+    "lib/pr-guardian/index.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/pr-guardian/policy.js": {
+      "lines": 98.79,
+      "branches": 94.62
+    },
+    "lib/pr-guardian/review-receipt.js": {
+      "lines": 100,
+      "branches": 88.88
+    },
+    "lib/pr-guardian/review-service-execute.js": {
+      "lines": 89.59,
+      "branches": 66.66
+    },
+    "lib/pr-guardian/review-service.js": {
+      "lines": 91.3,
+      "branches": 52.17
+    },
+    "lib/pr-guardian/snapshot.js": {
+      "lines": 96.77,
+      "branches": 73.8
+    },
+    "lib/pre-ingest.js": {
+      "lines": 100,
+      "branches": 83.33
+    },
+    "lib/predicate-parser.js": {
+      "lines": 98.93,
+      "branches": 86.36
+    },
+    "lib/prediction-outcome-pairs.js": {
+      "lines": 96.83,
+      "branches": 88.29
+    },
+    "lib/provenance-ingest-adapter.js": {
+      "lines": 95.69,
+      "branches": 58.82
+    },
+    "lib/provenance-ingest.js": {
+      "lines": 100,
+      "branches": 83.33
+    },
+    "lib/provenance-query-audit-page.js": {
+      "lines": 100,
+      "branches": 78.57
+    },
+    "lib/provenance-query-query-helpers.js": {
+      "lines": 100,
+      "branches": 42.85
+    },
+    "lib/provenance-query-records.js": {
+      "lines": 100,
+      "branches": 78.57
+    },
+    "lib/provenance-query-shapes.js": {
+      "lines": 95.28,
+      "branches": 57.95
+    },
+    "lib/provenance-query-trust-receipt.js": {
+      "lines": 100,
+      "branches": 85.36
+    },
+    "lib/provenance-query.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/provenance-record-utils.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/quickstart-cli.js": {
+      "lines": 97.84,
+      "branches": 63.63
+    },
+    "lib/quickstart.js": {
+      "lines": 98.39,
+      "branches": 70.58
+    },
+    "lib/reason-sandbox.js": {
+      "lines": 96.81,
+      "branches": 88.37
+    },
+    "lib/reasoning-trace.js": {
+      "lines": 100,
+      "branches": 87.35
+    },
+    "lib/receipt/bounded-receipt-export.js": {
+      "lines": 86.04,
+      "branches": 78.12
+    },
+    "lib/receipt/canonical-receipt-v2.js": {
+      "lines": 96.42,
+      "branches": 95.71
+    },
+    "lib/receipt/canonical-receipt.js": {
+      "lines": 100,
+      "branches": 83.01
+    },
+    "lib/receipt/collector-seal.js": {
+      "lines": 96,
+      "branches": 53.48
+    },
+    "lib/receipt/cryptographic-profile-contract.js": {
+      "lines": 94.65,
+      "branches": 91.56
+    },
+    "lib/receipt/cryptographic-verification-adapter.js": {
+      "lines": 93.15,
+      "branches": 91.07
+    },
+    "lib/receipt/issuer-seal.js": {
+      "lines": 97.6,
+      "branches": 76.59
+    },
+    "lib/receipt/public-trust-receipt-contract.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/receipt/public-trust-receipt-export.js": {
+      "lines": 95.45,
+      "branches": 77.77
+    },
+    "lib/receipt/public-trust-receipt-import.js": {
+      "lines": 93.86,
+      "branches": 87.5
+    },
+    "lib/receipt/public-trust-receipt-integrity.js": {
+      "lines": 92.21,
+      "branches": 88.7
+    },
+    "lib/receipt/public-trust-receipt-values.js": {
+      "lines": 93.25,
+      "branches": 77.41
+    },
+    "lib/receipt/public-trust-receipt.js": {
+      "lines": 80.29,
+      "branches": 62.85
+    },
+    "lib/receipt/receipt-chain.js": {
+      "lines": 90.58,
+      "branches": 76.47
+    },
+    "lib/receipt/receipt-export.js": {
+      "lines": 96.59,
+      "branches": 89.13
+    },
+    "lib/receipt/receipt-exporter-paths.js": {
+      "lines": 89.61,
+      "branches": 78.12
+    },
+    "lib/receipt/receipt-exporter-pdf.js": {
+      "lines": 91.66,
+      "branches": 73.33
+    },
+    "lib/receipt/receipt-read-index-anchor.js": {
+      "lines": 91.26,
+      "branches": 84.12
+    },
+    "lib/receipt/receipt-read-index-entries.js": {
+      "lines": 97.56,
+      "branches": 84.05
+    },
+    "lib/receipt/receipt-read-index.js": {
+      "lines": 91.54,
+      "branches": 88.31
+    },
+    "lib/receipt/receipt-stamp.js": {
+      "lines": 96.92,
+      "branches": 62.29
+    },
+    "lib/receipt/receipt-validation-cache.js": {
+      "lines": 98.59,
+      "branches": 97.5
+    },
+    "lib/receipt/signed-bundle.js": {
+      "lines": 100,
+      "branches": 63.63
+    },
+    "lib/receipt/signed-receipt-batch.js": {
+      "lines": 96.77,
+      "branches": 23.07
+    },
+    "lib/receipt/trusted-key-resolver-guards.js": {
+      "lines": 87.15,
+      "branches": 89.83
+    },
+    "lib/receipt/trusted-key-resolver-snapshot.js": {
+      "lines": 92.4,
+      "branches": 89.09
+    },
+    "lib/receipt/trusted-key-resolver.js": {
+      "lines": 95.23,
+      "branches": 94.11
+    },
+    "lib/receipt/v4-receipt-family.js": {
+      "lines": 96.06,
+      "branches": 87.85
+    },
+    "lib/registry/registry-bundle-signing-key-resolver.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/registry/registry-record-shape.js": {
+      "lines": 98.52,
+      "branches": 87.01
+    },
+    "lib/registry/registry-record-store.js": {
+      "lines": 94.63,
+      "branches": 52
+    },
+    "lib/registry/registry-route.js": {
+      "lines": 93.33,
+      "branches": 71.64
+    },
+    "lib/relation-drift.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "lib/release-evaluation-record.js": {
+      "lines": 94.48,
+      "branches": 79.59
+    },
+    "lib/repo-file-pin.js": {
+      "lines": 100,
+      "branches": 77.77
+    },
+    "lib/residency-rule-miner.js": {
+      "lines": 99.36,
+      "branches": 93.87
+    },
+    "lib/risk-classify-normalize.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/risk-classify-receipt.js": {
+      "lines": 100,
+      "branches": 95.34
+    },
+    "lib/risk-classify-rules.js": {
+      "lines": 97.42,
+      "branches": 100
+    },
+    "lib/risk-classify-targets.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/risk-classify.js": {
+      "lines": 99.36,
+      "branches": 90.24
+    },
+    "lib/risk-policy-constants.js": {
+      "lines": 99.6,
+      "branches": 100
+    },
+    "lib/risk-rules.js": {
+      "lines": 100,
+      "branches": 91.89
+    },
+    "lib/risk-scale.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/risk-target-markers.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/run-impact.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/runtime-watchdog-audit.js": {
+      "lines": 93.75,
+      "branches": 85.71
+    },
+    "lib/runtime-watchdog.js": {
+      "lines": 89.13,
+      "branches": 64.28
+    },
+    "lib/rust-graph-store-port.js": {
+      "lines": 94.87,
+      "branches": 86.66
+    },
+    "lib/safe-file-walk.js": {
+      "lines": 88.12,
+      "branches": 66
+    },
+    "lib/sandbox-escape-ledger.js": {
+      "lines": 98.66,
+      "branches": 85.71
+    },
+    "lib/sandbox-escape-producer.js": {
+      "lines": 95.34,
+      "branches": 85.71
+    },
+    "lib/sandbox-isolation-input.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/sandbox-isolation-output.js": {
+      "lines": 100,
+      "branches": 86.95
+    },
+    "lib/sandbox-isolation-vocabulary.js": {
+      "lines": 100,
+      "branches": 72
+    },
+    "lib/sandbox-isolation.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/sandbox-operation-classifier.js": {
+      "lines": 100,
+      "branches": 97.91
+    },
+    "lib/sandbox-path-containment.js": {
+      "lines": 100,
+      "branches": 85.18
+    },
+    "lib/sandbox-source-scan.js": {
+      "lines": 96.21,
+      "branches": 88.88
+    },
+    "lib/sandbox-temp-artifact-risk.js": {
+      "lines": 100,
+      "branches": 91.3
+    },
+    "lib/sandbox-timeout-policy.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/sdk.js": {
+      "lines": 85,
+      "branches": 64.81
+    },
+    "lib/secret-patterns.js": {
+      "lines": 100,
+      "branches": 90.9
+    },
+    "lib/secret-scrub-gate.js": {
+      "lines": 98.01,
+      "branches": 87.17
+    },
+    "lib/self-evolve-adapter.js": {
+      "lines": 100,
+      "branches": 85.71
+    },
+    "lib/self-evolve-probe.js": {
+      "lines": 97.91,
+      "branches": 85.71
+    },
+    "lib/self-healer/approval-bridge.js": {
+      "lines": 93.33,
+      "branches": 58.82
+    },
+    "lib/self-healer/audit-runner.js": {
+      "lines": 95,
+      "branches": 76.59
+    },
+    "lib/self-healer/behavioral-containment-baseline.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/self-healer/behavioral-containment-records.js": {
+      "lines": 100,
+      "branches": 87.5
+    },
+    "lib/self-healer/behavioral-containment.js": {
+      "lines": 98.52,
+      "branches": 85.96
+    },
+    "lib/self-healer/dryrun-budget-gate.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/self-healer/dryrun-projections.js": {
+      "lines": 100,
+      "branches": 94.11
+    },
+    "lib/self-healer/dryrun-runner.js": {
+      "lines": 100,
+      "branches": 91.3
+    },
+    "lib/self-healer/finding-classifier.js": {
+      "lines": 92.69,
+      "branches": 63.33
+    },
+    "lib/self-healer/finding-schema.js": {
+      "lines": 91.48,
+      "branches": 83.87
+    },
+    "lib/self-healer/safety-decision.js": {
+      "lines": 100,
+      "branches": 90.69
+    },
+    "lib/self-healer/source-dependency-graph.js": {
+      "lines": 92.3,
+      "branches": 74.76
+    },
+    "lib/self-healer/source-dogfood-simulator.js": {
+      "lines": 95.04,
+      "branches": 69.69
+    },
+    "lib/self-test-oracle.js": {
+      "lines": 91.93,
+      "branches": 47.36
+    },
+    "lib/semantic-score.js": {
+      "lines": 95.34,
+      "branches": 87.09
+    },
+    "lib/semantic-signals.js": {
+      "lines": 100,
+      "branches": 78.12
+    },
+    "lib/server-graph-data.js": {
+      "lines": 94.68,
+      "branches": 55.69
+    },
+    "lib/server-response-helpers.js": {
+      "lines": 80.51,
+      "branches": 82.08
+    },
+    "lib/session-impact.js": {
+      "lines": 98.46,
+      "branches": 94.23
+    },
+    "lib/shield.js": {
+      "lines": 97.53,
+      "branches": 88.88
+    },
+    "lib/sqlite-availability.js": {
+      "lines": 100,
+      "branches": 78.57
+    },
+    "lib/sqlite-busy-retry.js": {
+      "lines": 87.5,
+      "branches": 68.57
+    },
+    "lib/sqlite-durability.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/sqlite-persistence-validation.js": {
+      "lines": 97.39,
+      "branches": 85.29
+    },
+    "lib/sqlite-restore.js": {
+      "lines": 87.3,
+      "branches": 83.33
+    },
+    "lib/ssrf-guard.js": {
+      "lines": 98.14,
+      "branches": 85.18
+    },
+    "lib/storage/backup-restore-create.js": {
+      "lines": 100,
+      "branches": 95.45
+    },
+    "lib/storage/backup-restore-paths.js": {
+      "lines": 100,
+      "branches": 96.29
+    },
+    "lib/storage/backup-restore-restore.js": {
+      "lines": 95.4,
+      "branches": 86.2
+    },
+    "lib/storage/backup-restore-store.js": {
+      "lines": 91.52,
+      "branches": 76.31
+    },
+    "lib/storage/backup-restore-validate.js": {
+      "lines": 96.11,
+      "branches": 83.33
+    },
+    "lib/storage/db-path.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/storage/run-state-keys.js": {
+      "lines": 96.15,
+      "branches": 93.33
+    },
+    "lib/storage/run-state-methods.js": {
+      "lines": 100,
+      "branches": 93.58
+    },
+    "lib/storage/schema.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/storage/statements-tool-approval.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/storage/statements.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/storage/tool-approval-methods-decide.js": {
+      "lines": 81.36,
+      "branches": 60.97
+    },
+    "lib/storage/tool-approval-methods-lease.js": {
+      "lines": 98.85,
+      "branches": 70.9
+    },
+    "lib/storage/tool-approval-methods.js": {
+      "lines": 100,
+      "branches": 86.88
+    },
+    "lib/store-creation-guard.js": {
+      "lines": 97.93,
+      "branches": 87.87
+    },
+    "lib/supply-chain-activation-gate.js": {
+      "lines": 97.56,
+      "branches": 65.9
+    },
+    "lib/system-status-report.js": {
+      "lines": 96.22,
+      "branches": 72.22
+    },
+    "lib/task-identifier-lexer.js": {
+      "lines": 83.5,
+      "branches": 77.41
+    },
+    "lib/task-schema-sources.js": {
+      "lines": 100,
+      "branches": 71.42
+    },
+    "lib/text-safety-scorer.js": {
+      "lines": 98.95,
+      "branches": 81.35
+    },
+    "lib/text-utils.js": {
+      "lines": 100,
+      "branches": 88.37
+    },
+    "lib/tool-call-gate-classify.js": {
+      "lines": 98.95,
+      "branches": 94.23
+    },
+    "lib/tool-call-gate-normalize.js": {
+      "lines": 100,
+      "branches": 90.29
+    },
+    "lib/tool-call-gate-secrets.js": {
+      "lines": 100,
+      "branches": 98.14
+    },
+    "lib/tool-call-gate-vocabulary.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/tool-call-gate.js": {
+      "lines": 98.06,
+      "branches": 93.81
+    },
+    "lib/trust-evidence-ledger.js": {
+      "lines": 94.5,
+      "branches": 84.02
+    },
+    "lib/trust-policy.js": {
+      "lines": 100,
+      "branches": 85.93
+    },
+    "lib/trust-score-aggregator.js": {
+      "lines": 98.64,
+      "branches": 93.47
+    },
+    "lib/trust-signals/robustness.js": {
+      "lines": 91.45,
+      "branches": 76.27
+    },
+    "lib/trust-signals/verify-wiring.js": {
+      "lines": 100,
+      "branches": 62.5
+    },
+    "lib/trust-status.js": {
+      "lines": 79.16,
+      "branches": 86.11
+    },
+    "lib/turkish-copula.js": {
+      "lines": 95.27,
+      "branches": 81.48
+    },
+    "lib/type-lattice.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/unexpected-egress-gate.js": {
+      "lines": 100,
+      "branches": 97.77
+    },
+    "lib/v5/runtime-reader.js": {
+      "lines": 73.06,
+      "branches": 58.82
+    },
+    "lib/v5/runtime-writer-guards.js": {
+      "lines": 95.12,
+      "branches": 92.85
+    },
+    "lib/v5/runtime-writer-sections.js": {
+      "lines": 76.47,
+      "branches": 70.49
+    },
+    "lib/v5/runtime-writer.js": {
+      "lines": 90.69,
+      "branches": 82.35
+    },
+    "lib/v5/structural-signing-helper.js": {
+      "lines": 88.92,
+      "branches": 80.58
+    },
+    "lib/v5/verification-core.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/v5/verification-evaluator.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/v5/verification-evidence-normalizer.js": {
+      "lines": 95.23,
+      "branches": 92
+    },
+    "lib/v5/verification-input-shape.js": {
+      "lines": 90.74,
+      "branches": 82.75
+    },
+    "lib/v5/verification-reason-mapping.js": {
+      "lines": 90,
+      "branches": 78.12
+    },
+    "lib/verdict/action-verdict.js": {
+      "lines": 95.16,
+      "branches": 68.42
+    },
+    "lib/verify-compound.js": {
+      "lines": 85.33,
+      "branches": 27.27
+    },
+    "lib/verify-contradiction-evidence.js": {
+      "lines": 100,
+      "branches": 75.6
+    },
+    "lib/verify-contradiction-scan.js": {
+      "lines": 100,
+      "branches": 95
+    },
+    "lib/verify-edge-phases.js": {
+      "lines": 92.63,
+      "branches": 76.74
+    },
+    "lib/verify-graph-phases.js": {
+      "lines": 95.9,
+      "branches": 89.47
+    },
+    "lib/verify-native.js": {
+      "lines": 100,
+      "branches": 82.14
+    },
+    "lib/verify-numeric-contradictions.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/verify-numeric-text.js": {
+      "lines": 100,
+      "branches": 97.56
+    },
+    "lib/verify-result.js": {
+      "lines": 96.81,
+      "branches": 78.33
+    },
+    "lib/verify-status-vocabulary.js": {
+      "lines": 100,
+      "branches": 94.73
+    },
+    "lib/verify-subject.js": {
+      "lines": 100,
+      "branches": 88.23
+    },
+    "lib/verify-turkish-text.js": {
+      "lines": 98.27,
+      "branches": 84.09
+    },
+    "lib/verify.js": {
+      "lines": 98.13,
+      "branches": 82.22
+    },
+    "lib/viewer/session-cookie.js": {
+      "lines": 98.16,
+      "branches": 93.65
+    },
+    "lib/viewer/session-store.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/viewer/viewer-gateway-primitives.js": {
+      "lines": 95.85,
+      "branches": 86.84
+    },
+    "lib/viewer/viewer-gateway.js": {
+      "lines": 97.39,
+      "branches": 86.3
+    },
+    "lib/web-research-candidate-pipeline.js": {
+      "lines": 100,
+      "branches": 56.69
+    },
+    "lib/web-research-workflow.js": {
+      "lines": 79.72,
+      "branches": 76
+    },
+    "lib/web-research.js": {
+      "lines": 96.19,
+      "branches": 77.56
+    },
+    "lib/workbench/activity-read.js": {
+      "lines": 96.21,
+      "branches": 88.13
+    },
+    "lib/workbench/activity-route.js": {
+      "lines": 100,
+      "branches": 86.84
+    },
+    "lib/workbench/ingest-approval-action.js": {
+      "lines": 92.36,
+      "branches": 84.73
+    },
+    "lib/workbench/ingest-approval-audit-writer.js": {
+      "lines": 95.9,
+      "branches": 84.61
+    },
+    "lib/workbench/ingest-approval-audit.js": {
+      "lines": 100,
+      "branches": 88
+    },
+    "lib/workbench/memory-context-audit-source.js": {
+      "lines": 94.47,
+      "branches": 87.8
+    },
+    "lib/workbench/memory-context-inspector.js": {
+      "lines": 93.01,
+      "branches": 56.25
+    },
+    "lib/workbench/memory-context-route.js": {
+      "lines": 100,
+      "branches": 97.5
+    },
+    "lib/workbench/receipt-bundle-export-route.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "lib/workbench/receipt-bundle-exporter.js": {
+      "lines": 97.74,
+      "branches": 79.48
+    },
+    "lib/workbench/trust-receipt-inspector.js": {
+      "lines": 97.56,
+      "branches": 88.46
+    },
+    "lib/workbench/trust-receipt-route.js": {
+      "lines": 100,
+      "branches": 94.11
+    },
+    "lib/workbench/workbench-read-http-router.js": {
+      "lines": 98.86,
+      "branches": 88.63
+    },
+    "lib/workflow-agent-plan.js": {
+      "lines": 99.28,
+      "branches": 78.72
+    },
+    "lib/workflow-agent-steps.js": {
+      "lines": 92.18,
+      "branches": 82.35
+    },
+    "lib/workflow-budget-selection.js": {
+      "lines": 94.11,
+      "branches": 95.83
+    },
+    "lib/workflow-contract.js": {
+      "lines": 100,
+      "branches": 92.45
+    },
+    "lib/workflow-planning.js": {
+      "lines": 93.83,
+      "branches": 90.62
+    },
+    "lib/workflow-review-approval.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/workflow-run-guidance.js": {
+      "lines": 97.43,
+      "branches": 86.79
+    },
+    "lib/workflow-tool-capability-runner.js": {
+      "lines": 94.73,
+      "branches": 84.21
+    },
+    "lib/workflow-tool-envelope.js": {
+      "lines": 98.78,
+      "branches": 82.97
+    },
+    "lib/workflow-tool-kernel-queries.js": {
+      "lines": 99.5,
+      "branches": 77.27
+    },
+    "lib/workflow-tool-registration.js": {
+      "lines": 91.3,
+      "branches": 66.66
+    },
+    "lib/workflow-tool-registry.js": {
+      "lines": 100,
+      "branches": 91.34
+    },
+    "lib/workflow-tool-repo-memory.js": {
+      "lines": 100,
+      "branches": 95.55
+    },
+    "lib/workflow-tool-run-capability.js": {
+      "lines": 97.97,
+      "branches": 95.65
+    },
+    "lib/workflow-tool-specialized-capabilities.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "lib/workflow-values.js": {
+      "lines": 98.31,
+      "branches": 93.22
+    },
+    "lib/workspace-id.js": {
+      "lines": 100,
+      "branches": 82.6
+    },
+    "llmAdapter.js": {
+      "lines": 96.93,
+      "branches": 80.95
+    },
+    "mcpServer.js": {
+      "lines": 98.7,
+      "branches": 90.62
+    },
+    "persistencePaths.js": {
+      "lines": 71.27,
+      "branches": 80
+    },
+    "plugin.js": {
+      "lines": 98.95,
+      "branches": 85.71
+    },
+    "requestGuards-body.js": {
+      "lines": 99.04,
+      "branches": 81.48
+    },
+    "requestGuards-command-policy.js": {
+      "lines": 100,
+      "branches": 77.77
+    },
+    "requestGuards-rate-limit.js": {
+      "lines": 100,
+      "branches": 65.51
+    },
+    "requestGuards.js": {
+      "lines": 100,
+      "branches": 89.28
+    },
+    "rustGraph.js": {
+      "lines": 81.25,
+      "branches": 80.43
+    },
+    "sandboxRunner-child.js": {
+      "lines": 83.17,
+      "branches": 63.63
+    },
+    "sandboxRunner-context.js": {
+      "lines": 100,
+      "branches": 90
+    },
+    "sandboxRunner-limits.js": {
+      "lines": 91.3,
+      "branches": 76.92
+    },
+    "sandboxRunner.js": {
+      "lines": 86.19,
+      "branches": 73.75
+    },
+    "scripts/a2a-conformance/clean-room/verify-exchange.js": {
+      "lines": 89.24,
+      "branches": 78.57
+    },
+    "scripts/a2a-conformance/consumer.js": {
+      "lines": 91.17,
+      "branches": 40
+    },
+    "scripts/a2a-conformance/run-cases.js": {
+      "lines": 100,
+      "branches": 94.54
+    },
+    "scripts/a2a-conformance/run-consumer.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "scripts/a2a-conformance/run-fixture.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/a2a-conformance/run-properties.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/a2a-conformance/run-support.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/a2a-conformance/run.js": {
+      "lines": 97.33,
+      "branches": 100
+    },
+    "scripts/agent-context-baseline.js": {
+      "lines": 98.23,
+      "branches": 96
+    },
+    "scripts/agent-context-git.js": {
+      "lines": 96.93,
+      "branches": 92.3
+    },
+    "scripts/agent-context-primitives.js": {
+      "lines": 100,
+      "branches": 88.88
+    },
+    "scripts/agent-context.js": {
+      "lines": 91.66,
+      "branches": 75
+    },
+    "scripts/api-semver-gate.js": {
+      "lines": 43.19,
+      "branches": 75
+    },
+    "scripts/api-snapshot-diff.js": {
+      "lines": 86.85,
+      "branches": 72.38
+    },
+    "scripts/api-snapshot-surface.js": {
+      "lines": 99.27,
+      "branches": 89.05
+    },
+    "scripts/api-snapshot.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/architecture-carried-violations.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/architecture-dependency-graph.js": {
+      "lines": 93.42,
+      "branches": 85.56
+    },
+    "scripts/architecture-layer-exceptions.js": {
+      "lines": 90.62,
+      "branches": 75
+    },
+    "scripts/architecture-mermaid.js": {
+      "lines": 100,
+      "branches": 93.33
+    },
+    "scripts/architecture-review-queue.js": {
+      "lines": 98.46,
+      "branches": 89.87
+    },
+    "scripts/architecture-snapshot-scope.js": {
+      "lines": 100,
+      "branches": 91.3
+    },
+    "scripts/architecture-snapshot.js": {
+      "lines": 87.21,
+      "branches": 81.06
+    },
+    "scripts/audit-impact-replay-coverage.js": {
+      "lines": 87.58,
+      "branches": 90.47
+    },
+    "scripts/benign-false-block-rate.js": {
+      "lines": 78.57,
+      "branches": 87.5
+    },
+    "scripts/binding-site-scan.js": {
+      "lines": 100,
+      "branches": 95.53
+    },
+    "scripts/capability-usage.js": {
+      "lines": 87.74,
+      "branches": 84
+    },
+    "scripts/changelog.js": {
+      "lines": 96.07,
+      "branches": 80.64
+    },
+    "scripts/check-action-pins.js": {
+      "lines": 81.03,
+      "branches": 58.82
+    },
+    "scripts/check-control-chars.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/check-coverage.js": {
+      "lines": 91.98,
+      "branches": 76.36
+    },
+    "scripts/check-dead-code.js": {
+      "lines": 90.11,
+      "branches": 74.62
+    },
+    "scripts/check-deprecations.js": {
+      "lines": 74,
+      "branches": 50
+    },
+    "scripts/check-deterministic-path.js": {
+      "lines": 89.14,
+      "branches": 78.94
+    },
+    "scripts/check-doc-status.js": {
+      "lines": 89.89,
+      "branches": 88.46
+    },
+    "scripts/check-docs-drift.js": {
+      "lines": 94.28,
+      "branches": 88.37
+    },
+    "scripts/check-file-size.js": {
+      "lines": 53.69,
+      "branches": 92.85
+    },
+    "scripts/check-import-cycles.js": {
+      "lines": 85.18,
+      "branches": 92.85
+    },
+    "scripts/check-layers.js": {
+      "lines": 69.51,
+      "branches": 95.45
+    },
+    "scripts/check-licenses.js": {
+      "lines": 92,
+      "branches": 77.41
+    },
+    "scripts/check-module-boundary.js": {
+      "lines": 60.13,
+      "branches": 66.66
+    },
+    "scripts/check-mutation-score.js": {
+      "lines": 56.41,
+      "branches": 72.22
+    },
+    "scripts/check-package-closure.js": {
+      "lines": 86.84,
+      "branches": 82.22
+    },
+    "scripts/check-pr-guardian-webhook-url.js": {
+      "lines": 100,
+      "branches": 97.91
+    },
+    "scripts/check-security-invariants.js": {
+      "lines": 83.33,
+      "branches": 62.5
+    },
+    "scripts/check-structured-log-format.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/check-v5-identity-readiness.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/check-workflow-governance.js": {
+      "lines": 72.64,
+      "branches": 69.69
+    },
+    "scripts/ci-impact-plan-agent.js": {
+      "lines": 83.67,
+      "branches": 69.23
+    },
+    "scripts/ci-impact-plan-build.js": {
+      "lines": 100,
+      "branches": 87.8
+    },
+    "scripts/ci-impact-plan-paths.js": {
+      "lines": 89.69,
+      "branches": 84.61
+    },
+    "scripts/ci-impact-plan-validate.js": {
+      "lines": 84.21,
+      "branches": 23.52
+    },
+    "scripts/ci-impact-plan.js": {
+      "lines": 48.43,
+      "branches": 50
+    },
+    "scripts/ci-impact-rules.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/ci-shard-manifest.js": {
+      "lines": 86.71,
+      "branches": 85.71
+    },
+    "scripts/ci-test-selection.js": {
+      "lines": 98.47,
+      "branches": 95.74
+    },
+    "scripts/comment-pr-guardian-block.js": {
+      "lines": 87.16,
+      "branches": 71.42
+    },
+    "scripts/container-server.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/dead-code-symbols.js": {
+      "lines": 100,
+      "branches": 93.16
+    },
+    "scripts/deprecation-policy.js": {
+      "lines": 100,
+      "branches": 80
+    },
+    "scripts/enforcement-coverage-classification.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/enforcement-coverage.js": {
+      "lines": 77.32,
+      "branches": 93.54
+    },
+    "scripts/explain-npm-publish-failure.js": {
+      "lines": 91.86,
+      "branches": 61.53
+    },
+    "scripts/external-client.js": {
+      "lines": 98.57,
+      "branches": 89.28
+    },
+    "scripts/external-conformance/consumer-bundles.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-harness.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-objects.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-package-wire.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-python.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-replay.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-schema.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/consumer-v5.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/external-conformance/run.js": {
+      "lines": 70.62,
+      "branches": 34.78
+    },
+    "scripts/external-conformance/verify-bundle.js": {
+      "lines": 88.05,
+      "branches": 80.35
+    },
+    "scripts/file-size-policy.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/fitness-dashboard-charts.js": {
+      "lines": 93.77,
+      "branches": 84.41
+    },
+    "scripts/fitness-dashboard.js": {
+      "lines": 77.18,
+      "branches": 82.35
+    },
+    "scripts/generate-protocol-vectors.js": {
+      "lines": 92.95,
+      "branches": 80
+    },
+    "scripts/huqan-watchdog.js": {
+      "lines": 59.61,
+      "branches": 72.72
+    },
+    "scripts/junit-merge.js": {
+      "lines": 93.52,
+      "branches": 77.55
+    },
+    "scripts/knowledge-graph-demo.js": {
+      "lines": 98.13,
+      "branches": 77.41
+    },
+    "scripts/launch-installed-package-smoke-cli.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-installed-package-smoke-context.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-installed-package-smoke-mcp.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-installed-package-smoke-parity.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-installed-package-smoke-rest-probe.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-installed-package-smoke-rest.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-installed-package-smoke.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/launch-smoke-receipts.js": {
+      "lines": 100,
+      "branches": 93.75
+    },
+    "scripts/list-mutation-targets.js": {
+      "lines": 50.74,
+      "branches": 75
+    },
+    "scripts/measure-journal-durability.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/migrate-prov-ids.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/nightly-failure-alarm.js": {
+      "lines": 87.56,
+      "branches": 80.48
+    },
+    "scripts/pr-guardian-self-review.js": {
+      "lines": 84.61,
+      "branches": 58.82
+    },
+    "scripts/release-verify.js": {
+      "lines": 63.25,
+      "branches": 72.54
+    },
+    "scripts/replay-impact-thresholds.js": {
+      "lines": 81.08,
+      "branches": 91.8
+    },
+    "scripts/require-scan.js": {
+      "lines": 98.73,
+      "branches": 95.08
+    },
+    "scripts/retained-deep-imports.js": {
+      "lines": 100,
+      "branches": 100
+    },
+    "scripts/run-test-shard.js": {
+      "lines": 76.03,
+      "branches": 58.69
+    },
+    "scripts/run-tests.js": {
+      "lines": 86.04,
+      "branches": 40
+    },
+    "scripts/run-trust-receipt-pilot.js": {
+      "lines": 100,
+      "branches": 66.66
+    },
+    "scripts/security-release-evaluation.js": {
+      "lines": 61.45,
+      "branches": 71.42
+    },
+    "scripts/seed-demo.js": {
+      "lines": 93.33,
+      "branches": 50
+    },
+    "scripts/setup-sqlite.js": {
+      "lines": 52.87,
+      "branches": 37.5
+    },
+    "scripts/shard-hang-diagnostics.js": {
+      "lines": 96.33,
+      "branches": 80.95
+    },
+    "scripts/spawn-windows-aware.js": {
+      "lines": 95,
+      "branches": 50
+    },
+    "scripts/test-consumer-compile.js": {
+      "lines": 95.65,
+      "branches": 68
+    },
+    "scripts/test-state-sandbox.js": {
+      "lines": 100,
+      "branches": 75
+    },
+    "scripts/update-shard-weights.js": {
+      "lines": 87.21,
+      "branches": 81.81
+    },
+    "scripts/verify-package-tarball.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/verify-published-round-trip.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/verify-suite.js": {
+      "lines": 97.56,
+      "branches": 70.96
+    },
+    "scripts/verify-tarball-checks-core.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/verify-tarball-checks-guard.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/verify-tarball-shared.js": {
+      "lines": 0,
+      "branches": 0
+    },
+    "scripts/verify-test-environment.js": {
+      "lines": 84.61,
+      "branches": 58.82
+    },
+    "server.js": {
+      "lines": 92.5,
+      "branches": 83.33
+    },
+    "storage.js": {
+      "lines": 86.55,
+      "branches": 75
+    },
+    "toolPolicy.js": {
+      "lines": 97,
+      "branches": 90.41
+    },
+    "workflow-agent.js": {
+      "lines": 91.22,
+      "branches": 80.55
+    },
+    "workflow-runtime.js": {
+      "lines": 80,
+      "branches": 95.45
+    },
+    "workflow-tools.js": {
+      "lines": 94.73,
+      "branches": 80
+    }
+  }
+}
