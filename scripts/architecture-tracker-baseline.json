@@ -71,13 +71,6 @@
       "lines": 432,
       "signals": []
     },
-    "lib/memory-store.js": {
-      "band": "recorded",
-      "lines": 578,
-      "signals": [
-        "FANOUT:20"
-      ]
-    },
     "lib/verify-numeric-text.js": {
       "band": "structural",
       "lines": 82,
@@ -749,13 +742,16 @@
       "lib/memory-schema-validate.js": "Adapters",
       "lib/memory-schema.js": "Adapters",
       "lib/memory-store-json-persistence.js": "Adapters",
+      "lib/memory-store-method-install.js": "Adapters",
       "lib/memory-store-persistence-report.js": "Adapters",
       "lib/memory-store-port.js": "Adapters",
+      "lib/memory-store-read-methods.js": "Adapters",
       "lib/memory-store-reopen.js": "Adapters",
       "lib/memory-store-rollback.js": "Adapters",
       "lib/memory-store-sqlite-warmup.js": "Adapters",
       "lib/memory-store-sqlite-writer.js": "Adapters",
       "lib/memory-store-utils.js": "Adapters",
+      "lib/memory-store-write-methods.js": "Adapters",
       "lib/memory-store-write.js": "Adapters",
       "lib/memory-store.js": "Adapters",
       "lib/memory-supersede.js": "Adapters",
@@ -3790,6 +3786,15 @@
         "lib/memory-store-persistence-report.js",
         "lib/memory-store-sqlite-writer.js"
       ],
+      "lib/memory-store-read-methods.js": [
+        "lib/memory-event-read.js",
+        "lib/memory-link-read.js",
+        "lib/memory-package-export.js",
+        "lib/memory-query-engine.js",
+        "lib/memory-record-read.js",
+        "lib/memory-store-method-install.js",
+        "lib/memory-temporal.js"
+      ],
       "lib/memory-store-reopen.js": [
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
@@ -3809,32 +3814,31 @@
         "lib/sqlite-busy-retry.js",
         "lib/workspace-id.js"
       ],
+      "lib/memory-store-write-methods.js": [
+        "lib/memory-link-write.js",
+        "lib/memory-package-import-runner.js",
+        "lib/memory-package-import.js",
+        "lib/memory-patch-metadata.js",
+        "lib/memory-store-method-install.js",
+        "lib/memory-store-write.js",
+        "lib/memory-supersede.js",
+        "lib/memory-tombstone.js"
+      ],
       "lib/memory-store-write.js": [
         "lib/memory-record-utils.js",
         "lib/memory-schema.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-store.js": [
-        "lib/memory-event-read.js",
-        "lib/memory-link-read.js",
-        "lib/memory-link-write.js",
-        "lib/memory-package-export.js",
-        "lib/memory-package-import-runner.js",
-        "lib/memory-package-import.js",
-        "lib/memory-patch-metadata.js",
-        "lib/memory-query-engine.js",
-        "lib/memory-record-read.js",
         "lib/memory-store-persistence-report.js",
         "lib/memory-store-port.js",
+        "lib/memory-store-read-methods.js",
         "lib/memory-store-reopen.js",
         "lib/memory-store-rollback.js",
         "lib/memory-store-sqlite-warmup.js",
         "lib/memory-store-sqlite-writer.js",
         "lib/memory-store-utils.js",
-        "lib/memory-store-write.js",
-        "lib/memory-supersede.js",
-        "lib/memory-temporal.js",
-        "lib/memory-tombstone.js"
+        "lib/memory-store-write-methods.js"
       ],
       "lib/memory-supersede.js": [
         "lib/memory-record-utils.js",
