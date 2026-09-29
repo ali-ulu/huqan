@@ -1,0 +1,16 @@
+HUQAN has been deployed to namespace {{ .Release.Namespace }}.
+
+Release:            {{ .Release.Name }}
+Single-replica by design (SQLite + in-memory graph): horizontal scaling is not a supported topology.
+
+1. Verify rollout and health:
+   kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "huqan.fullname" . }}
+   kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "huqan.fullname" . }} 3000:{{ .Values.service.port }}
+   curl http://127.0.0.1:3000/health
+
+2. Backup / restore (see docs/deployment-supported-matrix.md):
+   kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "huqan.fullname" . }} -- node scripts/backup.js
+   kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "huqan.fullname" . }} -- node scripts/restore.js <backupDir>
+
+3. Operator-only MCP tools need HUQAN_MCP_OPERATOR_TOKEN; a model that proposes a mutation cannot approve it. Keep the token operator-held.

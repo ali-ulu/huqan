@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "huqan.fullname" . }}
+  labels:
+    {{- include "huqan.labels" . | nindent 4 }}
+spec:
+  # One replica, deliberately: state is one SQLite file on one volume and the
+  # graph is in-memory of one process. Horizontal scaling is not a supported
+  # topology. See docs/deployment-supported-matrix.md.
+  #
+  # Recreate, not RollingUpdate: two pods would contend for the same
+  # ReadWriteOnce volume and the same SQLite file during an update.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "huqan.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "huqan.selectorLabels" . | nindent 8 }}
+    spec:
+      securityContext:
+        # The runtime image runs as the unprivileged `node` user (uid/gid 1000).
+        # fsGroup lets the PVC be group-writable where the cluster honors it.
+        runAsNonRoot: true
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+        seccompProfile:
+          {{- toYaml .Values.securityContext.seccompProfile | nindent 10 }}
+      containers:
+        - name: huqan
+          # No verified registry image is published by this repository; build
+          # locally from the repo Dockerfile and point this at your registry.
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.service.port | quote }}
+            - name: HUQAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "huqan.secretName" . }}
+                  key: HUQAN_API_KEY
+            # Operator-only MCP surface (huqan.approve / huqan.approvals /
+            # huqan.agent_resume): withheld from tools/list; needs this token.
+            - name: HUQAN_MCP_OPERATOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "huqan.secretName" . }}
+                  key: HUQAN_MCP_OPERATOR_TOKEN
+            # Container defaults already point at /app/data; pinned here so the
+            # PVC mount and persistence paths cannot drift apart silently.
+            - name: HUQAN_DB_PATH
+              value: /app/data/memory.db
+            - name: HUQAN_BACKUP_DIR
+              value: /app/data/backups
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            # Writable tmpfs for SQLite WAL/SHM and other transient files.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "huqan.claimName" . }}
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.tmpDirSizeLimit }}
