@@ -19,8 +19,6 @@
     "kernel.js": { "reason": "orchestrator spanning four contexts; exactly-one requires a split, not a relabel", "evidence": "ownership-map-2446.md:23,41", "status": "resists" },
     "server.js": { "reason": "transport and composition root over all contexts; any single label lies", "evidence": "ownership-map-2446.md:27,43", "status": "resists" },
     "lib/experience/": { "reason": "SPLIT REQUIRED: durable record wants Trust, read-model wants Observability; no single owner decided", "evidence": "ownership-map-2446.md:32,44", "status": "resists" }
-<<<<<<< HEAD
-=======
   },
   "publishedPorts": {
     "lib/verdict/action-verdict.js": {
@@ -38,6 +36,5 @@
       "reason": "Knowledge directly imports a Trust family classifier; ownership-map-2446.md disagreement 2",
       "reviewBy": "2026-12-31"
     }
->>>>>>> origin/main
   }
 }

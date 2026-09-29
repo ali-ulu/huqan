@@ -19,10 +19,7 @@ const {
   loadOwnership,
   ownerOf,
   describeCall,
-<<<<<<< HEAD
-=======
   checkContextPorts,
->>>>>>> origin/main
 } = require('../scripts/check-module-boundary');
 
 const OWNERSHIP_PATH = path.join(__dirname, '..', 'scripts', 'context-ownership.json');
@@ -88,8 +85,6 @@ describe('context-aware module boundary', () => {
     assert.throws(() => loadOwnership(tmp), /unknown context for graph\.js/);
   });
 });
-<<<<<<< HEAD
-=======
 
 describe('published context ports', () => {
   const ownership = {
@@ -127,4 +122,3 @@ describe('published context ports', () => {
     assert.match(checkContextPorts(new Map(), ownership, '2026-09-28').problems[0], /stale/);
   });
 });
->>>>>>> origin/main

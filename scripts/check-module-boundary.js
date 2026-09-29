@@ -103,9 +103,6 @@ function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
     }
   }
   const unassigned = raw.unassigned && typeof raw.unassigned === 'object' ? raw.unassigned : {};
-<<<<<<< HEAD
-  return { contexts, owners, unassigned };
-=======
   const publishedPorts = raw.publishedPorts || {};
   const legacyEdges = raw.legacyEdges || {};
   for (const [port, rule] of Object.entries(publishedPorts)) {
@@ -123,7 +120,6 @@ function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
     }
   }
   return { contexts, owners, unassigned, publishedPorts, legacyEdges };
->>>>>>> origin/main
 }
 
 function ownerOf(file, ownership) {
@@ -164,8 +160,6 @@ function describeCall(file, hit, ownership) {
   return `${file} (${owner.context}) reaches into another module's ${hit.call} -- contexts talk only through public contracts (#2446 rule 2)`;
 }
 
-<<<<<<< HEAD
-=======
 /** Enforce published imports for the source/caller-backed portion of the map. */
 function checkContextPorts(graph, ownership, today = new Date().toISOString().slice(0, 10)) {
   const problems = [];
@@ -196,7 +190,6 @@ function checkContextPorts(graph, ownership, today = new Date().toISOString().sl
   return { problems, crossOwnerCount };
 }
 
->>>>>>> origin/main
 function readBaseline() {
   if (!fs.existsSync(BASELINE_PATH)) return {};
   return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')).files || {};
@@ -226,12 +219,9 @@ function main() {
   const update = process.argv.includes('--update');
   const { counts, detail } = measure();
   const ownership = loadOwnership();
-<<<<<<< HEAD
-=======
   const files = listSourceFiles();
   const graph = buildGraph(files, files.filter((file) => !IS_TEST.test(file)));
   const ports = checkContextPorts(graph, ownership);
->>>>>>> origin/main
 
   if (update) {
     if (ports.problems.length > 0) {
@@ -267,10 +257,7 @@ function main() {
     const resists = Object.keys(ownership.unassigned).length;
     console.log(`OK: ${total} recorded cross-module private calls in ${counts.size} files, none added.`);
     console.log(`Context-aware (#2446): ${assigned} ownership entries, ${resists} resists-unassigned, 0 calls.`);
-<<<<<<< HEAD
-=======
     console.log(`Context ports: ${ports.crossOwnerCount} mapped cross-owner imports checked.`);
->>>>>>> origin/main
     return 0;
   }
 
@@ -301,8 +288,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-<<<<<<< HEAD
-module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall };
-=======
 module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall, checkContextPorts };
->>>>>>> origin/main
