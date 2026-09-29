@@ -7,7 +7,7 @@ const { extractAgentSummary, buildRunRecommendations, suggestNextAction, chooseF
 const { noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memory-persistence');
 const { memoryRuntime } = require('./lib/agent-memory-runtime');
 const { buildAgentPlan } = require('./lib/agent-plan-runtime');
-const { executeAgentStep, executeStepWithRetry, executeAgentRun } = require('./lib/agent-step-executor');
+const { executeAgentStep, executeStepWithRetry, executeAgentRun, isTransientStepReport } = require('./lib/agent-step-executor');
 const { emitRunLifecycle } = require('./lib/experience/runtime-seam');
 const { runStepEffect } = require('./lib/experience/effect-boundary');
 const { createStepLifecycleRecorder } = require('./lib/experience/step-lifecycle');
@@ -160,9 +160,7 @@ class Agent {
   }
 
   _isRetryableStepReport(report = {}) {
-    const result = report.result || {};
-    const rawError = String(result?.error?.message || result?.error?.code || result?.error || report.summary || '').toLowerCase();
-    return /abort|timeout|fetch|network|econn|enotfound|etimedout|eai_again|503|502|504|429|temporarily|closed|ollama/.test(rawError);
+    return isTransientStepReport(report);
   }
 
   _executeStepWithRetry(step, state, opts = {}) {

@@ -141,6 +141,7 @@ jobs:
             # Performance-sensitive files trigger the benchmark regression gate.
             case "$1" in
               benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
+              benchmarks/bench-graph-save.js|benchmarks/check-graph-save.js|\
               benchmarks/snapshot-memory.js|benchmarks/verifBench.js|benchmarks/results.json|\
               benchmarks/fixtures/*|graph.js|kernel.js|kernel.v2.js|storage.js|causalSimulator.js|\
               finalizer.js|rustGraph.js|lib/memory-store.js|lib/ingest.js|lib/causal/*|\
@@ -614,13 +615,68 @@ jobs:
           echo "Benchmark regression check skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "Perf-sensitive file groups:" >> "${GITHUB_STEP_SUMMARY}"
-          echo "- benchmarks/** (bench, check-regression, fixtures, results.json)" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- benchmarks/** (bench, check-regression, bench-graph-save, check-graph-save, fixtures, results.json)" >> "${GITHUB_STEP_SUMMARY}"
           echo "- graph.js, kernel.js, kernel.v2.js, storage.js" >> "${GITHUB_STEP_SUMMARY}"
           echo "- causalSimulator.js, finalizer.js, rustGraph.js" >> "${GITHUB_STEP_SUMMARY}"
           echo "- lib/memory-store.js, lib/ingest.js, lib/causal/*, lib/provenance-*.js, lib/receipt/*" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "If you intentionally touched a perf-sensitive surface and need benchmark validation," >> "${GITHUB_STEP_SUMMARY}"
           echo "rerun the Benchmark workflow manually from the Actions tab." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Graph incremental-save regression (#3011).
+  #
+  # The per-PR `benchmark` job above runs bench.js with --quick. This nightly
+  # pass is deliberately different: it runs the FULL incremental-save benchmark
+  # at the 10k scale the issue names, with no --quick shortcut and no reduced
+  # iteration count, and it enforces the pinned threshold with --strict-timing.
+  #
+  # Why nightly rather than every PR: the pinned floors combine a
+  # machine-independent row-count ratio (blocking) with absolute timing
+  # (strict only here). A shared CI runner is noisier than a developer machine,
+  # so the absolute-timing half is a nightly signal, not a merge gate that
+  # flakes on a busy runner. The row-count half is deterministic and would fail
+  # on any runner if the full rewrite returned.
+  # ---------------------------------------------------------------------
+  graph-save-nightly:
+    name: Graph incremental-save (nightly, 10k)
+    needs: classify
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      - name: Run the full 10k incremental-save benchmark
+        # No --quick: the pinned threshold is calibrated against the full save
+        # path and the declared 10k fixture, so the shortened run is not used.
+        run: node benchmarks/bench-graph-save.js --json > benchmarks/graph-save-current.json
+      - name: Check the pinned threshold
+        run: node benchmarks/check-graph-save.js benchmarks/graph-save-baseline.json benchmarks/graph-save-current.json --strict-timing
+      - name: Upload the benchmark report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: graph-save-benchmark-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/graph-save-current.json
+          if-no-files-found: warn
+      - name: Publish the benchmark summary
+        if: always()
+        run: |
+          {
+            echo "## Graph incremental-save (#3011)"
+            echo ""
+            if [ -f benchmarks/graph-save-current.json ]; then
+              node benchmarks/check-graph-save.js benchmarks/graph-save-baseline.json benchmarks/graph-save-current.json --strict-timing
+            else
+              echo "Benchmark report was not produced."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   # ---------------------------------------------------------------------
   # Docker build — only when Docker / package / deploy surfaces change.

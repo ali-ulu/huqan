@@ -50,3 +50,11 @@ reports/mutation/
 # c8 coverage scratch and reports (#3077)
 coverage/
 .nyc_output/
+
+# Benchmark output files produced by CI / local runs (#3011). The pinned
+# baselines (benchmarks/results.json, benchmarks/graph-save-baseline.json) are
+# tracked; only the *-current.json run reports are generated and stay out.
+benchmarks/graph-save-current.json
+benchmarks/current-results.json
+benchmarks/observability-load-current.json
+benchmarks/observability-soak-current.json

@@ -1,0 +1,87 @@
+# Default values for the HUQAN Helm chart.
+#
+# Supported topology: single replica, single node. SQLite persistence is a
+# local file and the graph lives in one process's memory, so horizontal
+# scaling is not a supported mode. See docs/deployment-supported-matrix.md.
+
+replicaCount: 1
+
+image:
+  # No verified registry image is published by this repository. Build locally
+  # from the repo Dockerfile, push to your registry (or load into your
+  # cluster), and set this accordingly.
+  repository: huqan
+  tag: local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 3000
+
+auth:
+  # Required by every container start: scripts/container-server.js fails
+  # closed with HUQAN_API_KEY_REQUIRED without it. Leave empty to supply it
+  # through auth.existingSecret instead.
+  apiKey: ""
+  # Operator-only MCP tools (huqan.approve, huqan.approvals,
+  # huqan.agent_resume) are withheld from tools/list and gated by this token.
+  # Keep it operator-held; leave empty to supply via existingSecret.
+  operatorToken: ""
+
+  # Alternative to the two values above: point at an existing Secret that
+  # carries the keys HUQAN_API_KEY and HUQAN_MCP_OPERATOR_TOKEN. When set,
+  # the chart does not create its own Secret.
+  existingSecret: ""
+
+persistence:
+  # Backs /app/data, which holds memory.db (SQLite) and backups/.
+  enabled: true
+  existingClaim: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    # Bounds the in-memory graph. Larger graphs need measured headroom, not a
+    # claimed number; see docs/scale-truth-pack.md.
+    memory: 1Gi
+
+# Ephemeral scratch space for SQLite WAL/SHM and other transient files, so
+# the root filesystem can stay read-only.
+tmpDirSizeLimit: 64Mi
+
+probes:
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 4
+    failureThreshold: 3
+  liveness:
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 4
+    failureThreshold: 3
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
