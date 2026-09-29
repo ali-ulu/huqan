@@ -11,7 +11,7 @@
 // `browserSmokeSkipReason()` to skip instead of failing on older runtimes or
 // on machines without a Chromium-family browser.
 
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -27,6 +27,26 @@ const ATTEMPT_TIMEOUT_MS = 2_000;
 // slow CI runner has to stay inside this, or bounding the wait would trade a
 // rare hang for a common flake.
 const PAGE_TARGET_TIMEOUT_MS = 30_000;
+
+// Killing a browser means killing everything it started, not just the process
+// this helper spawned. `child.kill()` signals the parent alone; Chrome forks a
+// zygote plus a renderer/gpu/utility child per site and leaves a `cat` reading
+// the stderr pipe, and those descendants are what kept a smoke test's process
+// alive after `close()` returned (#3161, the residue of #2814). `close()` reads
+// this process table to collect them instead.
+//
+// The probe runs once, at teardown, and only ever kills pids that descend from
+// the browser this helper launched -- never a broad name-based match.
+const PROCESS_PROBE_TIMEOUT_MS = 5_000;
+// How long the killed tree gets to die on its own before SIGKILL. Deliberately
+// a constant rather than a knob: it is a race-window inside an already bounded
+// teardown, and tuning it per call would make a hang look like a configuration
+// choice.
+const KILL_GRACE_MS = 3_000;
+// Absolute bound on close(), so a browser that ignores both signals cannot
+// outlive the file that started it. Kept well under the smoke's own timeouts
+// (WAIT/COMMAND are 15-20s) so teardown stays a small part of the file budget.
+const CLOSE_DEADLINE_MS = 15_000;
 
 const CHROME_CANDIDATES = Object.freeze([
   process.platform === 'win32' && 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -66,6 +86,117 @@ function browserSmokeSkipReason() {
   if (typeof WebSocket !== 'function') return 'global WebSocket is unavailable (needs Node >= 22)';
   if (!findBrowser()) return 'no Chromium-family browser found (set HUQAN_CHROME)';
   return null;
+}
+
+/**
+ * Parse a `pid ppid ...` process table into rows (POSIX `ps`) or `pid|ppid|cmd`
+ * (Windows PowerShell). Same two shapes `scripts/shard-hang-diagnostics.js`
+ * reads, kept separate because that module is a CI entrypoint and this one is a
+ * test helper a smoke can require.
+ */
+function parseProcessTable(text) {
+  const rows = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    if (line.trim() === '') continue;
+    if (line.includes('|')) {
+      const [pid, ppid, ...rest] = line.split('|');
+      rows.push({ pid: Number(pid), ppid: Number(ppid), command: rest.join('|').trim() });
+      continue;
+    }
+    const match = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line);
+    if (match) rows.push({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3].trim() });
+  }
+  return rows.filter(row => Number.isInteger(row.pid) && Number.isInteger(row.ppid));
+}
+
+/** The live process table, or an empty list on a platform that cannot produce one. */
+function readProcessTable() {
+  const [command, args] = process.platform === 'win32'
+    ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)|$($_.ParentProcessId)|$($_.CommandLine)" }']]
+    : ['ps', ['-e', '-o', 'pid=,ppid=,args=']];
+  const result = spawnSync(command, args, { encoding: 'utf8', timeout: PROCESS_PROBE_TIMEOUT_MS, windowsHide: true });
+  if (result.error || typeof result.stdout !== 'string') return [];
+  return parseProcessTable(result.stdout);
+}
+
+/**
+ * Every descendant of `rootPid`, parents before children.
+ *
+ * Scoped to this helper's own launched browser: only pids reachable from
+ * `rootPid` are returned, so a signal can never reach an unrelated process.
+ */
+function collectDescendants(rows, rootPid) {
+  const byParent = new Map();
+  for (const row of rows) {
+    if (!byParent.has(row.ppid)) byParent.set(row.ppid, []);
+    byParent.get(row.ppid).push(row);
+  }
+  const collected = [];
+  const walk = pid => {
+    for (const row of byParent.get(pid) || []) {
+      collected.push(row.pid);
+      walk(row.pid);
+    }
+  };
+  walk(rootPid);
+  return collected;
+}
+
+/** One pid, never a name. Ignores a pid that already exited. */
+function terminatePid(pid, signal) {
+  try { process.kill(pid, signal); } catch { /* already gone, or not ours to kill */ }
+}
+
+/**
+ * Terminate the browser this helper launched and every descendant it left
+ * behind, then wait (bounded) for the tree to actually be gone.
+ *
+ * Returns `{ descendants, stragglers }`: the descendants that were signalled,
+ * and the pids still alive after SIGKILL for the log line. `child.kill()` alone
+ * leaves the descendants running (#3161), and those descendants are what kept
+ * the smoke's process alive.
+ */
+async function killProcessTree(child) {
+  const descendants = collectDescendants(readProcessTable(), child.pid);
+  const signalAll = signal => {
+    // Children before their parents, so a killed parent cannot orphan and hide
+    // the descendants still to be signalled in a re-read of the table.
+    for (const pid of [...descendants].reverse()) terminatePid(pid, signal);
+    terminatePid(child.pid, signal);
+  };
+  signalAll('SIGTERM');
+  await waitForExit(child, KILL_GRACE_MS);
+  signalAll('SIGKILL');
+  // Reap the parent so its exit event fires even when the tree was already gone.
+  try { child.kill('SIGKILL'); } catch { /* already dead */ }
+  await waitForExit(child, KILL_GRACE_MS);
+  return { descendants, stragglers: [child.pid, ...descendants].filter(isAlive) };
+}
+
+function waitForExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise(resolve => {
+    const timer = setTimeout(resolve, timeoutMs);
+    timer.unref?.();
+    child.once('exit', () => { clearTimeout(timer); resolve(); });
+  });
+}
+
+function isAlive(pid) {
+  // A killed process whose parent has not reaped it is left as a zombie; a
+  // zombie still answers signal 0, which would report a dead process as a
+  // straggler and put a false "did not reap" line in the smoke log. Read the
+  // kernel state where it is exposed, exactly as the diagnostics test does.
+  try {
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
+    return state !== 'Z' && state !== 'X';
+  } catch {
+    // No /proc entry (macOS, Windows, or a pid that is truly gone): the signal
+    // probe answers correctly whenever the pid is not a zombie.
+    try { process.kill(pid, 0); return true; } catch { return false; }
+  }
 }
 
 function waitForDevToolsEndpoint(child) {
@@ -132,8 +263,19 @@ async function firstPageTarget(devToolsPort, { deadlineMs = PAGE_TARGET_TIMEOUT_
 
 function connect(webSocketDebuggerUrl) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(webSocketDebuggerUrl);
-    const timer = setTimeout(() => reject(new Error('CDP socket did not open in time')), CONNECT_TIMEOUT_MS);
+    let socket;
+    try {
+      socket = new WebSocket(webSocketDebuggerUrl);
+    } catch (error) {
+      // A malformed url throws synchronously; without this the timer below is
+      // never created and the promise never settles (#3161).
+      reject(error);
+      return;
+    }
+    const timer = setTimeout(() => {
+      try { socket.close(); } catch { /* already closing */ }
+      reject(new Error('CDP socket did not open in time'));
+    }, CONNECT_TIMEOUT_MS);
     socket.addEventListener('open', () => {
       clearTimeout(timer);
       resolve(socket);
@@ -171,9 +313,27 @@ async function launchBrowserSession() {
     `--user-data-dir=${profileDir}`,
     'about:blank',
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  // The browser's stderr pipe is drained by waitForDevToolsEndpoint and the
+  // child's exit removes the reader. Closing it eagerly in close() can raise
+  // EPIPE on the pipe; without a listener that surfaces as an uncaught 'error'
+  // and becomes the very hang this helper is fixing (#3161). The pipe carries
+  // launch diagnostics only, so a late write fault has no signal to preserve.
+  child.stderr.on('error', () => {});
 
   const devToolsPort = await waitForDevToolsEndpoint(child);
-  const socket = await connect(await firstPageTarget(devToolsPort));
+  let socket;
+  try {
+    socket = await connect(await firstPageTarget(devToolsPort));
+  } catch (error) {
+    // A launch that fails (no DevTools endpoint, no page target, a refused
+    // socket) must not leak the browser it already spawned. The caller's
+    // `browser` binding is still undefined at this point, so its `after()` hook
+    // cannot close it -- without this the child and its tree outlive the file
+    // (#3161, hypothesis 2/3).
+    await killProcessTree(child);
+    try { fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); } catch { /* best effort */ }
+    throw error;
+  }
 
   let nextId = 0;
   const pending = new Map();
@@ -217,7 +377,13 @@ async function launchBrowserSession() {
   await send('Runtime.enable');
   await send('Page.enable');
 
+  let lastEvaluate = '(none)';
+
   async function evaluate(expression) {
+    // Recorded before the round trip: if this evaluate is the one that never
+    // returns, the string it was waiting on is the only evidence the teardown
+    // has (#3161, acceptance criterion 2).
+    lastEvaluate = String(expression).replace(/\s+/g, ' ').trim().slice(0, 200);
     const result = await send('Runtime.evaluate', {
       expression,
       awaitPromise: true,
@@ -239,17 +405,37 @@ async function launchBrowserSession() {
     }
   }
 
+  /**
+   * Close the socket and the launched browser, and bound the whole teardown.
+   *
+   * The unbounded version of this method was one of the two ways a smoke could
+   * come back to the shard runner as a bare timeout with no failing assertion:
+   * `child.kill()` signals only the parent pid, so the headless browser's
+   * renderer/zygote children -- and the `cat` reading its stderr pipe -- kept
+   * the file's process alive past the `exit` event (#3161).
+   *
+   * Three things bound it now: the tree is collected and signalled, not just the
+   * parent; the wait is capped at CLOSE_DEADLINE_MS; and if the cap is reached,
+   * the pids still alive, the last evaluate, and any page exceptions are printed
+   * before close() returns anyway. A hang is a named, evidenced failure, not a
+   * silent one.
+   */
   async function close() {
     try { socket.close(); } catch { /* already closing */ }
-    child.kill();
-    // Do not block teardown forever on a browser that refuses to exit.
-    await new Promise(resolve => {
-      const timer = setTimeout(resolve, 5_000);
-      child.once('exit', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
+    const deadline = Date.now() + CLOSE_DEADLINE_MS;
+    const { descendants, stragglers } = await killProcessTree(child);
+    const remaining = Math.max(0, deadline - Date.now());
+    if (remaining > 0) await waitForExit(child, remaining);
+    const alive = stragglers.filter(isAlive);
+    if (alive.length > 0) {
+      console.error(
+        `[cdp-browser] close() did not reap the browser tree within ${CLOSE_DEADLINE_MS}ms; `
+        + `still alive after SIGKILL: ${alive.join(', ')} (signalled descendants: `
+        + `${descendants.length}) (#3161). last evaluate: ${lastEvaluate}`
+        + `; page exceptions: ${exceptions.length}, console errors: ${consoleErrors.length}`
+        + (exceptions[0] ? `; first exception: ${String(exceptions[0]).slice(0, 300)}` : ''),
+      );
+    }
     try {
       fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     } catch { /* a leftover profile directory is not a test failure */ }
@@ -258,4 +444,15 @@ async function launchBrowserSession() {
   return { evaluate, navigate, close, exceptions, consoleErrors, executable };
 }
 
-module.exports = { launchBrowserSession, browserSmokeSkipReason, findBrowser, firstPageTarget };
+module.exports = {
+  launchBrowserSession,
+  browserSmokeSkipReason,
+  findBrowser,
+  firstPageTarget,
+  // Exported for the teardown unit test (#3161). Kept pure/parameterised so the
+  // kill-tree logic can be pinned without launching a browser.
+  parseProcessTable,
+  collectDescendants,
+  killProcessTree,
+  CLOSE_DEADLINE_MS,
+};
