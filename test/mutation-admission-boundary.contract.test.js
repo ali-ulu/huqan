@@ -93,6 +93,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'lib/graph-store-adapters.js': { why: 'graph optimize maintenance audit moved with the optimize store adapter in #2126; same unrouted maintenance-family debt, new implementation owner', sinks: { appendAuditEvent: 1 } },
   'lib/external-action-receipt-writer-factory.js': { why: 'audit family (moved from lib/external-action-receipt.js with the writer factory, #2192); the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
   'lib/hypothesis-review-audit.js': { why: 'audit family; human review verdicts append CLAIM_ACCEPTED/CLAIM_REJECTED via the public graph surface (moved off the kernel-private call, #2345) until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
+  'lib/provenance-drift.js': { why: '#3034 audit family; a drift re-check appends CONFLICT_DETECTED with a drift detail next to the finding candidate it queued through the kernel admission seam, sharing the audit-family debt hypothesis-review-audit carries until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -453,7 +454,12 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // routed rises by one, the total does not move.
   // #2127 dilim 2: kernel.js addNode 1 -> 0 as the plugin node write moves
   // to lib/kernel-propose-node.js (routed). Same one-for-one shape.
-  assert.equal(unrouted, 24, 'unrouted sink calls');
+  // #3034: a fourth audit-family surface, lib/provenance-drift.js, appends
+  // CONFLICT_DETECTED with a drift detail next to the finding candidate it
+  // queues through the admitted kernel.addCandidateClaim seam (the write
+  // itself is routed via that seam's alias and adds no sink). Unrouted rises
+  // by one; routed and the shape of every other entry are unchanged.
+  assert.equal(unrouted, 25, 'unrouted sink calls');
   assert.equal(routed, 33, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces + cross-link derivation + plugin node write)');
-  assert.equal(unrouted + routed, 57, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, and the external research candidate surface');
+  assert.equal(unrouted + routed, 58, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, the external research candidate surface, and the #3034 drift audit append');
 });
