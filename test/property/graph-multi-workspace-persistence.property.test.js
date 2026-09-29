@@ -35,11 +35,13 @@ const fc = require('fast-check');
 const Graph = require('../../graph');
 const { normalizeWorkspaceId } = require('../../lib/graph-record-utils');
 
-// 40 runs, matching the sibling multi-workspace property test: each run
-// creates, closes and removes a sqlite store, and on windows-latest that file
-// churn is far slower than on Ubuntu, so 100 runs crossed the shard's 90s
-// file deadline (#3158). 40 keeps the deadline with headroom on both hosts.
-const NUM_RUNS = 40;
+// Every run opens two real SQLite stores and commits with fsync. That is ~3 s
+// for 100 runs on the Linux runner but 36-47 s on windows-latest in the
+// nightly, and past the 90 s per-file deadline on a PR runner (#3158), which
+// kills the file as a hang. The scoping logic under test is platform-neutral,
+// so Linux keeps the full 100 runs and Windows runs a quarter of them: enough
+// to exercise Windows paths and locking, inside the deadline.
+const NUM_RUNS = process.platform === 'win32' ? 25 : 100;
 const NODE_IDS = ['n0', 'n1', 'n2', 'n3', 'n4'];
 const MAX_WORKSPACES = 4;
 const RELATION = 'relates';
