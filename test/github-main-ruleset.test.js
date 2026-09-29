@@ -36,6 +36,7 @@ const REQUIRED_CHECKS = [
   'Enforce the large-file threshold',
   'Enforce a lint-clean tree',
   'Require architecture tracker snapshot to be current',
+  'Coverage gate',
 ];
 
 function readRuleset(relativePath) {

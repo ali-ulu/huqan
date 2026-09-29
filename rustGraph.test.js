@@ -34,7 +34,8 @@ function rustExec(cmds) {
 // so it runs whether or not the Rust binary is built.
 describe('RustGraph - IPC transport decoding (#1030)', () => {
   function makeReader() {
-    const graph = new RustGraph({ memoryPath: path.join(os.tmpdir(), 'huqan-rust-ipc-none.json') });
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-rust-ipc-'));
+    const graph = new RustGraph({ memoryPath: path.join(directory, 'memory.json') });
     const replies = [];
     graph._unrefIfIdle = () => {};
     return { graph, replies };

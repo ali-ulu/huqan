@@ -7,6 +7,7 @@ const path = require('node:path');
 const { after, test } = require('node:test');
 
 const Graph = require('../graph');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-graph-rollback-'));
 
@@ -101,7 +102,7 @@ for (const backend of ['sqlite', 'json']) {
 }
 
 test('runMutationOnce no longer takes graph-wide deep snapshot clones', () => {
-  const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+  const graphSource = readGraphSurfaceSource();
   const runtimeSource = fs.readFileSync(
     path.join(__dirname, '..', 'lib', 'graph-mutation-runtime.js'),
     'utf8',

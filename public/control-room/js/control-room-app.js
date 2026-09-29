@@ -144,8 +144,9 @@
     Data.setSession($('#session-key').value.trim(), $('#session-ws').value.trim() || 'default');
     $('#session-key').value = '';
     $('#session-form').hidden = true;
-    toast('Key saved to this browser tab.');
-    const current = $$('.nav button[aria-current="page"]')[0];
+    toast('Session saved. Verifying this workspace…');
+    window.dispatchEvent(new CustomEvent('huqan:first-run-session-changed'));
+    const current = $('.nav button[aria-current="page"]')[0];
     UI.go(current ? current.dataset.go : 'overview');
   });
 

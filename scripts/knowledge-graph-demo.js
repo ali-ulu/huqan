@@ -34,7 +34,7 @@ const DEMO_BYPASS_REASON = 'knowledge graph demo seed';
 // #363: izole dizin. Production memory'nin bulunduğu yere hiçbir koşulda
 // dokunmaz; yalnızca açık `--persist-dir` flag'ı hedefi değiştirir.
 function defaultPersistDir() {
-  return path.join(os.tmpdir(), 'huqan-knowledge-graph-demo', String(process.pid));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-knowledge-graph-demo-'));
 }
 
 // Opt-in demo modu: HUQAN_DEMO_MODE=1 ortam değişkeni VEYA açık `--demo` flag'ı.

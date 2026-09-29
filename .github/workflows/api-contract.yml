@@ -37,6 +37,9 @@ jobs:
           mkdir -p artifacts
           node scripts/api-snapshot.js --write artifacts/api-snapshot.json
 
+      - name: Require every REST route to have a contract owner
+        run: npm run check:http-contracts -- --write artifacts/http-contract-inventory.json
+
       - name: Compare with pull-request base
         if: always() && github.event_name == 'pull_request'
         env:
@@ -69,6 +72,7 @@ jobs:
           name: api-contract-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
             artifacts/api-snapshot.json
+            artifacts/http-contract-inventory.json
             artifacts/api-contract-report.md
           if-no-files-found: error
 

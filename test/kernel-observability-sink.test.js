@@ -120,7 +120,8 @@ test('the server runtime can still replace the default sink', { skip: !Database 
 // has nowhere to write. Telemetry stays a no-op there, and it must say so by
 // being absent rather than by pretending to record.
 test('a kernel with no SQLite handle has no sink and still works', () => {
-  const kernel = new Kernel({ useSQLite: false, memoryPath: path.join(os.tmpdir(), 'huqan-obs-json.json') });
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-obs-json-'));
+  const kernel = new Kernel({ useSQLite: false, memoryPath: path.join(directory, 'memory.json') });
 
   assert.doesNotThrow(() => kernel.learn('json mode still learns'));
   // Recorded as null rather than left undefined: the answer is settled once,

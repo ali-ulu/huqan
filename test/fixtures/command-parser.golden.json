@@ -11515,5 +11515,24 @@
    "args": "a mı a mı nedir",
    "workflowId": "ask"
   }
+ },
+ {
+  "input": "experience-read run-1 --workspace ws",
+  "noKernel": {
+   "command": "experience-read",
+   "args": {
+    "runId": "run-1",
+    "workspaceId": "ws"
+   },
+   "workflowId": "experience-read"
+  },
+  "knownNode": {
+   "command": "experience-read",
+   "args": {
+    "runId": "run-1",
+    "workspaceId": "ws"
+   },
+   "workflowId": "experience-read"
+  }
  }
 ]

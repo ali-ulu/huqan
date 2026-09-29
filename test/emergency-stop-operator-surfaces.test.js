@@ -185,6 +185,24 @@ test('the HTTP route names an unknown action before it reaches the ledger', asyn
   assert.equal(result.body.error.code, 'INVALID_ACTION');
 });
 
+test('a consumed operator capability survives a restart as refused (#3005)', async (t) => {
+  const nonceDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-emergency-nonces-'));
+  t.after(() => fs.rmSync(nonceDir, { recursive: true, force: true }));
+  const body = { action: 'stop', scope: 'workspace', workspaceId: 'w', agentId: '', reason: 'replay' };
+  const capability = capabilityFor(changeArguments(body));
+
+  const first = routesWith(t, { capabilityNonceDir: nonceDir });
+  assert.equal((await call(first.routes, { method: 'POST', body, capability })).status, 200);
+  assert.equal(first.ledger.check({ workspaceId: 'w' }).stopped, true);
+
+  // A fresh route over the same nonce directory stands in for a restart: the
+  // process-local Map this replaced would have accepted the token again.
+  const second = routesWith(t, { capabilityNonceDir: nonceDir });
+  const replayed = await call(second.routes, { method: 'POST', body, capability });
+  assert.equal(replayed.status, 403, 'a capability spent before the restart is refused after it');
+  assert.equal(second.ledger.check({ workspaceId: 'w' }).stopped, false, 'the replay writes nothing');
+});
+
 test('the optional route boundaries mount the emergency stop behind the operator token', async (t) => {
   const { createOptionalRouteBoundaries } = require('../lib/http/optional-boundaries');
   const boundaries = createOptionalRouteBoundaries({

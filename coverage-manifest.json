@@ -2,19 +2,19 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 56,
-    "sites": 122,
+    "files": 54,
+    "sites": 119,
     "byCapability": {
       "process": 16,
       "egress": 4,
-      "fs_write": 102
+      "fs_write": 99
     },
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
-      "persistence": 35,
-      "operator_tool": 26,
-      "evidence": 16,
+      "persistence": 37,
+      "operator_tool": 23,
+      "evidence": 14,
       "unguarded": 4
     }
   },
@@ -304,21 +304,6 @@
           "line": 67,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
-        }
-      ]
-    },
-    {
-      "file": "lib/default-persistence-path.js",
-      "role": "persistence",
-      "why": "creates the resolved state directory before first write; mkdir only, at a path derived from configuration",
-      "capabilities": [
-        "fs_write"
-      ],
-      "sites": [
-        {
-          "line": 50,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
         }
       ]
     },
@@ -703,7 +688,7 @@
       ],
       "sites": [
         {
-          "line": 105,
+          "line": 103,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
@@ -726,26 +711,6 @@
           "line": 162,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
-        }
-      ]
-    },
-    {
-      "file": "lib/graph-record-utils.js",
-      "role": "evidence",
-      "why": "persists mutation receipt records beside the graph they attest to",
-      "capabilities": [
-        "fs_write"
-      ],
-      "sites": [
-        {
-          "line": 23,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 24,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
         }
       ]
     },
@@ -835,26 +800,6 @@
       ]
     },
     {
-      "file": "lib/memory-store-json-persistence.js",
-      "role": "persistence",
-      "why": "the JSON memory store backend, writing to the configured memoryStorePath rather than any agent-supplied path",
-      "capabilities": [
-        "fs_write"
-      ],
-      "sites": [
-        {
-          "line": 19,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 20,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
-        }
-      ]
-    },
-    {
       "file": "lib/mutation-journal-lock.js",
       "role": "evidence",
       "why": "the durable mutation journal lock; losing it would break replay idempotency",
@@ -894,6 +839,21 @@
       "sites": [
         {
           "line": 86,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/reason-sandbox.js",
+      "role": "persistence",
+      "why": "owns and removes the product-created per-request reasoning sandbox under the OS temp root; the sandbox path is created by HUQAN, never supplied by an agent",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 140,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -1016,6 +976,51 @@
       ]
     },
     {
+      "file": "lib/secure-file-write.js",
+      "role": "persistence",
+      "why": "central private staging and atomic-replacement primitive for product persistence; callers select the target while this module performs exclusive bounded filesystem writes",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 36,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 46,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 47,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 51,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 76,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 87,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 97,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
       "file": "lib/self-healer/source-dogfood-simulator.js",
       "role": "operator_tool",
       "why": "writes a simulated source tree for the dogfood run; never reached by an agent request",
@@ -1059,27 +1064,12 @@
       ],
       "sites": [
         {
-          "line": 20,
-          "capability": "fs_write",
-          "call": "fs.copyFileSync"
-        },
-        {
-          "line": 22,
-          "capability": "fs_write",
-          "call": "fs.renameSync"
-        },
-        {
-          "line": 24,
+          "line": 144,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 150,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
-        },
-        {
-          "line": 154,
+          "line": 148,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -1168,31 +1158,6 @@
           "line": 132,
           "capability": "egress",
           "call": "https.request"
-        }
-      ]
-    },
-    {
-      "file": "persistencePaths.js",
-      "role": "persistence",
-      "why": "resolves and creates the product state directories on startup; the paths come from config and platform defaults, never from a request",
-      "capabilities": [
-        "fs_write"
-      ],
-      "sites": [
-        {
-          "line": 63,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 64,
-          "capability": "fs_write",
-          "call": "fs.writeFileSync"
-        },
-        {
-          "line": 65,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
         }
       ]
     },

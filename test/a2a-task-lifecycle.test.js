@@ -25,6 +25,7 @@ const { readJsonBody } = require('../requestGuards');
 const { resolveRouteAuthPolicy } = require('../lib/http/route-auth-policy');
 const { CANONICAL_WORKSPACE, createA2aExchangeBoundary } = require('../lib/a2a/exchange-route');
 const { TASK_STATES, createA2aTaskStore, taskIdForReplayKey } = require('../lib/a2a/task-store');
+const { createA2aReplayStore } = require('../lib/a2a/replay-store');
 const {
   A2A_TASK_PATH_PREFIX,
   TASK_ROUTE_ERRORS,
@@ -255,4 +256,20 @@ test('task lifecycle: no boundary without the configuration it depends on', () =
   const sandbox = makeSandbox();
   assert.equal(createTaskReadBoundary({ authorityFile: sandbox.authorityFile, replayDirectory: '' }), null);
   assert.ok(createTaskReadBoundary({ authorityFile: sandbox.authorityFile, replayDirectory: sandbox.replayDirectory }));
+});
+
+
+test('A2A replay reservation and task completion survive store restart', () => {
+  const sandbox = makeSandbox();
+  const replayKey = '7'.repeat(64);
+  const firstReplay = createA2aReplayStore(sandbox.replayDirectory);
+  assert.deepEqual(firstReplay.reserve({ replayKey }), { reserved: true });
+  const firstTasks = createA2aTaskStore(sandbox.replayDirectory);
+  const taskId = firstTasks.recordCompletion(replayKey, { admitted: true, exchangeId: 'restart-proof' });
+
+  const restartedReplay = createA2aReplayStore(sandbox.replayDirectory);
+  const restartedTasks = createA2aTaskStore(sandbox.replayDirectory);
+  assert.deepEqual(restartedReplay.reserve({ replayKey }), { reserved: false });
+  assert.equal(restartedTasks.readTask(taskId).state, TASK_STATES.COMPLETED);
+  assert.equal(restartedTasks.readTask(taskId).effect.exchangeId, 'restart-proof');
 });

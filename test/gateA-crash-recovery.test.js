@@ -10,7 +10,31 @@ const { DURABLE_WRITE_POINTS, getUncovered } = require('../lib/http/crash-recove
 
 test('Gate A item 7: inventory covers every durable write point', () => {
   assert.ok(Array.isArray(DURABLE_WRITE_POINTS));
-  assert.ok(DURABLE_WRITE_POINTS.length >= 9, 'expected at least 9 durable write points');
+  const requiredOwners = [
+    'graph.json',
+    'graph.sqlite',
+    'memory-store.sqlite',
+    'agent-run-finalization',
+    'external-client-replay.sqlite',
+    'a2a.replay-task',
+    'a2a.delegation-audit',
+    'mcp-capability-nonces',
+    'registry.records',
+    'agent-memory.json',
+    'command-policy',
+    'hypothesis-thresholds',
+    'emergency-stop',
+    'streaming-trust.evaluations',
+    'streaming-trust.writeback',
+    'github-app-beta.store',
+    'backup.create',
+    'backup.restore',
+    'external-action-receipt',
+    'observability.jobs',
+  ];
+  const ids = new Set(DURABLE_WRITE_POINTS.map(point => point.id));
+  for (const id of requiredOwners) assert.equal(ids.has(id), true, `missing durable owner: ${id}`);
+  assert.ok(DURABLE_WRITE_POINTS.length >= requiredOwners.length);
   for (const point of DURABLE_WRITE_POINTS) {
     assert.ok(point.id, `point missing id: ${JSON.stringify(point)}`);
     assert.ok(point.mechanism, `point ${point.id} missing mechanism`);

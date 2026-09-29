@@ -5,17 +5,21 @@
 # Both stages deliberately share one reviewed digest; update it as a
 # reviewable diff, keeping the tag comment for readability.
 #
-# Node 22, not Node 20 (#770). Node 20 reached end-of-life on 2026-04-30
-# (nodejs/Release schedule.json), so node:20-bookworm-slim stopped being
-# rebuilt: its tag still resolves to the digest pinned here in April, and every
-# OS-level CVE published since then stays in it permanently, with no upstream
-# fix to pull. A pin cannot be kept current when nothing upstream is current.
-# Node 22 is supported to 2027-04-30 and is already one of the two versions
-# CI's test matrix runs, so the runtime image is covered by the same tests
-# rather than a version nothing exercises. package.json engines still accepts
-# Node >= 20: this changes what the *image* runs, not what the package
-# supports.
-FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS dependencies
+# Node 22 LTS, not Node 20 (#770) and not an odd-numbered line (#3013).
+#
+# Node 20 reached end-of-life on 2026-04-30 (nodejs/Release schedule.json), so
+# node:20-bookworm-slim stopped being rebuilt: its tag still resolves to the
+# digest pinned here in April, and every OS-level CVE published since then stays
+# in it permanently, with no upstream fix to pull. A pin cannot be kept current
+# when nothing upstream is current.
+#
+# Node 22 is supported to 2027-04-30 and is the version CI's test matrix runs
+# and package.json engines requires (>=22.13.0), so the runtime image is covered
+# by the same tests rather than a version nothing exercises. Odd-numbered Node
+# lines (23, 25) are non-LTS: they are not run by the matrix, so pinning one
+# would ship a runtime the suite never gates. test/workflow-action-pinning.test.js
+# asserts this tag stays on a major the matrix runs.
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS dependencies
 
 WORKDIR /app
 
@@ -27,7 +31,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 
-FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS runtime
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS runtime
 
 WORKDIR /app
 

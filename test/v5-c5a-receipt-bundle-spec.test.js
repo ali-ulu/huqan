@@ -389,7 +389,8 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
     // clean-room verifier must reach the same verdict. Both now reject, since
     // receiptCount is sealed and separately checked (#735, #767).
     const mutated = { ...valid, receiptCount: valid.receipts.length + 7 };
-    const tmp = path.join(os.tmpdir(), `c5a-count-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'c5a-count-'));
+    const tmp = path.join(tmpDir, 'bundle.json');
     fs.writeFileSync(tmp, JSON.stringify(mutated, null, 2));
     try {
       const result = runPython([tmp]);
@@ -399,7 +400,7 @@ describe('V5-C5A: a clean-room implementation agrees on the bytes', () => {
       assert.equal(verifyExportedBundle(mutated).valid, false,
         'the producer must agree, otherwise the spec is wrong rather than the probe');
     } finally {
-      fs.rmSync(tmp, { force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
@@ -454,7 +455,8 @@ describe('V5-C5A: what a VALID verdict does not prove', () => {
   });
 
   it('the clean-room implementation agrees, so the limit is the format not the code', { skip: !havePythonProbe && 'python3 unavailable' }, () => {
-    const tmp = path.join(os.tmpdir(), `c5a-forged-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'c5a-forged-'));
+    const tmp = path.join(tmpDir, 'bundle.json');
     fs.writeFileSync(tmp, JSON.stringify(forged, null, 2));
     try {
       const result = spawnSync('python3',
@@ -463,7 +465,7 @@ describe('V5-C5A: what a VALID verdict does not prove', () => {
       assert.doesNotMatch(result.stdout, /INVALID/);
       assert.equal(result.status, 0);
     } finally {
-      fs.rmSync(tmp, { force: true });
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 

@@ -141,9 +141,10 @@ test('delivery ID path traversal and symbolic-link roots fail closed', (t) => {
   );
 
   const target = tempRoot(t);
-  const link = path.join(os.tmpdir(), `huqan-github-app-link-${process.pid}-${Date.now()}`);
+  const linkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-github-app-link-'));
+  const link = path.join(linkRoot, 'link');
   fs.symlinkSync(target, link, 'dir');
-  t.after(() => fs.rmSync(link, { force: true }));
+  t.after(() => fs.rmSync(linkRoot, { recursive: true, force: true }));
   assert.throws(
     () => createGitHubAppBetaStore({ rootPath: link }),
     (error) => error.code === ERROR_CODES.UNSAFE_ROOT,

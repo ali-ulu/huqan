@@ -22,6 +22,74 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-memory-approval-'))
 const API_KEY = 'test-api-key';
 const OPERATOR_TOKEN = 'test-operator-token';
 
+const { createMcpOperatorCapability, operatorCapabilityBinding } = require('../mcpServer');
+
+function bootProbeWithCapability({ caseDir, capability }) {
+  const script = `
+    const http = require('http');
+    const path = require('path');
+    const caseDir = process.argv[1];
+    const capability = process.argv[2];
+    Object.assign(process.env, {
+      HUQAN_DISABLE_AUTO_LISTEN: '1',
+      HUQAN_API_KEY: ${JSON.stringify(API_KEY)},
+      HUQAN_MCP_OPERATOR_TOKEN: ${JSON.stringify(OPERATOR_TOKEN)},
+      HUQAN_MEMORY_PATH: path.join(caseDir, 'memory.json'),
+      HUQAN_DB_PATH: path.join(caseDir, 'graph.sqlite'),
+    });
+    const server = require(path.join(${JSON.stringify(repoRoot)}, 'server.js'));
+    (async () => {
+      let result;
+      try {
+        await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+        result = await new Promise((resolve, reject) => {
+          const req = http.request({
+            hostname: '127.0.0.1', port: server.address().port,
+            path: '/api/v2/memory-approvals', method: 'GET',
+            headers: { 'x-api-key': ${JSON.stringify(API_KEY)}, 'x-huqan-operator-capability': capability },
+          }, (res) => {
+            let text = '';
+            res.on('data', (chunk) => { text += chunk; });
+            res.on('end', () => resolve({ status: res.statusCode, body: text }));
+          });
+          req.on('error', reject);
+          req.end();
+        });
+      } finally {
+        if (server.listening) await new Promise((resolve) => server.close(() => resolve()));
+        try { server.closeHuqan(); } catch (_) {}
+      }
+      process.stdout.write('REPLAY_PROBE ' + JSON.stringify(result) + '\\n');
+    })().catch((error) => { console.error(error.stack || error); process.exitCode = 1; });
+  `;
+  const output = execFileSync(process.execPath, ['-e', script, caseDir, capability], {
+    cwd: repoRoot, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const line = output.split('\n').find((l) => l.startsWith('REPLAY_PROBE '));
+  assert.ok(line, `no replay probe result in output:\n${output}`);
+  return JSON.parse(line.slice('REPLAY_PROBE '.length));
+}
+
+test('a consumed capability is refused after a server restart (#3005)', () => {
+  // Same case directory across both processes, so the on-disk nonce survives
+  // the restart exactly as a redeploy or hot reload would leave it. The
+  // process-local Map this replaced would have accepted the token again.
+  const caseDir = fs.mkdtempSync(path.join(tempDir, 'replay-'));
+  const args = { limit: 50, workspaceId: 'default' };
+  const capability = createMcpOperatorCapability({
+    secret: OPERATOR_TOKEN,
+    ...operatorCapabilityBinding('huqan.approvals', args),
+  });
+
+  const first = bootProbeWithCapability({ caseDir, capability });
+  assert.equal(first.status, 200);
+  const second = bootProbeWithCapability({ caseDir, capability });
+  // The route surfaces a tool-level block as 400, so the distinguishing
+  // signal is the refusal code, not the status line.
+  assert.notEqual(second.status, 200, `the spent capability must not be accepted after the restart`);
+  assert.match(second.body, /OPERATOR_AUTH_REQUIRED/);
+});
+
 after(() => {
   try {
     fs.rmSync(tempDir, { recursive: true, force: true });

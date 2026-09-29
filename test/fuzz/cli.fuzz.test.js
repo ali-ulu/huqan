@@ -9,9 +9,10 @@ const fc = require('fast-check');
 const CLI = require('../../cli');
 const { runCliArgv } = require('../../cli');
 
-const cliSource = fs.readFileSync(path.join(__dirname, '..', '..', 'cli.js'), 'utf8');
-const handlerStart = cliSource.indexOf('const CLI_COMMAND_HANDLERS');
-const handlerEnd = cliSource.indexOf('\n}));', handlerStart);
+// #3101: the command table moved from cli.js to lib/cli-command-handlers.js.
+const cliSource = fs.readFileSync(path.join(__dirname, '..', '..', 'lib', 'cli-command-handlers.js'), 'utf8');
+const handlerStart = cliSource.indexOf('return Object.freeze(Object.assign(Object.create(null), {');
+const handlerEnd = cliSource.indexOf('\n  }));', handlerStart);
 assert.ok(handlerStart >= 0 && handlerEnd > handlerStart, 'CLI command registry must be discoverable');
 
 const handlerBlock = cliSource.slice(handlerStart, handlerEnd);

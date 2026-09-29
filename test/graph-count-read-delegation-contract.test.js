@@ -5,8 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { countNodes, countEdges } = require('../lib/graph-count-read');
+const { createLabelIndex, rebuildLabelIndex } = require('../lib/graph-label-index');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-count-read.js'), 'utf8');
 
 function methodBody(source, methodName) {
@@ -20,8 +22,8 @@ function methodBody(source, methodName) {
 }
 
 test('GRAPH: nodeCount and edgeCount are one-line delegates', () => {
-  assert.equal(methodBody(graphSource, 'nodeCount'), 'return runNodeCount(this._nodes, workspaceId);');
-  assert.equal(methodBody(graphSource, 'edgeCount'), 'return runEdgeCount(this._edges, workspaceId);');
+  assert.equal(methodBody(graphSource, 'nodeCount'), 'return runNodeCount(this._nodes, workspaceId, this._labelIndex);');
+  assert.equal(methodBody(graphSource, 'edgeCount'), 'return runEdgeCount(this._edges, workspaceId, this._edgeWorkspaceCounts);');
 });
 
 test('GRAPH: count-read delegate is narrow and cycle-free', () => {
@@ -29,27 +31,33 @@ test('GRAPH: count-read delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /require\(["']\.\.\/graph["']\)/);
   assert.doesNotMatch(delegateSource, /this\._/);
   assert.doesNotMatch(delegateSource, /_db|_stmts|_nodes|_edges|_outIndex|_inIndex/);
-  assert.match(delegateSource, /normalizeWorkspaceId/);
+  assert.match(delegateSource, /workspaceNodeCount/);
 });
 
 test('GRAPH: count-read delegate preserves total and workspace-scoped counts', () => {
   const nodes = {
-    'default-node': { id: 'default-node', workspaceId: 'default' },
-    'workspace-a::one': { id: 'one', workspaceId: 'workspace-a' },
-    'workspace-a::two': { id: 'two', workspaceId: 'workspace-a' },
+    'default-node': { id: 'default-node', workspaceId: 'default', label: 'a' },
+    'workspace-a::one': { id: 'one', workspaceId: 'workspace-a', label: 'a' },
+    'workspace-a::two': { id: 'two', workspaceId: 'workspace-a', label: 'b' },
   };
   const edges = [
     { from: 'default-node', to: 'default-node', workspaceId: 'default' },
     { from: 'one', to: 'two', workspaceId: 'workspace-a' },
     { from: 'two', to: 'one', workspaceId: 'workspace-a' },
   ];
+  const index = createLabelIndex();
+  rebuildLabelIndex(index, nodes);
 
-  assert.equal(countNodes(nodes), 3);
-  assert.equal(countNodes(nodes, ''), 3);
-  assert.equal(countNodes(nodes, 'workspace-a'), 2);
-  assert.equal(countNodes(nodes, 'missing'), 0);
+  assert.equal(countNodes(nodes, undefined, index), 3);
+  assert.equal(countNodes(nodes, '', index), 3);
+  assert.equal(countNodes(nodes, 'workspace-a', index), 2);
+  assert.equal(countNodes(nodes, 'missing', index), 0);
   assert.equal(countEdges(edges), 3);
   assert.equal(countEdges(edges, ''), 3);
   assert.equal(countEdges(edges, 'workspace-a'), 2);
   assert.equal(countEdges(edges, 'missing'), 0);
+  const edgeCounts = new Map([['default', 1], ['workspace-a', 2]]);
+  assert.equal(countEdges(edges, 'workspace-a', edgeCounts), 2);
+  assert.equal(countEdges(edges, 'missing', edgeCounts), 0);
+  assert.equal(countEdges(edges, undefined, edgeCounts), 3);
 });

@@ -1,28 +1,6 @@
 {
   "schemaVersion": 3,
-  "entries": {
-    "cli.js": {
-      "band": "structural",
-      "lines": 200,
-      "signals": [
-        "FANOUT:24"
-      ]
-    },
-    "graph.js": {
-      "band": "structural",
-      "lines": 392,
-      "signals": [
-        "FANOUT:31"
-      ]
-    },
-    "kernel.js": {
-      "band": "structural",
-      "lines": 379,
-      "signals": [
-        "FANOUT:28"
-      ]
-    }
-  },
+  "entries": {},
   "dependencyGraph": {
     "threshold": 50,
     "layers": {
@@ -184,6 +162,7 @@
       "lib/cli-capability-commands.js": "Core",
       "lib/cli-coder-verify.js": "Core",
       "lib/cli-coder.js": "Core",
+      "lib/cli-command-handlers.js": "Core",
       "lib/cli-company-ingest.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-experience-read.js": "Core",
@@ -433,9 +412,11 @@
       "lib/graph-edge-read.js": "Core",
       "lib/graph-edge-write.js": "Core",
       "lib/graph-hypotheses.js": "Core",
+      "lib/graph-journal-methods.js": "Core",
       "lib/graph-json-persistence.js": "Core",
       "lib/graph-json-snapshot.js": "Core",
       "lib/graph-json-transaction.js": "Core",
+      "lib/graph-method-install.js": "Core",
       "lib/graph-mutation-receipt-read.js": "Core",
       "lib/graph-mutation-receipt-schema.js": "Core",
       "lib/graph-mutation-receipt-write.js": "Core",
@@ -453,6 +434,7 @@
       "lib/graph-persistence-runtime.js": "Core",
       "lib/graph-prune.js": "Core",
       "lib/graph-query-read.js": "Core",
+      "lib/graph-read-methods.js": "Core",
       "lib/graph-record-utils-edges.js": "Core",
       "lib/graph-record-utils-nodes.js": "Core",
       "lib/graph-record-utils.js": "Core",
@@ -462,6 +444,7 @@
       "lib/graph-store-adapters.js": "Core",
       "lib/graph-store-port.js": "Core",
       "lib/graph-traversal.js": "Core",
+      "lib/graph-write-methods.js": "Core",
       "lib/http-human-oversight-adapter-identity.js": "Core",
       "lib/http-human-oversight-adapter-input.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
@@ -931,6 +914,7 @@
       "lib/trust-status.js": "Core",
       "lib/turkish-copula.js": "Core",
       "lib/type-lattice.js": "Core",
+      "lib/unexpected-egress-doctor.js": "Core",
       "lib/unexpected-egress-gate.js": "Core",
       "lib/v5/cryptographic-profile-contract.js": "Application",
       "lib/v5/cryptographic-verification-adapter.js": "Application",
@@ -1100,6 +1084,7 @@
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
       "scripts/check-control-chars.js": "UI",
+      "scripts/check-coverage.js": "UI",
       "scripts/check-dead-code.js": "UI",
       "scripts/check-deprecations.js": "UI",
       "scripts/check-deterministic-path.js": "UI",
@@ -1111,6 +1096,7 @@
       "scripts/check-licenses.js": "UI",
       "scripts/check-module-boundary.js": "UI",
       "scripts/check-mutation-score.js": "UI",
+      "scripts/check-naming-conformance.js": "UI",
       "scripts/check-package-closure.js": "UI",
       "scripts/check-pr-guardian-webhook-url.js": "UI",
       "scripts/check-security-invariants.js": "UI",
@@ -1308,19 +1294,12 @@
       "cli.js": [
         "agentRuntime.js",
         "dream.js",
-        "lib/cli-agent-commands.js",
-        "lib/cli-approval-commands.js",
-        "lib/cli-backup-commands.js",
-        "lib/cli-capability-commands.js",
-        "lib/cli-company-ingest.js",
+        "lib/cli-command-handlers.js",
         "lib/cli-gate-evaluation.js",
-        "lib/cli-help.js",
         "lib/cli-helpers.js",
-        "lib/cli-knowledge-commands.js",
         "lib/cli-mutation-gate.js",
         "lib/cli-repl.js",
         "lib/cli-runtime-methods.js",
-        "lib/cli-status-command.js",
         "lib/cli-workflow-adapter.js",
         "lib/command-parser.js",
         "lib/environment-compat.js",
@@ -1355,33 +1334,13 @@
         "lib/github-app-beta-http-boundary.js"
       ],
       "graph.js": [
-        "lib/audit-query.js",
-        "lib/graph-candidate-claims-read.js",
-        "lib/graph-candidate-claims-write.js",
-        "lib/graph-causal-chain.js",
-        "lib/graph-causal-relation-read.js",
         "lib/graph-consolidate-edges.js",
-        "lib/graph-count-read.js",
-        "lib/graph-edge-mutations.js",
-        "lib/graph-edge-read.js",
-        "lib/graph-edge-write.js",
-        "lib/graph-mutation-receipt-read.js",
-        "lib/graph-mutation-receipt-schema.js",
-        "lib/graph-mutation-runtime.js",
-        "lib/graph-node-delete.js",
-        "lib/graph-node-read.js",
-        "lib/graph-node-similarity.js",
-        "lib/graph-node-tag.js",
-        "lib/graph-node-touch.js",
-        "lib/graph-node-weight.js",
-        "lib/graph-node-write.js",
-        "lib/graph-optimize.js",
-        "lib/graph-prune.js",
-        "lib/graph-query-read.js",
+        "lib/graph-journal-methods.js",
+        "lib/graph-read-methods.js",
         "lib/graph-record-utils.js",
         "lib/graph-sqlite-schema.js",
-        "lib/graph-stats.js",
         "lib/graph-store-adapters.js",
+        "lib/graph-write-methods.js",
         "lib/memory-store-utils.js",
         "lib/receipt/receipt-chain.js",
         "lib/receipt/v4-receipt-family.js",
@@ -1883,6 +1842,16 @@
         "lib/coder/derivation-record.js",
         "lib/coder/journal-store.js"
       ],
+      "lib/cli-command-handlers.js": [
+        "lib/cli-agent-commands.js",
+        "lib/cli-approval-commands.js",
+        "lib/cli-backup-commands.js",
+        "lib/cli-capability-commands.js",
+        "lib/cli-company-ingest.js",
+        "lib/cli-help.js",
+        "lib/cli-knowledge-commands.js",
+        "lib/cli-status-command.js"
+      ],
       "lib/cli-company-ingest.js": [
         "lib/cli-helpers.js"
       ],
@@ -1891,6 +1860,7 @@
         "lib/environment-compat.js",
         "lib/sqlite-availability.js",
         "lib/storage/schema.js",
+        "lib/unexpected-egress-doctor.js",
         "persistencePaths.js",
         "rustGraph.js"
       ],
@@ -2793,6 +2763,12 @@
       "lib/graph-hypotheses.js": [
         "lib/causal-edge-strength.js"
       ],
+      "lib/graph-journal-methods.js": [
+        "lib/graph-method-install.js",
+        "lib/graph-mutation-receipt-read.js",
+        "lib/graph-mutation-receipt-schema.js",
+        "lib/graph-mutation-runtime.js"
+      ],
       "lib/graph-json-persistence.js": [
         "lib/audit-log.js",
         "lib/conflict-detector.js",
@@ -2857,6 +2833,22 @@
       "lib/graph-query-read.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/graph-read-methods.js": [
+        "lib/audit-query.js",
+        "lib/graph-candidate-claims-read.js",
+        "lib/graph-causal-chain.js",
+        "lib/graph-causal-relation-read.js",
+        "lib/graph-count-read.js",
+        "lib/graph-edge-read.js",
+        "lib/graph-method-install.js",
+        "lib/graph-node-read.js",
+        "lib/graph-node-similarity.js",
+        "lib/graph-node-weight.js",
+        "lib/graph-query-read.js",
+        "lib/graph-record-utils.js",
+        "lib/graph-stats.js",
+        "lib/graph-store-adapters.js"
+      ],
       "lib/graph-record-utils-edges.js": [
         "lib/is-plain-object.js"
       ],
@@ -2890,6 +2882,19 @@
         "lib/graph-chain-traversal.js",
         "lib/graph-cycle-search.js",
         "lib/graph-path-search.js"
+      ],
+      "lib/graph-write-methods.js": [
+        "lib/graph-candidate-claims-write.js",
+        "lib/graph-edge-mutations.js",
+        "lib/graph-edge-write.js",
+        "lib/graph-method-install.js",
+        "lib/graph-node-delete.js",
+        "lib/graph-node-tag.js",
+        "lib/graph-node-touch.js",
+        "lib/graph-node-write.js",
+        "lib/graph-optimize.js",
+        "lib/graph-prune.js",
+        "lib/graph-store-adapters.js"
       ],
       "lib/http-human-oversight-adapter-identity.js": [
         "lib/agent-identity-runtime.js",
@@ -2936,6 +2941,7 @@
       "lib/http/emergency-stop-routes.js": [
         "lib/emergency-stop.js",
         "lib/environment-compat.js",
+        "lib/mcp-capability-nonce-store.js",
         "lib/mcp-operator-capability.js",
         "lib/mcp/operator-authorization.js"
       ],
@@ -2976,6 +2982,7 @@
       ],
       "lib/http/memory-approval-routes.js": [
         "lib/environment-compat.js",
+        "lib/mcp-capability-nonce-store.js",
         "mcpServer.js"
       ],
       "lib/http/optional-boundaries.js": [
@@ -4652,6 +4659,9 @@
       "lib/type-lattice.js": [
         "lib/text-utils.js",
         "lib/workspace-id.js"
+      ],
+      "lib/unexpected-egress-doctor.js": [
+        "lib/unexpected-egress-gate.js"
       ],
       "lib/unexpected-egress-gate.js": [
         "lib/data-residency-gate.js"

@@ -92,6 +92,36 @@ describe('workflow actions are pinned to immutable commits (#751)', () => {
       'build and runtime stages should share one reviewed digest unless documented otherwise');
   });
 
+  it('the container base image runs a Node major CI actually tests (#3013)', () => {
+    const dockerfile = fs.readFileSync(path.join(__dirname, '..', 'Dockerfile'), 'utf8');
+    const imageMajors = new Set();
+    for (const line of dockerfile.split('\n')) {
+      const match = line.match(/^FROM\s+node:(\d+)-/);
+      if (match) imageMajors.add(Number(match[1]));
+    }
+    assert.ok(imageMajors.size >= 1, 'no node base image found in the Dockerfile');
+
+    const ciMajors = new Set();
+    for (const file of workflowFiles()) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const match of text.matchAll(/node-version:\s*(?:'|"|\[)?\s*(\d{2})\b/g)) {
+        ciMajors.add(Number(match[1]));
+      }
+      for (const match of text.matchAll(/node-version:\s*\[([^\]]+)\]/g)) {
+        for (const item of match[1].split(',')) ciMajors.add(Number(item.trim()));
+      }
+    }
+    assert.ok(ciMajors.size > 0, 'no CI node-version matrix found');
+
+    for (const major of imageMajors) {
+      assert.ok(ciMajors.has(major),
+        `the image runs Node ${major} but CI only tests ${[...ciMajors].sort().join(', ')}; ` +
+        'pin a major the suite actually gates (#3013)');
+      assert.strictEqual(major % 2, 0,
+        `Node ${major} is a non-LTS (odd) line; pin an LTS major instead (#3013)`);
+    }
+  });
+
   it('the privileged security workflow installs an exact semgrep version', () => {
     const security = fs.readFileSync(path.join(WORKFLOW_DIR, 'security.yml'), 'utf8');
     const install = security.match(/pip install[^\n]*semgrep[^\n]*/);

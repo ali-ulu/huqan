@@ -4,6 +4,14 @@
 
 This document defines the primary security threats to HUQAN, categorized using the STRIDE model (Spoofing, Tampering, Information disclosure, Denial of service, Elevation of privilege) with a focus on AI/ML runtime, memory, trust, and governance surfaces.
 
+**Mitigation status vocabulary.** Each control below is labelled against the code it claims:
+
+- **Implemented** — a module, gate, or check that exists and is wired into a production path.
+- **Partial** — a real control that covers less than the claim implies (a narrower surface, a different mechanism, or a default that leaves a gap).
+- **Planned** — described as intent, not present in the code.
+
+A control that could not be traced to code is listed under **Planned** or **Not implemented**, never under **Existing Mitigations**. This keeps "green test" from reading as "shipped control".
+
 ---
 
 ## Spoofing
@@ -15,9 +23,9 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Propagation of false information through the system, damaging downstream reasoning.
 
 **Existing Mitigations**:
-- Risk classifier scores manipulated claims as suspicious based on source reputation.
-- Input validation for known content structure.
-- Trust gate requires explicit approval for external content ingestion.
+- **Implemented** — Trust gate requires explicit approval for external content ingestion (`lib/ingest-approval.js`, `lib/mcp-approval-learn-execution.js`).
+- **Partial** — Input validation for known content structure (`lib/pre-ingest.js`, snapshot/`strictString` normalization in `lib/ingest-values.js`); it validates shape and size, not factual plausibility.
+- **Partial** — The action risk classifier (`lib/risk-classify.js`) rates an action by risk signals and a source-provenance check (`AGENT_ORIGIN_PROVENANCE_REQUIRED` in `lib/mcp-approval-learn-execution.js`); it does not score a claim by *source reputation*, which does not exist as a code path.
 
 **Remaining Gaps**:
 - Adversarial prompt engineering can bypass content reputation checks.
@@ -36,8 +44,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Unauthorized execution of internal tools, potential system compromise.
 
 **Existing Mitigations**:
-- Hard-coded internal tool list with tools trusted by default if in the internal set.
-- API key-based authentication for REST endpoints.
+- **Implemented** — Hard-coded internal tool list with tools trusted by default if in the internal set (`INTERNAL_TOOLS` in `toolPolicy.js`; `lib/mcp-tool-policy.js` reconciles the MCP view with `lib/mcp-gate-adapter.js`).
+- **Implemented** — API key-based authentication for REST endpoints (`requestGuards.js` `requireApiKey`; bearer `HUQAN_API_KEY`/`API_KEY`).
 
 **Remaining Gaps**:
 - Lack of per-tool token validation for internal tools.
@@ -58,9 +66,9 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: System integrity compromised, downstream reasoning corrupted.
 
 **Existing Mitigations**:
-- SHA256 hashing of content, signatures for approved modifications.
-- Memory gate (`lib/memory-mutation-gate/`) checks request origin and source trust.
-- Workspace isolation prevents cross-workspace tampering.
+- **Implemented** — SHA256 content hashing (`lib/content-hash.js`, `lib/ingest-values.js`) and signed receipt chains for approved modifications (`lib/receipt/receipt-chain.js`, `lib/receipt/signed-bundle.js`). Signatures bind a *decision receipt*, not each memory record.
+- **Partial** — The memory mutation gate (`lib/memory-mutation-gate/`) classifies each mutation and derives a review/allow decision, and `lib/memory-admission-gate.js` records a provenance source; there is no source-trust *check* in the mutation path, so "checks request origin and source trust" overstates it.
+- **Implemented** — Workspace isolation prevents cross-workspace tampering (`lib/cross-workspace-access-gate.js`, wired as AB11 in `lib/external-action-guard-gate-phase.js`).
 
 **Remaining Gaps**:
 - Weak consensus for record validation.
@@ -77,8 +85,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Policy bypass, privilege escalation, tool misuse.
 
 **Existing Mitigations**:
-- Code signing for critical policy files.
-- Access control for deployment infrastructure.
+- **Not implemented** — Code signing for critical policy files: policy is plain JSON (`config/trust-policy.default.json`) read and validated for shape, not cryptographically signed. Rollback/tamper defence rests on git and the deployment environment, not on a signing step in the code.
+- **Planned** — Access control for deployment infrastructure is an operator/environment responsibility. The repository adds no deployment-infrastructure access control of its own beyond the API-key and RBAC surfaces documented elsewhere.
 
 **Remaining Gaps**:
 - Lack of formal policy version control.
@@ -99,9 +107,9 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Exposure of proprietary algorithms, sensitive content, and user interactions.
 
 **Existing Mitigations**:
-- AB6 sandbox isolation policy classification; no production MCP sandbox executor is currently wired.
-- Limited metadata logging.
-- Internal tools output filtering for sensitive content.
+- **Implemented** — AB6 sandbox isolation policy classification (`lib/sandbox-isolation.js` and its classifier/containment modules); no production MCP sandbox executor is currently wired, so the classification does not yet confine a live process.
+- **Partial** — Limited metadata logging (`lib/external-action-receipt.js` records bounded metadata such as `outcomeReceiptId`; there is no general agent-state trace log).
+- **Implemented** — Internal tools output filtering for sensitive content: the secret scrub gate (AB7, `lib/secret-scrub-gate.js`) redacts secret-looking values before they are persisted or logged.
 
 **Remaining Gaps**:
 - Limited visibility into exported agent state via `huqan.agent`.
@@ -118,8 +126,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Privacy violations, competitive advantage loss.
 
 **Existing Mitigations**:
-- REST API authentication and authorization.
-- Workspace isolation and consent mechanisms for querying.
+- **Implemented** — REST API authentication and authorization (`requestGuards.js` API-key auth; `lib/observability/authorization.js` role→permission RBAC: viewer/operator/admin).
+- **Partial** — Workspace isolation applies to queries (`lib/claim-read.js`, `lib/provenance-query.js` scope reads by `workspaceId`). There is no consent mechanism in the query path; the consent flag that exists (`lib/browser-hook-outcome.js`) governs page-preview content, not knowledge-base querying, so pairing it with "querying" overstates it.
 
 **Remaining Gaps**:
 - Lack of audit logs for knowledge base access.
@@ -140,8 +148,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Service unavailability, denial of legitimate service.
 
 **Existing Mitigations**:
-- Content size limits in ingest endpoints.
-- Rate limiting on API endpoints.
+- **Implemented** — Content size limits on HTTP bodies (`readJsonBody`'s `DEFAULT_MAX_UPLOAD_BODY` = 1 MiB in `requestGuards-body.js`, used by `server.js` and the ingest routes) and on external source snapshots (`MAX_EXTERNAL_SNAPSHOT_BYTES` = 2 MiB, `lib/ingest-values.js`).
+- **Implemented** — Rate limiting on API endpoints (`requestGuards-rate-limit.js` for REST; `lib/observability/rate-limiter.js` for observability routes; `lib/http/viewer-mount.js` for the viewer).
 
 **Remaining Gaps**:
 - No circuit breaker for rate-limited scenarios.
@@ -158,8 +166,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Service degradation, denial of legitimate service.
 
 **Existing Mitigations**:
-- Rate limiting on REST endpoints.
-- Load balancer with health checks.
+- **Implemented** — Rate limiting on REST endpoints (`requestGuards-rate-limit.js`).
+- **Partial** — A `/health` endpoint exists for health checks (`lib/http/core-http-routes.js`, public by design in `lib/http/route-auth-policy.js`), and `lib/runtime-watchdog.js` can poll a health URL. The load balancer itself is deployment infrastructure, not part of this repository.
 
 **Remaining Gaps**:
 - Lack of intelligent rate limiting based on heuristics.
@@ -180,8 +188,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Unauthorized access to high-privilege tools and capabilities.
 
 **Existing Mitigations**:
-- Hard-coded privilege levels for internal tools.
-- Role-based access control for external tools.
+- **Partial** — Tool privilege is expressed as a hard-coded internal/external split with per-tool decisions (`INTERNAL_TOOLS` in `toolPolicy.js`; `classifyMcpTool` in `lib/mcp-gate-adapter.js`), and `lib/identity-privilege-escalation.js` (AB) detects escalation attempts. There is no numeric per-tool privilege level, so "hard-coded privilege levels" reads stronger than the code.
+- **Partial** — Role-based access control exists for the observability API (`lib/observability/authorization.js`: viewer/operator/admin over read/stream/queue:write/alerts:write). External-action tools are gated by risk/policy decisions, not by these roles, so "RBAC for external tools" is not what the code implements.
 
 **Remaining Gaps**:
 - Lack of dynamic privilege validation during runtime.
@@ -198,10 +206,10 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Full host compromise: secret exfiltration, arbitrary graph writes without admission, audit and provenance bypass, action-gate bypass.
 
 **Existing Mitigations**:
-- Manifest `sha256` verification detects modification of a plugin file after its manifest was written (`plugin.js: verifyPluginFile`).
-- HMAC signature verification under `HUQAN_PLUGIN_SIGNING_KEY` binds an approved hash to a deployment key.
-- Production enforcement (`HUQAN_PLUGIN_PRODUCTION_ENFORCEMENT=1` / `NODE_ENV=production`) refuses to load anything without a signing key, and `PluginManager.register()` rejects registration without verified provenance (`PLUGIN_UNVERIFIED_REGISTRATION`).
-- The plugins directory is a deployment-controlled path; write access to it is treated as equivalent to code execution.
+- **Implemented** — Manifest `sha256` verification detects modification of a plugin file after its manifest was written (`plugin.js: verifyPluginFile`).
+- **Implemented** — HMAC signature verification under `HUQAN_PLUGIN_SIGNING_KEY` binds an approved hash to a deployment key (`lib/plugin-verification.js`).
+- **Implemented** — Production enforcement (`HUQAN_PLUGIN_PRODUCTION_ENFORCEMENT=1` / `NODE_ENV=production`) refuses to load anything without a signing key, and `PluginManager.register()` rejects registration without verified provenance (`PLUGIN_UNVERIFIED_REGISTRATION`, `lib/plugin-manager-register.js`).
+- **Implemented** — The plugins directory is a deployment-controlled path; write access to it is treated as equivalent to code execution.
 
 **Remaining Gaps**:
 - **No runtime confinement of any kind.** Signed ≠ sandboxed: a verified plugin may call any Node module. This is a documented, accepted property of the current design, not an oversight — see `docs/core-plugin-boundary-contract.md`, "Enforcement Boundary: Signed Is Not Sandboxed".
@@ -222,8 +230,8 @@ This document defines the primary security threats to HUQAN, categorized using t
 **Impact**: Bypassing trust gates, executing unauthorized actions.
 
 **Existing Mitigations**:
-- Score-based trust evaluation for memory content.
-- Trusted sources list for new content.
+- **Implemented** — Score-based trust evaluation for memory content (`lib/trust-score-aggregator.js`; admission/scoring in `lib/memory-admission-gate.js` and `lib/semantic-score.js`).
+- **Not implemented** — Trusted sources list for new content: sources are resolved and recorded (`provenanceSource` in `lib/memory-admission-gate-request.js`), but there is no maintained allowlist by which a source is trusted, so this control does not exist as claimed.
 
 **Remaining Gaps**:
 - Attackers can manipulate trust scores through adversarial examples.

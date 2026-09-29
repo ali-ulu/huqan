@@ -10,6 +10,7 @@ const Graph = require('../graph');
 const { loadEmbeddingsLenient } = require('../lib/graph-json-persistence');
 const { writeCurrentState } = require('../lib/graph-json-snapshot');
 const { commitJsonTransaction } = require('../lib/graph-json-transaction');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -113,7 +114,7 @@ describe('Graph.restoreEmbeddings is the public embedding-restore surface (#2349
       const source = fs.readFileSync(path.join(ROOT, 'lib', name), 'utf8');
       assert.doesNotMatch(source, /_restoreEmbeddings/, `${name} must not touch the private surface`);
     }
-    const graphSource = fs.readFileSync(path.join(ROOT, 'graph.js'), 'utf8');
+    const graphSource = readGraphSurfaceSource();
     assert.doesNotMatch(graphSource, /_restoreEmbeddings/,
       'graph.js must neither define nor call the private name');
   });

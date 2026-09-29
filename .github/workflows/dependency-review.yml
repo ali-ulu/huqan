@@ -29,7 +29,10 @@ jobs:
       - name: Review dependency changes
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
-          fail-on-severity: high
+          # Held at the same floor as security.yml (#3008): both can run on one
+          # pull request, so a lower value here would let a moderate finding
+          # through the lockfile-specific review while the broad review failed it.
+          fail-on-severity: moderate
           vulnerability-check: true
           license-check: true
           show-openssf-scorecard: true

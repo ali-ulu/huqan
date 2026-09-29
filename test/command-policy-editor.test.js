@@ -83,7 +83,14 @@ test('HTTP boundary requires separate operator authorization and refuses cross-o
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
   const url = `http://127.0.0.1:${server.address().port}/api/command-policy`;
-  assert.equal((await fetch(url, { headers: { 'X-API-Key': 'agent-key' } })).status, 403);
+  const denied = await fetch(url, { headers: { 'X-API-Key': 'agent-key' } });
+  assert.equal(denied.status, 403);
+  assert.deepEqual(await denied.json(), {
+    error: 'OPERATOR_REQUIRED',
+    errorCode: 'OPERATOR_REQUIRED',
+    errorClass: 'authorization',
+    operatorAction: 'obtain_authorization',
+  });
   const headers = { 'Content-Type': 'application/json', 'X-Huqan-Policy-Token': token };
   const snapshot = await (await fetch(url, { headers })).json();
   assert.equal((await fetch(url, { method: 'PUT', headers: { ...headers, Origin: 'https://other.example' }, body: JSON.stringify({ revision: snapshot.revision, allowedCommands: [] }) })).status, 403);
@@ -93,5 +100,12 @@ test('HTTP boundary requires separate operator authorization and refuses cross-o
   assert.equal(preview.status, 200);
   assert.equal((await preview.json()).matchedCommand, 'npm run lint');
   assert.equal((await fetch(url, { method: 'PUT', headers, body: 'null' })).status, 400);
-  assert.equal((await fetch(url, { method: 'DELETE', headers })).status, 405);
+  const badMethod = await fetch(url, { method: 'DELETE', headers });
+  assert.equal(badMethod.status, 405);
+  assert.deepEqual(await badMethod.json(), {
+    error: 'METHOD_NOT_ALLOWED',
+    errorCode: 'METHOD_NOT_ALLOWED',
+    errorClass: 'method',
+    operatorAction: 'use_supported_method',
+  });
 });

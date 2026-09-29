@@ -5,8 +5,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { optimize } = require('../lib/graph-optimize');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-optimize.js'), 'utf8');
 
 function methodBody(source, methodName) {
@@ -45,6 +46,9 @@ test('GRAPH: optimize preserves scoped decay removal and persistence callbacks',
   const storeApi = {
     prune: scope => { prunedScopes.push(scope); return 2; },
     getNodes: () => nodes,
+    // #3009: optimize iterates the workspace's storage keys from the index
+    // instead of scanning the whole node map. The fake mirrors that contract.
+    workspaceKeys: scope => Object.keys(nodes).filter(key => key.startsWith(`${scope}::`)),
     getEdges: (nodeId, workspaceId) => nodeId === 'connected' && workspaceId === 'default' ? [{ from: nodeId }] : [],
     getInEdges: () => [],
     decayLambda: 0.5,

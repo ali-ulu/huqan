@@ -439,7 +439,8 @@ describe('CLI - Komut Çalıştırma', () => {
   });
 
   it('execute: "yükle:" dosyadan öğrenir', () => {
-    const tmp = path.join(os.tmpdir(), 'axiom-test-' + Date.now() + '.txt');
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-test-upload-'));
+    const tmp = path.join(tmpDir, 'notes.txt');
     fs.writeFileSync(tmp, 'kedi balık yer\nköpek kemik sever\nkuş uçar', 'utf-8');
     const cli = freshCLI();
     const result = cli.execute('yükle', tmp);

@@ -5,8 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { query } = require('../lib/graph-query-read');
+const { createLabelIndex, rebuildLabelIndex } = require('../lib/graph-label-index');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-query-read.js'), 'utf8');
 
 function methodBody(source, methodName) {
@@ -20,7 +22,7 @@ function methodBody(source, methodName) {
 }
 
 test('GRAPH: query is a one-line delegate', () => {
-  assert.equal(methodBody(graphSource, 'query'), 'return runGraphQuery(this._nodes, label, workspaceId);');
+  assert.equal(methodBody(graphSource, 'query'), 'return runGraphQuery(this._nodes, label, workspaceId, this._labelIndex);');
 });
 
 test('GRAPH: query delegate is narrow and cycle-free', () => {
@@ -28,7 +30,7 @@ test('GRAPH: query delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /require\(["']\.\.\/graph["']\)/);
   assert.doesNotMatch(delegateSource, /this\._/);
   assert.doesNotMatch(delegateSource, /_db|_stmts|_nodes|_edges|_outIndex|_inIndex/);
-  assert.match(delegateSource, /normalizeWorkspaceId/);
+  assert.match(delegateSource, /queryLabelKeys/);
   assert.match(delegateSource, /cloneNodeRecord/);
 });
 
@@ -54,13 +56,16 @@ test('GRAPH: query delegate preserves label/workspace filtering and defensive cl
       workspaceId: 'workspace-a',
     },
   };
+  // The index mirrors the node map's normalized workspace/label buckets.
+  const index = createLabelIndex();
+  rebuildLabelIndex(index, nodes);
 
-  const results = query(nodes, 'animal', 'workspace-a');
+  const results = query(nodes, 'animal', 'workspace-a', index);
   assert.deepEqual(results.map(node => node.id), ['cat']);
   results[0].tags.push('mutated');
   assert.deepEqual(nodes['workspace-a::cat'].tags, ['mammal']);
 
-  assert.deepEqual(query(nodes, 'animal'), [nodes['default::dog']]);
-  assert.deepEqual(query(nodes, 'missing'), []);
-  assert.deepEqual(query(nodes, 'animal', ''), [nodes['default::dog']]);
+  assert.deepEqual(query(nodes, 'animal', 'default', index), [nodes['default::dog']]);
+  assert.deepEqual(query(nodes, 'missing', 'default', index), []);
+  assert.deepEqual(query(nodes, 'animal', '', index), [nodes['default::dog']]);
 });

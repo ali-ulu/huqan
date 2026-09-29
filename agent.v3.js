@@ -13,6 +13,9 @@ const { AgentV3ResultMethods } = require('./lib/agent-v3-result-methods');
 const { AgentV3ApprovalMethods } = require('./lib/agent-v3-approval-methods');
 const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
 const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
+const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
+
+const UNCERTAIN_PAUSE = 'experience_effect_uncertain';
 
 class AgentV3 {
   constructor(opts = {}) {
@@ -24,6 +27,7 @@ class AgentV3 {
       memoryPath: null,
       maxSteps: opts.maxSteps || 4,
       storage: createToolApprovalSeam(() => this.storage),
+      experienceOperationLedger: opts.experienceOperationLedger,
     });
     this.storage = opts.storage || createDefaultAgentV3Storage(this.kernel, opts);
     this.maxSteps = opts.maxSteps || this.baseAgent.maxSteps || 4;
@@ -126,6 +130,12 @@ class AgentV3 {
       }
     }
     const state = this._hydrateState(activePlan, resumeRecord);
+    // The uncertainty that paused the previous call is the step's to report
+    // again if it still holds; a resume starts without it.
+    if (state.pauseReason === UNCERTAIN_PAUSE) {
+      delete state.pauseReason;
+      delete state.uncertainOperation;
+    }
     state.executionScope = scopeResult.scope;
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
@@ -178,7 +188,11 @@ class AgentV3 {
       maxIterations - state.iteration,
     ));
 
-    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts, runCapacity);
+    // A resume with nothing left to run (stopped in finalization) spends no
+    // iteration, but the budget reads a zero capacity as unknown and projects
+    // the whole per-call ceiling. Ask for one, the least any evaluated run is
+    // charged, so an exhausted window still refuses it.
+    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts, Math.max(1, runCapacity));
 
     // An unreadable usage counter is not the same failure as an exhausted
     // budget, and must not be reported as one -- the operator needs to know
@@ -212,6 +226,17 @@ class AgentV3 {
 
       const step = queued.shift();
       const report = this._runtime().executeStepWithRetry(step, state, scopedOpts);
+      // #3033: a step whose effect is uncertain did not finish and is not a
+      // block. It goes back on the queue and the run pauses with its
+      // checkpoint, so the resume after an operator verdict picks it up again.
+      const uncertain = uncertainOperationOf(report);
+      if (uncertain) {
+        queued.unshift(step);
+        state.status = 'paused';
+        state.pauseReason = UNCERTAIN_PAUSE;
+        state.uncertainOperation = { operationId: uncertain.operationId, message: report.result.error.message };
+        break;
+      }
       state.steps.push(report);
       state.evidence.push(...this._runtime().collectEvidence([report.result]));
       this._runtime().updateToolStats(report.tool, report.status);

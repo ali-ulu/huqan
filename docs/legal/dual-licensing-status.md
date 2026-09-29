@@ -1,9 +1,34 @@
 # HUQAN Dual Licensing Readiness Status
 
-**Status:** Preparation only — no commercial license granted  
-**Date:** 2026-08-27  
+**Status:** Deferred with reason — `AGPL-3.0-only` remains the sole license; no commercial license is offered or granted (decision record 2026-09-28, #3082)  
+**Previous status:** Preparation only (2026-08-27)  
+**Date:** 2026-08-27 (drafts); 2026-09-28 (decision record)  
 **Branch:** `prep/cla-owner-details-2026-08-27`
 **Draft identifiers:** `HUQAN-ICLA-v1.0-review`, `HUQAN-COMMERCIAL-v1.0-review`
+
+## Decision record — 2026-09-28 (#3082)
+
+**Decision:** Commercial dual-licensing is **DEFERRED WITH REASON**. `AGPL-3.0-only` remains the sole license under which HUQAN is distributed. No commercial license is offered, quoted, or granted, and none will be until a revisit condition below is met. This is a recorded project decision, not a drafting placeholder.
+
+**Reasons (each verified against the repository on 2026-09-28):**
+
+1. No operative commercial license text exists: `docs/legal/commercial-license-working-draft.md` is `HUQAN-COMMERCIAL-v1.0-review` ("NOT OPERATIVE") and `docs/gtm/commercial-license-draft.md` is an explicitly non-binding strategic draft.
+2. The ownership chain and the Project Owner's legal capacity have not been confirmed by qualified counsel, so no grant could be made safely today.
+3. `CLA.md` (`HUQAN-ICLA-v1.0-review`) is non-operative and no acceptance mechanism (CLA assistant, DCO check) is active, so future-contribution rights are not established; relicensing contributions that do not yet exist cannot be promised.
+4. The enterprise segment that would justify a commercial tier requires hosted, multi-tenant, SSO, and remote-enforcement infrastructure that HUQAN deliberately does not have today (`docs/gtm/four-fits-analysis.md`, scenario B).
+
+**Consequences:**
+
+- `package.json` stays `AGPL-3.0-only`; `LICENSE` and `NOTICE` stay unchanged.
+- `CLA.md` remains a non-operative review draft; external non-trivial contributions are still not treated as cleared for future relicensing (see `CONTRIBUTING.md`).
+- The GTM commercial drafts remain internal, non-binding placeholders and must not be quoted as offers.
+- This file is the canonical licensing-status record; other documents link here instead of restating the status.
+
+**Revisit conditions (any one triggers a new decision record here):**
+
+1. Qualified legal review confirms the Project Owner's capacity, the ownership chain, and an approved commercial agreement text; or
+2. An operative rights record (CLA or an equivalent approved process) is adopted for future contributions; or
+3. A prospective licensee's requirement makes the commercial path urgent — in that case this decision record is reopened before any offer is made.
 
 ## Current decision
 

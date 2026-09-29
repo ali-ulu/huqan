@@ -143,7 +143,13 @@ test('CLI --check fails against a mutated tracker artifact', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-review-queue-artifact-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const stalePath = path.join(root, 'architecture-trackers.md');
-  fs.writeFileSync(stalePath, '# empty\n');
+  // Inject a tracked row the live snapshot does not have: an empty stand-in
+  // would agree with an empty live queue once the tracked debt reaches zero (#3101).
+  const committed = fs.readFileSync(path.join(__dirname, '..', 'docs', 'generated', 'architecture-trackers.md'), 'utf8')
+    .replace(/\r\n/g, '\n');
+  const header = /(## At or under 400 lines, tracked for a signal \(\d+\)\n\n\| File \| Lines \| Signals \|\n\|---\|---:\|---\|\n)/;
+  assert.match(committed, header, 'the structural table is where the ghost row goes');
+  fs.writeFileSync(stalePath, committed.replace(header, '$1| `lib/ghost-debt.js` | 10 | FANOUT:25 |\n'));
 
   const result = spawnSync(process.execPath, [SCRIPT_PATH, `--check=${stalePath}`], { encoding: 'utf8' });
   assert.equal(result.status, 1);

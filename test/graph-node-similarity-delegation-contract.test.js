@@ -5,8 +5,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { cosineSimilarity } = require('../lib/graph-node-similarity');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-node-similarity.js'), 'utf8');
 
 function methodBody(source, methodName) {

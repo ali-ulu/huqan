@@ -1,11 +1,11 @@
-﻿# AXIOM Vision Next
+﻿# HUQAN Vision Next
 
 > This is a product-direction note. For the live runtime execution order and
 > evidence boundaries, see [Current Operating Roadmap](./current-operating-roadmap.md).
 
 ## v0.9 Semantic Trust Gate
 
-AXIOM v0.9 hardens the verifier so weak lexical overlap, contradictions, scope expansion, and adversarial framing do not become verified truth.
+HUQAN v0.9 hardens the verifier so weak lexical overlap, contradictions, scope expansion, and adversarial framing do not become verified truth.
 
 ## v0.9.1 Self-Healer Loop
 
@@ -21,13 +21,13 @@ Streaming Trust adds continuous trust signals, and the GitHub App becomes the pr
 
 ## Safety Rules
 
-- AXIOM judges, human decides.
+- HUQAN judges, human decides.
 - Auto-PR may open draft PRs only.
 - Auto-merge is disabled.
 - Unsupported knowledge must not become trusted memory.
-- Models generate. Agents act. Memory stores. AXIOM judges.
+- Models generate. Agents act. Memory stores. HUQAN judges.
 - Every serious answer should come with a receipt.
 
 ## Positioning
 
-AXIOM is not a self-writing verifier. It is a trust layer that makes semantic failures visible, explainable, and reviewable before they become canonical.
+HUQAN is not a self-writing verifier. It is a trust layer that makes semantic failures visible, explainable, and reviewable before they become canonical.
