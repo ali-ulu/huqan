@@ -17,6 +17,7 @@ Current measured position for AXIOM graph and memory behavior:
 - Memory Store keeps operational state in memory with optional SQLite persistence.
 - Existing benchmark fixtures cover `small`, `medium`, `large`, and `xlarge`.
 - The largest existing benchmark fixture is `xlarge`, with 140 nodes and 131 edges in the current benchmark results.
+- The end-to-end scale benchmark (#3016) measures `scale-10k` with 10000 nodes and 10000 edges (see below).
 
 ## What is not proven
 
@@ -43,6 +44,36 @@ Current measured position for AXIOM graph and memory behavior:
 | `medium` | 19 | 15 |
 | `large` | 49 | 30 |
 | `xlarge` | 140 | 131 |
+| `scale-10k` (#3016) | 10000 | 10000 |
+
+## End-to-end scale benchmark (#3016)
+
+`benchmarks/bench-scale-10k.js` seeds a 10000-node / 10000-edge graph through
+the Graph API and measures seed (write), ask, verify, reason (read) and a full
+SQLite checkpoint save (write), plus heap. The pinned numbers live in
+`benchmarks/scale-10k-baseline.json`; `benchmarks/check-scale-10k.js` gates
+the shape as blocking and the timings as advisory (`--strict-timing` for the
+nightly job).
+
+Baseline on a developer machine (advisory, not portable across machines or
+Node majors):
+
+| Path | Measure |
+|---|---:|
+| seed 10k nodes+edges | ~165 ms (~60k nodes/s bulk write) |
+| ask | ~2 ms |
+| verify | ~54 ms |
+| reason | ~4 ms |
+| save (full SQLite checkpoint) | ~856 ms |
+| heap delta for the 10k seed | ~19 MB |
+
+Supported-scale statement after #3016: the graph engine, the query paths
+(ask/verify/reason) and the save path are measured at 10k nodes on a single
+machine. `kernel.learn` admission is explicitly NOT covered at 10k: its
+per-node cost rises superlinearly (about 19 ms at n=100, 29 ms at n=200,
+41 ms at n=400 on the same machine), so a 10k learn batch does not finish in
+a benchmark budget. 100k remains opt-in only (`--fixtures=scale-100k`) and is
+not a default or CI measurement.
 
 ## Graph label-lookup benchmark (#3009)
 
@@ -64,8 +95,10 @@ node benchmarks/bench.js --quick
 node benchmarks/bench.js --fixtures=small,medium,large,xlarge
 node benchmarks/bench-label-lookup.js --quick
 node benchmarks/bench-label-lookup.js --fixtures=n-1000,n-10000
+node benchmarks/bench-scale-10k.js --quick
+node benchmarks/bench-scale-10k.js --fixtures=scale-100k --iterations=1
 node benchmarks/verifBench.js
-node --test benchmarks/bench.test.js benchmarks/bench-label-lookup.test.js benchmarks/check-regression.test.js
+node --test benchmarks/bench.test.js benchmarks/bench-label-lookup.test.js benchmarks/bench-scale-10k.test.js benchmarks/check-regression.test.js
 ```
 
 ## Safe public language

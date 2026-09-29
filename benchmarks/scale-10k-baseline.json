@@ -1,0 +1,46 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "capturedAt": "2026-09-29T13:56:40.067Z",
+    "note": "Baseline for benchmarks/check-scale-10k.js (#3016). Shape (nodes/edges) is deterministic and blocking; absolute milliseconds and heap are advisory unless --strict-timing is passed, because timing is not portable across machines or Node majors.",
+    "sourceCommit": "e29f3331da9b952f31eaba1919777728a0285547"
+  },
+  "iterations": 3,
+  "warmupIterations": 1,
+  "fixtures": {
+    "scale-10k": {
+      "name": "scale-10k",
+      "nodes": 10000,
+      "edges": 10000,
+      "declaredNodes": 10000,
+      "iterations": 3,
+      "warmupIterations": 1,
+      "seedMs": 165.14,
+      "seedThroughputNodesPerSec": 60555,
+      "askMs": 2.255,
+      "verifyMs": 53.711,
+      "reasonMs": 4.096,
+      "saveMs": 855.868,
+      "learnCurve": [
+        {
+          "size": 100,
+          "batchMs": 1902.58,
+          "perNodeMs": 19.026
+        },
+        {
+          "size": 200,
+          "batchMs": 5811.804,
+          "perNodeMs": 29.059
+        },
+        {
+          "size": 400,
+          "batchMs": 16206.729,
+          "perNodeMs": 40.517
+        }
+      ],
+      "heapBeforeMB": 9.37,
+      "heapAfterSeedMB": 28.62,
+      "heapDeltaMB": 19.25
+    }
+  }
+}
