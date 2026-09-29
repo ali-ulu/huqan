@@ -389,6 +389,7 @@
     "lib/cli-coder.js",
     "lib/coder/apply-derivation.js",
     "lib/coder/derivation-record.js",
+    "lib/coder/observed-verification.js",
     "lib/coder/verify-derivation.js",
     "lib/deterministic-task-runner.js",
     "lib/task-identifier-lexer.js",
