@@ -116,6 +116,23 @@ action at all, so a metric counting only `block` would have reported it as free.
 If automatic tightening ever pushes that number up, the ratchet fails. That is
 the guardrail that makes the adaptation loop safe to have at all.
 
+### Learning to ask less, as a proposal
+
+The ratchet makes the cost visible; `huqan-gate command-proposals` is what lets
+a person lower it (#3025). Receipts still never carry the command, so the hook
+keeps a local log beside the trail, `external-action-command-shapes.jsonl`: for
+each action it sent to review, the command's leading words (`npm test`, never
+its arguments), keyed by admission id. That log is not collected and not
+hash-covered, so it can feed a proposal and nothing else.
+`lib/command-allowlist-miner.js` joins it to the verdicts in the trail and
+proposes an `allowedCommands` list per workspace from commands a person
+approved at review at least three times and never refused.
+It writes nothing: the list only takes effect when someone edits
+`external-action-policy.json`, exactly as the residency miner's proposals do.
+A command the gate decided without asking a person is not evidence, a one-word
+entry (`node`) is never proposed, and neither is a command whose category the
+allowlist cannot promote. The gate itself still does not adapt.
+
 ## What HUQAN deliberately does not do
 
 The neuro-symbolic literature describes four ways a deterministic engine can be

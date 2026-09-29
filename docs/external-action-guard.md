@@ -379,6 +379,17 @@ okunura yükseltebilir: deployment, izin ve yazma kategorileri ile denylist
 kararının makbuzunda `metadata.allowlistedCommand` hangi girdinin geçirdiğini
 yazar; okunamayan bir politika dosyası sessiz `allow` değil fail-closed hatadır.
 
+Listeyi elle tahmin etmek zorunda değilsiniz (#3025). Hook, `review`'a
+gönderdiği her shell komutunun baştaki düz kelimelerini (`npm test`; argümanlar,
+yollar, flag'ler asla) admission id'siyle birlikte trail'in yanındaki yerel
+`external-action-command-shapes.jsonl` dosyasına yazar; makbuz yine komut
+içermez. `huqan-gate command-proposals` bu dosyayı trail'deki insan
+kararlarıyla birleştirir ve workspace başına bir `allowedCommands` önerisi
+basar: en az üç kez onaylanmış (`--min-observations`), hiç reddedilmemiş,
+tek kelimeden uzun ve listenin yükseltebileceği kategoride olan komutlar. Komut
+hiçbir dosya yazmaz; öneri ancak biri bu dosyayı elle düzenlediğinde geçerli
+olur.
+
 Dosya çağrı anında okunur (mtime ile önbelleklenir), yani uzun ömürlü bir
 editörde kurulumu ya da hook komutunu değiştirmeden düzenlenebilir — hook
 komutunun değişmesi host'un güven kaydını düşürdüğü için bu önemli.

@@ -61,6 +61,26 @@ test('changed graph surface plan includes the mandatory safety union and graph i
   assert.ok(plan.matchedImpactRules.includes('graph-kernel-memory'));
 });
 
+test('the wiring-debt ratchet stays in the mandatory selection floor', () => {
+  // #3014's ratchet reads the live reachability surface and pins it to a
+  // recorded baseline, so it is not reachable from any changed file and the
+  // dependency graph can never select it. Pin it to the floor with the exact
+  // change #3170 made: a new leaf benchmark module that nothing requires.
+  const plan = buildTestImpactPlan({
+    changedFiles: ['benchmarks/bench-scale-10k.js'],
+    runtimeOrTest: true,
+  });
+  assert.equal(plan.runTests, true);
+  assert.ok(
+    plan.mandatoryPatterns.includes('test/reachability-baseline.test.js'),
+    'the reachability ratchet must be in the mandatory floor',
+  );
+  assert.ok(
+    plan.selectedTests.includes('test/reachability-baseline.test.js'),
+    'a change that moves the unreachable total must select the ratchet that pins it',
+  );
+});
+
 test('package and workflow changes fail closed to the complete known test set', () => {
   for (const changedFile of ['package.json', 'package-lock.json', '.github/workflows/benchmark.yml']) {
     const plan = buildTestImpactPlan({ changedFiles: [changedFile], runtimeOrTest: true });
