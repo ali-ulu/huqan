@@ -103,3 +103,37 @@ test('an empty query or workspace still returns null', () => {
   assert.equal(searchMemory(THREE, { workspaceId: 'default', query: '' }), null);
   assert.equal(searchMemory(THREE, { workspaceId: '', query: 'kedi' }), null);
 });
+
+test('the workspace read opts into frozen views without leaking them into results', () => {
+  // The scan reads the whole workspace, so it asks the graph for the frozen
+  // views (#3012) instead of a deep clone per node. The projection must still
+  // hand back plain, writable rows that do not alias the canonical records.
+  const seen = [];
+  const frozenNode = Object.freeze({
+    id: 'kedi',
+    label: 'kedi claim',
+    tags: ['retention'],
+    provenance: { sourceRef: 'notes/kedi.md', provenanceId: 'prov-kedi' },
+  });
+  const graph = {
+    getNodes: (workspaceId, options) => {
+      seen.push([workspaceId, options]);
+      return { kedi: frozenNode };
+    },
+  };
+
+  const result = searchMemory(graph, { workspaceId: 'default', query: 'kedi' });
+
+  assert.deepEqual(seen, [['default', { clone: false }]]);
+  assert.deepEqual(result.items, [{
+    id: 'kedi',
+    label: 'kedi claim',
+    confidence: null,
+    sourceRef: 'notes/kedi.md',
+    provenanceId: 'prov-kedi',
+    workspaceId: 'default',
+  }]);
+  assert.equal(Object.isFrozen(result.items[0]), false);
+  result.items[0].label = 'rewritten';
+  assert.equal(frozenNode.label, 'kedi claim');
+});
