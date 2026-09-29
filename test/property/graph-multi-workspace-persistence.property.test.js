@@ -35,7 +35,11 @@ const fc = require('fast-check');
 const Graph = require('../../graph');
 const { normalizeWorkspaceId } = require('../../lib/graph-record-utils');
 
-const NUM_RUNS = 100;
+// 40 runs, matching the sibling multi-workspace property test: each run
+// creates, closes and removes a sqlite store, and on windows-latest that file
+// churn is far slower than on Ubuntu, so 100 runs crossed the shard's 90s
+// file deadline (#3158). 40 keeps the deadline with headroom on both hosts.
+const NUM_RUNS = 40;
 const NODE_IDS = ['n0', 'n1', 'n2', 'n3', 'n4'];
 const MAX_WORKSPACES = 4;
 const RELATION = 'relates';
