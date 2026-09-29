@@ -25,7 +25,13 @@ test('secure atomic write replaces through a private sibling and leaves no stagi
   atomicWriteFileSync(target, 'new');
 
   assert.equal(fs.readFileSync(target, 'utf8'), 'new');
-  assert.equal(fs.statSync(target).mode & 0o077, 0);
+  // Only POSIX carries real permission bits; Node's fstat on Windows reports a
+  // synthetic 0o666, so a mode-mask assertion there would test the emulation,
+  // not the module (#3145). The private-exclusive 'wx' creation below still
+  // pins the private-staging contract on every platform.
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(target).mode & 0o077, 0);
+  }
   assert.deepEqual(fs.readdirSync(directory), ['state.json']);
 });
 
@@ -38,7 +44,9 @@ test('secure atomic copy replaces through a private sibling and leaves no stagin
   atomicCopyFileSync(source, target);
 
   assert.equal(fs.readFileSync(target, 'utf8'), 'payload');
-  assert.equal(fs.statSync(target).mode & 0o077, 0);
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(target).mode & 0o077, 0);
+  }
   assert.deepEqual(fs.readdirSync(directory).sort(), ['source', 'target']);
 });
 

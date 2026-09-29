@@ -54,5 +54,6 @@ test('the checker reads files relative to the repository root', () => {
   // contract on the tree, so deleting a document it names must fail.
   const { IDENTITY_DOCS: docs } = require('../scripts/check-naming-conformance');
   assert.ok(docs.every((doc) => typeof doc === 'string' && doc.length > 0));
-  assert.ok(docs.includes(path.join('docs', 'architecture.md')));
+  // The set is authored with forward slashes on every host (#3147).
+  assert.ok(docs.includes('docs/architecture.md'));
 });
