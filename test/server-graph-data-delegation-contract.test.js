@@ -21,15 +21,15 @@ test('graph-data delegate preserves bounded graph and memory projections', () =>
   const graphCalls = [];
   const memoryCalls = [];
   const graph = {
-    getNodes: workspaceId => {
-      graphCalls.push(['getNodes', workspaceId]);
+    getNodes: (workspaceId, options) => {
+      graphCalls.push(['getNodes', workspaceId, options]);
       return {
         high: { id: 'high', label: 'High', weight: 2, workspaceId },
         low: { id: 'low', label: 'Low', weight: 1, workspaceId },
       };
     },
-    getAllEdges: workspaceId => {
-      graphCalls.push(['getAllEdges', workspaceId]);
+    getAllEdges: (workspaceId, options) => {
+      graphCalls.push(['getAllEdges', workspaceId, options]);
       return [{
         from: 'high',
         to: 'low',
@@ -86,8 +86,8 @@ test('graph-data delegate preserves bounded graph and memory projections', () =>
   assert.deepEqual(result.memoryLinks, []);
   assert.deepEqual(result.metadata, { memory: { enabled: true, nodeCount: 1, linkCount: 0, source: 'kernel.memory' } });
   assert.deepEqual(graphCalls, [
-    ['getNodes', 'tenant-a'],
-    ['getAllEdges', 'tenant-a'],
+    ['getNodes', 'tenant-a', { clone: false }],
+    ['getAllEdges', 'tenant-a', { clone: false }],
   ]);
   assert.deepEqual(memoryCalls, [
     ['list', { workspaceId: 'tenant-a' }],
