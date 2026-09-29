@@ -95,6 +95,11 @@ test('SQLite query retains imported non-default kinds', () => {
     const opts = { workspaceId: 'ws', kind: 'imported-kind', limit: 1 };
     assert.deepEqual(store.query(opts), runQuery({ memories: store._memories,
       isActiveRecord: store._isActiveRecord.bind(store) }, opts));
+    // An explicit default kind also falls back so counting matches the engine.
+    const defaultOpts = { workspaceId: 'ws', kind: 'memory-record', limit: 1 };
+    assert.deepEqual(store.query(defaultOpts), runQuery({ memories: store._memories,
+      isActiveRecord: store._isActiveRecord.bind(store) }, defaultOpts));
+    assert.equal(store.query(defaultOpts).total, 0);
   } finally {
     store.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* Windows file lock */ }

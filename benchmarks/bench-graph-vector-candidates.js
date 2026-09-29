@@ -33,6 +33,7 @@ for (const size of [10000, 50000]) {
   const index = createVectorIndex();
   const buildMs = measure(() => {
     index.buckets.clear(); index.dimensions.clear(); index.unsafeWorkspaces.clear();
+    index.unsafeKeys?.clear(); index.unsafeCounts?.clear();
     for (const [key, node] of Object.entries(nodes)) indexNode(index, key, node);
   });
   const getNode = (id) => nodes[id];

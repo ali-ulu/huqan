@@ -58,6 +58,37 @@ test('Dream gap lookup compares only indexed shared-dimension candidates', () =>
   }
 });
 
+test('Removing an unsafe node resumes indexed candidate lookup', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-vector-unsafe-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
+  try {
+    graph.addNode('gap', 'gap', null, { workspaceId: 'ws' });
+    graph.addTag('gap', 'shared', 1, 'ws');
+    graph.addNode('match', 'match', null, { workspaceId: 'ws' });
+    graph.addTag('match', 'shared', 1, 'ws');
+    graph.addNode('bad', 'bad', null, { workspaceId: 'ws' });
+    graph.addTag('bad', 'shared', Infinity, 'ws');
+    assert.equal(graph.similarityCandidateIds({ shared: 1 }, 'ws'), null);
+    graph.removeNode('bad', 'ws');
+    assert.deepEqual(new Set(graph.similarityCandidateIds({ shared: 1 }, 'ws')),
+      new Set(['gap', 'match']));
+    // Two unsafe nodes keep the workspace unsafe until all are gone.
+    graph.addNode('bad', 'bad', null, { workspaceId: 'ws' });
+    graph.addTag('bad', 'shared', Infinity, 'ws');
+    graph.addNode('bad2', 'bad2', null, { workspaceId: 'ws' });
+    graph.addTag('bad2', 'shared', Infinity, 'ws');
+    assert.equal(graph.similarityCandidateIds({ shared: 1 }, 'ws'), null);
+    graph.removeNode('bad', 'ws');
+    assert.equal(graph.similarityCandidateIds({ shared: 1 }, 'ws'), null);
+    graph.removeNode('bad2', 'ws');
+    assert.deepEqual(new Set(graph.similarityCandidateIds({ shared: 1 }, 'ws')),
+      new Set(['gap', 'match']));
+  } finally {
+    graph.close?.();
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* Windows file lock */ }
+  }
+});
+
 test('SQLite graph reload rebuilds vector candidates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-vector-reload-'));
   const options = { useSQLite: true, memoryPath: path.join(dir, 'memory.json'),
