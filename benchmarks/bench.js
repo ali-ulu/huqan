@@ -50,6 +50,57 @@ function createKernel() {
   return kernel;
 }
 
+// #3037: the shipped default is the SQLite store (graph.js resolves SQLite
+// unless useSQLite is explicitly false), but the timing columns above stay
+// on the stubbed store so runs stay comparable with results.json history.
+// This pass learns the same statements on the default store while counting
+// graph.save() calls and fs bytes, so per-learn write amplification
+// regresses loudly instead of hiding behind the stub.
+function createDefaultKernel() {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-benchmark-default-'));
+  benchmarkPersistenceDirs.add(tempDir);
+  const kernel = new Kernel({
+    noLoad: true,
+    loadPlugins: false,
+    memoryPath: path.join(tempDir, 'memory.json'),
+    dbPath: path.join(tempDir, 'memory.db'),
+  });
+  kernel.__benchmarkPersistenceDir = tempDir;
+  return kernel;
+}
+
+function benchLearnWrite(statements) {
+  const kernel = createDefaultKernel();
+  let saveCalls = 0;
+  let bytes = 0;
+  const originalSave = kernel.graph.save.bind(kernel.graph);
+  kernel.graph.save = (...args) => {
+    saveCalls += 1;
+    return originalSave(...args);
+  };
+  const originalWrite = fs.writeFileSync;
+  fs.writeFileSync = function (file, data, options) {
+    try {
+      const text = typeof data === 'string' ? data : JSON.stringify(data);
+      bytes += Buffer.byteLength(text);
+    } catch (_) { /* size accounting only */ }
+    return originalWrite.call(fs, file, data, options);
+  };
+  try {
+    for (const statement of statements) {
+      kernel.learn(statement, TEST_FIXTURE_LEARN_BYPASS);
+    }
+  } finally {
+    fs.writeFileSync = originalWrite;
+    closeKernel(kernel);
+  }
+  return {
+    saveCalls,
+    bytes,
+    bytesPerLearn: Number((bytes / statements.length).toFixed(1)),
+  };
+}
+
 function closeKernel(kernel) {
   const tempDir = kernel?.__benchmarkPersistenceDir;
   try {
@@ -112,6 +163,7 @@ function benchFixture(label, statements, options = {}) {
     const reason = measure(`${label}:reason`, () => queryKernel.reason(subject), iterations);
     const compare = measure(`${label}:compare`, () => queryKernel.compare(compareLeft, compareRight), iterations);
     const dream = measure(`${label}:dream`, () => queryKernel.dream(), iterations);
+    const learnWrite = benchLearnWrite(statements);
 
     return {
       label,
@@ -123,6 +175,7 @@ function benchFixture(label, statements, options = {}) {
       reason,
       compare,
       dream,
+      learnWrite,
     };
   } finally {
     closeKernel(queryKernel);
@@ -143,6 +196,7 @@ function printHuman(results) {
       const v = r[key];
       console.log(`  ${key.padEnd(7)} avg=${v.avgMs}ms median=${v.medianMs}ms min=${v.minMs}ms max=${v.maxMs}ms`);
     }
+    console.log(`  learnWrite saves=${r.learnWrite.saveCalls} bytes=${r.learnWrite.bytes} bytes/learn=${r.learnWrite.bytesPerLearn} (default SQLite store)`);
   }
 }
 
@@ -164,5 +218,6 @@ if (require.main === module) {
 module.exports = {
   loadFixture,
   benchFixture,
+  benchLearnWrite,
   runBenchmarks,
 };

@@ -6,7 +6,7 @@
     "nodeVersion": "unknown",
     "machine": "unknown",
     "commit": "unknown",
-    "note": "Baseline captured before metadata tracking was added. Treat timing values as advisory and only compare against runs from the same machine and Node major version (see benchmarks/WATCH.md)."
+    "note": "Baseline captured before metadata tracking was added. Treat timing values as advisory and only compare against runs from the same machine and Node major version (see benchmarks/WATCH.md). learnWrite (added #3037) is measured on the shipped default SQLite store: graph.save() calls and fs bytes per fixture learn pass. Unlike the timing columns it is machine-independent; a per-learn full save regresses it loudly."
   },
   "fixtures": {
     "small": {
@@ -17,7 +17,12 @@
       "verify": 0.32,
       "reason": 0.164,
       "compare": 0.196,
-      "dream": 0.714
+      "dream": 0.714,
+      "learnWrite": {
+        "saveCalls": 1,
+        "bytes": 1764,
+        "bytesPerLearn": 352.8
+      }
     },
     "medium": {
       "nodes": 19,
@@ -27,7 +32,12 @@
       "verify": 0.022,
       "reason": 0.25,
       "compare": 0.327,
-      "dream": 0.527
+      "dream": 0.527,
+      "learnWrite": {
+        "saveCalls": 1,
+        "bytes": 1764,
+        "bytesPerLearn": 117.6
+      }
     },
     "large": {
       "nodes": 49,
@@ -37,7 +47,12 @@
       "verify": 0.032,
       "reason": 0.086,
       "compare": 0.06,
-      "dream": 3.895
+      "dream": 3.895,
+      "learnWrite": {
+        "saveCalls": 1,
+        "bytes": 1764,
+        "bytesPerLearn": 58.8
+      }
     },
     "xlarge": {
       "nodes": 140,
@@ -47,7 +62,12 @@
       "verify": 0.025,
       "reason": 0.037,
       "compare": 0.11,
-      "dream": 1.25
+      "dream": 1.25,
+      "learnWrite": {
+        "saveCalls": 2,
+        "bytes": 134196,
+        "bytesPerLearn": 1024.4
+      }
     }
   }
 }
