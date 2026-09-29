@@ -118,7 +118,10 @@ test('a learn that writes: proposed, decided, started, memory, finished (SQLite)
   const result = env.agent.run('learn one fact');
   assert.equal(result.ok, true, JSON.stringify(result.error));
   const events = journalOf(env, result);
-  assert.deepEqual(events.map((e) => e.type), ['run_started', 'action_proposed', 'policy_decided', 'execution_started', 'memory_update', 'execution_finished', 'run_closed']);
+  // #3151: the write is then read back; this stub result names no edge, so
+  // the verification is present but can only say `unknown`.
+  assert.deepEqual(events.map((e) => e.type), ['run_started', 'action_proposed', 'policy_decided', 'execution_started', 'memory_update', 'verification', 'execution_finished', 'run_closed']);
+  assert.equal(events[5].verdict, 'unknown');
   const [, proposed, decided, started, memory] = events;
   assert.equal(decided.causedByEventId, proposed.eventId);
   assert.equal(decided.payload.decision, 'allow');
