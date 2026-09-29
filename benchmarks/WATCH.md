@@ -67,3 +67,42 @@ in `.gitignore`. This PR intentionally does not commit any snapshot.
 - Cross-backend regression thresholds — the two fixture groups are reported
   separately; this benchmark does not claim that their absolute timings are
   directly comparable.
+
+## #3011 — graph incremental-save (added 2026-09-29)
+
+`save()` used to rewrite every node and edge row on every call, so the cost of
+a save scaled with the graph size. The delta tracking that closed #3011 writes
+only the records a mutation touched, and this benchmark pins that claim.
+
+- `benchmarks/bench-graph-save.js` — full benchmark (no `--quick`) at
+  `n-1000` and `n-10000`. For each fixture it times a full checkpoint (first
+  save / after `load()` / threshold) against an incremental save after one
+  mutation, and counts the rows each physically wrote.
+- `benchmarks/graph-save-baseline.json` — the pinned baseline. Row counts and
+  the ratio floors are deterministic; the absolute milliseconds are advisory.
+- `benchmarks/check-graph-save.js` — the gate. Blocking on every run:
+  `incrementalRows <= 2`, `rowReduction >= 1000`. Blocking only under
+  `--strict-timing`: `writeRatio >= 3` and absolute timing within `4x` of the
+  baseline. `--strict-timing` is what the nightly job uses.
+
+Watch item — the two floors mean different things. `rowReduction` is the
+issue's contract and would fail on any machine if the full rewrite returned.
+`writeRatio` and the absolute milliseconds are hardware-sensitive; a red
+nightly run on the timing half alone means a slow runner, a red run on the
+row half means a real regression.
+
+How to run it:
+
+```bash
+# Full benchmark, human-readable
+node benchmarks/bench-graph-save.js
+
+# Machine-readable, to a gitignored file (recommended for CI)
+node benchmarks/bench-graph-save.js --json > benchmarks/graph-save-current.json
+
+# Enforce the pinned threshold
+node benchmarks/check-graph-save.js benchmarks/graph-save-baseline.json benchmarks/graph-save-current.json --strict-timing
+```
+
+Regenerate the baseline only after an intentional change to the save path, and
+only from a quiet machine.

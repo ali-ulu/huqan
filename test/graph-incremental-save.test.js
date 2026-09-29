@@ -13,6 +13,12 @@ const test = require('node:test');
 
 const Graph = require('../graph');
 
+// Every graph opened on a temp store, so the one teardown closes them all
+// before removing the directory. t.after hooks run in registration order, and
+// a reader registered its own close after the directory's removal: Windows
+// cannot unlink an open database, so that order failed with EBUSY.
+const openGraphs = new WeakMap();
+
 function tempGraph(t, options = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-incremental-save-'));
   const graph = new Graph({
@@ -21,18 +27,22 @@ function tempGraph(t, options = {}) {
     useSQLite: true,
     ...options,
   });
+  const graphs = [graph];
+  openGraphs.set(graph, graphs);
   t.after(() => {
-    try { graph.close(); } catch (_) {}
-    // Best-effort cleanup, same rule as the stdio robustness test: sqlite
-    // close_v2 leaves a zombie connection until the GC collects the last
-    // transient Statement, and on Windows that zombie holds the file lock
-    // (EBUSY) for a while after close. A locked temp dir must never turn a
-    // passing assertion into a failing test (#3158); runners clean %TEMP%.
-    try {
-      fs.rmSync(root, { recursive: true, force: true });
-    } catch (_) { /* locked by a GC-pending sqlite zombie; %TEMP% wins */ }
+    for (const open of graphs) {
+      try { open.close(); } catch (_) {}
+    }
+    fs.rmSync(root, { recursive: true, force: true });
   });
   return graph;
+}
+
+/** A second instance on the same store, closed by the store's own teardown. */
+function openReader(graph) {
+  const reader = new Graph({ memoryPath: graph.memoryPath, dbPath: graph._paths.dbPath, useSQLite: true });
+  openGraphs.get(graph).push(reader);
+  return reader;
 }
 
 // Counts the rows a save physically writes, by watching the node UPSERT (built
@@ -46,13 +56,8 @@ function countRowWrites(graph) {
     if (/INSERT INTO nodes/i.test(sql)) counts.nodes += 1;
     return originalPrepare(sql);
   };
-  // Mutate `run` in place instead of spread-replacing the statement object:
-  // a replaced object orphans the original prepared statement, and better-
-  // sqlite3's close_v2 keeps a zombie connection while any Statement object
-  // is alive -- on Windows that file lock makes the temp-dir cleanup fail
-  // with EBUSY (#3158).
   const originalEdgeRun = graph._stmts.upsertEdge.run.bind(graph._stmts.upsertEdge);
-  graph._stmts.upsertEdge.run = (...args) => { counts.edges += 1; return originalEdgeRun(...args); };
+  graph._stmts.upsertEdge = { ...graph._stmts.upsertEdge, run: (...args) => { counts.edges += 1; return originalEdgeRun(...args); } };
   return counts;
 }
 
@@ -117,12 +122,7 @@ test('an incremental save is durable: the row reloads from a fresh instance', (t
   graph.addEdge('n0', 'n10', 'supports', { weight: 0.9 });
   graph.save();
 
-  const reader = new Graph({
-    memoryPath: graph.memoryPath,
-    dbPath: graph._paths.dbPath,
-    useSQLite: true,
-  });
-  t.after(() => reader.close());
+  const reader = openReader(graph);
   reader.load();
 
   assert.equal(reader.getNode('incremental').label, 'Incremental only');
@@ -169,8 +169,7 @@ test('removals are not resurrected by a later incremental save', (t) => {
   graph.removeNode('n3');
   graph.save();
 
-  const reader = new Graph({ memoryPath: graph.memoryPath, dbPath: graph._paths.dbPath, useSQLite: true });
-  t.after(() => reader.close());
+  const reader = openReader(graph);
   reader.load();
 
   assert.equal(reader.getNode('n3'), null, 'a removed node stays removed');

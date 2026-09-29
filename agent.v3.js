@@ -14,6 +14,7 @@ const { AgentV3ApprovalMethods } = require('./lib/agent-v3-approval-methods');
 const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
 const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
+const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
 
 const UNCERTAIN_PAUSE = 'experience_effect_uncertain';
 
@@ -132,12 +133,14 @@ class AgentV3 {
     const state = this._hydrateState(activePlan, resumeRecord);
     // The uncertainty that paused the previous call is the step's to report
     // again if it still holds; a resume starts without it.
-    if (state.pauseReason === UNCERTAIN_PAUSE) {
+    if (state.pauseReason === UNCERTAIN_PAUSE || state.pauseReason === REPAIR_PAUSE) {
       delete state.pauseReason;
       delete state.uncertainOperation;
     }
     state.executionScope = scopeResult.scope;
     const queued = Array.isArray(state.queuedSteps) ? [...state.queuedSteps] : [];
+    // #3151: a proposed repair runs only under its own approved record.
+    resolvePendingRepair({ agent: this, state, queued, opts });
     const deadline = Date.now() + Math.max(0, Number.isInteger(opts.timeBudgetMs) ? opts.timeBudgetMs : this.timeBudgetMs);
     const maxIterations = Number.isInteger(opts.maxIterations) ? opts.maxIterations : this.maxIterations;
     state.workspaceId = workspaceId; state.agentId = String(opts.agentId || state.agentId || 'agent-v3');
@@ -225,6 +228,13 @@ class AgentV3 {
       }
 
       const step = queued.shift();
+      if (state.pendingRepair && step.id === state.pendingRepair.repairStepId) {
+        queued.unshift(step);
+        state.queuedSteps = [...queued];
+        state.status = 'paused';
+        state.pauseReason = REPAIR_PAUSE;
+        break;
+      }
       const report = this._runtime().executeStepWithRetry(step, state, scopedOpts);
       // #3033: a step whose effect is uncertain did not finish and is not a
       // block. It goes back on the queue and the run pauses with its
@@ -236,6 +246,14 @@ class AgentV3 {
         state.pauseReason = UNCERTAIN_PAUSE;
         state.uncertainOperation = { operationId: uncertain.operationId, message: report.result.error.message };
         break;
+      }
+      recordRepairExecuted({ agent: this, state, report });
+      const repairStep = proposeRepair({ agent: this, state, step, report });
+      if (repairStep) {
+        state.failedAttempts = [...(state.failedAttempts || []), report];
+        state.iteration += 1;
+        queued.unshift(repairStep);
+        continue;
       }
       state.steps.push(report);
       state.evidence.push(...this._runtime().collectEvidence([report.result]));

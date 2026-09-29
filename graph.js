@@ -232,24 +232,10 @@ class Graph {
   // ─── Temizlik ─────────────────────────────────────────────────────────────
 
   close() {
-    // Finalize held statements before closing: sqlite3_close_v2 keeps a
-    // zombie connection while any Statement object is alive, and until GC
-    // collects it the database file stays locked on Windows (#3158).
-    for (const cache of [this._stmts, this._auditQueryStmts]) {
-      if (!cache) continue;
-      const values = cache instanceof Map ? cache.values() : Object.values(cache);
-      for (const value of values) {
-        if (value && typeof value.finalize === 'function') {
-          try { value.finalize(); } catch (_) { /* already finalized */ }
-        }
-      }
-      if (cache instanceof Map) cache.clear();
-    }
-    if (this._db) {
+    if (this._db && this._stmts) {
       try { this._db.close(); } catch (_) {}
       this._db = null;
     }
-    this._stmts = null;
   }
 }
 

@@ -1,0 +1,15 @@
+{{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "huqan.claimName" . }}
+  labels:
+    {{- include "huqan.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    # Single-replica topology by design: one SQLite file, one process.
+    - {{ .Values.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}
