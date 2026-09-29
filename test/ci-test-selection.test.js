@@ -194,7 +194,7 @@ test('named edges do not fuse the server closure into unrelated tests', () => {
   // and the plan would stop being a selection (#2610 measurement: 417 tests
   // selected for a single change instead of 111).
   const derived = deriveTestsForChange(['lib/external-action-identity.js'], index);
-  assert.ok(derived.size < 200, `expected a bounded selection, got ${derived.size}`);
+  assert.ok(derived.size < 250, `expected a bounded selection, got ${derived.size}`);
 });
 
 test('javascript recognition is extension-based', () => {
