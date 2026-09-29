@@ -10,6 +10,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const crypto = require('node:crypto');
 
 const {
   SCORE_SCHEMA_VERSION,
@@ -18,16 +19,48 @@ const {
 } = require('../lib/trust-score-aggregator');
 
 function proxyEntry(status, model = 'gpt-4o-mini') {
-  return { operationId: 'llm-proxy:x', status: 'completed', result: { proxied: true, model, upstreamStatus: status }, committedAt: '2026-09-06T00:00:00.000Z' };
+  return { operationId: `llm-proxy:${crypto.randomUUID()}`, status: 'completed', result: { proxied: true, model, upstreamStatus: status }, committedAt: '2026-09-06T00:00:00.000Z' };
 }
 
-function stubGraph({ proxy = [], claims = [] } = {}) {
+function routingDecidedEntry(chosenCapabilityId = null, refusalReason = null) {
+  const decision = {
+    eventType: 'routing_decided',
+    requestId: 'req-1',
+    candidatesConsidered: [],
+    chosenCapabilityId,
+    boundProcedureVersion: chosenCapabilityId ? 'proc-v1' : null,
+    refusalReason,
+    matchRuleVersion: 'structural-subset-v1',
+    matchScoreVersion: 'unused-v1',
+    tiebreakRuleVersion: 'specificity-trust-lexicographic-v1',
+    trustSnapshotVersion: 'cap-trust-v1',
+  };
+  return {
+    operationId: `routing_decided:${crypto.randomUUID()}`,
+    status: 'completed',
+    result: { decision },
+    committedAt: '2026-09-06T00:00:00.000Z',
+  };
+}
+
+function stubGraph({ proxy = [], claims = [], routing = [] } = {}) {
   return {
     getCommittedMutationResultsByPrefix: (prefix) => {
-      assert.equal(prefix, 'llm-proxy:');
-      return proxy;
+      if (prefix === 'llm-proxy:') return proxy;
+      if (prefix === 'routing_decided') return routing;
+      return [];
     },
     getCandidateClaims: () => claims,
+  };
+}
+
+function stubCapabilityTrustRegistry({ fallbackCounts = {} } = {}) {
+  const entries = Object.entries(fallbackCounts).map(([capabilityId, count]) => ({
+    capabilityId,
+    fallbackPreferredOverCount: count,
+  }));
+  return {
+    getAll: () => entries,
   };
 }
 
@@ -78,4 +111,53 @@ test('window cap bounds the scan and malformed entries are tolerated', () => {
   assert.equal(out.windowActions, 100);
   assert.equal(out.score, 100);
   assert.equal(out.signals.proxy.windowCapped, true);
+});
+
+test('AI dependency ratio included in output when enabled', () => {
+  const proxy = [proxyEntry(200), proxyEntry(200)];
+  const routing = [routingDecidedEntry('cap-1'), routingDecidedEntry('cap-2')];
+  const trustRegistry = stubCapabilityTrustRegistry({ fallbackCounts: { 'cap-1': 1 } });
+  const graph = stubGraph({ proxy, routing });
+  const out = computeTrustScore({ graph, capabilityTrustRegistry: trustRegistry, workspaceId: 'default' });
+  assert.ok(out.aiDependencyRatio);
+  assert.equal(out.aiDependencyRatio.schemaVersion, 'huqan-ai-dependency-ratio-v1');
+  assert.equal(out.aiDependencyRatio.workspaceId, 'default');
+  assert.equal(out.aiDependencyRatio.modelCalls, 2);
+  assert.equal(out.aiDependencyRatio.deterministicServes, 2);
+  assert.equal(out.aiDependencyRatio.permittedFallbacks, 1);
+  assert.equal(out.aiDependencyRatio.totalRequests, 5);
+  assert.equal(out.aiDependencyRatio.deterministicRatio, Number((2/5).toFixed(4)));
+  assert.equal(out.aiDependencyRatio.permittedFallbackShare, Number((1/5).toFixed(4)));
+});
+
+test('AI dependency ratio can be disabled', () => {
+  const proxy = [proxyEntry(200)];
+  const routing = [routingDecidedEntry('cap-1')];
+  const graph = stubGraph({ proxy, routing });
+  const out = computeTrustScore({ graph, workspaceId: 'default', includeAiDependencyRatio: false });
+  assert.equal(out.aiDependencyRatio, undefined);
+});
+
+test('AI dependency ratio with only model calls (no deterministic serves)', () => {
+  const proxy = [proxyEntry(200), proxyEntry(502)];
+  const graph = stubGraph({ proxy });
+  const out = computeTrustScore({ graph, workspaceId: 'default' });
+  assert.ok(out.aiDependencyRatio);
+  assert.equal(out.aiDependencyRatio.modelCalls, 2);
+  assert.equal(out.aiDependencyRatio.deterministicServes, 0);
+  assert.equal(out.aiDependencyRatio.deterministicRatio, 0);
+});
+
+test('AI dependency ratio with refusals counted separately', () => {
+  const routing = [
+    routingDecidedEntry('cap-1'),
+    routingDecidedEntry(null, 'no_structural_match'),
+    routingDecidedEntry(null, 'no_eligible_match'),
+  ];
+  const graph = stubGraph({ routing });
+  const out = computeTrustScore({ graph, workspaceId: 'default' });
+  assert.ok(out.aiDependencyRatio);
+  assert.equal(out.aiDependencyRatio.deterministicServes, 1);
+  assert.equal(out.aiDependencyRatio.refusals, 2);
+  assert.equal(out.aiDependencyRatio.totalRoutingDecisions, 3);
 });

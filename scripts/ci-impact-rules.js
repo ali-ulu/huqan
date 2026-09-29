@@ -53,6 +53,15 @@ const MUST_HAVE_PATTERNS = Object.freeze([
   'test/memory-schema*.test.js',
   'test/memory-store*.test.js',
   'test/module-reachability*.test.js',
+  // #3014's wiring-debt ratchet. It is not reachable from any changed file:
+  // it reads the live analyzeReachability() surface and pins it to
+  // config/reachability-baseline.json, so neither a lib/ edit in
+  // lib/module-reachability.js nor a new leaf module puts it in the selection.
+  // #3164 and #3170 both added unreachable modules, changed nothing the
+  // graph could see, and left the ratchet unrun — main went red with the
+  // baseline unexplained until #3169 and #3173 fixed it by hand. The
+  // reachability surface is safety-critical, so pin it to the floor.
+  'test/reachability-baseline.test.js',
   'test/mutation-admission*.test.js',
   'test/mutation-journal*.test.js',
   'test/operator-token-constant-time.test.js',
