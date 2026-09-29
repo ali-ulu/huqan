@@ -216,3 +216,26 @@ Never say “done” unless:
 * tests/smoke were reported
 * unrelated drift was reported
 
+## 10. No AI Attribution (signature ban)
+
+Forbidden in every artifact that leaves the agent — issues, pull requests,
+review comments, ordinary comments, commit messages, PR descriptions:
+
+* any AI signature or disclosure line (for example “created by an AI agent”,
+  “AI ajanı tarafından oluşturuldu”, “on behalf of …”, or any OpenHands /
+  agent name);
+* the commit trailer `Co-authored-by: openhands <openhands@all-hands.dev>`
+  or any equivalent agent co-author / author trailer;
+* any auto-generated footer added by a tool to a body or comment.
+
+The work is presented as the repository owner's own. Never write an AI/agent
+name, an “on behalf of” phrase, or an agent co-author trailer into GitHub or
+into git.
+
+If an artifact already carrying such a line is touched, remove the line as part
+of the task.
+
+Rewriting existing history to strip such a trailer is a separate, destructive
+operation: do it only with explicit approval (see section 4).
+
+
