@@ -189,8 +189,8 @@ class Graph {
     return consolidateEdges({ edges: this._edges, dryRun, replaceEdges: arr => { this._edges = arr; }, rebuildIndex: () => this.rebuildIndex(), save: () => this.save(), logSaveError: error => { console.error('[Kernel] Graph save hatası:', error.message); }, auditRemoval: (edge, reason) => this.appendAuditEvent({ eventType: 'DELETE', targetType: 'edge', targetId: `${edge.from}|${edge.relation}|${edge.to}`, workspaceId: normalizeWorkspaceId(edge.workspaceId), actor: 'graph.consolidate', sourceRef: 'graph.consolidate', details: { reason, weight: edge.weight } }) });
   }
 
-  getNodes(workspaceId = 'default') {
-    return runNodesRead(this._nodes, workspaceId);
+  getNodes(workspaceId = 'default', options = {}) {
+    return runNodesRead(this._nodes, workspaceId, options);
   }
 
   _nodeWriteStoreApi() { return runNodeWriteStoreApi(this); }
@@ -199,8 +199,8 @@ class Graph {
     return runNodeWrite(this._nodeWriteStoreApi(), id, label, provenance, opts);
   }
 
-  getNode(id, workspaceId = 'default') {
-    return runNodeRead(this._nodes, id, workspaceId);
+  getNode(id, workspaceId = 'default', options = {}) {
+    return runNodeRead(this._nodes, id, workspaceId, options);
   }
 
   _nodeTouchStoreApi() { return runNodeTouchStoreApi(this); }
@@ -261,33 +261,33 @@ class Graph {
     return runEdgeWrite(this._edgeWriteStoreApi(), fromId, toId, relation, opts);
   }
 
-  getEdge(fromId, toId, relation, workspaceId = 'default') {
-    return runEdgeRead(this._outIndex, fromId, toId, relation, workspaceId);
+  getEdge(fromId, toId, relation, workspaceId = 'default', options = {}) {
+    return runEdgeRead(this._outIndex, fromId, toId, relation, workspaceId, options);
   }
 
-  getEdgesBetween(fromId, toId, workspaceId = 'default') {
-    return runEdgesBetweenRead(this._outIndex, fromId, toId, workspaceId);
+  getEdgesBetween(fromId, toId, workspaceId = 'default', options = {}) {
+    return runEdgesBetweenRead(this._outIndex, fromId, toId, workspaceId, options);
   }
 
   hasAnyEdge(fromId, toId, workspaceId = 'default') {
     return runHasAnyEdgeRead(this._outIndex, fromId, toId, workspaceId);
   }
 
-  getEdges(nodeId, workspaceId = 'default') {
-    return runEdgesRead(this._outIndex, nodeId, workspaceId);
+  getEdges(nodeId, workspaceId = 'default', options = {}) {
+    return runEdgesRead(this._outIndex, nodeId, workspaceId, options);
   }
 
-  getInEdges(nodeId, workspaceId = 'default') {
-    return runInEdgesRead(this._inIndex, nodeId, workspaceId);
+  getInEdges(nodeId, workspaceId = 'default', options = {}) {
+    return runInEdgesRead(this._inIndex, nodeId, workspaceId, options);
   }
 
   /** All edges in a workspace, independent of any single node. */
-  getAllEdges(workspaceId = 'default') {
-    return runAllEdgesRead(this._edges, workspaceId);
+  getAllEdges(workspaceId = 'default', options = {}) {
+    return runAllEdgesRead(this._edges, workspaceId, options);
   }
 
-  query(label, workspaceId = 'default') {
-    return runGraphQuery(this._nodes, label, workspaceId);
+  query(label, workspaceId = 'default', options = {}) {
+    return runGraphQuery(this._nodes, label, workspaceId, options);
   }
 
   nodeCount(workspaceId) {

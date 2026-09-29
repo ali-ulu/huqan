@@ -22,12 +22,12 @@ function methodBody(source, methodName) {
 
 test('GRAPH: edge reads are delegated one method at a time', () => {
   const expected = {
-    getEdge: 'return runEdgeRead(this._outIndex, fromId, toId, relation, workspaceId);',
-    getEdgesBetween: 'return runEdgesBetweenRead(this._outIndex, fromId, toId, workspaceId);',
+    getEdge: 'return runEdgeRead(this._outIndex, fromId, toId, relation, workspaceId, options);',
+    getEdgesBetween: 'return runEdgesBetweenRead(this._outIndex, fromId, toId, workspaceId, options);',
     hasAnyEdge: 'return runHasAnyEdgeRead(this._outIndex, fromId, toId, workspaceId);',
-    getEdges: 'return runEdgesRead(this._outIndex, nodeId, workspaceId);',
-    getInEdges: 'return runInEdgesRead(this._inIndex, nodeId, workspaceId);',
-    getAllEdges: 'return runAllEdgesRead(this._edges, workspaceId);',
+    getEdges: 'return runEdgesRead(this._outIndex, nodeId, workspaceId, options);',
+    getInEdges: 'return runInEdgesRead(this._inIndex, nodeId, workspaceId, options);',
+    getAllEdges: 'return runAllEdgesRead(this._edges, workspaceId, options);',
   };
   for (const [methodName, body] of Object.entries(expected)) {
     assert.equal(methodBody(graphSource, methodName), body, `${methodName} must remain a one-line delegation`);

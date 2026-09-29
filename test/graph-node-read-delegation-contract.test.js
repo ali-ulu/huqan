@@ -22,11 +22,11 @@ function methodBody(source, methodName) {
 test('GRAPH: node reads are delegated to the dedicated module', () => {
   assert.equal(
     methodBody(graphSource, 'getNodes'),
-    'return runNodesRead(this._nodes, workspaceId);',
+    'return runNodesRead(this._nodes, workspaceId, options);',
   );
   assert.equal(
     methodBody(graphSource, 'getNode'),
-    'return runNodeRead(this._nodes, id, workspaceId);',
+    'return runNodeRead(this._nodes, id, workspaceId, options);',
   );
 });
 
@@ -34,8 +34,8 @@ test('GRAPH: node-read delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /graph\.js/);
   assert.doesNotMatch(delegateSource, /require\(['"]\.\.\/graph['"]\)/);
   assert.doesNotMatch(delegateSource, /this\._/);
-  assert.match(delegateSource, /function getNodes\(nodes, workspaceId = 'default'\)/);
-  assert.match(delegateSource, /function getNode\(nodes, id, workspaceId = 'default'\)/);
+  assert.match(delegateSource, /function getNodes\(nodes, workspaceId = 'default', options = \{\}\)/);
+  assert.match(delegateSource, /function getNode\(nodes, id, workspaceId = 'default', options = \{\}\)/);
 });
 
 test('GRAPH: node-read delegate preserves workspace isolation and cloned results', () => {

@@ -88,8 +88,6 @@ test('graph-data delegate preserves bounded graph and memory projections', () =>
   assert.deepEqual(graphCalls, [
     ['getNodes', 'tenant-a'],
     ['getAllEdges', 'tenant-a'],
-    ['getEdges', 'high', 'tenant-a'],
-    ['getEdges', 'low', 'tenant-a'],
   ]);
   assert.deepEqual(memoryCalls, [
     ['list', { workspaceId: 'tenant-a' }],
