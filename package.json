@@ -385,6 +385,7 @@
     "lib/cli-workflow-envelope.js",
     "lib/cli-audit.js",
     "lib/trust-score-aggregator.js",
+    "lib/ai-dependency-ratio.js",
     "lib/cli-coder-verify.js",
     "lib/cli-coder.js",
     "lib/coder/apply-derivation.js",
