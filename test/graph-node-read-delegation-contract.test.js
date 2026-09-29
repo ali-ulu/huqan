@@ -35,8 +35,9 @@ test('GRAPH: node-read delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /graph\.js/);
   assert.doesNotMatch(delegateSource, /require\(['"]\.\.\/graph['"]\)/);
   assert.doesNotMatch(delegateSource, /this\._/);
-  // Delegate supports both resolveKeys (main #3009) and options (our bounds/clone #3012)
-  assert.match(delegateSource, /function getNodes\(nodes, workspaceId = 'default',/);
+  // Delegate supports both bounds/clone options (#3012) and the label-index
+  // key resolver (#3009).
+  assert.match(delegateSource, /function getNodes\(nodes, workspaceId = 'default', options = \{\}, resolveKeys = null\)/);
   assert.match(delegateSource, /function getNode\(nodes, id, workspaceId = 'default', options = \{\}\)/);
 });
 

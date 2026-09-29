@@ -590,6 +590,7 @@
     "lib/graph-candidate-claims-write.js",
     "lib/graph-count-read.js",
     "lib/graph-query-read.js",
+    "lib/graph-read-bounds.js",
     "lib/graph-prune.js",
     "lib/graph-optimize.js",
     "lib/graph-edge-read.js",
