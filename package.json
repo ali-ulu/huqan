@@ -505,6 +505,8 @@
     "lib/unexpected-egress-gate.js",
     "lib/unexpected-egress-doctor.js",
     "lib/residency-rule-miner.js",
+    "lib/command-allowlist-miner.js",
+    "lib/command-shape-log.js",
     "lib/deterministic-json-copy.js",
     "lib/dream-embedding.js",
     "lib/dream-experiment-loop.js",

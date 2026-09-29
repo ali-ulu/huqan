@@ -2,7 +2,12 @@
 'use strict';
 
 const { queryIdentityLog } = require('../lib/gate-hook-identity');
-const { runSealsCommand, runFleetCommand, runResidencyCommand } = require('../lib/gate-hook-reports');
+const {
+  runSealsCommand,
+  runFleetCommand,
+  runResidencyCommand,
+  runCommandProposalsCommand,
+} = require('../lib/gate-hook-reports');
 const {
   runShipCommand,
   runAdapterCommand,
@@ -49,6 +54,12 @@ async function main() {
     // boundary something a receipt can attest to (docs/what-huqan-learns.md).
     if (command === 'residency') {
       runResidencyCommand();
+      return;
+    }
+    // `command-proposals` is the same shape pointed the other way: the commands
+    // a person keeps approving, proposed as allowedCommands and never applied.
+    if (command === 'command-proposals') {
+      runCommandProposalsCommand();
       return;
     }
     // Management commands live in lib/gate-hook-management.js (#2248).
