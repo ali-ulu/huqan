@@ -102,6 +102,25 @@ test('one refusal disqualifies a command -- no majority vote', () => {
   assert.match(mined.unresolved[0].why, /refused/);
 });
 
+test('a refusal is not erased by a later outcome for the same admission', () => {
+  // Outcomes are appended, so one admission can carry several. A later
+  // `executed` must not overwrite the refusal that came before it.
+  const trail = history(times(3, ['npm test', 'approved']));
+  const reviewed = trail.receipts.find((receipt) => receipt.receiptKind === 'external_action_review_receipt');
+  const { receipts } = trail;
+  const at = receipts.findIndex((receipt) => receipt.receiptKind === 'external_action_outcome_receipt'
+    && receipt.admissionId === reviewed.admissionId);
+  const replayed = [
+    ...receipts.slice(0, at),
+    { ...receipts[at], status: 'blocked' },
+    ...receipts.slice(at),
+  ];
+
+  const mined = mine({ receipts: replayed, shapes: trail.shapes });
+  assert.deepEqual(mined.proposals, []);
+  assert.equal(mined.unresolved[0].refused, 1);
+});
+
 test('a review nobody resolved is silence, never evidence', () => {
   const mined = mine(history(times(5, ['npm test', null])));
 
