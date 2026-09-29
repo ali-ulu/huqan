@@ -226,6 +226,7 @@
     "lib/agent-identity-runtime-resolve.js",
     "lib/agent-identity-runtime-shape.js",
     "lib/agent-identity-runtime.js",
+    "lib/ai-dependency-ratio.js",
     "lib/goal-integrity-gate.js",
     "lib/agent-v3-dream-loop-adapter.js",
     "lib/agent-v3-loop-budget.js",
