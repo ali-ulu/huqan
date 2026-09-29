@@ -519,6 +519,7 @@
     "lib/experience/capability-trust-canary-extension.js",
     "lib/experience/contract.js",
     "lib/experience/compiler.js",
+    "lib/experience/effect-boundary.js",
     "lib/experience/journal.js",
     "lib/experience/journal-connection.js",
     "lib/experience/learning.js",
