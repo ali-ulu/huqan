@@ -591,6 +591,7 @@
     "lib/graph-node-write.js",
     "lib/graph-json-persistence.js",
     "lib/graph-persistence-runtime.js",
+    "lib/graph-dirty-records.js",
     "lib/graph-store-adapters.js",
     "lib/graph-mutation-runtime.js",
     "lib/graph-json-snapshot.js",

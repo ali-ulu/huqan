@@ -688,7 +688,7 @@
       ],
       "sites": [
         {
-          "line": 105,
+          "line": 103,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }

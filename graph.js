@@ -13,6 +13,7 @@ const {
 } = require('./lib/graph-store-adapters');
 const { isSqliteAvailable, openGraphSqlite: runOpenSqlite, closeGraphSqlite: runCloseSqlite, reopenGraphSqlite: runReopenSqlite, sqlitePersistenceError } = require('./lib/sqlite-persistence-validation');
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
+const { createDirtyRecords } = require('./lib/graph-dirty-records');
 const { createLabelIndex, indexNode: indexLabelNode, deindexNode: deindexLabelNode, rebuildLabelIndex, workspaceKeys } = require('./lib/graph-label-index');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
@@ -51,6 +52,10 @@ class Graph {
     this._edgeWorkspaceCounts = new Map();
     this._auditQueryStmts = new Map();
     this._edgeTouchScope = null;
+    // #3011: records changed since the last SQLite save, so save() can apply
+    // the delta instead of rewriting the whole graph. Lazy for
+    // Object.create(Graph.prototype) test instances, like the indexes above.
+    this._dirty = createDirtyRecords();
 
     // SQLite kurulumu
     const wantSQLite = opts.useSQLite !== false && isSqliteAvailable();
@@ -90,14 +95,66 @@ class Graph {
   }
 
   save() {
+    // #3011: derive the delta once per top-level save and hold it for the
+    // duration. The store port applies it when the JSON snapshot step calls
+    // back into writeStrippedState; the bookkeeping (clear the delta, count a
+    // checkpoint) runs after the save, success or failure, so a retry starts
+    // from a clean slate.
+    if (this._saveModeInFlight) return this._storePort.save(this._jsonTransactionFault);
+    if (this._db && this._stmts) {
+      const mode = this._nextSaveMode();
+      this._saveModeInFlight = mode;
+      try {
+        return this._storePort.save(this._jsonTransactionFault);
+      } finally {
+        this._saveModeInFlight = null;
+        this._afterSave(mode);
+      }
+    }
     return this._storePort.save(this._jsonTransactionFault);
   }
 
+  // #3011: whether the next SQLite save may write only the delta. A bulk graph
+  // is checkpointed when it has grown well past the graph this process has
+  // already persisted, which bounds the drift any unsaved row can carry while
+  // keeping the cost of a save proportional to the change.
+  _nextSaveMode() {
+    const dirty = this._dirtyOrCreate();
+    if (this._forceFullSave) return { forceFull: true };
+    if (dirty.pending === 0) return { incremental: { nodeKeys: [], edgeRecords: [] } };
+    if (dirty.pending >= this._checkpointEvery()) return { forceFull: true };
+    return { incremental: { nodeKeys: dirty.nodeKeys(), edgeRecords: dirty.edgeRecords() } };
+  }
+
+  _checkpointEvery() {
+    const configured = Number(this._sqliteOptions?.checkpointEvery);
+    if (Number.isFinite(configured) && configured > 0) return Math.floor(configured);
+    const persisted = Number(this._persistedRowCount) || 0;
+    return Math.max(1024, Math.ceil(persisted * 0.5));
+  }
+
+  _afterSave(mode) {
+    if (mode.forceFull) {
+      this._forceFullSave = false;
+      this._persistedRowCount = Object.keys(this._nodes).length + this._edges.length;
+    }
+    this._dirtyOrCreate().clear();
+  }
+
   writeStrippedState(embeddings) {
-    return this._storePort.writeStrippedState(embeddings);
+    return this._storePort.writeStrippedState(embeddings, this._saveModeInFlight?.incremental || null);
   }
 
   load() {
+    // A load replaces the whole in-memory graph. Force the next SQLite write to
+    // a full checkpoint and clear the delta before loading, because the
+    // JSON-to-SQLite adoption save happens *inside* load
+    // (lib/graph-json-persistence.js) and its whole job is to write every
+    // loaded record into an empty database -- it must be a checkpoint, not an
+    // empty delta.
+    this._forceFullSave = true;
+    this._dirtyOrCreate().clear();
+    this._saveModeInFlight = null;
     return this._storePort.load();
   }
 
@@ -140,6 +197,13 @@ class Graph {
 
   _deindexLabelNode(storageKey) {
     deindexLabelNode(this._labelIndexOrCreate(), storageKey);
+  }
+
+  // #3011: the incremental-save tracker, lazily created so test instances built
+  // via Object.create(Graph.prototype) work without the constructor field.
+  _dirtyOrCreate() {
+    if (!this._dirty) this._dirty = createDirtyRecords();
+    return this._dirty;
   }
 
   // Storage keys of every node in a workspace, from the index (#3009).

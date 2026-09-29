@@ -16,10 +16,12 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // descriptor flags. #3009 added five internal label-index/rebuild helpers
 // (_labelIndexOrCreate, _indexLabelNode, _deindexLabelNode, _workspaceNodeKeys,
 // _rebuildEdgeIndex), so the count and digest moved with them. #3139 added
-// _edgeWorkspaceCountsOrCreate for the per-workspace edge counter. The public
-// method names above are unchanged.
+// _edgeWorkspaceCountsOrCreate for the per-workspace edge counter. #3011 added
+// _dirtyOrCreate, _nextSaveMode, _checkpointEvery and _afterSave for the
+// incremental-save delta bookkeeping. The public method names above are
+// unchanged.
 
-const MAIN_SURFACE = { count: 83, sha256: '6272c21281db02fc51f18afa8ad6642c93948404caf6af793784a6664cba2be0' };
+const MAIN_SURFACE = { count: 87, sha256: '56a22cbf32c2351e116401913100e85623fd6aad742e0ee23e9cf46055724254' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;
