@@ -98,6 +98,18 @@ test('one refusal disqualifies a destination, however many approvals it has', ()
   assert.equal(entry.approved, 9);
 });
 
+test('a refusal is not erased by a later outcome for the same admission', () => {
+  // Outcomes are appended, so one admission can carry several. A later
+  // `executed` must not overwrite the refusal that came before it.
+  const receipts = history(approved('arsiv.kurum.gov.tr', 3));
+  const at = receipts.findIndex((receipt) => receipt.receiptKind === 'external_action_outcome_receipt');
+  const replayed = [...receipts.slice(0, at), { ...receipts[at], status: 'blocked' }, ...receipts.slice(at)];
+
+  const mined = mineResidencyRule(replayed);
+  assert.equal(mined.proposal, null);
+  assert.equal(mined.unresolved[0].refused, 1);
+});
+
 test('a single approval is not evidence of a boundary', () => {
   const mined = mineResidencyRule(history([...approved('bir-kez.example.com', 1)]));
   assert.equal(mined.proposal, null);
