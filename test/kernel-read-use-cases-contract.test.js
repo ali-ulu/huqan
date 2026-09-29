@@ -148,6 +148,59 @@ test('entropy ignores zero-weight edges when positive edges exist', () => {
   }
 });
 
+test('entropy and detectGaps read the workspace edges once, through frozen views', () => {
+  // #3012: these two are the whole-workspace reads of the analysis use cases.
+  // They used to scan every node with a getEdges(node.id) call; they now take
+  // one workspace edge read. Pin the contract: a single getAllEdges per call,
+  // opted out of the deep clone, and no per-node getEdges at all.
+  const kernel = makeKernel('frozen-reads');
+
+  try {
+    const WS = 'workspace-a';
+    kernel.graph.addNode('a', 'a', null, { workspaceId: WS });
+    kernel.graph.addNode('b', 'b', null, { workspaceId: WS });
+    kernel.graph.addNode('c', 'c', null, { workspaceId: WS });
+    kernel.graph.addEdge('a', 'b', 'related', { weight: 0.25, workspaceId: WS });
+    kernel.graph.addEdge('a', 'c', 'related', { weight: 0.75, workspaceId: WS });
+
+    const graph = kernel.graph;
+    const calls = { allEdges: [], edges: [] };
+    const realAllEdges = graph.getAllEdges.bind(graph);
+    const realGetEdges = graph.getEdges.bind(graph);
+    graph.getAllEdges = (workspaceId, options) => {
+      calls.allEdges.push({ workspaceId, options });
+      return realAllEdges(workspaceId, options);
+    };
+    graph.getEdges = (nodeId, workspaceId, options) => {
+      calls.edges.push({ nodeId, workspaceId, options });
+      return realGetEdges(nodeId, workspaceId, options);
+    };
+
+    const before = JSON.stringify(realAllEdges(WS));
+    const entropy = kernel.entropy(WS);
+    const gaps = kernel.detectGaps(WS);
+    const after = JSON.stringify(realAllEdges(WS));
+
+    // One frozen workspace read per call, and the per-node scan is gone.
+    assert.deepEqual(calls.allEdges, [
+      { workspaceId: WS, options: { clone: false } },
+      { workspaceId: WS, options: { clone: false } },
+    ]);
+    assert.deepEqual(calls.edges, []);
+
+    // Observable results are unchanged, and only scalars/ids leave the graph --
+    // no raw edge or node record is handed back.
+    assert.equal(entropy, -((0.25 / 1) * Math.log(0.25 / 1)) - ((0.75 / 1) * Math.log(0.75 / 1)));
+    assert.deepEqual(gaps, ['b', 'c']);
+    assert.ok(gaps.every(gap => typeof gap === 'string'));
+
+    // The frozen views are read-only and nothing here mutates the graph.
+    assert.equal(before, after, 'the read must not change the stored edges');
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
 test('read use cases preserve reason and compare observable results', () => {
   const kernel = makeKernel('reason-compare');
 
