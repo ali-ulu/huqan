@@ -521,6 +521,7 @@
     "lib/experience/contract.js",
     "lib/experience/compiler.js",
     "lib/experience/effect-boundary.js",
+    "lib/experience/learn-read-back.js",
     "lib/experience/step-lifecycle.js",
     "lib/experience/journal.js",
     "lib/experience/journal-connection.js",

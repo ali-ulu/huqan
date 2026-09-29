@@ -22,7 +22,7 @@ class Agent {
     this.memoryPath = normalizeMemoryPath(opts, this.kernel);
     this.storage = opts.storage || null;
     this.experienceOperationLedger = opts.experienceOperationLedger || null;
-    this._stepLifecycle = createStepLifecycleRecorder(() => this.experienceJournal || this.kernel?.experienceJournal);
+    this._stepLifecycle = createStepLifecycleRecorder(() => this.experienceJournal || this.kernel?.experienceJournal, () => this.kernel?.graph);
     this.memory = this._loadMemory();
     this.lastPlan = null;
     this.lastRun = null;

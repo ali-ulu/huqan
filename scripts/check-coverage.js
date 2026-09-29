@@ -56,17 +56,23 @@ function readJson(filePath, label) {
  * `lib/`, `scripts/` and the repository's root runtime modules are tracked;
  * tests are not, because a file with no assertions should not be scored on
  * how much of itself it executes.
+ *
+ * Summary keys arrive in the producer's separator form (c8 emits its own
+ * absolute paths, but a hand-built fixture may use forward slashes on
+ * Windows, #3148), so both separators are normalized to the host form before
+ * the root prefix is stripped. The stored key leaves as forward slashes --
+ * the same form the baseline records on every platform.
  */
 function measuredFiles(summary, root = REPO_ROOT) {
   const files = {};
   for (const [absolutePath, metrics] of Object.entries(summary)) {
     if (absolutePath === 'total') continue;
-    const relative = (path.isAbsolute(absolutePath)
-      ? path.relative(root, absolutePath)
-      : absolutePath).replace(/\\/g, '/');
-    if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) continue;
-    if (relative.startsWith('test/')) continue;
-    if (metrics && metrics.lines) files[relative] = metrics;
+    const hostPath = absolutePath.split('\\').join(path.sep).split('/').join(path.sep);
+    const relative = path.isAbsolute(hostPath) ? path.relative(root, hostPath) : hostPath;
+    const key = relative.split(path.sep).join('/');
+    if (key === '..' || key.startsWith('../') || path.isAbsolute(relative)) continue;
+    if (key.startsWith('test/')) continue;
+    if (metrics && metrics.lines) files[key] = metrics;
   }
   return files;
 }
