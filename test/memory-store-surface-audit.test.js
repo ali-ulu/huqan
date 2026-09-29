@@ -5,7 +5,7 @@
  * what production actually calls, and what the published type declaration
  * promises. The three are not the same, and the gaps are the point of the file.
  *
- * MemoryStore has 42 public methods. Twelve of them have a non-test caller. One --
+ * MemoryStore has 42 public methods. Thirteen of them have a non-test caller. One --
  * `search()` -- has no caller anywhere, not even a test: it is a three-line
  * alias for `query()`. The rest are exercised only by the memory suite, which
  * means the tests are the only thing currently defining what they must do.
@@ -64,6 +64,10 @@ const PRODUCTION_SURFACE = Object.freeze({
   // already documents for its store API.
   withTransaction: 'lib/memory-store-sqlite-writer.js',
   persistenceError: 'lib/memory-store-sqlite-writer.js',
+  // First non-test caller for query (#3017): the SQLite page benchmark
+  // exercises the indexed path through the public method, the same way
+  // benchmarks/bench-memory-scale.js already calls store().
+  query: 'benchmarks/bench-memory-query-page.js',
 });
 
 /**
@@ -75,7 +79,7 @@ const TEST_ONLY_SURFACE = Object.freeze([
   'findByContentHash', 'findById', 'findByKind', 'findBySourceRef',
   'findByStatus', 'findLinkedMemories', 'findLinks', 'getBacklinks',
   'getEvents', 'getLinks', 'history', 'importPackage', 'link', 'linkMemories',
-  'linksForMemory', 'load', 'memoriesBetween', 'patchMetadata', 'query',
+  'linksForMemory', 'load', 'memoriesBetween', 'patchMetadata',
   'save', 'since', 'timeline', 'tombstone', 'traverseLinks',
 ]);
 
