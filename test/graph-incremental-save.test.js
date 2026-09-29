@@ -23,7 +23,14 @@ function tempGraph(t, options = {}) {
   });
   t.after(() => {
     try { graph.close(); } catch (_) {}
-    fs.rmSync(root, { recursive: true, force: true });
+    // Best-effort cleanup, same rule as the stdio robustness test: sqlite
+    // close_v2 leaves a zombie connection until the GC collects the last
+    // transient Statement, and on Windows that zombie holds the file lock
+    // (EBUSY) for a while after close. A locked temp dir must never turn a
+    // passing assertion into a failing test (#3158); runners clean %TEMP%.
+    try {
+      fs.rmSync(root, { recursive: true, force: true });
+    } catch (_) { /* locked by a GC-pending sqlite zombie; %TEMP% wins */ }
   });
   return graph;
 }
@@ -39,8 +46,13 @@ function countRowWrites(graph) {
     if (/INSERT INTO nodes/i.test(sql)) counts.nodes += 1;
     return originalPrepare(sql);
   };
+  // Mutate `run` in place instead of spread-replacing the statement object:
+  // a replaced object orphans the original prepared statement, and better-
+  // sqlite3's close_v2 keeps a zombie connection while any Statement object
+  // is alive -- on Windows that file lock makes the temp-dir cleanup fail
+  // with EBUSY (#3158).
   const originalEdgeRun = graph._stmts.upsertEdge.run.bind(graph._stmts.upsertEdge);
-  graph._stmts.upsertEdge = { ...graph._stmts.upsertEdge, run: (...args) => { counts.edges += 1; return originalEdgeRun(...args); } };
+  graph._stmts.upsertEdge.run = (...args) => { counts.edges += 1; return originalEdgeRun(...args); };
   return counts;
 }
 
