@@ -117,6 +117,15 @@ test('measuredFiles strips absolute paths and drops tests', () => {
   assert.deepEqual(Object.keys(files), ['lib/a.js']);
 });
 
+test('measuredFiles ignores absolute paths outside the repository', () => {
+  const outside = path.resolve(REPO_ROOT, '..', 'outside.js');
+  const files = measuredFiles({
+    [outside]: { lines: { pct: 50, total: 100 }, branches: { pct: 50, total: 50 } },
+    total: {},
+  });
+  assert.deepEqual(files, {});
+});
+
 test('parseArgs rejects junk and unknown options', () => {
   assert.throws(() => parseArgs(['oops']), /unexpected argument/);
   assert.throws(() => parseArgs(['--nope=1']), /unknown option/);

@@ -13,7 +13,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 
 const {
   IDENTITY_DOCS,
@@ -54,5 +53,5 @@ test('the checker reads files relative to the repository root', () => {
   // contract on the tree, so deleting a document it names must fail.
   const { IDENTITY_DOCS: docs } = require('../scripts/check-naming-conformance');
   assert.ok(docs.every((doc) => typeof doc === 'string' && doc.length > 0));
-  assert.ok(docs.includes(path.join('docs', 'architecture.md')));
+  assert.ok(docs.includes('docs/architecture.md'));
 });

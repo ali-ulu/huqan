@@ -110,7 +110,7 @@ test('buildDocument carries the threshold and a do-not-hand-edit note', () => {
 
 test('parseArgs accepts a directory, threshold and output, and rejects junk', () => {
   assert.deepEqual(parseArgs(['artifacts', '--min=2', '--out=/tmp/w.json', '--check']), {
-    dir: 'artifacts', min: 2, out: '/tmp/w.json', check: true,
+    dir: 'artifacts', min: 2, out: path.resolve('/tmp/w.json'), check: true,
   });
   assert.throws(() => parseArgs(['--min=-1']), /--min/);
   assert.throws(() => parseArgs(['--nope=1']), /unknown option/);

@@ -61,10 +61,11 @@ function measuredFiles(summary, root = REPO_ROOT) {
   const files = {};
   for (const [absolutePath, metrics] of Object.entries(summary)) {
     if (absolutePath === 'total') continue;
-    const relative = absolutePath.startsWith(`${root}${path.sep}`)
-      ? absolutePath.slice(root.length + 1)
-      : absolutePath;
-    if (relative.split(path.sep).join('/').startsWith('test/')) continue;
+    const relative = (path.isAbsolute(absolutePath)
+      ? path.relative(root, absolutePath)
+      : absolutePath).replace(/\\/g, '/');
+    if (relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)) continue;
+    if (relative.startsWith('test/')) continue;
     if (metrics && metrics.lines) files[relative] = metrics;
   }
   return files;
