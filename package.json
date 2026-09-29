@@ -598,6 +598,7 @@
     "lib/graph-mutation-receipt-write.js",
     "lib/graph-consolidate-edges.js",
     "lib/graph-node-read.js",
+    "lib/graph-read-bounds.js",
     "lib/graph-node-write.js",
     "lib/graph-json-persistence.js",
     "lib/graph-persistence-runtime.js",
