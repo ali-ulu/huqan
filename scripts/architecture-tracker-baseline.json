@@ -166,6 +166,7 @@
       "lib/cli-company-ingest.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-experience-read.js": "Core",
+      "lib/cli-experience-reconcile.js": "Core",
       "lib/cli-gate-evaluation.js": "Core",
       "lib/cli-gate-message.js": "Core",
       "lib/cli-help.js": "Core",
@@ -267,6 +268,7 @@
       "lib/error-prevention/store.js": "Application",
       "lib/error-prevention/subject.js": "Application",
       "lib/error-prevention/trust.js": "Application",
+      "lib/error-taxonomy.js": "Core",
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
       "lib/experience/adapter-scope.js": "Application",
@@ -276,8 +278,10 @@
       "lib/experience/capability-trust.js": "Application",
       "lib/experience/compiler.js": "Application",
       "lib/experience/contract.js": "Application",
+      "lib/experience/effect-boundary.js": "Application",
       "lib/experience/journal-connection.js": "Application",
       "lib/experience/journal.js": "Application",
+      "lib/experience/learn-read-back.js": "Application",
       "lib/experience/learning.js": "Application",
       "lib/experience/optimization-hypothesis.js": "Application",
       "lib/experience/permitted-fallback-trust.js": "Application",
@@ -288,7 +292,9 @@
       "lib/experience/reconciliation.js": "Application",
       "lib/experience/repair.js": "Application",
       "lib/experience/router.js": "Application",
+      "lib/experience/run-repair.js": "Application",
       "lib/experience/runtime-seam.js": "Application",
+      "lib/experience/step-lifecycle.js": "Application",
       "lib/experience/verifier.js": "Application",
       "lib/experience/write-cost-budget.js": "Application",
       "lib/external-action-action-binding.js": "Core",
@@ -408,6 +414,7 @@
       "lib/graph-consolidate-edges.js": "Core",
       "lib/graph-count-read.js": "Core",
       "lib/graph-cycle-search.js": "Core",
+      "lib/graph-dirty-records.js": "Core",
       "lib/graph-edge-mutations.js": "Core",
       "lib/graph-edge-read.js": "Core",
       "lib/graph-edge-write.js": "Core",
@@ -416,6 +423,7 @@
       "lib/graph-json-persistence.js": "Core",
       "lib/graph-json-snapshot.js": "Core",
       "lib/graph-json-transaction.js": "Core",
+      "lib/graph-label-index.js": "Core",
       "lib/graph-method-install.js": "Core",
       "lib/graph-mutation-receipt-read.js": "Core",
       "lib/graph-mutation-receipt-schema.js": "Core",
@@ -434,6 +442,7 @@
       "lib/graph-persistence-runtime.js": "Core",
       "lib/graph-prune.js": "Core",
       "lib/graph-query-read.js": "Core",
+      "lib/graph-read-bounds.js": "Core",
       "lib/graph-read-methods.js": "Core",
       "lib/graph-record-utils-edges.js": "Core",
       "lib/graph-record-utils-nodes.js": "Core",
@@ -608,6 +617,7 @@
       "lib/llm-proxy/proxy-mount.js": "Adapters",
       "lib/mcp-agent-approval-execution.js": "Core",
       "lib/mcp-agent-continuation.js": "Core",
+      "lib/mcp-agent-repair-execution.js": "Core",
       "lib/mcp-approval-admission.js": "Core",
       "lib/mcp-approval-decision-handler.js": "Core",
       "lib/mcp-approval-learn-execution.js": "Core",
@@ -849,6 +859,7 @@
       "lib/sdk.js": "Core",
       "lib/secret-patterns.js": "Core",
       "lib/secret-scrub-gate.js": "Core",
+      "lib/secure-file-write.js": "Core",
       "lib/self-evolve-adapter.js": "Core",
       "lib/self-evolve-probe.js": "Core",
       "lib/self-healer/approval-bridge.js": "Application",
@@ -1091,6 +1102,7 @@
       "scripts/check-doc-status.js": "UI",
       "scripts/check-docs-drift.js": "UI",
       "scripts/check-file-size.js": "UI",
+      "scripts/check-http-contracts.js": "UI",
       "scripts/check-import-cycles.js": "UI",
       "scripts/check-layers.js": "UI",
       "scripts/check-licenses.js": "UI",
@@ -1238,7 +1250,9 @@
         "lib/agent-report-renderer.js",
         "lib/agent-run-guidance.js",
         "lib/agent-step-executor.js",
+        "lib/experience/effect-boundary.js",
         "lib/experience/runtime-seam.js",
+        "lib/experience/step-lifecycle.js",
         "lib/mcp-tool-policy.js",
         "toolPolicy.js"
       ],
@@ -1256,6 +1270,8 @@
         "lib/agent-v3-status-methods.js",
         "lib/agent-v3-storage-factory.js",
         "lib/agent-v3-workspace.js",
+        "lib/experience/effect-boundary.js",
+        "lib/experience/run-repair.js",
         "lib/goal-binding.js"
       ],
       "agentRuntime.js": [
@@ -1264,6 +1280,7 @@
         "lib/environment-compat.js",
         "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
+        "lib/experience/reconciliation.js",
         "storage.js",
         "workflow-runtime.js"
       ],
@@ -1335,7 +1352,9 @@
       ],
       "graph.js": [
         "lib/graph-consolidate-edges.js",
+        "lib/graph-dirty-records.js",
         "lib/graph-journal-methods.js",
+        "lib/graph-label-index.js",
         "lib/graph-read-methods.js",
         "lib/graph-record-utils.js",
         "lib/graph-sqlite-schema.js",
@@ -1848,6 +1867,8 @@
         "lib/cli-backup-commands.js",
         "lib/cli-capability-commands.js",
         "lib/cli-company-ingest.js",
+        "lib/cli-experience-read.js",
+        "lib/cli-experience-reconcile.js",
         "lib/cli-help.js",
         "lib/cli-knowledge-commands.js",
         "lib/cli-status-command.js"
@@ -2244,6 +2265,10 @@
         "lib/experience/capability-trust-canary-extension.js",
         "lib/experience/capability-trust-fallback-extension.js"
       ],
+      "lib/experience/effect-boundary.js": [
+        "lib/experience/reconciliation.js",
+        "lib/experience/runtime-seam.js"
+      ],
       "lib/experience/journal-connection.js": [
         "lib/memory-store-utils.js",
         "lib/sqlite-availability.js",
@@ -2252,6 +2277,9 @@
       "lib/experience/journal.js": [
         "lib/experience/contract.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/experience/learn-read-back.js": [
+        "lib/experience/verifier.js"
       ],
       "lib/experience/optimization-hypothesis.js": [
         "lib/experience/canary.js"
@@ -2268,8 +2296,19 @@
         "lib/human-approval-toggle.js",
         "lib/trust-policy.js"
       ],
+      "lib/experience/run-repair.js": [
+        "lib/agent-step-executor.js",
+        "lib/experience/contract.js",
+        "lib/experience/repair.js"
+      ],
       "lib/experience/runtime-seam.js": [
         "lib/experience/contract.js"
+      ],
+      "lib/experience/step-lifecycle.js": [
+        "lib/experience/contract.js",
+        "lib/experience/learn-read-back.js",
+        "lib/experience/runtime-seam.js",
+        "lib/experience/verifier.js"
       ],
       "lib/experience/verifier.js": [
         "lib/experience/contract.js"
@@ -2749,12 +2788,14 @@
         "lib/graph-record-utils.js"
       ],
       "lib/graph-count-read.js": [
+        "lib/graph-label-index.js",
         "lib/graph-record-utils.js"
       ],
       "lib/graph-edge-mutations.js": [
         "lib/graph-record-utils.js"
       ],
       "lib/graph-edge-read.js": [
+        "lib/graph-read-bounds.js",
         "lib/graph-record-utils.js"
       ],
       "lib/graph-edge-write.js": [
@@ -2783,6 +2824,9 @@
       "lib/graph-json-transaction.js": [
         "lib/graph-record-utils.js"
       ],
+      "lib/graph-label-index.js": [
+        "lib/workspace-id.js"
+      ],
       "lib/graph-mutation-receipt-schema.js": [
         "lib/graph-record-utils.js",
         "lib/receipt/v4-receipt-family.js"
@@ -2806,6 +2850,7 @@
         "lib/graph-record-utils.js"
       ],
       "lib/graph-node-read.js": [
+        "lib/graph-read-bounds.js",
         "lib/graph-record-utils.js"
       ],
       "lib/graph-node-tag.js": [
@@ -2831,7 +2876,12 @@
         "lib/graph-record-utils.js"
       ],
       "lib/graph-query-read.js": [
+        "lib/graph-label-index.js",
+        "lib/graph-read-bounds.js",
         "lib/graph-record-utils.js"
+      ],
+      "lib/graph-read-bounds.js": [
+        "lib/workspace-id.js"
       ],
       "lib/graph-read-methods.js": [
         "lib/audit-query.js",
@@ -2861,6 +2911,7 @@
         "lib/graph-record-utils-edges.js",
         "lib/graph-record-utils-nodes.js",
         "lib/is-plain-object.js",
+        "lib/secure-file-write.js",
         "lib/workspace-id.js"
       ],
       "lib/graph-sqlite-schema.js": [
@@ -2918,6 +2969,7 @@
         "lib/mcp-input-sanitizers.js"
       ],
       "lib/http/answer-route.js": [
+        "lib/error-taxonomy.js",
         "lib/fluent-answer.js"
       ],
       "lib/http/claim-read-route.js": [
@@ -2926,10 +2978,12 @@
       ],
       "lib/http/command-policy-route.js": [
         "lib/command-policy-editor.js",
+        "lib/error-taxonomy.js",
         "lib/external-action-command-policy.js",
         "requestGuards.js"
       ],
       "lib/http/core-http-routes.js": [
+        "lib/error-taxonomy.js",
         "lib/http/http-provenance.js",
         "lib/http/structured-log.js",
         "lib/http/upload-admission-contract.js",
@@ -2953,6 +3007,7 @@
         "lib/server-response-helpers.js"
       ],
       "lib/http/fitness-dashboard-route.js": [
+        "lib/error-taxonomy.js",
         "lib/fitness-history.js",
         "lib/http/structured-log.js",
         "lib/hypothesis-thresholds.js",
@@ -3021,6 +3076,7 @@
       ],
       "lib/http/public-api-route.js": [
         "lib/command-parser.js",
+        "lib/error-taxonomy.js",
         "lib/http/public-api-commands.js",
         "lib/http/structured-log.js",
         "lib/http/workflow-contract-route.js",
@@ -3032,6 +3088,7 @@
       ],
       "lib/http/read-workflow-actions.js": [
         "lib/entity-resolution.js",
+        "lib/http/experience-read-route.js",
         "lib/http/workflow-envelope.js",
         "lib/http/workflow-request-validation.js",
         "lib/web-research-workflow.js"
@@ -3089,6 +3146,7 @@
         "requestGuards.js"
       ],
       "lib/http/server-request-handler.js": [
+        "lib/error-taxonomy.js",
         "lib/http/public-badge-route.js",
         "lib/http/request-origin.js",
         "lib/http/route-auth-policy.js",
@@ -3104,6 +3162,9 @@
         "lib/http/server-ingest-workflow-runtime.js",
         "lib/http/server-read-route-runtime.js",
         "lib/http/v5-route-mounts.js"
+      ],
+      "lib/http/static-assets.js": [
+        "lib/error-taxonomy.js"
       ],
       "lib/http/structured-log.js": [
         "lib/secret-scrub-gate.js"
@@ -3462,10 +3523,14 @@
         "lib/mcp-gate-adapter.js",
         "lib/mcp-input-sanitizers.js"
       ],
+      "lib/mcp-agent-repair-execution.js": [
+        "lib/mcp-agent-approval-execution.js"
+      ],
       "lib/mcp-approval-decision-handler.js": [
         "lib/approval-execution-evidence.js",
         "lib/json-object.js",
         "lib/mcp-agent-approval-execution.js",
+        "lib/mcp-agent-repair-execution.js",
         "lib/mcp-approval-learn-execution.js",
         "lib/mcp-approval-store.js",
         "lib/mcp-approval-views.js",
@@ -3689,6 +3754,7 @@
         "lib/mcp-approval-store.js",
         "lib/mcp-input-sanitizers.js",
         "lib/mcp/compliance-audit-tool.js",
+        "lib/mcp/experience-read-tool.js",
         "lib/mcp/response-builders.js",
         "lib/mcp/system-status-tool.js",
         "lib/mcp/trust-receipt-detail-tool.js",
@@ -3898,7 +3964,8 @@
       "lib/memory-store-json-persistence.js": [
         "lib/memory-schema.js",
         "lib/memory-store-persistence-report.js",
-        "lib/memory-store-utils.js"
+        "lib/memory-store-utils.js",
+        "lib/secure-file-write.js"
       ],
       "lib/memory-store-port.js": [
         "lib/memory-store-json-persistence.js",
@@ -4540,6 +4607,7 @@
       ],
       "lib/server-response-helpers.js": [
         "lib/environment-compat.js",
+        "lib/error-taxonomy.js",
         "lib/verify-status-vocabulary.js",
         "requestGuards.js"
       ],
@@ -4565,6 +4633,7 @@
       ],
       "lib/storage/backup-restore-restore.js": [
         "lib/path-safety.js",
+        "lib/secure-file-write.js",
         "lib/storage/backup-restore-create.js",
         "lib/storage/backup-restore-paths.js",
         "lib/storage/backup-restore-store.js",
@@ -4940,7 +5009,8 @@
       ],
       "persistencePaths.js": [
         "lib/environment-compat.js",
-        "lib/memory-store-utils.js"
+        "lib/memory-store-utils.js",
+        "lib/secure-file-write.js"
       ],
       "plugin.js": [
         "lib/environment-compat.js",
@@ -5185,6 +5255,9 @@
       ],
       "scripts/check-file-size.js": [
         "scripts/file-size-policy.js"
+      ],
+      "scripts/check-http-contracts.js": [
+        "lib/http/route-auth-policy.js"
       ],
       "scripts/check-layers.js": [
         "scripts/check-import-cycles.js"
