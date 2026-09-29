@@ -262,17 +262,20 @@ test('every shard uploads its failure sidecar even when the shard fails', () => 
   assert.match(upload.slice(0, 700), /matrix\.node-version/);
 });
 
-test('workflow runs PR tests on Ubuntu and Windows and keeps the broader post-merge platform matrix', () => {
+test('workflow runs the selected suite on Ubuntu and Windows for PRs and main pushes', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml'), 'utf8');
   const job = workflow.slice(workflow.indexOf('  runtime-test:'));
-  assert.match(job, /os: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
+  assert.match(job, /os: \$\{\{ fromJSON\(\(github\.event_name == 'schedule'/);
   // #3157 decision A: the PR arm covers Ubuntu and Windows so Windows-only
-  // breakage is caught before merge, not by the nightly; the post-merge arm
-  // keeps the broader platform and Node 24 line.
-  assert.match(job, /github\.event_name == 'pull_request' && '\["ubuntu-latest", "windows-latest"\]' \|\| '\["ubuntu-latest", "windows-latest", "macos-latest"\]'/);
+  // breakage is caught before merge, not by the nightly. #3177 follow-up: a
+  // main push now runs that same arm instead of skipping the shards, because a
+  // red PR (including the required gate) demonstrably reached main. Only
+  // scheduled/manual runs widen to the macOS and Node 24 line.
+  assert.match(job, /github\.event_name == 'workflow_dispatch'\) && '\["ubuntu-latest", "windows-latest", "macos-latest"\]' \|\| '\["ubuntu-latest", "windows-latest"\]'/);
   assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
-  assert.match(job, /node-version: \$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
+  assert.match(job, /node-version: \$\{\{ fromJSON\(\(github\.event_name == 'schedule'/);
   assert.match(job, /\[22, 24\]/);
+  assert.doesNotMatch(job, /event_name != 'push'/);
   assert.match(job, /max-parallel: 2/);
   assert.match(job, /shell: bash/);
   assert.match(job, /TEST_RESULT: \$\{\{ needs\['runtime-test'\]\.result \}\}/);

@@ -394,10 +394,16 @@ jobs:
   runtime-test:
     name: npm test (runtime/test selected, ${{ matrix.os }}, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
     needs: [classify, test-impact-plan]
-    # Required PR validation runs before merge. Main is protected and strict,
-    # so replaying the same selected suite after merge only burns runner time.
-    # Scheduled/manual runs still execute the exhaustive cross-platform matrix.
-    if: needs['test-impact-plan'].outputs.run_tests == 'true' && github.event_name != 'push'
+    # Replay the selected suite on a main push too. The shard matrix used to be
+    # skipped there, on the assumption that "main is protected and strict, so the
+    # merge-ref already passed it". #3177 disproved that: its whole matrix was
+    # red -- ten failed checks, including the required "npm test gate" -- and it
+    # still landed on main. The push run then showed every shard `skipped`,
+    # `runtime-test-skip` reported success, and `main-ci-watch` counts a skipped
+    # run as green, so a broken main was invisible until the next PR tripped over
+    # it. Replaying here is the only post-merge signal that does not depend on
+    # the merge having been gated.
+    if: needs['test-impact-plan'].outputs.run_tests == 'true'
     runs-on: ${{ matrix.os }}
     # A shard finishes in two to four minutes. Without a cap it inherits the
     # six-hour default, and a shard that hangs — the browser smokes in shard 2
@@ -411,11 +417,11 @@ jobs:
       # run; the artifact service can reject bursts with transient 403s.
       max-parallel: 2
       matrix:
-        # PRs exercise the supported Node 22 package on Linux only.
-        # Scheduled/manual runs cover Windows, macOS, and the current Node 24 line.
-        # Main pushes skip this replay because the strict protected PR merge-ref already passed it.
-        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
-        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[22]' || '[22, 24]') }}
+        # PRs and main pushes exercise the supported Node 22 package on Linux and
+        # Windows -- the same ten shard legs either way. Only scheduled/manual
+        # runs widen to macOS and the current Node 24 line.
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
+        node-version: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '[22, 24]' || '[22]') }}
         shard: [1, 2, 3, 4, 5]
     defaults:
       run:
@@ -524,15 +530,18 @@ jobs:
 
   runtime-test-skip:
     name: npm test (runtime/test)
+    # Only reachable when the plan says there is nothing to run. A push now runs
+    # the real shards too (see runtime-test), so this job no longer masks a main
+    # push behind a NOT_APPLICABLE.
     needs: [classify, test-impact-plan]
-    if: github.event_name == 'push' || needs['test-impact-plan'].outputs.run_tests != 'true'
+    if: needs['test-impact-plan'].outputs.run_tests != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Report NOT_APPLICABLE
         run: |
           echo "## npm test: NOT_APPLICABLE" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
-          echo "No runtime or test files changed in this PR." >> "${GITHUB_STEP_SUMMARY}"
+          echo "No runtime or test files changed, so the impact plan selected no tests." >> "${GITHUB_STEP_SUMMARY}"
           echo "Selected impact test plan skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "If your change intentionally touches a runtime surface" >> "${GITHUB_STEP_SUMMARY}"

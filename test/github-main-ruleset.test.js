@@ -86,6 +86,19 @@ test('main ruleset exports stay semantically equivalent', () => {
   );
 });
 
+test('the main ruleset grants no bypass actor', () => {
+  // #3177 was merged with ten red checks, including the required "npm test
+  // gate" -- the gate concluded failure at 20:22:30Z and the merge landed at
+  // 20:22:48Z. The ruleset file has always declared an empty bypass list, but
+  // the live ruleset had acquired a user bypass actor, so the required checks
+  // did not actually block the merge. Pin the empty list here, and keep the
+  // live ruleset in sync with it.
+  for (const relativePath of RULESET_PATHS) {
+    const ruleset = readRuleset(relativePath);
+    assert.deepEqual(ruleset.bypass_actors, [], `${relativePath} must grant no bypass actor`);
+  }
+});
+
 test('required Package Smoke and CodeQL contexts are emitted on every main PR', () => {
   const smoke = read('.github/workflows/launch-smoke.yml');
   const codeql = read('.github/workflows/codeql.yml');
