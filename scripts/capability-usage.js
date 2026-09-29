@@ -92,6 +92,7 @@ const EVIDENCE = Object.freeze({
   'compliance-audit': { none: 'the audit report is read-only and is not itself audited' },
   'system-status': { none: 'status is computed on demand' },
   'experience-read': { none: 'reading sealed Experience history is read-only and writes no usage row' },
+  'experience-reconcile': { table: 'experience_operations', where: "outcome_body LIKE '%\"resolvedBy\"%'", label: 'operator-resolved operations' },
   'quickstart': { none: 'quickstart writes ordinary state; nothing marks it as its origin' },
   'recommendation': { none: 'the LLM recommendation path stores no marker of its own' },
   'auto-think': { none: 'no marker distinguishes auto-think output from ordinary graph writes' },

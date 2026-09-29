@@ -289,11 +289,15 @@ test('a run killed after its effect resumes without repeating it (SQLite, real p
     kernel.learn = () => { fs.appendFileSync(marker, 'parent\n'); return OK; };
     const result = agent.run(GOAL);
     assert.equal(fs.readFileSync(marker, 'utf8'), 'child\n', 'the resumed run must not repeat the effect');
-    assert.equal(result.ok, false);
     assert.equal(result.data.resumed, true, 'the second run must be the resume of the killed one');
-    const last = result.data.steps[result.data.steps.length - 1];
-    assert.equal(last.status, 'blocked');
-    assert.equal(last.result.error.code, CODES.UNCERTAIN);
+    // Not a block: a blocked run drops its checkpoint, and the operator's
+    // verdict would have nothing to resume. The step stays queued.
+    assert.equal(result.data.status, 'paused');
+    assert.equal(result.data.pauseReason, 'experience_effect_uncertain');
+    assert.equal(result.data.uncertainOperation.operationId, pending[0].operation_id);
+    assert.equal(result.data.steps.length, 0, 'the uncertain step is not a finished step');
+    assert.deepEqual(result.data.queuedSteps.map((step) => step.id), ['s1']);
+    assert.equal(result.data.remainingSteps, 1, 'the run reports the step as still to do');
     assert.equal(operationRows(dbPath)[0].state, 'pending', 'the resume must not claim the outcome is known');
     // The journal names the same attempt as a failure, so the read surfaces
     // show the refusal rather than a silent gap.

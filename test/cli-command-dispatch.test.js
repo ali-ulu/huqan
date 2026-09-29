@@ -320,8 +320,9 @@ const GOLDEN = {
   // text against main shows exactly those two added lines and nothing else.
   // #2591 re-recorded it again for the single added `integrity` usage line.
   // #2646 re-recorded it for the single added `doctor [--json]` usage line.
-  // #3033 adds exactly one read-only Experience command to generated help.
-  'yardım': '27f080b4ebf0f13a075705250c7f6f61303142d793da5caf6a2256718bf13f54',
+  // #3033 adds two Experience commands to generated help: the read-only
+  // experience-read, then the operator's experience-reconcile (one line each).
+  'yardım': '0bad0dfeacee0c3afb16c69f646a4bc33da79ce3146beddadeaec178fd1f40d9',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };
