@@ -178,7 +178,11 @@ class AgentV3 {
       maxIterations - state.iteration,
     ));
 
-    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts, runCapacity);
+    // A resume with nothing left to run (stopped in finalization) spends no
+    // iteration, but the budget reads a zero capacity as unknown and projects
+    // the whole per-call ceiling. Ask for one, the least any evaluated run is
+    // charged, so an exhausted window still refuses it.
+    const budgetCheck = this._checkAgentLoopBudget(workspaceId, opts, Math.max(1, runCapacity));
 
     // An unreadable usage counter is not the same failure as an exhausted
     // budget, and must not be reported as one -- the operator needs to know
