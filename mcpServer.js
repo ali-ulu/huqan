@@ -15,7 +15,7 @@ const {
 } = require('./lib/mcp-operator-capability');
 const { createDurableCapabilityNonceStore, resolveCapabilityNonceDirectory } = require('./lib/mcp-capability-nonce-store');
 const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
-const { createAgent } = require('./agentRuntime');
+const { createAgent, resolveExperienceJournal } = require('./agentRuntime');
 const { CANONICAL_MCP_TOOL_NAMES, LEGACY_MCP_TOOL_NAMES } = require('./lib/mcp-tool-names');
 const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
 const { sanitizeToolArgsForStorage } = require('./lib/mcp-input-sanitizers');
@@ -46,6 +46,10 @@ function createServer(kernelOrOptions = {}) {
   const envKernelOpts = options.kernel ? {} : buildKernelOptsFromEnv();
   const kernel = options.kernel || createKernelFromEnv();
   const approvalStore = createApprovalStoreFromKernel(kernel, { ...envKernelOpts, ...options });
+  resolveExperienceJournal({
+    kernel,
+    ...(Object.hasOwn(options, 'experienceJournal') ? { experienceJournal: options.experienceJournal } : {}),
+  }, approvalStore);
   const operatorToken = options.operatorToken || process.env[MCP_OPERATOR_TOKEN_ENV] || '';
   // Consumed capability nonces are durable by default (#1674): a capability is
   // valid for up to five minutes, so a restart inside that window must not

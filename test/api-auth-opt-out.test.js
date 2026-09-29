@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { requireApiKey } = require('../requestGuards');
+const { enforceApiAuthOptOutPolicy } = require('../lib/api-auth-opt-out');
 
 const ANONYMOUS = { headers: {} };
 const DISABLE_VAR = 'HUQAN_DISABLE_API_AUTH';
@@ -59,5 +60,34 @@ test('a correct key still authenticates while the opt-out is absent', () => {
   withDisableFlag(undefined, () => {
     const request = { headers: { authorization: 'Bearer configured-key' } };
     assert.equal(requireApiKey(request, 'configured-key').ok, true);
+  });
+});
+
+function withHost(value, run) {
+  const previous = process.env.HUQAN_HOST;
+  if (value === undefined) delete process.env.HUQAN_HOST;
+  else process.env.HUQAN_HOST = value;
+  try {
+    return run();
+  } finally {
+    if (previous === undefined) delete process.env.HUQAN_HOST;
+    else process.env.HUQAN_HOST = previous;
+  }
+}
+
+test('the opt-out passes the boot policy on the plain-server loopback default (#3018)', () => {
+  // HOST unset -> server.js would bind 127.0.0.1, so the opt-out stays valid.
+  withDisableFlag('true', () => {
+    withHost(undefined, () => {
+      assert.equal(enforceApiAuthOptOutPolicy(), undefined);
+    });
+  });
+});
+
+test('the opt-out on a non-loopback bind is refused by the boot policy (#3018)', () => {
+  withDisableFlag('true', () => {
+    withHost('0.0.0.0', () => {
+      assert.throws(() => enforceApiAuthOptOutPolicy(), { code: 'HUQAN_API_AUTH_OPT_OUT_UNSAFE' });
+    });
   });
 });

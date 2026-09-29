@@ -1,8 +1,9 @@
 # Product Surfaces
 
-HUQAN has four visible HTML surfaces in the repository. This note makes their
-roles explicit so contributors and external viewers do not treat them as
-competing products.
+HUQAN has five primary visible HTML surfaces in the repository, plus
+deployment-gated specialist consoles such as PR Guardian. This note makes the
+primary roles explicit so contributors and external viewers do not treat them
+as competing products.
 
 ## Canonical surfaces
 
@@ -53,7 +54,29 @@ What it is not:
 
 ![Local backend-connected UI](./assets/ptd-2-local-ui-surface.png)
 
-### 3. Docs entry surface
+### 3. Operator Control Room
+
+Canonical files: `public/control-room/`, served by
+`lib/http/static-assets.js` at `/control-room`.
+
+**Status: present, local/runtime-backed.** Use this surface for the daily
+operator questions: what agents attempted, what HUQAN decided, what needs human
+approval, and what receipt/evidence backs a decision.
+
+What it is:
+- a backend-connected operator dashboard over real local HUQAN endpoints;
+- workspace-scoped through the browser session;
+- a real approvals/activity/receipt surface;
+- home of the outcome-driven first-run path, whose steps complete only after
+  successful runtime evidence.
+
+What it is not:
+- not hosted SaaS or proof of multi-tenant deployment;
+- not SSO, billing or a durable agent-registry console;
+- not evidence that planned "Coming soon" capabilities exist;
+- not a replacement for the read-only Receipt Viewer.
+
+### 4. Docs entry surface
 
 Canonical file: `docs/index.html`
 
@@ -71,7 +94,7 @@ What it is not:
 - not a second static demo;
 - not a backend-connected app.
 
-### 4. Read-only Trust Receipt Viewer
+### 5. Read-only Trust Receipt Viewer
 
 Canonical files: `public/viewer/` served through
 `lib/viewer/viewer-gateway.js`.
@@ -81,7 +104,7 @@ Reachable at `/viewer` on a running server; its title is
 restrictive CSP, `no-store`, and a strict same-origin session exchange, so a
 non-browser client is refused with `cross_origin` rather than served.
 
-It is a fourth *surface* but not a fourth independent product mode: it renders
+It is a primary *surface* but not an independent product mode: it renders
 receipts the local server already owns.
 
 ## Deploy guidance
@@ -90,6 +113,7 @@ receipts the local server already owns.
   repository currently does not treat static hosting as proof of a HUQAN runtime
   deployment.
 - Local product UI: serve `public/index.html` through `node server.js`.
+- Operator Control Room: served at `/control-room` by the same local server.
 - Trust Receipt Viewer: served at `/viewer` by the same `node server.js`.
 - Docs entry: optional repository/docs landing only.
 
@@ -99,6 +123,9 @@ receipts the local server already owns.
 - The static demo must remain explicit that it is a simulation.
 - The local UI should be treated as a developer/operator surface, not a public
   static landing.
+- The Control Room reports only capabilities backed by current runtime data;
+  best-effort actor visibility must not be described as a durable agent
+  registry/heartbeat.
 - The viewer is read-only by contract; it must never grow a mutation path.
 - Static hosting and a live HUQAN deployment are different claims and must stay
   visibly separate.

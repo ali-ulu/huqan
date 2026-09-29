@@ -4,6 +4,7 @@ const HuqanStorage = require('./storage');
 const { createWorkflowRuntime } = require('./workflow-runtime');
 const { createExperienceJournal } = require('./lib/experience/journal');
 const { openJournalConnection } = require('./lib/experience/journal-connection');
+const { createOperationLedger } = require('./lib/experience/reconciliation');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 
 /**
@@ -89,9 +90,23 @@ function resolveAgentStorage(opts = {}) {
  * is nothing left running to be slow.
  */
 function resolveExperienceJournal(opts = {}, storage) {
-  const journal = resolveExperienceJournalOption(opts, storage);
+  return resolveExperienceRuntime(opts, storage).journal;
+}
+
+/**
+ * The journal and the operation ledger (#3033) are resolved together because
+ * they must share one store: the ledger's intent row and the journal's step
+ * events describe the same attempt, and "off" has to turn both off. The ledger
+ * is handed to the agent rather than attached to the kernel, so its lifetime is
+ * the agent's storage -- the same handle `closeWithStorage` closes. A caller
+ * that supplies its own journal supplies its own ledger too, or runs without.
+ */
+function resolveExperienceRuntime(opts = {}, storage) {
+  const { journal, store } = resolveExperienceJournalOption(opts, storage);
   if (journal && opts.kernel && !opts.kernel.experienceJournal) opts.kernel.experienceJournal = journal;
-  return journal;
+  if (!journal) return { journal: null, operationLedger: null };
+  const operationLedger = opts.experienceOperationLedger || (store ? createOperationLedger({ store }) : null);
+  return { journal, operationLedger };
 }
 
 /**
@@ -132,9 +147,9 @@ function experienceDisabled(opts) {
 }
 
 function resolveExperienceJournalOption(opts, storage) {
-  if (experienceDisabled(opts)) return null;
-  if (opts.experienceJournal) return opts.experienceJournal;
-  if (!storage || !storage.db) return null;
+  if (experienceDisabled(opts)) return { journal: null, store: null };
+  if (opts.experienceJournal) return { journal: opts.experienceJournal, store: null };
+  if (!storage || !storage.db) return { journal: null, store: null };
   // #2915: the journal gets its own connection at EVIDENCE, because the class
   // is per-handle and `storage.db` is RESUMABLE by choice. Falls back to the
   // storage connection when no shared path is available (an in-memory store, or
@@ -144,9 +159,8 @@ function resolveExperienceJournalOption(opts, storage) {
     attachJournalConnection(opts.kernel, own);
     closeWithStorage(storage, own);
   }
-  return own
-    ? createExperienceJournal({ store: own })
-    : createExperienceJournal({ store: storage });
+  const store = own || storage;
+  return { journal: createExperienceJournal({ store }), store };
 }
 
 function createAgent(opts = {}) {
@@ -156,7 +170,7 @@ function createAgent(opts = {}) {
 
   const runtime = resolveAgentRuntime(opts);
   const storage = resolveAgentStorage(opts);
-  const experienceJournal = resolveExperienceJournal(opts, storage);
+  const { journal: experienceJournal, operationLedger } = resolveExperienceRuntime(opts, storage);
   if (runtime === 'workflow') {
     // The workflow runtime stands in for AgentV3, so it is handed the same
     // approval storage. Without it, countPendingToolApprovals() answered a
@@ -170,7 +184,7 @@ function createAgent(opts = {}) {
     });
   }
 
-  return new AgentV3({ ...opts, storage, experienceJournal });
+  return new AgentV3({ ...opts, storage, experienceJournal, experienceOperationLedger: operationLedger });
 }
 
 module.exports = {

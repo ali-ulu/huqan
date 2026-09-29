@@ -279,7 +279,11 @@ test('a process killed mid-run leaves an incomplete, unclosed Experience (real S
 
     const events = journal.read(runId);
     assert.equal(events[0].type, 'run_started');
-    assert.equal(events[events.length - 1].type, 'action_proposed', 'the last durable event is the step that never finished');
+    // #3033: the step was allowed and its tool was called, so the last durable
+    // event says it started; nothing claims it finished.
+    assert.equal(events[events.length - 1].type, 'execution_started', 'the last durable event is the step that started and never finished');
+    assert.equal(events[events.length - 2].type, 'policy_decided');
+    assert.ok(!events.some((e) => e.type === 'execution_finished' && e.payload && e.payload.stepId === 's2'), 'the killed step never finished');
     assert.ok(!events.some((e) => e.type === 'run_closed'), 'the close event must never have been written');
     // Ordered and gapless across the restart, so an interrupted run is still
     // readable as a prefix rather than a corrupted record.
@@ -523,13 +527,24 @@ test('a real retried step keeps both attempts distinct in the journal (SQLite)',
     assert.deepEqual(types, [
       'run_started',
       'action_proposed',
+      'policy_decided',
+      'execution_started',
       'execution_finished',
       'action_proposed',
+      'policy_decided',
+      'execution_started',
       'execution_finished',
       'run_closed',
     ]);
     // Same invocation, two attempts: the first failed, the second completed.
-    const [p1, f1, p2, f2] = events.slice(1, 5);
+    const [p1, d1, s1, f1, p2, d2, s2, f2] = events.slice(1, 9);
+    // #3033: each attempt is decided, then started, before it finishes.
+    for (const [proposed, decided, started] of [[p1, d1, s1], [p2, d2, s2]]) {
+      assert.equal(decided.causedByEventId, proposed.eventId);
+      assert.equal(decided.payload.decision, 'allow');
+      assert.equal(started.causedByEventId, decided.eventId);
+      assert.equal(started.attemptId, proposed.attemptId);
+    }
     assert.equal(p1.invocationId, p2.invocationId);
     assert.notEqual(p1.attemptId, p2.attemptId);
     assert.equal(f1.executionStatus, 'failed');

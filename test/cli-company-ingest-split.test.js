@@ -20,7 +20,7 @@ describe('the company-ingest handler lives in lib/ (#2136)', () => {
     const { runCompanyIngest } = require('../lib/cli-company-ingest');
     assert.equal(typeof runCompanyIngest, 'function');
     assert.equal(runCompanyIngest.length, 3);
-    const source = fs.readFileSync(path.join(__dirname, '..', 'cli.js'), 'utf8');
+    const source = fs.readFileSync(path.join(__dirname, '..', 'lib', 'cli-command-handlers.js'), 'utf8');
     assert.match(source, /'company-ingest': \(cli, args, opts\) => runCompanyIngest\(cli, args, opts\),/);
   });
 

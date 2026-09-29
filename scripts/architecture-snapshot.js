@@ -30,7 +30,6 @@ const BASELINE_PATH = path.join(__dirname, 'architecture-tracker-baseline.json')
 const IS_TEST = /(\.test\.js$|(^|\/)test\/|(^|\/)benchmarks\/|(^|\/)demo)/;
 const ACCEPTED = 400;
 const DECOMPOSE = 800;
-const FAN_OUT_SIGNAL = 20;
 
 // The counter scripts/check-file-size.js enforces: newlines, plus one when the
 // file does not end in one. Anything else disagrees with the gate by one line
@@ -45,7 +44,8 @@ function countLines(file) {
 }
 
 const scope = require('./architecture-snapshot-scope');
-const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain } = scope;
+const { isProduct, packagedBins, isCompositionRoot, compositionRootViolations, COMPOSITION_ROOTS, CONSTRUCTS, longestIfChain, isOcpAllowed, ocpSignal, ocpExceptionViolations, OCP_ALLOWED, FAN_OUT_SIGNAL, FANOUT_ALLOWED, isFanoutAllowed } = scope;
+const fanoutExceptionViolations = (entries, opts = {}) => scope.fanoutExceptionViolations(entries, { fanOutOf: (file) => snapshot().find((row) => row.file === file)?.fanOut ?? null, ...opts });
 
 /**
  * Constructions the DIP regex matches that are not a coupling defect (#2268).
@@ -70,6 +70,8 @@ const DIP_ALLOWED = Object.freeze([
       + 'server-ingest-workflow-runtime.js, left as its own change.',
     review_by: '2026-12-31',
   },
+  { file: 'kernel.v2.js', why: 'opts.kernel is passed through and unwrapped (#329); new Kernel(opts) runs only when the caller passed none, so the construction is a default rather than a collaborator the caller failed to inject.', review_by: '2026-12-31' },
+  { file: 'agent.v3.js', why: 'opts.baseAgent is the injection point and new Agent({...}) builds the default when the caller passes none; opts.dream and opts.storage default the same way in the same constructor.', review_by: '2026-12-31' },
 ]);
 
 const isDipAllowed = (file) => DIP_ALLOWED.some((entry) => entry.file === file);
@@ -117,16 +119,10 @@ function snapshot(state = sourceGraph()) {
     const signals = [];
     if (boundary[file]) signals.push(`ISP:${boundary[file].calls}`);
     if (!isCompositionRoot(file) && !isDipAllowed(file) && body.match(CONSTRUCTS)) signals.push('DIP');
-    for (const match of body.matchAll(/switch\s*\(([^)]{0,60})\)\s*\{/g)) {
-      const tail = body.slice(match.index);
-      const end = tail.indexOf('\n}');
-      const cases = (tail.slice(0, end > 0 ? end : 4000).match(/\bcase\s/g) || []).length;
-      if (cases >= 6) { signals.push(`OCP:${cases}`); break; }
-    }
-    const ifChain = longestIfChain(body);
-    if (ifChain >= 6 && !signals.some((signal) => signal.startsWith('OCP:'))) signals.push(`OCP:${ifChain}`);
+    const ocp = ocpSignal(body);
+    if (ocp !== null && !isOcpAllowed(file)) signals.push(`OCP:${ocp}`);
     const fanOut = new Set(graph.get(file) || []).size;
-    if (fanOut >= FAN_OUT_SIGNAL) signals.push(`FANOUT:${fanOut}`);
+    if (fanOut >= FAN_OUT_SIGNAL && !isFanoutAllowed(file, fanOut)) signals.push(`FANOUT:${fanOut}`);
     return { file, lines: countLines(file), signals, fanOut };
   });
 }
@@ -329,10 +325,10 @@ function main(argv = process.argv.slice(2)) {
       console.error(`Architecture tracker baseline violation:\n  ${violations.join('\n  ')}`);
       return 1;
     }
-    const dipViolations = [...dipExceptionViolations(), ...compositionRootViolations()];
-    if (dipViolations.length > 0) {
-      console.error('DIP exception or composition root list is out of date:');
-      for (const violation of dipViolations) console.error(`  ${violation}`);
+    const exceptionViolations = [...dipExceptionViolations(), ...ocpExceptionViolations(), ...fanoutExceptionViolations(), ...compositionRootViolations()];
+    if (exceptionViolations.length > 0) {
+      console.error('DIP/OCP/FANOUT exception or composition root list is out of date:');
+      for (const violation of exceptionViolations) console.error(`  ${violation}`);
       return 1;
     }
     // The layer graph is checked against the same artifact (#2641): no ring, a
@@ -386,6 +382,11 @@ module.exports = {
   trackerBaselineViolations,
   baselineEvolutionViolations,
   DIP_ALLOWED,
+  OCP_ALLOWED,
+  FANOUT_ALLOWED, isFanoutAllowed, fanoutExceptionViolations,
+  isOcpAllowed,
+  ocpSignal,
+  ocpExceptionViolations,
   isCompositionRoot,
   isProduct,
   packagedBins,

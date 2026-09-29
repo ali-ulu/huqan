@@ -1,16 +1,21 @@
 # Control Room: customer-facing dashboard design
 
-Status: **proposal**. Nothing in this document is implemented unless a section
-says so and cites the file. The clickable mockup lives at
-`docs/assets/control-room-mockup.html`; every number, agent and receipt in it is
-sample data.
+Status: **implemented (partial)**. The shipped Control Room lives under
+`public/control-room/` and is served at `/control-room` by the local HUQAN
+server. Its Overview, Agent activity, Approvals, Receipts, Agents, Errors and
+Customize views read real runtime endpoints; the static mockup at
+`docs/assets/control-room-mockup.html` remains design-reference sample data.
+
+Sections below distinguish shipped behavior from proposals. Hosted operation,
+multi-tenancy, SSO, billing, approve-from-chat and the full long-term setup
+wizard remain outside the implemented claim.
 
 ## 1. Problem
 
-A customer who installs HUQAN cannot see HUQAN doing its job. Today's local UI
-(`public/index.html`) opens on panels that report what is missing: dashes,
-`LOCKED`, `API key required`, a surface counter such as `2/5`. Nothing on the
-first screen answers the three questions a customer actually has:
+The original gap behind this design was that a customer who installed HUQAN
+could not see the trust runtime doing its job in one operator surface. The
+shipped Control Room now addresses that daily-use gap. The design remains
+useful as the contract for what the surface should answer:
 
 1. What did my agents try to do, and with which tools?
 2. What did HUQAN decide, and why?
@@ -85,7 +90,7 @@ switching approval off invisible in the very figures meant to prove oversight.
 | Approval queue | `/api/v2/approvals`, MCP `huqan.approvals`, decisions through `huqan.approve` | Rejection reason capture in the UI |
 | Receipts | `/api/trust-receipt`, MCP `huqan.trust_receipt` | A list view that exposes verified / pending / unverifiable as a filter |
 | Auto-approved bucket | `lib/human-approval-toggle.js` stamps `autoApproved: true` and keeps `originalDecision` in gate metadata | Needs to be aggregated as its own count |
-| Connected agents | **No source.** There is no agent registry or heartbeat in the runtime today | Needs a design decision: derive "last seen" from the most recent gate event per client identity, or add an explicit registration. Until then the Agents view cannot ship |
+| Agents | Gate/activity records provide the actor identities seen by HUQAN and their last observed activity | **Best-effort only.** There is still no agent registry or heartbeat, so the UI says "seen recently" rather than claiming durable connected/disconnected state |
 | Errors | Scattered: notification adapter failures, receipt verification failures, sink attachment | Needs one bounded error feed |
 | Roles (Admin / Approver / Viewer) | Not present | Needs an authorization model before approve buttons are role-gated in the UI |
 
@@ -161,30 +166,37 @@ Keep those guarantees and make the switch visible and narrow:
 The global environment switch remains for headless and CI use, and the Control
 Room shows a persistent banner while it is on.
 
-## 8. First-run setup wizard
+## 8. First-run setup
 
-### Today
+### Implemented
 
-`public/js/onboarding-checklist.js` (#1931) is a dismissible three-step
-checklist on Home: connect the session, run one read workflow, open the
-evidence behind an answer. A step completes only when the underlying request
-succeeded.
-
-### Proposal
-
-Extend that checklist into a guided first run, keeping its rules (outcomes,
-not clicks; never a blocking modal; progress stored locally without secrets):
+The local Home checklist in `public/js/onboarding-checklist.js` remains
+available. Control Room now also has its own non-modal, three-outcome first run
+in `public/control-room/js/control-room-overview.js`:
 
 | Step | Outcome that completes it |
 | --- | --- |
-| 1. Connect this workspace | Session saved and a runtime surface answered |
-| 2. Connect your first agent | The MCP config snippet for the chosen client was copied and HUQAN received that agent's first gate event |
-| 3. Watch the first decision | One real action reached the gate and appears in Agent activity |
-| 4. Open its receipt | The receipt for that action was opened and verified |
-| 5. Choose how strict to be | Approval policy reviewed; optional auto-approve choices recorded as receipts |
-| 6. Get notified | One adapter configured and a signed test notification delivered |
+| 1. Connect this workspace | A real `/api/workbench/activity` read succeeds for the current browser session/workspace |
+| 2. Watch the first decision | The runtime returns a recorded `allow`, `review` or `block` carrying a receipt id |
+| 3. Open its receipt | The matching action is opened and the live trust-receipt endpoint returns the receipt successfully |
 
-Visual treatment:
+Progress stores only booleans/timestamps in browser-local storage. The observed
+receipt id is intentionally kept in page memory only, so persisted onboarding
+state carries no receipt identifier, API key or workspace secret. Buttons can
+navigate or reveal the session form, but clicks alone cannot advance a step.
+`test/control-room-first-run.test.js` pins that rule.
+
+### Remaining proposal
+
+The broader onboarding journey is still future work:
+
+| Step | Outcome that completes it |
+| --- | --- |
+| Connect your first agent | HUQAN receives that agent's first gate event after the user configures the client |
+| Choose how strict to be | Approval policy reviewed; any future auto-approve choice is recorded through its runtime authority |
+| Get notified | One adapter is configured and a signed test notification is delivered |
+
+Visual treatment for later expansion:
 
 - One icon per step, drawn from a single icon set, with a clear pending /
   in-progress / done state.
@@ -210,21 +222,22 @@ The mockup sets the direction; it is not a component library.
 - Display type for figures and headings, a text face for prose, a monospace
   face only for agent names, tools, policies and receipt identifiers.
 
-## 10. Out of scope for this document
+## 10. Out of scope for the implemented claim
 
-- Any runtime, API or UI implementation.
 - Hosted or multi-tenant deployment, SSO, billing.
 - Approve-from-chat (named above as a later slice).
-- Changes to gate semantics other than the scoped auto-approve proposal.
+- A durable agent registry/heartbeat. The current Agents view is explicitly
+  best-effort from observed activity.
+- The remaining extended onboarding steps (agent configuration, policy tuning,
+  notification delivery).
+- Changes to gate semantics other than separately approved runtime work.
 
-## 11. Suggested order
+## 11. Current delivery status
 
-1. Decision buckets and the auto-approved count from existing gate telemetry,
-   with "counting since" shown.
-2. Overview, Agent activity and Approvals on existing read surfaces.
-3. Receipts list with the unverifiable state.
-4. Agent identity and last-seen design, then the Agents view.
-5. Per-policy auto-approve with runtime-enforced locks and change receipts.
-6. Setup wizard on top of the existing checklist.
-7. Chat notification adapters behind the existing webhook boundary.
-8. Customization, roles, approve-from-chat.
+Shipped source covers the decision buckets, Overview, activity, approvals,
+receipt verification/listing, best-effort actor/agent view, Errors,
+customization and the three-outcome first run described above.
+
+Remaining design slices are intentionally separate: durable agent
+identity/heartbeat, per-policy auto-approve with runtime-enforced locks,
+notification adapters, roles and approve-from-chat.

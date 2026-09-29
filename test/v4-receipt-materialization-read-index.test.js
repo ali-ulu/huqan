@@ -417,3 +417,96 @@ describe('#1520: materialized receipts must match the durable chain anchor', () 
     assert.equal(read.chainValidation.reason, 'receipt_order_mismatch');
     assert.equal(read.authoritative, false);
   });
+
+describe('#2120: the durable chain is adopted only when its head matches the recorded tip', () => {
+  // A journal whose chain tip was rewritten, or dropped, must fail closed by name.
+  function readWithRewrittenChainTips(t, rewriteTip) {
+    const kernel = makeKernel(t);
+    const learned = learnApproved(kernel, 'uç kaydı hayvandir', { provenanceId: 'prov-anchor-json-tip' });
+    const readJournal = kernel.graph.readJsonJournal.bind(kernel.graph);
+    kernel.graph.readJsonJournal = () => {
+      const journal = structuredClone(readJournal());
+      const recorded = Object.entries(journal.chainTips || {});
+      assert.ok(recorded.length > 0, 'the fixture must record a chain tip');
+      const chainTips = {};
+      for (const [key, tip] of recorded) {
+        const rewritten = rewriteTip(tip);
+        if (rewritten !== undefined) chainTips[key] = rewritten;
+      }
+      return { ...journal, chainTips };
+    };
+    return readReceiptById(kernel.graph, learned.data.admission.receipt.receiptId, { workspaceId: 'default' });
+  }
+
+  it('the untouched journal reads as found', (t) => {
+    const read = readWithRewrittenChainTips(t, (tip) => tip);
+    assert.equal(read.ok, true, JSON.stringify(read.chainValidation));
+    assert.equal(read.status, 'found');
+  });
+
+  it('JSON read rejects a durable chain whose head does not match the recorded tip', (t) => {
+    const read = readWithRewrittenChainTips(t, () => 'f'.repeat(64));
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'chain_tip_mismatch');
+    assert.equal(read.chainValidation.expectedTip, 'f'.repeat(64));
+    assert.equal(read.authoritative, false);
+  });
+
+  it('JSON read rejects a durable chain with no recorded tip', (t) => {
+    const read = readWithRewrittenChainTips(t, () => undefined);
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'stored_chain_tip_missing');
+    assert.equal(read.authoritative, false);
+  });
+});
+
+describe('#1529: an empty durable store is a valid empty chain', () => {
+  /**
+   * `readStoredChainAnchorFor` refused the anchor when it could not infer a
+   * receipt family, and `inferReceiptFamily` has nothing to infer from an empty
+   * projection. Every durable source therefore reported
+   * `stored_chain_anchor_unavailable` on a fresh install -- and the
+   * `expectedCount === 0 && chain.length === 0` branch meant to accept it was
+   * unreachable. Both backends must read a genuinely empty store as valid.
+   */
+  it('a fresh JSON store reads as a valid empty chain', (t) => {
+    const kernel = makeKernel(t);
+
+    const chain = buildMaterializedReceiptChain(kernel.graph, { workspaceId: 'default' });
+    assert.equal(chain.ok, true, JSON.stringify(chain.chainStatus));
+    assert.equal(chain.chain.length, 0);
+    assert.equal(chain.chainStatus.valid, true);
+
+    const exported = exportMaterializedReceiptBundle(kernel.graph, { workspaceId: 'default' });
+    assert.equal(exported.ok, true, JSON.stringify(exported.error));
+    assert.equal(exported.status, 'exported');
+    assert.equal(exported.bundle.receiptCount, 0);
+  });
+
+  it('a fresh SQLite store reads as a valid empty chain', (t) => {
+    const kernel = makeKernel(t, true);
+
+    const chain = buildMaterializedReceiptChain(kernel.graph, { workspaceId: 'default' });
+    assert.equal(chain.ok, true, JSON.stringify(chain.chainStatus));
+    assert.equal(chain.chain.length, 0);
+  });
+
+  it('an empty projection over a non-empty durable store still fails closed', (t) => {
+    const kernel = makeKernel(t);
+    learnApproved(kernel, 'silinmis iz hayvandir', { provenanceId: 'prov-wiped-trail-1' });
+    // Durable rows exist; the audit trail was wiped. The empty projection must
+    // not be mistaken for the empty store accepted above.
+    const source = {
+      readJsonJournal: kernel.graph.readJsonJournal.bind(kernel.graph),
+      getAuditEvents: () => [],
+    };
+
+    const chain = buildMaterializedReceiptChain(source, { workspaceId: 'default' });
+    assert.equal(chain.ok, false);
+    assert.equal(chain.chainStatus.valid, false);
+  });
+});

@@ -11,7 +11,7 @@ const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/serve
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
 const { createViewerMount } = require('./lib/http/viewer-mount');
 const { createExternalClientProductionBoundary } = require('./lib/external-client-production-boundary');
-const { CANONICAL_AGENT_VERSION, createAgent } = require('./agentRuntime');
+const { CANONICAL_AGENT_VERSION, createAgent, resolveExperienceJournal } = require('./agentRuntime');
 const { callTool: callMcpTool } = require('./mcpServer');
 const { createServerRouteRuntime } = require('./lib/http/server-route-runtime');
 const { createServerRequestHandler } = require('./lib/http/server-request-handler');
@@ -84,6 +84,7 @@ const routeRuntime = createServerRouteRuntime({
   createExternalClientProductionBoundary,
   createAgent,
   callMcpTool,
+  resolveExperienceJournal,
   agentVersion: CANONICAL_AGENT_VERSION,
 });
 const {
@@ -107,6 +108,7 @@ const {
   handleReceiptReadRoute,
   handleTrustQueryRoutes,
 } = routeRuntime;
+
 backgroundTimers.add(setInterval(() => {
   try { ingestApprovalRuntime.recover(); }
   catch (error) {

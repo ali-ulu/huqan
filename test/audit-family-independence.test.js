@@ -71,7 +71,7 @@ test('claim 1: kernel.js reaches the audit sink exactly once', () => {
 });
 
 test('claim 1: the kernel chokepoint governs its six call sites', () => {
-  const source = readCode('kernel.js');
+  const source = readCode('kernel.js') + readCode('lib/kernel-cognition-methods.js');
 
   // The count is pinned rather than bounded: this is what makes routing
   // _appendAuditEvent a high-coverage change, and a drop would mean a call

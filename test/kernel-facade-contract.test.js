@@ -23,7 +23,7 @@ const FACADE_METHODS = Object.freeze([
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 function makeKernel() {
-  const root = path.join(os.tmpdir(), `huqan-kernel-facade-${process.pid}-${Date.now()}`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-kernel-facade-'));
   return new PackageKernel({
     noLoad: true, loadPlugins: false, useSQLite: false, memoryStoreUseSQLite: false,
     memoryPath: path.join(root, 'memory.json'), dbPath: path.join(root, 'memory.db'),
@@ -415,8 +415,7 @@ function setupTarballInstall() {
 }
 
 function createTarballInstall(platform = process.platform) {
-  INSTALL_DIR = path.join(os.tmpdir(), `huqan-4c1-smoke-${Date.now()}`);
-  fs.mkdirSync(INSTALL_DIR, { recursive: true });
+  INSTALL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4c1-smoke-'));
   const packResult = cp.spawnSync('npm', ['pack', '--json', '--ignore-scripts', `--pack-destination=${INSTALL_DIR}`], {
     cwd: REPO_ROOT, timeout: 60000, encoding: 'utf8', shell: true,
     env: { ...process.env, NO_COLOR: '1' },

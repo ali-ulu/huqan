@@ -44,13 +44,28 @@ Current measured position for AXIOM graph and memory behavior:
 | `large` | 49 | 30 |
 | `xlarge` | 140 | 131 |
 
+## Graph label-lookup benchmark (#3009)
+
+`benchmarks/bench-label-lookup.js` contrasts the indexed label lookup against
+the pre-#3009 linear scan (`Object.values(nodes).filter(...)`) on the same node
+map. Defaults are `n-1000` and `n-10000` nodes across 64 labels and 4
+workspaces, with 1000 repeated probes to lift the single-query noise floor.
+
+At `n-10000` on a developer machine the indexed query is roughly two orders of
+magnitude faster than the scan (about 0.03 ms vs 3.3 ms per query, ~97x over
+1000 probes); the workspace-scoped node count is O(1) versus a full scan
+(~0.003 ms vs ~4.9 ms, >1500x). Exact numbers are machine-dependent; run the
+command to reproduce.
+
 ## Benchmark commands
 
 ```bash
 node benchmarks/bench.js --quick
 node benchmarks/bench.js --fixtures=small,medium,large,xlarge
+node benchmarks/bench-label-lookup.js --quick
+node benchmarks/bench-label-lookup.js --fixtures=n-1000,n-10000
 node benchmarks/verifBench.js
-node --test benchmarks/bench.test.js benchmarks/check-regression.test.js
+node --test benchmarks/bench.test.js benchmarks/bench-label-lookup.test.js benchmarks/check-regression.test.js
 ```
 
 ## Safe public language

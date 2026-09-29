@@ -117,7 +117,9 @@ function checkCliCommandSurface(opts = {}) {
   if (capMatch) {
     for (const m of capMatch[1].matchAll(/\n\s*\['([^']+)'/g)) advertised.add(m[1]);
   }
-  const cli = read('cli.js');
+  // #3101: the command table moved out of cli.js; the handler rows live here now.
+  const handlerFile = 'lib/cli-command-handlers.js';
+  const cli = read(handlerFile);
   const handlers = new Set([...cli.matchAll(/^\s*'([^']+)':\s*\(cli/gm)].map((m) => m[1]));
   const adapter = read('lib/cli-workflow-adapter.js');
   const adapterHandled = new Set([
@@ -131,11 +133,11 @@ function checkCliCommandSurface(opts = {}) {
   const gaps = [];
   for (const cmd of [...advertised].sort()) {
     if (!dispatchable.has(cmd)) {
-      gaps.push(`${at(contractFile, contract, `'${cmd}'`)} CLI capability '${cmd}' has no handler in cli.js and no cli-workflow-adapter path`);
+      gaps.push(`${at(contractFile, contract, `'${cmd}'`)} CLI capability '${cmd}' has no handler in ${handlerFile} and no cli-workflow-adapter path`);
     }
   }
   const lines = [
-    `CLI command surface: ${advertised.size} advertised, ${handlers.size} cli.js handlers, ${adapterHandled.size} adapter-known`,
+    `CLI command surface: ${advertised.size} advertised, ${handlers.size} command-table handlers, ${adapterHandled.size} adapter-known`,
   ];
   if (gaps.length) {
     lines.push(`FAIL: ${gaps.length} CLI surface gap(s):`);

@@ -118,7 +118,7 @@ const IMPACT_RULES = Object.freeze([
   {
     name: 'ui-workbench',
     changed: ['public/**'],
-    tests: ['test/ui-*.test.js', 'test/v4-ui-*.test.js', 'test/v4-wb*.test.js', 'test/workbench-*.test.js', 'test/real-user-smoke-blockers.test.js'],
+    tests: ['test/ui-*.test.js', 'test/v4-ui-*.test.js', 'test/v4-wb*.test.js', 'test/workbench-*.test.js', 'test/control-room-*.test.js', 'test/real-user-smoke-blockers.test.js'],
   },
   {
     name: 'ci-selection',

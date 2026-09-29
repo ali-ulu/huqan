@@ -1,5 +1,54 @@
 'use strict';
 
+function createFirstRunTracker(storage) {
+  const KEY = 'huqan-control-room-first-run-v1';
+  const defaults = { connected: false, decisionObserved: false, receiptOpened: false, complete: false, completedAt: null };
+  let state = { ...defaults };
+  let expectedReceiptId = '';
+
+  try {
+    const parsed = JSON.parse(storage?.getItem(KEY) || 'null');
+    if (parsed && typeof parsed === 'object') {
+      state = {
+        connected: parsed.connected === true,
+        decisionObserved: parsed.decisionObserved === true,
+        receiptOpened: parsed.receiptOpened === true,
+        complete: parsed.complete === true,
+        completedAt: typeof parsed.completedAt === 'string' ? parsed.completedAt : null,
+      };
+    }
+  } catch (_) { /* private browsing/corrupt progress: start fresh */ }
+
+  function persist() {
+    try { storage?.setItem(KEY, JSON.stringify(state)); } catch (_) { /* progress is best-effort only */ }
+  }
+  function snapshot() { return { ...state }; }
+
+  function transition(event, detail = {}) {
+    if (event === 'workspace_connected' && detail.ok === true) state.connected = true;
+    if (event === 'decision_observed' && detail.ok === true
+        && ['allow', 'review', 'block'].includes(String(detail.decision || ''))
+        && typeof detail.receiptId === 'string' && detail.receiptId) {
+      state.connected = true;
+      state.decisionObserved = true;
+      expectedReceiptId = detail.receiptId;
+    }
+    if (event === 'receipt_opened' && detail.ok === true && state.decisionObserved
+        && expectedReceiptId && detail.receiptId === expectedReceiptId) {
+      state.receiptOpened = true;
+    }
+    state.complete = state.connected && state.decisionObserved && state.receiptOpened;
+    if (state.complete && !state.completedAt) state.completedAt = new Date().toISOString();
+    persist();
+    return snapshot();
+  }
+
+  return { transition, snapshot, expectedReceiptId: () => expectedReceiptId };
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { createFirstRunTracker };
+
+if (typeof window !== 'undefined') {
 (function () {
   const UI = window.HuqanControlRoomUI;
   const Data = window.HuqanControlRoomData;
@@ -7,6 +56,59 @@
 
   let currentWindowMs = 86400000;
   const WINDOW_LABEL = { 3600000: 'the last hour', 86400000: 'the last 24 hours', 604800000: 'the last 7 days' };
+  const firstRun = createFirstRunTracker(localStorage);
+
+  function decisionFrom(items) {
+    return (items || []).find((item) => item.receipt?.receiptId
+      && ['allow', 'review', 'block'].includes(String(item.receipt.decision || '')));
+  }
+
+  function renderFirstRun(message) {
+    const panel = $('#first-run');
+    if (!panel) return;
+    const state = firstRun.snapshot();
+    const done = { connect: state.connected, decision: state.decisionObserved, receipt: state.receiptOpened };
+    let currentAssigned = false;
+    for (const name of ['connect', 'decision', 'receipt']) {
+      const row = panel.querySelector(`[data-first-run-step="${name}"]`);
+      if (!row) continue;
+      const current = !done[name] && !currentAssigned;
+      row.classList.toggle('done', done[name]);
+      row.classList.toggle('current', current);
+      if (current) currentAssigned = true;
+      const status = row.querySelector('[data-first-run-state]');
+      if (status) status.textContent = done[name] ? 'Done' : current ? 'Next' : 'Waiting';
+    }
+    panel.dataset.complete = String(state.complete);
+    $('#first-run-summary').textContent = message || (state.complete
+      ? 'First run complete. The workspace, decision and receipt were all proven by live HUQAN responses.'
+      : state.decisionObserved
+        ? 'A real decision is visible. Open that action in Agent activity so HUQAN can verify its receipt.'
+        : state.connected
+          ? 'Workspace connected. Waiting for a real gate decision.'
+          : 'Connect a workspace. This step completes only after an authenticated runtime read succeeds.');
+  }
+
+  function observeFirstRun(items) {
+    firstRun.transition('workspace_connected', { ok: true });
+    const decision = decisionFrom(items);
+    if (decision) firstRun.transition('decision_observed', {
+      ok: true,
+      decision: decision.receipt.decision,
+      receiptId: decision.receipt.receiptId,
+    });
+    renderFirstRun();
+  }
+
+  async function probeFirstRun() {
+    renderFirstRun('Checking this workspace against the live activity endpoint…');
+    const result = await Data.fetchActivity({ limit: 1 });
+    if (!result.ok) {
+      renderFirstRun(`Workspace check failed: ${result.error?.message || result.error?.code || 'unknown error'}`);
+      return;
+    }
+    observeFirstRun(result.items);
+  }
 
   function bucketDecisions(items) {
     const c = { pass: 0, auto: 0, review: 0, block: 0 };
@@ -208,8 +310,10 @@
     if (approvalsResult.ok) renderApprovalsPanel(approvalsResult.approvals);
     else $('#ov-approvals').innerHTML = `<p class="empty">Could not load the approval queue.</p>`;
 
-    if (activityResult.ok) renderRecent(activityResult.items);
-    else $('#ov-recent').innerHTML = `<p class="empty">Could not load recent activity.</p>`;
+    if (activityResult.ok) {
+      renderRecent(activityResult.items);
+      observeFirstRun(activityResult.items);
+    } else $('#ov-recent').innerHTML = `<p class="empty">Could not load recent activity.</p>`;
   }
 
   $$('#ov-window [data-win]').forEach((btn) => btn.addEventListener('click', () => {
@@ -245,8 +349,27 @@
   }
 
   renderIntegrityBanner(readIntegrityFlag());
+  renderFirstRun();
 
+  $('#first-run-check')?.addEventListener('click', probeFirstRun);
+  $('#first-run-connect')?.addEventListener('click', () => {
+    const form = $('#session-form');
+    if (!form) return;
+    form.hidden = false;
+    $('#session-note').textContent = 'Enter this server\'s API key and workspace. Completion waits for a successful runtime read.';
+    ($('#session-key') || $('#session-ws'))?.focus();
+  });
+  window.addEventListener('huqan:first-run-session-changed', probeFirstRun);
+  window.addEventListener('huqan:first-run-decision-observed', (event) => {
+    firstRun.transition('decision_observed', event.detail || {});
+    renderFirstRun();
+  });
+  window.addEventListener('huqan:first-run-receipt-opened', (event) => {
+    firstRun.transition('receipt_opened', event.detail || {});
+    renderFirstRun();
+  });
   window.addEventListener('huqan:integrity-flag', (e) => renderIntegrityBanner(e.detail));
   UI.registerView('overview', { onShow: load });
-  window.HuqanControlRoomOverview = { reload: load };
+  window.HuqanControlRoomOverview = { reload: load, probeFirstRun };
 })();
+}

@@ -37,6 +37,9 @@ jobs:
           mkdir -p artifacts
           node scripts/api-snapshot.js --write artifacts/api-snapshot.json
 
+      - name: Require every REST route to have a contract owner
+        run: npm run check:http-contracts -- --write artifacts/http-contract-inventory.json
+
       - name: Compare with pull-request base
         if: always() && github.event_name == 'pull_request'
         env:
@@ -69,12 +72,13 @@ jobs:
           name: api-contract-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           path: |
             artifacts/api-snapshot.json
+            artifacts/http-contract-inventory.json
             artifacts/api-contract-report.md
           if-no-files-found: error
 
       - name: Update PR contract comment
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('node:fs');

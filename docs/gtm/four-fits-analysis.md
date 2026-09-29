@@ -144,6 +144,11 @@ bileşen olur ve ARPU tanımlamayı zorunlu kılar. Self-host kaldığı sürece
 | B — kurumsal trust/compliance | ~50.000$/yıl | ~2.000 kurum | Matematik tutar. Satış-öncelikli şirket demek: hosted, çok kiracılı, SSO, uzaktan enforcement. |
 | C — issuer / sertifikasyon ağı | kurum tarafı yüksek | daha az müşteri, daha yüksek bilet | Altyapısı (D3 + A2A + conformance + C9 + C10) fiilen inşa ediliyor. |
 
+> **Not (2026-09-28, #3082):** B senaryosunun gerektirdiği hosted / çok kiracılı / SSO /
+> uzaktan enforcement altyapısı bugün yok ve ticari dual-licensing "deferred with reason"
+> olarak kaydedildi. Bu tablo fiyat teklifi değildir; güncel karar kaydı:
+> [`docs/legal/dual-licensing-status.md`](../legal/dual-licensing-status.md).
+
 Kodun gittiği yer **C**. Ama README hâlâ şunu açıkça reddediyor:
 
 > "a public agent marketplace or **certification network**", "a finished V5 shared-trust ecosystem"

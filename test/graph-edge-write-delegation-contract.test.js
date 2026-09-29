@@ -3,8 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { addEdge } = require('../lib/graph-edge-write');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-edge-write.js'), 'utf8');
 
 function methodBody(source, methodName) {

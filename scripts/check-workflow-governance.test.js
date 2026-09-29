@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { stripComments, hasPullRequestTargetTrigger, checkSource } = require('./check-workflow-governance');
+const { stripComments, hasPullRequestTargetTrigger, checkSource, checkDependencyReviewSeverity } = require('./check-workflow-governance');
 
 test('stripComments: strips a real trailing comment', () => {
   assert.equal(stripComments('foo: bar # a comment'), 'foo: bar ');
@@ -58,4 +58,36 @@ test('checkSource: still flags a genuinely missing permissions/concurrency block
   const failures = checkSource('wf.yml', source);
   assert.ok(failures.some((f) => f.includes('missing explicit top-level permissions')));
   assert.ok(failures.some((f) => f.includes('must define concurrency')));
+});
+
+const reviewWorkflow = (severity) => (
+  'uses: actions/dependency-review-action@' + 'a'.repeat(40) + '\n'
+  + `with:\n  fail-on-severity: ${severity}\n`
+);
+
+test('checkDependencyReviewSeverity: passes when every invocation shares a threshold', () => {
+  const failures = checkDependencyReviewSeverity([
+    { file: 'security.yml', source: reviewWorkflow('moderate') },
+    { file: 'dependency-review.yml', source: reviewWorkflow('moderate') },
+  ]);
+  assert.deepEqual(failures, []);
+});
+
+test('checkDependencyReviewSeverity: flags disagreeing thresholds (#3008)', () => {
+  const failures = checkDependencyReviewSeverity([
+    { file: 'security.yml', source: reviewWorkflow('moderate') },
+    { file: 'dependency-review.yml', source: reviewWorkflow('high') },
+  ]);
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /#3008/);
+  assert.match(failures[0], /security\.yml=moderate/);
+  assert.match(failures[0], /dependency-review\.yml=high/);
+});
+
+test('checkDependencyReviewSeverity: ignores files that do not run the action', () => {
+  const failures = checkDependencyReviewSeverity([
+    { file: 'ci.yml', source: 'jobs:\n  build: {}\n' },
+    { file: 'security.yml', source: reviewWorkflow('moderate') },
+  ]);
+  assert.deepEqual(failures, []);
 });

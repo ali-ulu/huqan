@@ -66,6 +66,16 @@ describe('E5: intent before effect', () => {
       { ok: false, code: 'persist_failed' });
     assert.deepEqual(ledger.claim('op1'), { ok: false, code: 'unknown_operation' });
   });
+
+  it('a closed store is unavailable, not empty (#3033)', () => {
+    // The owner closed the handle (restore, shutdown); the transaction wrapper
+    // itself still runs. Nothing may be recorded as pending in memory instead.
+    const ledger = createOperationLedger({ store: { db: null, withTransaction: (fn) => fn() } });
+    assert.deepEqual(ledger.begin({ operationId: 'op1', runId: 'run-1' }),
+      { ok: false, code: 'persist_failed' });
+    assert.deepEqual(ledger.reconcile(), []);
+    assert.deepEqual(ledger.claim('op1'), { ok: false, code: 'unknown_operation' });
+  });
 });
 
 describe('E5: outcomes and replays', () => {

@@ -44,6 +44,8 @@ Before submitting a future non-trivial contribution, contributors must identify 
 
 The versioned review draft `HUQAN-ICLA-v1.0-review` in [`CLA.md`](./CLA.md) is provided for review only. It is intended to describe future contribution rights, including the possibility of distributing accepted contributions under AGPL and, where legally authorized, under separate commercial terms. It does not itself grant rights, change the current license, or authorize a commercial license. The review contact is Ali Ulu at `aliulu@ai-ulu.com`; this contact detail does not make the draft operative.
 
+The canonical licensing and CLA status decision record is [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md). As of the 2026-09-28 decision, commercial dual-licensing is deferred with reason and the CLA draft remains non-operative; licensing status changes are recorded there first, not in pull-request prose.
+
 If a contribution is made in the course of employment or for a client, the contributor must confirm that they have permission to submit it. Contributors must not submit confidential information, credentials, personal data, copied code, or dependency content with incompatible terms.
 
 ## PR expectations

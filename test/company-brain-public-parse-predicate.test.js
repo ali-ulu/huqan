@@ -13,12 +13,21 @@ const createCompanyBrainPlugin = require('../plugins/company-brain').create;
 // (and KernelV2 forwards it), so the plugin uses that instead -- the same
 // boundary #2441 drew for contradiction-alert.
 
-const PLUGIN_SOURCE = path.join(__dirname, '..', 'plugins', 'company-brain.js');
+const PLUGIN_SOURCES = [
+  path.join(__dirname, '..', 'plugins', 'company-brain.js'),
+  path.join(__dirname, '..', 'lib', 'company-brain-state.js'),
+  path.join(__dirname, '..', 'lib', 'company-brain-query.js'),
+  path.join(__dirname, '..', 'lib', 'company-brain-ingest.js'),
+];
 
 test('company-brain uses the public predicate parser boundary', () => {
-  const source = fs.readFileSync(PLUGIN_SOURCE, 'utf8');
-  assert.match(source, /kernel\.parsePredicate\(fact\.predicate\)/);
-  assert.doesNotMatch(source, /kernel\._parsePredicate/);
+  const sources = PLUGIN_SOURCES.map((file) => fs.readFileSync(file, 'utf8'));
+  // The entry file plus its ./company-brain-* require chain: moved code must
+  // not escape the forbidden-pattern check (#2120 split).
+  assert.match(sources.join('\n'), /kernel\.parsePredicate\(fact\.predicate\)/);
+  for (const source of sources) {
+    assert.doesNotMatch(source, /kernel\._parsePredicate/);
+  }
 });
 
 test('manual ingest turns an extracted fact into an edge through the public parser only', async () => {

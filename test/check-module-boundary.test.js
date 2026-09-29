@@ -19,6 +19,10 @@ const {
   loadOwnership,
   ownerOf,
   describeCall,
+<<<<<<< HEAD
+=======
+  checkContextPorts,
+>>>>>>> origin/main
 } = require('../scripts/check-module-boundary');
 
 const OWNERSHIP_PATH = path.join(__dirname, '..', 'scripts', 'context-ownership.json');
@@ -84,3 +88,43 @@ describe('context-aware module boundary', () => {
     assert.throws(() => loadOwnership(tmp), /unknown context for graph\.js/);
   });
 });
+<<<<<<< HEAD
+=======
+
+describe('published context ports', () => {
+  const ownership = {
+    contexts: new Set(['Knowledge', 'Trust', 'AgentAction']),
+    owners: {
+      'graph.js': { context: 'Knowledge' },
+      'lib/receipt/receipt-chain.js': { context: 'Trust' },
+      'lib/verdict/action-verdict.js': { context: 'AgentAction' },
+    },
+    unassigned: {},
+    publishedPorts: {
+      'lib/verdict/action-verdict.js': { owner: 'AgentAction', consumers: ['Trust'] },
+    },
+    legacyEdges: {
+      'graph.js>lib/receipt/receipt-chain.js': { reviewBy: '2026-12-31' },
+    },
+  };
+
+  it('allows a declared port and a dated legacy edge', () => {
+    const graph = new Map([
+      ['lib/receipt/receipt-chain.js', ['lib/verdict/action-verdict.js']],
+      ['graph.js', ['lib/receipt/receipt-chain.js']],
+    ]);
+    assert.deepEqual(checkContextPorts(graph, ownership, '2026-09-28').problems, []);
+  });
+
+  it('rejects a new cross-owner import without a published port', () => {
+    const graph = new Map([['graph.js', ['lib/verdict/action-verdict.js']]]);
+    assert.match(checkContextPorts(graph, ownership, '2026-09-28').problems[0], /unpublished/);
+  });
+
+  it('rejects expired and stale legacy exceptions', () => {
+    const graph = new Map([['graph.js', ['lib/receipt/receipt-chain.js']]]);
+    assert.match(checkContextPorts(graph, ownership, '2027-01-01').problems[0], /expired/);
+    assert.match(checkContextPorts(new Map(), ownership, '2026-09-28').problems[0], /stale/);
+  });
+});
+>>>>>>> origin/main

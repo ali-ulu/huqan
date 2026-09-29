@@ -161,6 +161,12 @@ test('SQLite save rolls back the whole transaction and keeps in-memory embedding
   graph.assignEmbedding('ws::a', embedding);
 
   graph._nodes['ws::a'].label = 'A renamed';
+  // #3011: save() now applies only the records a mutation touched, so the edge
+  // must be dirty for the faulting edge write to be part of this save's
+  // transaction. Re-adding the same triple refreshes (and marks) the edge; the
+  // atomicity property under test -- one fault rolls back every row in the
+  // transaction -- is unchanged.
+  graph.addEdge('a', 'b', 'relates', { workspaceId: 'ws' });
   const fault = new Error('edge write failed');
   graph._stmts = { ...graph._stmts, upsertEdge: { run() { throw fault; } } };
   assert.throws(() => graph.save(), fault);

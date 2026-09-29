@@ -1,5 +1,9 @@
 # Ticari Lisans — TASLAK
 
+> **KARAR (2026-09-28, #3082): Ticari dual-licensing GECİKTİRİLDİ (deferred with reason).**
+> Bu belge iç çalışma notu olmayı sürdürür; hiçbir ticari lisans sunulmaz veya grant edilmez.
+> Canonical durum kaydı: [`docs/legal/dual-licensing-status.md`](../legal/dual-licensing-status.md).
+>
 > **DURUM: STRATEJİK TASLAK. HUKUKİ İNCELEME GEREKTİRİR.**
 > Bu belge bir teklif, bağlayıcı şart veya lisans grant’i değildir. Fiyatlar ve
 > şartlar yer tutucudur. Yayımlamadan veya herhangi bir müşteriye sunmadan önce

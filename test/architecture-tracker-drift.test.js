@@ -86,7 +86,9 @@ test('numeric signal decreases are improvements while increases are rejected', (
   } })[0], /worsened signal/);
 });
 
-function runFixtureGate(t, mutateGroups) {
+// `previousEntries` stands in for the base ref's tracked files when a fixture
+// needs some: the live tracker can be empty (#3101), and churn needs a file to replace.
+function runFixtureGate(t, mutateGroups, previousEntries = null) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-architecture-state-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const groups = classify(snapshot());
@@ -98,6 +100,11 @@ function runFixtureGate(t, mutateGroups) {
   // The graph half of the artifact is compared too (#2641). An empty recorded
   // graph keeps these fixtures about the size tracker and nothing else.
   const emptyGraph = { threshold: 10, layers: {}, edges: {}, violations: [], unassigned: [] };
+  let previousPath = BASELINE_PATH;
+  if (previousEntries) {
+    previousPath = path.join(root, 'previous.json');
+    fs.writeFileSync(previousPath, JSON.stringify({ schemaVersion: 3, entries: previousEntries, dependencyGraph: emptyGraph }));
+  }
   fs.writeFileSync(trackerPath, renderMarkdown(groups));
   fs.writeFileSync(baselinePath, JSON.stringify({
     schemaVersion: 3, entries: trackedEntries(groups), dependencyGraph: emptyGraph,
@@ -108,7 +115,7 @@ function runFixtureGate(t, mutateGroups) {
     path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
     `--check=${trackerPath}`,
     `--baseline=${baselinePath}`,
-    `--previous-baseline=${BASELINE_PATH}`,
+    `--previous-baseline=${previousPath}`,
     `--snapshot=${snapshotPath}`,
     `--graph-snapshot=${graphPath}`,
   ], { encoding: 'utf8' });
@@ -123,10 +130,10 @@ test('real CLI rejects count and baseline increased together', (t) => {
 });
 
 test('real CLI rejects same-count tracked-file churn', (t) => {
+  const tracked = { band: 'structural', lines: 200, signals: ['FANOUT:25'] };
   const result = runFixtureGate(t, (groups) => {
-    const removed = groups.recorded.shift();
-    groups.recorded.push({ ...removed, file: 'lib/replacement-debt.js' });
-  });
+    groups.structural.push({ file: 'lib/replacement-debt.js', lines: tracked.lines, signals: tracked.signals });
+  }, { 'lib/old-debt.js': tracked });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /replacement-debt\.js is newly tracked/);
 });

@@ -77,18 +77,44 @@ function checkSource(file, source) {
   return failures;
 }
 
+function severityOf(source) {
+  const match = source.match(/fail-on-severity:\s*(\w+)/);
+  return match ? match[1] : null;
+}
+
+// #3008: dependency-review-action runs in more than one workflow, and each
+// invocation decides on its own fail-on-severity. When those disagree, a
+// finding can pass the lockfile-specific review while the broad review fails
+// it (or the reverse), so the gate a pull request hits depends on which file
+// it happened to touch. Require every invocation to share one threshold.
+function checkDependencyReviewSeverity(files) {
+  const levels = new Map();
+  for (const { file, source } of files) {
+    if (!source.includes('actions/dependency-review-action@')) continue;
+    levels.set(file, severityOf(source));
+  }
+  if (levels.size < 2) return [];
+  const distinct = new Set(levels.values());
+  if (distinct.size === 1) return [];
+  const detail = [...levels].map(([file, level]) => `${file}=${level ?? 'unset'}`).join(', ');
+  return [`dependency-review fail-on-severity disagrees across workflows (#3008): ${detail}`];
+}
+
 function main() {
   const workflowDirectory = path.join(process.cwd(), '.github', 'workflows');
   const files = fs.readdirSync(workflowDirectory)
     .filter((file) => /\.ya?ml$/i.test(file))
     .sort();
   const failures = [];
+  const sources = [];
 
   for (const file of files) {
     const fullPath = path.join(workflowDirectory, file);
     const source = fs.readFileSync(fullPath, 'utf8');
+    sources.push({ file, source });
     failures.push(...checkSource(file, source));
   }
+  failures.push(...checkDependencyReviewSeverity(sources));
 
   if (failures.length > 0) {
     console.error('Workflow governance check failed:');
@@ -103,4 +129,10 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { stripComments, stripLineComment, hasPullRequestTargetTrigger, checkSource };
+module.exports = {
+  stripComments,
+  stripLineComment,
+  hasPullRequestTargetTrigger,
+  checkSource,
+  checkDependencyReviewSeverity,
+};

@@ -110,7 +110,7 @@ test('both _crossLink branches now guard the counter the same way', () => {
   assert.match(source, /if \(result\.audit\) audits\+\+;/);
   // And the unconditional form is gone rather than merely shadowed.
   assert.doesNotMatch(source, /workspaceId\);\s*audits\+\+;/);
-  assert.match(readCode('kernel.js'), /return runCrossLink\(\{ graph: this\.graph,/);
+  assert.match(readCode('lib/kernel-cognition-methods.js'), /return runCrossLink\(\{ graph: this\.graph,/);
 });
 
 test('the fifteen discarding sites are five caller functions', () => {
@@ -136,18 +136,23 @@ test('the fifteen discarding sites are five caller functions', () => {
   // method. #2127 extracted _crossLink's body to lib/kernel-cross-link.js
   // and proposeNode's body to lib/kernel-propose-node.js (dilim 2); dilim 3
   // moved learn()'s body to lib/kernel-learn-transaction.js, leaving a
-  // one-line facade. Current pins: learn facade at 529, _crossLink facade
-  // at 587. The strict-provenance helper added before executeLearn shifts
-  // its pinned sites by 29 lines.
-  assert.deepEqual(new Set(enclosing('kernel.js', [529, 587])), new Set(['learn', '_crossLink']));
+  // one-line facade. #2122 moved kernel.js's read, primitive, capability,
+  // persistence and learn-input method groups to lib/kernel-*-methods.js.
+  // Current pins: learn facade at 332, _crossLink facade at 375. The
+  // strict-provenance helper added before executeLearn shifts its pinned
+  // sites by 29 lines.
+  assert.deepEqual(new Set([...enclosing('kernel.js', [323]), ...enclosing('lib/kernel-cognition-methods.js', [43])]), new Set(['learn', '_crossLink']));
   // The strict provenance helper now precedes executeLearn, so keep the
   // measurement pinned to the seven current learn-use-case sink lines.
   assert.deepEqual(
     new Set(enclosing('lib/learn-use-case.js', [59, 78, 106, 262, 290, 322, 369])),
     new Set(['executeLearn']),
   );
+  // #2120 split lib/conflict-detector.js into lib/conflict-claim.js and
+  // lib/conflict-detect.js; the two accept-path audit sinks stayed in the
+  // detector and moved up to 72 and 113.
   assert.deepEqual(
-    new Set(enclosing('lib/conflict-detector.js', [412, 453])),
+    new Set(enclosing('lib/conflict-detector.js', [72, 113])),
     new Set(['acceptCandidateClaimJournaled']),
   );
 });
@@ -176,13 +181,13 @@ test('all four batch callers already return somewhere to report a gap', () => {
   // each caller already has a field for this answer.
   // #2127: the { written, audits, skipped } producer moved verbatim to
   // lib/kernel-cross-link.js; kernel.js keeps the delegation.
-  const kernel = readCode('kernel.js');
+  const cognition = readCode('lib/kernel-cognition-methods.js');
   const crossLink = readCode('lib/kernel-cross-link.js');
   const conflict = readCode('lib/conflict-detector.js');
   const learnUseCase = readCode('lib/learn-use-case.js');
 
   assert.match(crossLink, /return \{ written, audits, skipped \};/);
-  assert.match(kernel, /return runCrossLink\(\{ graph: this\.graph,/);
+  assert.match(cognition, /return runCrossLink\(\{ graph: this\.graph,/);
   assert.equal((conflict.match(/warnings: built\.warnings/g) || []).length >= 3, true);
   assert.match(learnUseCase, /provenanceWarnings/);
 });

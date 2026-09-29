@@ -307,9 +307,11 @@ describe('E0-c write-cost budget: real integrated runs (#2375 decision 1 and 3)'
 
     // The event profile the module header documents, pinned to reality so the
     // two cannot drift apart again.
-    assert.equal(simple.eventsPerRun, 4);
-    assert.equal(tenStep.eventsPerRun, 22);
-    assert.equal(repaired.eventsPerRun, 28);
+    // #3033 adds policy_decided and execution_started to every attempt that
+    // runs (the ask profiles write no memory_update): 4 -> 6, 22 -> 42, 28 -> 54.
+    assert.equal(simple.eventsPerRun, 6);
+    assert.equal(tenStep.eventsPerRun, 42);
+    assert.equal(repaired.eventsPerRun, 54);
     for (const run of [simple, tenStep, repaired]) {
       assert.equal(run.closed, true, 'a completed run must close its Experience');
     }

@@ -5,36 +5,28 @@ const path = require('path');
 const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
-const { buildProvenance } = require('./lib/provenance-ingest');
 const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
 const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
-const { detectClaimConflict } = require('./lib/conflict-detector');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
 const { runLearnTransaction } = require('./lib/kernel-learn-transaction');
-const { buildLearnEdgeOptions } = require('./lib/learn-edge-options');
-const { runLearnDocument } = require('./lib/kernel-learn-document');
-const { runSelfLearn } = require('./lib/kernel-self-learn');
-const { runLearnFromLLM } = require('./lib/kernel-learn-from-llm');
-const { runDream } = require('./lib/kernel-dream');
-const { runSelfEvolve, buildSelfEvolveCollaborators, runAutoMaintain } = require('./lib/kernel-self-evolve');
-const { runAlternatives } = require('./lib/kernel-alternatives');
-const { runContextSimilarity } = require('./lib/kernel-context-similarity');
-const { runAutoThinkTick } = require('./lib/kernel-auto-think');
-const { runCrossLink } = require('./lib/kernel-cross-link');
 const { runProposeNode } = require('./lib/kernel-propose-node');
 const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath, hookGraphCloseForMemoryStore } = require('./lib/memory-store-utils');
 const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
 const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
-const { runRustSandbox } = require('./lib/reason-sandbox');
+const { runRustSandboxResult } = require('./lib/reason-sandbox');
+const { install: installCapabilityMethods } = require('./lib/kernel-capability-methods');
+const { install: installPrimitiveMethods } = require('./lib/kernel-primitive-methods');
+const { install: installReadMethods } = require('./lib/kernel-read-methods');
+const { install: installPersistenceMethods } = require('./lib/kernel-persistence-methods');
+const { install: installLearnInputMethods } = require('./lib/kernel-learn-input-methods');
+const { install: installCognitionMethods } = require('./lib/kernel-cognition-methods');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
 const RUST_BIN = RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : readCompatibleEnvironmentVariable('RUST_BIN');
 const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
-
-function workspaceIdFrom(options) { return normalizeWorkspaceId(options && typeof options === 'object' && !Array.isArray(options) ? options.workspaceId : options); }
 
 // Canonical receipt projection for a committed learn mutation. Kept here
 // (rather than in lib/kernel-learn-transaction.js) because the receipt and
@@ -60,32 +52,8 @@ const {
   CONTRACT_VERSION,
   DEFAULT_CAPABILITIES,
 } = require('./lib/kernel-contract');
-const { normalizeWorkspaceId } = require('./lib/cli-mutation-audit-intent');
 const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
 const { admitAddCandidateClaim, admitCandidateIngress, admitLearn } = require('./lib/kernel-mutation-admission');
-const {
-  normalizeExplicitRelationObject,
-  parseExplicitRelationPredicate,
-  parsePredicate,
-} = require('./lib/predicate-parser');
-const {
-  forwardChain,
-  backwardChain,
-  detectCycleBounded,
-  resolveCycleOrder,
-  findPath,
-  findPathWithTimeout,
-} = require('./lib/graph-traversal');
-const {
-  ok: envelopeOk,
-  fail: envelopeFail,
-  validateResult,
-  edgeRef,
-  rankEvidence,
-  edgeEvidence,
-  pathEvidence,
-} = require('./lib/kernel-envelope');
-const { buildIntrospectReport } = require('./lib/kernel-introspect-report');
 
 // ProvenanceError is owned by lib/errors/provenance-error.js so that
 // lib/provenance-ingest.js can throw it without requiring kernel.js back
@@ -206,8 +174,8 @@ class Kernel {
       // Deliberately NOT this._rust: huqan-core keeps one mutable Graph for the
       // life of its process, so the kernel's shared bridge is not a sandbox.
       // runRustSandbox spawns a private process per call and tears it down (#758).
-      const answers = await runRustSandbox({ learn, ask });
-      if (answers) return { backend: 'rust', answers };
+      const result = await runRustSandboxResult({ learn, ask });
+      if (result) return result;
       // Rust unusable or died mid-flight: fall through to the JS sandbox below.
     }
     // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
@@ -242,75 +210,6 @@ class Kernel {
     this._lockAcquired = false;
   }
 
-  hasCapability(name) {
-    return Boolean(this.capabilities && this.capabilities[name] === true);
-  }
-
-  enableCapability(name) {
-    if (typeof name !== 'string' || !Object.hasOwn(DEFAULT_CAPABILITIES, name)) { // own-prop, not `in`: `in` walked the prototype chain (#1204)
-      const error = new Error(`Unknown capability: ${name}`);
-      error.code = 'CAPABILITY_UNKNOWN';
-      error.capability = name;
-      throw error;
-    }
-    this.capabilities[name] = true;
-    if (
-      this.plugins &&
-      typeof this.plugins.emit === 'function' &&
-      this.plugins._handlers &&
-      Array.isArray(this.plugins._handlers['capability:enabled'])
-    ) {
-      this.plugins.emit('capability:enabled', { name });
-    }
-    return true;
-  }
-
-  requireCapability(name) {
-    if (this.hasCapability(name)) return true;
-    const error = new Error(`Required capability is not enabled: ${name}`);
-    error.code = 'CAPABILITY_REQUIRED';
-    error.capability = name;
-    throw error;
-  }
-
-  normalizeWord(word) {
-    return this.nlp.normalize(word);
-  }
-
-  tokenizeText(text) {
-    return this.nlp.tokenize(text);
-  }
-
-  isStopWord(word) {
-    return this.nlp.isStopWord(word);
-  }
-
-  extractFacts(text, knownNodes = null) {
-    return this.nlp.extractFacts(text, knownNodes);
-  }
-
-  usePlugin(plugin) {
-    this.plugins.register(plugin);
-  }
-
-  listCapabilities() {
-    if (!this.plugins || typeof this.plugins.listCapabilities !== 'function') return [];
-    return this.plugins.listCapabilities();
-  }
-
-  getCapability(name) {
-    if (!this.plugins || typeof this.plugins.getCapability !== 'function') return null;
-    return this.plugins.getCapability(name);
-  }
-
-  async runCapability(name, input, opts = {}) {
-    this.requireCapability('pluginCapabilities');
-    if (!this.plugins || typeof this.plugins.runCapability !== 'function') {
-      throw new Error('Plugin manager is unavailable.');
-    }
-    return this.plugins.runCapability(name, input, opts);
-  }
-
   // F-003: Plugin-facing admission-gated edge write.
   // Replaces direct kernel.graph.addEdge() calls in plugins.
   proposeEdge(from, to, relation, opts = {}) {
@@ -331,111 +230,6 @@ class Kernel {
   // F-003: Plugin-facing admission-gated node write.
   proposeNode(id, label, provenance, opts = {}) {
     return runProposeNode({ graph: this.graph, contractVersion: this.contractVersion, trustPolicyPath: this.trustPolicyPath, evaluateLearnAdmission: (...args) => this._evaluateLearnAdmission(...args), appendAuditEvent: (...args) => this._appendAuditEvent(...args), admissionReceiptDetails: admission => this._admissionReceiptDetails(admission) }, id, label, provenance, opts);
-  }
-
-  // Implementations live in lib/kernel-envelope.js. These stay as methods
-  // because lib/verify.js, lib/learn-use-case.js, lib/kernel-read-use-cases.js,
-  // plugins and the test suite all call them off a kernel instance.
-  get _envelopeContext() {
-    return { graph: this.graph, contractVersion: this.contractVersion, paranoidMode: this.paranoidMode };
-  }
-
-  ok(type, data = null, evidence = [], meta = {}) {
-    return envelopeOk(this._envelopeContext, type, data, evidence, meta);
-  }
-
-  fail(type, code, message, meta = {}) {
-    return envelopeFail(this._envelopeContext, type, code, message, meta);
-  }
-
-  _validateResult(result) {
-    return validateResult(result);
-  }
-
-  _edgeRef(edge) {
-    return edgeRef(edge);
-  }
-
-  _rankEvidence(evidence = []) {
-    return rankEvidence(evidence);
-  }
-
-  _edgeEvidence(edge, kind = 'direct_edge', confidence) {
-    return edgeEvidence(edge, kind, confidence);
-  }
-
-  _pathEvidence(pathArr, kind = 'path', confidence = 0.5, workspaceId = 'default') {
-    return pathEvidence(this.graph, pathArr, kind, confidence, workspaceId);
-  }
-
-  /**
-   * Async pre-ingest pass, run by learnAsync() before the synchronous
-   * learn() pipeline is entered. Handlers may do I/O; a rejection aborts
-   * the learn entirely (fail-closed), and the possibly-rewritten
-   * {text, opts} is what learn() then receives.
-   *
-   * This is the answer to #348 that does *not* require making the whole
-   * kernel API async: async validation happens here, ahead of learn(),
-   * rather than inside the synchronous beforeLearn hook.
-   */
-  async _runPreIngest(text, opts = {}) {
-    const payload = { text, opts: { ...opts } };
-    if (!this.plugins || typeof this.plugins.emitStrictAsync !== 'function') return payload;
-    if (!this.plugins._handlers || !this.plugins._handlers.preIngest || this.plugins._handlers.preIngest.length === 0) {
-      return payload;
-    }
-    const result = await this.plugins.emitStrictAsync('preIngest', payload);
-    // A handler that returns something non-payload-shaped would otherwise
-    // reproduce exactly the silent corruption #348 is about, one layer up.
-    if (!result || typeof result !== 'object' || typeof result.text !== 'string') {
-      const error = new Error('preIngest hook returned a value without a string "text" field; refusing to learn from it');
-      error.code = 'PRE_INGEST_INVALID_PAYLOAD';
-      throw error;
-    }
-    return result;
-  }
-
-  _contradictionEvidence(contradiction) {
-    return this._verifyService.contradictionEvidence(contradiction);
-  }
-
-  _resolveLearnMetadata(opts = {}) {
-    const sourceType = typeof opts.sourceType === 'string' ? opts.sourceType.trim() : '';
-    const sourceRef = typeof opts.sourceRef === 'string' ? opts.sourceRef.trim() : '';
-    const sessionId = typeof opts.sessionId === 'string' ? opts.sessionId.trim() : '';
-    const evidenceType = typeof opts.evidenceType === 'string' ? opts.evidenceType.trim() : '';
-    const explicitCompanyMode = typeof opts.companyMode === 'boolean' ? opts.companyMode : this.hasCapability('companyMode');
-    const companyMode = explicitCompanyMode && this.hasCapability('companyMode');
-    return {
-      sourceType,
-      sourceRef,
-      sessionId,
-      evidenceType,
-      companyMode,
-    };
-  }
-
-  _learnEdgeOptions(base, meta, text) {
-    return buildLearnEdgeOptions(base, meta, text);
-  }
-
-  _normalizeProvenanceInput(provenanceInput, opts = {}) {
-    if (!provenanceInput && !opts.sourceType && !opts.sourceRef && !opts.sourceTitle && !opts.actor && !opts.timestamp && !opts.workspaceId) {
-      return { provenance: null, warnings: [] };
-    }
-
-    return buildProvenance(provenanceInput || {}, {
-      strictProvenance: this.strictProvenance,
-      trustPolicy: opts.trustPolicy,
-      trustPolicyPath: opts.trustPolicyPath,
-      sourceType: opts.sourceType,
-      sourceSubType: opts.sourceSubType,
-      sourceRef: opts.sourceRef,
-      sourceTitle: opts.sourceTitle,
-      actor: opts.actor,
-      timestamp: opts.timestamp,
-      workspaceId: opts.workspaceId,
-    });
   }
 
   _appendAuditEvent(event, provenance = null, workspaceId = 'default') {
@@ -541,272 +335,9 @@ class Kernel {
     return this.graph.getCandidateClaims(filters);
   }
 
-  detectClaimConflict(claim, opts = {}) {
-    return detectClaimConflict(this, claim, opts);
-  }
-
   ingestCandidateClaim(input = {}, opts = {}) {
     return admitCandidateIngress(this, input, opts, null, (text, admissionOpts, provenance, workspaceId) =>
       this._evaluateLearnAdmission(text, admissionOpts, provenance, workspaceId));
-  }
-
-  // Public/private compatibility facades; implementation lives in lib/predicate-parser.js.
-  _normalizeExplicitRelationObject(rawObject, opts = {}) {
-    return normalizeExplicitRelationObject(rawObject, opts, (word) => this.normalizeWord(word));
-  }
-
-  _parseExplicitRelationPredicate(predicate) {
-    return parseExplicitRelationPredicate(predicate, (word) => this.normalizeWord(word));
-  }
-
-  parsePredicate(predicate) {
-    return parsePredicate(predicate, (word) => this.normalizeWord(word));
-  }
-
-  _parsePredicate(predicate) { return this.parsePredicate(predicate); }
-
-  /**
-   * FAZ2-PR3 (F-001-d): Derive "benzer" (similarity) edges from shared tags.
-   *
-   * Two entry modes:
-   *  - Parent-allowed (context.parentAdmissionAllowed === true):
-   *      Invoked from the main learn path AFTER user admission allowed the
-   *      parent write.  Derived "benzer" edges inherit parent provenance and
-   *      are audited as derived writes; no background admission round-trip
-   *      so the derived chain does not deadlock on review-by-default.  This
-   *      mirrors the parent admission decision rather than introducing a
-   *      separate background gate for a write the user already authorized.
-   *  - Background (no context):
-   *      Invoked externally (e.g. inference/maintenance).  Routed through
-   *      _commitBackgroundEdge so the synthetic provenance is admission-gated.
-   *      Default decision is 'review' → no canonical write.
-   *
-   * Either path produces an audit event so the attempt is observable.
-   */
-  _crossLink(subject, object, relation, workspaceId = 'default', context = {}) {
-    return runCrossLink({ graph: this.graph, appendAuditEvent: (...args) => this._appendAuditEvent(...args), admissionReceiptDetails: admission => this._admissionReceiptDetails(admission), commitBackgroundEdge: (...args) => this._commitBackgroundEdge(...args) }, subject, object, relation, workspaceId, context);
-  }
-
-  ask(question, opts = {}) { return this._readUseCases.ask(question, workspaceIdFrom(opts)); }
-
-  alternatives(subject, maxPaths = 3, workspaceId = 'default') {
-    return runAlternatives(value => this.normalizeWord(value), this.graph, (type, data, evidence) => this.ok(type, data, evidence), subject, maxPaths, workspaceId);
-  }
-
-  contextSimilarity(a, b, context) {
-    return runContextSimilarity(this.graph, a, b, context);
-  }
-
-  entropy(workspaceId = 'default') { return this._readUseCases.entropy(workspaceId); }
-
-  detectGaps(workspaceId = 'default') { return this._readUseCases.detectGaps(workspaceId); }
-
-  reason(subject, opts = 'default') { return this._readUseCases.reason(subject, workspaceIdFrom(opts)); }
-
-  compare(a, b, opts = 'default') { return this._readUseCases.compare(a, b, workspaceIdFrom(opts)); }
-
-  _parseNumericComparison(text) {
-    return this._verifyService.parseNumericComparison(text);
-  }
-
-  // Implementations live in lib/graph-traversal.js. These stay as methods
-  // because lib/kernel-read-use-cases.js takes them as injected callbacks,
-  // lib/verify.js calls _findPathWithTimeout off the kernel, and the test
-  // suite calls them off a kernel instance.
-  _forwardChain(id, chain, visited, depth, workspaceId = 'default') {
-    return forwardChain(this.graph, id, chain, visited, depth, workspaceId);
-  }
-
-  _backwardChain(id, chain, visited, depth, workspaceId = 'default') {
-    return backwardChain(this.graph, id, chain, visited, depth, workspaceId);
-  }
-
-  _detectCycle(start, visited, pathArr, workspaceId = 'default') {
-    return detectCycleBounded(this.graph, start, { workspaceId, visited, pathArr });
-  }
-
-  _resolveCycleOrder(cycle, workspaceId = 'default') {
-    return resolveCycleOrder(this.graph, cycle, workspaceId);
-  }
-
-  _findPath(from, to, visited, pathArr, depth, workspaceId = 'default') {
-    return findPath(this.graph, from, to, visited, pathArr, depth, workspaceId);
-  }
-
-  _findPathWithTimeout(from, to, timeoutMs = 100, workspaceId = 'default', maxDepth = 5) {
-    return findPathWithTimeout(this.graph, from, to, timeoutMs, workspaceId, maxDepth);
-  }
-
-  // --- Background auto-think ---
-  startAutoThink(intervalMs = 10000) {
-    if (this._thinkTimer) return;
-    this._dreamer = new Dream(this);
-    this._thinkTimer = setInterval(() => {
-      try {
-        this._autoThinkTick();
-      } catch (e) {
-        console.error('\n[autoThink hata]', e.message);
-      }
-    }, intervalMs);
-    this._autoThinkLog('AutoThink başladı (her ' + (intervalMs / 1000) + 's)');
-  }
-
-  stopAutoThink() {
-    if (this._thinkTimer) {
-      clearInterval(this._thinkTimer);
-      this._thinkTimer = null;
-    }
-    this._autoThinkLog('AutoThink durduruldu');
-  }
-
-  _autoThinkTick() {
-    return runAutoThinkTick({ dreamer: this._dreamer, graph: this.graph, commitBackgroundEdge: (...args) => this._commitBackgroundEdge(...args), introspect: (...args) => this.introspect(...args), autoThinkLog: (...args) => this._autoThinkLog(...args), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; } });
-  }
-
-  _autoThinkLog(msg) {
-    console.log('\n[🧠 ' + new Date().toLocaleTimeString() + '] ' + msg);
-  }
-
-  /**
-   * Bir ifadeyi bilgi grafiğiyle doğrula.
-   * "kedi balık yer" → özne=kedi, nesne=balık yer → kenar var mı?
-   * Takes the critical section itself -- verifyAsync() adds no locking on
-   * top of this (#368), so calling verify() directly is not "the unlocked
-   * path"; it is the same path.
-   */
-  verify(statement, opts = {}) {
-    this._enterCriticalSection('verify');
-    try {
-      return this._verifyInternal(statement, opts);
-    } finally {
-      this._exitCriticalSection();
-    }
-  }
-
-  // Promise-returning form of verify(), for callers in an async context.
-  // It is NOT a stronger concurrency guarantee: the lock lives in verify()
-  // itself and this adds nothing to it (#368). Unlike learnAsync() there is
-  // no async pre-pass here -- verify() does not mutate the graph, so it has
-  // no preIngest equivalent.
-  async verifyAsync(statement, opts = {}) {
-    return this.verify(statement, opts);
-  }
-
-  // r1: Internal verify implementation (the critical section is entered by
-  // verify(), not here -- call verify() unless you deliberately want the
-  // unlocked path)
-  _verifyInternal(statement, opts = {}) {
-    return this._verifyService.verify(statement, opts);
-  }
-
-  dream(opts = {}) {
-    return runDream(opts, { createDreams: dreamOpts => new Dream(this).dream(dreamOpts), graph: this.graph, commitBackgroundEdge: (from, to, relation, source, commitOpts) => this._commitBackgroundEdge(from, to, relation, source, commitOpts), getDreamCount: () => this._dreamCount, setDreamCount: value => { this._dreamCount = value; }, ok: (type, data, evidence) => this.ok(type, data, evidence) });
-  }
-
-  learnDocument(text, opts = {}) {
-    return runLearnDocument((line, options) => this.learn(line, options), text, opts, { flushGraph: () => this.graph.save() });
-  }
-
-  /**
-   * LLM yanıtından bilgi öğren.
-   * Çelişkili cümleleri atlar, yeni bilgileri grafiğe ekler.
-   *
-   * @param {string} text - LLM'den gelen ham metin
-   * @param {object} [opts]
-   * @param {boolean} [opts.skipConflicts=true]  - çelişkili cümleleri atla
-   * @param {number}  [opts.minWords=2]           - minimum kelime sayısı
-   * @param {number}  [opts.maxSentences=20]      - max cümle sayısı
-   * @returns {{ learned: number, skipped: number, conflicts: string[] }}
-   */
-  learnFromLLM(text, opts = {}) {
-    return runLearnFromLLM(text, opts, { paranoidMode: this.paranoidMode, contractVersion: this.contractVersion, verify: (statement, verifyOpts) => this.verify(statement, verifyOpts), learn: (sentence, learnOpts) => this.learn(sentence, learnOpts) });
-  }
-
-  detectContradictions(subject = '', workspaceId = 'default') {
-    return this._verifyService.detectContradictions(subject, workspaceId);
-  }
-
-  _extractNumbers(text) {
-    return this._verifyService.extractNumbers(text);
-  }
-
-  _getTextCore(text) {
-    return this._verifyService.getTextCore(text);
-  }
-
-  introspect(workspaceId = 'default') {
-    this.plugins.emit('beforeIntrospect', {});
-    // Report body lives in lib/kernel-introspect-report.js; the plugin
-    // lifecycle events and the envelope wrap stay here.
-    const result = buildIntrospectReport({
-      graph: this.graph,
-      workspaceId,
-      contradictions: this.detectContradictions('', workspaceId),
-      gaps: this.detectGaps(workspaceId),
-      entropy: this.entropy(workspaceId),
-      dreamCount: this._dreamCount || 0,
-    });
-    this.plugins.emit('afterIntrospect', result);
-    return this.ok('introspect', result);
-  }
-
-  getPersistenceDescriptor() {
-    return this._readUseCases.getPersistenceDescriptor();
-  }
-
-  reload() {
-    return this.graph.load();
-  }
-
-  /**
-   * Closes every SQLite handle that points at the files restore replaces
-   * (graph memory.db and, when it resolves to the same file, the memory store).
-   * Agent storage lives on the CLI and is closed by its restore path.
-   * Windows cannot rename over an open database file (EPERM), so the restore
-   * path closes handles first and calls reopenSqlite() after. See #1848.
-   */
-  closeSqlite() {
-    if (this.graph && typeof this.graph.closeSqlite === 'function') this.graph.closeSqlite();
-    if (this.memory && typeof this.memory.close === 'function') this.memory.close();
-  }
-
-  /**
-   * Reopens the handles closed by closeSqlite() once restore has replaced the
-   * backing files. Pair with reload() to repopulate the in-memory graph.
-   */
-  reopenSqlite() {
-    if (this.memory && typeof this.memory.reopen === 'function') this.memory.reopen();
-    if (this.graph && typeof this.graph.reopen === 'function') this.graph.reopen();
-  }
-
-  persist() {
-    return this.graph.save();
-  }
-
-  optimize() {
-    return this.graph.optimize();
-  }
-  consolidate(dryRun = true) {
-    return this.graph.consolidateEdges(dryRun);
-  }
-
-  /**
-   * Kendi kendine evrimleşme döngüsü.
-   * 1. Rüya gör (hipotez üret)
-   * 2. Yüksek güvenli hipotezleri bilgiye dönüştür
-   * 3. Grafiği temizle (birleştir + optimize et)
-   * 4. Kaydet, rapor döndür
-   */
-  selfEvolve(opts = {}) {
-    return runSelfEvolve(opts, buildSelfEvolveCollaborators(this, Dream, workspaceIdFrom(opts)));
-  }
-
-  /**
-   * Kendi kendine öğrenme için boşlukları tespit eder.
-   * Governed bir öğrenme/admission yolu bağlanana kadar read-only stub döndürür.
-   */
-  selfLearn(opts = {}) {
-    return runSelfLearn(() => this.detectGaps(), this.graph);
   }
 
   // Periyodik bakım — sayım ve guard lib/kernel-self-evolve içindedir.
@@ -814,10 +345,17 @@ class Kernel {
   maintenanceEvery = 5;
   _maintenanceRunning = false;
 
-  _autoMaintain() {
-    runAutoMaintain(this);
-  }
+
 }
+
+// Method groups that moved out of this file (#2122). Each is installed with
+// the descriptor it had as a class member; see lib/kernel-method-install.js.
+installCapabilityMethods(Kernel);
+installPrimitiveMethods(Kernel);
+installReadMethods(Kernel);
+installPersistenceMethods(Kernel);
+installLearnInputMethods(Kernel);
+installCognitionMethods(Kernel, Dream);
 
 module.exports = Kernel;
 module.exports.AXIOM_ERROR = AXIOM_ERROR;
@@ -839,4 +377,3 @@ module.exports.createAdmissionBypassOpts = function createAdmissionBypassOpts(re
   }
   return { [ADMISSION_BYPASS_TOKEN]: true, admissionBypassReason: reason };
 };
-

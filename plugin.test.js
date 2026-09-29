@@ -529,7 +529,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `discovery-engine-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-engine-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -720,7 +721,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `idea-mri-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'idea-mri-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -824,7 +826,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `devil-advocate-public-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'devil-advocate-public-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -929,7 +932,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `devil-advocate-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'devil-advocate-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -1120,7 +1124,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `contradiction-alert-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'contradiction-alert-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       // Use a two-word subject node id ('kara kedi'). The Turkish NLP pack
@@ -1346,7 +1351,8 @@ describe('Plugin - Yonetici', () => {
     // output must match for both default and tenant-a workspaces.
     const Graph = require('./graph');
     const os = require('os');
-    const tmpPath = path.join(os.tmpdir(), `company-brain-parity-03a-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'company-brain-parity-03a-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('axiom', 'Axiom Motor', { source: 'fixture' });
@@ -1536,7 +1542,8 @@ describe('Plugin - Yonetici', () => {
     // `this._normalizeExplicitRelationObject`). No graph state is shared
     // with the spy kernel below — we only borrow the bound method.
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-characterization-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-characterization-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1704,7 +1711,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard1-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-guard1-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1796,7 +1804,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard2-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-guard2-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1888,7 +1897,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard3-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-guard3-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1981,7 +1991,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-legacy-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-legacy-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };

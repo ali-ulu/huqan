@@ -3,6 +3,8 @@
 > **STATUS: VERSIONED REVIEW DRAFT — NOT OPERATIVE**
 >
 > **Draft identifier:** `HUQAN-ICLA-v1.0-review`
+>
+> **Decision (2026-09-28):** This CLA remains NON-OPERATIVE and commercial dual-licensing is deferred with reason; the canonical status record is [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md) (issue #3082).
 > **Prepared:** 2026-08-27
 >
 > This document is a prepared working draft for qualified legal review. It is not an invitation to contribute, a binding agreement, or legal advice. It must not be used as the Project’s operative contributor agreement until the Project Owner’s legal capacity, this text, the acceptance mechanism, and the applicable privacy process have been approved.

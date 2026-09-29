@@ -4,8 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegatePath = path.join(__dirname, '..', 'lib', 'graph-node-read.js');
 const delegateSource = fs.readFileSync(delegatePath, 'utf8');
 
@@ -22,7 +23,7 @@ function methodBody(source, methodName) {
 test('GRAPH: node reads are delegated to the dedicated module', () => {
   assert.equal(
     methodBody(graphSource, 'getNodes'),
-    'return runNodesRead(this._nodes, workspaceId, options);',
+    'return runNodesRead(this._nodes, workspaceId, options, scope => this._workspaceNodeKeys(scope));',
   );
   assert.equal(
     methodBody(graphSource, 'getNode'),
@@ -34,7 +35,8 @@ test('GRAPH: node-read delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /graph\.js/);
   assert.doesNotMatch(delegateSource, /require\(['"]\.\.\/graph['"]\)/);
   assert.doesNotMatch(delegateSource, /this\._/);
-  assert.match(delegateSource, /function getNodes\(nodes, workspaceId = 'default', options = \{\}\)/);
+  // Delegate supports both resolveKeys (main #3009) and options (our bounds/clone #3012)
+  assert.match(delegateSource, /function getNodes\(nodes, workspaceId = 'default',/);
   assert.match(delegateSource, /function getNode\(nodes, id, workspaceId = 'default', options = \{\}\)/);
 });
 
@@ -75,4 +77,26 @@ test('GRAPH: node-read delegate keys getNodes by node id, not the internal stora
   assert.deepEqual(Object.keys(teamNodes).sort(), ['alpha', 'beta']);
   assert.equal(teamNodes.alpha.workspaceId, 'team');
   assert.equal(teamNodes.beta.workspaceId, 'team');
+});
+
+test('GRAPH: node-read delegate supports bounds/clone options (#3012)', () => {
+  const { getNode, getNodes } = require('../lib/graph-node-read');
+  const nodes = {
+    a: { id: 'a', workspaceId: 'default', tags: ['x'] },
+    b: { id: 'b', workspaceId: 'default', tags: ['y'] },
+    c: { id: 'c', workspaceId: 'default', tags: ['z'] },
+  };
+
+  // limit
+  assert.equal(Object.keys(getNodes(nodes, 'default', { limit: 2 })).length, 2);
+  // limit + offset
+  assert.deepEqual(Object.keys(getNodes(nodes, 'default', { limit: 1, offset: 1 })), ['b']);
+  // clone:false returns frozen view
+  const frozen = getNodes(nodes, 'default', { limit: 1, clone: false }).a;
+  assert.equal(Object.isFrozen(frozen), true);
+  assert.throws(() => { frozen.id = 'mutated'; });
+  // default still deep-clones
+  const cloned = getNodes(nodes, 'default', { limit: 1 }).a;
+  cloned.tags.push('mutated');
+  assert.deepEqual(nodes.a.tags, ['x']);
 });

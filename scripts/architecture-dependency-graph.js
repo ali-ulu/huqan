@@ -59,7 +59,7 @@ const RULES = [
   {
     layer: 'Adapters',
     why: 'The persistence family and the modules that talk to something outside the process -- a file, a database, a socket, a model. They may know Core; Core may not know them.',
-    files: ['storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js'],
+    files: ['storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js', 'sandboxRunner-child.js', 'sandboxRunner-context.js', 'sandboxRunner-limits.js'],
     dirs: ['adapters/', 'packages/', 'lib/storage/', 'lib/connectors/', 'lib/interop/', 'lib/llm-proxy/'],
     pattern: /^lib\/(memory|sqlite)-/,
   },

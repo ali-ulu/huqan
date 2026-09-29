@@ -50,8 +50,9 @@ test('an approved command runs, and what it then does never reaches the guard', 
   // it is the boundary the product has, measured, so that "protected" is not
   // read as more than it is.
   const { dir, cleanup } = workspace();
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-outside-'));
   try {
-    const outside = path.join(os.tmpdir(), `huqan-outside-${process.pid}.txt`);
+    const outside = path.join(outsideDir, 'target.txt');
     const agent = path.join(dir, 'agent.js');
     fs.writeFileSync(agent, [
       "const fs = require('node:fs');",
@@ -77,8 +78,8 @@ test('an approved command runs, and what it then does never reaches the guard', 
     assert.equal(direct.decision, 'block');
     assert.equal(direct.reason, 'external_action_path_outside_workspace');
 
-    fs.rmSync(outside, { force: true });
   } finally {
+    fs.rmSync(outsideDir, { recursive: true, force: true });
     cleanup();
   }
 });
@@ -88,11 +89,13 @@ test('one allowed command converts a block into a silent success', () => {
   // guard's verdict is about the command it was shown, not about the effects
   // that command goes on to have.
   const { dir, cleanup } = workspace();
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-outside-2-'));
   try {
-    const outside = path.join(os.tmpdir(), `huqan-outside-2-${process.pid}.txt`);
+    const outside = path.join(outsideDir, 'target.txt');
     assert.equal(decide({ file_path: outside }, 'Write', dir).decision, 'block');
     assert.equal(decide({ command: `node script.js ${outside}` }, 'Bash', dir).decision, 'allow');
   } finally {
+    fs.rmSync(outsideDir, { recursive: true, force: true });
     cleanup();
   }
 });

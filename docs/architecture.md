@@ -1,8 +1,8 @@
-﻿# AXIOM Architecture
+﻿# HUQAN Architecture
 
 ## Source of Truth
 
-Use this file as the compact map before making product or architecture claims about AXIOM.
+Use this file as the compact map before making product or architecture claims about HUQAN.
 
 Detailed behavior still lives in tests and code. This document exists to avoid re-reading the whole repository for every high-level decision.
 

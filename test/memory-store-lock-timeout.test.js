@@ -10,10 +10,8 @@ const MemoryStore = require('../lib/memory-store');
 const { DEFAULT_BUSY_RETRY } = require('../lib/memory-store-utils');
 
 function getDbPath(label) {
-  return path.join(
-    os.tmpdir(),
-    `axiom-pr-s3b-${label}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `axiom-pr-s3b-${label}-`));
+  return path.join(directory, 'memory.db');
 }
 
 function cleanupDb(p) {

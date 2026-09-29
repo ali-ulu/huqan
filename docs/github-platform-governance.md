@@ -31,10 +31,29 @@ Repository-native collaboration metadata also includes:
 
 ## Verified main-branch protection
 
-Live repository inspection on 2026-09-18 reports `main` as protected.
+Live repository inspection on 2026-09-28 (second pass, after the #3068
+live-settings update) reports `main` as protected by **both** a classic branch
+protection and an active repository Ruleset:
 
-The protection currently requires these GitHub Actions checks for non-admin
-merges:
+- Ruleset `HUQAN main protection` (id 23629799, `enforcement: active`, target
+  `branch`) carries `deletion`, `non_fast_forward`, `required_signatures`,
+  `pull_request` and `required_status_checks` rules;
+- classic branch protection on `main` additionally lists the same required
+  checks and reports `enforce_admins: false`.
+
+The #3068 review gap is now **closed** at the Ruleset level: the `pull_request`
+rule requires `required_approving_review_count: 1` with `require_code_owner_review: true`
+(the `CODEOWNERS` file names @ali-ulu as the sole owner of every path) and
+`dismiss_stale_reviews_on_push: true`. The only bypass actor is @ali-ulu
+(user id 305066106) in `pull_request` mode — deliberate, because this is a
+single-maintainer repository where every PR is opened from the maintainer's
+own account and could otherwise never receive a second-actor approval.
+Historical evidence for the original gap (PRs #3061, #3063 and #3064 all
+merged with zero reviews on 2026-09-28, before this change) is kept in
+#3068. The classic-protection mirror of the review requirement remains a
+live-settings audit item.
+
+The checks currently required by the Ruleset are:
 
 - `npm test gate`
 - `Conformance Gate`
@@ -48,19 +67,23 @@ merges:
 - `Enforce the large-file threshold`
 - `Enforce a lint-clean tree`
 - `Require architecture tracker snapshot to be current`
+- `Coverage gate`
+- `Benchmark gate`
+- `Docker build gate`
+- `Rust accelerator gate`
+- `Package Smoke`
+- `CodeQL`
 
-The repository Rulesets collection currently returns an empty list, so the
-observed enforcement is classic branch protection rather than a repository
-Ruleset.
+`Coverage gate` is the numeric coverage ratchet from issue #3077. The
+`coverage` job in `benchmark.yml` measures the suite under `c8` and
+`scripts/check-coverage.js` fails when a global or per-file line/branch ratio
+drops below the floor in `config/coverage-baseline.json`. `--update` may only
+lower a floor: a regression keeps its old floor, so it cannot be spent.
 
-That distinction is operational, not semantic: the required checks are real and
-`main` is protected. A future migration to Rulesets should preserve at least
-the same enforcement before the classic rule is removed.
-
-The installed GitHub integration does not expose enough branch-protection admin
-detail to independently verify every setting such as force-push, deletion,
-required review count, conversation resolution, or admin bypass. Those remain
-live-settings audit items.
+The Ruleset and the classic protection currently agree on the check list; when
+they drift, the stricter of the two is the effective control. Live settings
+drift — re-inspect before making any claim about them (see the audit rule at
+the end of this document).
 
 ## Main branch target
 
@@ -80,22 +103,32 @@ Migrate only when equivalent behavior is confirmed.
 
 ## Release tag ruleset target
 
-Release tags matching `v*` should be protected from deletion or replacement
-once published.
+Release tags matching `v*` are protected from deletion or replacement once
+published: the Ruleset `HUQAN immutable release tags` (id 23629798,
+`enforcement: active`, target `tag`) now carries `deletion`,
+`non_fast_forward` **and `required_signatures`** rules. Verified live on
+2026-09-28 after the #3068 live-settings update; the signature path itself
+was proven end-to-end first (an SSH-signed tag pushed from the maintainer
+machine verified as `verified: true` through the GitHub tags API, then
+deleted). The signature requirement is also mirrored in the workflow layer:
+`publish.yml` rejects lightweight tags and requires a GitHub-verified tag
+object before any publish step.
 
 Release authority remains defined by `.github/workflows/publish.yml`:
 
 - publication is tag-bound;
 - the `v<version>` tag must match `package.json`;
+- the tag object must be annotated and cryptographically signed (GitHub
+  tags-API verification must report `verified: true`);
 - the tagged commit must be reachable from the default branch;
 - publication uses the `npm-publish` environment;
 - npm publishing uses GitHub OIDC trusted publishing rather than a stored
   `NPM_TOKEN`;
 - release artifacts include npm provenance, and the workflow produces a
-  CycloneDX SBOM.
-
-Tag protection is still a GitHub-settings control and must not weaken those
-workflow-level checks.
+  CycloneDX SBOM whose Sigstore attestation bundle is exported and attached to
+  the GitHub Release as a verifiable signature asset by
+  `.github/workflows/release-distribution.yml`, which verifies the SBOM
+  against that bundle before creating the release.
 
 ## Security target
 

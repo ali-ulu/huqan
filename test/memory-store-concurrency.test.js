@@ -9,10 +9,8 @@ const os = require('node:os');
 const MemoryStore = require('../lib/memory-store');
 
 function getDbPath(label) {
-  return path.join(
-    os.tmpdir(),
-    `axiom-pr-s3-${label}-${process.pid}-${Date.now()}.db`
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `axiom-pr-s3-${label}-`));
+  return path.join(directory, 'memory.db');
 }
 
 function cleanupDb(p) {

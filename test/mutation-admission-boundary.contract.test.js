@@ -102,7 +102,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   // --- not production-reachable -------------------------------------------
   // Listed rather than skipped: if one of these acquires a production caller,
   // its writes become bypasses and this ledger should already name them.
-  'lib/github-connector.js': { why: 'library-only connector; NOT_YET_WIRED', sinks: { addCandidateClaim: 1, appendAuditEvent: 1 } },
+  'lib/github-connector-ingest.js': { why: 'library-only connector ingest (moved out of lib/github-connector.js by the #2120 split); NOT_YET_WIRED', sinks: { addCandidateClaim: 1, appendAuditEvent: 1 } },
   'lib/self-healer/source-dependency-graph.js': { why: 'self-healer is library-only by product decision', sinks: { addNode: 1, addEdge: 1 } },
   'lib/self-healer/source-dogfood-simulator.js': { why: 'self-healer is library-only by product decision', sinks: { addNode: 1, addEdge: 2 } },
 
@@ -198,7 +198,8 @@ const ROUTED_SINK_CALLS = Object.freeze({
   },
   // Transitive like learn-use-case, but with a caveat the entry above does not
   // have, and it is recorded rather than smoothed over: routeCandidateClaim has
-  // a *second* caller, lib/github-connector.js, which does not admit. That
+  // a *second* caller, lib/github-connector-ingest.js (moved out of
+  // lib/github-connector.js by the #2120 split), which does not admit. That
   // caller is classified NOT_YET_WIRED in the unrouted ledger above, so no
   // production path reaches these sinks unadmitted today -- but the routing
   // claim here is contingent on that classification staying true. If the
@@ -209,8 +210,16 @@ const ROUTED_SINK_CALLS = Object.freeze({
   // graph edges, audit events), which is the evidence that the seam sits at a
   // family-independent boundary.
   'lib/conflict-detector.js': {
-    why: 'candidate + audit + knowledge sinks; reachable in production only via kernel.ingestCandidateClaim, which routes routeCandidateClaim inside admit()',
-    sinks: { addNode: 4, addEdge: 2, addCandidateClaim: 5, appendAuditEvent: 1 },
+    why: 'candidate + knowledge sinks; reachable in production only via kernel.ingestCandidateClaim, which routes routeCandidateClaim inside admit()',
+    sinks: { addNode: 4, addEdge: 2, addCandidateClaim: 5 },
+  },
+  // #2120: the audit append moved out of lib/conflict-detector.js with the
+  // detection half of the split. It still runs on the same admitted
+  // routeCandidateClaim path, so it stays routed -- the ledger names the new
+  // owner rather than letting the count silently shift between files.
+  'lib/conflict-detect.js': {
+    why: 'audit sink for the conflict-detector flow, moved here by the #2120 split; still reached only through the admitted routeCandidateClaim path',
+    sinks: { appendAuditEvent: 1 },
   },
 
   // --- K2 (#328): delegated production mutation path -----------------------

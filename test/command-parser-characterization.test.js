@@ -55,7 +55,7 @@ test('the characterized inputs reach every command the parser can return', () =>
   const commands = new Set(golden.flatMap((row) => [row.noKernel.command, row.knownNode.command]));
   for (const command of [
     'company-ingest', 'company-query', 'ingest-status', 'öğret', 'sor', 'neden', 'karşılaştır', 'verify', 'yükle',
-    'onayla', 'receipt', 'audit', 'hypotheses', 'mri', 'tartis', 'celiski', 'llm-sor', 'plan', 'ajan', 'restore',
+    'onayla', 'receipt', 'experience-read', 'audit', 'hypotheses', 'mri', 'tartis', 'celiski', 'llm-sor', 'plan', 'ajan', 'restore',
     'exit', 'quickstart', 'doctor', 'durum', 'rüya', 'kaydet', 'backup', 'onaylar', 'düşün', 'çıkış', 'selam',
     'yardım', 'optimize', 'konsolide', 'evolve', 'coder', 'anlamadım',
   ]) {

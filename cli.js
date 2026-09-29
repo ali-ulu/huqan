@@ -9,7 +9,6 @@ const {
   createProcessFailureHandlers, failureCodeFor,
 } = require('./lib/http/process-failure-handlers');
 const { writeStructuredLog } = require('./lib/http/structured-log');
-const { cliHelpText } = require('./lib/cli-help');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { parseCommand } = require('./lib/command-parser');
 const Dream = require('./dream');
@@ -21,67 +20,12 @@ const {
   callTool: callMcpTool, createApprovalStoreFromKernel, createMcpOperatorCapability, operatorCapabilityBinding,
 } = require('./mcpServer');
 const { shellQuote, mapCliCommandToMcpTool } = require('./lib/cli-helpers');
-const { runCompanyIngest } = require('./lib/cli-company-ingest'); const { runBackupCommand, runRestoreCommand } = require('./lib/cli-backup-commands');
-const { runStatusCommand, runDoctorCommand } = require('./lib/cli-status-command');
 const { runCliRepl } = require('./lib/cli-repl');
 const { installCliRuntimeMethods } = require('./lib/cli-runtime-methods');
 const { evaluateCliGate } = require('./lib/cli-gate-evaluation');
-const {
-  teachCommand, verifyCommand, askCommand, reasonCommand, compareCommand, llmAskCommand,
-  loadDocumentCommand, dreamCommand, persistCommand, thinkCommand,
-} = require('./lib/cli-knowledge-commands');
-const {
-  ideaMriCommand, debateCommand, contradictionCommand, companyQueryCommand, ingestStatusCommand,
-} = require('./lib/cli-capability-commands');
-const {
-  planCommand, agentRunCommand, hypothesesCommand, createQuickstartCommand,
-} = require('./lib/cli-agent-commands');
-const {
-  createApprovalCommands, auditCommand, receiptCommand, coderCommand,
-} = require('./lib/cli-approval-commands');
+const { createCliCommandHandlers } = require('./lib/cli-command-handlers');
 
-const { approvalListCommand, approvalDecisionCommand } = createApprovalCommands({ callMcpTool });
-const quickstartCommand = createQuickstartCommand({ callMcpTool, createApprovalStoreFromKernel });
-
-// #2136: one handler per CLI command; a new command is a row, not a case. Handlers get the command context
-// CLI#execute builds, not the instance; lazy requires keep a block body so require-scan still sees them deferred.
-const canonicalMutationUnavailable = (cli, args, opts, command) => cli.formatCliGateMessage(command, { decision: 'block', reason: 'cli_canonical_mutation_unavailable' });
-
-const CLI_COMMAND_HANDLERS = Object.freeze(Object.assign(Object.create(null), {
-  'öğret': (cli, ...rest) => teachCommand(cli, ...rest),
-  'verify': (cli, ...rest) => verifyCommand(cli, ...rest),
-  'sor': (cli, ...rest) => askCommand(cli, ...rest),
-  'neden': (cli, ...rest) => reasonCommand(cli, ...rest),
-  'karşılaştır': (cli, ...rest) => compareCommand(cli, ...rest),
-  'mri': (cli, ...rest) => ideaMriCommand(cli, ...rest),
-  'tartis': (cli, ...rest) => debateCommand(cli, ...rest),
-  'celiski': (cli, ...rest) => contradictionCommand(cli, ...rest),
-  'llm-sor': (cli, ...rest) => llmAskCommand(cli, ...rest),
-  'plan': (cli, ...rest) => planCommand(cli, ...rest),
-  'ajan': (cli, ...rest) => agentRunCommand(cli, ...rest),
-  'yükle': (cli, ...rest) => loadDocumentCommand(cli, ...rest),
-  'company-ingest': (cli, args, opts) => runCompanyIngest(cli, args, opts),
-  'company-query': (cli, ...rest) => companyQueryCommand(cli, ...rest),
-  'ingest-status': (cli, ...rest) => ingestStatusCommand(cli, ...rest),
-  'backup': (cli) => runBackupCommand(cli),
-  'kaydet': (cli, ...rest) => persistCommand(cli, ...rest),
-  'onaylar': (cli, ...rest) => approvalListCommand(cli, ...rest),
-  'onayla': (cli, ...rest) => approvalDecisionCommand(cli, ...rest),
-  'audit': (cli, ...rest) => auditCommand(cli, ...rest),
-  'receipt': (cli, ...rest) => receiptCommand(cli, ...rest),
-  'coder': (cli, ...rest) => coderCommand(cli, ...rest),
-  'restore': (cli, args, opts) => runRestoreCommand(cli, args, opts),
-  'düşün': (cli, ...rest) => thinkCommand(cli, ...rest),
-  'optimize': canonicalMutationUnavailable, 'konsolide': canonicalMutationUnavailable, 'evolve': canonicalMutationUnavailable,
-  'quickstart': (cli, ...rest) => quickstartCommand(cli, ...rest),
-  'durum': (cli) => runStatusCommand(cli),
-  'doctor': (cli) => runDoctorCommand({ rootDir: process.cwd(), kernel: cli.kernel }),
-  'rüya': (cli, ...rest) => dreamCommand(cli, ...rest),
-  'hypotheses': (cli, ...rest) => hypothesesCommand(cli, ...rest),
-  'selam': (cli, args, opts, command) => 'Hello! You can teach me something or ask me a question.',
-  'yardım': (cli, args, opts, command) => cliHelpText(),
-  'anlamadım': (cli, args, opts, command) => 'I did not understand. Write a longer sentence, or type "yardım" for help.',
-}));
+const CLI_COMMAND_HANDLERS = createCliCommandHandlers({ callMcpTool, createApprovalStoreFromKernel });
 
 // Passed through to the approval runtime only when the caller supplied them.
 const APPROVAL_RUNTIME_OPTIONS = Object.freeze([

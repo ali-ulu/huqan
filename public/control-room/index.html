@@ -68,6 +68,38 @@
       </div>
       <div class="ibanner" id="ibanner" hidden role="alert"></div>
       <div class="status" id="ov-status" hidden></div>
+
+      <article class="panel first-run" id="first-run" aria-labelledby="first-run-title" data-complete="false">
+        <div class="panel-head">
+          <div>
+            <h2 id="first-run-title">First run</h2>
+            <span class="hint">Three live outcomes, not three clicks.</span>
+          </div>
+          <button class="btn" id="first-run-check" type="button">Check again</button>
+        </div>
+        <ol class="first-run-steps">
+          <li data-first-run-step="connect">
+            <span class="first-run-mark" aria-hidden="true">1</span>
+            <div><b>Connect this workspace</b><span>HUQAN must accept a real authenticated activity read.</span></div>
+            <span class="chip c-muted" data-first-run-state>Waiting</span>
+            <button class="link" id="first-run-connect" type="button">Connect</button>
+          </li>
+          <li data-first-run-step="decision">
+            <span class="first-run-mark" aria-hidden="true">2</span>
+            <div><b>Observe a real decision</b><span>A recorded allow, review or block with a receipt must exist.</span></div>
+            <span class="chip c-muted" data-first-run-state>Waiting</span>
+            <button class="link" type="button" data-go="activity">Open activity</button>
+          </li>
+          <li data-first-run-step="receipt">
+            <span class="first-run-mark" aria-hidden="true">3</span>
+            <div><b>Open its receipt</b><span>Opening the action only counts after the live receipt endpoint verifies it.</span></div>
+            <span class="chip c-muted" data-first-run-state>Waiting</span>
+            <button class="link" type="button" data-go="activity">Find the action</button>
+          </li>
+        </ol>
+        <p class="first-run-summary" id="first-run-summary" role="status" aria-live="polite"></p>
+      </article>
+
       <div class="grid" id="ov-grid">
         <article class="panel verdict span-12" data-widget="verdict">
           <div class="verdict-top">
@@ -230,7 +262,6 @@
         <div class="plan"><span class="chip c-muted">Planned</span><h3>Chat notifications</h3><p>Slack, Telegram, Microsoft Teams and email adapters behind the existing signed webhook boundary.</p></div>
         <div class="plan"><span class="chip c-muted">Planned</span><h3>Approve from chat</h3><p>Decide on a paused action without opening the Control Room. Requires an authenticated, signed callback first.</p></div>
         <div class="plan"><span class="chip c-muted">Planned</span><h3>Per-policy auto-approve</h3><p>Switch human approval off per policy, with the lock enforced by the runtime and the switch itself producing a receipt.</p></div>
-        <div class="plan"><span class="chip c-muted">Planned</span><h3>Guided first-run setup</h3><p>Extends the existing onboarding checklist with agent connection and notification steps.</p></div>
       </div>
     </section>
   </main>

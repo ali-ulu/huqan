@@ -248,3 +248,16 @@ test('operator argument shapes default to the default workspace (#2505 F-2b)', (
   assert.equal(changeArguments({ action: 'stop', scope: 'workspace', workspaceId: '', reason: '  halt ' }).reason, 'halt');
 });
 
+
+
+test('an emergency stop survives ledger restart', (t) => {
+  const directory = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-emergency-stop-restart-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const first = createEmergencyStop({ directory, now: () => '2026-09-28T20:00:00.000Z' });
+  first.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'restart-proof', actor: 'operator:test' });
+
+  const restarted = createEmergencyStop({ directory, now: () => '2026-09-28T20:01:00.000Z' });
+  const status = restarted.check({ workspaceId: 'w', agentId: 'a1' });
+  assert.equal(status.stopped, true);
+  assert.equal(status.record.reason, 'restart-proof');
+});

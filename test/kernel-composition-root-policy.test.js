@@ -16,7 +16,13 @@ test('kernel.js is an explicit composition root for runtime assembly (#2127)', (
   const kernel = snapshot().find((row) => row.file === 'kernel.js');
   assert.ok(kernel, 'kernel.js must remain visible in the architecture snapshot');
   assert.equal(kernel.signals.includes('DIP'), false, 'composition-root construction must not be reported as DIP');
-  assert.ok(kernel.signals.some((signal) => signal.startsWith('FANOUT:')), 'remaining fan-out debt must stay visible');
+  // #3101: the remaining fan-out debt stays visible as a dated FANOUT_ALLOWED
+  // entry whose ceiling is the live fan-out, rather than as a tracker signal.
+  const { FANOUT_ALLOWED } = require('../scripts/architecture-snapshot');
+  const recorded = FANOUT_ALLOWED.find((entry) => entry.file === 'kernel.js');
+  assert.ok(recorded, 'remaining fan-out debt must stay visible');
+  assert.ok(kernel.fanOut >= 20, 'the recorded debt is still a real fan-out');
+  assert.equal(recorded.ceiling, kernel.fanOut, 'the recorded ceiling is the live fan-out');
 });
 
 test('ordinary domain modules are not made composition roots by the Kernel exemption', () => {

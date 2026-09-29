@@ -17,6 +17,17 @@ const SNAPSHOT_FORMAT = 'huqan.api-snapshot.v1';
 const ROOT = path.resolve(__dirname, '..');
 const NON_CONTRACT_SCHEMA_KEYS = new Set(['description', 'title', 'examples', 'example', '$comment', 'deprecated']);
 
+// The committed baseline is compared byte for byte, so the order cannot depend
+// on the machine's default locale. Under tr-TR `localeCompare` puts `öğret`
+// after `onaylar`; under en-US (CI, and every baseline so far) before it, and
+// `check:api-contract` reported a stale baseline on a Turkish host that was
+// current everywhere else.
+const SORT_LOCALE = 'en-US';
+
+function compareText(a, b) {
+  return String(a).localeCompare(String(b), SORT_LOCALE);
+}
+
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
   if (!value || typeof value !== 'object') return value;
@@ -141,7 +152,7 @@ function extractTypeDeclarations(file) {
   while ((match = exportPattern.exec(source)) !== null) exportAssignments.push(match[1]);
   return {
     file: relative(file),
-    declarations: declarations.sort((a, b) => `${a.kind}:${a.name}`.localeCompare(`${b.kind}:${b.name}`)),
+    declarations: declarations.sort((a, b) => compareText(`${a.kind}:${a.name}`, `${b.kind}:${b.name}`)),
     exportAssignments: exportAssignments.sort(),
   };
 }
@@ -159,7 +170,7 @@ function extractRootExports() {
   const define = /Object\.defineProperty\(\s*module\.exports\s*,\s*['"]([^'"]+)['"]/g;
   while ((match = define.exec(source)) !== null) entries.push({ name: match[1], target: 'defineProperty' });
   const unique = new Map(entries.map((entry) => [entry.name, entry]));
-  return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...unique.values()].sort((a, b) => compareText(a.name, b.name));
 }
 
 function flagsFromUsage(usage) {
@@ -174,14 +185,14 @@ function cliSurface() {
       usage: item.usage,
       aliases: [...item.aliases].sort(),
       flags: flagsFromUsage(item.usage),
-    })).sort((a, b) => a.command.localeCompare(b.command)),
+    })).sort((a, b) => compareText(a.command, b.command)),
     compatibility: COMPATIBILITY_COMMANDS.map((item) => ({
       command: item.command,
       usage: item.usage || item.command,
       authRequired: item.authRequired === true,
       workflowId: item.workflowId || null,
       flags: flagsFromUsage(item.usage || item.command),
-    })).sort((a, b) => a.command.localeCompare(b.command)),
+    })).sort((a, b) => compareText(a.command, b.command)),
   };
 }
 
@@ -191,7 +202,7 @@ function mcpSurface() {
     inputSchema: stableValue(tool.inputSchema || {}),
     outputSchema: stableValue(tool.outputSchema || {}),
     annotations: stableValue(tool.annotations || {}),
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  })).sort((a, b) => compareText(a.name, b.name));
 }
 
 function routeEntry(rule, exposure) {
@@ -208,7 +219,7 @@ function restSurface() {
   const declared = [
     ...PUBLIC_ROUTES.map((rule) => routeEntry(rule, 'public')),
     ...AUTHENTICATED_ROUTES.map((rule) => routeEntry(rule, 'authenticated')),
-  ].sort((a, b) => a.id.localeCompare(b.id));
+  ].sort((a, b) => compareText(a.id, b.id));
   const workflows = WORKFLOW_CAPABILITIES
     .filter((item) => item.availability?.api && item.route && item.method)
     .map((item) => ({
@@ -222,7 +233,7 @@ function restSurface() {
       responseSchema: stableValue(item.httpResponseSchema || null),
       contractVersion: item.version,
     }))
-    .sort((a, b) => `${a.method}:${a.path}`.localeCompare(`${b.method}:${b.path}`));
+    .sort((a, b) => compareText(`${a.method}:${a.path}`, `${b.method}:${b.path}`));
   return { declared, workflows };
 }
 
@@ -240,7 +251,7 @@ function schemaSurface() {
       schemaVersion: typeof value.version === 'string' || typeof value.version === 'number' ? String(value.version) : null,
       schema: stableValue(value),
     };
-  }).sort((a, b) => a.path.localeCompare(b.path));
+  }).sort((a, b) => compareText(a.path, b.path));
 }
 
 function migrationSurface() {
@@ -257,7 +268,7 @@ function buildSnapshot() {
     packageVersion: packageJson.version,
     workflowContractVersion: WORKFLOW_CONTRACT_VERSION,
     exports: extractRootExports(),
-    types: typeFiles.map(extractTypeDeclarations).sort((a, b) => a.file.localeCompare(b.file)),
+    types: typeFiles.map(extractTypeDeclarations).sort((a, b) => compareText(a.file, b.file)),
     cli: cliSurface(),
     mcp: mcpSurface(),
     rest: restSurface(),
@@ -268,6 +279,7 @@ function buildSnapshot() {
 }
 
 module.exports = {
+  compareText,
   SNAPSHOT_FORMAT,
   buildSnapshot,
   extractRootExports,

@@ -7,8 +7,10 @@ const { extractAgentSummary, buildRunRecommendations, suggestNextAction, chooseF
 const { noteMemoryFailure, resetMemoryPersistence } = require('./lib/agent-memory-persistence');
 const { memoryRuntime } = require('./lib/agent-memory-runtime');
 const { buildAgentPlan } = require('./lib/agent-plan-runtime');
-const { executeAgentStep, executeStepWithRetry, executeAgentRun } = require('./lib/agent-step-executor');
+const { executeAgentStep, executeStepWithRetry, executeAgentRun, isTransientStepReport } = require('./lib/agent-step-executor');
 const { emitRunLifecycle } = require('./lib/experience/runtime-seam');
+const { runStepEffect } = require('./lib/experience/effect-boundary');
+const { createStepLifecycleRecorder } = require('./lib/experience/step-lifecycle');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 class Agent {
@@ -19,6 +21,8 @@ class Agent {
     this.maxSteps = opts.maxSteps || DEFAULT_MAX_STEPS;
     this.memoryPath = normalizeMemoryPath(opts, this.kernel);
     this.storage = opts.storage || null;
+    this.experienceOperationLedger = opts.experienceOperationLedger || null;
+    this._stepLifecycle = createStepLifecycleRecorder(() => this.experienceJournal || this.kernel?.experienceJournal, () => this.kernel?.graph);
     this.memory = this._loadMemory();
     this.lastPlan = null;
     this.lastRun = null;
@@ -156,9 +160,7 @@ class Agent {
   }
 
   _isRetryableStepReport(report = {}) {
-    const result = report.result || {};
-    const rawError = String(result?.error?.message || result?.error?.code || result?.error || report.summary || '').toLowerCase();
-    return /abort|timeout|fetch|network|econn|enotfound|etimedout|eai_again|503|502|504|429|temporarily|closed|ollama/.test(rawError);
+    return isTransientStepReport(report);
   }
 
   _executeStepWithRetry(step, state, opts = {}) {
@@ -166,7 +168,13 @@ class Agent {
   }
 
   _executeStep(step, state, opts = {}) {
-    return executeAgentStep({ step, state, opts, runtime: { kernel: this.kernel, dream: this.dream, allowedTools: ALLOWED_TOOLS, emit: this._emit.bind(this) } });
+    // Experience E5 (#3033): the step's effect runs behind this agent's
+    // operation ledger, so a resumed run never repeats an uncertain effect.
+    // The step's lifecycle events are written from here too (policy_decided,
+    // execution_started, memory_update), for the same layering reason.
+    const lifecycle = this._stepLifecycle;
+    const runEffect = (effectStep, effectState, perform) => runStepEffect({ ledger: this.experienceOperationLedger, state: effectState, step: effectStep, perform: lifecycle.wrapPerform(effectStep, effectState, perform) });
+    return executeAgentStep({ step, state, opts, runtime: { kernel: this.kernel, dream: this.dream, allowedTools: ALLOWED_TOOLS, emit: this._emit.bind(this), runEffect, recordDecision: lifecycle.recordDecision } });
   }
 
   run(goal, opts = {}) {

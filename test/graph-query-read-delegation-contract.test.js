@@ -5,8 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test } = require('node:test');
 const { query } = require('../lib/graph-query-read');
+const { createLabelIndex, rebuildLabelIndex } = require('../lib/graph-label-index');
+const { readGraphSurfaceSource } = require('./helpers/graph-surface-source');
 
-const graphSource = fs.readFileSync(path.join(__dirname, '..', 'graph.js'), 'utf8');
+const graphSource = readGraphSurfaceSource();
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'graph-query-read.js'), 'utf8');
 
 function methodBody(source, methodName) {
@@ -20,7 +22,7 @@ function methodBody(source, methodName) {
 }
 
 test('GRAPH: query is a one-line delegate', () => {
-  assert.equal(methodBody(graphSource, 'query'), 'return runGraphQuery(this._nodes, label, workspaceId);');
+  assert.equal(methodBody(graphSource, 'query'), 'return runGraphQuery(this._nodes, label, workspaceId, this._labelIndex, options);');
 });
 
 test('GRAPH: query delegate is narrow and cycle-free', () => {
@@ -28,8 +30,9 @@ test('GRAPH: query delegate is narrow and cycle-free', () => {
   assert.doesNotMatch(delegateSource, /require\(["']\.\.\/graph["']\)/);
   assert.doesNotMatch(delegateSource, /this\._/);
   assert.doesNotMatch(delegateSource, /_db|_stmts|_nodes|_edges|_outIndex|_inIndex/);
-  assert.match(delegateSource, /normalizeWorkspaceId/);
+  assert.match(delegateSource, /queryLabelKeys/);
   assert.match(delegateSource, /cloneNodeRecord/);
+  assert.match(delegateSource, /function query\(nodes, label, workspaceId = 'default',/);
 });
 
 test('GRAPH: query delegate preserves label/workspace filtering and defensive cloning', () => {
@@ -54,13 +57,38 @@ test('GRAPH: query delegate preserves label/workspace filtering and defensive cl
       workspaceId: 'workspace-a',
     },
   };
+  const index = createLabelIndex();
+  rebuildLabelIndex(index, nodes);
 
-  const results = query(nodes, 'animal', 'workspace-a');
+  const results = query(nodes, 'animal', 'workspace-a', index);
   assert.deepEqual(results.map(node => node.id), ['cat']);
   results[0].tags.push('mutated');
   assert.deepEqual(nodes['workspace-a::cat'].tags, ['mammal']);
 
-  assert.deepEqual(query(nodes, 'animal'), [nodes['default::dog']]);
-  assert.deepEqual(query(nodes, 'missing'), []);
-  assert.deepEqual(query(nodes, 'animal', ''), [nodes['default::dog']]);
+  assert.deepEqual(query(nodes, 'animal', 'default', index), [nodes['default::dog']]);
+  assert.deepEqual(query(nodes, 'missing', 'default', index), []);
+  assert.deepEqual(query(nodes, 'animal', '', index), [nodes['default::dog']]);
+});
+
+test('GRAPH: query delegate supports bounds/clone options (#3012)', () => {
+  const nodes = {
+    'default::a': { id: 'a', label: 'animal', workspaceId: 'default', tags: ['x'] },
+    'default::b': { id: 'b', label: 'animal', workspaceId: 'default', tags: ['y'] },
+    'default::c': { id: 'c', label: 'animal', workspaceId: 'default', tags: ['z'] },
+  };
+  const index = createLabelIndex();
+  rebuildLabelIndex(index, nodes);
+
+  // limit
+  assert.equal(query(nodes, 'animal', 'default', index, { limit: 2 }).length, 2);
+  // limit + offset
+  assert.deepEqual(query(nodes, 'animal', 'default', index, { limit: 1, offset: 1 }).map(n => n.id), ['b']);
+  // clone:false returns frozen view
+  const frozen = query(nodes, 'animal', 'default', index, { limit: 1, clone: false })[0];
+  assert.equal(Object.isFrozen(frozen), true);
+  assert.throws(() => { frozen.id = 'mutated'; });
+  // default still deep-clones
+  const cloned = query(nodes, 'animal', 'default', index, { limit: 1 })[0];
+  cloned.tags.push('mutated');
+  assert.deepEqual(nodes['default::a'].tags, ['x']);
 });

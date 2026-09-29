@@ -32,14 +32,15 @@ const PROVENANCE_PATHS = [
   'adapters/yaml-adapter.js',
   'lib/background-provenance.js',
   'lib/background-provenance-projection.js',
-  'lib/conflict-detector.js',
+  'lib/conflict-claim.js',
   'lib/connectors/entry-ingest-flow.js',
   'lib/connectors/repo-memory-github.js',
   'lib/connectors/repo-memory-path-ingest.js',
-  'lib/github-connector.js',
+  'lib/github-connector-provenance.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
   'lib/provenance-ingest-adapter.js',
+  'lib/kernel-learn-input-methods.js',
 ];
 
 /**
@@ -54,8 +55,10 @@ const PINNED = new Set([
   'adapters/pdf-adapter.js',
   'adapters/yaml-adapter.js',
   // Closed after #671, each for a different reason -- see the notes that used to
-  // sit in NOT_PINNED and are preserved in the commit that moved them.
-  'lib/github-connector.js',
+  // sit in NOT_PINNED and are preserved in the commit that moved them. The
+  // connector's pinning moved to lib/github-connector-provenance.js with the
+  // #2120 split.
+  'lib/github-connector-provenance.js',
   'plugins/repo-memory.js',
   // Where repo-memory's pinning lives, after the file-size ratchet required it
   // to move out of the plugin. It computes the hash, so it is classified here
@@ -84,9 +87,10 @@ const NOT_PINNED = {
     + 'external content, so it has nothing of its own to pin -- but it forwards '
     + 'a caller\'s pin through provenanceFieldsFrom, which is what carries '
     + 'company-brain API ingest.',
-  'lib/conflict-detector.js':
-    'records a conflict between claims already in the graph. No external content '
-    + 'is read, so there is nothing to pin.',
+  'lib/conflict-claim.js':
+    'builds the candidate-claim provenance, moved out of lib/conflict-detector.js '
+    + 'by the #2120 split. It records a conflict between claims already in the '
+    + 'graph. No external content is read, so there is nothing to pin.',
   'lib/connectors/entry-ingest-flow.js':
     'is the shared walk the entry-based connectors in plugins/repo-memory.js '
     + 'run. It reads nothing itself: every entry, including its sourceRef, is '
@@ -102,6 +106,11 @@ const NOT_PINNED = {
     + 'already built. It reads no external content itself, so there is nothing of '
     + 'its own to pin: a caller-supplied contentHash and sourceVersion pass '
     + 'straight through the builder, which carries the pin. No production caller yet.',
+  'lib/kernel-learn-input-methods.js':
+    'is Kernel._normalizeProvenanceInput, moved out of kernel.js (#2122). It shapes '
+    + 'the provenance a learn() caller supplied through buildProvenance and reads no '
+    + 'external content itself, so there is nothing of its own to pin: the '
+    + 'caller-supplied contentHash and sourceVersion pass straight through the builder.',
 };
 
 function sourceOf(rel) {
@@ -180,7 +189,7 @@ test.describe('provenance pinning coverage', () => {
     // that. repo-memory records a commit it already held; the connector records
     // a version its caller states, because it fetches nothing and cannot resolve
     // one itself.
-    for (const rel of ['plugins/repo-memory.js', 'lib/github-connector.js']) {
+    for (const rel of ['plugins/repo-memory.js', 'lib/github-connector-provenance.js']) {
       assert.ok(recordsContentHash(rel), `${rel} records no content hash`);
       assert.ok(PINNED.has(rel), `${rel} is not classified as pinned`);
       assert.ok(!Object.prototype.hasOwnProperty.call(NOT_PINNED, rel),
@@ -193,7 +202,7 @@ test.describe('provenance pinning coverage', () => {
     assert.ok(!/resolveCommitSha|git\/trees|raw\.githubusercontent/.test(repoMemory),
       'repo-memory grew its own fetch path; it was meant to record what it already had');
 
-    const connector = sourceOf('lib/github-connector.js');
+    const connector = sourceOf('lib/github-connector-provenance.js');
     assert.match(connector, /sourceVersionKind/,
       'the connector does not record which kind of version it was given');
     assert.ok(!/fetch\(|api\.github\.com/.test(connector),
@@ -212,6 +221,6 @@ test.describe('provenance pinning coverage', () => {
     const openGaps = Object.entries(NOT_PINNED).filter(([, reason]) => /OPEN GAP/.test(reason));
     assert.deepStrictEqual(openGaps.map(([rel]) => rel), [],
       'an open gap is recorded here; it belongs in a tracked issue as well');
-    assert.ok(!/OPEN GAP/.test(NOT_PINNED['lib/conflict-detector.js']));
+    assert.ok(!/OPEN GAP/.test(NOT_PINNED['lib/conflict-claim.js']));
   });
 });

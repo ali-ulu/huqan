@@ -9,6 +9,7 @@ const {
   assignWeightedShards,
   discoverTestFiles,
   isTestFile,
+  loadShardWeights,
 } = require('../scripts/ci-shard-manifest');
 const { loadSelection, parseArgs } = require('../scripts/run-test-shard');
 
@@ -34,6 +35,33 @@ test('weighted shard assignment covers each file exactly once', () => {
   assert.deepEqual([...assigned].sort(), [...files].sort());
   assert.equal(new Set(assigned).size, files.length);
   assert.deepEqual(shards.map((shard) => shard.weight), [8, 6]);
+});
+
+test('shard weights are loaded from the config, not frozen in the source', () => {
+  // The weights used to be a literal in ci-shard-manifest.js, so every test
+  // file added after the one run that produced it took the default unit
+  // weight and the "weighted" sharding silently balanced file counts instead
+  // of time (#measured in the loader comment).
+  const repositoryWeights = loadShardWeights();
+
+  assert.ok(Object.keys(repositoryWeights).length > 0, 'the repository config must carry real weights');
+  assert.ok(repositoryWeights['test/stress-ingest-scale-smoke.test.js'] > 1,
+    'the slowest measured file must keep a weight above the default');
+
+  // A missing or malformed config degrades to the unit weight rather than
+  // throwing, so a broken file cannot fail an unrelated shard run.
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-shard-weights-'));
+  try {
+    assert.deepEqual(loadShardWeights(path.join(directory, 'absent.json')), {});
+    const malformed = path.join(directory, 'malformed.json');
+    fs.writeFileSync(malformed, '{ not json');
+    assert.deepEqual(loadShardWeights(malformed), {});
+    const noWeights = path.join(directory, 'no-weights.json');
+    fs.writeFileSync(noWeights, JSON.stringify({ note: 'shape without weights' }));
+    assert.deepEqual(loadShardWeights(noWeights), {});
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('runner parses explicit shard, concurrency and report options', () => {

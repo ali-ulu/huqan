@@ -206,7 +206,8 @@ test('family: learnDocument and learnAsync funnel into learn', () => {
   // Re-proven as a source assertion rather than inherited from the P1-B
   // measurement: if either grew its own path, gating learn would stop gating
   // the family and this would fail.
-  const learnDocument = kernelSource.slice(kernelSource.indexOf('learnDocument(text, opts = {})'));
+  const cognitionSource = fs.readFileSync(path.join(repoRoot, 'lib/kernel-cognition-methods.js'), 'utf8');
+  const learnDocument = cognitionSource.slice(cognitionSource.indexOf('learnDocument(text, opts = {})'));
   assert.match(learnDocument.slice(0, 900), /this\.learn\(/);
 
   const learnAsync = kernelSource.slice(kernelSource.indexOf('async learnAsync(text, opts = {})'));
@@ -452,8 +453,9 @@ test('candidate family: all three production entry points are routed', () => {
 
   // And the transitive routing claim for conflict-detector.js is contingent on
   // github-connector staying unwired; assert the second caller is still the
-  // library-only one the ledger classifies as NOT_YET_WIRED.
-  const connector = fs.readFileSync(path.join(repoRoot, 'lib/github-connector.js'), 'utf8');
+  // library-only one the ledger classifies as NOT_YET_WIRED. The caller lives in
+  // lib/github-connector-ingest.js after the #2120 file split.
+  const connector = fs.readFileSync(path.join(repoRoot, 'lib/github-connector-ingest.js'), 'utf8');
   assert.match(connector, /routeCandidateClaim\(/,
     'github-connector is routeCandidateClaim\'s second caller and is not admitted');
 });
