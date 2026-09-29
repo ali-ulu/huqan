@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { buildSnapshot } = require('../scripts/api-snapshot-surface');
+const { buildSnapshot, compareText } = require('../scripts/api-snapshot-surface');
 const { diffSnapshots, reportMarkdown } = require('../scripts/api-snapshot-diff');
 
 test('API snapshot covers the declared public surfaces', () => {
@@ -76,4 +76,15 @@ test('API diff permits additive optional fields and new tools', () => {
   const result = diffSnapshots(baseline, current);
   assert.equal(result.breaking.length, 0);
   assert.ok(result.added.some((item) => item.area === 'mcp' && item.key === 'huqan.example_additive'));
+});
+
+test('API snapshot order does not depend on the host locale', () => {
+  // tr-TR sorts `ö` as its own letter after `o`; en-US folds it into `o`.
+  // The committed baseline is en-US, so a Turkish host must produce the same
+  // order or check:api-contract reports a baseline that is actually current.
+  assert.ok(compareText('öğret', 'onayla') < 0);
+  const commands = buildSnapshot().cli.canonical.map((item) => item.command);
+  const enUs = [...commands].sort((a, b) => a.localeCompare(b, 'en-US'));
+  assert.deepEqual(commands, enUs);
+  assert.ok(commands.indexOf('öğret') < commands.indexOf('onayla'), commands.join(' '));
 });
