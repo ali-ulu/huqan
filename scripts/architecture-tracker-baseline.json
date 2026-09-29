@@ -100,6 +100,7 @@
       "lib/agent-v3-status-methods.js": "Core",
       "lib/agent-v3-storage-factory.js": "Core",
       "lib/agent-v3-workspace.js": "Core",
+      "lib/ai-dependency-ratio.js": "Core",
       "lib/api-auth-opt-out.js": "Core",
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
@@ -160,6 +161,7 @@
       "lib/cli-backup-commands.js": "Core",
       "lib/cli-capabilities.js": "Core",
       "lib/cli-capability-commands.js": "Core",
+      "lib/cli-coder-propose.js": "Core",
       "lib/cli-coder-verify.js": "Core",
       "lib/cli-coder.js": "Core",
       "lib/cli-command-handlers.js": "Core",
@@ -197,14 +199,17 @@
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/experience-reporter.js": "Application",
       "lib/coder/journal-store.js": "Application",
+      "lib/coder/observed-verification.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/collector-seal-config.js": "Core",
+      "lib/command-allowlist-miner.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
       "lib/command-exec-gate-targets.js": "Core",
       "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
+      "lib/command-shape-log.js": "Core",
       "lib/company-brain-identity.js": "Core",
       "lib/company-brain-ingest.js": "Core",
       "lib/company-brain-query.js": "Core",
@@ -379,6 +384,7 @@
       "lib/gate-hook-input.js": "Core",
       "lib/gate-hook-management.js": "Core",
       "lib/gate-hook-reports.js": "Core",
+      "lib/gate-outcome-projection.js": "Core",
       "lib/gate-telemetry.js": "Core",
       "lib/github-app-beta-auth.js": "Core",
       "lib/github-app-beta-handler.js": "Core",
@@ -781,6 +787,7 @@
       "lib/pre-ingest.js": "Core",
       "lib/predicate-parser.js": "Core",
       "lib/prediction-outcome-pairs.js": "Core",
+      "lib/provenance-drift.js": "Core",
       "lib/provenance-ingest-adapter.js": "Core",
       "lib/provenance-ingest.js": "Core",
       "lib/provenance-query-audit-page.js": "Core",
@@ -908,6 +915,7 @@
       "lib/supply-chain-activation-gate.js": "Core",
       "lib/system-status-report.js": "Core",
       "lib/task-identifier-lexer.js": "Core",
+      "lib/task-producer.js": "Core",
       "lib/task-schema-sources.js": "Core",
       "lib/temporal-qualifier.js": "Core",
       "lib/text-safety-scorer.js": "Core",
@@ -917,6 +925,7 @@
       "lib/tool-call-gate-secrets.js": "Core",
       "lib/tool-call-gate-vocabulary.js": "Core",
       "lib/tool-call-gate.js": "Core",
+      "lib/trust-calibration.js": "Core",
       "lib/trust-evidence-ledger.js": "Core",
       "lib/trust-policy.js": "Core",
       "lib/trust-score-aggregator.js": "Core",
@@ -1616,7 +1625,8 @@
         "lib/agent-v3-loop-budget.js"
       ],
       "lib/agent-v3-dream-loop-adapter.js": [
-        "lib/dream-experiment-loop.js"
+        "lib/dream-experiment-loop.js",
+        "lib/gate-outcome-projection.js"
       ],
       "lib/agent-v3-loop-budget.js": [
         "lib/agent-loop-budget-gate.js",
@@ -1639,6 +1649,9 @@
       ],
       "lib/agent-v3-storage-factory.js": [
         "storage.js"
+      ],
+      "lib/ai-dependency-ratio.js": [
+        "lib/external-action-receipt-outcome.js"
       ],
       "lib/api-auth-opt-out.js": [
         "lib/environment-compat.js"
@@ -1852,10 +1865,14 @@
       "lib/cli-capability-commands.js": [
         "lib/cli-helpers.js"
       ],
+      "lib/cli-coder-propose.js": [
+        "lib/task-producer.js"
+      ],
       "lib/cli-coder-verify.js": [
         "lib/coder/verify-derivation.js"
       ],
       "lib/cli-coder.js": [
+        "lib/cli-coder-propose.js",
         "lib/cli-coder-verify.js",
         "lib/coder/apply-derivation.js",
         "lib/coder/derivation-record.js",
@@ -1998,6 +2015,7 @@
         "lib/code-change-gate.js",
         "lib/coder/derivation-record.js",
         "lib/coder/experience-reporter.js",
+        "lib/coder/observed-verification.js",
         "lib/deterministic-task-runner.js",
         "lib/experience/contract.js",
         "lib/path-safety.js"
@@ -2024,6 +2042,10 @@
       "lib/collector-seal-config.js": [
         "lib/environment-compat.js"
       ],
+      "lib/command-allowlist-miner.js": [
+        "lib/action-risk-classifier.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/command-exec-gate-structure.js": [
         "lib/command-exec-gate-vocabulary.js"
       ],
@@ -2042,6 +2064,10 @@
       ],
       "lib/command-policy-editor.js": [
         "lib/external-action-envelope.js"
+      ],
+      "lib/command-shape-log.js": [
+        "lib/external-action-envelope.js",
+        "lib/external-action-receipt.js"
       ],
       "lib/company-brain-identity.js": [
         "lib/entity-resolution.js"
@@ -2122,6 +2148,7 @@
         "lib/connectors/entry-ingest-flow.js",
         "lib/connectors/repo-memory-firewall.js",
         "lib/connectors/repo-memory-records.js",
+        "lib/provenance-drift.js",
         "lib/repo-file-pin.js"
       ],
       "lib/connectors/repo-memory-records.js": [
@@ -2393,6 +2420,7 @@
       ],
       "lib/external-action-guard-gates.js": [
         "lib/action-risk-classifier.js",
+        "lib/command-shape-log.js",
         "lib/external-action-guard-rules.js",
         "lib/external-action-receipt.js",
         "lib/file-effect-sensor.js",
@@ -2454,7 +2482,7 @@
       "lib/external-action-receipt-admission.js": [
         "lib/blast-radius.js",
         "lib/external-action-envelope.js",
-        "lib/external-action-identity.js",
+        "lib/external-action-identity-records.js",
         "lib/receipt/canonical-receipt.js",
         "lib/verdict/action-verdict.js"
       ],
@@ -2630,6 +2658,7 @@
       ],
       "lib/gate-hook-evaluate.js": [
         "lib/browser-hook-outcome.js",
+        "lib/command-shape-log.js",
         "lib/external-action-adapter.js",
         "lib/external-action-command-policy.js",
         "lib/external-action-receipt.js",
@@ -2650,9 +2679,18 @@
         "lib/gate-hook-input.js"
       ],
       "lib/gate-hook-reports.js": [
+        "lib/command-allowlist-miner.js",
+        "lib/command-shape-log.js",
         "lib/external-action-receipt-collector.js",
         "lib/external-action-receipt-reader.js",
         "lib/gate-hook-input.js",
+        "lib/residency-rule-miner.js"
+      ],
+      "lib/gate-outcome-projection.js": [
+        "lib/evidence-ladder.js",
+        "lib/external-action-receipt-outcome.js",
+        "lib/external-action-receipt-reader.js",
+        "lib/is-plain-object.js",
         "lib/residency-rule-miner.js"
       ],
       "lib/gate-telemetry.js": [
@@ -3458,7 +3496,8 @@
       "lib/kernel-read-methods.js": [
         "lib/cli-mutation-audit-intent.js",
         "lib/kernel-introspect-report.js",
-        "lib/kernel-method-install.js"
+        "lib/kernel-method-install.js",
+        "lib/trust-calibration.js"
       ],
       "lib/kernel-read-use-cases-ask.js": [
         "lib/kernel-read-use-cases-language.js"
@@ -4205,6 +4244,13 @@
       "lib/prediction-outcome-pairs.js": [
         "lib/risk-scale.js"
       ],
+      "lib/provenance-drift.js": [
+        "lib/conflict-claim.js",
+        "lib/content-hash.js",
+        "lib/is-plain-object.js",
+        "lib/provenance-ingest.js",
+        "lib/workspace-id.js"
+      ],
       "lib/provenance-ingest-adapter.js": [
         "lib/provenance-ingest.js",
         "lib/provenance-record-utils.js",
@@ -4705,6 +4751,9 @@
         "lib/tool-call-gate-secrets.js",
         "lib/tool-call-gate-vocabulary.js"
       ],
+      "lib/trust-calibration.js": [
+        "lib/is-plain-object.js"
+      ],
       "lib/trust-evidence-ledger.js": [
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/receipt-chain.js",
@@ -4714,6 +4763,9 @@
         "lib/environment-compat.js",
         "lib/json-clone.js",
         "lib/path-safety.js"
+      ],
+      "lib/trust-score-aggregator.js": [
+        "lib/ai-dependency-ratio.js"
       ],
       "lib/trust-signals/robustness.js": [
         "lib/contradiction-rules.js"

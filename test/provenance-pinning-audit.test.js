@@ -37,6 +37,7 @@ const PROVENANCE_PATHS = [
   'lib/connectors/repo-memory-github.js',
   'lib/connectors/repo-memory-path-ingest.js',
   'lib/github-connector-provenance.js',
+  'lib/provenance-drift.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
   'lib/provenance-ingest-adapter.js',
@@ -67,6 +68,10 @@ const PINNED = new Set([
   // repo-memory's github path, moved out of the plugin by the same ratchet. It
   // builds the pinned file provenance from the commit the adapter resolved.
   'lib/connectors/repo-memory-github.js',
+  // #3034 drift re-check. It builds the provenance for a drift finding from
+  // the fresh contentHash the ingest boundary computed and passed to it, so
+  // it carries a verified pin -- it re-hashes nothing itself.
+  'lib/provenance-drift.js',
 ]);
 
 /**

@@ -71,7 +71,7 @@ const RULES = [
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
     ],
     dirs: [
-      'plugins/', 'lib/a2a/', 'lib/automation-safety-gate/', 'lib/causal/', 'lib/coder/', 'lib/error-prevention/',
+      'plugins/', 'lib/a2a/', 'lib/automation-safety-gate/', 'lib/causal/', 'lib/calibration/', 'lib/coder/', 'lib/error-prevention/',
       'lib/experience/', 'lib/memory-mutation-gate/', 'lib/observability/', 'lib/pilot/', 'lib/pr-guardian/',
       'lib/receipt/', 'lib/registry/', 'lib/self-healer/', 'lib/trust-signals/', 'lib/v5/', 'lib/verdict/',
     ],

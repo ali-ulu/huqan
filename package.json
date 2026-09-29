@@ -1230,7 +1230,9 @@
     "lib/fitness-history.js",
     "lib/fractal-learn.js",
     "lib/fractal-learn-autotune.js",
-    "lib/mcp/fractal-learn-tool.js"
+    "lib/mcp/fractal-learn-tool.js",
+    "lib/provenance-drift.js",
+    "lib/trust-calibration.js"
   ],
   "dependencies": {
     "better-sqlite3": "^12.10.0",

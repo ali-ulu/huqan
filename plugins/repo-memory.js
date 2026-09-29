@@ -46,6 +46,8 @@ const MARKDOWN = {
     actor: input.actor || 'repo-memory',
     timestamp: input.timestamp || nowIso(),
     details: { sectionTitle: section.sectionTitle },
+    contentHash: section.contentHash,
+    contentHashAlgorithm: section.contentHashAlgorithm,
   })),
   counts: fileCount,
 };
@@ -164,13 +166,15 @@ function createRepoMemoryPlugin() {
         if (sourceType === 'github' || sourceType === 'repo') {
           return await ingestGithubRepo(kernel, input);
         }
-        if (Object.hasOwn(PATH_SOURCES, sourceType)) {
-          return await ingestGuardedSource(kernel, input, PATH_SOURCES[sourceType]);
-        }
-        return {
-          ok: false,
-          error: `Unsupported sourceType for repo-memory: ${sourceType}`,
-        };
+    if (Object.hasOwn(PATH_SOURCES, sourceType)) {
+      // The #3034 drift re-check runs inside ingestGuardedSource, before the
+      // graph walk re-proposes the entry nodes with this ingest's own hashes.
+      return await ingestGuardedSource(kernel, input, PATH_SOURCES[sourceType]);
+    }
+    return {
+      ok: false,
+      error: `Unsupported sourceType for repo-memory: ${sourceType}`,
+    };
       } catch (err) {
         trackIngestError(kernel, sourceType === 'repo' ? 'repo' : sourceType, err.message || String(err));
         return {

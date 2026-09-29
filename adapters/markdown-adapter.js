@@ -57,6 +57,12 @@ function parseMarkdown(content, filePath = '', options = {}) {
       filePath: absPath,
       content: text,
       sourceRef: `file:${absPath}:${current.sectionTitle}`,
+      // #3034: the hash of the exact bytes this parse produced. The repo-memory
+      // connector carries it onto the entry's provenance (verified: the ingest
+      // boundary computed it itself), and lib/provenance-drift.js compares a
+      // later ingest of the same sourceRef against it to surface content drift.
+      contentHash: contentHash(text),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
     });
   };
 
