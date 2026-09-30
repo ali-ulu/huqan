@@ -89,6 +89,8 @@ const EVIDENCE = Object.freeze({
   'ask': { none: 'read-only question answering leaves no record' },
   'verify': { none: 'verification is read-only; its result is returned, not stored' },
   'reason': { none: 'reasoning returns a derivation to the caller and stores nothing about having been asked' },
+  'derive': { none: 'forward inference returns provisional derived facts to the caller and writes nothing to canonical memory' },
+  'prove': { none: 'a bounded proof is computed and returned; no row marks that the query was made' },
   'compare': { none: 'a comparison is computed and returned; no row marks that it happened' },
   'advocate': { none: 'the counter-argument is returned to the caller and never written down' },
   'tool-policy': { none: 'a policy question is answered, not recorded' },
