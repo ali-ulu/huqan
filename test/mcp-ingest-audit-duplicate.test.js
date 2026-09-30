@@ -317,8 +317,10 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   assert.equal(unroutedLedger.includes(MCP_TOOL), false, 'the MCP surface must leave the unrouted ledger');
   // #2127 (#2820, #2822) moved kernel.js's cross-link and plugin-node writes
   // into their own modules and lowered the boundary contract's unrouted total
-  // 26 -> 24; this pin follows it.
-  assert.match(ledger, /assert\.equal\(unrouted, 24,/);
+  // 26 -> 24; this pin follows it. #3034 then added a fourth audit-family
+  // surface, lib/provenance-drift.js, raising it 24 -> 25 and the total
+  // 57 -> 58; this pin follows that too.
+  assert.match(ledger, /assert\.equal\(unrouted, 25,/);
   // K2 (#328): a later routing step delegated the background edge commit to
   // lib/background-provenance.js as a *new* ledgered entry -- routed rose
   // 24->26 and the total 46->48. DEL then added one routed audit append inside
@@ -342,5 +344,5 @@ test('6: the duplicate stays deleted while later reviewed audit writes are count
   // writes behind admission in their own modules: two sinks went from
   // unrouted to routed, 33/57, the total unchanged.
   assert.match(ledger, /assert\.equal\(routed, 33,/);
-  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 57,/);
+  assert.match(ledger, /assert\.equal\(unrouted \+ routed, 58,/);
 });

@@ -201,6 +201,69 @@ test('entropy and detectGaps read the workspace edges once, through frozen views
   }
 });
 
+test('reason reads the chain and cycle walks through frozen views', () => {
+  // #3012: reason() walks forward/backward chains and searches for a cycle,
+  // deep-cloning every visited edge along the way. The walk only reads
+  // to/from/relation and reason copies every field it returns, so it now opts
+  // into the frozen views. Pin that contract: every edge read the walk makes is
+  // clone:false, the answers are unchanged, and no frozen record leaks out.
+  const kernel = makeKernel('reason-frozen');
+
+  try {
+    const WS = 'workspace-a';
+    for (const id of ['dog', 'animal', 'friend']) {
+      kernel.graph.addNode(id, id, null, { workspaceId: WS });
+    }
+    kernel.graph.addEdge('dog', 'animal', 'is_a', {
+      weight: 0.9, workspaceId: WS,
+      provenance: { source: 'test', nested: { deep: true } },
+      meta: { note: 'a', info: { deep: 'x' } },
+    });
+    kernel.graph.addEdge('dog', 'friend', 'related', {
+      weight: 0.5, workspaceId: WS,
+      provenance: { source: 'test', nested: { deep: true } },
+      meta: { note: 'b', info: { deep: 'y' } },
+    });
+
+    const graph = kernel.graph;
+    const edgeReads = [];
+    for (const method of ['getEdges', 'getInEdges']) {
+      const real = graph[method].bind(graph);
+      graph[method] = (nodeId, workspaceId, options) => {
+        edgeReads.push({ method, nodeId, options });
+        return real(nodeId, workspaceId, options);
+      };
+    }
+
+    const before = JSON.stringify(graph.getAllEdges(WS));
+    const reason = kernel.reason('dog', WS);
+    const after = JSON.stringify(graph.getAllEdges(WS));
+
+    // The walk ran and every read it made opted out of the deep clone.
+    assert.ok(edgeReads.length > 0, 'reason must walk the graph');
+    assert.ok(
+      edgeReads.every(read => read.options && read.options.clone === false),
+      `every walk read must be clone:false, got ${JSON.stringify(edgeReads.slice(0, 3))}`,
+    );
+
+    // Observable answers are unchanged.
+    assert.deepEqual(reason.data.forward.map(edge => [edge.from, edge.to, edge.relation]), [
+      ['dog', 'animal', 'is_a'],
+      ['dog', 'friend', 'related'],
+    ]);
+
+    // Only fresh, mutable objects leave reason -- a frozen view never escapes.
+    const returned = [...reason.data.forward, ...reason.data.backward];
+    assert.ok(returned.length > 0);
+    assert.ok(returned.every(edge => !Object.isFrozen(edge)));
+    assert.ok(reason.evidence.every(item => !Object.isFrozen(item)));
+
+    assert.equal(before, after, 'the read must not change the stored edges');
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
 test('read use cases preserve reason and compare observable results', () => {
   const kernel = makeKernel('reason-compare');
 

@@ -18,10 +18,12 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // _rebuildEdgeIndex), so the count and digest moved with them. #3139 added
 // _edgeWorkspaceCountsOrCreate for the per-workspace edge counter. #3011 added
 // _dirtyOrCreate, _nextSaveMode, _checkpointEvery and _afterSave for the
-// incremental-save delta bookkeeping. The public method names above are
-// unchanged.
+// incremental-save delta bookkeeping. #3017 added three internal vector-index
+// helpers (_vectorIndexOrCreate, _indexVectorNode, _deindexVectorNode) plus the
+// public similarityCandidateIds reader (via lib/graph-read-methods.js). The
+// public method names above are unchanged.
 
-const MAIN_SURFACE = { count: 87, sha256: '56a22cbf32c2351e116401913100e85623fd6aad742e0ee23e9cf46055724254' };
+const MAIN_SURFACE = { count: 91, sha256: 'bd5b6e978211cd5907917fc10532444cdc04f2c1a4f67ed8e21df6ece07c6ec2' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;

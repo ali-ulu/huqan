@@ -15,6 +15,7 @@ const { isSqliteAvailable, openGraphSqlite: runOpenSqlite, closeGraphSqlite: run
 const { initGraphSchema, createGraphStmts } = require('./lib/graph-sqlite-schema');
 const { createDirtyRecords } = require('./lib/graph-dirty-records');
 const { createLabelIndex, indexNode: indexLabelNode, deindexNode: deindexLabelNode, rebuildLabelIndex, workspaceKeys } = require('./lib/graph-label-index');
+const { createVectorIndex, indexNode: indexVectorNode, deindexNode: deindexVectorNode, rebuildVectorIndex } = require('./lib/graph-vector-index');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
 // Method groups that moved out of this file (#3101). Each is installed with
@@ -49,6 +50,7 @@ class Graph {
     this._outIndex = new Map();
     this._inIndex = new Map();
     this._labelIndex = createLabelIndex();
+    this._vectorIndex = createVectorIndex();
     this._edgeWorkspaceCounts = new Map();
     this._auditQueryStmts = new Map();
     this._edgeTouchScope = null;
@@ -199,6 +201,22 @@ class Graph {
     deindexLabelNode(this._labelIndexOrCreate(), storageKey);
   }
 
+  _vectorIndexOrCreate() {
+    if (!this._vectorIndex) {
+      this._vectorIndex = createVectorIndex();
+      rebuildVectorIndex(this._vectorIndex, this._nodes || {});
+    }
+    return this._vectorIndex;
+  }
+
+  _indexVectorNode(storageKey) {
+    indexVectorNode(this._vectorIndexOrCreate(), storageKey, this._nodes[storageKey]);
+  }
+
+  _deindexVectorNode(storageKey) {
+    deindexVectorNode(this._vectorIndexOrCreate(), storageKey);
+  }
+
   // #3011: the incremental-save tracker, lazily created so test instances built
   // via Object.create(Graph.prototype) work without the constructor field.
   _dirtyOrCreate() {
@@ -214,6 +232,7 @@ class Graph {
   rebuildIndex() {
     this._rebuildEdgeIndex();
     rebuildLabelIndex(this._labelIndexOrCreate(), this._nodes);
+    rebuildVectorIndex(this._vectorIndexOrCreate(), this._nodes);
   }
 
   // #3009: prune() and removeNode() only ever change `_edges`; the node label
