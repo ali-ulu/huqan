@@ -22,8 +22,13 @@ const path = require('node:path');
 const { describe, it, before, after } = require('node:test');
 
 const Kernel = require('../kernel');
+const { absent, createMutationAdmission } = require('../lib/mutation-admission');
 const { decideIngestApproval } = require('../lib/workbench/ingest-approval-action');
 const { auditOrGap, recordAuditEvidence } = require('../lib/workbench/ingest-approval-audit');
+const {
+  ABSENCE_REASONS,
+  createIngestApprovalAuditWriter,
+} = require('../lib/workbench/ingest-approval-audit-writer');
 const { buildIngestApprovalSnapshot } = require('../lib/ingest');
 
 let tempDir;
@@ -239,5 +244,45 @@ describe('the audit evidence helper itself (#769)', () => {
     assert.equal(audited.gap.status, 409);
     assert.equal(audited.gap.json.reconciliation.approvalId, 'approval-9');
     assert.equal(audited.gap.json.reconciliation.receiptId, 'receipt-9');
+  });
+});
+
+describe('the finalized receipt names its identity state (#3042)', () => {
+  it('stamps a declared absence, with its reason, when the audit seam enforces nothing', async () => {
+    const approval = pendingApproval('identity-absent', 'ia');
+    const store = fakeStore(approval);
+    const graph = { appendAuditEvent: () => ({ auditId: 'audit-ia' }) };
+    const admission = createMutationAdmission({
+      identityEvaluator: absent(ABSENCE_REASONS.identityClaim),
+    });
+    const recordAudit = createIngestApprovalAuditWriter({
+      graph, admission, hashResult: () => 'result-hash',
+    });
+
+    const outcome = await decideIngestApproval(deps({ store, recordAudit }));
+
+    assert.equal(outcome.status, 200);
+    const finalizedReceipt = store.calls.finalized[0].receipt;
+    assert.equal(finalizedReceipt.identityState, 'absent');
+    assert.equal(finalizedReceipt.identityReason, ABSENCE_REASONS.identityClaim);
+  });
+
+  it('stamps enforcement when the audit seam judges identity', async () => {
+    const approval = pendingApproval('identity-enforced', 'ie');
+    const store = fakeStore(approval);
+    const graph = { appendAuditEvent: () => ({ auditId: 'audit-ie' }) };
+    const admission = createMutationAdmission({
+      identityEvaluator: () => ({ decision: 'allow', allowed: true }),
+    });
+    const recordAudit = createIngestApprovalAuditWriter({
+      graph, admission, hashResult: () => 'result-hash',
+    });
+
+    const outcome = await decideIngestApproval(deps({ store, recordAudit }));
+
+    assert.equal(outcome.status, 200);
+    const finalizedReceipt = store.calls.finalized[0].receipt;
+    assert.equal(finalizedReceipt.identityState, 'enforced');
+    assert.equal(Object.hasOwn(finalizedReceipt, 'identityReason'), false);
   });
 });

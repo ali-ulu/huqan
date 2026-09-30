@@ -175,3 +175,62 @@ test('routed caller: admission errors stay distinguishable', () => {
   // ordinary write failure without parsing a message.
   assert.equal(ADMISSION_ERRORS.CONTEXT_INVALID, 'admission.context_invalid');
 });
+
+// ─── #3042: the audit record names the identity state it was written in ──────
+
+test('routed caller: an unenforced seam marks the receipt and the evidence as a declared absence (#3042)', () => {
+  const { graph, record } = makeWriter();
+  const receipt = { ...RECEIPT };
+
+  record(APPROVAL, receipt, { plugin: 'output' });
+
+  // The receipt is finalized by the action owner before this write runs, so the
+  // posture is what it can name -- and it must never name `enforced`.
+  const posture = record.identityPosture();
+  assert.equal(posture.identityState, 'absent');
+  assert.match(posture.identityReason, /no identity claim/);
+  // The audit event and the evidence event both carry the state, so neither
+  // durable record can be read as an identity-enforced write.
+  assert.equal(graph.writes[0].event.details.identityState, 'absent');
+  assert.match(graph.writes[0].event.details.identityReason, /no identity claim/);
+  assert.equal(graph.writes[0].event.details.executionGuarantee, 'bounded_action_outcome');
+});
+
+test('routed caller: an enforced seam marks the receipt and the evidence as enforced (#3042)', () => {
+  const graph = makeGraph();
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: () => ({ decision: 'allow', allowed: true }),
+  });
+  const record = createIngestApprovalAuditWriter({ graph, admission, hashResult: () => 'result-hash' });
+  const receipt = { ...RECEIPT };
+
+  record(APPROVAL, receipt, { plugin: 'output' });
+
+  assert.equal(record.identityPosture().identityState, 'enforced');
+  assert.equal(graph.writes[0].event.details.identityState, 'enforced');
+  assert.equal(Object.hasOwn(graph.writes[0].event.details, 'identityReason'), false);
+});
+
+test('routed caller: the identity state reaches the ledger evidence payload (#3042)', () => {
+  const graph = makeGraph();
+  const appended = [];
+  const ledger = {
+    append({ operationId, event, mutate }) {
+      const result = mutate();
+      appended.push({ operationId, event });
+      return { receipt: { receiptId: 'trust-receipt-1' }, result };
+    },
+  };
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('ledger seam: no claim reaches this caller') });
+  const record = createIngestApprovalAuditWriter({ graph, admission, hashResult: () => 'result-hash', ledger });
+
+  const recorded = record(APPROVAL, { ...RECEIPT }, { plugin: 'output' });
+
+  assert.equal(recorded.trustReceiptId, 'trust-receipt-1');
+  assert.equal(appended.length, 1);
+  // The ledger event is the evidence an operator reads later; the state has to
+  // be in its metadata or the durable trail cannot tell the two apart.
+  assert.equal(appended[0].event.metadata.identityState, 'absent');
+  assert.match(appended[0].event.metadata.identityReason, /no identity claim/);
+});

@@ -20,6 +20,8 @@ const test = require('node:test');
 const {
   ADMISSION_ERRORS,
   CONTEXT_FIELDS,
+  IDENTITY_POLICIES,
+  IDENTITY_STATES,
   absent,
   createMutationAdmission,
   isAbsent,
@@ -286,5 +288,130 @@ test('admission: identity evaluator configuration rejects non-functions', () => 
   assert.throws(
     () => createMutationAdmission({ identityEvaluator: 'not-a-function' }),
     /admission\.identity_evaluator_invalid/,
+  );
+});
+
+// ─── #3042: the decision carries the identity state it was reached in ────────
+
+test('admission: an unenforced seam reports the declared absence on the decision (#3042)', () => {
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('no receiver-owned claim reaches this surface yet') });
+
+  const outcome = admission.admit(completeContext(), () => 'written');
+
+  assert.equal(outcome.admitted, true);
+  assert.equal(outcome.identityState, IDENTITY_STATES.ABSENT);
+  // The reason is the context's declared absence, which is the specific fact
+  // the decision was reached on; the seam's construction reason is separate.
+  assert.equal(outcome.identityReason, 'no caller carries an identity claim yet');
+  // The seam itself says the same thing, so a caller that reads the seam before
+  // admitting is not left to infer it.
+  assert.equal(admission.identityEnforced, false);
+  assert.equal(admission.identityState, IDENTITY_STATES.ABSENT);
+  assert.equal(admission.identityReason, 'no receiver-owned claim reaches this surface yet');
+});
+
+test('admission: an enforced seam reports enforcement on the decision (#3042)', () => {
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: () => ({ decision: 'allow', allowed: true }),
+  });
+
+  const outcome = admission.admit(completeContext(), () => 'written');
+
+  assert.equal(outcome.identityState, IDENTITY_STATES.ENFORCED);
+  // An enforced admission has no declared-absence reason to carry.
+  assert.equal(Object.hasOwn(outcome, 'identityReason'), false);
+  assert.equal(admission.identityState, IDENTITY_STATES.ENFORCED);
+});
+
+test('admission: a real claim with no evaluator is not_evaluated, not absent (#3042)', () => {
+  // The third case. A real claim reached the seam but no evaluator judged it,
+  // so reporting `absent` would name the opposite of what happened.
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('no evaluator wired here') });
+
+  const outcome = admission.admit(
+    completeContext({ identityClaim: { kind: 'identity', ref: 'r1' } }),
+    () => 'written',
+  );
+
+  assert.equal(outcome.admitted, true);
+  assert.equal(outcome.identityState, IDENTITY_STATES.NOT_EVALUATED);
+  assert.equal(Object.hasOwn(outcome, 'identityReason'), false);
+});
+
+test('admission: a refusal carries no admitted identity state (#3042)', () => {
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: () => ({ decision: 'block', allowed: false, reason: 'identity.workspace_mismatch' }),
+  });
+
+  const outcome = admission.admit(completeContext(), () => 'never');
+
+  // The field exists only on an admitted decision; a refusal must not be read
+  // as an admitted mutation with an odd state.
+  assert.equal(outcome.admitted, false);
+  assert.equal(Object.hasOwn(outcome, 'identityState'), false);
+});
+
+test('admission: the mutation receives the identity state that admitted it (#3042)', () => {
+  // The durable record is written inside `mutate`, so the state has to reach it
+  // there -- reading the returned decision afterwards is too late.
+  const admission = createMutationAdmission({ clock: FIXED_CLOCK, identityEvaluator: absent('declared at this surface') });
+  let seen = null;
+
+  admission.admit(completeContext(), (decision) => { seen = decision; return 'written'; });
+
+  assert.equal(seen.identityState, IDENTITY_STATES.ABSENT);
+  // The decision reports the absence declared in the context it admitted, which
+  // is the specific fact; the seam's own construction reason is separate.
+  assert.equal(seen.identityReason, 'no caller carries an identity claim yet');
+  assert.equal(admission.identityReason, 'declared at this surface');
+  assert.equal(Object.isFrozen(seen), true);
+});
+
+// ─── #3042: the fail-closed policy for a declared absence ────────────────────
+
+test('admission: a required policy refuses a declared absence before the mutation (#3042)', () => {
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: absent('this critical path has not wired an evaluator yet'),
+    identityPolicy: IDENTITY_POLICIES.REQUIRED,
+  });
+  let called = false;
+
+  const outcome = admission.admit(completeContext(), () => { called = true; });
+
+  assert.equal(outcome.admitted, false);
+  assert.equal(outcome.reason, ADMISSION_ERRORS.IDENTITY_REQUIRED);
+  // The reason carried out is the context's own declared absence, which is the
+  // fact being refused -- not the seam's construction reason.
+  assert.equal(outcome.detail, 'no caller carries an identity claim yet');
+  assert.equal(called, false, 'a required policy must not reach the effect');
+});
+
+test('admission: a required policy is refused on an enforced seam (#3042)', () => {
+  // The two axes would contradict each other: an enforced seam has already
+  // decided identity is judged, so a "require identity" policy is meaningless.
+  assert.throws(
+    () => createMutationAdmission({
+      identityEvaluator: () => ({ decision: 'allow', allowed: true }),
+      identityPolicy: IDENTITY_POLICIES.REQUIRED,
+    }),
+    /admission\.identity_policy_conflict/,
+  );
+});
+
+test('admission: an unknown identity policy is refused (#3042)', () => {
+  for (const policy of ['bogus', '', null, 42]) {
+    assert.throws(
+      () => createMutationAdmission({ identityEvaluator: absent('x'), identityPolicy: policy }),
+      /admission\.identity_policy_invalid/,
+      `identityPolicy: ${JSON.stringify(policy)}`,
+    );
+  }
+  // `optional` is the default, so an omitted policy is valid.
+  assert.equal(
+    createMutationAdmission({ identityEvaluator: absent('x') }).identityPolicy,
+    IDENTITY_POLICIES.OPTIONAL,
   );
 });

@@ -104,6 +104,13 @@ function captureWrite(approval, receipt, result) {
  * This is the only honest way to compare against something that no longer
  * exists: state its output explicitly, so that "the payload is preserved" is a
  * comparison rather than a memory. Kept deliberately literal.
+ *
+ * #3042 is the one deliberate change to this payload since: the audit event now
+ * names the identity state it was written in, so a declared-absence write
+ * cannot read as an enforced one. The state comes from the admission decision,
+ * so the reason is the *context's* declared absence -- why this mutation's
+ * identity claim is absent -- not the seam's own wiring reason. That is the
+ * fact specific to the write being recorded.
  */
 function eventTheDeletedWriterProduced(approval, receipt, result) {
   const snapshot = approval.context?.snapshot || {};
@@ -118,6 +125,8 @@ function eventTheDeletedWriterProduced(approval, receipt, result) {
         pluginResultRef: result ? sha256(result) : '',
         actionOutcome: receipt.actionOutcome || '',
         executionGuarantee: 'bounded_action_outcome',
+        identityState: 'absent',
+        identityReason: 'ingest approval decisions carry no identity claim; the approving actor is not modelled yet',
       },
     },
     opts: { workspaceId: snapshot.workspaceId },
