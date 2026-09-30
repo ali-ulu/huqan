@@ -155,7 +155,12 @@ function digests(results) {
 function assertGolden(results, mode) {
   const actual = digests(results);
   if (process.env.UPDATE_MEMORY_READ_GOLDEN === '1') {
-    const current = fs.existsSync(GOLDEN_PATH) ? JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8')) : {};
+    let current = {};
+    try {
+      current = JSON.parse(fs.readFileSync(GOLDEN_PATH, 'utf8'));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
     fs.writeFileSync(GOLDEN_PATH, `${JSON.stringify({
       note: 'sha256 of JSON.stringify(result) per event read, per mode, recorded on origin/main (full in-memory event array) before #3208 slice 2. Regenerate only if a read contract changes on purpose: UPDATE_MEMORY_READ_GOLDEN=1 node --test test/memory-store-sqlite-events.test.js',
       digests: { ...(current.digests || {}), [mode]: actual },
