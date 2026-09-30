@@ -276,7 +276,12 @@ test('workflow runs the selected suite on Ubuntu and Windows for PRs and main pu
   assert.match(job, /node-version: \$\{\{ fromJSON\(\(github\.event_name == 'schedule'/);
   assert.match(job, /\[22, 24\]/);
   assert.doesNotMatch(job, /event_name != 'push'/);
-  assert.match(job, /max-parallel: 2/);
+  // Every leg starts at once; the #2450 burst of transient 403s is met by a
+  // single retry of the plan download instead of serializing the matrix.
+  assert.match(job, /max-parallel: 10/);
+  assert.match(job, /id: plan-download\r?\n\s+continue-on-error: true/);
+  assert.match(job, /if: steps\.plan-download\.outcome == 'failure'\r?\n\s+run: sleep 15/);
+  assert.match(job, /- name: Retry impact plan download\r?\n\s+if: steps\.plan-download\.outcome == 'failure'\r?\n\s+uses: actions\/download-artifact@/);
   assert.match(job, /shell: bash/);
   assert.match(job, /TEST_RESULT: \$\{\{ needs\['runtime-test'\]\.result \}\}/);
   assert.match(job, /test-timings-\$\{\{ matrix\.os \}\}-node-\$\{\{ matrix\.node-version \}\}-shard-\$\{\{ matrix\.shard \}\}-attempt-\$\{\{ github\.run_attempt \}\}/);
