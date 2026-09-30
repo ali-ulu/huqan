@@ -20,10 +20,12 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // _dirtyOrCreate, _nextSaveMode, _checkpointEvery and _afterSave for the
 // incremental-save delta bookkeeping. #3017 added three internal vector-index
 // helpers (_vectorIndexOrCreate, _indexVectorNode, _deindexVectorNode) plus the
-// public similarityCandidateIds reader (via lib/graph-read-methods.js). The
+// public similarityCandidateIds reader (via lib/graph-read-methods.js). #3188
+// added the two public seal readers getMutationReceiptSealByHash and
+// getMutationReceiptSealByOperation (via lib/graph-journal-methods.js). The
 // public method names above are unchanged.
 
-const MAIN_SURFACE = { count: 91, sha256: 'bd5b6e978211cd5907917fc10532444cdc04f2c1a4f67ed8e21df6ece07c6ec2' };
+const MAIN_SURFACE = { count: 93, sha256: '6535254db7cdf7be766af331b58d9d2adf6c7f3aebabaf34751857e838cf916e' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;
