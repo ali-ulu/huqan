@@ -88,6 +88,7 @@
       "lib/agent-run-finalization.js": "Core",
       "lib/agent-run-guidance.js": "Core",
       "lib/agent-step-executor.js": "Core",
+      "lib/agent-step-progression.js": "Core",
       "lib/agent-v3-approval-methods.js": "Core",
       "lib/agent-v3-budget-methods.js": "Core",
       "lib/agent-v3-dream-loop-adapter.js": "Core",
@@ -166,6 +167,8 @@
       "lib/cli-coder.js": "Core",
       "lib/cli-command-handlers.js": "Core",
       "lib/cli-company-ingest.js": "Core",
+      "lib/cli-conflicts-command.js": "Core",
+      "lib/cli-conflicts.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-experience-read.js": "Core",
       "lib/cli-experience-reconcile.js": "Core",
@@ -188,6 +191,7 @@
       "lib/cli-trust-receipt.js": "Core",
       "lib/cli-workflow-adapter.js": "Core",
       "lib/cli-workflow-envelope.js": "Core",
+      "lib/code-anchor.js": "Core",
       "lib/code-change-blast-radius.js": "Core",
       "lib/code-change-decision-summary.js": "Core",
       "lib/code-change-file-classifier.js": "Core",
@@ -201,12 +205,14 @@
       "lib/coder/journal-store.js": "Application",
       "lib/coder/observed-verification.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
+      "lib/coder/verify-ocr.js": "Application",
       "lib/collector-seal-config.js": "Core",
       "lib/command-allowlist-miner.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
       "lib/command-exec-gate-targets.js": "Core",
       "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
+      "lib/command-parser-review-args.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/command-shape-log.js": "Core",
@@ -384,6 +390,7 @@
       "lib/gate-hook-input.js": "Core",
       "lib/gate-hook-management.js": "Core",
       "lib/gate-hook-reports.js": "Core",
+      "lib/gate-outcome-history.js": "Core",
       "lib/gate-outcome-projection.js": "Core",
       "lib/gate-telemetry.js": "Core",
       "lib/github-app-beta-auth.js": "Core",
@@ -459,6 +466,8 @@
       "lib/graph-store-adapters.js": "Core",
       "lib/graph-store-port.js": "Core",
       "lib/graph-traversal.js": "Core",
+      "lib/graph-vector-index.js": "Core",
+      "lib/graph-vector-nearest.js": "Core",
       "lib/graph-write-methods.js": "Core",
       "lib/http-human-oversight-adapter-identity.js": "Core",
       "lib/http-human-oversight-adapter-input.js": "Core",
@@ -477,6 +486,7 @@
       "lib/http/experience-read-route.js": "UI",
       "lib/http/external-action-receipt-collector-route.js": "UI",
       "lib/http/fitness-dashboard-route.js": "UI",
+      "lib/http/github-app-ingest-submitter.js": "UI",
       "lib/http/graceful-shutdown.js": "UI",
       "lib/http/http-provenance.js": "UI",
       "lib/http/identity-mutation-admission.js": "UI",
@@ -687,6 +697,7 @@
       "lib/memory-admission-gate.js": "Adapters",
       "lib/memory-blast-radius.js": "Adapters",
       "lib/memory-event-read.js": "Adapters",
+      "lib/memory-event-source.js": "Adapters",
       "lib/memory-link-read.js": "Adapters",
       "lib/memory-link-write.js": "Adapters",
       "lib/memory-mutation-gate/index.js": "Adapters",
@@ -702,6 +713,7 @@
       "lib/memory-patch-metadata.js": "Adapters",
       "lib/memory-persistence-paths.js": "Adapters",
       "lib/memory-query-engine.js": "Adapters",
+      "lib/memory-query-sqlite.js": "Adapters",
       "lib/memory-recall-gate.js": "Adapters",
       "lib/memory-record-read.js": "Adapters",
       "lib/memory-record-utils.js": "Adapters",
@@ -718,6 +730,9 @@
       "lib/memory-store-read-methods.js": "Adapters",
       "lib/memory-store-reopen.js": "Adapters",
       "lib/memory-store-rollback.js": "Adapters",
+      "lib/memory-store-sqlite-collection.js": "Adapters",
+      "lib/memory-store-sqlite-events.js": "Adapters",
+      "lib/memory-store-sqlite-row.js": "Adapters",
       "lib/memory-store-sqlite-warmup.js": "Adapters",
       "lib/memory-store-sqlite-writer.js": "Adapters",
       "lib/memory-store-utils.js": "Adapters",
@@ -1269,6 +1284,7 @@
         "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
+        "lib/agent-step-progression.js",
         "lib/agent-v3-approval-methods.js",
         "lib/agent-v3-budget-methods.js",
         "lib/agent-v3-dream-loop-adapter.js",
@@ -1357,7 +1373,8 @@
       ],
       "github-app-server.js": [
         "lib/environment-compat.js",
-        "lib/github-app-beta-http-boundary.js"
+        "lib/github-app-beta-http-boundary.js",
+        "lib/http/github-app-ingest-submitter.js"
       ],
       "graph.js": [
         "lib/graph-consolidate-edges.js",
@@ -1368,6 +1385,7 @@
         "lib/graph-record-utils.js",
         "lib/graph-sqlite-schema.js",
         "lib/graph-store-adapters.js",
+        "lib/graph-vector-index.js",
         "lib/graph-write-methods.js",
         "lib/memory-store-utils.js",
         "lib/receipt/receipt-chain.js",
@@ -1615,11 +1633,15 @@
         "lib/agent-memory-persistence.js",
         "lib/agent-memory-state.js",
         "lib/agent-run-guidance.js",
+        "lib/agent-step-progression.js",
         "lib/behavioral-stop-bridge.js",
         "lib/emergency-stop.js",
         "lib/gate-telemetry.js",
         "lib/goal-binding.js",
         "toolPolicy.js"
+      ],
+      "lib/agent-step-progression.js": [
+        "lib/agent-memory-state.js"
       ],
       "lib/agent-v3-budget-methods.js": [
         "lib/agent-v3-loop-budget.js"
@@ -1876,7 +1898,8 @@
         "lib/cli-coder-verify.js",
         "lib/coder/apply-derivation.js",
         "lib/coder/derivation-record.js",
-        "lib/coder/journal-store.js"
+        "lib/coder/journal-store.js",
+        "lib/coder/verify-ocr.js"
       ],
       "lib/cli-command-handlers.js": [
         "lib/cli-agent-commands.js",
@@ -1884,6 +1907,7 @@
         "lib/cli-backup-commands.js",
         "lib/cli-capability-commands.js",
         "lib/cli-company-ingest.js",
+        "lib/cli-conflicts-command.js",
         "lib/cli-experience-read.js",
         "lib/cli-experience-reconcile.js",
         "lib/cli-help.js",
@@ -1892,6 +1916,13 @@
       ],
       "lib/cli-company-ingest.js": [
         "lib/cli-helpers.js"
+      ],
+      "lib/cli-conflicts-command.js": [
+        "lib/cli-conflicts.js",
+        "lib/cli-mutation-gate.js"
+      ],
+      "lib/cli-conflicts.js": [
+        "lib/conflict-candidate-review.js"
       ],
       "lib/cli-doctor.js": [
         "lib/api-auth-opt-out.js",
@@ -2044,6 +2075,7 @@
       ],
       "lib/command-allowlist-miner.js": [
         "lib/action-risk-classifier.js",
+        "lib/gate-outcome-history.js",
         "lib/is-plain-object.js"
       ],
       "lib/command-exec-gate-structure.js": [
@@ -2060,7 +2092,8 @@
         "lib/command-exec-gate-vocabulary.js"
       ],
       "lib/command-parser.js": [
-        "lib/cli-workflow-adapter.js"
+        "lib/cli-workflow-adapter.js",
+        "lib/command-parser-review-args.js"
       ],
       "lib/command-policy-editor.js": [
         "lib/external-action-envelope.js"
@@ -2686,12 +2719,15 @@
         "lib/gate-hook-input.js",
         "lib/residency-rule-miner.js"
       ],
+      "lib/gate-outcome-history.js": [
+        "lib/is-plain-object.js"
+      ],
       "lib/gate-outcome-projection.js": [
         "lib/evidence-ladder.js",
         "lib/external-action-receipt-outcome.js",
         "lib/external-action-receipt-reader.js",
-        "lib/is-plain-object.js",
-        "lib/residency-rule-miner.js"
+        "lib/gate-outcome-history.js",
+        "lib/is-plain-object.js"
       ],
       "lib/gate-telemetry.js": [
         "lib/observability/kernel-sink.js"
@@ -2935,7 +2971,9 @@
         "lib/graph-query-read.js",
         "lib/graph-record-utils.js",
         "lib/graph-stats.js",
-        "lib/graph-store-adapters.js"
+        "lib/graph-store-adapters.js",
+        "lib/graph-vector-index.js",
+        "lib/graph-vector-nearest.js"
       ],
       "lib/graph-record-utils-edges.js": [
         "lib/is-plain-object.js"
@@ -2971,6 +3009,13 @@
         "lib/graph-chain-traversal.js",
         "lib/graph-cycle-search.js",
         "lib/graph-path-search.js"
+      ],
+      "lib/graph-vector-index.js": [
+        "lib/graph-record-utils.js"
+      ],
+      "lib/graph-vector-nearest.js": [
+        "lib/graph-record-utils.js",
+        "lib/graph-vector-index.js"
       ],
       "lib/graph-write-methods.js": [
         "lib/graph-candidate-claims-write.js",
@@ -3050,6 +3095,11 @@
         "lib/http/structured-log.js",
         "lib/hypothesis-thresholds.js",
         "scripts/fitness-dashboard.js"
+      ],
+      "lib/http/github-app-ingest-submitter.js": [
+        "lib/environment-compat.js",
+        "lib/http/ingest-approval-runtime.js",
+        "lib/kernel-factory.js"
       ],
       "lib/http/identity-mutation-admission.js": [
         "lib/agent-identity-runtime.js",
@@ -3889,6 +3939,7 @@
         "lib/risk-scale.js"
       ],
       "lib/memory-event-read.js": [
+        "lib/memory-event-source.js",
         "lib/memory-record-utils.js",
         "lib/memory-store-utils.js"
       ],
@@ -3935,6 +3986,7 @@
         "lib/text-utils.js"
       ],
       "lib/memory-package-export.js": [
+        "lib/memory-event-source.js",
         "lib/memory-record-utils.js",
         "lib/memory-schema.js",
         "lib/memory-store-utils.js"
@@ -3945,6 +3997,7 @@
         "lib/memory-store-utils.js"
       ],
       "lib/memory-package-import.js": [
+        "lib/memory-event-source.js",
         "lib/memory-schema.js"
       ],
       "lib/memory-patch-metadata.js": [
@@ -3961,6 +4014,10 @@
         "lib/memory-recall-gate.js",
         "lib/memory-record-utils.js",
         "lib/memory-store-utils.js"
+      ],
+      "lib/memory-query-sqlite.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-store-sqlite-writer.js"
       ],
       "lib/memory-recall-gate.js": [
         "lib/is-plain-object.js"
@@ -4016,6 +4073,7 @@
         "lib/memory-link-read.js",
         "lib/memory-package-export.js",
         "lib/memory-query-engine.js",
+        "lib/memory-query-sqlite.js",
         "lib/memory-record-read.js",
         "lib/memory-store-method-install.js",
         "lib/memory-temporal.js"
@@ -4024,10 +4082,24 @@
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
       ],
-      "lib/memory-store-sqlite-warmup.js": [
+      "lib/memory-store-sqlite-collection.js": [
+        "lib/memory-store-sqlite-row.js"
+      ],
+      "lib/memory-store-sqlite-events.js": [
+        "lib/memory-store-sqlite-collection.js",
+        "lib/memory-store-sqlite-row.js"
+      ],
+      "lib/memory-store-sqlite-row.js": [
         "lib/memory-schema.js"
       ],
+      "lib/memory-store-sqlite-warmup.js": [
+        "lib/memory-schema.js",
+        "lib/memory-store-sqlite-collection.js",
+        "lib/memory-store-sqlite-events.js",
+        "lib/memory-store-sqlite-row.js"
+      ],
       "lib/memory-store-sqlite-writer.js": [
+        "lib/memory-schema-normalize.js",
         "lib/memory-schema.js",
         "lib/memory-store-utils.js",
         "lib/sqlite-availability.js",
@@ -4466,6 +4538,7 @@
         "lib/provenance-ingest.js"
       ],
       "lib/residency-rule-miner.js": [
+        "lib/gate-outcome-history.js",
         "lib/is-plain-object.js"
       ],
       "lib/risk-classify-normalize.js": [
