@@ -90,12 +90,17 @@ test('the published HTP 0.2 bundle contract specifies no attestation field', () 
   const published = read('specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md');
   assert.doesNotMatch(published, /bundleSignature/,
     'HTP 0.2 documents no issuer signature; adding one is a protocol decision, not a doc edit');
+  // Match the signature identifier, not the word: a prose mention of
+  // "signature" in a comment is not signature support, and asserting on the
+  // bare word would fail on a harmless edit.
   const verifier = read('specs/huqan-trust-protocol/0.2/conformance/verify_bundle.py');
-  assert.doesNotMatch(verifier, /signature/,
+  assert.doesNotMatch(verifier, /bundleSignature|receipt-bundle-signature/,
     'the published 0.2 verifier implements no signature check');
   // The legacy copy does carry it, which is why the gap is specific to the
   // published lineage and not a missing capability.
   assert.match(read('specs/axiom-trust-protocol/0.1/RECEIPT-BUNDLE.md'), /bundleSignature/);
+  assert.match(read('specs/axiom-trust-protocol/0.1/conformance/verify_bundle.py'),
+    /bundleSignature/);
 });
 
 test('the boundary record names both blocked cells with their reopen conditions', () => {
