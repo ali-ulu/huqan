@@ -35,10 +35,14 @@ const SECRET = 'github-app-server-ingest-wiring-secret';
 const DELIVERY = '1f0f4e6a-1d3c-4b3e-9a2f-2b6f6a1c0d3e';
 const SHA = 'c'.repeat(40);
 
-function tempRoot(t) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-app-ingest-')));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  return root;
+function tempRoot() {
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-app-ingest-')));
+}
+
+function removeTempRoot(root) {
+  // Windows refuses to unlink an open SQLite file (EBUSY), so every store must
+  // be closed before this runs; callers register it in one ordered teardown.
+  fs.rmSync(root, { recursive: true, force: true });
 }
 
 function environment(root) {
@@ -84,17 +88,21 @@ function fakeRequest(body) {
 
 // The production server, built exactly as `require.main` builds it -- no
 // injected boundary and no injected callback -- but without binding a port.
-function productionServer(t) {
-  const server = createProductionServer({ environment: environment(tempRoot(t)) });
+// Teardown closes every store before the temp root is removed (Windows EBUSY).
+function productionServer(t, root) {
+  const server = createProductionServer({ environment: environment(root) });
+  const submitter = server.ingestSubmitter;
   t.after(() => {
-    if (server.ingestSubmitter) server.ingestSubmitter.close();
-    if (server.ingestSubmitter) server.ingestSubmitter.kernel.graph.close();
+    submitter.close();
+    submitter.kernel.graph.close();
+    removeTempRoot(root);
   });
   return server;
 }
 
 test('the production server queues a durable pending ingest approval', async (t) => {
-  const server = productionServer(t);
+  const root = tempRoot();
+  const server = productionServer(t, root);
   assert.ok(server.ingestSubmitter, 'the production server must wire a repo-ingest submitter');
 
   const body = Buffer.from(JSON.stringify(pullRequestPayload()), 'utf8');
@@ -112,10 +120,10 @@ test('the production server queues a durable pending ingest approval', async (t)
   // Durable: the approval is in the same store a human would decide from, not
   // only in the HTTP response.
   const storage = new HuqanStorage({ kernel: server.ingestSubmitter.kernel });
-  t.after(() => storage.close());
   const pending = storage.listPendingToolApprovals(20, 'default');
-  assert.strictEqual(pending.length, 1);
   const context = JSON.parse(pending[0].context_json);
+  storage.close();
+  assert.strictEqual(pending.length, 1);
   assert.strictEqual(pending[0].tool, 'http.ingest');
   assert.strictEqual(pending[0].decision, 'review');
   assert.strictEqual(context.snapshot.sourceType, 'github');
@@ -123,7 +131,8 @@ test('the production server queues a durable pending ingest approval', async (t)
 });
 
 test('a repeated delivery is idempotent and does not queue a second approval', async (t) => {
-  const server = productionServer(t);
+  const root = tempRoot();
+  const server = productionServer(t, root);
 
   const body = Buffer.from(JSON.stringify(pullRequestPayload()), 'utf8');
   const first = await server.boundary.handle(fakeRequest(body));
@@ -138,8 +147,9 @@ test('a repeated delivery is idempotent and does not queue a second approval', a
   );
 
   const storage = new HuqanStorage({ kernel: server.ingestSubmitter.kernel });
-  t.after(() => storage.close());
-  assert.strictEqual(storage.listPendingToolApprovals(20, 'default').length, 1);
+  const pending = storage.listPendingToolApprovals(20, 'default');
+  storage.close();
+  assert.strictEqual(pending.length, 1);
 });
 
 test('an injected boundary keeps its own queueing decision', () => {
