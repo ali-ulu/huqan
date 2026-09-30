@@ -149,6 +149,31 @@ function terminatePid(pid, signal) {
 }
 
 /**
+ * Fell the tree under `rootPid` without a process table (Windows only).
+ *
+ * The CIM probe times out on a loaded leg and reports no rows for a tree that
+ * is demonstrably alive; `taskkill /T` kills by parentage instead of by list,
+ * so it needs no table. Best-effort: failure leaves the per-pid signals as
+ * the backstop, never a thrown error. Kept beside (not inside)
+ * scripts/shard-hang-diagnostics.js for the same reason the table parser is
+ * duplicated there: that module is a CI entrypoint, this one is a test helper
+ * a smoke can require.
+ */
+function taskkillTree(rootPid) {
+  if (process.platform !== 'win32') return false;
+  try {
+    const result = spawnSync('taskkill', ['/PID', String(rootPid), '/T', '/F'], {
+      encoding: 'utf8',
+      timeout: PROCESS_PROBE_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    return !result.error && result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Terminate the browser this helper launched and every descendant it left
  * behind, then wait (bounded) for the tree to actually be gone.
  *
@@ -158,7 +183,18 @@ function terminatePid(pid, signal) {
  * the smoke's process alive.
  */
 async function killProcessTree(child) {
-  const descendants = collectDescendants(readProcessTable(), child.pid);
+  // One retry for a blind probe: the CIM query times out on a loaded leg and
+  // reports no rows for a demonstrably alive tree, and a second read a beat
+  // later usually sees it. Only a twice-blind probe kills by parentage, which
+  // needs no table; `descendants` then stays empty so the caller still sees
+  // the probe contributed nothing.
+  let rows = readProcessTable();
+  if (rows.length === 0) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    rows = readProcessTable();
+  }
+  const descendants = collectDescendants(rows, child.pid);
+  if (rows.length === 0) taskkillTree(child.pid);
   const signalAll = signal => {
     // Children before their parents, so a killed parent cannot orphan and hide
     // the descendants still to be signalled in a re-read of the table.
@@ -171,7 +207,7 @@ async function killProcessTree(child) {
   // Reap the parent so its exit event fires even when the tree was already gone.
   try { child.kill('SIGKILL'); } catch { /* already dead */ }
   await waitForExit(child, KILL_GRACE_MS);
-  return { descendants, stragglers: [child.pid, ...descendants].filter(isAlive) };
+  return { descendants, stragglers: [child.pid, ...descendants].filter(isAlive), probedRows: rows.length };
 }
 
 function waitForExit(child, timeoutMs) {

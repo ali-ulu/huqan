@@ -92,8 +92,12 @@ function closeStore(store) {
 }
 
 function snapshotStore(store) {
+  const memories = Array.from(store._memories.values());
+  // #3208: the SQLite backend keeps no event array; read the same events
+  // through the public timeline, per workspace, unbounded.
+  const workspaces = [...new Set(memories.map((m) => m.workspaceId))];
   return {
-    memories: Array.from(store._memories.values()).map((m) => ({
+    memories: memories.map((m) => ({
       memoryId: m.memoryId,
       workspaceId: m.workspaceId,
       content: m.content,
@@ -103,7 +107,7 @@ function snapshotStore(store) {
       trustPolicyVersion: m.trustPolicyVersion,
       provenance: m.provenance,
     })),
-    events: store._events,
+    events: workspaces.flatMap((workspaceId) => store.timeline({ workspaceId, limit: null }).events),
     links: store._links,
   };
 }

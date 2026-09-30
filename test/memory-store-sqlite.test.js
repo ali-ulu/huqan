@@ -930,13 +930,20 @@ describe('reopen() after restore replaces the backing file (#1864)', () => {
     store.close();
   });
 
-  it('a failed reload keeps the previous cache instead of a partial one', () => {
+  // #3208: SQLite is the only full copy of the records, so a failed reload can
+  // no longer fall back to a resident mirror. It still never exposes a partial
+  // view: reads fail closed until a reopen against a valid file succeeds.
+  it('a failed reload serves no partial cache and recovers on the next good reopen', () => {
     const dbPath = getDbPath('reopen-failure');
     const store = new MemoryStore({ useSQLite: true, dbPath });
     assert.strictEqual(store.store({ content: 'keep me', workspaceId: 'ws1' }).ok, true);
     store.close();
+    const good = fs.readFileSync(dbPath);
     fs.writeFileSync(dbPath, 'not a database');
     assert.throws(() => store.reopen());
+    assert.throws(() => store.list({ workspaceId: 'ws1' }), { code: 'MEMORY_STORE_CLOSED' });
+    fs.writeFileSync(dbPath, good);
+    store.reopen();
     assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, 1);
     assert.strictEqual(store.list({ workspaceId: 'ws1' }).memories[0].content, 'keep me');
     store.close();

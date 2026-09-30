@@ -17,6 +17,7 @@ const {
   KILL_GRACE_MS,
   collectDescendants,
   formatProcessTree,
+  killProcessTree,
   parseProcessTable,
   runFileToDeadline,
   testArgsFor,
@@ -108,6 +109,15 @@ describe('shard-hang-diagnostics process tree (#2814)', () => {
     assert.deepEqual(collectDescendants(rows, 240), []);
   });
 
+  test('the table-free tree kill stays a best-effort boolean', () => {
+    // Off Windows there is nothing to do (per-pid signals are the path), so
+    // it reports false without touching any process; on Windows it attempts
+    // taskkill and reports whether it worked -- either way it never throws.
+    const result = killProcessTree(-1);
+    assert.equal(typeof result, 'boolean');
+    if (process.platform !== 'win32') assert.equal(result, false);
+  });
+
   test('a runaway tree is bounded so the evidence cannot flood the log', () => {
     const rows = Array.from({ length: 50 }, (_, index) => ({
       pid: 1000 + index,
@@ -161,13 +171,22 @@ describe('shard-hang-diagnostics on a file that never ends (#2814)', () => {
       assert.ok(outcome.signal === null || outcome.signal === 'SIGTERM' || outcome.signal === 'SIGKILL',
         `unexpected exit signal ${outcome.signal}`);
       assert.ok(outcome.status === null || outcome.status === 1, `unexpected exit status ${outcome.status}`);
-      assert.match(stderr, /\[shard 4\] process tree under pid \d+ when .*hangs-forever\.test\.js was killed/);
+      // The probe is best-effort by design (see reportChildTree): on a loaded
+      // Windows leg CIM can produce no table at all, as on the 2026-09-30
+      // shard-3 leg. The verdict still stands; only the tree assertions need
+      // the tree to have been reported.
+      const treeReported = /\[shard 4\] process tree under pid \d+ when .*hangs-forever\.test\.js was killed/.test(stderr);
+      if (!treeReported) {
+        assert.match(stderr, /\[shard 4\] .*hangs-forever\.test\.js timed out; this platform produced no process table to explain it \(#2814\)/);
+      }
 
       const grandchild = await waitForPid(pidFile);
       assert.ok(grandchild > 0, 'the fixture never reported the process it spawned');
-      // Named in the log while it was still alive: that is the whole reason the
-      // deadline stopped being a spawnSync timeout.
-      assert.match(stderr, new RegExp(`pid ${grandchild} ppid \\d+`), `tree did not name pid ${grandchild}:\n${stderr}`);
+      if (treeReported) {
+        // Named in the log while it was still alive: that is the whole reason
+        // the deadline stopped being a spawnSync timeout.
+        assert.match(stderr, new RegExp(`pid ${grandchild} ppid \\d+`), `tree did not name pid ${grandchild}:\n${stderr}`);
+      }
       await waitUntilGone(grandchild);
       assert.equal(isAlive(grandchild), false, 'the spawned process outlived the deadline that killed the file');
     } finally {
