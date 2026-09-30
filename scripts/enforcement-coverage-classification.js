@@ -191,6 +191,10 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure',
   }),
+  'lib/coder/verify-ocr.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'spawns `ocr review` after a coder write only on explicit human-run coder --verify ocr; argv is fixed in source (shell only on Windows for the npm .cmd shim, with no caller data in the command line), the result is an observed signal that never changes the outcome, and ocr sends the change to the LLM endpoint the operator configured for it',
+  }),
   'lib/coder/journal-store.js': Object.freeze({
     role: 'operator_tool',
     why: 'creates the operator-named journal database directory on explicit coder --journal invocation; mkdir only, the database itself is opened by better-sqlite3 and the journal rows are the gated pilot evidence',

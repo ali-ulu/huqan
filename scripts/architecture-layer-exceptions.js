@@ -35,6 +35,16 @@ const LAYER_EXCEPTIONS = Object.freeze([
     review_by: '2026-12-31',
   },
   {
+    from: 'lib/cli-coder.js',
+    to: 'lib/coder/verify-ocr.js',
+    why: 'The coder command resolves --verify ocr into the observed-verification seam it hands to'
+      + ' applyDerivation (#3196); the flag table lives beside the command (Core) while the'
+      + ' verifier lives with the pipeline (Application), the same shape as the journal-store'
+      + ' edge above. The require is lazy, so a run without --verify never loads it. The follow-up'
+      + ' fix is the same: resolve the verifier behind the cli.js entrypoint and pass it in.',
+    review_by: '2026-12-31',
+  },
+  {
     from: 'lib/external-action-receipt-batch.js',
     to: 'lib/receipt/signed-receipt-batch.js',
     why: 'The batch envelope signs itself with the receipt signing primitive; the envelope builder'

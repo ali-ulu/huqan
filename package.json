@@ -394,6 +394,7 @@
     "lib/coder/derivation-record.js",
     "lib/coder/observed-verification.js",
     "lib/coder/verify-derivation.js",
+    "lib/coder/verify-ocr.js",
     "lib/deterministic-task-runner.js",
     "lib/task-identifier-lexer.js",
     "lib/task-schema-sources.js",
