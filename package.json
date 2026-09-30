@@ -579,6 +579,7 @@
     "lib/fluent-answer.js",
     "lib/fuzzy-normalization.js",
     "lib/gate-telemetry.js",
+    "lib/gate-outcome-history.js",
     "lib/gate-outcome-projection.js",
     "lib/gate-hook-input.js",
     "lib/gate-hook-identity.js",
