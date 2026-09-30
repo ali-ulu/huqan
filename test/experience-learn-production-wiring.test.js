@@ -113,6 +113,15 @@ test('Experience learning is production-reachable through CLI and MCP from a rea
   );
   assert.deepEqual(parsedParams.args.params, PARAMS);
   assert.equal(parsedParams.args.runId, 'run-learn-positive');
+  // A flag-like string inside the JSON payload is parameter data, not a command
+  // flag: `--kind` here must not turn the default kind into `bogus`.
+  const embeddedFlag = parseCommand(
+    'experience-learn run-learn-positive --workspace workspace-a --params {"path":"notes.txt","oldText":"--kind bogus","newText":"final"}',
+  );
+  assert.equal(embeddedFlag.args.kind, undefined);
+  assert.equal(embeddedFlag.args.runId, 'run-learn-positive');
+  assert.equal(embeddedFlag.args.workspaceId, 'workspace-a');
+  assert.deepEqual(embeddedFlag.args.params, { path: 'notes.txt', oldText: '--kind bogus', newText: 'final' });
 });
 
 test('a proposal carries a compiled procedure candidate but never installs it', async (t) => {
@@ -181,7 +190,34 @@ test('an open run is refused: a lesson cannot come from a record still being wri
   assert.equal(proposal.code, 'run_not_sealed');
 });
 
-test('MCP admits a positive run without params but compiles nothing', async (t) => {
+test('MCP forwards replacement text byte-for-byte', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-exact-'));
+  const kernel = {};
+  const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel }, storage);
+  seedPositive(journal, 'run-exact');
+  // The match and replacement text are literal; trimming them would change what
+  // the procedure matches and writes, and would diverge from a direct proposal.
+  const exact = { path: 'notes.txt', oldText: ' draft ', newText: ' final\n' };
+
+  const direct = buildLearningProposal(journal, {
+    runId: 'run-exact', workspaceId: 'workspace-a', params: exact,
+  });
+  const mcp = callTool(kernel, {
+    name: 'huqan.experience_learn',
+    arguments: { runId: 'run-exact', workspaceId: 'workspace-a', params: exact },
+  });
+  assert.equal(mcp.ok, true);
+  assert.deepEqual(mcp.data.procedure.params, exact);
+  assert.equal(mcp.data.hash, direct.hash);
+});
+
+test('MCP rejects malformed compile params without compiling', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-noparams-'));
   const kernel = {};
   const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
@@ -203,6 +239,16 @@ test('MCP admits a positive run without params but compiles nothing', async (t) 
   assert.equal(mcp.data.procedure, null);
   assert.equal(mcp.data.compileCode, 'bad_params');
   assert.equal(mcp.data.registered, false);
+
+  // A params object that is not exactly three non-empty bounded strings fails
+  // closed the same way rather than reaching the compiler malformed.
+  const malformed = callTool(kernel, {
+    name: 'huqan.experience_learn',
+    arguments: { runId: 'run-no-params', workspaceId: 'workspace-a', params: { path: 'notes.txt', oldText: '', newText: 'final' } },
+  });
+  assert.equal(malformed.ok, true);
+  assert.equal(malformed.data.procedure, null);
+  assert.equal(malformed.data.compileCode, 'bad_params');
 });
 
 test('the learn tool is registered and read-only on the MCP surface', () => {
