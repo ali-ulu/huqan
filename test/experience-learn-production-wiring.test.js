@@ -10,6 +10,7 @@ const HuqanStorage = require('../storage');
 const { resolveExperienceJournal } = require('../agentRuntime');
 const { buildLearningProposal } = require('../lib/experience/learning-intake');
 const { createCliCommandHandlers } = require('../lib/cli-command-handlers');
+const { parseCommand } = require('../lib/command-parser');
 const { callTool, TOOL_SCHEMAS } = require('../mcpServer');
 
 const PARAMS = { path: 'notes.txt', oldText: 'draft', newText: 'final' };
@@ -27,6 +28,7 @@ function seedPositive(journal, runId) {
     verdict: 'verified',
     proofs: { integrity: true, coverage: true, verification: true, provenance: true, permission: true },
   }).ok, true);
+  assert.equal(journal.close(runId).ok, true);
 }
 
 function seedUnverified(journal, runId) {
@@ -36,6 +38,22 @@ function seedUnverified(journal, runId) {
   assert.equal(journal.append({
     runId, workspaceId: 'workspace-a', eventId: 'event-finished',
     type: 'execution_finished', executionStatus: 'completed',
+  }).ok, true);
+  assert.equal(journal.close(runId).ok, true);
+}
+
+function seedOpen(journal, runId) {
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-start', type: 'run_started',
+  }).ok, true);
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-finished',
+    type: 'execution_finished', executionStatus: 'completed',
+  }).ok, true);
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-verified', type: 'verification',
+    verdict: 'verified',
+    proofs: { integrity: true, coverage: true, verification: true, provenance: true, permission: true },
   }).ok, true);
 }
 
@@ -73,14 +91,28 @@ test('Experience learning is production-reachable through CLI and MCP from a rea
 
   const mcp = callTool(kernel, {
     name: 'huqan.experience_learn',
-    arguments: { runId: 'run-learn-positive', workspaceId: 'workspace-a' },
+    arguments: { runId: 'run-learn-positive', workspaceId: 'workspace-a', params: PARAMS },
   });
   assert.equal(mcp.ok, true);
-  // MCP carries no compile params, so the proposal seals a different body;
-  // the source record and its admission must still be the same.
+  // With the same compile params, the MCP path must reach the same proposal as
+  // the direct call: same source record, same admission, and a compiled
+  // procedure rather than a null one.
   assert.equal(mcp.data.sourceHash, direct.sourceHash);
   assert.equal(mcp.data.eligibility, direct.eligibility);
   assert.equal(mcp.data.registered, false);
+  assert.equal(mcp.data.procedure.kind, 'replace_text');
+  assert.deepEqual(mcp.data.procedure.params, PARAMS);
+
+  const parsed = parseCommand('experience-learn run-learn-positive --workspace workspace-a');
+  assert.equal(parsed.command, 'experience-learn');
+  assert.deepEqual(parsed.args, {
+    runId: 'run-learn-positive', workspaceId: 'workspace-a', kind: undefined, params: undefined, parentVersion: undefined,
+  });
+  const parsedParams = parseCommand(
+    `experience-learn run-learn-positive --workspace workspace-a --params ${JSON.stringify(PARAMS)}`,
+  );
+  assert.deepEqual(parsedParams.args.params, PARAMS);
+  assert.equal(parsedParams.args.runId, 'run-learn-positive');
 });
 
 test('a proposal carries a compiled procedure candidate but never installs it', async (t) => {
@@ -127,6 +159,50 @@ test('an unverified run admits nothing and proposes no procedure', async (t) => 
   assert.equal(proposal.candidate, null);
   assert.equal(proposal.procedure, null);
   assert.equal(proposal.registered, false);
+});
+
+test('an open run is refused: a lesson cannot come from a record still being written', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-open-'));
+  const kernel = {};
+  const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel }, storage);
+  seedOpen(journal, 'run-open');
+  assert.equal(journal.manifest('run-open').closed, false);
+
+  const proposal = buildLearningProposal(journal, {
+    runId: 'run-open', workspaceId: 'workspace-a', params: PARAMS,
+  });
+  assert.equal(proposal.ok, false);
+  assert.equal(proposal.code, 'run_not_sealed');
+});
+
+test('MCP admits a positive run without params but compiles nothing', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-noparams-'));
+  const kernel = {};
+  const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel }, storage);
+  seedPositive(journal, 'run-no-params');
+
+  const mcp = callTool(kernel, {
+    name: 'huqan.experience_learn',
+    arguments: { runId: 'run-no-params', workspaceId: 'workspace-a' },
+  });
+  assert.equal(mcp.ok, true);
+  assert.equal(mcp.data.admission.decision, 'admitted');
+  assert.equal(mcp.data.candidate.status, 'candidate');
+  assert.equal(mcp.data.procedure, null);
+  assert.equal(mcp.data.compileCode, 'bad_params');
+  assert.equal(mcp.data.registered, false);
 });
 
 test('the learn tool is registered and read-only on the MCP surface', () => {
