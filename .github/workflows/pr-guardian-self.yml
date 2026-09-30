@@ -50,9 +50,42 @@ jobs:
       # adds the reviewer would be a strange way to start. Every other absence
       # is impossible, so a plain guard is enough and fail-closed still governs
       # everything the script itself does.
+      # The OCR reviewer (#3198). Which LLM serves it is not decided here: the
+      # job passes OpenCodeReview's provider-neutral variables from repository
+      # secrets, so choosing a provider means setting OCR_LLM_URL, OCR_LLM_TOKEN,
+      # OCR_LLM_MODEL and OCR_LLM_PROTOCOL (openai or anthropic). With none set,
+      # nothing is installed and the reviewer reports `unknown`, never a block.
+      # The binary is the release asset, pinned by version and by a sha256
+      # recorded here -- not the npm package, whose postinstall runs code.
+      - name: Install the OCR reviewer
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_TOKEN: ${{ secrets.OCR_LLM_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+          OCR_VERSION: 1.12.11
+          OCR_SHA256: ae202b88fa03e16926512487bf1051d37ccb3f9690bdd74b889d11ea4dd8099b
+        run: |
+          set -euo pipefail
+          if [ -z "${OCR_LLM_URL:-}${OCR_LLM_TOKEN:-}${OCR_LLM_MODEL:-}" ]; then
+            echo "::notice title=HUQAN PR Guardian::No OCR_LLM_* secrets; the OCR reviewer is skipped (#3198)."
+            exit 0
+          fi
+          bin="${RUNNER_TEMP}/ocr-bin"
+          mkdir -p "$bin"
+          curl --fail --silent --show-error --location --retry 3 --output "$bin/ocr"             "https://github.com/alibaba/open-code-review/releases/download/v${OCR_VERSION}/opencodereview-linux-amd64"
+          echo "${OCR_SHA256}  $bin/ocr" | sha256sum --check --strict
+          chmod +x "$bin/ocr"
+          echo "$bin" >> "$GITHUB_PATH"
+
       - name: Evaluate the pull request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_TOKEN: ${{ secrets.OCR_LLM_TOKEN }}
+          OCR_LLM_MODEL: ${{ secrets.OCR_LLM_MODEL }}
+          OCR_LLM_PROTOCOL: ${{ secrets.OCR_LLM_PROTOCOL }}
+          OCR_ENABLE_TELEMETRY: 'false'
+          OCR_NO_UPDATE: '1'
         run: |
           set -euo pipefail
           if [ ! -f scripts/pr-guardian-self-review.js ]; then
@@ -61,12 +94,11 @@ jobs:
           fi
           node scripts/pr-guardian-self-review.js
 
-      # The SARIF ride-along for the Code Scanning publish follow-up (#3198).
-      # This job holds read-only permissions by contract (pinned by
-      # test/pr-guardian-self-review.test.js), so the findings travel as an
-      # artifact until a dedicated publish workflow with `security-events:
-      # write` exists. Absent most runs -- without an LLM endpoint the reviewer
-      # never runs -- hence `ignore`.
+      # The SARIF ride-along (#3198). This job holds read-only permissions by
+      # contract (pinned by test/pr-guardian-self-review.test.js), so the
+      # findings travel as an artifact and pr-guardian-ocr-sarif.yml, which
+      # alone holds `security-events: write`, publishes them to Code Scanning.
+      # Absent when no LLM endpoint is configured, hence `ignore`.
       - name: Upload OCR findings SARIF
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

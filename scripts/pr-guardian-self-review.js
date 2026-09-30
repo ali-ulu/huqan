@@ -136,7 +136,7 @@ async function reviewOcr({
         status: 'unknown', total: filenames.length, covered: 0,
         blockers: [], advisories: [], skipped: [],
         reason: 'OCR_NO_LLM_ENDPOINT',
-        detail: 'no LLM endpoint configured; the provider is still to be decided (#3198)',
+        detail: 'no LLM endpoint configured; set the OCR_LLM_* repository secrets (#3198)',
       },
       sarifPath: null,
     };

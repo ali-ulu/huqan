@@ -1,0 +1,68 @@
+name: PR Guardian OCR findings
+
+# Publishes the OCR reviewer's SARIF (#3198) to Code Scanning. The review job
+# (pr-guardian-self.yml) is read-only by contract and cannot write security
+# events, so it leaves the findings as an artifact; this workflow, triggered
+# when that run completes, holds `security-events: write` and nothing else it
+# could misuse. It checks nothing out and runs no script: the only thing it
+# handles from the pull request run is the SARIF file, which it uploads as
+# data. A run without findings (no OCR_LLM_* secrets, or a reviewer that could
+# not run) has no artifact and publishes nothing.
+on:
+  workflow_run:
+    workflows: ["PR Guardian self-review"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-guardian-ocr-sarif-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish OCR findings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      security-events: write
+    steps:
+      # Pull requests from forks carry no pull request number here and never
+      # received the OCR secrets, so they have nothing to publish.
+      - name: Find the findings artifact
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -euo pipefail
+          count="$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/artifacts" \
+            --jq '[.artifacts[] | select(.name == "ocr-findings" and .expired == false)] | length')"
+          if [ "$count" != "0" ] && [ -n "${PR_NUMBER}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=HUQAN PR Guardian::No OCR findings to publish for run ${RUN_ID}."
+          fi
+
+      - name: Download the findings
+        if: steps.find.outputs.present == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ocr-findings
+          path: ${{ runner.temp }}/ocr-findings
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Upload to Code Scanning
+        if: steps.find.outputs.present == 'true'
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
+        with:
+          sarif_file: ${{ runner.temp }}/ocr-findings/ocr-findings.sarif
+          category: ocr-review
+          ref: refs/pull/${{ github.event.workflow_run.pull_requests[0].number }}/head
+          sha: ${{ github.event.workflow_run.head_sha }}
