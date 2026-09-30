@@ -18,6 +18,7 @@ const { createLabelIndex, indexNode: indexLabelNode, deindexNode: deindexLabelNo
 const { createVectorIndex, indexNode: indexVectorNode, deindexNode: deindexVectorNode, rebuildVectorIndex } = require('./lib/graph-vector-index');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
+const { readIssuerSealKey } = require('./lib/issuer-seal-config');
 // Method groups that moved out of this file (#3101). Each is installed with
 // the descriptor it had as a class member; see lib/graph-method-install.js.
 const { install: installJournalMethods } = require('./lib/graph-journal-methods');
@@ -67,6 +68,11 @@ class Graph {
     this._sqliteOptions = opts;
     this._db = null;
     this._stmts = null; // SQLite statement güvenliği için null init
+    // #3188: read the issuer seal key once, at the composition point, and pass
+    // it down as a dependency. Absent means nothing is sealed and every receipt
+    // is byte-identical to before; present but unusable throws here, before any
+    // mutation, rather than on a write path that already committed.
+    this._issuerKey = readIssuerSealKey(process.env);
     this._storePort = createGraphStorePort(this, sqlitePersistenceError);
     if (wantSQLite) {
       this._openSqlite(opts);
