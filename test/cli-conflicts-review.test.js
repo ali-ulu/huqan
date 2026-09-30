@@ -196,6 +196,45 @@ test('the parser routes `conflicts review` to the conflicts command, and the bar
   assert.notStrictEqual(parseCommand('conflicts').command, 'conflicts');
 });
 
+test('the parser refuses a flag-shaped operand and a contradictory decision', () => {
+  // `--reviewer --accept` means the reviewer operand was omitted; `--accept`
+  // must not be read as the reviewer's name (#3187 review).
+  const missingOperand = parseCommand('conflicts review cand-1 --reviewer --accept --workspace ws-1');
+  assert.strictEqual(missingOperand.args.reviewer, '');
+  assert.strictEqual(missingOperand.args.decision, 'accept');
+
+  // A `--workspace` with no operand must not silently become `default` by way
+  // of `--reviewer`'s token.
+  const workspaceMissing = parseCommand('conflicts review cand-1 --accept --reviewer ali --workspace');
+  assert.strictEqual(workspaceMissing.args.workspaceId, 'default');
+
+  // Both decision groups at once is ambiguous: the verdict is refused rather
+  // than resolved in favour of accept.
+  const contradictory = parseCommand('conflicts review cand-1 --accept --reject --reviewer ali');
+  assert.strictEqual(contradictory.args.decision, '');
+  const contradictoryTr = parseCommand('conflicts review cand-1 --kabul --ret --reviewer ali');
+  assert.strictEqual(contradictoryTr.args.decision, '');
+});
+
+test('a missing reviewer and a contradictory decision are refused before any verdict is written', () => {
+  const { kernel, candidateId } = buildContestedKernel('conflicts-bad-flags');
+  const cli = new CLI({ kernelInstance: kernel });
+  try {
+    assert.throws(
+      () => runCli(cli, `conflicts review ${candidateId} --reviewer --accept --workspace ${WORKSPACE}`),
+      err => err.code === 'CONFLICT_REVIEW_REVIEWER_REQUIRED',
+    );
+    assert.throws(
+      () => runCli(cli, `conflicts review ${candidateId} --accept --reject --reviewer ali --workspace ${WORKSPACE}`),
+      err => err.code === 'CONFLICT_REVIEW_INVALID_DECISION',
+    );
+    const stored = kernel.getCandidateClaims({ workspaceId: WORKSPACE }).find(item => item.candidateId === candidateId);
+    assert.strictEqual(stored.status, 'pending', 'a refused command must leave the candidate unreviewed');
+  } finally {
+    cli?.agent?.storage?.close?.();
+  }
+});
+
 test('the review is audited: the CLI gate records the conflict review, not the hypothesis one', () => {
   const { kernel, candidateId } = buildContestedKernel('conflicts-audit');
   const cli = new CLI({ kernelInstance: kernel });
