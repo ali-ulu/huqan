@@ -325,7 +325,10 @@ const GOLDEN = {
   // #3187 adds the `conflicts review` command (one line) to the same generated
   // help. Diffing the help text against main shows exactly that one added line
   // and nothing else.
-  'yardım': '17c0ec5db1b1eb7c677b012d457da3723599be60c866bb03ef73b50b68ff8956',
+  // #3044 adds the `experience-learn` usage line (one line) to the same help.
+  // #3220 re-recorded it for the single added `inference <JSON request>` usage
+  // line; diffing against main shows exactly that one added line and nothing else.
+  'yardım': '207d4abcce09be5b83f8638746da60efcb8fc4f9c57700e473839cc2a0ff229c',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };
