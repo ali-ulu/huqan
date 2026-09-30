@@ -83,7 +83,7 @@ const approvalStore = {
 const OPERATOR_TOOLS = new Set(['huqan.approvals', 'huqan.approval_detail']);
 const READ_WORKFLOW_TOOLS = [
   'huqan.advocate', 'huqan.web_research', 'huqan.search',
-  'huqan.trust_receipt', 'huqan.trust_receipt_detail', 'huqan.experience_read', 'huqan.status', 'huqan.audit',
+  'huqan.trust_receipt', 'huqan.trust_receipt_detail', 'huqan.experience_read', 'huqan.experience_learn', 'huqan.status', 'huqan.audit',
 ];
 const CASES = [
   ['huqan.learn', { text: '  water\u0000 boils ', maxSentences: 3 }],
@@ -198,6 +198,7 @@ const GOLDEN = {
   'huqan.trust_receipt': '66e019f308aecf021d7e7f3ec800b3a0c8c5ce9550ac273145cad180772e5d01',
   'huqan.trust_receipt_detail': '18f203a2cb598e106d30e89ad16a0d7b0bd0c8b33a34c94abb9d8172cda9e48e',
   'huqan.experience_read': 'cab05737574172114c850dcb28a4c35f8ff5c8501745da34f06e4aa66e88fb23',
+  'huqan.experience_learn': '2014d73050b91093d523a24647223608832b4d72a24b030815cca6ddd334bd1d',
   'huqan.status': 'b309ccdcf8283be9ea88d858c4158d93933817c9ebd948006bbb9a3b59ac223a',
   'huqan.audit': '632975316f346e33239e2d02bebf60a5fc53753211030af3828af83ef7143d4d',
   'huqan.ingest_preview': 'c865da9cf3eaed67fa72e57f4f2ec765889a0e4a23c014f56c3f2a16241ed719',

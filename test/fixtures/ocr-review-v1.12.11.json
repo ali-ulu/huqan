@@ -1,0 +1,102 @@
+{
+  "status": "complete",
+  "llm": {
+    "model": "openai/gpt-oss-20b"
+  },
+  "message": "Review complete: 0 finding(s) across 4 selected item(s).",
+  "summary": {
+    "files_reviewed": 4,
+    "comments": 0,
+    "total_tokens": 53752,
+    "input_tokens": 47207,
+    "output_tokens": 6545,
+    "elapsed": "3m1s"
+  },
+  "comments": [],
+  "groups": [
+    {
+      "label": "PR Guardian workflows, script and test updates",
+      "files": [
+        ".github/workflows/pr-guardian-ocr-sarif.yml",
+        ".github/workflows/pr-guardian-self.yml",
+        "scripts/pr-guardian-self-review.js",
+        "test/pr-guardian-ocr-ci.test.js"
+      ]
+    }
+  ],
+  "manifest": {
+    "schema_version": "ocr.run-manifest/v1",
+    "run_id": "4c634b1c-628a-4250-84df-6ed46b97fd2a",
+    "operation": "review",
+    "terminal_state": "complete",
+    "repository": {
+      "identity_sha256": "8603bbfc04007b5cd5749185b21141620c93d4e5b4d9399b18f54c9cf0e9ea3a"
+    },
+    "input": {
+      "mode": "range",
+      "requested_from": "d71752f1~1",
+      "requested_head": "d71752f1",
+      "resolved_base": "48910f5c26aab9d28c3031d04308cad33150fa77",
+      "resolved_head": "d71752f19f4fce862bba809d25441fb38470a453",
+      "exact_range": "48910f5c26aab9d28c3031d04308cad33150fa77..d71752f19f4fce862bba809d25441fb38470a453",
+      "source_artifact_sha256": "d99dec0e582dc1c2a913c3d344863d8a720871cc562175bac39a1a3ace1bef88"
+    },
+    "execution": {
+      "ocr_version": "v1.12.11",
+      "model": "openai/gpt-oss-20b",
+      "configured_concurrency": 8,
+      "rule_config_sha256": "9952575d108fa770c9a59b9e32587dec259213a3e8f6f76857ad37e88860f487",
+      "runtime_config_sha256": "9aa5558600e6fc4d40cc605f9bbe0e9353d924f00e3b5aa3d9df81667083d045"
+    },
+    "coverage": {
+      "selected": [
+        {
+          "item_id": "2073b16b17ea15d1b76a7cfaad50cf87361e00c394dd7aa3f23ae09cdbc03738",
+          "path": ".github/workflows/pr-guardian-self.yml",
+          "fingerprint": "bf0ca3e833dcaf2a7feaa1a0852633bea7785e293f44a207a74898ec7d8dcc44"
+        },
+        {
+          "item_id": "51dd65b564bf1b9dbfb46aa7e9def86596437249634db723e2161cfb52bbc073",
+          "path": "scripts/pr-guardian-self-review.js",
+          "fingerprint": "4bd858fb123fabbf95cac411078d671ac4cbb95143f9ece031afd44fd5c83271"
+        },
+        {
+          "item_id": "91faabf81fa4ebde8f977890426003607957ecee12951dccb2d4aacb4c01f6e6",
+          "path": ".github/workflows/pr-guardian-ocr-sarif.yml",
+          "fingerprint": "41bb50171e788b61284467735067eb01864472a5bfd1f241307af2cf9659242c"
+        },
+        {
+          "item_id": "ffd73812595dcf763cac35222c907cd8a8d3fd8b0e761b7325abd0ff7479e563",
+          "path": "test/pr-guardian-ocr-ci.test.js",
+          "fingerprint": "760b74bd1d03d265b96614149a0bfbfb4fe298daf77978192c34da663bfcf159"
+        }
+      ],
+      "completed": [
+        {
+          "item_id": "2073b16b17ea15d1b76a7cfaad50cf87361e00c394dd7aa3f23ae09cdbc03738",
+          "path": ".github/workflows/pr-guardian-self.yml",
+          "fingerprint": "bf0ca3e833dcaf2a7feaa1a0852633bea7785e293f44a207a74898ec7d8dcc44"
+        },
+        {
+          "item_id": "51dd65b564bf1b9dbfb46aa7e9def86596437249634db723e2161cfb52bbc073",
+          "path": "scripts/pr-guardian-self-review.js",
+          "fingerprint": "4bd858fb123fabbf95cac411078d671ac4cbb95143f9ece031afd44fd5c83271"
+        },
+        {
+          "item_id": "91faabf81fa4ebde8f977890426003607957ecee12951dccb2d4aacb4c01f6e6",
+          "path": ".github/workflows/pr-guardian-ocr-sarif.yml",
+          "fingerprint": "41bb50171e788b61284467735067eb01864472a5bfd1f241307af2cf9659242c"
+        },
+        {
+          "item_id": "ffd73812595dcf763cac35222c907cd8a8d3fd8b0e761b7325abd0ff7479e563",
+          "path": "test/pr-guardian-ocr-ci.test.js",
+          "fingerprint": "760b74bd1d03d265b96614149a0bfbfb4fe298daf77978192c34da663bfcf159"
+        }
+      ],
+      "reused": [],
+      "failed": [],
+      "waived": []
+    },
+    "elapsed_ms": 177050
+  }
+}

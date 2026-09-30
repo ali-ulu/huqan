@@ -97,6 +97,22 @@ test('excluded files are named with normalized reasons and keep the result unkno
   ]);
 });
 
+test('files excluded by extension, default path or rule are named but do not withhold clean', () => {
+  const summary = summarizeOcrReview({
+    files: [...FILES, 'asset/logo.png', 'vendor/x.js', 'gen/y.js'],
+    output: ocrOutput({
+      excluded_files: [
+        { path: 'asset/logo.png', exclude_reason: 'unsupported_ext' },
+        { path: 'vendor/x.js', exclude_reason: 'default_excluded_path' },
+        { path: 'gen/y.js', exclude_reason: 'user_rule_exclude' },
+      ],
+    }),
+  });
+  assert.equal(summary.status, OCR_STATUS.CLEAN);
+  assert.equal(summary.covered, 2);
+  assert.deepEqual(summary.skipped.map(item => item.reason), ['extension', 'user_rule', 'default_path']);
+});
+
 test('a changed file the output accounts for nowhere is unevidenced, not covered', () => {
   const summary = summarizeOcrReview({ files: [...FILES, 'lib/ghost.js'], output: ocrOutput() });
   assert.equal(summary.status, OCR_STATUS.UNKNOWN);

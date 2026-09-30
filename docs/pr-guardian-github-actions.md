@@ -83,6 +83,23 @@ Workflow, HUQAN’ın operator approval’ını GitHub Actions içinde otomatik 
 
 Yorum yalnızca webhook isteği başarılı olduktan sonra ve response kararı `block` olduğunda etkili olur. HUQAN response’u okunamazsa veya karar eksikse comment script’i başarısız olur; token yoksa veya GitHub API hata döndürürse hata gizlenmez. Workflow’un `issues: write` izni yalnızca bu comment mutation için eklenmiştir. GitHub Actions’ın `GITHUB_TOKEN` ile authenticated REST çağrıları yapabildiği ve minimum izinlerin `permissions` alanında tanımlanması gerektiği resmi belgelerde açıklanır.[5]
 
+## OCR incelemesi (self-review)
+
+`pr-guardian-self.yml`, PR Guardian kararının yanına OpenCodeReview (OCR) bulgularını dış bir sinyal olarak ekler (#3198). OCR hiçbir zaman `block` üretmez: High ve üstü bulgu `review`e yükselir, çalışamayan inceleme `unknown` olarak raporlanır.
+
+LLM sağlayıcısı workflow'da seçilmez. OCR'nin sağlayıcıdan bağımsız değişkenleri repository secret olarak verilir:
+
+| Secret | Anlamı |
+|---|---|
+| `OCR_LLM_URL` | Model uç noktası (ör. `https://api.anthropic.com` veya OpenAI uyumlu bir `/v1`) |
+| `OCR_LLM_TOKEN` | Uç noktanın API anahtarı |
+| `OCR_LLM_MODEL` | Model adı |
+| `OCR_LLM_PROTOCOL` | `anthropic` veya `openai` |
+
+Hiçbiri ayarlı değilse job OCR'yi kurmaz ve inceleme `unknown` (`OCR_NO_LLM_ENDPOINT`) kalır. Ayarlıysa sürüm yayınındaki `opencodereview-linux-amd64` ikili dosyası, workflow'da sabitlenmiş sürüm ve sha256 ile indirilip doğrulanır; npm paketi kullanılmaz, çünkü postinstall betiği kod çalıştırır. Fork PR'ları secret almadığı için OCR'siz kalır.
+
+Bulgular SARIF olarak `ocr-findings` artifact'ine yazılır. `pr-guardian-ocr-sarif.yml`, self-review çalışması bitince tetiklenir ve artifact'i `ocr-review` kategorisiyle Code Scanning'e yükler. `security-events: write` izni yalnızca bu job'dadır; kod checkout etmez ve betik çalıştırmaz.
+
 ## Yerel doğrulama
 
 Workflow dosyasının sözdizimini GitHub’a göndermeden önce bir YAML parser ile kontrol edin. GitHub tarafında ise workflow dosyası varsayılan branch’e ulaştıktan sonra Actions sekmesinden `pull_request` event’i için çalıştırma kaydını ve job log’undaki HTTP status/decision satırlarını inceleyin. Fork PR’larında job’ın koşullu olarak skip edilmesi beklenen davranıştır; bu PR’lar production GitHub App/webhook boundary’si üzerinden izlenmelidir.
