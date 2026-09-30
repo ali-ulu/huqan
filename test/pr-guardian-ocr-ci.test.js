@@ -44,6 +44,11 @@ test('without an endpoint the job installs nothing and the reviewer stays unknow
   assert.match(install, /if \[ -z "\$\{OCR_LLM_URL:-\}\$\{OCR_LLM_TOKEN:-\}\$\{OCR_LLM_MODEL:-\}" \]; then[\s\S]{0,200}?exit 0/);
 });
 
+test('a failed OCR install never stops the policy evaluation', () => {
+  const install = REVIEW.slice(REVIEW.indexOf('- name: Install the OCR reviewer'), REVIEW.indexOf('- name: Evaluate the pull request'));
+  assert.match(install, /^\s+continue-on-error: true$/m);
+});
+
 test('the review job keeps its read-only permissions', () => {
   assert.match(REVIEW, /^permissions:\n\s+contents: read\n\s+pull-requests: read$/m);
   assert.doesNotMatch(executed(REVIEW), /security-events:\s*write/);

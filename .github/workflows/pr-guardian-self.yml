@@ -57,7 +57,11 @@ jobs:
       # nothing is installed and the reviewer reports `unknown`, never a block.
       # The binary is the release asset, pinned by version and by a sha256
       # recorded here -- not the npm package, whose postinstall runs code.
+      # A failed download or checksum marks this step failed but not the job:
+      # the reviewer is then absent, reports `unknown`, and the policy below
+      # still decides. An unavailable reviewer must never block (#3198).
       - name: Install the OCR reviewer
+        continue-on-error: true
         env:
           OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
           OCR_LLM_TOKEN: ${{ secrets.OCR_LLM_TOKEN }}
