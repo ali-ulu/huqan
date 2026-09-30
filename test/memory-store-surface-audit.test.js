@@ -68,6 +68,9 @@ const PRODUCTION_SURFACE = Object.freeze({
   // exercises the indexed path through the public method, the same way
   // benchmarks/bench-memory-scale.js already calls store().
   query: 'benchmarks/bench-memory-query-page.js',
+  // First non-test caller for history (#3208 slice 2): the open benchmark
+  // measures one memory's history on the indexed SQLite event path.
+  history: 'benchmarks/bench-memory-store-open.js',
 });
 
 /**
@@ -78,7 +81,7 @@ const TEST_ONLY_SURFACE = Object.freeze([
   'before', 'between', 'contradict', 'eventsForMemory', 'exportPackage',
   'findByContentHash', 'findById', 'findByKind', 'findBySourceRef',
   'findByStatus', 'findLinkedMemories', 'findLinks', 'getBacklinks',
-  'getEvents', 'getLinks', 'history', 'importPackage', 'link', 'linkMemories',
+  'getEvents', 'getLinks', 'importPackage', 'link', 'linkMemories',
   'linksForMemory', 'load', 'memoriesBetween', 'patchMetadata',
   'save', 'since', 'timeline', 'tombstone', 'traverseLinks',
 ]);
