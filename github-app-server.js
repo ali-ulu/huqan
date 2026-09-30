@@ -7,6 +7,9 @@ const {
 const {
   createGitHubAppBetaHttpBoundary,
 } = require('./lib/github-app-beta-http-boundary');
+const {
+  createRepoIngestSubmitter,
+} = require('./lib/http/github-app-ingest-submitter');
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = '127.0.0.1';
@@ -69,18 +72,34 @@ function createGitHubAppBetaServer({ boundary } = {}) {
   });
 }
 
-function buildProductionBoundary(environment = process.env) {
-  const boundary = createGitHubAppBetaHttpBoundary({ environment });
+function buildProductionBoundary(environment = process.env, deps = {}) {
+  // #3027: without this callback the webhook records an observation receipt
+  // and nothing else -- #3032's repo-memory ingest approval is never queued.
+  // The submission it receives is still gated to `pending` for a human; this
+  // only puts the observation on the existing ingest-approval path. The
+  // callback is injected so `startGitHubAppBetaServer` can keep a handle on
+  // the approval store it owns for shutdown.
+  const queueIngest = deps.queueIngest || createRepoIngestSubmitter({ environment });
+  const boundary = createGitHubAppBetaHttpBoundary({ environment, queueIngest });
   if (!boundary) startupFail('GitHub App beta is disabled');
   return boundary;
 }
 
 function startGitHubAppBetaServer(options = {}) {
   const environment = options.environment || process.env;
-  const boundary = options.boundary || buildProductionBoundary(environment);
+  // The submitter owns the approval store and is only built for the production
+  // path; a caller that injects its own `boundary` supplies its own queueing.
+  // It is exposed on the server so shutdown can release the store.
+  const ingestSubmitter = options.boundary
+    ? (options.ingestSubmitter || null)
+    : (options.ingestSubmitter || createRepoIngestSubmitter({ environment }));
+  const boundary = options.boundary || buildProductionBoundary(environment, {
+    queueIngest: ingestSubmitter,
+  });
   const port = options.port ?? parsePort(readCompatibleEnvironmentVariable('GITHUB_APP_PORT', environment));
   const host = options.host ?? parseHost(readCompatibleEnvironmentVariable('GITHUB_APP_HOST', environment));
   const server = createGitHubAppBetaServer({ boundary });
+  server.ingestSubmitter = ingestSubmitter;
   server.listen(port, host, () => {
     const address = server.address();
     const boundPort = address && typeof address === 'object' ? address.port : port;
