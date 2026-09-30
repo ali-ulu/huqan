@@ -226,6 +226,9 @@ test('SQLite backend persists link, patch, supersede and tombstone rows', (t) =>
   assert.equal(reader.get(second.memory.memoryId, { workspaceId: 'ws' }).memory.status, 'superseded');
   assert.equal(reader.get(superseded.newMemory.memoryId, { workspaceId: 'ws' }).ok, true);
   assert.equal(reader.get(third.memory.memoryId, { workspaceId: 'ws' }).memory.status, 'deleted');
-  // queryLinks hides links whose endpoint is no longer active; count the rows.
-  assert.equal(reader._links.filter(link => link.workspaceId === 'ws').length, 2, 'related_to link plus the supersede link');
+  // queryLinks hides links whose endpoint is no longer active unless asked to
+  // include them; with includeDeleted it counts every row (#3208: the SQLite
+  // backend keeps no link array to count).
+  assert.equal(reader.queryLinks({ workspaceId: 'ws', includeDeleted: true, limit: null }).total, 2,
+    'related_to link plus the supersede link');
 });

@@ -149,9 +149,10 @@ function digests(results) {
   return out;
 }
 
-// Main answers live and reopened stores differently in one place: a link's
-// `metadata` is not persisted (slice 3), so exports differ after a restart.
-// Each mode is therefore pinned to its own main digests.
+// Each mode is pinned to its own digests. On main they differed in one
+// place: a link's `metadata` was not persisted, so exports changed after a
+// restart. Slice 3 persists it; the reopened export digests were re-recorded
+// then and now equal the live ones.
 function assertGolden(results, mode) {
   const actual = digests(results);
   if (process.env.UPDATE_MEMORY_READ_GOLDEN === '1') {

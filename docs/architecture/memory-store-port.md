@@ -39,8 +39,10 @@ branches moved into the port).
   cache (`memoryCacheSize`, default 2048), a write drops the cached copy, and a
   rolled-back import clears the cache. Events have no mirror either
   (`lib/memory-store-sqlite-events.js`): writes reach SQLite first, and reads
-  are indexed per workspace, memory or related memory. Links still mirror in
-  full.
+  are indexed per workspace, memory or related memory. Links have no mirror
+  (`lib/memory-store-sqlite-links.js`): reads are indexed per workspace, per
+  memory (either endpoint) or per link key, and `memory_links` now keeps a
+  link's `metadata` and `schemaVersion`, which it used to drop at restart.
 - **SQLite atomicity.** Each operation's rows commit in one transaction; a
   failing row rolls back the whole operation.
 - **Import.** `withImportTransaction` runs the import in a SQLite transaction
@@ -75,7 +77,7 @@ require: each builder still has one `persist` closure; only its target moved.
   when a handle opens. It validates every memories row in bounded chunks and
   reports corrupt rows (`corruptRows`, `strictWarmup`) but retains none, so
   open stays linear in rows while memory stays bounded (#3208); the same
-  scan covers events, and links are still loaded in full. A closed store (or a failed `reopen()`)
+  scan covers events and links. A closed store (or a failed `reopen()`)
   fails memory reads closed with `MEMORY_STORE_CLOSED` rather than serving a
   partial cache. It is the public backend-lifecycle method the surface audit
   pins to `memory-store-reopen.js`, so it stays a store method.
