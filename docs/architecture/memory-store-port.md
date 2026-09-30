@@ -34,6 +34,10 @@ branches moved into the port).
 - **Mirror after persistence (#761).** Write delegates update the in-memory
   collections only after `persist*` succeeds. A failed JSON rewrite or SQLite
   transaction returns `PERSISTENCE_ERROR` and leaves the mirror untouched.
+  On the SQLite backend, memories have no full mirror (#3208): SQLite is the
+  source of truth, `lib/memory-store-sqlite-collection.js` keeps a bounded
+  cache (`memoryCacheSize`, default 2048), a write drops the cached copy, and a
+  rolled-back import clears the cache. Events and links still mirror in full.
 - **SQLite atomicity.** Each operation's rows commit in one transaction; a
   failing row rolls back the whole operation.
 - **Import.** `withImportTransaction` runs the import in a SQLite transaction
@@ -64,9 +68,14 @@ require: each builder still has one `persist` closure; only its target moved.
 - **Handle lifecycle:** `openMemoryDatabase`, `initDB` (schema/statements) and
   `close()` stay with the store; `reopenSqlite` in `memory-store-reopen.js`
   owns reopening.
-- **SQLite hydration:** `warmup()` (`lib/memory-store-sqlite-warmup.js`) reads
-  all rows when a handle opens. It is the public backend-lifecycle method the
-  surface audit pins to `memory-store-reopen.js`, so it stays a store method.
+- **SQLite hydration:** `warmup()` (`lib/memory-store-sqlite-warmup.js`) runs
+  when a handle opens. It validates every memories row in bounded chunks and
+  reports corrupt rows (`corruptRows`, `strictWarmup`) but retains none, so
+  open stays linear in rows while memory stays bounded (#3208); events and
+  links are still loaded in full. A closed store (or a failed `reopen()`)
+  fails memory reads closed with `MEMORY_STORE_CLOSED` rather than serving a
+  partial cache. It is the public backend-lifecycle method the surface audit
+  pins to `memory-store-reopen.js`, so it stays a store method.
 - `storage.js` operational records, per the #2906 scope.
 - Candidates listed in #2401 / #2402 are not reassigned by this map.
 

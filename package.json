@@ -879,6 +879,8 @@
     "lib/memory-store-port.js",
     "lib/memory-store-reopen.js",
     "lib/memory-store-sqlite-warmup.js",
+    "lib/memory-store-sqlite-row.js",
+    "lib/memory-store-sqlite-collection.js",
     "lib/memory-query-sqlite.js",
     "lib/graph-vector-index.js",
     "lib/graph-vector-nearest.js",
