@@ -1264,7 +1264,15 @@
     "lib/fractal-learn-autotune.js",
     "lib/mcp/fractal-learn-tool.js",
     "lib/provenance-drift.js",
-    "lib/trust-calibration.js"
+    "lib/trust-calibration.js",
+    "lib/cli-inference-command.js",
+    "lib/inference-runtime-beliefs.js",
+    "lib/inference-runtime-records.js",
+    "lib/inference-runtime-snapshot.js",
+    "lib/inference-runtime-store.js",
+    "lib/inference-runtime-projection.js",
+    "lib/inference-runtime-recovery.js",
+    "lib/cli-inference-runtime.js"
   ],
   "dependencies": {
     "better-sqlite3": "^12.10.0",

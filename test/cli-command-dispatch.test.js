@@ -281,7 +281,7 @@ async function goldenDigests() {
 }
 // harness:end
 
-// Recorded on main, before the change.
+// Recorded on main; help includes the inference command added by #3038.
 const GOLDEN = {
   'öğret': '7cd3a6016714177b855c45b568de88e5f22dbdf547de62501499e4b6fc219279',
   'verify': '5ac57e2c01ac2c190755def21842481d815185698da92dbe297baa32e905c964',
@@ -325,7 +325,7 @@ const GOLDEN = {
   // #3187 adds the `conflicts review` command (one line) to the same generated
   // help. Diffing the help text against main shows exactly that one added line
   // and nothing else.
-  'yardım': '62eb86561b81f45f5442321961a7c411689e496081ff4950982f8e4f942175ff',
+  'yardım': '17c0ec5db1b1eb7c677b012d457da3723599be60c866bb03ef73b50b68ff8956',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };

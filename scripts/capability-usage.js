@@ -73,6 +73,7 @@ const EVIDENCE = Object.freeze({
   'agent-resume': { table: 'agent_runs', where: 'resumed = 1', label: 'resumed runs' },
   'agent-plan': { none: 'planning is read-only and writes nothing; a plan that is never run leaves no trace' },
   'dream': { table: 'candidate_claims', where: '1=1', label: 'candidate claims' },
+  'inference': { table: 'mutation_journal', where: "operation_id LIKE 'inference-runtime:%' AND status = 'completed'", label: 'completed inference operations' },
   'hypotheses': { table: 'candidate_claims', where: '1=1', label: 'candidate claims' },
   // A conflict review moves a candidate row from `pending` to `accepted`/
   // `rejected` and stamps `reviewed_by`; the `hypotheses` row above cannot tell
