@@ -834,13 +834,21 @@ describe('PR-S3C SQLite warmup corruption quarantine (#1536)', () => {
       .run('', link.link.linkId);
     db.close();
 
-    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const store2 = new MemoryStore({ useSQLite: true, dbPath, eagerWarmup: true });
     assert.deepStrictEqual(store2.corruptRows.map((row) => row.kind), ['memory', 'event', 'link']);
     assert.ok(store2.corruptRows.every((row) => row.id && Array.isArray(row.errors)));
     assert.strictEqual(store2.list({ workspaceId: 'ws1' }).total, 1);
     assert.strictEqual(store2.get(valid.memory.memoryId, { workspaceId: 'ws1' }).ok, true);
     assert.strictEqual(store2.get(corrupt.memory.memoryId, { workspaceId: 'ws1' }).ok, false);
     store2.close();
+
+    // Under default lazy loading, startup is O(1) and corrupt rows quarantine upon access
+    const store3 = new MemoryStore({ useSQLite: true, dbPath });
+    assert.strictEqual(store3.corruptRows.length, 0);
+    assert.strictEqual(store3.get(corrupt.memory.memoryId, { workspaceId: 'ws1' }).ok, false);
+    assert.strictEqual(store3.corruptRows.length, 1);
+    assert.strictEqual(store3.corruptRows[0].kind, 'memory');
+    store3.close();
 
     assert.throws(
       () => new MemoryStore({ useSQLite: true, dbPath, strictWarmup: true }),
