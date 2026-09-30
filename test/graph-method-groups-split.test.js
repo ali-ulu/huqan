@@ -21,9 +21,10 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // incremental-save delta bookkeeping. #3017 added three internal vector-index
 // helpers (_vectorIndexOrCreate, _indexVectorNode, _deindexVectorNode) plus the
 // public similarityCandidateIds reader (via lib/graph-read-methods.js). The
-// public method names above are unchanged.
+// #3017 follow-up added the public nearestSimilarNode reader (exact top-1
+// cosine with an early stop). The public method names above are unchanged.
 
-const MAIN_SURFACE = { count: 91, sha256: 'bd5b6e978211cd5907917fc10532444cdc04f2c1a4f67ed8e21df6ece07c6ec2' };
+const MAIN_SURFACE = { count: 92, sha256: '4009181262ce09098762932735c13bb71943c81ebbba3b254a65db650e8b336b' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;
