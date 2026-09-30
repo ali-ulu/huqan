@@ -93,9 +93,15 @@ function productionServer(t, root) {
   const server = createProductionServer({ environment: environment(root) });
   const submitter = server.ingestSubmitter;
   t.after(() => {
-    submitter.close();
-    submitter.kernel.graph.close();
-    removeTempRoot(root);
+    try {
+      submitter.close();
+    } finally {
+      try {
+        submitter.kernel.graph.close();
+      } finally {
+        removeTempRoot(root);
+      }
+    }
   });
   return server;
 }
