@@ -62,6 +62,11 @@ const MUST_HAVE_PATTERNS = Object.freeze([
   // baseline unexplained until #3169 and #3173 fixed it by hand. The
   // reachability surface is safety-critical, so pin it to the floor.
   'test/reachability-baseline.test.js',
+  // #3069's self-run vs third-party boundary. It reads the README, the
+  // conformance runners and the published 0.2 bundle contract, so no changed
+  // lib/ file reaches it through the require graph; without this entry a PR
+  // that moved the boundary would leave the guard unselected.
+  'test/third-party-interoperability-boundary.test.js',
   'test/mutation-admission*.test.js',
   'test/mutation-journal*.test.js',
   'test/operator-token-constant-time.test.js',
