@@ -3469,6 +3469,9 @@
         "lib/inference-runtime-snapshot.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/inference-runtime-projection.js": [
+        "lib/kernel-mutation-admission.js"
+      ],
       "lib/inference-runtime-records.js": [
         "lib/inference-derived-dependency.js",
         "lib/inference-derived-record.js",

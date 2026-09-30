@@ -167,6 +167,14 @@ test('withdrawal downgrades the admitted projection atomically and contested rea
   kernel.graph.addEdge('Alice', 'Bob', 'connected', { provenance: { provenanceId: record.derivationId, sourceType: 'background_inference' }, confidence: 0.9 });
   commitRun(kernel.graph, 'default', initial.revision, { at: new Date().toISOString(), records: [record] });
   kernel.graph.addEdge('Alice', 'Bob', 'knows', { provenance: { provenanceId: 'new-source' } });
+  const priorSeam = kernel._mutationAdmission;
+  let refusedAction;
+  kernel._mutationAdmission = { admit(context) { refusedAction = context.action; return { admitted: false, reason: 'projection_refused' }; } };
+  assert.throws(() => run({ action: 'reconcile' }), error => error.code === 'MUTATION_ADMISSION_REFUSED');
+  assert.equal(refusedAction, 'kernel.addCandidateClaim');
+  assert.equal(kernel.graph.getEdge('Alice', 'Bob', 'connected').confidence, 0.9);
+  assert.equal(run({ action: 'history' }).runs.at(-1).records[0].state, 'admitted');
+  kernel._mutationAdmission = priorSeam;
   const result = run({ action: 'reconcile' });
   assert.equal(result.records[0].state, 'withdrawn');
   assert.equal(result.records[0].trustReceiptId, 'retained-receipt');
