@@ -287,3 +287,18 @@ test('verification contradiction withdraws dependent provisional conclusions in 
   assert.equal(updated.records.find(record => record.derivationId === child.derivationId).state, 'withdrawn');
   assert.equal(run({ action: 'history' }).runs[0].records.find(record => record.derivationId === child.derivationId).state, 'provisional');
 });
+
+
+test('failed inference journal commit leaves no orphan predictions and readonly history survives audit refusal', t => {
+  const { kernel, run } = fixture(t);
+  const { readPredictionPairs } = require('../lib/prediction-outcome-pairs');
+  const original = kernel.graph.runMutationOnce.bind(kernel.graph);
+  kernel.graph.runMutationOnce = (id, callback) => {
+    if (id.startsWith('inference-runtime:')) throw new Error('inference_commit_failed');
+    return original(id, callback);
+  };
+  assert.throws(() => run({ rules: [rule('failed-commit', 'connected', 'knows')] }), /inference_commit_failed/);
+  assert.deepEqual(readPredictionPairs(kernel.graph), {});
+  kernel.recordCliMutationAudit = () => { throw new Error('audit_down'); };
+  assert.deepEqual(run({ action: 'history' }).runs, []);
+});
