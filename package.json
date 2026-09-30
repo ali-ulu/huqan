@@ -368,6 +368,8 @@
     "lib/cli-backup-commands.js",
     "lib/cli-status-command.js",
     "lib/cli-agent-commands.js",
+    "lib/cli-conflicts.js",
+    "lib/cli-conflicts-command.js",
     "lib/cli-approval-commands.js",
     "lib/cli-capabilities.js",
     "lib/cli-capability-commands.js",
