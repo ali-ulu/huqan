@@ -61,9 +61,9 @@ after(() => {
 // ─── name table ──────────────────────────────────────────────────────────────
 
 describe('RFC-001 MCP tool name table', () => {
-  it('defines twenty-nine canonical names and twenty-nine legacy aliases', () => {
-    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 29);
-    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 29);
+  it('defines thirty canonical names and thirty legacy aliases', () => {
+    assert.equal(CANONICAL_MCP_TOOL_NAMES.length, 30);
+    assert.equal(LEGACY_MCP_TOOL_NAMES.length, 30);
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.emergency_stop'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.trust_receipt_detail'));
     assert.ok(CANONICAL_MCP_TOOL_NAMES.includes('huqan.web_research'));
