@@ -15,8 +15,13 @@ const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
 const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
+const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp } = require('./lib/agent-step-progression');
 
 const UNCERTAIN_PAUSE = 'experience_effect_uncertain';
+const V3_RATIONALES = Object.freeze({
+  fallback: 'Previous failure repeated; safe fallback selected.',
+  followUp: 'Previous step produced a follow-up need.',
+});
 
 class AgentV3 {
   constructor(opts = {}) {
@@ -255,29 +260,14 @@ class AgentV3 {
         queued.unshift(repairStep);
         continue;
       }
-      state.steps.push(report);
-      state.evidence.push(...this._runtime().collectEvidence([report.result]));
-      this._runtime().updateToolStats(report.tool, report.status);
-      state.notes.push({
-        step: report.action,
-        summary: report.summary,
-      });
+      recordStepReport(this._runtime(), state, report);
       state.iteration += 1;
       state.lastAction = report.action;
 
-      const summary = this._runtime().extractAgentSummary(report.result);
-      const previousSummary = state.progress?.lastSummary || '';
-      const stalled = this._runtime().isStalledProgress(previousSummary, summary.text);
-      state.progress = {
-        stalledCount: stalled ? (state.progress?.stalledCount || 0) + 1 : 0,
-        lastSummary: String(summary.text || '').toLowerCase().replace(/\s+/g, ' ').trim(),
-      };
-
+      const summary = advanceProgress(this._runtime(), state, report);
       const followUp = this._runtime().chooseFollowUp(step, summary, state);
-      const shouldForceDream =
-        state.progress.stalledCount >= 2 &&
-        state.steps.length < activePlan.maxSteps &&
-        !queued.some(s => s.tool === 'dream');
+      // Decided before the Dream experiment loop below can queue its own step.
+      const forceDream = shouldForceDream(state, queued, activePlan.maxSteps);
 
       if (report.status === 'blocked') {
         state.status = 'blocked';
@@ -308,40 +298,15 @@ class AgentV3 {
         }
       }
 
-      const effectiveFollowUp = loopHandled ? null : followUp;
-      if (shouldForceDream && !loopHandled) {
-        queued.unshift({
-          id: `dream-${state.steps.length + 1}`,
-          action: 'dream',
-          tool: 'dream',
-          input: {},
-          rationale: 'Progress stalled; switching to hypothesis mode.',
-        });
-      } else if (effectiveFollowUp && state.steps.length < activePlan.maxSteps) {
-        const nextSignature = this._runtime().stepSignature(effectiveFollowUp, state);
-        if (this._runtime().findRecentFailure(nextSignature)) {
-          const fallback = effectiveFollowUp.action === 'dream'
-            ? null
-            : { action: 'dream', tool: 'dream', input: {}, rationale: 'Previous failure repeated; safe fallback selected.' };
-          if (fallback && !this._runtime().findRecentFailure(this._runtime().stepSignature(fallback, state))) {
-            queued.unshift({
-              id: `${fallback.action}-${state.steps.length + 1}`,
-              action: fallback.action,
-              tool: fallback.tool,
-              input: fallback.input,
-              rationale: fallback.rationale,
-            });
-          }
-        } else {
-          queued.unshift({
-            id: `${effectiveFollowUp.action}-${state.steps.length + 1}`,
-            action: effectiveFollowUp.action,
-            tool: effectiveFollowUp.tool,
-            input: effectiveFollowUp.input,
-            rationale: 'Previous step produced a follow-up need.',
-          });
-        }
-      }
+      queueFollowUp({
+        runtime: this._runtime(),
+        state,
+        queued,
+        maxSteps: activePlan.maxSteps,
+        forceDream: forceDream && !loopHandled,
+        followUp: loopHandled ? null : followUp,
+        rationales: V3_RATIONALES,
+      });
 
       state.queuedSteps = [...queued];
       state.completedSteps = state.steps.length;
