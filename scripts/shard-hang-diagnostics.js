@@ -120,6 +120,31 @@ function terminatePid(pid, signal) {
 }
 
 /**
+ * Fell the whole tree under `rootPid` on Windows, even when the process table
+ * could not be read.
+ *
+ * The per-pid kills in `runFileToDeadline` only reach the pids the probe saw;
+ * when `readProcessTable` returns null (a CIM hiccup under load, as on the
+ * 2026-09-30 windows-latest shard-3 leg) the grandchildren survive their file
+ * and compete with the next file for the runner's cores. `taskkill /T` kills
+ * by parentage instead of by list, so it needs no table. Best-effort: a false
+ * return leaves the per-pid kills below as the backstop, never a failure.
+ */
+function killProcessTree(rootPid) {
+  if (process.platform !== 'win32') return false;
+  try {
+    const result = spawnSync('taskkill', ['/PID', String(rootPid), '/T', '/F'], {
+      encoding: 'utf8',
+      timeout: PROBE_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    return !result.error && result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Print the child's process tree and return the pids to terminate with it.
  *
  * Best-effort by design: a shard must not fail because a diagnostic refused to
@@ -193,6 +218,10 @@ function runFileToDeadline({ cwd, file, partPath, concurrency, env, timeoutMs, s
     deadlineTimer = setTimeout(() => {
       timedOut = true;
       const descendants = reportChildTree(child.pid, shard, file);
+      // The tree kill needs no table, so a grandchild is reaped even on the
+      // legs where the probe produced nothing; the per-pid kills stay as the
+      // POSIX path and the backstop.
+      killProcessTree(child.pid);
       for (const pid of [child.pid, ...descendants]) terminatePid(pid, 'SIGTERM');
       // A process that ignores SIGTERM must not hold the whole shard: the
       // deadline bounds the run, and the report is written either way.
@@ -212,6 +241,7 @@ module.exports = {
   PROBE_TIMEOUT_MS,
   collectDescendants,
   formatProcessTree,
+  killProcessTree,
   parseProcessTable,
   runFileToDeadline,
   testArgsFor,
