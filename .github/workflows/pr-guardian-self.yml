@@ -60,3 +60,18 @@ jobs:
             exit 0
           fi
           node scripts/pr-guardian-self-review.js
+
+      # The SARIF ride-along for the Code Scanning publish follow-up (#3198).
+      # This job holds read-only permissions by contract (pinned by
+      # test/pr-guardian-self-review.test.js), so the findings travel as an
+      # artifact until a dedicated publish workflow with `security-events:
+      # write` exists. Absent most runs -- without an LLM endpoint the reviewer
+      # never runs -- hence `ignore`.
+      - name: Upload OCR findings SARIF
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ocr-findings
+          path: ${{ runner.temp }}/ocr-findings.sarif
+          if-no-files-found: ignore
+          retention-days: 14

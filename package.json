@@ -826,6 +826,7 @@
     "lib/pr-guardian/derivation-check.js",
     "lib/pr-guardian/derivation-fetch.js",
     "lib/pr-guardian/index.js",
+    "lib/pr-guardian/ocr-review-check.js",
     "lib/pr-guardian/policy.js",
     "lib/pr-guardian/snapshot.js",
     "lib/pr-guardian/review-service.js",

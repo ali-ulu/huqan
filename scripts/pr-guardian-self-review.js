@@ -18,6 +18,9 @@
  */
 
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const childProcess = require('node:child_process');
 const { evaluatePullRequest, DECISIONS } = require('../lib/pr-guardian/policy');
 // No HUQAN_-prefixed configuration here on purpose. Reading one directly is
 // caught by lib/environment-compat-bypass.test.js, and reading it through the
@@ -77,6 +80,115 @@ async function reviewDerivations({ api, repo, ref, token, files }) {
   }
 }
 
+/**
+ * Fetch the pull request head into the base checkout, so `ocr review
+ * --from/--to` reads both sides without ever checking out the head.
+ *
+ * The base tree stays the tree: only new objects arrive, under a ref the
+ * policy never reads. Any failure becomes `unknown` at the caller -- a
+ * reviewer that cannot see the change is not a verdict about it.
+ */
+function fetchPullHead({ cwd, repo, number, token, spawnSync = childProcess.spawnSync, timeoutMs = 60_000 } = {}) {
+  if (!cwd || !repo || !Number.isInteger(number) || number < 1 || !token) {
+    return { ok: false, error: 'repo, pull request number and token are required' };
+  }
+  const run = spawnSync('git', ['fetch', '--no-tags', '--depth=1', 'origin', `pull/${number}/head:refs/huqan/pr-head`], {
+    cwd,
+    encoding: 'utf8',
+    timeout: timeoutMs,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+      GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`,
+    },
+  });
+  if (run.error) return { ok: false, error: `git fetch failed: ${run.error.message}` };
+  if (run.status !== 0) {
+    const detail = String(run.stderr || '').trim().split(/\r?\n/)[0] || `exit ${run.status}`;
+    return { ok: false, error: `git fetch failed: ${detail}` };
+  }
+  return { ok: true, ref: 'refs/huqan/pr-head' };
+}
+
+/**
+ * Run OpenCodeReview over the base-to-head range and reduce it to the snapshot
+ * signal (#3198).
+ *
+ * Base-only by construction: this checkout IS the base tree, so `--rule`
+ * resolves to the base's `.opencodereview/rule.json` and the pull request
+ * cannot supply its own review rules. Without an LLM endpoint there is nothing
+ * to run -- that returns `unknown` immediately, without spawning anything, so
+ * offline legs and key-less CI stay fast and silent.
+ */
+async function reviewOcr({
+  cwd, repo, number, baseSha, token, files = [],
+  env = process.env,
+  spawnSync = childProcess.spawnSync,
+  timeoutMs,
+} = {}) {
+  const check = require('../lib/pr-guardian/ocr-review-check');
+  const filenames = (Array.isArray(files) ? files : []).map(file => file?.filename).filter(Boolean);
+  if (!check.hasOcrEndpoint(env)) {
+    return {
+      summary: {
+        status: 'unknown', total: filenames.length, covered: 0,
+        blockers: [], advisories: [], skipped: [],
+        reason: 'OCR_NO_LLM_ENDPOINT',
+        detail: 'no LLM endpoint configured; the provider is still to be decided (#3198)',
+      },
+      sarifPath: null,
+    };
+  }
+  const fetched = fetchPullHead({ cwd, repo, number, token, spawnSync });
+  if (!fetched.ok) {
+    return {
+      summary: {
+        status: 'unknown', total: filenames.length, covered: 0,
+        blockers: [], advisories: [], skipped: [],
+        reason: 'OCR_HEAD_UNAVAILABLE', detail: fetched.error,
+      },
+      sarifPath: null,
+    };
+  }
+  const rulePath = path.join(cwd, '.opencodereview', 'rule.json');
+  const run = check.createOcrRunner({ spawnSync, ...(timeoutMs ? { timeoutMs } : {}) })({
+    cwd,
+    from: baseSha,
+    to: fetched.ref,
+    rulePath: fs.existsSync(rulePath) ? rulePath : '',
+  });
+  if (!run.ok) {
+    return { summary: { ...run.summary, total: filenames.length }, sarifPath: null };
+  }
+  const summary = check.summarizeOcrReview({ output: run.output, files: filenames });
+  let sarifPath = null;
+  try {
+    sarifPath = sarifPathFor(env);
+    fs.writeFileSync(sarifPath, JSON.stringify(check.toSarif(summary), null, 2));
+  } catch {
+    sarifPath = null;
+  }
+  return { summary, sarifPath };
+}
+
+/**
+ * Where the SARIF ride-along lands. RUNNER_TEMP is already a per-run private
+ * directory; the shared os.tmpdir() fallback is not, so a predictable filename
+ * directly under it would be a symlink-hijack target (CodeQL: insecure
+ * temporary file). A fresh mkdtemp directory (0700) closes that.
+ */
+function sarifPathFor(env = process.env) {
+  const runnerTemp = text(env?.RUNNER_TEMP);
+  if (runnerTemp) return path.join(runnerTemp, 'ocr-findings.sarif');
+  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-ocr-')), 'ocr-findings.sarif');
+}
+
+function text(value) {
+  return typeof value === 'string' ? value.trim() : String(value == null ? '' : value).trim();
+}
+
 function derivationLine(verdict) {
   const signal = verdict.derivations || { status: 'none' };
   if (signal.status === 'none') return null;
@@ -96,6 +208,32 @@ function derivationLine(verdict) {
   return `Derivations: ${signal.verified}/${signal.total} reproduced.${detail}`;
 }
 
+/**
+ * The OCR signal as comment lines, with coverage accounting (#3198). "0
+ * findings" is never displayed without the number of files actually covered,
+ * and every changed file the reviewer did not look at is named with its
+ * reason. A long skip list is capped so the evidence cannot flood the log.
+ */
+function ocrLine(verdict) {
+  const signal = verdict.ocrReview || { status: 'none' };
+  if (signal.status === 'none') return null;
+  const coverage = `${signal.covered ?? 0}/${signal.total ?? 0} files covered`;
+  const skipped = Array.isArray(signal.skipped) ? signal.skipped : [];
+  const shown = skipped.slice(0, 10).map(item => `\`${item.path}\` (${item.reason})`).join(', ');
+  const more = skipped.length > 10 ? `, and ${skipped.length - 10} more` : '';
+  const skipNote = skipped.length > 0 ? ` Not reviewed: ${shown}${more}.` : '';
+  if (signal.status === 'clean') {
+    return `OCR review: 0 blocking findings, ${coverage}.${skipNote}`;
+  }
+  if (signal.status === 'review') {
+    const first = (signal.blockers || [])[0];
+    const detail = first ? ` First: \`${first.path}\` — ${first.severity}: ${first.content.slice(0, 200)}.` : '';
+    return `OCR review: ${(signal.blockers || []).length} blocking finding(s), ${coverage}.${detail}${skipNote}`;
+  }
+  const why = signal.reason ? ` (${signal.reason}${signal.detail ? `: ${signal.detail.slice(0, 160)}` : ''})` : '';
+  return `OCR review: present but not checkable from the base tree${why}; not counted either way. ${coverage}.${skipNote}`;
+}
+
 function summarize(verdict, snapshot) {
   const lines = [
     '## HUQAN PR Guardian',
@@ -106,6 +244,7 @@ function summarize(verdict, snapshot) {
     '',
     `Snapshot: ${snapshot.files.length} file(s)${snapshot.filesTruncated ? ' (truncated)' : ''}, head \`${snapshot.headSha.slice(0, 12)}\`.`,
     ...(derivationLine(verdict) ? [derivationLine(verdict)] : []),
+    ...(ocrLine(verdict) ? [ocrLine(verdict)] : []),
     '',
     'Evaluated in the runner by `lib/pr-guardian/policy.js` from the base tree.',
     'Only `block` fails this check; `review` is a note, not a gate.',
@@ -135,6 +274,21 @@ async function main() {
     token,
   });
 
+  // The OCR signal runs after the file list is known: it needs the change's
+  // files for coverage accounting, and it degrades to `unknown` without an
+  // LLM endpoint, without spawning anything.
+  const { summary: ocrReview, sarifPath } = await reviewOcr({
+    cwd: process.cwd(),
+    repo,
+    number: pr.number,
+    baseSha: pr.base?.sha || '',
+    token,
+    files,
+  });
+  if (sarifPath) {
+    console.log(`::notice title=HUQAN PR Guardian::OCR findings written to ${sarifPath} for the Code Scanning follow-up (#3198).`);
+  }
+
   const snapshot = {
     repo,
     headSha: pr.head?.sha || '',
@@ -160,6 +314,7 @@ async function main() {
       token,
       files,
     }),
+    ocrReview,
   };
 
   const verdict = evaluatePullRequest(snapshot, { action: 'github.pr.snapshot', phase: 'preview' });
@@ -192,4 +347,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { summarize, fetchFiles };
+module.exports = { summarize, fetchFiles, reviewOcr, fetchPullHead, ocrLine, sarifPathFor };

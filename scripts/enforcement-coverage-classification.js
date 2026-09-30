@@ -235,6 +235,10 @@ const CLASSIFIED = Object.freeze({
     role: 'unguarded',
     why: 'outbound GitHub API calls on the PR Guardian path; deployment-gated by config rather than by an admission decision',
   }),
+  'lib/pr-guardian/ocr-review-check.js': Object.freeze({
+    role: 'unguarded',
+    why: 'spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks, deployment-gated by the endpoint configuration rather than by an admission decision',
+  }),
 });
 
 module.exports = { ROLES, CLASSIFIED };
