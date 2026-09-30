@@ -415,3 +415,25 @@ test('admission: an unknown identity policy is refused (#3042)', () => {
     IDENTITY_POLICIES.OPTIONAL,
   );
 });
+
+test('admission: a required policy also refuses a claim no evaluator judged (#3042)', () => {
+  // A real claim that nothing evaluated is still a mutation that arrived
+  // without an enforced identity. Admitting it would make the policy's own
+  // description -- "refuses every mutation without enforced identity" -- false,
+  // so `enforced` is the only state a required seam may admit.
+  const admission = createMutationAdmission({
+    clock: FIXED_CLOCK,
+    identityEvaluator: absent('no evaluator wired on this path'),
+    identityPolicy: IDENTITY_POLICIES.REQUIRED,
+  });
+  let called = false;
+
+  const outcome = admission.admit(
+    completeContext({ identityClaim: { kind: 'identity', ref: 'r1' } }),
+    () => { called = true; },
+  );
+
+  assert.equal(outcome.admitted, false);
+  assert.equal(outcome.reason, ADMISSION_ERRORS.IDENTITY_REQUIRED);
+  assert.equal(called, false, 'an unjudged claim must not reach the effect under required');
+});

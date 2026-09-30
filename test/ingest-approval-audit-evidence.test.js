@@ -267,7 +267,7 @@ describe('the finalized receipt names its identity state (#3042)', () => {
     assert.equal(finalizedReceipt.identityReason, ABSENCE_REASONS.identityClaim);
   });
 
-  it('stamps enforcement when the audit seam judges identity', async () => {
+  it('records the seam wiring posture, not a pre-judged enforcement, when the audit seam has an evaluator', async () => {
     const approval = pendingApproval('identity-enforced', 'ie');
     const store = fakeStore(approval);
     const graph = { appendAuditEvent: () => ({ auditId: 'audit-ie' }) };
@@ -282,7 +282,9 @@ describe('the finalized receipt names its identity state (#3042)', () => {
 
     assert.equal(outcome.status, 200);
     const finalizedReceipt = store.calls.finalized[0].receipt;
-    assert.equal(finalizedReceipt.identityState, 'enforced');
+    // The receipt is finalized before this approval's admission runs, so it
+    // cannot claim the approval was judged -- only that a gate exists.
+    assert.equal(finalizedReceipt.identityState, 'not_evaluated');
     assert.equal(Object.hasOwn(finalizedReceipt, 'identityReason'), false);
   });
 });

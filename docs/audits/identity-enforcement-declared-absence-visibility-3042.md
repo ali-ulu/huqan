@@ -81,16 +81,32 @@ returned decision afterwards is too late, because the write has happened.
 ### 3.2 The durable records name the state
 
 `lib/workbench/ingest-approval-audit-writer.js` stamps the state into the audit
-event and the trust-evidence event, and exposes it for the receipt:
+event and the trust-evidence event, and exposes a receipt posture:
 
 - the **audit event** (`details.identityState`, `details.identityReason`) and
   the **ledger evidence event** (`metadata.identityState`,
-  `metadata.identityReason`) are stamped from the admission decision;
-- the **receipt** is stamped by
-  `lib/workbench/ingest-approval-action.js` from the seam's construction
-  posture, because the action owner finalizes the receipt *before* the audit
-  write runs. A receipt can therefore never name `enforced` for a seam that has
-  no evaluator.
+  `metadata.identityReason`) are built *inside* the admitted write, so they
+  carry the decision that was actually reached -- `enforced` when an evaluator
+  allowed the mutation, `absent` with the context's declared reason when it did
+  not;
+- the **receipt** is stamped by `lib/workbench/ingest-approval-action.js` from
+  the seam's permanent wiring posture, because the action owner finalizes the
+  receipt *before* the audit write runs and therefore before this approval's
+  admission exists. Two facts are knowable at that moment and they are not the
+  same kind of fact:
+
+  | Seam wiring | Receipt `identityState` | Why |
+  | --- | --- | --- |
+  | no evaluator | `absent` + declared reason | permanent: this seam will never judge identity |
+  | evaluator present | `not_evaluated` | a gate exists, but this approval has not passed it yet |
+
+  Stamping `enforced` on the receipt would label it judged before the admission
+  ran, and a subsequent refusal would leave the finalized receipt carrying that
+  false label. The receipt says what is true when it is written; the audit and
+  ledger events are the records to read for the decision. The receipt is
+  therefore **not** operation-cached: a reused writer reports the same wiring
+  posture for every approval, so one approval's state can never be stamped onto
+  another's receipt.
 
 The two reasons are scoped differently by design: the receipt states why the
 writer was wired without an evaluator, the events state why this particular
@@ -104,7 +120,7 @@ they diverge only when a caller supplies a custom `identityContext`.
 | Policy | Behaviour |
 | --- | --- |
 | `optional` (default) | today's behaviour; the declared absence admits and the decision reports `absent` |
-| `required` | a declared absence is refused with `admission.identity_required` before the effect is reached |
+| `required` | only `enforced` admits; `absent` **and** `not_evaluated` are refused with `admission.identity_required` before the effect is reached |
 
 A `required` policy on a seam that already has an evaluator is refused as a
 contradiction (`admission.identity_policy_conflict`), and an unrecognised policy
@@ -112,6 +128,11 @@ value is refused (`admission.identity_policy_invalid`). This is the explicit
 fail-closed policy the issue asks for: a critical path can refuse every
 mutation that arrives without enforced identity rather than admitting it on
 context shape alone.
+
+`required` refuses `not_evaluated` as well as `absent`. A real claim that no
+evaluator judged is still a mutation that arrived without an enforced identity;
+admitting it would make the policy's own description false. `enforced` is the
+only state a `required` seam admits.
 
 ## 4. What is still true and must not be claimed away
 
@@ -135,5 +156,8 @@ line for P1-A.
 | --- | --- |
 | `absent` is visible in the receipt | `test/ingest-approval-audit-evidence.test.js` — the finalized receipt carries `identityState: 'absent'` and its reason |
 | `absent` is loggable / visible in evidence | `test/ingest-approval-audit-writer.test.js` — the audit event and the ledger evidence payload both carry the state |
+| a receipt is never pre-labelled `enforced` | `test/ingest-approval-audit-writer.test.js` — an evaluator-backed seam records `not_evaluated` on the receipt while the audit event records the `enforced` decision |
+| a reused writer cannot cross approvals | `test/ingest-approval-audit-writer.test.js` — the posture is identical for every approval, so a second approval cannot inherit a first one's state |
 | an enforced seam is not confused with a declared absence | `test/mutation-admission.test.js` — `enforced`, `absent` and `not_evaluated` are asserted separately |
 | a critical mutation is refused when no evaluator is present | `test/mutation-admission.test.js` — `identityPolicy: 'required'` refuses with `admission.identity_required` and the mutation callback is never called |
+| a `required` seam also refuses an unjudged claim | `test/mutation-admission.test.js` — a real claim with no evaluator is refused rather than reaching the effect |
