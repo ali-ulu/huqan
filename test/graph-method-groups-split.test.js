@@ -22,9 +22,11 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // helpers (_vectorIndexOrCreate, _indexVectorNode, _deindexVectorNode) plus the
 // public similarityCandidateIds reader (via lib/graph-read-methods.js). The
 // #3017 follow-up added the public nearestSimilarNode reader (exact top-1
-// cosine with an early stop). The public method names above are unchanged.
+// cosine with an early stop). #3188 added the two public seal readers
+// getMutationReceiptSealByHash and getMutationReceiptSealByOperation (via
+// lib/graph-journal-methods.js). The public method names above are unchanged.
 
-const MAIN_SURFACE = { count: 92, sha256: '4009181262ce09098762932735c13bb71943c81ebbba3b254a65db650e8b336b' };
+const MAIN_SURFACE = { count: 94, sha256: '197e7c02a5c3c0b1be0d81e5a669f6010d5b1bf42febca86ea425597ad5abd75' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;
