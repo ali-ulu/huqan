@@ -72,6 +72,17 @@ test('a failed or waived item is not covered and says why', () => {
   ].sort());
 });
 
+test('a failed or waived item outside the change says nothing about it', () => {
+  const outside = { item_id: 'x', path: 'lib/not-in-this-change.js', fingerprint: 'y' };
+  const summary = summarizeOcrReview({
+    output: withCoverage({ failed: [outside], waived: [{ ...outside, path: 'lib/also-outside.js' }] }),
+    files: CODE,
+  });
+  assert.equal(summary.status, OCR_STATUS.CLEAN);
+  assert.equal(summary.covered, 4);
+  assert.deepEqual(summary.skipped, []);
+});
+
 test('a selected item that never completed is unevidenced', () => {
   const [, ...rest] = REAL.manifest.coverage.completed;
   const summary = summarizeOcrReview({ output: withCoverage({ completed: rest }), files: CODE });
