@@ -3,9 +3,13 @@
 /**
  * INGEST-SNAPSHOT-0 - fail-closed gate boundary contract.
  *
- * `/api/ingest` may queue only `manual` and `decision`. GitHub and markdown
- * are refused with `INGEST_SNAPSHOT_REQUIRED` until INGEST-SNAPSHOT-0 provides
- * immutable source binding (commit SHA or file hash) and replay protection.
+ * `/api/ingest` may queue `manual` and `decision`, plus `github` if and only
+ * if the submission pins the exact commit it wants reviewed (full 40-hex
+ * SHA, #3032). A commit SHA names immutable content -- git objects are
+ * content-addressed, so bytes fetched at execution time are the bytes review
+ * approved, which is exactly the immutable source binding INGEST-SNAPSHOT-0
+ * demands. Branch-only github and markdown stay refused with
+ * `INGEST_SNAPSHOT_REQUIRED`.
  *
  * That refusal lives in exactly one place - `buildIngestApprovalSnapshot()` -
  * and `handleIngest()` deliberately does NOT repeat it. Today the only runtime
@@ -13,13 +17,16 @@
  * runs after the gate has already passed, so nothing routes around it. These
  * tests lock that arrangement so the guarantee cannot be lost silently:
  *
- *   - the gate refuses every external source type, including its aliases;
+ *   - the gate refuses branch-only github, markdown and unknowns, including
+ *     their aliases;
  *   - a refusal carries no payload and no snapshot hash;
+ *   - SHA-pinned github is queueable and its snapshot hash binds the pin, so
+ *     a row edited to drop the pin no longer verifies;
  *   - the asymmetry with `handleIngest` is asserted rather than assumed, so
  *     adding a second caller has to confront it.
  *
- * These tests add no runtime behaviour. They fail if the gate is widened,
- * removed, or bypassed.
+ * These tests add no runtime behaviour. They fail if the gate is widened
+ * beyond SHA-pinned github, removed, or bypassed.
  */
 
 const test = require('node:test');
@@ -27,17 +34,22 @@ const assert = require('node:assert/strict');
 
 const {
   buildIngestApprovalSnapshot,
+  verifyIngestApprovalSnapshot,
   normalizeSourceType,
   handleIngest,
 } = require('../lib/ingest');
 
 /** Source types that must never reach the approval queue, with their aliases. */
 const REFUSED = [
+  { input: 'markdown', canonical: 'markdown' },
+  { input: 'MARKDOWN', canonical: 'markdown' },
+];
+
+/** Branch-only github (no pinned commit) must stay refused. */
+const REFUSED_UNPINNED_GITHUB = [
   { input: 'github', canonical: 'github' },
   { input: 'repo', canonical: 'github' },
   { input: 'GitHub', canonical: 'github' },
-  { input: 'markdown', canonical: 'markdown' },
-  { input: 'MARKDOWN', canonical: 'markdown' },
 ];
 
 /** Source types the queue accepts today, with their aliases. */
@@ -67,7 +79,7 @@ function sampleDataFor(sourceType) {
 test('alias mapping under test resolves to the canonical source types', () => {
   // Guards the tables above: if aliasing changes, the refusal cases below
   // would silently stop covering github/markdown.
-  for (const { input, canonical } of [...REFUSED, ...ACCEPTED]) {
+  for (const { input, canonical } of [...REFUSED, ...REFUSED_UNPINNED_GITHUB, ...ACCEPTED]) {
     assert.strictEqual(
       normalizeSourceType(input),
       canonical,
@@ -76,8 +88,20 @@ test('alias mapping under test resolves to the canonical source types', () => {
   }
 });
 
+const PINNED_SHA = 'a'.repeat(40);
+
+function pinnedGithubData(sourceType = 'github') {
+  return {
+    sourceType,
+    repoUrl: 'https://github.com/ali-ulu/huqan',
+    commitSha: PINNED_SHA,
+    branch: 'main',
+    paths: ['README.md'],
+  };
+}
+
 test('external ingest sources are refused with INGEST_SNAPSHOT_REQUIRED', () => {
-  for (const { input, canonical } of REFUSED) {
+  for (const { input, canonical } of [...REFUSED, ...REFUSED_UNPINNED_GITHUB]) {
     const result = buildIngestApprovalSnapshot(sampleDataFor(input));
 
     assert.strictEqual(result.ok, false, `${input} must not be queueable`);
@@ -98,6 +122,53 @@ test('external ingest sources are refused with INGEST_SNAPSHOT_REQUIRED', () => 
   }
 });
 
+test('SHA-pinned github is queueable and binds the pin', () => {
+  // #3032: the pin is the immutable source binding, so it must be queueable
+  // -- and the snapshot hash must cover it, or review cannot bind execution.
+  for (const input of ['github', 'repo', 'GitHub']) {
+    const result = buildIngestApprovalSnapshot(pinnedGithubData(input));
+    assert.strictEqual(result.ok, true, `${input} with a pinned SHA must be queueable`);
+    assert.strictEqual(result.sourceType, 'github');
+    assert.strictEqual(result.payload.commitSha, PINNED_SHA);
+    assert.match(result.payload.sourceRef, new RegExp(PINNED_SHA));
+    assert.match(result.snapshotHash, /^sha256:[0-9a-f]{64}$/);
+    assert.strictEqual(verifyIngestApprovalSnapshot(result).ok, true);
+  }
+});
+
+test('a queued github snapshot that loses its pin no longer verifies', () => {
+  const queued = buildIngestApprovalSnapshot(pinnedGithubData());
+  assert.strictEqual(queued.ok, true);
+  const edited = {
+    ...queued,
+    payload: { ...queued.payload, commitSha: undefined, branch: 'main' },
+  };
+  assert.strictEqual(
+    verifyIngestApprovalSnapshot(edited).ok,
+    false,
+    'dropping the pin must fail verification, not fall back to the branch'
+  );
+});
+
+test('github with a malformed pin stays refused', () => {
+  for (const commitSha of ['main', 'abc123', 'z'.repeat(40), '']) {
+    const result = buildIngestApprovalSnapshot({
+      sourceType: 'github',
+      repoUrl: 'https://github.com/ali-ulu/huqan',
+      commitSha,
+      branch: 'main',
+    });
+    assert.strictEqual(result.ok, false, `pin ${commitSha || '<empty>'} must not be queueable`);
+    assert.strictEqual(result.code, 'INGEST_SNAPSHOT_REQUIRED');
+  }
+  const badRepo = buildIngestApprovalSnapshot({
+    sourceType: 'github',
+    repoUrl: 'https://example.com/owner/repo',
+    commitSha: PINNED_SHA,
+  });
+  assert.strictEqual(badRepo.ok, false);
+  assert.strictEqual(badRepo.code, 'INGEST_SNAPSHOT_REQUIRED');
+});
 test('manual and decision remain queueable with a snapshot hash', () => {
   // Non-vacuity: the refusal test above would also pass if the gate refused
   // everything. This proves the accepted set still works.

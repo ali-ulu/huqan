@@ -243,16 +243,40 @@ test('Markdown snapshot binds only markdown files inside the reviewed target', (
   assert.equal(noRoot.code, 'MARKDOWN_ROOT_REQUIRED');
 });
 
-test('adding snapshot primitives does not widen the external approval gate', () => {
-  for (const sourceType of ['github', 'repo', 'markdown']) {
-    const result = buildIngestApprovalSnapshot({
-      sourceType,
+test('the external approval gate admits only SHA-pinned github (#3032)', () => {
+  // The primitives above bind immutable content; the approval gate admits the
+  // github shape that carries the same binding (canonical repo + full commit
+  // SHA) and still refuses everything else, including markdown and SHA-less
+  // github, with no payload or hash leaking on refusal.
+  const pinned = buildIngestApprovalSnapshot({
+    sourceType: 'github',
+    repoUrl: 'https://github.com/ali-ulu/huqan',
+    commitSha: COMMIT_SHA,
+    path: 'README.md',
+    rootPath: '/workspace',
+    files: [{ path: 'README.md', content: '# HUQAN' }],
+  });
+  assert.equal(pinned.ok, true);
+  assert.equal(pinned.sourceType, 'github');
+  const pinnedAlias = buildIngestApprovalSnapshot({
+    sourceType: 'repo',
+    repoUrl: 'https://github.com/ali-ulu/huqan',
+    commitSha: COMMIT_SHA,
+  });
+  assert.equal(pinnedAlias.ok, true);
+  assert.equal(pinnedAlias.sourceType, 'github');
+  for (const data of [
+    { sourceType: 'repo', repoUrl: 'https://github.com/ali-ulu/huqan', branch: 'main' },
+    {
+      sourceType: 'markdown',
       repoUrl: 'https://github.com/ali-ulu/huqan',
       commitSha: COMMIT_SHA,
       path: 'README.md',
       rootPath: '/workspace',
       files: [{ path: 'README.md', content: '# HUQAN' }],
-    });
+    },
+  ]) {
+    const result = buildIngestApprovalSnapshot(data);
     assert.equal(result.ok, false);
     assert.equal(result.code, 'INGEST_SNAPSHOT_REQUIRED');
     assert.equal(result.payload, undefined);
