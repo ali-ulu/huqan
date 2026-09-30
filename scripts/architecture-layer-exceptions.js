@@ -45,6 +45,17 @@ const LAYER_EXCEPTIONS = Object.freeze([
     review_by: '2026-12-31',
   },
   {
+    from: 'lib/cli-experience-learn.js',
+    to: 'lib/experience/learning-intake.js',
+    why: 'The experience-learn command builds the learning proposal it prints; the command lives'
+      + ' beside the other experience CLI handlers (Core) while the intake that reads the sealed'
+      + ' journal and admits it lives with the experience pipeline (Application) -- the same shape'
+      + ' as the cli-experience-read -> read-model edge already in the recorded baseline. The'
+      + ' follow-up fix is the same as the coder command: open the journal behind the cli.js'
+      + ' entrypoint and pass the intake in.',
+    review_by: '2026-12-31',
+  },
+  {
     from: 'lib/external-action-receipt-batch.js',
     to: 'lib/receipt/signed-receipt-batch.js',
     why: 'The batch envelope signs itself with the receipt signing primitive; the envelope builder'
