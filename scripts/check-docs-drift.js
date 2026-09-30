@@ -126,7 +126,7 @@ function packageVersion() {
 
 function knownToolNames() {
   const { TOOL_SCHEMAS } = require(path.join(repoRoot, 'lib', 'mcp-tool-catalog.js'));
-  const { OPERATOR_TOOL_SCHEMAS } = require(path.join(repoRoot, 'mcpServer.js'));
+  const { OPERATOR_TOOL_SCHEMAS } = require(path.join(repoRoot, 'lib', 'mcp', 'tool-surface.js'));
   const names = new Set();
   for (const schema of [...TOOL_SCHEMAS, ...OPERATOR_TOOL_SCHEMAS]) {
     names.add(String(schema.name).replace(/^(?:huqan|axiom)\./, ''));
