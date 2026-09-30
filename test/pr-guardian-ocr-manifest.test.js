@@ -34,12 +34,19 @@ test('a real clean review of code files is clean with full coverage', () => {
   assert.deepEqual(summary.skipped, []);
 });
 
-test('a changed file the reviewer never selected is named, not called unevidenced', () => {
+test('a file the reviewer does not review by design is named and does not withhold clean', () => {
+  // Owner decision (2026-10-01): a .md file OCR has no rules for is reported,
+  // not treated as missing coverage; the reviewed code decides.
   const summary = summarizeOcrReview({ output: REAL, files: [...CODE, DOC] });
+  assert.equal(summary.status, OCR_STATUS.CLEAN);
   assert.equal(summary.covered, 4);
+  assert.equal(summary.total, 5);
   assert.deepEqual(summary.skipped, [{ path: DOC, reason: 'not_selected' }]);
-  // The policy is unchanged: a file nobody looked at still keeps the result
-  // from being a pass.
+});
+
+test('out-of-scope files never mask a file that should have been reviewed', () => {
+  const [first, ...rest] = REAL.manifest.coverage.completed;
+  const summary = summarizeOcrReview({ output: withCoverage({ completed: rest, failed: [first] }), files: [...CODE, DOC] });
   assert.equal(summary.status, OCR_STATUS.UNKNOWN);
   assert.equal(summary.reason, 'OCR_INCOMPLETE_COVERAGE');
 });
