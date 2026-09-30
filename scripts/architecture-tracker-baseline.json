@@ -177,6 +177,8 @@
       "lib/cli-help.js": "Core",
       "lib/cli-helpers.js": "Core",
       "lib/cli-hypotheses.js": "Core",
+      "lib/cli-inference-command.js": "Core",
+      "lib/cli-inference-runtime.js": "Core",
       "lib/cli-ingest-batch.js": "Core",
       "lib/cli-ingest-preview.js": "Core",
       "lib/cli-knowledge-commands.js": "Core",
@@ -567,6 +569,13 @@
       "lib/inference-derived-dependency.js": "Core",
       "lib/inference-derived-record.js": "Core",
       "lib/inference-rule-ir.js": "Core",
+      "lib/inference-runtime-beliefs.js": "Core",
+      "lib/inference-runtime-projection.js": "Core",
+      "lib/inference-runtime-records.js": "Core",
+      "lib/inference-runtime-recovery.js": "Core",
+      "lib/inference-runtime-snapshot.js": "Core",
+      "lib/inference-runtime-store.js": "Core",
+      "lib/inference-runtime.js": "Core",
       "lib/inference-semi-naive-join.js": "Core",
       "lib/inference-semi-naive-values.js": "Core",
       "lib/inference-semi-naive.js": "Core",
@@ -597,6 +606,7 @@
       "lib/kernel-dream.js": "Core",
       "lib/kernel-envelope.js": "Core",
       "lib/kernel-factory.js": "Core",
+      "lib/kernel-inference-methods.js": "Core",
       "lib/kernel-introspect-report.js": "Core",
       "lib/kernel-learn-admission.js": "Core",
       "lib/kernel-learn-document.js": "Core",
@@ -699,6 +709,7 @@
       "lib/memory-event-read.js": "Adapters",
       "lib/memory-event-source.js": "Adapters",
       "lib/memory-link-read.js": "Adapters",
+      "lib/memory-link-source.js": "Adapters",
       "lib/memory-link-write.js": "Adapters",
       "lib/memory-mutation-gate/index.js": "Adapters",
       "lib/memory-mutation-gate/memory-mutation-classifier.js": "Adapters",
@@ -732,6 +743,7 @@
       "lib/memory-store-rollback.js": "Adapters",
       "lib/memory-store-sqlite-collection.js": "Adapters",
       "lib/memory-store-sqlite-events.js": "Adapters",
+      "lib/memory-store-sqlite-links.js": "Adapters",
       "lib/memory-store-sqlite-row.js": "Adapters",
       "lib/memory-store-sqlite-warmup.js": "Adapters",
       "lib/memory-store-sqlite-writer.js": "Adapters",
@@ -794,6 +806,7 @@
       "lib/pr-guardian/derivation-fetch.js": "Application",
       "lib/pr-guardian/github-client.js": "Application",
       "lib/pr-guardian/index.js": "Application",
+      "lib/pr-guardian/ocr-review-check.js": "Application",
       "lib/pr-guardian/policy.js": "Application",
       "lib/pr-guardian/review-receipt.js": "Application",
       "lib/pr-guardian/review-service-execute.js": "Application",
@@ -1387,6 +1400,7 @@
         "lib/graph-store-adapters.js",
         "lib/graph-vector-index.js",
         "lib/graph-write-methods.js",
+        "lib/issuer-seal-config.js",
         "lib/memory-store-utils.js",
         "lib/receipt/receipt-chain.js",
         "lib/receipt/v4-receipt-family.js",
@@ -1911,6 +1925,7 @@
         "lib/cli-experience-read.js",
         "lib/cli-experience-reconcile.js",
         "lib/cli-help.js",
+        "lib/cli-inference-command.js",
         "lib/cli-knowledge-commands.js",
         "lib/cli-status-command.js"
       ],
@@ -1957,6 +1972,22 @@
         "lib/hypothesis-review.js",
         "lib/hypothesis-thresholds.js",
         "lib/hypothesis-tuning.js"
+      ],
+      "lib/cli-inference-command.js": [
+        "lib/cli-inference-runtime.js",
+        "lib/cli-mutation-gate.js"
+      ],
+      "lib/cli-inference-runtime.js": [
+        "lib/inference-abduction.js",
+        "lib/inference-backward.js",
+        "lib/inference-derived-admission.js",
+        "lib/inference-derived-record.js",
+        "lib/inference-runtime-beliefs.js",
+        "lib/inference-runtime-records.js",
+        "lib/inference-runtime-recovery.js",
+        "lib/inference-runtime-snapshot.js",
+        "lib/inference-runtime-store.js",
+        "lib/inference-semi-naive.js"
       ],
       "lib/cli-ingest-batch.js": [
         "lib/ingest-workflow-preview.js"
@@ -2916,6 +2947,7 @@
         "lib/graph-json-persistence.js",
         "lib/graph-json-snapshot.js",
         "lib/graph-mutation-receipt-read.js",
+        "lib/graph-mutation-receipt-write.js",
         "lib/graph-mutation-rollback.js",
         "lib/graph-record-utils.js",
         "lib/mutation-journal.js"
@@ -2992,6 +3024,7 @@
       ],
       "lib/graph-sqlite-schema.js": [
         "lib/graph-mutation-receipt-schema.js",
+        "lib/graph-mutation-receipt-write.js",
         "lib/graph-sqlite-pragmas.js"
       ],
       "lib/graph-store-adapters.js": [
@@ -3428,6 +3461,40 @@
       "lib/inference-rule-ir.js": [
         "lib/is-plain-object.js"
       ],
+      "lib/inference-runtime-beliefs.js": [
+        "lib/conflict-detector.js",
+        "lib/inference-belief-revision.js",
+        "lib/inference-derived-dependency.js",
+        "lib/inference-derived-record.js",
+        "lib/inference-runtime-snapshot.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/inference-runtime-records.js": [
+        "lib/inference-derived-dependency.js",
+        "lib/inference-derived-record.js",
+        "lib/inference-semi-naive-values.js"
+      ],
+      "lib/inference-runtime-recovery.js": [
+        "lib/inference-derived-record.js"
+      ],
+      "lib/inference-runtime-snapshot.js": [
+        "lib/contested-read-policy.js",
+        "lib/inference-rule-ir.js",
+        "lib/inference-semi-naive-values.js"
+      ],
+      "lib/inference-runtime-store.js": [
+        "lib/inference-runtime-projection.js",
+        "lib/inference-runtime-snapshot.js"
+      ],
+      "lib/inference-runtime.js": [
+        "lib/inference-backward.js",
+        "lib/inference-derived-admission.js",
+        "lib/inference-derived-record.js",
+        "lib/inference-rule-ir.js",
+        "lib/inference-semi-naive-values.js",
+        "lib/inference-semi-naive.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/inference-semi-naive-join.js": [
         "lib/inference-semi-naive-values.js",
         "lib/inference-unification.js"
@@ -3491,6 +3558,7 @@
         "lib/kernel-context-similarity.js",
         "lib/kernel-cross-link.js",
         "lib/kernel-dream.js",
+        "lib/kernel-inference-methods.js",
         "lib/kernel-learn-document.js",
         "lib/kernel-learn-from-llm.js",
         "lib/kernel-method-install.js",
@@ -3505,6 +3573,10 @@
         "kernel.js",
         "kernel.v2.js",
         "lib/environment-compat.js"
+      ],
+      "lib/kernel-inference-methods.js": [
+        "lib/inference-runtime.js",
+        "lib/kernel-method-install.js"
       ],
       "lib/kernel-learn-admission.js": [
         "lib/gate-telemetry.js",
@@ -3944,6 +4016,7 @@
         "lib/memory-store-utils.js"
       ],
       "lib/memory-link-read.js": [
+        "lib/memory-link-source.js",
         "lib/memory-record-utils.js",
         "lib/memory-store-utils.js"
       ],
@@ -3987,6 +4060,7 @@
       ],
       "lib/memory-package-export.js": [
         "lib/memory-event-source.js",
+        "lib/memory-link-source.js",
         "lib/memory-record-utils.js",
         "lib/memory-schema.js",
         "lib/memory-store-utils.js"
@@ -3998,6 +4072,7 @@
       ],
       "lib/memory-package-import.js": [
         "lib/memory-event-source.js",
+        "lib/memory-link-source.js",
         "lib/memory-schema.js"
       ],
       "lib/memory-patch-metadata.js": [
@@ -4089,13 +4164,17 @@
         "lib/memory-store-sqlite-collection.js",
         "lib/memory-store-sqlite-row.js"
       ],
+      "lib/memory-store-sqlite-links.js": [
+        "lib/memory-store-sqlite-collection.js",
+        "lib/memory-store-sqlite-row.js"
+      ],
       "lib/memory-store-sqlite-row.js": [
         "lib/memory-schema.js"
       ],
       "lib/memory-store-sqlite-warmup.js": [
-        "lib/memory-schema.js",
         "lib/memory-store-sqlite-collection.js",
         "lib/memory-store-sqlite-events.js",
+        "lib/memory-store-sqlite-links.js",
         "lib/memory-store-sqlite-row.js"
       ],
       "lib/memory-store-sqlite-writer.js": [
@@ -4112,6 +4191,7 @@
         "lib/workspace-id.js"
       ],
       "lib/memory-store-write-methods.js": [
+        "lib/memory-link-source.js",
         "lib/memory-link-write.js",
         "lib/memory-package-import-runner.js",
         "lib/memory-package-import.js",
@@ -4291,6 +4371,7 @@
         "lib/pr-guardian/derivation-check.js",
         "lib/pr-guardian/derivation-fetch.js",
         "lib/pr-guardian/github-client.js",
+        "lib/pr-guardian/ocr-review-check.js",
         "lib/pr-guardian/policy.js",
         "lib/pr-guardian/review-service.js",
         "lib/pr-guardian/snapshot.js"
@@ -5530,6 +5611,7 @@
         "lib/coder/verify-derivation.js",
         "lib/pr-guardian/derivation-check.js",
         "lib/pr-guardian/derivation-fetch.js",
+        "lib/pr-guardian/ocr-review-check.js",
         "lib/pr-guardian/policy.js"
       ],
       "scripts/release-verify.js": [
@@ -5843,6 +5925,12 @@
       {
         "from": "lib/cli-coder.js",
         "to": "lib/coder/journal-store.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-coder.js",
+        "to": "lib/coder/verify-ocr.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
