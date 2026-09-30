@@ -122,6 +122,13 @@ test('Experience learning is production-reachable through CLI and MCP from a rea
   assert.equal(embeddedFlag.args.runId, 'run-learn-positive');
   assert.equal(embeddedFlag.args.workspaceId, 'workspace-a');
   assert.deepEqual(embeddedFlag.args.params, { path: 'notes.txt', oldText: '--kind bogus', newText: 'final' });
+  // A flag with a missing operand must not eat the next flag: `--workspace
+  // --kind replace_text` is a missing workspace, not workspace `--kind`, and
+  // `replace_text` must not become the runId.
+  const missingOperand = parseCommand('experience-learn run --workspace --kind replace_text');
+  assert.equal(missingOperand.args.workspaceId, 'default');
+  assert.equal(missingOperand.args.kind, 'replace_text');
+  assert.equal(missingOperand.args.runId, 'run');
 });
 
 test('a proposal carries a compiled procedure candidate but never installs it', async (t) => {
