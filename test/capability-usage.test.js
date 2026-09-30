@@ -81,6 +81,16 @@ describe('capability usage evidence', () => {
     }
   });
 
+  // `conflicts` shares the candidate_claims table with `hypotheses`, so
+  // `reviewed_by <> ''` alone would count an ordinary hypothesis verdict as
+  // conflict-review evidence and report the capability USED when it never ran
+  // (#3187 review). The where clause must keep the conflict-only filter.
+  it('counts only reviewed *conflict* candidates as conflict-review evidence', () => {
+    assert.equal(EVIDENCE.conflicts.table, 'candidate_claims');
+    assert.match(EVIDENCE.conflicts.where, /reviewed_by <> ''/u);
+    assert.match(EVIDENCE.conflicts.where, /json_extract\(conflict, '\$\.conflict'\) = 1/u);
+  });
+
   // A read-only capability leaves no row of its own, which is why it reported
   // UNKNOWN. Its MCP call still passes a gate, and gate decisions are now
   // recorded against the tool name -- so the call can be counted without the

@@ -69,6 +69,10 @@ const MUST_HAVE_PATTERNS = Object.freeze([
   'test/third-party-interoperability-boundary.test.js',
   'test/mutation-admission*.test.js',
   'test/mutation-journal*.test.js',
+  // #3197's review-rule contract. It reads .opencodereview/rule.json, a config
+  // file no lib/ module requires, so editing the rule file selects nothing that
+  // reaches this pin -- the same shape as the reachability ratchet above.
+  'test/opencodereview-rule-file.test.js',
   'test/operator-token-constant-time.test.js',
   'test/package-closure.test.js',
   'test/path-containment-*.test.js',

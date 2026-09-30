@@ -74,6 +74,13 @@ const EVIDENCE = Object.freeze({
   'agent-plan': { none: 'planning is read-only and writes nothing; a plan that is never run leaves no trace' },
   'dream': { table: 'candidate_claims', where: '1=1', label: 'candidate claims' },
   'hypotheses': { table: 'candidate_claims', where: '1=1', label: 'candidate claims' },
+  // A conflict review moves a candidate row from `pending` to `accepted`/
+  // `rejected` and stamps `reviewed_by`; the `hypotheses` row above cannot tell
+  // that apart from an ordinary hypothesis verdict, so this one counts the
+  // reviewed subset of *conflict* candidates specifically: `conflict` is the
+  // JSON column and a real conflict carries `conflict.conflict === true`
+  // (lib/conflict-candidate-review.js's isConflictCandidate).
+  'conflicts': { table: 'candidate_claims', where: "reviewed_by <> '' AND json_extract(conflict, '$.conflict') = 1", label: 'reviewed conflict candidates' },
   'ingest-execute': { approvalTool: true },
   'ingest-preview': { none: 'preview is read-only by contract' },
   'ingest-run-detail': { none: 'a read of ingest status writes nothing' },
