@@ -85,7 +85,7 @@ function buildProductionBoundary(environment = process.env, deps = {}) {
   return boundary;
 }
 
-function startGitHubAppBetaServer(options = {}) {
+function createProductionServer(options = {}) {
   const environment = options.environment || process.env;
   // The submitter owns the approval store and is only built for the production
   // path; a caller that injects its own `boundary` supplies its own queueing.
@@ -96,14 +96,21 @@ function startGitHubAppBetaServer(options = {}) {
   const boundary = options.boundary || buildProductionBoundary(environment, {
     queueIngest: ingestSubmitter,
   });
-  const port = options.port ?? parsePort(readCompatibleEnvironmentVariable('GITHUB_APP_PORT', environment));
-  const host = options.host ?? parseHost(readCompatibleEnvironmentVariable('GITHUB_APP_HOST', environment));
   const server = createGitHubAppBetaServer({ boundary });
   server.ingestSubmitter = ingestSubmitter;
+  server.boundary = boundary;
+  return server;
+}
+
+function startGitHubAppBetaServer(options = {}) {
+  const environment = options.environment || process.env;
+  const server = createProductionServer(options);
+  const port = options.port ?? parsePort(readCompatibleEnvironmentVariable('GITHUB_APP_PORT', environment));
+  const host = options.host ?? parseHost(readCompatibleEnvironmentVariable('GITHUB_APP_HOST', environment));
   server.listen(port, host, () => {
     const address = server.address();
     const boundPort = address && typeof address === 'object' ? address.port : port;
-    console.log(`HUQAN GitHub App beta webhook listening on http://${host}:${boundPort}${boundary.path}`);
+    console.log(`HUQAN GitHub App beta webhook listening on http://${host}:${boundPort}${server.boundary.path}`);
   });
   return server;
 }
@@ -115,5 +122,6 @@ module.exports = Object.freeze({
   DEFAULT_HOST,
   createGitHubAppBetaServer,
   buildProductionBoundary,
+  createProductionServer,
   startGitHubAppBetaServer,
 });

@@ -8,23 +8,27 @@
  * published `github-app-server.js` used to build its boundary without one --
  * so a real deployment recorded the observation receipt but never created the
  * `http.ingest` approval #3032's pipeline produces. This exercises the real
- * production path: the boundary the server builds, the product's own
- * `createIngestApprovalRuntime`, and a real SQLite approval store.
+ * production server: `startGitHubAppBetaServer` with no injected boundary, its
+ * own submitter, the product's `createIngestApprovalRuntime`, and a real
+ * SQLite store.
  *
- * The observation-only behavior of `lib/github-app-beta-handler.js` is
- * untouched and still asserted by `test/v5-c7-github-app-beta.test.js`; here
- * the webhook only has to leave a durable pending approval behind.
+ * The boundary is invoked directly with a fake request rather than over a
+ * socket: the request surface it reads (`method`, `headers`,
+ * `headersDistinct`, and the `data`/`end` events) is small, and a socket only
+ * adds a Windows hang risk. The observation-only behavior of
+ * `lib/github-app-beta-handler.js` is untouched and still asserted by
+ * `test/v5-c7-github-app-beta.test.js`.
  */
 
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const { EventEmitter } = require('node:events');
 const fs = require('node:fs');
-const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { startGitHubAppBetaServer } = require('../github-app-server');
+const { createProductionServer } = require('../github-app-server');
 const HuqanStorage = require('../storage');
 
 const SECRET = 'github-app-server-ingest-wiring-secret';
@@ -58,65 +62,43 @@ function pullRequestPayload() {
   };
 }
 
-function signature(body) {
-  return `sha256=${crypto.createHmac('sha256', SECRET).update(body).digest('hex')}`;
-}
-
-function listen(server) {
-  return new Promise((resolve) => server.once('listening', resolve));
-}
-
-function closeServer(server) {
-  return new Promise((resolve, reject) => {
-    if (!server.listening) {
-      resolve();
-      return;
-    }
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
-}
-
-function post(port, body, headers) {
-  return new Promise((resolve, reject) => {
-    const req = http.request({
-      host: '127.0.0.1',
-      port,
-      path: '/api/github-app/webhook',
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'content-length': String(body.length),
-        ...headers,
-      },
-    }, (res) => {
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => resolve({
-        statusCode: res.statusCode,
-        body: JSON.parse(Buffer.concat(chunks).toString('utf8')),
-      }));
-    });
-    req.once('error', reject);
-    req.end(body);
-  });
-}
-
-test('the production GitHub App server queues a durable pending ingest approval', async (t) => {
-  const root = tempRoot(t);
-  const server = startGitHubAppBetaServer({ environment: environment(root), port: 0 });
-  t.after(async () => {
-    await closeServer(server);
-    if (server.ingestSubmitter) server.ingestSubmitter.close();
-  });
-  await listen(server);
-  const port = server.address().port;
-
-  const body = Buffer.from(JSON.stringify(pullRequestPayload()), 'utf8');
-  const result = await post(port, body, {
+function fakeRequest(body) {
+  const headers = {
+    'content-type': 'application/json',
+    'content-length': String(body.length),
     'x-github-event': 'pull_request',
     'x-github-delivery': DELIVERY,
-    'x-hub-signature-256': signature(body),
+    'x-hub-signature-256': `sha256=${crypto.createHmac('sha256', SECRET).update(body).digest('hex')}`,
+  };
+  const req = new EventEmitter();
+  req.method = 'POST';
+  req.headers = headers;
+  req.headersDistinct = Object.fromEntries(Object.entries(headers).map(([name, value]) => [name, [value]]));
+  // Deliver on the next tick so the boundary has attached its listeners.
+  process.nextTick(() => {
+    req.emit('data', body);
+    req.emit('end');
   });
+  return req;
+}
+
+// The production server, built exactly as `require.main` builds it -- no
+// injected boundary and no injected callback -- but without binding a port.
+function productionServer(t) {
+  const server = createProductionServer({ environment: environment(tempRoot(t)) });
+  t.after(() => {
+    if (server.ingestSubmitter) server.ingestSubmitter.close();
+    if (server.ingestSubmitter) server.ingestSubmitter.kernel.graph.close();
+  });
+  return server;
+}
+
+test('the production server queues a durable pending ingest approval', async (t) => {
+  const server = productionServer(t);
+  assert.ok(server.ingestSubmitter, 'the production server must wire a repo-ingest submitter');
+
+  const body = Buffer.from(JSON.stringify(pullRequestPayload()), 'utf8');
+  const result = await server.boundary.handle(fakeRequest(body));
 
   assert.strictEqual(result.statusCode, 200);
   assert.strictEqual(result.body.ok, true);
@@ -141,23 +123,11 @@ test('the production GitHub App server queues a durable pending ingest approval'
 });
 
 test('a repeated delivery is idempotent and does not queue a second approval', async (t) => {
-  const root = tempRoot(t);
-  const server = startGitHubAppBetaServer({ environment: environment(root), port: 0 });
-  t.after(async () => {
-    await closeServer(server);
-    if (server.ingestSubmitter) server.ingestSubmitter.close();
-  });
-  await listen(server);
-  const port = server.address().port;
+  const server = productionServer(t);
 
   const body = Buffer.from(JSON.stringify(pullRequestPayload()), 'utf8');
-  const headers = {
-    'x-github-event': 'pull_request',
-    'x-github-delivery': DELIVERY,
-    'x-hub-signature-256': signature(body),
-  };
-  const first = await post(port, body, headers);
-  const second = await post(port, body, headers);
+  const first = await server.boundary.handle(fakeRequest(body));
+  const second = await server.boundary.handle(fakeRequest(body));
 
   assert.strictEqual(first.body.ingest.idempotent, false);
   assert.strictEqual(second.body.ingest.idempotent, true);
@@ -166,16 +136,20 @@ test('a repeated delivery is idempotent and does not queue a second approval', a
     first.body.ingest.approval.id,
     'the same observation must resolve to the same approval',
   );
+
+  const storage = new HuqanStorage({ kernel: server.ingestSubmitter.kernel });
+  t.after(() => storage.close());
+  assert.strictEqual(storage.listPendingToolApprovals(20, 'default').length, 1);
 });
 
-test('an injected boundary keeps its own queueing decision', async (t) => {
-  const root = tempRoot(t);
+test('an injected boundary keeps its own queueing decision', () => {
   const boundary = {
     path: '/api/github-app/webhook',
     handle: async () => ({ statusCode: 200, headers: {}, body: { ok: true } }),
   };
-  const server = startGitHubAppBetaServer({ environment: environment(root), boundary, port: 0 });
-  t.after(() => closeServer(server));
-  await listen(server);
+  const server = createProductionServer({
+    environment: { HUQAN_GITHUB_APP_BETA_ENABLED: '1' },
+    boundary,
+  });
   assert.strictEqual(server.ingestSubmitter, null);
 });
