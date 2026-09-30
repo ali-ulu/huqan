@@ -47,6 +47,20 @@ test('without an endpoint the job installs nothing and the reviewer stays unknow
 test('a failed OCR install never stops the policy evaluation', () => {
   const install = REVIEW.slice(REVIEW.indexOf('- name: Install the OCR reviewer'), REVIEW.indexOf('- name: Evaluate the pull request'));
   assert.match(install, /^\s+continue-on-error: true$/m);
+  // continue-on-error cannot rescue a hung download: bound it, so the job
+  // limit is never what ends the run.
+  assert.match(install, /^\s+timeout-minutes: 2$/m);
+  assert.match(install, /--connect-timeout 10 --max-time 60/);
+});
+
+test('the job limit outlasts the install, the head fetch and the reviewer', () => {
+  const { DEFAULT_TIMEOUT_MS } = require('../lib/pr-guardian/ocr-review-check');
+  const jobMinutes = Number(REVIEW.match(/^    timeout-minutes: (\d+)$/m)[1]);
+  const installMinutes = 2;
+  const fetchMinutes = 1;
+  const reviewMinutes = DEFAULT_TIMEOUT_MS / 60000;
+  assert.ok(jobMinutes >= installMinutes + fetchMinutes + reviewMinutes + 3,
+    `job timeout ${jobMinutes} min leaves no room for the reviewer's ${reviewMinutes} min`);
 });
 
 test('the review job keeps its read-only permissions', () => {

@@ -26,7 +26,12 @@ jobs:
   review:
     name: HUQAN PR Guardian
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Worst case, every bound hit: install 2 min (step timeout), head fetch
+    # 1 min and `ocr review` 4 min (scripts/pr-guardian-self-review.js,
+    # lib/pr-guardian/ocr-review-check.js), plus checkout and the GitHub API
+    # reads. The job limit leaves room for all of it, so a slow reviewer ends
+    # as `unknown` and the policy still reports instead of being cancelled.
+    timeout-minutes: 12
     steps:
       # Pinned to the base tree, never the PR merge commit. The policy this job
       # runs decides whether the change is safe, so a pull request must not be
@@ -62,6 +67,7 @@ jobs:
       # still decides. An unavailable reviewer must never block (#3198).
       - name: Install the OCR reviewer
         continue-on-error: true
+        timeout-minutes: 2
         env:
           OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
           OCR_LLM_TOKEN: ${{ secrets.OCR_LLM_TOKEN }}
@@ -76,7 +82,9 @@ jobs:
           fi
           bin="${RUNNER_TEMP}/ocr-bin"
           mkdir -p "$bin"
-          curl --fail --silent --show-error --location --retry 3 --output "$bin/ocr"             "https://github.com/alibaba/open-code-review/releases/download/v${OCR_VERSION}/opencodereview-linux-amd64"
+          curl --fail --silent --show-error --location --retry 3 \
+            --connect-timeout 10 --max-time 60 --output "$bin/ocr" \
+            "https://github.com/alibaba/open-code-review/releases/download/v${OCR_VERSION}/opencodereview-linux-amd64"
           echo "${OCR_SHA256}  $bin/ocr" | sha256sum --check --strict
           chmod +x "$bin/ocr"
           echo "$bin" >> "$GITHUB_PATH"
