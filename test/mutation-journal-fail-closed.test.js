@@ -40,7 +40,7 @@ describe('mutation journal fails closed on corruption (#731)', () => {
     // Sections are null-prototype maps (#1671), so compare their contents
     // rather than the objects themselves -- deepStrictEqual treats a
     // prototype-less map and an object literal as different values.
-    assert.deepStrictEqual(Object.keys(empty).sort(), ['chainTips', 'operations', 'receipts', 'receiptsById']);
+    assert.deepStrictEqual(Object.keys(empty).sort(), ['chainTips', 'operations', 'receipts', 'receiptsById', 'seals']);
     for (const [name, section] of Object.entries(empty)) {
       assert.strictEqual(Object.getPrototypeOf(section), null, `${name} must be prototype-free`);
       assert.deepStrictEqual(Object.keys(section), [], `${name} must be empty`);
@@ -110,6 +110,7 @@ describe('mutation journal fails closed on corruption (#731)', () => {
       },
       chainTips: { 'default::memory': 'b'.repeat(64) },
       receiptsById: { 'r-1': 'op-1' },
+      seals: {},
     };
     fs.writeFileSync(journalPath, JSON.stringify(journal));
     const read = readMutationJournal(journalPath);
