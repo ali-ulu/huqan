@@ -84,6 +84,23 @@ jobs:
       - name: Require identity documents to name HUQAN, not AXIOM (#3029)
         run: npm run check:naming-conformance
 
+      # The gates below shipped as `npm run` scripts but no workflow called
+      # them, so a regression they exist to catch could land green.
+      # Each is dependency-free -- they only read the source tree, the lockfile
+      # and the specs -- so they belong in this no-install job.
+
+      - name: Require every locked dependency to carry an approved license
+        run: npm run check:licenses
+
+      - name: Require the structured-log format to hold
+        run: npm run check:structured-log
+
+      - name: Forbid a model-calling module reachable from a declared entry point
+        run: npm run check:deterministic-path
+
+      - name: Require the V5 agent-identity readiness verdict
+        run: npm run check:v5-identity
+
   source-gates:
     name: Architecture source gates
     runs-on: ubuntu-latest

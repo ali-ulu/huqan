@@ -419,11 +419,13 @@ jobs:
       # once instead, which is what the cap was standing in for.
       max-parallel: 10
       matrix:
-        # PRs and main pushes exercise the supported Node 22 package on Linux and
-        # Windows -- the same ten shard legs either way. Only scheduled/manual
-        # runs widen to macOS and the current Node 24 line.
+        # PRs and main pushes exercise the supported Node 22 and Node 24
+        # packages on Linux and Windows. `engines` is >=22.13.0, so Node 24 is a
+        # supported runtime; leaving it to the nightly alone let a Node-24-only
+        # regression merge and surface a day later. Only scheduled/manual
+        # runs still widen to macOS.
         os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
-        node-version: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '[22, 24]' || '[22]') }}
+        node-version: [22, 24]
         shard: [1, 2, 3, 4, 5]
     defaults:
       run:

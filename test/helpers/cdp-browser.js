@@ -2,8 +2,9 @@
 
 // Minimal Chrome DevTools Protocol driver for real-browser smoke tests.
 //
-// The repository ships zero devDependencies on purpose, so this deliberately
-// avoids Playwright/Puppeteer. It drives an already-installed Chrome or Edge
+// The repository keeps its browser evidence on a raw CDP connection rather
+// than a Playwright/Puppeteer driver, so the smoke adds no browser download and
+// no runtime dependency. It drives an already-installed Chrome or Edge
 // over CDP using the Node global WebSocket, which keeps the browser evidence
 // real without adding an install-time dependency or a browser download.
 //

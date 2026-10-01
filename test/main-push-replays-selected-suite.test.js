@@ -32,7 +32,6 @@ test('a main push replays the selected suite instead of skipping it', () => {
 test('a main push runs the same shard matrix as a pull request', () => {
   const matrix = workflow.jobs['runtime-test'].strategy.matrix;
   const os = String(matrix.os);
-  const node = String(matrix['node-version']);
 
   // The wide matrix is nightly/manual only. A push must match the PR legs, or
   // the replay would be weaker than the check it stands in for.
@@ -40,7 +39,11 @@ test('a main push runs the same shard matrix as a pull request', () => {
   assert.match(os, /workflow_dispatch/);
   assert.match(os, /ubuntu-latest/);
   assert.match(os, /windows-latest/);
-  assert.match(node, /\[22\]/);
+
+  // `engines` is >=22.13.0, so Node 24 is a supported runtime. It runs
+  // on the PR and push paths too, not only the nightly, so a Node-24-only
+  // regression cannot merge and surface a day later.
+  assert.deepEqual(matrix['node-version'], [22, 24]);
 
   assert.deepEqual(matrix.shard, [1, 2, 3, 4, 5]);
 });

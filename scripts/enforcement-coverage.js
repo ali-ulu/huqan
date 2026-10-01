@@ -13,11 +13,10 @@
  * WHAT THIS DOES NOT DO, stated first because the opposite would be worse than
  * having no manifest at all: it does not prove any call site is enforced.
  * Proving that statically would need call-graph analysis this repository has no
- * parser for -- there are no devDependencies, and the existing scanners
- * (check-package-closure, module-reachability) are hand-rolled for the same
- * reason. A manifest that inferred "guarded" from a require graph would report
- * coverage it had not established, which is precisely what #1815 was: a gate
- * that ran, passed, and measured the wrong thing.
+ * parser for, so the existing scanners (check-package-closure, module-reachability)
+ * are hand-rolled for the same reason. A manifest that inferred "guarded" from a
+ * require graph would report coverage it had not established, which is precisely
+ * what #1815 was: a gate that ran, passed, and measured the wrong thing.
  *
  * WHAT IT DOES: enumerate every call site that can execute a process, write to
  * the filesystem, or leave the machine, and require each one to be classified

@@ -269,12 +269,12 @@ test('workflow runs the selected suite on Ubuntu and Windows for PRs and main pu
   // #3157 decision A: the PR arm covers Ubuntu and Windows so Windows-only
   // breakage is caught before merge, not by the nightly. #3177 follow-up: a
   // main push now runs that same arm instead of skipping the shards, because a
-  // red PR (including the required gate) demonstrably reached main. Only
-  // scheduled/manual runs widen to the macOS and Node 24 line.
+  // red PR (including the required gate) demonstrably reached main. The
+  // supported Node 24 line runs on the PR path too, so a Node-24-only
+  // regression is caught before merge; only macOS still widens to the nightly.
   assert.match(job, /github\.event_name == 'workflow_dispatch'\) && '\["ubuntu-latest", "windows-latest", "macos-latest"\]' \|\| '\["ubuntu-latest", "windows-latest"\]'/);
   assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
-  assert.match(job, /node-version: \$\{\{ fromJSON\(\(github\.event_name == 'schedule'/);
-  assert.match(job, /\[22, 24\]/);
+  assert.match(job, /node-version: \[22, 24\]/);
   assert.doesNotMatch(job, /event_name != 'push'/);
   // Every leg starts at once; the #2450 burst of transient 403s is met by a
   // single retry of the plan download instead of serializing the matrix.
