@@ -126,10 +126,17 @@ test('write → verify: chained receipts validate and tampering is detected', ()
   assert.deepEqual(lifecycle.verifyChain(tampered), { valid: false, brokenAt: 0, reason: 'content_tampered' });
 
   // A self-consistent receipt that commits to the wrong predecessor is a link break.
-  const forged = appendReceiptToChain({ ...second.chainedReceipt, previousReceiptHash: undefined }, undefined);
-  const { receiptHash, ...forgedContent } = forged;
-  const refForge = appendReceiptToChain(forgedContent, GENESIS_PREVIOUS_HASH);
-  assert.equal(validateReceiptChain([first.chainedReceipt, refForge]).reason, 'chain_link_broken');
+  const wrongPredecessor = appendReceiptToChain({
+    receiptId: 'r-wrong',
+    admissionId: 'madm_compose_2',
+    workspaceId: 'workspace-compose',
+    decision: 'allow',
+    memoryDraftId: 'draft-compose-2',
+    createdAt: CREATED_AT,
+  }, GENESIS_PREVIOUS_HASH);
+  assert.deepEqual(validateReceiptChain([first.chainedReceipt, wrongPredecessor]), {
+    valid: false, brokenAt: 1, reason: 'chain_link_broken',
+  });
 });
 
 test('write → read: a dropped middle receipt breaks the chain link', () => {
