@@ -4,7 +4,7 @@
     "(docs/automations/repo-radar.md).",
     "The list is the versioned source of truth: scripts/repo-radar/pick-target.js",
     "selects one entry per UTC hour by index = floor(unixHours) % repos.length,",
-    "and scripts/repo-radar/build-prompt.js renders the automation prompt from it.",
+    "and renders the automation prompt from it.",
     "Entries must be public repositories. Keep `why` short and honest: it is what",
     "the radar agent reads to decide what is worth reverse-engineering."
   ],
@@ -93,6 +93,66 @@
       "license": "MIT",
       "focus": ["declarative LM pipelines", "optimization", "signatures"],
       "why": "Declarative pipeline and optimization design worth comparing against HUQAN's inference layer and calibration work."
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "license": "MIT",
+      "focus": ["agent graphs", "durable execution", "checkpointing", "human-in-the-loop"],
+      "why": "Graph-based agent runtime with durable checkpoints and interrupt/resume; its checkpoint and human-in-the-loop seams map onto HUQAN's kernel graph engine, mutation journal and approval runtime."
+    },
+    {
+      "repo": "getzep/graphiti",
+      "license": "Apache-2.0",
+      "focus": ["temporal knowledge graph", "episode ingest", "bi-temporal model"],
+      "why": "Bi-temporal knowledge graph over episodes; its temporal invalidation and provenance model is a direct comparison for HUQAN's graph engine, contradiction detection and trust receipts."
+    },
+    {
+      "repo": "topoteretes/cognee",
+      "license": "Apache-2.0",
+      "focus": ["memory pipeline", "graph + vector store", "ingest"],
+      "why": "End-to-end memory pipeline (ingest, graph, vector, recall) that overlaps HUQAN's memory store, admission gates and ingest chain."
+    },
+    {
+      "repo": "pydantic/pydantic-ai",
+      "license": "MIT",
+      "focus": ["typed agent outputs", "validation", "tool contracts"],
+      "why": "Typed, schema-validated agent I/O; its validation-first tool and result contracts compare to HUQAN's schemas and fail-closed boundaries."
+    },
+    {
+      "repo": "microsoft/semantic-kernel",
+      "license": "MIT",
+      "focus": ["plugins and functions", "planners", "filters", "memory connectors"],
+      "why": "Function and plugin model with request-level filters; a comparison for HUQAN's plugin kernel, tool surface and gate seams."
+    },
+    {
+      "repo": "deepset-ai/haystack",
+      "license": "Apache-2.0",
+      "focus": ["pipeline DAG", "component contracts", "retrieval"],
+      "why": "Explicit pipeline components with typed sockets; a comparison for HUQAN's pipeline composition and adapter contracts."
+    },
+    {
+      "repo": "agno-agi/agno",
+      "license": "Apache-2.0",
+      "focus": ["agent runtime", "teams", "memory", "knowledge"],
+      "why": "High-level agent and team runtime with memory and knowledge layers; its orchestration and memory surfaces overlap HUQAN's runtime and memory core."
+    },
+    {
+      "repo": "strands-agents/harness-sdk",
+      "license": "Apache-2.0",
+      "focus": ["agent harness", "tool loop", "model providers"],
+      "why": "Minimal agent harness loop across providers; a compact comparison for HUQAN's inference layer and tool-call loop."
+    },
+    {
+      "repo": "open-policy-agent/opa",
+      "license": "Apache-2.0",
+      "focus": ["policy as code", "decision logs", "fail-closed evaluation"],
+      "why": "Policy decision engine with structured decision logs; its deny-by-default evaluation and audit trail compare to HUQAN's action firewall, gates and receipt ledger."
+    },
+    {
+      "repo": "sigstore/cosign",
+      "license": "Apache-2.0",
+      "focus": ["artifact signing", "keyless verification", "transparency log"],
+      "why": "Signature and transparency-log verification for artifacts; a comparison for HUQAN's receipt chain, issuer seal and trust ledger."
     }
   ]
 }
