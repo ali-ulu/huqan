@@ -69,7 +69,17 @@ test('a child that never announces a DevTools endpoint rejects on the deadline',
   }
 });
 
-test('a launch that never reaches DevTools reaps the browser it spawned', async t => {
+// A stand-in browser has to be spawned exactly the way a real one is: by path,
+// with no shell. That needs a directly executable file, which a shebang script
+// is on POSIX but not on Windows (CreateProcess cannot run one). The control
+// flow under test -- a rejecting launch reaps the child -- is platform
+// independent, and the Windows-specific reaping (taskkill by parentage) is
+// pinned separately in cdp-browser-teardown.test.js.
+const windowsSkip = process.platform === 'win32'
+  ? 'a stand-in browser cannot be spawned by path on Windows without a shell'
+  : false;
+
+test('a launch that never reaches DevTools reaps the browser it spawned', { skip: windowsSkip }, async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-launch-'));
   const pidFile = path.join(dir, 'pid');
   // A stand-in browser: stays alive, ignores the Chrome flags, and never prints
