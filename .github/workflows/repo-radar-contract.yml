@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - 'config/repo-radar.targets.json'
+      - 'config/repo-radar-learn.targets.json'
       - 'scripts/repo-radar/**'
       - 'docs/automations/repo-radar.md'
       - '.github/workflows/repo-radar-contract.yml'
@@ -17,6 +18,7 @@ on:
     branches: [main]
     paths:
       - 'config/repo-radar.targets.json'
+      - 'config/repo-radar-learn.targets.json'
       - 'scripts/repo-radar/**'
       - 'docs/automations/repo-radar.md'
       - '.github/workflows/repo-radar-contract.yml'
@@ -42,7 +44,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Validate the target list and render the prompt
+      - name: Validate the target lists and render the prompts
         run: |
           set -euo pipefail
           # --json validates the config and resolves the hourly selection.
@@ -51,4 +53,11 @@ jobs:
           # --prompt validates the same config and renders the template.
           node scripts/repo-radar/pick-target.js --prompt > /tmp/prompt.md
           test -s /tmp/prompt.md
-          echo "Rotation config and prompt template are valid."
+          # The learning roster is a second config read by the same selector.
+          node scripts/repo-radar/pick-target.js \
+            --config config/repo-radar-learn.targets.json --json > /tmp/selection-learn.json
+          jq -e '.repo and .selectedForHour and .total > 0' /tmp/selection-learn.json > /dev/null
+          node scripts/repo-radar/pick-target.js \
+            --config config/repo-radar-learn.targets.json --prompt > /tmp/prompt-learn.md
+          test -s /tmp/prompt-learn.md
+          echo "Rotation configs and prompt templates are valid."

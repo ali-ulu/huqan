@@ -87,6 +87,37 @@ describe('repo-radar target rotation', () => {
   });
 });
 
+describe('repo-radar learning roster', () => {
+  const learnConfig = path.join(__dirname, '..', 'config', 'repo-radar-learn.targets.json');
+  const learnTargets = loadTargets(learnConfig);
+
+  it('loads the learning target list with valid, licensed entries', () => {
+    assert.ok(learnTargets.length >= 1);
+    for (const entry of learnTargets) {
+      assert.match(entry.repo, /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/);
+      assert.ok(entry.why && entry.why.trim().length > 0);
+      assert.ok(entry.license && entry.license !== 'NOASSERTION', `${entry.repo} needs a verified license`);
+    }
+  });
+
+  it('is deterministic per UTC hour, like the primary roster', () => {
+    const start = Date.UTC(2026, 9, 1, 0, 0, 0);
+    const a = selectTarget(learnTargets, new Date(start));
+    const b = selectTarget(learnTargets, new Date(start + 45 * 60 * 1000));
+    assert.strictEqual(a.repo, b.repo);
+    assert.strictEqual(a.index, b.index);
+  });
+
+  it('renders a prompt that names every learning target and pins the config flag', () => {
+    const prompt = renderPrompt(learnTargets, 'config/repo-radar-learn.targets.json');
+    for (const entry of learnTargets) {
+      assert.ok(prompt.includes(entry.repo), `learning prompt omits ${entry.repo}`);
+    }
+    // Without this flag the agent would resolve a target from the primary roster.
+    assert.ok(prompt.includes('--config config/repo-radar-learn.targets.json'));
+  });
+});
+
 describe('repo-radar prompt rendering', () => {
   const targets = loadTargets(DEFAULT_CONFIG);
 

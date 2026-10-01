@@ -97,15 +97,21 @@ function selectTarget(repos, date = new Date()) {
  * choice is resolved at run time by asking the agent to run this same script
  * with --json. The rendered prompt is therefore a static template plus the
  * rotation roster, which is what keeps the automation reproducible.
+ *
+ * `configPath` is baked into the run-time command. The default roster needs no
+ * flag, but a second roster does: without --config the agent would resolve a
+ * target from the wrong rotation, so the prompt is rendered from the same
+ * config it tells the agent to read.
  */
-function renderPrompt(repos) {
+function renderPrompt(repos, configPath = DEFAULT_CONFIG) {
   const roster = repos.map((entry) => `- ${entry.repo} (${entry.license || 'license unknown'})`).join('\n');
+  const configFlag = configPath === DEFAULT_CONFIG ? '' : ` --config ${configPath}`;
   return `Görev: HUQAN için "Repo Radar" tersine mühendislik turu (saatlik).
 
 Her turda TEK bir açık kaynak repoyu inceler ve HUQAN'a somut geliştirme önerileri üretirsin.
 Hedef repoyu ASLA tahmin etme veya elle seçme. Önce şu komutu çalıştır ve çıktısını kullan:
 
-    node scripts/repo-radar/pick-target.js --json
+    node scripts/repo-radar/pick-target.js --json${configFlag}
 
 Bu komut, içinde bulunulan UTC saatine göre deterministik olarak seçilen tek repoyu verir
 (alanlar: repo, license, focus, why). Seçim saate bağlıdır; aynı saatte aynı repoyu verir.
@@ -201,7 +207,7 @@ function main() {
 
   if (opts.prompt) {
     try {
-      process.stdout.write(renderPrompt(loadTargets(opts.config)));
+      process.stdout.write(renderPrompt(loadTargets(opts.config), opts.config));
     } catch (error) {
       console.error(`repo-radar: ${error.message}`);
       process.exitCode = 1;
