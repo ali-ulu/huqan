@@ -15,11 +15,8 @@ Current: `node scripts/check-module-boundary.js` → OK, 0 recorded in 0 files, 
 - [x] Ownership map produced from source/caller evidence with disagreements recorded. THIS DOCUMENT (published with #2994, gate-enforced with the Enforce PR: `scripts/context-ownership.json` + context-aware `check-module-boundary`).
 
 Conclusion: Map, Publish and Enforce complete. Enforce keeps the existing strictness (every cross-module private call fails) and adds the map's voice: failures name the caller's context, callers with no recorded context fail with an assignment instruction, and the map file fails closed on unknown contexts. Move: the map proves no module misplaced (only resists), so no moves.
-<<<<<<< HEAD
-=======
 
 The gate also checks imports between modules whose owners are mapped. Trust may import the published `lib/verdict/action-verdict.js` contract. The two direct `graph.js` → Trust receipt imports remain dated legacy edges through 2026-12-31; the gate rejects a new cross-owner import and rejects stale or expired exceptions. Modules without a source-backed owner are still unexamined by this import rule. This is a ratchet over the mapped subset, not the epic's exhaustive ownership acceptance.
->>>>>>> origin/main
 
 ## Candidate ownership (source + caller evidence, not dir names)
 
