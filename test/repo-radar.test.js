@@ -109,4 +109,12 @@ describe('repo-radar argument parsing', () => {
     assert.strictEqual(opts.json, true);
     assert.strictEqual(opts.at, '2026-10-01T00:00:00Z');
   });
+
+  it('refuses --at and --config without a value instead of ignoring them', () => {
+    assert.throws(() => parseArgs(['--json', '--at']), /--at requires a value/);
+    assert.throws(() => parseArgs(['--json', '--config']), /--config requires a value/);
+    assert.throws(() => parseArgs(['--at', '--json']), /--at requires a value/);
+    assert.throws(() => parseArgs(['--config', '--json']), /--config requires a value/);
+    assert.throws(() => parseArgs(['--at', '']), /--at requires a value/);
+  });
 });

@@ -147,16 +147,40 @@ En sonda Türkçe kısa rapor ver: seçilen repo, commit SHA, açılan/yorumlana
 `;
 }
 
+/**
+ * Read the value that must follow a value-taking flag. An absent, empty, or
+ * option-like value is refused rather than treated as "flag not given": a
+ * silently ignored `--at` would select the current hour and a silently ignored
+ * `--config` would fall back to the default list, so an incomplete command
+ * would look like a successful one.
+ */
+function takeValue(argv, index, flag) {
+  const value = argv[index + 1];
+  if (value === undefined || value === '' || value.startsWith('-')) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
   const opts = { at: null, config: DEFAULT_CONFIG, json: false, prompt: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '--json') opts.json = true;
-    else if (arg === '--prompt') opts.prompt = true;
-    else if (arg === '--at') opts.at = argv[++i];
-    else if (arg === '--config') opts.config = argv[++i];
-    else if (arg === '--help' || arg === '-h') opts.help = true;
-    else throw new Error(`unknown argument: ${arg}`);
+    if (arg === '--json') {
+      opts.json = true;
+    } else if (arg === '--prompt') {
+      opts.prompt = true;
+    } else if (arg === '--at') {
+      opts.at = takeValue(argv, i, '--at');
+      i += 1;
+    } else if (arg === '--config') {
+      opts.config = takeValue(argv, i, '--config');
+      i += 1;
+    } else if (arg === '--help' || arg === '-h') {
+      opts.help = true;
+    } else {
+      throw new Error(`unknown argument: ${arg}`);
+    }
   }
   return opts;
 }
