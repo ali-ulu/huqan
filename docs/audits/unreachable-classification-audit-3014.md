@@ -40,7 +40,7 @@ Every one of the 47 entries carries a recorded wiring condition; none is a bare 
 
 1. The ledger had collapsed 26 entries onto one physical line (a formatting accident), which made audit-by-diff impossible. This PR re-renders every acknowledgement on its own line; content is unchanged (47 keys before and after, verified by the check and the export surface).
 2. `test-debug.js` (527 bytes, committed by accident in #3164's merge, used by nobody) was the one unclassified module and made the gate fail on `main`. Removed in this PR — the "remove only what is proven unnecessary" clause, exercised.
-3. Two entries (`lib/http/crash-recovery-inventory.js`, `lib/http/request-limits.js`) are superseded-by-design inventory/shims rather than future wiring. They stay, because the ledger records decisions, not shame — but they are the first candidates if a *retire* category is ever added.
+3. Two entries (`lib/http/crash-recovery-inventory.js`, `lib/http/request-limits.js`) are superseded-by-design inventory/shims rather than future wiring. They were the first candidates if a *retire* category were ever added; that category now exists as `RETIRED_FILES` in `lib/module-reachability.js` and both moved there, so the wiring-debt count no longer carries them.
 4. No acknowledgement was removed in this PR: graduation requires a production caller, and none of the 47 gained one here.
 
 ## The measurable downward target

@@ -187,7 +187,7 @@ function checkRestRouteSurface(opts = {}) {
 
 function checkDeadCode(opts = {}) {
   const root = opts.root || REPO_ROOT;
-  const { reachable, unreachable, unacknowledged, staleAcknowledgements } = analyzeReachability({ root });
+  const { reachable, unreachable, unacknowledged, staleAcknowledgements, staleRetired } = analyzeReachability({ root });
   const lines = [];
   lines.push(`Dead-code check (module reachability): ${reachable.length} reachable, ${unreachable.length} unreachable classified or pending`);
   if (unacknowledged.length > 0) {
@@ -208,6 +208,11 @@ function checkDeadCode(opts = {}) {
     }
     lines.push('Remove them from NOT_YET_WIRED so the ledger stays meaningful.');
   }
+  if (staleRetired.length > 0) {
+    lines.push(`FAIL: ${staleRetired.length} stale RETIRED_FILES entry(ies) (now reachable or gone):`);
+    for (const file of staleRetired) lines.push(`  - ${file}:1 stale retirement for ${file}`);
+    lines.push('Remove them from RETIRED_FILES; a retirement that the graph no longer shows is not a decision any more.');
+  }
   const mcp = checkMcpToolSurface({ root });
   lines.push(mcp.report);
   const cliSurface = checkCliCommandSurface({ root });
@@ -218,6 +223,7 @@ function checkDeadCode(opts = {}) {
   lines.push(symbols.report);
   const ok = unacknowledged.length === 0
     && staleAcknowledgements.length === 0
+    && staleRetired.length === 0
     && mcp.ok
     && cliSurface.ok
     && rest.ok
@@ -229,6 +235,7 @@ function checkDeadCode(opts = {}) {
     ok,
     unacknowledged,
     staleAcknowledgements,
+    staleRetired,
     mcpGaps: mcp.gaps,
     cliGaps: cliSurface.gaps,
     restGaps: rest.gaps,

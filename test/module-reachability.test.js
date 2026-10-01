@@ -14,6 +14,7 @@ const {
   TEST_ONLY_FILES,
   STRUCTURAL_FILES,
   NOT_YET_WIRED,
+  RETIRED_FILES,
   analyzeReachability,
 } = require('../lib/module-reachability');
 
@@ -88,6 +89,28 @@ test('test-only and structural files are classified outside the pending-work lis
   }
   assert.ok(TEST_ONLY_FILES.includes('lib/self-test-oracle.js'));
   assert.ok(STRUCTURAL_FILES.includes('lib/causal/index.js'));
+});
+
+test('retired files are classified as decisions, not pending work', () => {
+  // A retirement says "no caller is planned", the opposite of NOT_YET_WIRED's
+  // "a caller is coming". Keeping them apart is what makes the wiring-debt
+  // count measure only the debt (#3014).
+  for (const file of Object.keys(RETIRED_FILES)) {
+    assert.equal(Object.hasOwn(NOT_YET_WIRED, file), false, `${file} is retired, not pending`);
+  }
+  const { unreachable, unacknowledged, staleRetired } = analyzeReachability({ root: REPO_ROOT });
+  for (const file of Object.keys(RETIRED_FILES)) {
+    assert.ok(unreachable.includes(file), `${file} must still be unreachable for its retirement to hold`);
+    assert.equal(unacknowledged.includes(file), false, `${file} must not be reported as unclassified`);
+  }
+  assert.deepEqual(staleRetired, [], 'no retirement may outlive the state it recorded');
+});
+
+test('every retirement states a durable reason', () => {
+  for (const [file, reason] of Object.entries(RETIRED_FILES)) {
+    assert.equal(typeof reason, 'string', `${file} needs a reason`);
+    assert.ok(reason.trim().length > 15, `${file}'s reason is too thin to review: "${reason}"`);
+  }
 });
 
 test('standalone entry dependencies are walked', () => {
