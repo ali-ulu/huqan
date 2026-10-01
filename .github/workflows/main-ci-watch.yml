@@ -2,7 +2,15 @@ name: Main CI Watch
 
 on:
   schedule:
-    - cron: '23 * * * *'
+    # Every 15 minutes, not hourly. The watcher re-runs transient failures and
+    # opens an alert only on persistent red, but a merged commit that reddens
+    # main sits undetected for the whole gap between runs -- #3262 left `npm
+    # test` red on main for ~50 minutes, and a contributor could merge on top of
+    # it in that window. A shorter period bounds that window without changing
+    # what the watcher does. It stays a schedule rather than a push/workflow_run
+    # trigger so the watcher never runs concurrently with the workflows it
+    # inspects and reruns.
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
