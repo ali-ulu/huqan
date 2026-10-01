@@ -36,6 +36,12 @@ function evaluateIdentityReadiness(readiness) {
   };
 }
 
+/**
+ * Build the index for this checkout and print the verdict. Returns the process
+ * exit code rather than calling process.exit, so a test can invoke it.
+ *
+ * @returns {number} 0 when the gate passes, 1 otherwise
+ */
 function main() {
   const repoRoot = path.resolve(__dirname, '..');
   const readiness = buildAgentIdentityReadinessIndex({ repoRoot });
