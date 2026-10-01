@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## v0.13.0
+
+Released 2026-10-02. 1035 commits since `v0.12.0` (184 feat, 183 fix, 211 refactor, 16 perf, the rest chore, docs, test, ci and merges). This entry groups them by area; the complete list is [`v0.12.0...v0.13.0`](https://github.com/ali-ulu/huqan/compare/v0.12.0...v0.13.0).
+
+**No breaking API change.** `scripts/api-semver-gate.js` compares the public exports, type declarations, CLI, MCP tools and REST routes against `v0.12.0` and reports none. Type declarations only gained members (`Kernel#parsePredicate`, `Kernel#commitBackgroundEdge`, `recordExternalActionReview`, `latestExternalActionReview`).
+
+### Added
+- **Experience Core.** A durable, ordered record of each agent run: contract, journal, an independent verifier for outcomes, crash reconciliation at the effect boundary, and read access from the CLI, MCP and HTTP. Learning admission now has a production intake.
+- **Inference runtime.** Rule IR, unification, bounded forward and backward evaluation and bounded abduction, reachable through `kernel.derive` / `kernel.prove` and the CLI, with a persisted history and observed-outcome calibration.
+- **Agent blast radius (#2505).** One 0–100 risk scale for every gate; blast radius and decision justification on receipts; session impact budgets; delegation limits; a financial-action gate; bypass signals; a durable emergency stop operable from the CLI, HTTP and MCP (`huqan.emergency_stop`).
+- **Coder path.** `huqan coder` applies derivations with an Experience journal, content-anchored code locations, a task producer and an observed-verification seam.
+- **Operations.** `huqan doctor` health checks, structured logging and metrics, the Control Room dashboard at `/control-room`, Kubernetes manifests and a Helm chart, keyless cosign signing of the released image.
+- **Observation.** HUQAN Observation Protocol 0.1 envelope with MCP, shell and browser (CDP) observation; GitHub webhook to repo-memory ingest with an approval step.
+- **Release discipline.** Public API snapshot with a breaking-change semver gate, a deprecation registry and checker, a generated changelog, registry round-trip and final release checklists.
+
+### Changed
+- **Storage performance.** Graph saves write only changed records; graph reads use frozen views and a label index; SQLite-backed memories stay in SQLite behind a bounded cache and are read per scope. Measured at 10k nodes: `docs/scale-truth-pack.md`.
+- **Architecture.** Persistence behind `GraphStorePort` / `MemoryStorePort`; an exhaustive ownership map and module-boundary, layer, cycle and file-size gates. No source file is over 400 lines.
+- **README** shortened and updated.
+
+### Fixed
+- 183 fixes. Among them: Dream's causal check built its default simulator from the wrong import and never ran (#3313); the API semver gate read added type members as breaking changes (#3316); the nightly full-suite run turned red on a shard-weight refresh rather than on a test (#3317).
+
+### Deprecated
+- `require('huqan').KernelV1` stays deprecated. Its removal moves from 1.0.0 to **2.0.0**; it still returns the same `Kernel` class and warns on access. Migration: `docs/migrations/kernel-v2.md`.
+
+### Security
+- Dependency license compliance and immutable GitHub Action pins are enforced; releases are gated on an adversarial safety evaluation.
+
+### Not in this release
+- 26 shipped modules still have no production caller (listed in `lib/module-reachability.js`, decision tracked in #3315).
+
 ## v0.12.0
 
 Released 2026-09-08. The first release published by `publish.yml` over GitHub

@@ -20,25 +20,19 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
   4. OK   receipt: receiptId … (status canonical)
 ```
 
-Read line 1 again: the write **did not happen**. It was held, then allowed at line 3 once something approved it, and line 4 is the durable record of why. That gap is the whole product.
+The write in line 1 **did not happen**. It was held until line 2 approved it, and line 4 is the durable record of why. The quickstart uses a throwaway store and never touches your own memory.
 
-The quickstart runs against a throwaway store in your temp directory. It never touches your own memory and never relaxes a gate.
-
-Prefer no install? The same flow runs in the browser at [huqan.com](https://huqan.com) — a static simulation, no backend. For a bigger map of what to run when, see [product surfaces](./docs/product-surfaces.md).
+No install: the same flow runs in the browser at [huqan.com](https://huqan.com) (a static simulation). What to run when: [product surfaces](./docs/product-surfaces.md).
 
 ## Install
 
-Node.js 22.13.0 or newer.
-
 ```bash
-npm install -g huqan
+npm install -g huqan     # Node.js 22.13.0 or newer
 ```
 
-Three binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for external agents). PDF ingest and PDF receipt export are optional dependencies — `--omit=optional` drops both, and JSON export is unaffected.
+Three binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for other agents). `huqan doctor` reports what is configured.
 
-## The decision
-
-Everything routes through one pipeline:
+## How it works
 
 ```text
 evidence + provenance + workspace scope
@@ -51,15 +45,15 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-Which outcomes are reachable depends on the gate. A tool call returns `allow`, `review`, `dry_run_only` or `block`. A memory write adds `quarantine` and `reject`, because a write can be set aside for inspection rather than refused outright.
+A tool call returns `allow`, `review`, `dry_run_only` or `block`. A memory write can also be set aside (`quarantine`) or refused (`reject`).
 
-**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated` instead of deciding it, and nothing executes until the authority it was raised to answers. That needs a second approver, so it is absent in a single-user install. The decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
+**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated`, and nothing executes until the authority it was raised to answers. That needs a second approver, so it is absent in a single-user install. The decision types are `approve`, `reject`, `expire`, `cancel`, `escalate` and `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
-A passing verification is not a certificate of truth. It is a result produced inside one configured boundary, and the receipt names which one.
+A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
 
 ## Connect your agent
 
-**MCP** — for Claude, Cursor, or anything else speaking the protocol:
+**MCP** (Claude, Cursor, any MCP client):
 
 ```json
 {
@@ -72,66 +66,57 @@ A passing verification is not a certificate of truth. It is a result produced in
 }
 ```
 
-`--package=huqan` is required: the binary name differs from the package name.
+`--package=huqan` is required because the binary name differs from the package name. The approval tools (`huqan.approve`, `huqan.approvals`, `huqan.agent_resume`) are hidden from the model and need `HUQAN_MCP_OPERATOR_TOKEN`: an agent cannot approve its own proposal.
 
-Three operator tools — `huqan.approve`, `huqan.approvals`, `huqan.agent_resume` — are withheld from `tools/list` and need `HUQAN_MCP_OPERATOR_TOKEN`. A model that proposes a mutation cannot approve it through the catalog it can see. Operator capabilities are single-use, and the record of a spent one survives restarts and workers; if it cannot be written, verification fails closed.
-
-**Any other agent** — `huqan-gate` takes a brand-independent envelope and ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It enforces only when the client calls it *before* executing; a hookless client needs a wrapper, gateway or sandbox. [Details](./docs/external-action-guard.md).
+**Other agents**: `huqan-gate` ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
 
 ## Use it directly
 
-**As a library:**
-
 ```js
-const Kernel = require('huqan');   // KernelV2, the canonical runtime
+const Kernel = require('huqan');   // KernelV2
 const kernel = new Kernel();
 ```
 
-**As a local server** — `HUQAN_API_KEY=… npm run server` serves port 3000: read-only `/api` and `/graph-data`, guarded `/verify` and `/upload`, the UI at `/`, and a read-only receipt viewer at `/viewer`. Mutations authenticate with `X-API-Key` or a bearer token.
+As a server: `HUQAN_API_KEY=… npm run server` on port 3000 — read-only `/api`, guarded `/verify` and `/upload`, the UI at `/`, the receipt viewer at `/viewer`.
 
 ## Limits
 
-A verification tool that oversells itself has refuted its own thesis, so:
-
 - HUQAN does not eliminate hallucinations. It makes one **inspectable and blockable** before it becomes state.
-- Coverage is whatever is actually wired. An unconnected agent is not governed, and HUQAN does not pretend otherwise.
-- Some modules pass unit tests without being reachable from the production entry-point graph in [`lib/module-reachability.js`](./lib/module-reachability.js) — currently bounded V5, Self-Healer and connector entries. An isolated green test is not deployment evidence.
-- The A2A routes are deployment-gated. Unconfigured, they answer `404` rather than `401`, so an install never advertises a surface it cannot serve.
-- The conformance suites are **self-run**. `npm run conformance:external` and `npm run conformance:a2a` execute in this repository against this repository's own artifacts, so a green run is repository-owned evidence — not third-party verification, and not proof that anyone outside has interoperated. No external organization has independently verified a bundle, and no third-party attestation is bound into a Trust Receipt bundle yet. Both are recorded as blocked, each with its reopen condition, in the [interoperability and attestation boundary record](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
-- The unexpected-egress gate (AB13) is **fail-open by default**. It stays inert until `HUQAN_EXTERNAL_GUARD_EXPECTED_EGRESS` (or an `expectedEgress` policy) declares the destinations a deployment talks to, so an install that never configures it has no egress visibility — an undeclared outbound host passes with no verdict. This is deliberate (an invented allowlist would either block every integration or mean nothing), and [`huqan doctor`](./README.md#use-it-directly) reports the resolved state so "no egress gate" is observable rather than silent.
-- It complements IAM, application and infrastructure security, and human governance. It replaces none of them.
+- Only what is wired is governed. An agent that never calls HUQAN is not covered.
+- Some shipped modules have no production caller yet; each is listed with its reason in [`lib/module-reachability.js`](./lib/module-reachability.js). A green unit test is not deployment evidence.
+- The conformance suites are **self-run** in this repository. They are not third-party verification. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
+- The unexpected-egress gate is **fail-open by default** until `HUQAN_EXTERNAL_GUARD_EXPECTED_EGRESS` declares the expected destinations. `huqan doctor` shows its state.
+- Scale is measured up to 10k graph nodes on one machine: [scale truth pack](./docs/scale-truth-pack.md).
+- It complements IAM, infrastructure security and human governance. It replaces none of them.
 
-## Neighbours, not substitutes
-
-Four tools get compared to HUQAN. Each owns a different boundary, and one system can reasonably run all of them:
+## Compared with
 
 | Reach for | When the problem is | HUQAN's job instead |
 |---|---|---|
-| [NeMo Guardrails](https://docs.nvidia.com/nemo/guardrails/home) | Filtering an LLM's inputs and outputs — safety, topic, PII, jailbreak controls | Deciding whether an output earned the write, and recording why |
-| [LangChain guardrails and HITL middleware](https://docs.langchain.com/oss/python/langchain/guardrails) | Framework-native checks and a pause-and-resume step around selected tool calls | A durable receipt binding evidence, scope, policy and approval to one decision |
-| [Docker MCP Gateway](https://docs.docker.com/ai/mcp-catalog-and-toolkit/mcp-gateway/) | MCP server lifecycle, credentials, routing, container isolation | The decision inside the call, not the isolation around it |
-| [DeepEval](https://deepeval.com/docs/evaluation-introduction) | Scoring model quality against datasets, in CI | The single live action, judged before it lands |
+| [NeMo Guardrails](https://docs.nvidia.com/nemo/guardrails/home) | Filtering an LLM's inputs and outputs | Deciding whether an output earned the write, and recording why |
+| [LangChain guardrails / HITL](https://docs.langchain.com/oss/python/langchain/guardrails) | Framework checks and pause-and-resume around tool calls | A durable receipt binding evidence, scope, policy and approval to one decision |
+| [Docker MCP Gateway](https://docs.docker.com/ai/mcp-catalog-and-toolkit/mcp-gateway/) | MCP server lifecycle, credentials, isolation | The decision inside the call, not the isolation around it |
+| [DeepEval](https://deepeval.com/docs/evaluation-introduction) | Scoring model quality offline, in CI | The single live action, judged before it lands |
 
-This is a comparison of focus, not a claim that any of them lacks features outside its primary documentation. Evals score a model offline, tracing says what happened last night, IAM says who may call the API. HUQAN answers what none of them ask: *should this specific output be trusted, right now, before it lands?* Full reasoning, sources, and the cases where HUQAN is the **wrong** choice: [competitive positioning](./docs/competitive-positioning.md).
+Details, and when HUQAN is the wrong choice: [competitive positioning](./docs/competitive-positioning.md).
 
 ## More
 
 ```bash
 npm ci && npm test                    # full suite
 npm run conformance:external          # consumer conformance
-npm run pilot:trust-receipt           # bounded receipt pilot
 ```
 
-[Operating roadmap](./docs/current-operating-roadmap.md) ·
+[Roadmap](./docs/current-operating-roadmap.md) ·
 [Agent Action Firewall](./docs/agent-action-firewall.md) ·
 [A2A deployment](./docs/a2a-deployment.md) ·
-[NLP boundary](./docs/nlp-boundary.md) ·
 [Threat model](./THREAT_MODEL.md) ·
 [Security](./SECURITY.md) ·
 [Contributing](./CONTRIBUTING.md) ·
+[Changelog](./CHANGELOG.md) ·
 [Discussions](https://github.com/ali-ulu/huqan/discussions)
 
-When a summary and the repository disagree, the repository wins: [product surfaces](./docs/product-surfaces.md), [module reachability](./lib/module-reachability.js), [`package.json`](./package.json).
+When this page and the repository disagree, the repository wins.
 
 ## License
 
@@ -140,9 +125,5 @@ When a summary and the repository disagree, the repository wins: [product surfac
 ---
 
 **Confidence is not truth. Verify before you trust.**
-
-## Support
-
-If HUQAN saves you from a bad write, consider supporting the project:
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-aliulu-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/aliulu)
