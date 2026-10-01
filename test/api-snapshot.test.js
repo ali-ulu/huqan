@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { buildSnapshot, compareText } = require('../scripts/api-snapshot-surface');
+const { buildSnapshot, compareText, definePropertyTarget } = require('../scripts/api-snapshot-surface');
 const { diffSnapshots, reportMarkdown } = require('../scripts/api-snapshot-diff');
 
 test('API snapshot covers the declared public surfaces', () => {
@@ -143,4 +143,34 @@ test('API snapshot resolves an accessor export to the value it returns', () => {
   const legacy = { exports: [{ name: 'KernelV1', target: 'defineProperty' }], types: [] };
   assert.deepEqual(diffSnapshots(legacy, moved).breaking, []);
   assert.equal(diffSnapshots(moved, legacy).breaking.length, 1);
+});
+
+test('API diff review cases: arrow types, suffixes and abstract members stay breaking', () => {
+  // `=>` must not close a nesting level, or the inner `;` splits the member.
+  assert.equal(typeBreaking('class',
+    'export declare class X { options: { cb: () => void; }; }',
+    'export declare class X { options: { cb: () => void; required: string; }; }').length, 1);
+  // Text after the body (a union, an array) is part of the declaration.
+  assert.equal(typeBreaking('const',
+    'declare const X: { a: string; };',
+    'declare const X: { a: string; } | number;').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare class X { a: { b: string }; }',
+    'export declare class X { a: { b: string } | null; }').length, 1);
+  // A new abstract member must be implemented by every concrete subclass.
+  assert.equal(typeBreaking('class',
+    'export declare abstract class X { }',
+    'export declare abstract class X { abstract run(): void; }').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare abstract class X { }',
+    'export declare abstract class X { protected abstract run(): void; }').length, 1);
+});
+
+test('accessor resolution reads only the descriptor top level', () => {
+  const at = (src) => definePropertyTarget(src, src.indexOf("'X'") + 3);
+  const nested = "Object.defineProperty(module.exports, 'X', { get() { const m = { value: Marker }; return Kernel; } });";
+  assert.equal(at(nested), 'Kernel');
+  assert.equal(at(nested.replace('return Kernel', 'return KernelV2')), 'KernelV2');
+  assert.equal(at("Object.defineProperty(module.exports, 'X', { value: Kernel, enumerable: true });"), 'Kernel');
+  assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { return flag ? A : B; } });"), 'defineProperty');
 });

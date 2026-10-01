@@ -83,8 +83,10 @@ function compareSchema(base, current, context, breaking) {
 }
 
 // Top-level members of a `{ ... }` body, split on `;` and on a closing brace
-// that returns to the body's own depth. The split only has to be
-// deterministic: an unchanged member yields the same text on both sides.
+// that returns to the body's own depth and ends the member (a namespace's
+// `interface A { ... }` has no semicolon). A brace followed by `|`, `&`, `[`,
+// `.`, `?`, `,` or `=` continues the same type, so it does not split. The `>`
+// of an arrow (`=>`) is not a closing delimiter.
 function bodyMembers(body) {
   const members = [];
   let depth = 0;
@@ -103,42 +105,56 @@ function bodyMembers(body) {
       continue;
     }
     if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    else if (ch === '>' && body[index - 1] === '=') continue;
     else if ('({[<'.includes(ch)) depth += 1;
     else if (')]>'.includes(ch)) depth = Math.max(0, depth - 1);
     else if (ch === '}') {
       depth = Math.max(0, depth - 1);
-      if (depth === 0) flush(index + 1);
+      const next = body.slice(index + 1).trimStart()[0];
+      if (depth === 0 && !(next && '|&[.?,=;'.includes(next))) flush(index + 1);
     } else if (ch === ';' && depth === 0) flush(index + 1);
   }
   flush(body.length);
   return members;
 }
 
+// Head (before the body), members, and tail (after the body: `;`, a union, an
+// array suffix). Head and tail must match for a change to be additive.
 function splitDeclaration(signature) {
   const open = signature.indexOf('{');
   const close = signature.lastIndexOf('}');
   if (open === -1 || close < open) return null;
-  return { head: signature.slice(0, open).trim(), members: bodyMembers(signature.slice(open + 1, close)) };
+  return {
+    head: signature.slice(0, open).trim(),
+    members: bodyMembers(signature.slice(open + 1, close)),
+    tail: signature.slice(close + 1).trim(),
+  };
 }
 
-// A declaration change is additive when the head is unchanged and every member
-// the old declaration had is still there verbatim. Consumers read classes,
-// namespaces and declared constants, so new members cannot break them. An
-// interface may also be implemented or built by the consumer, so there only
-// new optional members (`name?:`) are additive. Type aliases stay strict.
+const ABSTRACT_MEMBER = /^((public|protected)\s+)?abstract\b/;
+const OPTIONAL_MEMBER = /^(readonly\s+)?[A-Za-z_$][\w$]*\?\s*:/;
+
+// A declaration change is additive when head and tail are unchanged and every
+// member the old declaration had is still there verbatim. Consumers read
+// classes, namespaces and declared constants, so new members cannot break
+// them -- except a new abstract member, which every concrete subclass must now
+// implement. An interface may also be implemented or built by the consumer, so
+// there only new optional members (`name?:`) are additive. Type aliases stay
+// strict.
 function isAdditiveDeclaration(before, after) {
   if (!['class', 'namespace', 'const', 'interface'].includes(before.kind) || before.kind !== after.kind) return false;
   const old = splitDeclaration(before.signature);
   const now = splitDeclaration(after.signature);
-  if (!old || !now || old.head !== now.head) return false;
+  if (!old || !now || old.head !== now.head || old.tail !== now.tail) return false;
   const remaining = [...now.members];
   for (const member of old.members) {
     const at = remaining.indexOf(member);
     if (at === -1) return false;
     remaining.splice(at, 1);
   }
-  if (before.kind !== 'interface') return true;
-  return remaining.every((member) => /^(readonly\s+)?[A-Za-z_$][\w$]*\?\s*:/.test(member));
+  if (before.kind === 'interface') return remaining.every((member) => OPTIONAL_MEMBER.test(member));
+  if (before.kind === 'class') return !remaining.some((member) => ABSTRACT_MEMBER.test(member));
+  return true;
 }
 
 function diffSnapshots(base, current) {
