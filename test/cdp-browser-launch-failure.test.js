@@ -25,7 +25,34 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
-const { waitForDevToolsEndpoint, launchBrowserSession } = require('./helpers/cdp-browser');
+const { waitForDevToolsEndpoint, launchBrowserSession, readActivePort } = require('./helpers/cdp-browser');
+
+test('the DevTools port is read from the DevToolsActivePort file', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-port-'));
+  t.after(() => { try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); } catch { /* best effort */ } });
+
+  assert.equal(readActivePort(dir), null, 'a missing file must not invent a port');
+  fs.writeFileSync(path.join(dir, 'DevToolsActivePort'), '9222\n/devtools/browser/abc\n');
+  assert.equal(readActivePort(dir), 9222);
+  fs.writeFileSync(path.join(dir, 'DevToolsActivePort'), 'not-a-port\n');
+  assert.equal(readActivePort(dir), null, 'a malformed file must not yield a port');
+  assert.equal(readActivePort(undefined), null, 'no profile directory means no discovery');
+});
+
+test('a launch is found through the port file when stderr never prints the banner', async t => {
+  // This is the #3240 shape: the browser starts and writes its port file, but
+  // the `ws://.../devtools/browser/...` banner the old regex waited for never
+  // arrives (or does not arrive in time). The canonical file must still resolve.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-port-'));
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  t.after(() => {
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+    try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); } catch { /* best effort */ }
+  });
+
+  setTimeout(() => fs.writeFileSync(path.join(dir, 'DevToolsActivePort'), '9333\n'), 150);
+  assert.equal(await waitForDevToolsEndpoint(child, { timeoutMs: 5_000, profileDir: dir }), 9333);
+});
 
 test('a child that never announces a DevTools endpoint rejects on the deadline', async () => {
   const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'ignore', 'pipe'] });
