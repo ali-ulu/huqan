@@ -156,8 +156,14 @@ function diffSnapshots(base, current) {
     }
   };
 
+  // Baselines written before accessor exports were resolved record them as
+  // the bare 'defineProperty'. That says nothing about the value, and two such
+  // entries always compared equal, so an old unresolved target is not
+  // evidence of a change.
   compareIdentity('exports', base.exports, current.exports, (item) => item.name, (before, after, key) => {
-    if (before.target !== after.target) addBreaking(breaking, 'exports', key, 'export target changed');
+    if (before.target !== after.target && before.target !== 'defineProperty') {
+      addBreaking(breaking, 'exports', key, 'export target changed');
+    }
   });
 
   const flatTypes = (snapshot) => (snapshot.types || []).flatMap((file) =>
