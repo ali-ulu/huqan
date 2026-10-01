@@ -818,11 +818,15 @@ jobs:
   # time; without this job nothing read it back, so the weights drifted and
   # the "weighted" shards balanced file counts instead. This refreshes
   # config/shard-weights.json and opens a PR when the numbers move.
+  #
+  # First attempt only: a re-run of failed shards uploads sidecars for those
+  # shards alone, so weights computed from it would describe a fraction of
+  # the suite (30.09 found none, 01.10 rebuilt the file from one shard).
   # ---------------------------------------------------------------------
   refresh-shard-weights:
     name: Refresh shard weights
     needs: [runtime-test]
-    if: ${{ always() && github.event_name == 'schedule' }}
+    if: ${{ always() && github.event_name == 'schedule' && github.run_attempt == 1 }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -852,7 +856,21 @@ jobs:
           branch="ci/shard-weights-${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch --create "$branch"
+          # The nightly checkout is the scheduled commit, often hours behind
+          # main by now. A branch cut from it differs from main in every file
+          # main changed since, and when one of those is a workflow GitHub
+          # refuses the push. Cut the branch from current main and carry over
+          # the weights file only. Restore the tracked copy before switching:
+          # if main changed it too, the local edit would stop `git switch`.
+          cp config/shard-weights.json "${RUNNER_TEMP}/shard-weights.json"
+          git restore -- config/shard-weights.json
+          git fetch --depth=1 origin main
+          git switch --create "$branch" FETCH_HEAD
+          cp "${RUNNER_TEMP}/shard-weights.json" config/shard-weights.json
+          if git diff --quiet -- config/shard-weights.json; then
+            echo "shard weights already match current main" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
           git commit -m "chore(ci): refresh shard weights from the latest nightly timings" config/shard-weights.json
           git push --set-upstream origin "$branch"
           body="$(printf '%s\n\n%s\n' \
@@ -865,7 +883,15 @@ jobs:
             echo
             git --no-pager show --stat --oneline HEAD
           } > pr-body.md
-          gh pr create --title "chore(ci): refresh shard weights from nightly timings" --body-file pr-body.md --base main --head "$branch"
+          # Opening the PR needs the repository setting "Allow GitHub Actions
+          # to create and approve pull requests". Without it the pushed branch
+          # is the deliverable: say so loudly instead of failing the nightly,
+          # whose red must keep meaning a test failed.
+          if ! gh pr create --title "chore(ci): refresh shard weights from nightly timings" --body-file pr-body.md --base main --head "$branch"; then
+            compare="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}"
+            echo "::warning::shard weights pushed to ${branch} but the PR could not be opened; open it from ${compare}"
+            echo "Shard weights pushed to \`${branch}\`; open the PR manually: ${compare}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
 
   # ---------------------------------------------------------------------
   # Numeric coverage ratchet (#3077). Measured once, on ubuntu / Node 22,
