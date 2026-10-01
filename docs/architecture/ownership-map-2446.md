@@ -225,7 +225,9 @@ every row carries `evidence: ownership-map-2446.md#<row>`).
 ## Ports, legacy edges, graduated seams
 
 - 276 FILE-level published ports with measured consumer sets (generated from
-  the require graph at `ea5a0e24`; evidence string on each row). Top hubs:
+  the require graph at `ea5a0e24`; evidence string on each row; reproduce and
+  verify with `node scripts/generate-context-ports.js --check`, which CI runs).
+  Top hubs:
   `receipt/canonical-receipt` (19 importers), `external-action-receipt` (11),
   `memory-store-utils`, `action-verdict`, `conflict-detector` (7 each).
 - 16 dated legacy edges (all `reviewBy: 2026-12-31`): Domain→Platform entrypoint uses the gate cannot yet express as ports (approval-store→kernel-factory,

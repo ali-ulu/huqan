@@ -55,6 +55,9 @@ jobs:
       - name: Forbid cross-module private access
         run: node scripts/check-module-boundary.js
 
+      - name: Require published ports to match the require graph
+        run: node scripts/generate-context-ports.js --check
+
       - name: Enforce dependency direction
         run: node scripts/check-layers.js
 
