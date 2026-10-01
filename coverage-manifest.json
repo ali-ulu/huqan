@@ -43,7 +43,7 @@
       ],
       "sites": [
         {
-          "line": 244,
+          "line": 288,
           "capability": "process",
           "call": "spawnSync"
         }
@@ -868,7 +868,7 @@
       ],
       "sites": [
         {
-          "line": 244,
+          "line": 288,
           "capability": "process",
           "call": "spawnSync"
         }
