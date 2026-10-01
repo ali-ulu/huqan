@@ -1,7 +1,7 @@
 # Migrating from KernelV1 to KernelV2
 
 `require('huqan').KernelV1` is deprecated since 0.12.0 and will be removed in
-1.0.0. The default export of `require('huqan')` is already KernelV2.
+2.0.0. The default export of `require('huqan')` is already KernelV2.
 
 ## Replace
 

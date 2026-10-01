@@ -82,6 +82,65 @@ function compareSchema(base, current, context, breaking) {
   }
 }
 
+// Top-level members of a `{ ... }` body, split on `;` and on a closing brace
+// that returns to the body's own depth. The split only has to be
+// deterministic: an unchanged member yields the same text on both sides.
+function bodyMembers(body) {
+  const members = [];
+  let depth = 0;
+  let quote = null;
+  let start = 0;
+  const flush = (end) => {
+    const text = body.slice(start, end).trim();
+    if (text && text !== ';') members.push(text);
+    start = end;
+  };
+  for (let index = 0; index < body.length; index += 1) {
+    const ch = body[index];
+    if (quote) {
+      if (ch === '\\') index += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    else if ('({[<'.includes(ch)) depth += 1;
+    else if (')]>'.includes(ch)) depth = Math.max(0, depth - 1);
+    else if (ch === '}') {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) flush(index + 1);
+    } else if (ch === ';' && depth === 0) flush(index + 1);
+  }
+  flush(body.length);
+  return members;
+}
+
+function splitDeclaration(signature) {
+  const open = signature.indexOf('{');
+  const close = signature.lastIndexOf('}');
+  if (open === -1 || close < open) return null;
+  return { head: signature.slice(0, open).trim(), members: bodyMembers(signature.slice(open + 1, close)) };
+}
+
+// A declaration change is additive when the head is unchanged and every member
+// the old declaration had is still there verbatim. Consumers read classes,
+// namespaces and declared constants, so new members cannot break them. An
+// interface may also be implemented or built by the consumer, so there only
+// new optional members (`name?:`) are additive. Type aliases stay strict.
+function isAdditiveDeclaration(before, after) {
+  if (!['class', 'namespace', 'const', 'interface'].includes(before.kind) || before.kind !== after.kind) return false;
+  const old = splitDeclaration(before.signature);
+  const now = splitDeclaration(after.signature);
+  if (!old || !now || old.head !== now.head) return false;
+  const remaining = [...now.members];
+  for (const member of old.members) {
+    const at = remaining.indexOf(member);
+    if (at === -1) return false;
+    remaining.splice(at, 1);
+  }
+  if (before.kind !== 'interface') return true;
+  return remaining.every((member) => /^(readonly\s+)?[A-Za-z_$][\w$]*\?\s*:/.test(member));
+}
+
 function diffSnapshots(base, current) {
   const breaking = [];
   const added = [];
@@ -106,7 +165,9 @@ function diffSnapshots(base, current) {
   compareIdentity('types', flatTypes(base), flatTypes(current),
     (item) => `${item.file}:${item.kind}:${item.name}`,
     (before, after, key) => {
-      if (before.signature !== after.signature) addBreaking(breaking, 'types', key, 'declaration signature changed');
+      if (before.signature !== after.signature && !isAdditiveDeclaration(before, after)) {
+        addBreaking(breaking, 'types', key, 'declaration signature changed');
+      }
     });
 
   compareIdentity('cli', base.cli?.canonical, current.cli?.canonical, (item) => item.command, (before, after, key) => {

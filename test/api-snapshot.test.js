@@ -88,3 +88,55 @@ test('API snapshot order does not depend on the host locale', () => {
   assert.deepEqual(commands, enUs);
   assert.ok(commands.indexOf('öğret') < commands.indexOf('onayla'), commands.join(' '));
 });
+
+function typeSnapshot(kind, name, signature) {
+  return { exports: [], types: [{ file: 'x.d.ts', declarations: [{ kind, name, signature }] }] };
+}
+
+function typeBreaking(kind, before, after) {
+  return diffSnapshots(typeSnapshot(kind, 'X', before), typeSnapshot(kind, 'X', after)).breaking;
+}
+
+test('API diff treats new class, namespace and const members as additive', () => {
+  assert.deepEqual(typeBreaking('class',
+    'export declare class X { a(): void; b: string; }',
+    'export declare class X { a(): void; b: string; c(n: number): { ok: boolean }; }'), []);
+  assert.deepEqual(typeBreaking('namespace',
+    'export declare namespace X { interface A { x: string; } }',
+    'export declare namespace X { interface A { x: string; } interface B { y: string; } }'), []);
+  assert.deepEqual(typeBreaking('const',
+    'declare const X: { a: () => void; };',
+    'declare const X: { a: () => void; b: (s: string) => number; };'), []);
+});
+
+test('API diff still rejects a changed or removed member and a changed head', () => {
+  assert.equal(typeBreaking('class',
+    'export declare class X { a(): void; b: string; }',
+    'export declare class X { a(): number; b: string; }').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare class X { a(): void; b: string; }',
+    'export declare class X { a(): void; }').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare class X { a(): void; }',
+    'export declare class X extends Y { a(): void; }').length, 1);
+  assert.equal(typeBreaking('type', 'export type X = { a: string };', 'export type X = { a: string; b?: string };').length, 1);
+});
+
+test('API diff accepts only optional new interface members', () => {
+  assert.deepEqual(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b?: number; readonly c?: string; }'), []);
+  assert.equal(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b: number; }').length, 1);
+});
+
+test('API snapshot resolves an accessor export to the value it returns', () => {
+  const kernelV1 = buildSnapshot().exports.find((item) => item.name === 'KernelV1');
+  assert.equal(kernelV1.target, 'Kernel');
+  const base = { exports: [{ name: 'KernelV1', target: 'Kernel' }], types: [] };
+  const moved = { exports: [{ name: 'KernelV1', target: 'Kernel' }], types: [] };
+  const retargeted = { exports: [{ name: 'KernelV1', target: 'KernelV2' }], types: [] };
+  assert.deepEqual(diffSnapshots(base, moved).breaking, []);
+  assert.equal(diffSnapshots(base, retargeted).breaking.length, 1);
+});

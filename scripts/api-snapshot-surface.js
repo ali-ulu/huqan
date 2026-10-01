@@ -157,6 +157,20 @@ function extractTypeDeclarations(file) {
   };
 }
 
+// An accessor export (a deprecation getter, say) still resolves to one value.
+// Record that value's identifier so moving `module.exports.X = Y` into
+// `Object.defineProperty(..., 'X', { get() { ...; return Y; } })` reads as the
+// same export, not a changed one. Anything not resolvable stays 'defineProperty'.
+function definePropertyTarget(source, fromIndex) {
+  const open = source.indexOf('{', fromIndex);
+  if (open === -1) return 'defineProperty';
+  const descriptor = source.slice(open, findBalancedBlock(source, open));
+  const value = descriptor.match(/\bvalue\s*:\s*([A-Za-z_$][\w$]*)\s*[,}]/);
+  if (value) return value[1];
+  const getter = descriptor.match(/\bget\s*\(\s*\)\s*\{[\s\S]*\breturn\s+([A-Za-z_$][\w$]*)\s*;\s*\}/);
+  return getter ? getter[1] : 'defineProperty';
+}
+
 function extractRootExports() {
   const source = stripJsComments(fs.readFileSync(path.join(ROOT, 'index.js'), 'utf8'));
   const entries = [];
@@ -168,7 +182,9 @@ function extractRootExports() {
     entries.push({ name: match[1], target: match[2].replace(/\s+/g, ' ').trim() });
   }
   const define = /Object\.defineProperty\(\s*module\.exports\s*,\s*['"]([^'"]+)['"]/g;
-  while ((match = define.exec(source)) !== null) entries.push({ name: match[1], target: 'defineProperty' });
+  while ((match = define.exec(source)) !== null) {
+    entries.push({ name: match[1], target: definePropertyTarget(source, define.lastIndex) });
+  }
   const unique = new Map(entries.map((entry) => [entry.name, entry]));
   return [...unique.values()].sort((a, b) => compareText(a.name, b.name));
 }

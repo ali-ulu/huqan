@@ -13,11 +13,11 @@
  * explicitly deprecated name so consumers that genuinely depend on it are not
  * broken abruptly; it is no longer the default and no longer a runtime option.
  * Deprecation contract: DEPRECATION_POLICY.md; registry: deprecations.json.
- * `KernelV1` is recorded there as deprecated in 0.12.0 with removal in 1.0.0,
+ * `KernelV1` is recorded there as deprecated in 0.12.0 with removal in 2.0.0,
  * warned by construction below and guided by docs/migrations/kernel-v2.md --
  * importing this library stays free of side effects because no deprecated
- * export warns at require time. `KernelV1` can be removed in the next major
- * release.
+ * export warns at require time. `KernelV1` can be removed in 2.0.0, the
+ * major after the 1.0.0 surface is set.
  *
  * Note on CommonJS mechanics: `module.exports = KernelV2` followed by property
  * assignment attaches those properties to the KernelV2 class object itself, so
@@ -50,13 +50,13 @@ module.exports = KernelV2;
 
 module.exports.KernelV2 = KernelV2;
 
-/** @deprecated Use KernelV2 / require('huqan'). Removed in the next major. */
+/** @deprecated Use KernelV2 / require('huqan'). Removed in 2.0.0. */
 Object.defineProperty(module.exports, 'KernelV1', {
   enumerable: true,
   configurable: false,
   get() {
     process.emitWarning(
-      'KernelV1 is deprecated since 0.12.0 and will be removed in 1.0.0. Use KernelV2.',
+      'KernelV1 is deprecated since 0.12.0 and will be removed in 2.0.0. Use KernelV2.',
       { type: 'DeprecationWarning' },
     );
     return Kernel;

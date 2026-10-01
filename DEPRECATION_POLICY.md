@@ -15,7 +15,7 @@ Add one object to `deprecations.json`:
   "name": "KernelV1",
   "kind": "export",
   "deprecatedIn": "0.12.0",
-  "removalIn": "1.0.0",
+  "removalIn": "2.0.0",
   "migrationPath": "docs/migrations/kernel-v2.md",
   "warnedIn": ["index.js"]
 }
@@ -38,7 +38,7 @@ and use differ. A warning must name the replacement and the removal release:
 
 ```js
 process.emitWarning(
-  'KernelV1 is deprecated since 0.12.0 and will be removed in 1.0.0. Use KernelV2.',
+  'KernelV1 is deprecated since 0.12.0 and will be removed in 2.0.0. Use KernelV2.',
   { type: 'DeprecationWarning' },
 );
 ```
