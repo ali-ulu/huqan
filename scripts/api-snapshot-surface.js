@@ -216,7 +216,7 @@ function definePropertyTarget(source, fromIndex) {
     // `return <identifier>;`. A nested early return could yield another value.
     const allReturns = body.match(/\breturn\b/g) || [];
     const returns = [...topLevelText(body).matchAll(/\breturn\s+([A-Za-z_$][\w$]*)\s*;/g)].map((item) => item[1]);
-    return returns.length === 1 ? returns[0] : 'defineProperty';
+    return allReturns.length === 1 && returns.length === 1 ? returns[0] : 'defineProperty';
   }
   return 'defineProperty';
 }
