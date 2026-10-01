@@ -236,13 +236,13 @@ function isAlive(pid) {
   }
 }
 
-function waitForDevToolsEndpoint(child) {
+function waitForDevToolsEndpoint(child, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     let buffered = '';
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error(`browser did not report a DevTools endpoint in ${CONNECT_TIMEOUT_MS}ms`));
-    }, CONNECT_TIMEOUT_MS);
+      reject(new Error(`browser did not report a DevTools endpoint in ${timeoutMs}ms`));
+    }, timeoutMs);
 
     function cleanup() {
       clearTimeout(timer);
@@ -330,8 +330,14 @@ function connect(webSocketDebuggerUrl) {
  * The session records uncaught exceptions and console errors so a test can
  * assert on them, which is what makes this browser evidence rather than a
  * source-shape assertion.
+ *
+ * @param {object} [options]
+ * @param {number} [options.devToolsTimeoutMs] how long to wait for the DevTools
+ *   endpoint before giving up; injectable so a test can pin the failure path
+ *   without waiting the full production deadline.
+ * @returns {Promise<object>} the CDP session facade
  */
-async function launchBrowserSession() {
+async function launchBrowserSession({ devToolsTimeoutMs = CONNECT_TIMEOUT_MS } = {}) {
   const executable = findBrowser();
   if (!executable) throw new Error('no Chromium-family browser found');
 
@@ -357,9 +363,15 @@ async function launchBrowserSession() {
   // launch diagnostics only, so a late write fault has no signal to preserve.
   child.stderr.on('error', () => {});
 
-  const devToolsPort = await waitForDevToolsEndpoint(child);
+  // Both launch awaits have to be inside the try: waitForDevToolsEndpoint
+  // rejects on its own 20s deadline when the browser never announces a DevTools
+  // endpoint, and that is exactly the launch the cleanup below exists for.
+  // Leaving it outside the try left the child and its tree alive, so the file
+  // was killed by the 240s heavy-file deadline with no test output at all
+  // (#3240 -- the remaining leg of #3161).
   let socket;
   try {
+    const devToolsPort = await waitForDevToolsEndpoint(child, { timeoutMs: devToolsTimeoutMs });
     socket = await connect(await firstPageTarget(devToolsPort));
   } catch (error) {
     // A launch that fails (no DevTools endpoint, no page target, a refused
@@ -486,6 +498,11 @@ module.exports = {
   browserSmokeSkipReason,
   findBrowser,
   firstPageTarget,
+  // Exported for the launch-failure unit test (#3240): the DevTools-endpoint
+  // wait is the one launch leg that can reject on its own deadline, and a
+  // rejecting launch must still reap the child it spawned. Parameterised so the
+  // deadline can be shortened in a test.
+  waitForDevToolsEndpoint,
   // Exported for the teardown unit test (#3161). Kept pure/parameterised so the
   // kill-tree logic can be pinned without launching a browser.
   parseProcessTable,
