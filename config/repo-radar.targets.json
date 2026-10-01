@@ -1,0 +1,98 @@
+{
+  "_comment": [
+    "Target list for the hourly Repo Radar reverse-engineering automation",
+    "(docs/automations/repo-radar.md).",
+    "The list is the versioned source of truth: scripts/repo-radar/pick-target.js",
+    "selects one entry per UTC hour by index = floor(unixHours) % repos.length,",
+    "and scripts/repo-radar/build-prompt.js renders the automation prompt from it.",
+    "Entries must be public repositories. Keep `why` short and honest: it is what",
+    "the radar agent reads to decide what is worth reverse-engineering."
+  ],
+  "rotation": "utc-hour-modulo",
+  "repos": [
+    {
+      "repo": "langchain-ai/langchain",
+      "license": "MIT",
+      "focus": ["agent orchestration", "tool calling", "memory abstraction"],
+      "why": "The widest-used agent orchestration framework; its tool-calling and memory interfaces are the de-facto comparison baseline for HUQAN's kernel and adapters."
+    },
+    {
+      "repo": "run-llama/llama_index",
+      "license": "MIT",
+      "focus": ["indexing", "retrieval", "long-term memory"],
+      "why": "Reference design for document indexing and retrieval that maps onto HUQAN's memory store and ingest chain."
+    },
+    {
+      "repo": "microsoft/autogen",
+      "license": "MIT",
+      "focus": ["multi-agent conversation", "agent handoff", "group chat"],
+      "why": "Multi-agent conversation patterns that overlap HUQAN's A2A exchange and inter-agent receipt chain."
+    },
+    {
+      "repo": "crewAIInc/crewAI",
+      "license": "MIT",
+      "focus": ["role-based agents", "task delegation", "orchestration"],
+      "why": "Role and delegation model comparable to HUQAN's workflow agent and approval runtime."
+    },
+    {
+      "repo": "openai/openai-agents-python",
+      "license": "MIT",
+      "focus": ["agent SDK", "guardrails", "handoffs", "tracing"],
+      "why": "A compact agents SDK with explicit guardrail and handoff primitives; a direct comparison for HUQAN's action firewall and gates."
+    },
+    {
+      "repo": "google/adk-python",
+      "license": "Apache-2.0",
+      "focus": ["agent development kit", "sessions", "memory", "evaluation"],
+      "why": "Google's ADK carries session/memory/eval contracts worth comparing against HUQAN's capability and evaluation surfaces."
+    },
+    {
+      "repo": "modelcontextprotocol/servers",
+      "license": "MIT",
+      "focus": ["MCP reference servers", "tool schemas", "transport"],
+      "why": "The canonical MCP server implementations; HUQAN exposes an MCP surface, so their tool-schema and transport choices are directly relevant."
+    },
+    {
+      "repo": "modelcontextprotocol/python-sdk",
+      "license": "MIT",
+      "focus": ["MCP protocol SDK", "capability negotiation", "transport"],
+      "why": "Reference MCP protocol implementation to compare against HUQAN's MCP tool surface and capability negotiation."
+    },
+    {
+      "repo": "Aider-AI/aider",
+      "license": "Apache-2.0",
+      "focus": ["CLI coding agent", "repo map", "edit formats"],
+      "why": "A mature CLI coding agent; its repo-map and edit-format design is comparable to HUQAN's CLI and coder adapter."
+    },
+    {
+      "repo": "All-Hands-AI/OpenHands",
+      "license": "MIT",
+      "focus": ["agent runtime", "sandboxing", "event stream"],
+      "why": "Production agent runtime with sandboxing and an event stream; a close comparison for HUQAN's sandbox runner and runtime."
+    },
+    {
+      "repo": "mem0ai/mem0",
+      "license": "Apache-2.0",
+      "focus": ["long-term memory", "memory admission", "retrieval"],
+      "why": "A dedicated memory layer whose admission and retrieval design overlaps HUQAN's memory admission gates."
+    },
+    {
+      "repo": "letta-ai/letta",
+      "license": "Apache-2.0",
+      "focus": ["agent state", "memory hierarchy", "persistence"],
+      "why": "MemGPT lineage: hierarchical agent memory and persistence comparable to HUQAN's memory core."
+    },
+    {
+      "repo": "guardrails-ai/guardrails",
+      "license": "Apache-2.0",
+      "focus": ["output validation", "schema enforcement", "fail-closed"],
+      "why": "Validation-and-retry primitives comparable to HUQAN's gates and fail-closed boundaries."
+    },
+    {
+      "repo": "stanfordnlp/dspy",
+      "license": "MIT",
+      "focus": ["declarative LM pipelines", "optimization", "signatures"],
+      "why": "Declarative pipeline and optimization design worth comparing against HUQAN's inference layer and calibration work."
+    }
+  ]
+}

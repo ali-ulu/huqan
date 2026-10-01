@@ -1,0 +1,54 @@
+name: Repo Radar Contract
+
+# The Repo Radar automation (docs/automations/repo-radar.md) itself runs
+# outside this repository and opens one analysis issue per hour. Nothing in
+# this repository executes it, so without a guard a change to the rotation
+# list or to the prompt template could break the next run silently. This
+# workflow runs only when those files move and only checks that the tool still
+# works: it does not call GitHub, does not need secrets, and opens no issues.
+on:
+  pull_request:
+    paths:
+      - 'config/repo-radar.targets.json'
+      - 'scripts/repo-radar/**'
+      - 'docs/automations/repo-radar.md'
+      - '.github/workflows/repo-radar-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/repo-radar.targets.json'
+      - 'scripts/repo-radar/**'
+      - 'docs/automations/repo-radar.md'
+      - '.github/workflows/repo-radar-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-radar-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Verify the rotation and prompt stay valid
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate the target list and render the prompt
+        run: |
+          set -euo pipefail
+          # --json validates the config and resolves the hourly selection.
+          node scripts/repo-radar/pick-target.js --json > /tmp/selection.json
+          jq -e '.repo and .selectedForHour and .total > 0' /tmp/selection.json > /dev/null
+          # --prompt validates the same config and renders the template.
+          node scripts/repo-radar/pick-target.js --prompt > /tmp/prompt.md
+          test -s /tmp/prompt.md
+          echo "Rotation config and prompt template are valid."
