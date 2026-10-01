@@ -139,4 +139,8 @@ test('API snapshot resolves an accessor export to the value it returns', () => {
   const retargeted = { exports: [{ name: 'KernelV1', target: 'KernelV2' }], types: [] };
   assert.deepEqual(diffSnapshots(base, moved).breaking, []);
   assert.equal(diffSnapshots(base, retargeted).breaking.length, 1);
+  // A baseline from before accessor resolution carries no target to compare.
+  const legacy = { exports: [{ name: 'KernelV1', target: 'defineProperty' }], types: [] };
+  assert.deepEqual(diffSnapshots(legacy, moved).breaking, []);
+  assert.equal(diffSnapshots(moved, legacy).breaking.length, 1);
 });
