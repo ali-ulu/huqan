@@ -21,7 +21,15 @@ const {
   toRecallRecord,
   MEMORY_LIFECYCLE_POLICY_VERSION,
 } = require('../lib/memory-lifecycle');
-const { validateReceiptChain, appendReceiptToChain } = require('../lib/receipt/receipt-chain');
+const { GENESIS_PREVIOUS_HASH, validateReceiptChain, appendReceiptToChain } = require('../lib/receipt/receipt-chain');
+const { verifyCryptographicEvidence } = require('../lib/receipt/cryptographic-verification-adapter');
+
+// MemoryLifecycle lives in the Adapters ring and may not require Application
+// (lib/receipt/*), so a UI entrypoint supplies these collaborators. A test is
+// that entrypoint here: it wires the real modules, not stubs.
+const chain = { GENESIS_PREVIOUS_HASH, appendReceiptToChain, validateReceiptChain };
+const crypto = { verifyCryptographicEvidence };
+const newLifecycle = (kernel) => new MemoryLifecycle(kernel, { chain, crypto });
 
 const CREATED_AT = '2026-06-11T12:00:00.000Z';
 const OBSERVED_AT = '2026-06-11T13:00:00.000Z';
@@ -52,7 +60,7 @@ test('exports a stable policy version and the composition seam', () => {
 });
 
 test('write → read: an admitted record reads back as admitted (the missing provenance bridge)', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const admitted = lifecycle.admit(writeRequest());
 
   assert.equal(admitted.ok, true);
@@ -90,7 +98,7 @@ test('the bridge fills only missing provenance fields and keeps declared ones', 
 });
 
 test('write → read: a record whose flat provenance was never bridged is withheld', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const recall = lifecycle.recall({
     records: [{ memoryId: 'mem-raw', workspaceId: 'workspace-compose', trustPolicyVersion: '2026-06', provenanceId: 'prov-1' }],
   }, { workspaceId: 'workspace-compose', currentTrustPolicyVersion: '2026-06', observedAt: OBSERVED_AT });
@@ -102,7 +110,7 @@ test('write → read: a record whose flat provenance was never bridged is withhe
 });
 
 test('write → verify: chained receipts validate and tampering is detected', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const first = lifecycle.admit(writeRequest());
   const second = lifecycle.admit(writeRequest({
     admissionId: 'madm_compose_2',
@@ -120,12 +128,12 @@ test('write → verify: chained receipts validate and tampering is detected', ()
   // A self-consistent receipt that commits to the wrong predecessor is a link break.
   const forged = appendReceiptToChain({ ...second.chainedReceipt, previousReceiptHash: undefined }, undefined);
   const { receiptHash, ...forgedContent } = forged;
-  const refForge = appendReceiptToChain(forgedContent, 'genesis:v4-receipt-chain');
+  const refForge = appendReceiptToChain(forgedContent, GENESIS_PREVIOUS_HASH);
   assert.equal(validateReceiptChain([first.chainedReceipt, refForge]).reason, 'chain_link_broken');
 });
 
 test('write → read: a dropped middle receipt breaks the chain link', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const a = lifecycle.admit(writeRequest({ admissionId: 'a', memoryDraftId: 'a', proposedMemory: { memoryId: 'a' } }));
   const b = lifecycle.admit(writeRequest({ admissionId: 'b', memoryDraftId: 'b', proposedMemory: { memoryId: 'b' } }));
   const c = lifecycle.admit(writeRequest({ admissionId: 'c', memoryDraftId: 'c', proposedMemory: { memoryId: 'c' } }));
@@ -139,7 +147,7 @@ test('write → read: a dropped middle receipt breaks the chain link', () => {
 });
 
 test('write: a review/quarantine verdict is returned, not thrown', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const quarantined = lifecycle.admit(writeRequest({
     admissionId: 'madm_high', memoryDraftId: 'draft-high', riskScore: 90,
     proposedMemory: { memoryId: 'mem-high', workspaceId: 'workspace-compose', content: { title: 'risky' } },
@@ -159,7 +167,7 @@ test('write: a review/quarantine verdict is returned, not thrown', () => {
 });
 
 test('write: an expired-at-admission write is rejected', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const expired = lifecycle.admit(writeRequest({
     admissionId: 'madm_expired',
     memoryDraftId: 'draft-expired',
@@ -171,7 +179,7 @@ test('write: an expired-at-admission write is rejected', () => {
 });
 
 test('write: the derived reverification horizon rides on the receipt by risk', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const high = lifecycle.admit(writeRequest({
     admissionId: 'madm_h', memoryDraftId: 'draft-h', riskScore: 90,
     proposedMemory: { memoryId: 'mem-h', workspaceId: 'workspace-compose', content: { title: 'h' } },
@@ -181,7 +189,7 @@ test('write: the derived reverification horizon rides on the receipt by risk', (
 });
 
 test('read: missing policy version warns rather than fabricating staleness', () => {
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const recall = lifecycle.recall({ records: [] }, { workspaceId: 'workspace-compose' });
   assert.deepEqual(recall.warnings.map((w) => w.code), ['POLICY_VERSION_UNKNOWN']);
 });
@@ -191,7 +199,7 @@ test('score: insufficient data is reported, never fabricated', () => {
     getCommittedMutationResultsByPrefix: () => [],
     getCandidateClaims: () => [],
   };
-  const lifecycle = new MemoryLifecycle(emptyGraph);
+  const lifecycle = newLifecycle(emptyGraph);
   const score = lifecycle.score('workspace-compose', { includeAiDependencyRatio: false });
   assert.equal(score.status, 'insufficient-data');
   assert.equal(score.score, null);
@@ -211,7 +219,7 @@ test('score: a scored workspace returns a bounded score and certification gate',
     },
     getCandidateClaims: () => [],
   };
-  const lifecycle = new MemoryLifecycle(graph);
+  const lifecycle = newLifecycle(graph);
   const score = lifecycle.score('workspace-compose', { includeAiDependencyRatio: false });
   assert.equal(score.status, 'scored');
   assert.ok(score.score >= 0 && score.score <= 100);
@@ -223,7 +231,7 @@ test('verify: the crypto adapter verifies a real Ed25519 vector', () => {
     path.join(__dirname, 'fixtures', 'v5', 'cryptographic-adapter', '01-valid-rfc8032-one-octet.json'),
     'utf8',
   ));
-  const lifecycle = new MemoryLifecycle({});
+  const lifecycle = newLifecycle({});
   const result = lifecycle.verifyCryptographicEvidence({
     algorithm: fixture.input.algorithm,
     messageBytes: Buffer.from(fixture.input.messageBytesHex, 'hex'),
@@ -238,7 +246,7 @@ test('full loop: write → read → score → verify in one flow', () => {
     getCommittedMutationResultsByPrefix: () => [],
     getCandidateClaims: () => [],
   };
-  const lifecycle = new MemoryLifecycle(graph);
+  const lifecycle = newLifecycle(graph);
 
   const written = lifecycle.admit(writeRequest());
   const read = lifecycle.recall({ records: [written.record] }, {
