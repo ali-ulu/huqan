@@ -26,6 +26,7 @@
     "bench:observability:load": "node benchmarks/observability-load-smoke.js",
     "bench:observability:soak": "node --expose-gc benchmarks/observability-soak.js",
     "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "changelog": "node scripts/changelog.js --write",
     "changelog:preview": "node scripts/changelog.js",
     "verify": "node scripts/verify-suite.js",

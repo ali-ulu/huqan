@@ -142,3 +142,61 @@ jobs:
           path: reports/mutation/
           if-no-files-found: warn
           retention-days: 30
+
+  capability-usage-report:
+    # scripts/capability-usage.js deliberately reports and never gates: a
+    # capability that has not been used yet is a fact about the product, not a
+    # defect in a change, and failing a build over it would push people to
+    # delete the report rather than the gap. This job therefore runs it against
+    # a real, freshly exercised store on the nightly and publishes the report as
+    # an artifact; it must never become a required check. The DB-independent
+    # invariant it depends on -- every capability declaring an evidence source,
+    # so report.undeclared stays empty -- is already enforced on the PR path by
+    # test/capability-usage.test.js.
+    name: Capability usage report (advisory)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Exercise launch surfaces against an isolated store
+        shell: bash
+        run: |
+          export HUQAN_DB_PATH="$RUNNER_TEMP/huqan-usage/memory.db"
+          mkdir -p "$(dirname "$HUQAN_DB_PATH")"
+          # A non-zero exit here reflects a policy verdict (for example `learn`
+          # queuing a review approval) rather than a job failure, so each call
+          # is tolerated. Their job is to create and populate the store that the
+          # report below reads; `status` alone creates it.
+          node cli.js status >/dev/null 2>&1 || true
+          node cli.js quickstart >/dev/null 2>&1 || true
+          node cli.js "learn: capability usage smoke" >/dev/null 2>&1 || true
+          node cli.js "verify: capability usage smoke is present" >/dev/null 2>&1 || true
+
+      - name: Report capability usage (advisory)
+        shell: bash
+        run: |
+          export HUQAN_DB_PATH="$RUNNER_TEMP/huqan-usage/memory.db"
+          mkdir -p reports
+          node scripts/capability-usage.js | tee reports/capability-usage.txt
+
+      - name: Upload capability usage report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capability-usage-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: reports/capability-usage.txt
+          if-no-files-found: warn
+          retention-days: 30
