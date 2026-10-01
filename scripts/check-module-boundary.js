@@ -83,10 +83,16 @@ function measure() {
 }
 
 /**
- * Context ownership (#2446 Enforce). The map lives in context-ownership.json,
- * generated from docs/architecture/ownership-map-2446.md; directory entries
- * exist only where the map names that directory with evidence, never inferred
- * from the directory name.
+ * Context ownership (#2446 Map/Publish/Enforce, Wiki design decision v0.1 2026-09-25).
+ * The map lives in context-ownership.json, generated from
+ * docs/architecture/ownership-map-2446.md. Schema v2: owners holds the five
+ * domain contexts ONLY; platform holds the explicit non-domain owner
+ * (entrypoints, composition roots, transport adapters, generic infrastructure
+ * flagged kind infra vs entry). There is no shared and no unassigned bucket.
+ * outOfScope lists tooling/UI/example prefixes excluded from domain ownership
+ * with reasons; the private-call ratchet above still covers them.
+ * publishedPorts are FILE-level only (no directory inference): a cross-owner
+ * import must target an explicitly published port of the target owner.
  *
  * Deliberate limit, stated so nobody over-reads the gate: a violation records
  * the caller's file and the `owner._member()` text, not the callee's file --
@@ -101,14 +107,34 @@ function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
     if (!entry || !contexts.has(entry.context)) {
       throw new Error(`context-ownership.json: unknown context for ${entryPath}`);
     }
+    if (typeof entry.evidence !== 'string' || !entry.evidence) {
+      throw new Error(`context-ownership.json: missing evidence for ${entryPath}`);
+    }
+  }
+  const platform = raw.platform && typeof raw.platform === 'object' ? raw.platform : {};
+  for (const [entryPath, entry] of Object.entries(platform)) {
+    if (!entry || (entry.kind !== 'infra' && entry.kind !== 'entry')) {
+      throw new Error(`context-ownership.json: unknown platform kind for ${entryPath}`);
+    }
+    if (typeof entry.evidence !== 'string' || !entry.evidence) {
+      throw new Error(`context-ownership.json: missing evidence for ${entryPath}`);
+    }
   }
   const unassigned = raw.unassigned && typeof raw.unassigned === 'object' ? raw.unassigned : {};
+  const outOfScope = Array.isArray(raw.outOfScope) ? raw.outOfScope : [];
+  for (const entry of outOfScope) {
+    if (!entry || typeof entry.prefix !== 'string' || !entry.prefix
+      || typeof entry.reason !== 'string' || !entry.reason) {
+      throw new Error('context-ownership.json: invalid outOfScope entry');
+    }
+  }
   const publishedPorts = raw.publishedPorts || {};
   const legacyEdges = raw.legacyEdges || {};
+  const probe = { owners, platform, unassigned, outOfScope, contexts };
   for (const [port, rule] of Object.entries(publishedPorts)) {
-    if (ownerOf(port, { owners, unassigned }).context !== rule.owner
+    if (ownerOf(port, probe).context !== rule.owner
       || !Array.isArray(rule.consumers)
-      || rule.consumers.some((context) => !contexts.has(context))
+      || rule.consumers.some((context) => context !== 'Platform' && !contexts.has(context))
       || typeof rule.evidence !== 'string' || !rule.evidence) {
       throw new Error(`context-ownership.json: invalid published port ${port}`);
     }
@@ -119,29 +145,28 @@ function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
       throw new Error(`context-ownership.json: invalid legacy edge ${edge}`);
     }
   }
-  return { contexts, owners, unassigned, publishedPorts, legacyEdges };
+  return { contexts, owners, platform, unassigned, outOfScope, publishedPorts, legacyEdges };
+}
+
+function isOutOfScope(file, ownership) {
+  return (ownership.outOfScope || []).some((entry) => file.startsWith(entry.prefix));
 }
 
 function ownerOf(file, ownership) {
-  if (Object.hasOwn(ownership.owners, file)) {
-    return { context: ownership.owners[file].context, status: ownership.owners[file].status || 'assigned' };
+  const owners = ownership.owners || {};
+  if (Object.hasOwn(owners, file)) {
+    return { context: owners[file].context, status: owners[file].status || 'assigned' };
   }
-  let best = null;
-  for (const entryPath of Object.keys(ownership.owners)) {
-    if (entryPath.endsWith('/') && file.startsWith(entryPath)) {
-      if (!best || entryPath.length > best.length) best = entryPath;
-    }
+  const platform = ownership.platform || {};
+  if (Object.hasOwn(platform, file)) {
+    return { context: 'Platform', status: platform[file].kind || 'entry' };
   }
-  if (best) {
-    return { context: ownership.owners[best].context, status: ownership.owners[best].status || 'assigned' };
+  if (isOutOfScope(file, ownership)) {
+    return { context: null, status: 'out-of-scope' };
   }
-  if (Object.hasOwn(ownership.unassigned, file)) {
-    return { context: null, status: ownership.unassigned[file].status || 'resists' };
-  }
-  for (const entryPath of Object.keys(ownership.unassigned)) {
-    if (entryPath.endsWith('/') && file.startsWith(entryPath)) {
-      return { context: null, status: ownership.unassigned[entryPath].status || 'resists' };
-    }
+  const unassigned = ownership.unassigned || {};
+  if (Object.hasOwn(unassigned, file)) {
+    return { context: null, status: unassigned[file].status || 'resists' };
   }
   return { context: null, status: 'never-examined' };
 }
@@ -160,34 +185,76 @@ function describeCall(file, hit, ownership) {
   return `${file} (${owner.context}) reaches into another module's ${hit.call} -- contexts talk only through public contracts (#2446 rule 2)`;
 }
 
-/** Enforce published imports for the source/caller-backed portion of the map. */
+/**
+ * Enforce cross-owner imports (Wiki design decision v0.1).
+ * - Domain -> Domain (different contexts): needs a FILE-level published port
+ *   naming the caller's context, or a dated legacy edge.
+ * - Domain -> Platform entrypoint: needs a dated legacy edge.
+ *   Domain -> Platform infra (generic helpers): always allowed.
+ * - Platform -> Domain: needs a FILE-level published port naming Platform
+ *   (composition goes through public contracts), or a dated legacy edge.
+ * - Platform -> Platform, anything -> Platform infra, out-of-scope: allowed.
+ * Files with no recorded owner are not judged here; coverageStatus fails
+ * them with an assignment instruction instead.
+ */
 function checkContextPorts(graph, ownership, today = new Date().toISOString().slice(0, 10)) {
   const problems = [];
   const activeLegacy = new Set();
+  const ports = ownership.publishedPorts || {};
+  const legacy = ownership.legacyEdges || {};
   let crossOwnerCount = 0;
+  function legacyOrFail(edge) {
+    const rule = legacy[edge];
+    if (rule) {
+      activeLegacy.add(edge);
+      if (rule.reviewBy < today) problems.push(`expired legacy context import: ${edge}`);
+      return true;
+    }
+    return false;
+  }
   for (const [from, deps] of graph) {
-    const fromContext = ownerOf(from, ownership).context;
-    if (!fromContext) continue;
+    const fromCtx = ownerOf(from, ownership).context;
+    if (!fromCtx) continue;
     for (const to of new Set(deps)) {
-      const toContext = ownerOf(to, ownership).context;
-      if (!toContext || fromContext === toContext) continue;
+      const toOwn = ownerOf(to, ownership);
+      const toCtx = toOwn.context;
+      if (!toCtx || fromCtx === toCtx) continue;
+      if (toCtx === 'Platform' && toOwn.status === 'infra') continue;
       crossOwnerCount += 1;
       const edge = `${from}>${to}`;
-      const port = (ownership.publishedPorts || {})[to];
-      if (port && port.owner === toContext && port.consumers.includes(fromContext)) continue;
-      const legacy = (ownership.legacyEdges || {})[edge];
-      if (legacy) {
-        activeLegacy.add(edge);
-        if (legacy.reviewBy < today) problems.push(`expired legacy context import: ${edge}`);
-      } else {
-        problems.push(`unpublished cross-owner import: ${from} (${fromContext}) -> ${to} (${toContext})`);
+      if (toCtx === 'Platform') {
+        if (fromCtx === 'Platform') continue;
+        if (!legacyOrFail(edge)) {
+          problems.push(`unpublished domain import of Platform entrypoint: ${from} (${fromCtx}) -> ${to}`);
+        }
+        continue;
+      }
+      const port = ports[to];
+      const allowed = fromCtx === 'Platform' ? 'Platform' : fromCtx;
+      if (port && port.owner === toCtx && port.consumers.includes(allowed)) continue;
+      if (!legacyOrFail(edge)) {
+        const who = fromCtx === 'Platform' ? `Platform import of domain port: ${from} -> ${to} (${toCtx})` : `unpublished cross-owner import: ${from} (${fromCtx}) -> ${to} (${toCtx})`;
+        problems.push(who);
       }
     }
   }
-  for (const edge of Object.keys(ownership.legacyEdges || {})) {
+  for (const edge of Object.keys(legacy)) {
     if (!activeLegacy.has(edge)) problems.push(`stale legacy context import: ${edge}`);
   }
   return { problems, crossOwnerCount };
+}
+
+/**
+ * Coverage for #2446 Done-when: every in-scope file (non-test, not outOfScope)
+ * resolves to exactly one owner. A file added without a manifest row fails
+ * here with an assignment instruction (audit item: unmapped-file negative).
+ */
+function coverageStatus(ownership, files) {
+  const unmapped = files
+    .filter((file) => !IS_TEST.test(file) && !isOutOfScope(file, ownership)
+      && ownerOf(file, ownership).status === 'never-examined')
+    .sort();
+  return { unmapped };
 }
 
 function readBaseline() {
@@ -223,9 +290,17 @@ function main() {
   const graph = buildGraph(files, files.filter((file) => !IS_TEST.test(file)));
   const ports = checkContextPorts(graph, ownership);
 
+  const coverage = coverageStatus(ownership, files);
+
   if (update) {
     if (ports.problems.length > 0) {
-      for (const problem of ports.problems) console.error(`FAIL ${problem}`);
+  for (const problem of ports.problems) console.error(`FAIL ${problem}`);
+  for (const file of coverage.unmapped.slice(0, 20)) {
+    console.error(`FAIL unmapped: ${file} has no owning context; assign it in context-ownership.json with source+caller evidence first`);
+  }
+  if (coverage.unmapped.length > 20) {
+    console.error(`FAIL unmapped: ... and ${coverage.unmapped.length - 20} more`);
+  }
       return 1;
     }
     writeBaseline(counts);
@@ -250,13 +325,15 @@ function main() {
     .filter(([file, entry]) => counts.has(file) && entry.review_by < new Date().toISOString().slice(0, 10));
 
   const problems = grew.length + added.length + shrank.length + cleared.length + expired.length
-    + ports.problems.length;
+    + ports.problems.length + coverage.unmapped.length;
   if (problems === 0) {
     const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
     const assigned = Object.keys(ownership.owners).length;
-    const resists = Object.keys(ownership.unassigned).length;
+    const platform = Object.keys(ownership.platform || {}).length;
+    const nports = Object.keys(ownership.publishedPorts || {}).length;
+    const nlegacy = Object.keys(ownership.legacyEdges || {}).length;
     console.log(`OK: ${total} recorded cross-module private calls in ${counts.size} files, none added.`);
-    console.log(`Context-aware (#2446): ${assigned} ownership entries, ${resists} resists-unassigned, 0 calls.`);
+    console.log(`Context-aware (#2446): ${assigned} domain + ${platform} platform owners, ${nports} ports, ${nlegacy} legacy edges, 0 unmapped.`);
     console.log(`Context ports: ${ports.crossOwnerCount} mapped cross-owner imports checked.`);
     return 0;
   }
@@ -288,4 +365,4 @@ function main() {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall, checkContextPorts };
+module.exports = { measure, violationsIn, loadOwnership, ownerOf, describeCall, checkContextPorts, coverageStatus, isOutOfScope };

@@ -1,14 +1,18 @@
 'use strict';
 
 /**
- * Context-aware module boundary gate (#2446 Enforce).
+ * Context-aware module boundary gate (#2446 Map/Publish/Enforce, Wiki design
+ * decision v0.1 2026-09-25).
  *
  * Strictness is unchanged (every cross-module private call still fails); what
- * is new is that the gate reads the ownership map: the failure names the
- * caller's context, and a caller with no recorded context fails with an
- * assignment instruction instead of a bare line number. The gate refuses to
- * guess the callee's file from the owner binding, and refuses an ownership
- * file that names a context outside the five.
+ * is new is that the gate reads the exhaustive ownership manifest: the failure
+ * names the caller's context, and a caller with no recorded context fails with
+ * an assignment instruction instead of a bare line number. The gate refuses to
+ * guess the callee's file from the owner binding, refuses an ownership file
+ * that names a domain context outside the five, and refuses Platform entries
+ * without an infra/entry kind. v0.1: ports are file-level only, Platform
+ * entrypoints need dated legacy edges from domain importers, and every
+ * in-scope file without a manifest row fails coverage.
  */
 
 const { describe, it } = require('node:test');
@@ -20,6 +24,7 @@ const {
   ownerOf,
   describeCall,
   checkContextPorts,
+  coverageStatus,
 } = require('../scripts/check-module-boundary');
 
 const OWNERSHIP_PATH = path.join(__dirname, '..', 'scripts', 'context-ownership.json');
@@ -32,7 +37,7 @@ describe('context-aware module boundary', () => {
     ]);
   });
 
-  it('resolves exact files, directory prefixes, and resists entries', () => {
+  it('resolves exact files and platform kinds from the manifest', () => {
     const ownership = loadOwnership(OWNERSHIP_PATH);
     assert.deepEqual(ownerOf('graph.js', ownership), { context: 'Knowledge', status: 'assigned' });
     assert.deepEqual(
@@ -41,12 +46,32 @@ describe('context-aware module boundary', () => {
     );
     assert.deepEqual(
       ownerOf('lib/experience/journal.js', ownership),
-      { context: null, status: 'resists' },
+      { context: 'Trust', status: 'assigned' },
+    );
+    assert.deepEqual(
+      ownerOf('server.js', ownership),
+      { context: 'Platform', status: 'entry' },
+    );
+    assert.deepEqual(
+      ownerOf('lib/text-utils.js', ownership),
+      { context: 'Platform', status: 'infra' },
     );
     assert.deepEqual(
       ownerOf('lib/some-future-module.js', ownership),
       { context: null, status: 'never-examined' },
     );
+  });
+
+  it('still reports resists and out-of-scope through synthetic ownership', () => {
+    const ownership = {
+      contexts: new Set(['Knowledge']),
+      owners: {},
+      platform: {},
+      unassigned: { 'kernel.js': { status: 'resists' } },
+      outOfScope: [{ prefix: 'scripts/', reason: 'tooling' }],
+    };
+    assert.deepEqual(ownerOf('kernel.js', ownership), { context: null, status: 'resists' });
+    assert.deepEqual(ownerOf('scripts/x.js', ownership), { context: null, status: 'out-of-scope' });
   });
 
   it('names the caller context instead of guessing the callee', () => {
@@ -61,9 +86,15 @@ describe('context-aware module boundary', () => {
   });
 
   it('tells an unassigned caller to get assigned first', () => {
-    const ownership = loadOwnership(OWNERSHIP_PATH);
+    const ownership = {
+      contexts: new Set(['Knowledge']),
+      owners: {},
+      platform: {},
+      unassigned: {},
+      outOfScope: [],
+    };
     const message = describeCall(
-      'kernel.js',
+      'lib/some-future-module.js',
       { line: 1, call: 'kernel._evaluateLearnAdmission()' },
       ownership,
     );
@@ -120,5 +151,89 @@ describe('published context ports', () => {
     const graph = new Map([['graph.js', ['lib/receipt/receipt-chain.js']]]);
     assert.match(checkContextPorts(graph, ownership, '2027-01-01').problems[0], /expired/);
     assert.match(checkContextPorts(new Map(), ownership, '2026-09-28').problems[0], /stale/);
+  });
+});
+
+describe('platform boundary (Wiki v0.1)', () => {
+  const ownership = {
+    contexts: new Set(['Knowledge', 'Trust', 'AgentAction']),
+    owners: {
+      'graph.js': { context: 'Knowledge' },
+      'lib/receipt/receipt-chain.js': { context: 'Trust' },
+    },
+    platform: {
+      'server.js': { kind: 'entry' },
+      'lib/text-utils.js': { kind: 'infra' },
+    },
+    unassigned: {},
+    outOfScope: [{ prefix: 'scripts/', reason: 'tooling' }],
+    publishedPorts: {
+      'lib/receipt/receipt-chain.js': { owner: 'Trust', consumers: ['Knowledge', 'Platform'] },
+    },
+    legacyEdges: {},
+  };
+
+  it('lets domain import Platform infra freely', () => {
+    const graph = new Map([['graph.js', ['lib/text-utils.js']]]);
+    assert.deepEqual(checkContextPorts(graph, ownership, '2026-09-28').problems, []);
+  });
+
+  it('lets Platform import published domain ports', () => {
+    const graph = new Map([['server.js', ['lib/receipt/receipt-chain.js']]]);
+    assert.deepEqual(checkContextPorts(graph, ownership, '2026-09-28').problems, []);
+  });
+
+  it('rejects domain imports of Platform entrypoints without a legacy edge', () => {
+    const graph = new Map([['lib/receipt/receipt-chain.js', ['server.js']]]);
+    assert.match(
+      checkContextPorts(graph, ownership, '2026-09-28').problems[0],
+      /Platform entrypoint/,
+    );
+  });
+
+  it('allows a dated legacy edge into a Platform entrypoint', () => {
+    const withLegacy = {
+      ...ownership,
+      legacyEdges: { 'graph.js>server.js': { reason: 'test legacy', reviewBy: '2026-12-31' } },
+    };
+    const graph = new Map([['graph.js', ['server.js']]]);
+    assert.deepEqual(checkContextPorts(graph, withLegacy, '2026-09-28').problems, []);
+  });
+
+  it('rejects Platform entries without an infra/entry kind at load', () => {
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const tmp = path.join(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-ctx-'))), 'ctx.json');
+    fs.writeFileSync(tmp, JSON.stringify({
+      contexts: ['Knowledge'],
+      owners: {},
+      platform: { 'server.js': { kind: 'composition' } },
+      unassigned: {},
+    }), 'utf8');
+    assert.throws(() => loadOwnership(tmp), /unknown platform kind for server\.js/);
+  });
+});
+
+describe('manifest coverage (#2446 Done-when negative)', () => {
+  it('fails a file added without a manifest row', () => {
+    const ownership = loadOwnership(OWNERSHIP_PATH);
+    const { unmapped } = coverageStatus(ownership, ['lib/some-future-module.js', 'graph.js']);
+    assert.deepEqual(unmapped, ['lib/some-future-module.js']);
+  });
+
+  it('skips out-of-scope tooling and test files', () => {
+    const ownership = loadOwnership(OWNERSHIP_PATH);
+    const { unmapped } = coverageStatus(
+      ownership,
+      ['scripts/check-module-boundary.js', 'examples/x.js', 'public/x.js', 'lib/x.test.js'],
+    );
+    assert.deepEqual(unmapped, []);
+  });
+
+  it('the committed manifest leaves nothing unmapped', () => {
+    const { listSourceFiles } = require('../scripts/check-import-cycles.js');
+    const ownership = loadOwnership(OWNERSHIP_PATH);
+    const { unmapped } = coverageStatus(ownership, listSourceFiles());
+    assert.deepEqual(unmapped, []);
   });
 });
