@@ -860,8 +860,10 @@ jobs:
           # main by now. A branch cut from it differs from main in every file
           # main changed since, and when one of those is a workflow GitHub
           # refuses the push. Cut the branch from current main and carry over
-          # the weights file only.
+          # the weights file only. Restore the tracked copy before switching:
+          # if main changed it too, the local edit would stop `git switch`.
           cp config/shard-weights.json "${RUNNER_TEMP}/shard-weights.json"
+          git restore -- config/shard-weights.json
           git fetch --depth=1 origin main
           git switch --create "$branch" FETCH_HEAD
           cp "${RUNNER_TEMP}/shard-weights.json" config/shard-weights.json
