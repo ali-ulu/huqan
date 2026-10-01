@@ -115,6 +115,20 @@ describe('context-aware module boundary', () => {
     fs.writeFileSync(tmp, JSON.stringify(tampered), 'utf8');
     assert.throws(() => loadOwnership(tmp), /unknown context for graph\.js/);
   });
+
+  it('fails a file listed as both a domain owner and platform', () => {
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-ctx-')));
+    const tmp = path.join(dir, 'ctx.json');
+    fs.writeFileSync(tmp, JSON.stringify({
+      contexts: ['Knowledge'],
+      owners: { 'graph.js': { context: 'Knowledge', evidence: 'e' } },
+      platform: { 'graph.js': { kind: 'entry', evidence: 'e' } },
+      unassigned: {},
+    }), 'utf8');
+    assert.throws(() => loadOwnership(tmp), /graph\.js is listed in both owners and platform/);
+  });
 });
 
 describe('published context ports', () => {
@@ -235,6 +249,18 @@ describe('manifest coverage (#2446 Done-when negative)', () => {
     const ownership = loadOwnership(OWNERSHIP_PATH);
     const { unmapped } = coverageStatus(ownership, listSourceFiles());
     assert.deepEqual(unmapped, []);
+  });
+
+  it('treats a recorded resist as unmapped, not as covered', () => {
+    const ownership = {
+      contexts: new Set(['Knowledge']),
+      owners: { 'graph.js': { context: 'Knowledge', evidence: 'e' } },
+      platform: {},
+      unassigned: { 'kernel.js': { status: 'resists' } },
+      outOfScope: [],
+    };
+    const { unmapped } = coverageStatus(ownership, ['kernel.js', 'graph.js']);
+    assert.deepEqual(unmapped, ['kernel.js']);
   });
 });
 

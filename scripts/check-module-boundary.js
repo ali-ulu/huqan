@@ -123,6 +123,14 @@ function loadOwnership(ownershipPath = OWNERSHIP_PATH) {
       throw new Error(`context-ownership.json: missing evidence for ${entryPath}`);
     }
   }
+  // Exactly one owner per file: an entry in both maps makes ownerOf() silently
+  // prefer `owners`, hiding the ambiguity instead of failing on it.
+  const platformPaths = new Set(Object.keys(platform));
+  for (const entryPath of Object.keys(owners)) {
+    if (platformPaths.has(entryPath)) {
+      throw new Error(`context-ownership.json: ${entryPath} is listed in both owners and platform`);
+    }
+  }
   const unassigned = raw.unassigned && typeof raw.unassigned === 'object' ? raw.unassigned : {};
   const outOfScope = Array.isArray(raw.outOfScope) ? raw.outOfScope : [];
   for (const entry of outOfScope) {
@@ -251,11 +259,13 @@ function checkContextPorts(graph, ownership, today = new Date().toISOString().sl
  * Coverage for #2446 Done-when: every in-scope file (non-test, not outOfScope)
  * resolves to exactly one owner. A file added without a manifest row fails
  * here with an assignment instruction (audit item: unmapped-file negative).
+ * A file recorded as a resist (unassigned) has no owning context either, so it
+ * fails here too -- a recorded gap is still a gap.
  */
 function coverageStatus(ownership, files) {
   const unmapped = files
     .filter((file) => !IS_TEST.test(file) && !isOutOfScope(file, ownership)
-      && ownerOf(file, ownership).status === 'never-examined')
+      && !ownerOf(file, ownership).context)
     .sort();
   return { unmapped };
 }
@@ -313,8 +323,9 @@ function main() {
   const coverage = coverageStatus(ownership, files);
 
   if (update) {
-    if (ports.problems.length > 0) {
+    if (ports.problems.length + coverage.unmapped.length > 0) {
       reportPorts(ports);
+      reportUnmapped(coverage);
       return 1;
     }
     writeBaseline(counts);
