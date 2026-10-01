@@ -237,3 +237,57 @@ describe('manifest coverage (#2446 Done-when negative)', () => {
     assert.deepEqual(unmapped, []);
   });
 });
+
+/**
+ * The helper tests above pin coverageStatus(); they cannot see what the CLI
+ * actually prints. A gate that exits 1 for the right reason but prints the
+ * wrong reason is a real defect (the unmapped branch once sat inside the
+ * `ports.problems` block, so an unmapped file failed silently behind the
+ * private-call footer). These run the gate as a subprocess and assert on both
+ * the exit code and the message.
+ *
+ * The probe is a clean, already-assigned file dropped from a temp manifest:
+ * unmapped, with zero private calls, so the unmapped branch is the only thing
+ * that can fire.
+ */
+describe('module boundary gate CLI (#2446)', () => {
+  const { spawnSync } = require('node:child_process');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const GATE = path.join(__dirname, '..', 'scripts', 'check-module-boundary.js');
+  const PROBE = 'lib/agent-action-decisions.js';
+
+  function runGate(env = {}) {
+    return spawnSync(process.execPath, [GATE], {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf8',
+      env: { ...process.env, ...env },
+    });
+  }
+
+  function manifestWithout(committed, file) {
+    const { [file]: _dropped, ...owners } = committed.owners;
+    return { ...committed, owners, contexts: [...committed.contexts] };
+  }
+
+  it('prints FAIL unmapped and exits 1 when an in-scope file has no manifest row', () => {
+    const committed = JSON.parse(fs.readFileSync(OWNERSHIP_PATH, 'utf8'));
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-')));
+    const tmp = path.join(dir, 'ctx.json');
+    fs.writeFileSync(tmp, JSON.stringify(manifestWithout(committed, PROBE)), 'utf8');
+    try {
+      const result = runGate({ HUQAN_CONTEXT_OWNERSHIP: tmp });
+      assert.equal(result.status, 1, `gate should fail; stderr: ${result.stderr}`);
+      assert.match(result.stderr, new RegExp(`FAIL unmapped: ${PROBE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+      assert.match(result.stderr, /assign it in context-ownership\.json/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('stays green against the committed manifest', () => {
+    const result = runGate();
+    assert.equal(result.status, 0, `gate should pass; stderr: ${result.stderr}`);
+    assert.match(result.stdout, /0 unmapped/);
+  });
+});

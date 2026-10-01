@@ -31,7 +31,10 @@ const { listSourceFiles, stripComments, buildGraph } = require('./check-import-c
 
 const repoRoot = path.resolve(__dirname, '..');
 const BASELINE_PATH = path.join(__dirname, 'module-boundary-baseline.json');
-const OWNERSHIP_PATH = path.join(__dirname, 'context-ownership.json');
+// HUQAN_CONTEXT_OWNERSHIP lets the negative CLI tests point the gate at a
+// temp manifest without mutating the committed one.
+const OWNERSHIP_PATH = process.env.HUQAN_CONTEXT_OWNERSHIP
+  || path.join(__dirname, 'context-ownership.json');
 const IS_TEST = /(\.test\.js$|(^|\/)test\/|(^|\/)benchmarks\/|(^|\/)demo)/;
 
 // `owner._member(` where owner is a plain identifier or `this.field`. `this`
@@ -282,6 +285,23 @@ function writeBaseline(counts) {
   );
 }
 
+const PRIVATE_CALL_FOOTER = '\nCall the other module through its public surface. If the member is'
+  + '\nreally part of the contract, rename it without the underscore and'
+  + '\ngive it a test; if it is not, do not call it from here.';
+
+function reportPorts(ports) {
+  for (const problem of ports.problems) console.error(`FAIL ${problem}`);
+}
+
+function reportUnmapped(coverage) {
+  for (const file of coverage.unmapped.slice(0, 20)) {
+    console.error(`FAIL unmapped: ${file} has no owning context; assign it in context-ownership.json with source+caller evidence first`);
+  }
+  if (coverage.unmapped.length > 20) {
+    console.error(`FAIL unmapped: ... and ${coverage.unmapped.length - 20} more`);
+  }
+}
+
 function main() {
   const update = process.argv.includes('--update');
   const { counts, detail } = measure();
@@ -294,13 +314,7 @@ function main() {
 
   if (update) {
     if (ports.problems.length > 0) {
-  for (const problem of ports.problems) console.error(`FAIL ${problem}`);
-  for (const file of coverage.unmapped.slice(0, 20)) {
-    console.error(`FAIL unmapped: ${file} has no owning context; assign it in context-ownership.json with source+caller evidence first`);
-  }
-  if (coverage.unmapped.length > 20) {
-    console.error(`FAIL unmapped: ... and ${coverage.unmapped.length - 20} more`);
-  }
+      reportPorts(ports);
       return 1;
     }
     writeBaseline(counts);
@@ -324,8 +338,8 @@ function main() {
   const expired = Object.entries(baseline)
     .filter(([file, entry]) => counts.has(file) && entry.review_by < new Date().toISOString().slice(0, 10));
 
-  const problems = grew.length + added.length + shrank.length + cleared.length + expired.length
-    + ports.problems.length + coverage.unmapped.length;
+  const privateCallProblems = added.length + grew.length + shrank.length + cleared.length + expired.length;
+  const problems = privateCallProblems + ports.problems.length + coverage.unmapped.length;
   if (problems === 0) {
     const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
     const assigned = Object.keys(ownership.owners).length;
@@ -354,12 +368,9 @@ function main() {
   for (const [file, entry] of expired) {
     console.error(`FAIL expired: ${file} was due for review by ${entry.review_by} and still has debt.`);
   }
-  for (const problem of ports.problems) console.error(`FAIL ${problem}`);
-  console.error(
-    '\nCall the other module through its public surface. If the member is'
-    + '\nreally part of the contract, rename it without the underscore and'
-    + '\ngive it a test; if it is not, do not call it from here.',
-  );
+  reportPorts(ports);
+  reportUnmapped(coverage);
+  if (privateCallProblems > 0) console.error(PRIVATE_CALL_FOOTER);
   return 1;
 }
 
