@@ -212,8 +212,11 @@ function definePropertyTarget(source, fromIndex) {
     if (depth !== 1) continue;
     const bodyOpen = match.index + match[0].length - 1;
     const body = descriptor.slice(bodyOpen, findBalancedBlock(descriptor, bodyOpen));
+    // Exactly one return in the whole body, and it is a top-level
+    // `return <identifier>;`. A nested early return could yield another value.
+    const allReturns = body.match(/\breturn\b/g) || [];
     const returns = [...topLevelText(body).matchAll(/\breturn\s+([A-Za-z_$][\w$]*)\s*;/g)].map((item) => item[1]);
-    return new Set(returns).size === 1 ? returns[0] : 'defineProperty';
+    return returns.length === 1 ? returns[0] : 'defineProperty';
   }
   return 'defineProperty';
 }

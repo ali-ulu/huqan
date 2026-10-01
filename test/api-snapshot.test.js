@@ -174,3 +174,14 @@ test('accessor resolution reads only the descriptor top level', () => {
   assert.equal(at("Object.defineProperty(module.exports, 'X', { value: Kernel, enumerable: true });"), 'Kernel');
   assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { return flag ? A : B; } });"), 'defineProperty');
 });
+
+test('optional interface methods are additive; nested getter returns stay unresolved', () => {
+  assert.deepEqual(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b?(): void; c?<T>(v: T): T; }'), []);
+  assert.equal(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b(): void; }').length, 1);
+  const at = (src) => definePropertyTarget(src, src.indexOf("'X'") + 3);
+  assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { if (legacy) { return Old; } return Kernel; } });"), 'defineProperty');
+});

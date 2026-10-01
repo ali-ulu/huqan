@@ -132,7 +132,7 @@ function splitDeclaration(signature) {
 }
 
 const ABSTRACT_MEMBER = /^((public|protected)\s+)?abstract\b/;
-const OPTIONAL_MEMBER = /^(readonly\s+)?[A-Za-z_$][\w$]*\?\s*:/;
+const OPTIONAL_MEMBER = /^(readonly\s+)?[A-Za-z_$][\w$]*\?\s*[:(<]/;
 
 // A declaration change is additive when head and tail are unchanged and every
 // member the old declaration had is still there verbatim. Consumers read
