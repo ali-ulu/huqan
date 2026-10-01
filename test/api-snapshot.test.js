@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { buildSnapshot, compareText } = require('../scripts/api-snapshot-surface');
+const { buildSnapshot, compareText, definePropertyTarget } = require('../scripts/api-snapshot-surface');
 const { diffSnapshots, reportMarkdown } = require('../scripts/api-snapshot-diff');
 
 test('API snapshot covers the declared public surfaces', () => {
@@ -87,4 +87,101 @@ test('API snapshot order does not depend on the host locale', () => {
   const enUs = [...commands].sort((a, b) => a.localeCompare(b, 'en-US'));
   assert.deepEqual(commands, enUs);
   assert.ok(commands.indexOf('öğret') < commands.indexOf('onayla'), commands.join(' '));
+});
+
+function typeSnapshot(kind, name, signature) {
+  return { exports: [], types: [{ file: 'x.d.ts', declarations: [{ kind, name, signature }] }] };
+}
+
+function typeBreaking(kind, before, after) {
+  return diffSnapshots(typeSnapshot(kind, 'X', before), typeSnapshot(kind, 'X', after)).breaking;
+}
+
+test('API diff treats new class, namespace and const members as additive', () => {
+  assert.deepEqual(typeBreaking('class',
+    'export declare class X { a(): void; b: string; }',
+    'export declare class X { a(): void; b: string; c(n: number): { ok: boolean }; }'), []);
+  assert.deepEqual(typeBreaking('namespace',
+    'export declare namespace X { interface A { x: string; } }',
+    'export declare namespace X { interface A { x: string; } interface B { y: string; } }'), []);
+  assert.deepEqual(typeBreaking('const',
+    'declare const X: { a: () => void; };',
+    'declare const X: { a: () => void; b: (s: string) => number; };'), []);
+});
+
+test('API diff still rejects a changed or removed member and a changed head', () => {
+  assert.equal(typeBreaking('class',
+    'export declare class X { a(): void; b: string; }',
+    'export declare class X { a(): number; b: string; }').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare class X { a(): void; b: string; }',
+    'export declare class X { a(): void; }').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare class X { a(): void; }',
+    'export declare class X extends Y { a(): void; }').length, 1);
+  assert.equal(typeBreaking('type', 'export type X = { a: string };', 'export type X = { a: string; b?: string };').length, 1);
+});
+
+test('API diff accepts only optional new interface members', () => {
+  assert.deepEqual(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b?: number; readonly c?: string; }'), []);
+  assert.equal(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b: number; }').length, 1);
+});
+
+test('API snapshot resolves an accessor export to the value it returns', () => {
+  const kernelV1 = buildSnapshot().exports.find((item) => item.name === 'KernelV1');
+  assert.equal(kernelV1.target, 'Kernel');
+  const base = { exports: [{ name: 'KernelV1', target: 'Kernel' }], types: [] };
+  const moved = { exports: [{ name: 'KernelV1', target: 'Kernel' }], types: [] };
+  const retargeted = { exports: [{ name: 'KernelV1', target: 'KernelV2' }], types: [] };
+  assert.deepEqual(diffSnapshots(base, moved).breaking, []);
+  assert.equal(diffSnapshots(base, retargeted).breaking.length, 1);
+  // A baseline from before accessor resolution carries no target to compare.
+  const legacy = { exports: [{ name: 'KernelV1', target: 'defineProperty' }], types: [] };
+  assert.deepEqual(diffSnapshots(legacy, moved).breaking, []);
+  assert.equal(diffSnapshots(moved, legacy).breaking.length, 1);
+});
+
+test('API diff review cases: arrow types, suffixes and abstract members stay breaking', () => {
+  // `=>` must not close a nesting level, or the inner `;` splits the member.
+  assert.equal(typeBreaking('class',
+    'export declare class X { options: { cb: () => void; }; }',
+    'export declare class X { options: { cb: () => void; required: string; }; }').length, 1);
+  // Text after the body (a union, an array) is part of the declaration.
+  assert.equal(typeBreaking('const',
+    'declare const X: { a: string; };',
+    'declare const X: { a: string; } | number;').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare class X { a: { b: string }; }',
+    'export declare class X { a: { b: string } | null; }').length, 1);
+  // A new abstract member must be implemented by every concrete subclass.
+  assert.equal(typeBreaking('class',
+    'export declare abstract class X { }',
+    'export declare abstract class X { abstract run(): void; }').length, 1);
+  assert.equal(typeBreaking('class',
+    'export declare abstract class X { }',
+    'export declare abstract class X { protected abstract run(): void; }').length, 1);
+});
+
+test('accessor resolution reads only the descriptor top level', () => {
+  const at = (src) => definePropertyTarget(src, src.indexOf("'X'") + 3);
+  const nested = "Object.defineProperty(module.exports, 'X', { get() { const m = { value: Marker }; return Kernel; } });";
+  assert.equal(at(nested), 'Kernel');
+  assert.equal(at(nested.replace('return Kernel', 'return KernelV2')), 'KernelV2');
+  assert.equal(at("Object.defineProperty(module.exports, 'X', { value: Kernel, enumerable: true });"), 'Kernel');
+  assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { return flag ? A : B; } });"), 'defineProperty');
+});
+
+test('optional interface methods are additive; nested getter returns stay unresolved', () => {
+  assert.deepEqual(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b?(): void; c?<T>(v: T): T; }'), []);
+  assert.equal(typeBreaking('interface',
+    'export interface X { a: string; }',
+    'export interface X { a: string; b(): void; }').length, 1);
+  const at = (src) => definePropertyTarget(src, src.indexOf("'X'") + 3);
+  assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { if (legacy) { return Old; } return Kernel; } });"), 'defineProperty');
 });

@@ -157,6 +157,70 @@ function extractTypeDeclarations(file) {
   };
 }
 
+// An accessor export (a deprecation getter, say) still resolves to one value.
+// Record that value's identifier so moving `module.exports.X = Y` into
+// `Object.defineProperty(..., 'X', { get() { ...; return Y; } })` reads as the
+// same export, not a changed one. Only the descriptor's own top level counts
+// (a `value:` inside the getter body is not the descriptor's value), and a
+// getter must return one identifier at its own top level. Anything else stays
+// 'defineProperty'.
+function topLevelText(block) {
+  let depth = 0;
+  let quote = null;
+  let text = '';
+  for (let index = 0; index < block.length; index += 1) {
+    const ch = block[index];
+    if (quote) {
+      if (ch === '\\') index += 1;
+      else if (ch === quote) quote = null;
+      if (depth === 1) text += ' ';
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    if (ch === '{') {
+      depth += 1;
+      if (depth === 2) text += '{}';
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      continue;
+    }
+    if (depth === 1) text += ch;
+  }
+  return text;
+}
+
+function definePropertyTarget(source, fromIndex) {
+  const open = source.indexOf('{', fromIndex);
+  if (open === -1) return 'defineProperty';
+  const descriptor = source.slice(open, findBalancedBlock(source, open));
+  const top = topLevelText(descriptor);
+  const value = top.match(/(?:^|[\s,])value\s*:\s*([A-Za-z_$][\w$]*)\s*(?:,|$)/);
+  if (value) return value[1];
+  const getterHead = /(?:^|[\s,])get\s*\(\s*\)\s*\{/.exec(top);
+  if (!getterHead) return 'defineProperty';
+  const getterAt = /\bget\s*\(\s*\)\s*\{/g;
+  let match;
+  let depth = 0;
+  let cursor = 0;
+  while ((match = getterAt.exec(descriptor)) !== null) {
+    for (; cursor < match.index; cursor += 1) {
+      if (descriptor[cursor] === '{') depth += 1;
+      else if (descriptor[cursor] === '}') depth -= 1;
+    }
+    if (depth !== 1) continue;
+    const bodyOpen = match.index + match[0].length - 1;
+    const body = descriptor.slice(bodyOpen, findBalancedBlock(descriptor, bodyOpen));
+    // Exactly one return in the whole body, and it is a top-level
+    // `return <identifier>;`. A nested early return could yield another value.
+    const allReturns = body.match(/\breturn\b/g) || [];
+    const returns = [...topLevelText(body).matchAll(/\breturn\s+([A-Za-z_$][\w$]*)\s*;/g)].map((item) => item[1]);
+    return allReturns.length === 1 && returns.length === 1 ? returns[0] : 'defineProperty';
+  }
+  return 'defineProperty';
+}
+
 function extractRootExports() {
   const source = stripJsComments(fs.readFileSync(path.join(ROOT, 'index.js'), 'utf8'));
   const entries = [];
@@ -168,7 +232,9 @@ function extractRootExports() {
     entries.push({ name: match[1], target: match[2].replace(/\s+/g, ' ').trim() });
   }
   const define = /Object\.defineProperty\(\s*module\.exports\s*,\s*['"]([^'"]+)['"]/g;
-  while ((match = define.exec(source)) !== null) entries.push({ name: match[1], target: 'defineProperty' });
+  while ((match = define.exec(source)) !== null) {
+    entries.push({ name: match[1], target: definePropertyTarget(source, define.lastIndex) });
+  }
   const unique = new Map(entries.map((entry) => [entry.name, entry]));
   return [...unique.values()].sort((a, b) => compareText(a.name, b.name));
 }
@@ -282,6 +348,7 @@ module.exports = {
   compareText,
   SNAPSHOT_FORMAT,
   buildSnapshot,
+  definePropertyTarget,
   extractRootExports,
   extractTypeDeclarations,
   stableValue,
