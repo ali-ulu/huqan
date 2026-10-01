@@ -56,6 +56,10 @@ const KILL_GRACE_MS = 3_000;
 // outlive the file that started it. Kept well under the smoke's own timeouts
 // (WAIT/COMMAND are 15-20s) so teardown stays a small part of the file budget.
 const CLOSE_DEADLINE_MS = 15_000;
+// A loaded CI runner can miss the endpoint deadline while the same binary
+// starts in seconds locally (#3240's residue). One retry absorbs that transient
+// miss without masking a page failure, which the launch legs cannot produce.
+const LAUNCH_ATTEMPTS = 2;
 
 const CHROME_CANDIDATES = Object.freeze([
   process.platform === 'win32' && 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -368,22 +372,14 @@ function connect(webSocketDebuggerUrl) {
 }
 
 /**
- * Launches a headless browser and returns a small CDP session facade.
+ * Spawn the browser and bring its DevTools session up. Split out of
+ * launchBrowserSession so a transient launch failure can be retried without
+ * rebuilding the CDP facade. A failure reaps the child it spawned and removes
+ * its profile directory before rethrowing.
  *
- * The session records uncaught exceptions and console errors so a test can
- * assert on them, which is what makes this browser evidence rather than a
- * source-shape assertion.
- *
- * @param {object} [options]
- * @param {number} [options.devToolsTimeoutMs] how long to wait for the DevTools
- *   endpoint before giving up; injectable so a test can pin the failure path
- *   without waiting the full production deadline.
- * @returns {Promise<object>} the CDP session facade
+ * @returns {Promise<{child: import('node:child_process').ChildProcess, socket: WebSocket, profileDir: string}>}
  */
-async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIMEOUT_MS } = {}) {
-  const executable = findBrowser();
-  if (!executable) throw new Error('no Chromium-family browser found');
-
+async function openBrowserSession(executable, devToolsTimeoutMs) {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-'));
   const child = spawn(executable, [
     '--headless=new',
@@ -407,7 +403,7 @@ async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIME
   child.stderr.on('error', () => {});
 
   // Both launch awaits have to be inside the try: waitForDevToolsEndpoint
-  // rejects on its own 20s deadline when the browser never announces a DevTools
+  // rejects on its own 30s deadline when the browser never announces a DevTools
   // endpoint, and that is exactly the launch the cleanup below exists for.
   // Leaving it outside the try left the child and its tree alive, so the file
   // was killed by the 240s heavy-file deadline with no test output at all
@@ -426,6 +422,56 @@ async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIME
     try { fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); } catch { /* best effort */ }
     throw error;
   }
+  return { child, socket, profileDir };
+}
+
+/**
+ * Run `open` up to `attempts` times, returning the first success and rethrowing
+ * the last failure. Kept separate from the launch so the retry policy can be
+ * pinned without a browser.
+ */
+async function withLaunchRetry(open, attempts) {
+  let lastError;
+  for (let attempt = 0; attempt < Math.max(1, attempts); attempt += 1) {
+    try {
+      return await open();
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Launches a headless browser and returns a small CDP session facade.
+ *
+ * The session records uncaught exceptions and console errors so a test can
+ * assert on them, which is what makes this browser evidence rather than a
+ * source-shape assertion.
+ *
+ * The launch is retried once: a loaded CI runner can miss the endpoint deadline
+ * while the same binary starts in a couple of seconds locally, and a transient
+ * miss is not a statement about the page under test. The retry only covers the
+ * launch legs (endpoint, page target, socket) -- once the socket is open the
+ * session is the caller's, and a failure there is a real one.
+ *
+ * @param {object} [options]
+ * @param {number} [options.devToolsTimeoutMs] how long to wait for the DevTools
+ *   endpoint before giving up; injectable so a test can pin the failure path
+ *   without waiting the full production deadline.
+ * @param {number} [options.launchAttempts] how many times to try a full launch;
+ *   injectable so a test can pin the retry without a real browser.
+ * @returns {Promise<object>} the CDP session facade
+ */
+async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIMEOUT_MS, launchAttempts = LAUNCH_ATTEMPTS } = {}) {
+  const executable = findBrowser();
+  if (!executable) throw new Error('no Chromium-family browser found');
+
+  const session = await withLaunchRetry(
+    () => openBrowserSession(executable, devToolsTimeoutMs),
+    launchAttempts,
+  );
+  const { child, socket, profileDir } = session;
 
   let nextId = 0;
   const pending = new Map();
@@ -538,6 +584,8 @@ async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIME
 
 module.exports = {
   launchBrowserSession,
+  openBrowserSession,
+  withLaunchRetry,
   browserSmokeSkipReason,
   findBrowser,
   firstPageTarget,
