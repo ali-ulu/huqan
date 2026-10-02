@@ -57,6 +57,55 @@ function verifyQuickstart(label, binDir, consumer, env) {
   }
 }
 
+/**
+ * #3352: the shipped coding tool must run from an install. The published
+ * tarball omitted lib/coder/experience-reporter.js, so `huqan coder` died with
+ * "Cannot find module" for every consumer, while `check:package-closure` and
+ * `quickstart` both stayed green -- the require lived behind a function body
+ * the closure walk never entered, and quickstart never touched the command.
+ * Only an explicit run of the command from the installed package locks it.
+ *
+ * Runs the task outside the consumer tree so the coder's own dirty-repo gate
+ * sees a clean root and returns `applied`; the assertion is only that it exits
+ * 0 without a load failure and writes the edit.
+ */
+function verifyCoderCommand(label, binDir, consumer, env) {
+  const bin = packageBin(binDir, 'huqan');
+  if (!fs.existsSync(bin)) return;
+
+  const workspace = fs.mkdtempSync(path.join(path.dirname(consumer), 'huqan-coder-'));
+  try {
+    fs.mkdirSync(path.join(workspace, 'docs'), { recursive: true });
+    const notes = path.join(workspace, 'docs', 'notes.md');
+    fs.writeFileSync(notes, 'version v1.0.0\n');
+    const taskPath = path.join(workspace, 'task.json');
+    fs.writeFileSync(taskPath, JSON.stringify({
+      id: 'tarball-coder-probe',
+      level: 'l0',
+      allowedPaths: ['docs/notes.md'],
+      operation: { type: 'replace_text', path: 'docs/notes.md', find: 'v1.0.0', replace: 'v1.1.0' },
+    }));
+
+    const run1 = run(bin, ['coder', taskPath, '--root', workspace], { cwd: consumer, env });
+    const loadErrors = run1.output.split(/\r?\n/)
+      .filter((line) => LOAD_FAILURE_PATTERNS.some((pattern) => pattern.test(line)));
+    if (loadErrors.length > 0) {
+      fail(`${label}: \`huqan coder\` failed to load a module:\n`
+        + loadErrors.map((line) => `      ${line.trim()}`).join('\n'));
+    } else if (run1.status !== 0) {
+      fail(`${label}: \`huqan coder\` exited ${run1.status}\n${run1.output.slice(-1500)}`);
+    } else if (!/Outcome:\s*applied/.test(run1.output) || !/Gate:\s*allow/.test(run1.output)) {
+      fail(`${label}: \`huqan coder\` did not apply a clean allowed task\n${run1.output.slice(-1500)}`);
+    } else if (fs.readFileSync(notes, 'utf8') !== 'version v1.1.0\n') {
+      fail(`${label}: \`huqan coder\` reported applied but the file is unchanged`);
+    } else {
+      ok('installed consumer runs `huqan coder` and the edit lands');
+    }
+  } finally {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+}
+
 function verifyExternalAdapters(label, consumer) {
   const root = path.join(consumer, 'node_modules', 'huqan', 'adapters', 'external-action');
   const required = [
@@ -74,6 +123,7 @@ function verifyExternalAdapters(label, consumer) {
 
 module.exports = {
   verifyBinsAndVersion,
+  verifyCoderCommand,
   verifyExternalAdapters,
   verifyQuickstart,
 };

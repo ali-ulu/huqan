@@ -10,6 +10,7 @@ const {
   analyzePackageClosure,
   analyzePackageClosures,
   loadTimeRequires,
+  reachableRequires,
   loadTimeEntryPoints,
   publishedFiles,
   packageRoots,
@@ -141,6 +142,72 @@ test('a require at module scope counts, one inside a guard does not', () => {
   assert.deepEqual(loadTimeRequires("class C { m() { require('./a'); } }"), []);
   assert.deepEqual(loadTimeRequires("try { require('./a'); } catch (_) {}"), []);
   assert.deepEqual(loadTimeRequires("try { x(); } catch (e) { require('./a'); }"), []);
+});
+
+test('a reachable require counts wherever a caller can enter, guard excepted', () => {
+  // The reading the packaging gate uses. A CLI subcommand or an MCP tool name
+  // is a caller, so a require in a function body still names a module an
+  // installed consumer will load -- the blind spot that let
+  // lib/coder/experience-reporter.js ship unpublished while the gate said OK.
+  assert.deepEqual(reachableRequires("function f() { return require('./a'); }"), ['./a']);
+  assert.deepEqual(reachableRequires("const f = () => { require('./a'); };"), ['./a']);
+  assert.deepEqual(reachableRequires("module.exports = { run() { return require('./a'); } };"), ['./a']);
+  assert.deepEqual(reachableRequires("class C { m() { require('./a'); } }"), ['./a']);
+  assert.deepEqual(reachableRequires("const registry = { x: require('./a') };"), ['./a']);
+  assert.deepEqual(reachableRequires("if (flag) { require('./a'); }"), ['./a']);
+  // A guard is the one form that stays optional: the repository publishes
+  // modules whose repo-only dependency is allowed to be missing.
+  assert.deepEqual(reachableRequires("try { require('./a'); } catch (_) {}"), []);
+  assert.deepEqual(reachableRequires("try { x(); } catch (e) { require('./a'); }"), []);
+  // and it still sees the module-scope requires loadTimeRequires sees
+  assert.deepEqual(reachableRequires("const x = require('./a');"), ['./a']);
+});
+
+test('a require hidden in a function body is a finding when its target is unpublished (#3352)', () => {
+  // The gap this closes, end to end. `lib/coder/experience-reporter.js` was in
+  // the repo, absent from `files`, and reached only through
+  // `lib/cli-approval-commands.js` -> `require('./cli-coder')` inside a function
+  // body. Because the walk read that require as deferred it never entered
+  // cli-coder, so `analyzePackageClosure` reported a complete closure while
+  // `huqan coder` failed with "Cannot find module" from an install. The walk
+  // now reads reachable requires, so the same shape is a finding.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-package-closure-'));
+  try {
+    fs.writeFileSync(path.join(root, 'package.json'),
+      JSON.stringify({ name: 'root', main: 'index.js', files: ['index.js', 'cli.js', 'lib/run.js'] }));
+    fs.writeFileSync(path.join(root, 'index.js'), "module.exports = {};\n");
+    // The CLI reaches the subcommand through a require in a function body,
+    // exactly the form #3352 hid behind.
+    fs.writeFileSync(path.join(root, 'cli.js'),
+      "function subcommand() { return require('./lib/run').go(); }\nmodule.exports = { subcommand };\n");
+    fs.mkdirSync(path.join(root, 'lib'), { recursive: true });
+    // lib/run.js is published, but its own load-time require is not.
+    fs.writeFileSync(path.join(root, 'lib', 'run.js'), "const helper = require('./hidden-helper');\n");
+    fs.writeFileSync(path.join(root, 'lib', 'hidden-helper.js'), "module.exports = {};\n");
+
+    const { missing } = analyzePackageClosure({ root });
+    assert.equal(missing.size, 1, 'the unpublished helper must be reported');
+    assert.ok(missing.has('lib/hidden-helper.js'));
+    assert.deepEqual(missing.get('lib/hidden-helper.js'), ['lib/run.js']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the coder capability is inside the walked closure, not merely on disk (#3352)', () => {
+  // Pins the entry the #3352 fix depends on: cli-coder is reached only through
+  // a function body, so if the walk stops entering function bodies this fails
+  // here rather than shipping a broken `huqan coder` behind a green gate.
+  const { reached } = analyzePackageClosure({ root: REPO_ROOT });
+  for (const file of [
+    'lib/cli-coder.js',
+    'lib/coder/apply-derivation.js',
+    'lib/coder/experience-reporter.js',
+    'lib/coder/journal-store.js',
+    'lib/experience/adapter-scope.js',
+  ]) {
+    assert.ok(reached.includes(file), `${file} must be reached, or \`huqan coder\` breaks from an install`);
+  }
 });
 
 test('a brace that only groups defers nothing', () => {

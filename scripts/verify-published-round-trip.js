@@ -30,6 +30,7 @@ const {
   takeSharedFailures,
   verifyA2aRuntime,
   verifyBinsAndVersion,
+  verifyCoderCommand,
   verifyDecisionExplainer,
   verifyExternalAdapters,
   verifyExternalGuard,
@@ -243,6 +244,7 @@ async function verifyConsumer(spec, version) {
     verifyExternalGuard(LABEL, binDir, consumer, env);
     verifyDecisionExplainer(LABEL, consumer, env);
     verifyQuickstart(LABEL, binDir, consumer, env);
+    verifyCoderCommand(LABEL, binDir, consumer, env);
     verifyMcp(LABEL, binDir, consumer, env, version);
     verifyA2aRuntime(LABEL, consumer, env);
     // The shared verifiers record into verify-package-tarball.js's own

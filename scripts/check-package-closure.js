@@ -11,29 +11,25 @@
  * node_modules. Three such breaks shipped into v0.10.0's tarball at once --
  * all four file adapters (lib/safe-file-walk.js) and two plugins.
  *
- * What this checks, precisely: walk *load-time* requires -- those executed when
- * a module is required -- outward from the entry points an installed consumer
- * actually loads, and require every module reached that way to be published.
+ * What this checks, precisely: walk the relative requires a caller can reach
+ * outward from the entry points an installed consumer loads, and require every
+ * module reached that way to be published.
  *
- * Load-time is the whole distinction. This repository deliberately publishes
- * modules whose own dependencies are repo-only, and guards them at the call
- * site: server.js requires lib/http/v5-package-import-route.js inside a
- * try/catch so the route goes permanently unavailable rather than the server
- * failing to boot, and lib/a2a/exchange-route.js does the same for
- * lib/a2a/bounded-exchange.js. Those are decisions, and a checker that flagged
- * them would be reporting the design as a defect. A require that runs at load
- * time has no such guard: it either resolves or the module does not load.
- *
- * Scope note: like scripts/check-import-cycles.js this is a *static* read of
- * literal `require('./x')` calls. What defers one is a *function body* or a
- * `try`/`catch` block -- the two forms that decide at run time whether the
- * require ever executes. A brace that only groups (an object literal, an
- * `if`/`for`/`while` block at module scope) defers nothing: the require inside
- * it still runs while the module is being evaluated, so the module it names
- * has to be in the tarball.
+ * Reachable, not merely load-time. A require inside a function body counts,
+ * because a CLI subcommand or an MCP tool name is a caller: `huqan coder`
+ * loads `lib/cli-coder.js`, which loads `lib/coder/apply-derivation.js`, which
+ * requires `lib/coder/experience-reporter.js` -- and that file shipped in no
+ * tarball while this gate reported OK, because the first require sat in a
+ * function body and the walk never entered it. Only a `try`/`catch` block is
+ * excluded, and that is a decision, not an oversight: the repository guards
+ * repo-only dependencies (`server.js` -> the V5 import route,
+ * `lib/a2a/exchange-route.js` -> `lib/a2a/bounded-exchange.js`) so the server
+ * boots unavailable rather than failing to start. A checker that flagged them
+ * would be reporting the design as a defect. A require outside such a guard
+ * either resolves or its caller throws.
  *
  * Usage:  node scripts/check-package-closure.js
- * Exit 0 = the load-time closure is fully published, exit 1 = something is not.
+ * Exit 0 = the reachable closure is fully published, exit 1 = something is not.
  */
 
 const fs = require('fs');
@@ -41,7 +37,7 @@ const path = require('path');
 const { retainedDeepImportFiles } = require('./retained-deep-imports');
 // Load-time require scanning core lives in scripts/require-scan.js (#2227);
 // loadTimeRequires is re-exported below so existing importers keep working.
-const { loadTimeRequires, resolveLocal } = require('./require-scan');
+const { loadTimeRequires, reachableRequires, resolveLocal } = require('./require-scan');
 
 const repoRoot = path.resolve(__dirname, '..');
 
@@ -157,7 +153,7 @@ function analyzePackageClosure(opts = {}) {
     const full = path.join(root, rel);
     if (!fs.existsSync(full) || !rel.endsWith('.js')) return;
 
-    for (const spec of loadTimeRequires(fs.readFileSync(full, 'utf8'))) {
+    for (const spec of reachableRequires(fs.readFileSync(full, 'utf8'))) {
       const resolved = resolveLocal(full, spec);
       // Unresolvable specifiers are left to Node: a typo'd path fails the same
       // way in a clone as in an install, so it is not a packaging finding.
@@ -193,18 +189,18 @@ function main() {
     const reached = reports.reduce((total, report) => total + report.reached.length, 0);
     const entryPoints = reports.reduce((total, report) => total + report.entryPoints.length, 0);
     console.log(
-      `OK: the load-time closure of ${reached} modules `
+      `OK: the reachable closure of ${reached} modules `
       + `from ${entryPoints} published entry points is fully published.`,
     );
     return 0;
   }
 
   const missingCount = failures.reduce((total, report) => total + report.missing.size, 0);
-  console.error(`FAIL: ${missingCount} module(s) load at install time but are not published.\n`);
+  console.error(`FAIL: ${missingCount} module(s) are reachable at install time but are not published.\n`);
   for (const report of failures) {
     for (const target of [...report.missing.keys()].sort()) {
       console.error(`  ${path.relative(repoRoot, report.root) || '.'}/${target}`);
-      console.error(`      required at load time by: ${report.missing.get(target).join(', ')}`);
+      console.error(`      reachable from: ${report.missing.get(target).join(', ')}`);
     }
   }
   console.error(
@@ -222,6 +218,7 @@ module.exports = {
   analyzePackageClosure,
   analyzePackageClosures,
   loadTimeRequires,
+  reachableRequires,
   loadTimeEntryPoints,
   packageRoots,
   publishedFiles,
