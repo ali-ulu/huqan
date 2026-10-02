@@ -13,7 +13,8 @@ const {
   readAndVerifyAudit,
 } = require('../lib/runtime-watchdog');
 const auditApi = require('../lib/runtime-watchdog-audit');
-const { bindHumanApprovalConsole } = require('../scripts/huqan-watchdog');
+const { bindHumanApprovalConsole, defaultAuditPath } = require('../scripts/huqan-watchdog');
+const { defaultStateRoot } = require('../lib/huqan-state-root');
 
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-runtime-watchdog-'));
@@ -186,4 +187,16 @@ test('interactive shutdown console requires the exact confirmation and a human i
   } finally {
     binding.close();
   }
+});
+
+test('watchdog audit path derives from the canonical state root', () => {
+  const root = path.join(os.tmpdir(), 'huqan-watchdog-state-root');
+  assert.equal(
+    defaultAuditPath({ HUQAN_STATE_ROOT: root }),
+    path.join(path.resolve(root), 'watchdog-audit.jsonl'),
+  );
+  assert.equal(
+    defaultAuditPath({}),
+    path.join(defaultStateRoot({}), 'watchdog-audit.jsonl'),
+  );
 });

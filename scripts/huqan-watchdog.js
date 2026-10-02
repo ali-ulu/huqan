@@ -2,13 +2,12 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const os = require('node:os');
 const path = require('node:path');
 const { createAuditJournal, createRuntimeWatchdog } = require('../lib/runtime-watchdog');
+const { defaultStateRoot } = require('../lib/huqan-state-root');
 
 function defaultAuditPath(environment = process.env) {
-  const base = environment.LOCALAPPDATA || environment.XDG_STATE_HOME || path.join(os.homedir(), '.local', 'state');
-  return path.join(base, 'HUQAN', 'watchdog-audit.jsonl');
+  return path.join(defaultStateRoot(environment), 'watchdog-audit.jsonl');
 }
 
 function bindHumanApprovalConsole({ watchdog, input = process.stdin, output = process.stdout } = {}) {
