@@ -98,3 +98,24 @@ test('state survives reopening and malformed calls fail closed', (t) => {
   assert.throws(() => readBypassState(graph, { workspaceId: 'w', windowMs: 0 }), /windowMs/);
   assert.equal(readBypassState(graph, { workspaceId: 'w', at: iso(BASE) }).total, 0);
 });
+
+test('receipt-backed signals are idempotent across history rescans', (t) => {
+  const graph = memoryGraph(tempDir(t));
+  const signal = {
+    kind: 'refused-retry',
+    workspaceId: 'workspace-a',
+    agentId: 'agent-1',
+    fingerprint: DIGEST_A,
+    receiptRef: 'receipt-1',
+    at: iso(BASE),
+  };
+  recordBypassSignal(graph, signal);
+  recordBypassSignal(graph, signal);
+  const state = readBypassState(graph, {
+    workspaceId: 'workspace-a',
+    agentId: 'agent-1',
+    at: iso(BASE + HOUR),
+  });
+  assert.equal(state.total, 1);
+  assert.equal(state.byFingerprint[DIGEST_A].count, 1);
+});
