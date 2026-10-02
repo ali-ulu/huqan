@@ -44,6 +44,7 @@ const path = require('node:path');
 
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
 const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
+const { resolveDefaultMemoryPath } = require('../lib/default-persistence-path');
 const { readInstrumentedSinceFromDb } = require('../lib/observability/instrumentation-marker');
 
 const USAGE_STATUS = Object.freeze({
@@ -243,11 +244,17 @@ function buildUsageReport(db, workflows = WORKFLOW_CAPABILITIES) {
  * The store this check reads. It deliberately does not create one: a check that
  * creates the thing it measures would report an empty store it made itself as
  * evidence about the product.
+ *
+ * `DB_PATH` is the canonical override. When it is absent the default must match
+ * the product's, not a path of this script's own choosing: the storage factory
+ * falls back to `<cwd>/memory.db` (#1579), so a default of
+ * `~/.huqan/memory.db` pointed the whole report at a store no HUQAN install
+ * writes (#3355) and the run silently measured nothing.
  */
 function resolveStorePath() {
   const configured = readCompatibleEnvironmentVariable('DB_PATH');
-  if (configured) return configured;
-  return path.join(process.env.USERPROFILE || process.env.HOME || '.', 'huqan', 'memory.db');
+  if (typeof configured === 'string' && configured.trim()) return configured.trim();
+  return path.resolve(path.dirname(resolveDefaultMemoryPath()), 'memory.db');
 }
 
 function formatReport(report, storePath) {
@@ -296,7 +303,7 @@ if (require.main === module) {
   const storePath = resolveStorePath();
   if (!fs.existsSync(storePath)) {
     console.log(`capability usage: no store at ${storePath}`);
-    console.log('Nothing measured. This is not evidence that nothing is used.');
+    console.log('Nothing measured. This is not evidence that nothing is used. HUQAN_DB_PATH (or the legacy AXIOM_DB_PATH) overrides the store; the default follows the product working directory, not a user-profile path.');
     process.exit(0);
   }
   // eslint-disable-next-line global-require
