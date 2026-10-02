@@ -297,8 +297,6 @@
       "lib/experience/learn-read-back.js": "Application",
       "lib/experience/learning.js": "Application",
       "lib/experience/optimization-hypothesis.js": "Application",
-      "lib/experience/permitted-fallback-trust.js": "Application",
-      "lib/experience/permitted-fallback.js": "Application",
       "lib/experience/personal-execution-model.js": "Application",
       "lib/experience/procedure-registry.js": "Application",
       "lib/experience/read-model.js": "Application",
@@ -2374,11 +2372,6 @@
       ],
       "lib/experience/optimization-hypothesis.js": [
         "lib/experience/canary.js"
-      ],
-      "lib/experience/permitted-fallback.js": [
-        "lib/agent-action-firewall.js",
-        "lib/experience/router.js",
-        "lib/receipt/canonical-receipt.js"
       ],
       "lib/experience/personal-execution-model.js": [
         "lib/environment-compat.js",

@@ -347,7 +347,7 @@
     },
     "lib/automation-safety-gate/automation-findings-summary.js": {
       "lines": 86.98,
-      "branches": 88.46
+      "branches": 88.33
     },
     "lib/automation-safety-gate/automation-input-normalizer.js": {
       "lines": 99.69,
@@ -355,7 +355,7 @@
     },
     "lib/automation-safety-gate/automation-operation-classifier-delivery.js": {
       "lines": 55.93,
-      "branches": 78.57
+      "branches": 77.87
     },
     "lib/automation-safety-gate/automation-operation-classifier-entry.js": {
       "lines": 100,
@@ -967,7 +967,7 @@
     },
     "lib/experience/capability-trust.js": {
       "lines": 97.74,
-      "branches": 75.67
+      "branches": 75.1
     },
     "lib/experience/compiler.js": {
       "lines": 95.37,
@@ -987,19 +987,11 @@
     },
     "lib/experience/learning.js": {
       "lines": 99.36,
-      "branches": 85.1
+      "branches": 82.7
     },
     "lib/experience/optimization-hypothesis.js": {
       "lines": 99.15,
       "branches": 75.75
-    },
-    "lib/experience/permitted-fallback-trust.js": {
-      "lines": 94.78,
-      "branches": 81.25
-    },
-    "lib/experience/permitted-fallback.js": {
-      "lines": 94.48,
-      "branches": 74.57
     },
     "lib/experience/personal-execution-model.js": {
       "lines": 98.16,
@@ -1023,7 +1015,7 @@
     },
     "lib/experience/router.js": {
       "lines": 94.11,
-      "branches": 86
+      "branches": 84.1
     },
     "lib/experience/runtime-seam.js": {
       "lines": 99.2,

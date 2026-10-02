@@ -2556,10 +2556,6 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
   },
-  "lib/experience/permitted-fallback-trust.js": {
-   "context": "Trust",
-   "evidence": "ownership-map-2446.md#R-EXP-T-T"
-  },
   "lib/experience/effect-boundary.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXP-A-A"
@@ -2577,10 +2573,6 @@
    "evidence": "ownership-map-2446.md#R-EXP-A-A"
   },
   "lib/experience/personal-execution-model.js": {
-   "context": "AgentAction",
-   "evidence": "ownership-map-2446.md#R-EXP-A-A"
-  },
-  "lib/experience/permitted-fallback.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXP-A-A"
   },
