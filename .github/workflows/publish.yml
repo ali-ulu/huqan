@@ -150,7 +150,12 @@ jobs:
       # GitHub tags API, which checks signatures against the keys attached to
       # the signer's GitHub account. A runner-side gpg keyring would be empty
       # and always fail, so GitHub's own verification is the honest source.
+      # gh needs a token on the runner. Without one every `gh api` call fails,
+      # the `|| echo false` fallback reads that as "unsigned", and a correctly
+      # signed tag is refused (v0.13.0, run 36945701163).
       - name: Require a signed release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
