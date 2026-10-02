@@ -2057,8 +2057,8 @@
    "evidence": "ownership-map-2446.md#R-PROV-T"
   },
   "lib/incident-envelope.js": {
-   "context": "AgentAction",
-   "evidence": "ownership-map-2446.md#R-PROV-A"
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-PROV-T"
   },
   "lib/fitness-history.js": {
    "context": "Knowledge",
