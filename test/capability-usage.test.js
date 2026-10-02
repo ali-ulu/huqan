@@ -9,7 +9,6 @@ const {
   EVIDENCE,
   USAGE_STATUS,
   buildUsageReport,
-  candidateStorePaths,
   evidenceFor,
   formatReport,
   resolveStorePath,
@@ -256,16 +255,12 @@ describe('capability usage store resolution', () => {
   it('honours DB_PATH as the canonical override', () => {
     withEnvironment({ HUQAN_DB_PATH: '/srv/huqan/data/memory.db' }, () => {
       assert.equal(resolveStorePath(), '/srv/huqan/data/memory.db');
-      assert.deepEqual(candidateStorePaths(), ['/srv/huqan/data/memory.db']);
     });
   });
 
-  it('names the paths it looked at when there is no store', () => {
-    withEnvironment({}, () => {
-      const candidates = candidateStorePaths();
-
-      assert.ok(candidates.includes(path.join(process.cwd(), 'memory.db')));
-      assert.equal(new Set(candidates).size, candidates.length);
+  it('ignores a blank DB_PATH instead of treating it as a store', () => {
+    withEnvironment({ HUQAN_DB_PATH: '   ' }, () => {
+      assert.equal(resolveStorePath(), path.resolve(path.dirname(resolveDefaultMemoryPath()), 'memory.db'));
     });
   });
 });

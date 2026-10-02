@@ -257,16 +257,6 @@ function resolveStorePath() {
   return path.resolve(path.dirname(resolveDefaultMemoryPath()), 'memory.db');
 }
 
-/**
- * The paths the same default could resolve to, so the "nothing here" line can
- * name where this check looked instead of leaving the operator to guess.
- */
-function candidateStorePaths() {
-  const configured = readCompatibleEnvironmentVariable('DB_PATH');
-  if (typeof configured === 'string' && configured.trim()) return [configured.trim()];
-  return [...new Set([resolveStorePath(), path.join(process.cwd(), 'memory.db')])];
-}
-
 function formatReport(report, storePath) {
   const lines = [`capability usage — ${storePath}`, ''];
   const pad = (text, width) => String(text).padEnd(width);
@@ -303,7 +293,6 @@ module.exports = {
   EVIDENCE,
   USAGE_STATUS,
   buildUsageReport,
-  candidateStorePaths,
   countApprovals,
   evidenceFor,
   formatReport,
@@ -314,11 +303,7 @@ if (require.main === module) {
   const storePath = resolveStorePath();
   if (!fs.existsSync(storePath)) {
     console.log(`capability usage: no store at ${storePath}`);
-    for (const candidate of candidateStorePaths().slice(1)) {
-      console.log(`  also checked: ${candidate}`);
-    }
-    console.log('Nothing measured. This is not evidence that nothing is used.');
-    console.log('Set HUQAN_DB_PATH (or the legacy AXIOM_DB_PATH) to point at the store you mean; the default follows the product (cwd), not a user-profile path.');
+    console.log('Nothing measured. This is not evidence that nothing is used. HUQAN_DB_PATH (or the legacy AXIOM_DB_PATH) overrides the store; the default follows the product working directory, not a user-profile path.');
     process.exit(0);
   }
   // eslint-disable-next-line global-require
