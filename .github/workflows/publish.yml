@@ -208,6 +208,13 @@ jobs:
       - name: Run release security evaluation
         run: npm run test:security-release
 
+      - name: Require independent release evaluation bound to this source
+        run: node scripts/check-release-evaluation.js
+        env:
+          HUQAN_RELEASE_EVALUATION_RECORD: ${{ vars.HUQAN_RELEASE_EVALUATION_RECORD }}
+          HUQAN_RELEASE_EVALUATOR: ${{ vars.HUQAN_RELEASE_EVALUATOR }}
+          HUQAN_RELEASE_EVALUATOR_PUBLIC_KEY: ${{ vars.HUQAN_RELEASE_EVALUATOR_PUBLIC_KEY }}
+
       # Trusted publishing needs a newer npm than any Node 22 image ships
       # (setup-node's Node 22 comes with npm 10.x). The OIDC exchange lives in
       # npm >= 11.5.1; on an older CLI `npm publish` silently falls back to
