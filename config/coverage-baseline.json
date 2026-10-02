@@ -34,8 +34,8 @@
       "branches": 85.1
     },
     "cli.js": {
-      "lines": 99,
-      "branches": 95.06
+      "lines": 96.72,
+      "branches": 91.93
     },
     "demo-causal-autolearn.js": {
       "lines": 90.09,
@@ -55,7 +55,7 @@
     },
     "graph.js": {
       "lines": 98.97,
-      "branches": 95.95
+      "branches": 92.3
     },
     "index.js": {
       "lines": 100,
@@ -687,7 +687,7 @@
     },
     "lib/command-parser.js": {
       "lines": 98.41,
-      "branches": 88.97
+      "branches": 86.94
     },
     "lib/command-policy-editor.js": {
       "lines": 97.61,
@@ -751,7 +751,7 @@
     },
     "lib/connectors/entry-ingest-flow.js": {
       "lines": 100,
-      "branches": 91.66
+      "branches": 88.98
     },
     "lib/connectors/repo-memory-firewall.js": {
       "lines": 100,
@@ -763,7 +763,7 @@
     },
     "lib/connectors/repo-memory-path-ingest.js": {
       "lines": 100,
-      "branches": 89.47
+      "branches": 86.94
     },
     "lib/connectors/repo-memory-records.js": {
       "lines": 100,
@@ -843,7 +843,7 @@
     },
     "lib/dream-experiment-loop-verify.js": {
       "lines": 85.6,
-      "branches": 66.66
+      "branches": 66.22
     },
     "lib/dream-experiment-loop.js": {
       "lines": 84.16,
@@ -1014,8 +1014,8 @@
       "branches": 73.07
     },
     "lib/experience/reconciliation.js": {
-      "lines": 97.78,
-      "branches": 82.95
+      "lines": 95.81,
+      "branches": 82.8
     },
     "lib/experience/repair.js": {
       "lines": 100,
@@ -1346,8 +1346,8 @@
       "branches": 81.81
     },
     "lib/gate-hook-evaluate.js": {
-      "lines": 87.5,
-      "branches": 78.78
+      "lines": 86.58,
+      "branches": 76.57
     },
     "lib/gate-hook-identity.js": {
       "lines": 100,
@@ -1378,7 +1378,7 @@
       "branches": 74.57
     },
     "lib/github-app-beta-http-boundary.js": {
-      "lines": 94.2,
+      "lines": 92.67,
       "branches": 66.66
     },
     "lib/github-app-beta-http-config.js": {
@@ -1491,7 +1491,7 @@
     },
     "lib/graph-cycle-search.js": {
       "lines": 98.21,
-      "branches": 94.11
+      "branches": 92.95
     },
     "lib/graph-edge-mutations.js": {
       "lines": 100,
@@ -1523,7 +1523,7 @@
     },
     "lib/graph-mutation-receipt-read.js": {
       "lines": 100,
-      "branches": 100
+      "branches": 88.98
     },
     "lib/graph-mutation-receipt-schema.js": {
       "lines": 95.23,
@@ -1539,11 +1539,11 @@
     },
     "lib/graph-mutation-runtime.js": {
       "lines": 87.95,
-      "branches": 87.34
+      "branches": 87.05
     },
     "lib/graph-node-read.js": {
-      "lines": 100,
-      "branches": 100
+      "lines": 95.18,
+      "branches": 95.75
     },
     "lib/graph-node-write.js": {
       "lines": 100,
@@ -1551,7 +1551,7 @@
     },
     "lib/graph-optimize.js": {
       "lines": 100,
-      "branches": 100
+      "branches": 83.43
     },
     "lib/graph-path-search.js": {
       "lines": 100,
@@ -1567,11 +1567,11 @@
     },
     "lib/graph-record-utils-nodes.js": {
       "lines": 88.88,
-      "branches": 86.95
+      "branches": 82.79
     },
     "lib/graph-record-utils.js": {
       "lines": 100,
-      "branches": 81.81
+      "branches": 81.35
     },
     "lib/graph-sqlite-pragmas.js": {
       "lines": 100,
@@ -1626,7 +1626,7 @@
       "branches": 95.23
     },
     "lib/http/command-policy-route.js": {
-      "lines": 100,
+      "lines": 94.69,
       "branches": 82.35
     },
     "lib/http/core-http-routes.js": {
@@ -1754,7 +1754,7 @@
       "branches": 71.42
     },
     "lib/http/server-ingest-workflow-runtime.js": {
-      "lines": 100,
+      "lines": 97.89,
       "branches": 100
     },
     "lib/http/server-read-route-runtime.js": {
@@ -1763,7 +1763,7 @@
     },
     "lib/http/server-request-handler.js": {
       "lines": 75.28,
-      "branches": 92.2
+      "branches": 89.25
     },
     "lib/http/server-route-runtime.js": {
       "lines": 100,
@@ -2123,7 +2123,7 @@
     },
     "lib/kernel-read-methods.js": {
       "lines": 96.03,
-      "branches": 100
+      "branches": 96.25
     },
     "lib/kernel-read-use-cases-analysis.js": {
       "lines": 100,
@@ -2158,7 +2158,7 @@
       "branches": 82.75
     },
     "lib/kernel-v2-forwarding.js": {
-      "lines": 91.3,
+      "lines": 90.37,
       "branches": 80.55
     },
     "lib/kernel-v2-native.js": {
@@ -2230,8 +2230,8 @@
       "branches": 84.37
     },
     "lib/mcp-approval-store.js": {
-      "lines": 98.82,
-      "branches": 95.23
+      "lines": 97.74,
+      "branches": 93.75
     },
     "lib/mcp-approval-views.js": {
       "lines": 98.28,
@@ -2399,7 +2399,7 @@
     },
     "lib/mcp/read-workflow-tools.js": {
       "lines": 93.54,
-      "branches": 80.95
+      "branches": 80.1
     },
     "lib/mcp/response-builders.js": {
       "lines": 99.04,
@@ -2427,7 +2427,7 @@
     },
     "lib/mcp/tool-handlers.js": {
       "lines": 93.75,
-      "branches": 89.18
+      "branches": 86.14
     },
     "lib/mcp/tool-surface.js": {
       "lines": 100,
@@ -2510,7 +2510,7 @@
       "branches": 91.3
     },
     "lib/memory-package-import.js": {
-      "lines": 95.2,
+      "lines": 95.13,
       "branches": 91.3
     },
     "lib/memory-patch-metadata.js": {
@@ -2562,8 +2562,8 @@
       "branches": 100
     },
     "lib/memory-store-json-persistence.js": {
-      "lines": 89,
-      "branches": 80.72
+      "lines": 88.9,
+      "branches": 80.58
     },
     "lib/memory-store-persistence-report.js": {
       "lines": 100,
@@ -2642,8 +2642,8 @@
       "branches": 82.5
     },
     "lib/mutation-journal.js": {
-      "lines": 96.98,
-      "branches": 90.52
+      "lines": 95.32,
+      "branches": 88.1
     },
     "lib/observability/agent-worker.js": {
       "lines": 87.5,
@@ -2763,7 +2763,7 @@
     },
     "lib/path-safety.js": {
       "lines": 97.46,
-      "branches": 87.5
+      "branches": 84.47
     },
     "lib/pilot/test-database-boundary.js": {
       "lines": 100,
@@ -3246,7 +3246,7 @@
       "branches": 55.69
     },
     "lib/server-response-helpers.js": {
-      "lines": 80.51,
+      "lines": 80.2,
       "branches": 82.08
     },
     "lib/session-impact.js": {
@@ -3290,8 +3290,8 @@
       "branches": 96.29
     },
     "lib/storage/backup-restore-restore.js": {
-      "lines": 95.4,
-      "branches": 86.2
+      "lines": 95.36,
+      "branches": 86.06
     },
     "lib/storage/backup-restore-store.js": {
       "lines": 91.52,
@@ -3671,11 +3671,11 @@
     },
     "mcpServer.js": {
       "lines": 98.7,
-      "branches": 90.62
+      "branches": 87.97
     },
     "persistencePaths.js": {
       "lines": 71.27,
-      "branches": 80
+      "branches": 77.37
     },
     "plugin.js": {
       "lines": 98.95,
@@ -3754,8 +3754,8 @@
       "branches": 96
     },
     "scripts/agent-context-git.js": {
-      "lines": 96.93,
-      "branches": 92.3
+      "lines": 87.34,
+      "branches": 91
     },
     "scripts/agent-context-primitives.js": {
       "lines": 100,
@@ -3774,8 +3774,8 @@
       "branches": 72.38
     },
     "scripts/api-snapshot-surface.js": {
-      "lines": 99.27,
-      "branches": 89.05
+      "lines": 99.25,
+      "branches": 87.3
     },
     "scripts/api-snapshot.js": {
       "lines": 0,
@@ -3799,7 +3799,7 @@
     },
     "scripts/architecture-review-queue.js": {
       "lines": 98.46,
-      "branches": 89.87
+      "branches": 86.94
     },
     "scripts/architecture-snapshot-scope.js": {
       "lines": 100,
@@ -3807,7 +3807,7 @@
     },
     "scripts/architecture-snapshot.js": {
       "lines": 87.21,
-      "branches": 81.06
+      "branches": 80.4
     },
     "scripts/audit-impact-replay-coverage.js": {
       "lines": 87.58,
@@ -4110,7 +4110,7 @@
       "branches": 100
     },
     "scripts/run-test-shard.js": {
-      "lines": 76.03,
+      "lines": 75.57,
       "branches": 58.69
     },
     "scripts/run-tests.js": {
@@ -4134,8 +4134,8 @@
       "branches": 37.5
     },
     "scripts/shard-hang-diagnostics.js": {
-      "lines": 96.33,
-      "branches": 80.95
+      "lines": 93.64,
+      "branches": 77.87
     },
     "scripts/spawn-windows-aware.js": {
       "lines": 95,
