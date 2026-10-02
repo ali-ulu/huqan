@@ -68,6 +68,13 @@ function cut(receipts) {
   return receipts;
 }
 
+function rehashed(receipt, patch) {
+  const payload = { ...receipt, ...patch };
+  delete payload.receiptHash;
+  return { ...payload, receiptHash: hashCanonicalReceiptPayload(payload) };
+}
+
+
 test("only this session's verified admission receipts are summed", () => {
   const summary = summarizeSessionImpact([
     sealed({ sessionId: 's1', score: 40 }),
@@ -583,84 +590,79 @@ test('retry projection covers malformed scope and durable-field branches without
   assert.equal(recordRetriedRefusalSignals([], 42, graph), 0);
 
   const noWorkspace = [
-    sealed({
+    rehashed(sealed({
       sessionId: 's1',
       score: 10,
       kind: 'external_action_rejection_receipt',
       toolName: 'shell',
       inputDigest: digest,
-      workspaceId: '   ',
-    }),
-    sealed({
+    }), { workspaceId: '   ' }),
+    rehashed(sealed({
       sessionId: 's1',
       score: 10,
       kind: 'external_action_rejection_receipt',
       toolName: 'shell',
       inputDigest: digest,
-      workspaceId: '   ',
-    }),
+    }), { workspaceId: '   ' }),
   ];
   assert.equal(recordRetriedRefusalSignals(noWorkspace, 's1', graph), 0);
 
   const unattributed = [
-    sealed({
+    rehashed(sealed({
       sessionId: 's1',
       score: 10,
       kind: 'external_action_rejection_receipt',
       toolName: 'shell',
       inputDigest: digest,
-      agentId: '   ',
-      identityRef: '   ',
-    }),
-    sealed({
+    }), { agentId: '   ', actor: '   ' }),
+    rehashed(sealed({
       sessionId: 's1',
       score: 10,
       kind: 'external_action_rejection_receipt',
       toolName: 'shell',
       inputDigest: digest,
-      agentId: '   ',
-      identityRef: '   ',
-    }),
+    }), { agentId: '   ', actor: '   ' }),
   ];
   assert.equal(recordRetriedRefusalSignals(unattributed, 's1', graph), 2);
 
-  const unusableDurableFields = [
-    sealed({
-      sessionId: 's1',
-      score: 10,
-      kind: 'external_action_rejection_receipt',
-      toolName: 'other-shell',
-      inputDigest: digest,
-      receiptId: '   ',
-    }),
-    sealed({
-      sessionId: 's1',
-      score: 10,
-      kind: 'external_action_rejection_receipt',
-      toolName: 'other-shell',
-      inputDigest: digest,
-      createdAt: 'not-an-instant',
-    }),
-  ];
-  assert.equal(recordRetriedRefusalSignals(unusableDurableFields, 's1', graph), 0);
+  const invalidRef = rehashed(sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'other-shell',
+    inputDigest: digest,
+  }), { receiptId: '   ' });
+  const invalidAt = rehashed(sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'other-shell',
+    inputDigest: digest,
+  }), { createdAt: 'not-an-instant' });
+  assert.equal(recordRetriedRefusalSignals([invalidRef, invalidAt], 's1', graph), 0);
 
-  const malformedDescriptors = [
-    sealed({
-      sessionId: 's1',
-      score: 10,
-      kind: 'external_action_rejection_receipt',
-      toolName: 7,
-      inputDigest: digest,
+  const malformedTool = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const malformedDigest = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  assert.equal(recordRetriedRefusalSignals([
+    rehashed(malformedTool, {
+      metadata: { ...malformedTool.metadata, toolName: 7 },
     }),
-    sealed({
-      sessionId: 's1',
-      score: 10,
-      kind: 'external_action_rejection_receipt',
-      toolName: 'shell',
-      inputDigest: 7,
+    rehashed(malformedDigest, {
+      metadata: { ...malformedDigest.metadata, inputDigest: 7 },
     }),
-  ];
-  assert.equal(recordRetriedRefusalSignals(malformedDescriptors, 's1', graph), 0);
+  ], 's1', graph), 0);
 });
 
 test('session summary fails closed on hostile history objects and defaults malformed escape scopes', () => {
