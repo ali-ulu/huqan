@@ -55,7 +55,6 @@
       "test/readme-decision-vocabulary.test.js",
       "test/risk-level-characterization.test.js",
       "test/kernel-facade-contract.test.js",
-      "test/experience-permitted-fallback.test.js",
       "test/refactor-2e-learn-memory-admission-contract.test.js",
       "test/gateA-crash-recovery.test.js",
       "test/shared-boundary-primitives.contract.test.js",

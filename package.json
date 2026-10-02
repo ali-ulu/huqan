@@ -547,8 +547,6 @@
     "lib/experience/learning.js",
     "lib/experience/learning-intake.js",
     "lib/experience/optimization-hypothesis.js",
-    "lib/experience/permitted-fallback.js",
-    "lib/experience/permitted-fallback-trust.js",
     "lib/experience/capability-trust-fallback-extension.js",
     "lib/experience/personal-execution-model.js",
     "lib/experience/procedure-registry.js",

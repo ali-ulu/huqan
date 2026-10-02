@@ -993,14 +993,6 @@
       "lines": 99.15,
       "branches": 75.75
     },
-    "lib/experience/permitted-fallback-trust.js": {
-      "lines": 94.78,
-      "branches": 81.25
-    },
-    "lib/experience/permitted-fallback.js": {
-      "lines": 94.48,
-      "branches": 74.57
-    },
     "lib/experience/personal-execution-model.js": {
       "lines": 98.16,
       "branches": 72.13
