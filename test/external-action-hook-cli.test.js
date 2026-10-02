@@ -118,6 +118,15 @@ test('two identical refused calls in one session surface review advice without c
   assert.equal(secondOutput.bypassAdvice.recommendations.length, 1);
   assert.equal(secondOutput.bypassAdvice.recommendations[0].decision, 'require_review');
   assert.equal(secondOutput.bypassAdvice.recommendations[0].recommendation, 'review recommended');
+
+  const thirdAttempt = { ...payload, invocationId: 'bypass-refusal-3' };
+  const third = runHook('generic', thirdAttempt, directory, ['--policy', policyPath]);
+  assert.equal(third.process.status, 2, third.process.stderr);
+  const thirdOutput = JSON.parse(third.process.stdout);
+  assert.equal(thirdOutput.decision, 'block', 'advice still does not change the gate verdict');
+  assert.equal(thirdOutput.bypassAdvice.recommendations.length, 1);
+  assert.equal(thirdOutput.bypassAdvice.recommendations[0].decision, 'block');
+  assert.equal(thirdOutput.bypassAdvice.recommendations[0].recommendation, 'block recommended');
 });
 
 test('Codex and Claude projections fail closed before destructive execution', t => {
