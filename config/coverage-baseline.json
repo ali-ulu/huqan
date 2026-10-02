@@ -1519,7 +1519,7 @@
     },
     "lib/graph-mutation-runtime.js": {
       "lines": 87.95,
-      "branches": 87.05
+      "branches": 89.57
     },
     "lib/graph-node-read.js": {
       "lines": 95.18,

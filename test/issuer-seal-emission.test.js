@@ -75,6 +75,13 @@ function mutateOnce(graph, operationId, receiptId) {
 
 describe('issuer seal emission — default off', () => {
   for (const backend of ['sqlite', 'json']) {
+    test(`[${backend}] an operation that never produced a receipt has no seal`, () => {
+      const graph = makeGraph('unknown-op', backend);
+      // #3342: covers the no-receipt arm deterministically instead of relying
+      // on whichever full-suite test happens to query a missing operation.
+      assert.strictEqual(graph.getMutationReceiptSealByOperation('never-committed'), null);
+      graph.closeSqlite?.();
+    });
     test(`[${backend}] with no key configured the receipt is unsealed and unchanged`, () => {
       const graph = makeGraph('off', backend);
       const outcome = mutateOnce(graph, 'op-off', 'r-off');
