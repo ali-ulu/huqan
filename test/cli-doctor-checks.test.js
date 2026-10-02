@@ -157,6 +157,16 @@ test('migrations check names an object a migration declares but the store lacks'
   assert.match(result.detail, /missing migration objects: 001-ghost\.sql:ghost_table/);
 });
 
+test('migrations check sees UNIQUE indexes and ignores a schema qualifier', (t) => {
+  const root = workspace(t);
+  createStore(root, (db) => db.exec('CREATE TABLE qualified_present (id TEXT)'));
+  writeMigration(root, '002-forms.sql', 'CREATE TABLE IF NOT EXISTS main.qualified_present (id TEXT);\n'
+    + 'CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_absent ON qualified_present (id);\n');
+  const result = checkMigrations({ rootDir: root });
+  assert.deepEqual(result.missingMigrationObjects, ['002-forms.sql:idx_unique_absent'],
+    'the qualified table exists under its bare name; the missing UNIQUE index must be named');
+});
+
 test('migrations check passes against the migrations the package ships', (t) => {
   const root = workspace(t);
   createStore(root);
