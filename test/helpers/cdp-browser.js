@@ -747,4 +747,5 @@ module.exports = {
   alivePids,
   readProcessState,
   readProcessStates,
+  readPsStates,
 };

@@ -34,6 +34,7 @@ const {
   alivePids,
   readProcessState,
   readProcessStates,
+  readPsStates,
 } = require('./helpers/cdp-browser');
 const { DEFAULT_FILE_TIMEOUT_MS } = require('../scripts/run-test-shard');
 
@@ -106,6 +107,17 @@ test('killing the tree leaves no descendant running', async t => {
   assert.equal(isAlive(pids.grandchild), false, 'the grandchild outlived the tree kill');
   assert.deepEqual(stragglers, [], `nothing may survive the tree kill, got ${JSON.stringify(stragglers)}`);
   assert.equal(isAlive(parent.pid), false, 'the parent outlived the tree kill');
+});
+
+test('the batched ps probe maps each pid to its state', { skip: process.platform === 'win32' }, () => {
+  // The macOS runner reads state through ps, not /proc. This pins the exact
+  // `ps -o pid=,stat= -p a,b,c` parsing (the shape macOS produces) on every
+  // POSIX runner, so the one leg that reddened shard 4 is covered here even
+  // though macOS is not a PR runner (#3327). The zombie (`Z`) parse itself is
+  // pinned by the forceFallback assertion below.
+  const states = readPsStates([process.pid, 999_999]);
+  assert.equal(isLiveState(states.get(process.pid)), true, 'a live pid must read as live');
+  assert.equal(states.has(999_999), false, 'a pid ps does not list is not invented');
 });
 
 test('the tree liveness probe reads every pid in one batched query', () => {
