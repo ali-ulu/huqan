@@ -199,6 +199,10 @@
     "existingNightlyIssueReused": 3327
   },
   "qualitySnapshot": {
+    "countScopes": {
+      "sourceFiles": "Mimari snapshot IS_TEST ile test, benchmarks ve demo dosyalarını dışlar.",
+      "reachableAndClassifiedUnreachable": "Reachability kaynak taraması bağımsız benchmarks ve demo dosyalarını içerir; reachable + classifiedUnreachable = 1251, mimari sourceFiles ile farklı kümelerdir. Bu sayımlar sourceFiles kümesinin parçaları değildir."
+    },
     "sourceFiles": 1231,
     "over400": 0,
     "reachable": 1048,
