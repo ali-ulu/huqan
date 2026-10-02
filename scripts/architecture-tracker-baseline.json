@@ -2408,6 +2408,7 @@
         "lib/external-action-identity-log.js"
       ],
       "lib/external-action-command-policy.js": [
+        "lib/bypass-response.js",
         "lib/external-action-receipt.js"
       ],
       "lib/external-action-custom-agent-status.js": [
@@ -2707,12 +2708,16 @@
         "lib/text-utils.js"
       ],
       "lib/gate-hook-evaluate.js": [
+        "lib/autonomy-receipt-history.js",
         "lib/browser-hook-outcome.js",
+        "lib/bypass-response.js",
+        "lib/bypass-signal-state.js",
         "lib/command-shape-log.js",
         "lib/external-action-adapter.js",
         "lib/external-action-command-policy.js",
         "lib/external-action-receipt.js",
-        "lib/gate-hook-input.js"
+        "lib/gate-hook-input.js",
+        "lib/session-impact.js"
       ],
       "lib/gate-hook-identity.js": [
         "lib/external-action-identity-log.js",
@@ -4796,7 +4801,9 @@
         "requestGuards.js"
       ],
       "lib/session-impact.js": [
-        "lib/autonomy-receipt-history.js"
+        "lib/autonomy-receipt-history.js",
+        "lib/bypass-signal-state.js",
+        "lib/external-action-identity-card.js"
       ],
       "lib/shield.js": [
         "lib/verify-status-vocabulary.js"

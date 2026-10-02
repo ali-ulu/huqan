@@ -46,6 +46,7 @@ const {
 } = require('./verify-tarball-shared');
 const {
   verifyBinsAndVersion,
+  verifyCoderCommand,
   verifyExternalAdapters,
   verifyQuickstart,
 } = require('./verify-tarball-checks-core');
@@ -96,6 +97,8 @@ function verifyInstall(label, tarball, installFlags) {
     verifyDecisionExplainer(label, consumer, env);
 
     verifyQuickstart(label, binDir, consumer, env);
+
+    verifyCoderCommand(label, binDir, consumer, env);
 
     verifyMcp(label, binDir, consumer, env);
     verifyA2aRuntime(label, consumer, env);

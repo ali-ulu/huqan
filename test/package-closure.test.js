@@ -10,7 +10,9 @@ const {
   analyzePackageClosure,
   analyzePackageClosures,
   loadTimeRequires,
+  reachableRequires,
   loadTimeEntryPoints,
+  main,
   publishedFiles,
   packageRoots,
 } = require('../scripts/check-package-closure');
@@ -143,6 +145,102 @@ test('a require at module scope counts, one inside a guard does not', () => {
   assert.deepEqual(loadTimeRequires("try { x(); } catch (e) { require('./a'); }"), []);
 });
 
+test('a reachable require counts wherever a caller can enter, guard excepted', () => {
+  // The reading the packaging gate uses. A CLI subcommand or an MCP tool name
+  // is a caller, so a require in a function body still names a module an
+  // installed consumer will load -- the blind spot that let
+  // lib/coder/experience-reporter.js ship unpublished while the gate said OK.
+  assert.deepEqual(reachableRequires("function f() { return require('./a'); }"), ['./a']);
+  assert.deepEqual(reachableRequires("const f = () => { require('./a'); };"), ['./a']);
+  assert.deepEqual(reachableRequires("module.exports = { run() { return require('./a'); } };"), ['./a']);
+  assert.deepEqual(reachableRequires("class C { m() { require('./a'); } }"), ['./a']);
+  assert.deepEqual(reachableRequires("const registry = { x: require('./a') };"), ['./a']);
+  assert.deepEqual(reachableRequires("if (flag) { require('./a'); }"), ['./a']);
+  // A guard is the one form that stays optional: the repository publishes
+  // modules whose repo-only dependency is allowed to be missing.
+  assert.deepEqual(reachableRequires("try { require('./a'); } catch (_) {}"), []);
+  assert.deepEqual(reachableRequires("try { x(); } catch (e) { require('./a'); }"), []);
+  // and it still sees the module-scope requires loadTimeRequires sees
+  assert.deepEqual(reachableRequires("const x = require('./a');"), ['./a']);
+  // a `try` head wrapped in extra parens is still the guard
+  assert.deepEqual(reachableRequires("try { require('./a'); } catch (e) { require('./b'); }"), []);
+  // an unclosed `{` at end of source must not throw the walk
+  assert.deepEqual(reachableRequires("if (x) {"), []);
+});
+
+test('an unmatched paren before a brace is not mistaken for a guard', () => {
+  // The brace-decision walk reads the token before the matching `(`. When there
+  // is no matching `(`, both readings must fall through to "load-time" rather
+  // than throw or claim a guard.
+  assert.deepEqual(loadTimeRequires("x) { require('./a'); }"), ['./a']);
+  assert.deepEqual(reachableRequires("x) { require('./a'); }"), ['./a']);
+});
+
+test('a require whose target does not resolve is left to Node, not reported', () => {
+  // resolveLocal returns null for a specifier that names nothing. A typo fails
+  // the same way in a clone as in an install, so it is not a packaging finding
+  // and the walk must skip it rather than crash.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-package-unresolvable-'));
+  try {
+    fs.writeFileSync(path.join(root, 'package.json'),
+      JSON.stringify({ name: 'unresolvable', main: 'index.js', files: ['index.js'] }));
+    fs.writeFileSync(path.join(root, 'index.js'),
+      "require('./does-not-exist');\nmodule.exports = {};\n");
+    const { reached, missing } = analyzePackageClosure({ root });
+    assert.deepEqual(reached, ['index.js']);
+    assert.equal(missing.size, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a require hidden in a function body is a finding when its target is unpublished (#3352)', () => {
+  // The gap this closes, end to end. `lib/coder/experience-reporter.js` was in
+  // the repo, absent from `files`, and reached only through
+  // `lib/cli-approval-commands.js` -> `require('./cli-coder')` inside a function
+  // body. Because the walk read that require as deferred it never entered
+  // cli-coder, so `analyzePackageClosure` reported a complete closure while
+  // `huqan coder` failed with "Cannot find module" from an install. The walk
+  // now reads reachable requires, so the same shape is a finding.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-package-closure-'));
+  try {
+    fs.writeFileSync(path.join(root, 'package.json'),
+      JSON.stringify({ name: 'root', main: 'index.js', files: ['index.js', 'cli.js', 'lib/run.js'] }));
+    fs.writeFileSync(path.join(root, 'index.js'), "module.exports = {};\n");
+    // The CLI reaches the subcommand through a require in a function body,
+    // exactly the form #3352 hid behind.
+    fs.writeFileSync(path.join(root, 'cli.js'),
+      "function subcommand() { return require('./lib/run').go(); }\nmodule.exports = { subcommand };\n");
+    fs.mkdirSync(path.join(root, 'lib'), { recursive: true });
+    // lib/run.js is published, but its own load-time require is not.
+    fs.writeFileSync(path.join(root, 'lib', 'run.js'), "const helper = require('./hidden-helper');\n");
+    fs.writeFileSync(path.join(root, 'lib', 'hidden-helper.js'), "module.exports = {};\n");
+
+    const { missing } = analyzePackageClosure({ root });
+    assert.equal(missing.size, 1, 'the unpublished helper must be reported');
+    assert.ok(missing.has('lib/hidden-helper.js'));
+    assert.deepEqual(missing.get('lib/hidden-helper.js'), ['lib/run.js']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the coder capability is inside the walked closure, not merely on disk (#3352)', () => {
+  // Pins the entry the #3352 fix depends on: cli-coder is reached only through
+  // a function body, so if the walk stops entering function bodies this fails
+  // here rather than shipping a broken `huqan coder` behind a green gate.
+  const { reached } = analyzePackageClosure({ root: REPO_ROOT });
+  for (const file of [
+    'lib/cli-coder.js',
+    'lib/coder/apply-derivation.js',
+    'lib/coder/experience-reporter.js',
+    'lib/coder/journal-store.js',
+    'lib/experience/adapter-scope.js',
+  ]) {
+    assert.ok(reached.includes(file), `${file} must be reached, or \`huqan coder\` breaks from an install`);
+  }
+});
+
 test('a brace that only groups defers nothing', () => {
   // #979: the scanner used to call any `{` a boundary, so these three read as
   // deferred and their modules could be left out of the tarball while the
@@ -228,5 +326,42 @@ test('nested package readmes stay listed explicitly, because npm only auto-publi
     const readme = `packages/${pkg}/README.md`;
     assert.ok(fs.existsSync(path.join(REPO_ROOT, readme)), `${readme} must exist`);
     assert.ok(listed.has(readme), `${readme} must be listed explicitly, like its package.json sibling`);
+  }
+});
+
+// ─── the gate's own verdict ──────────────────────────────────────────────────
+
+test('the gate reports its verdict and exit code for both outcomes', () => {
+  // The OK and FAIL report branches used to be untested: every test called the
+  // analysis functions directly, so the printed verdict and the exit code could
+  // drift unnoticed. Capture the two channels and point the gate at throwaway
+  // trees. `main()` runs by hand rather than as a subprocess, so both the
+  // default-root and `--root` paths are covered without spawning.
+  const captured = { out: [], err: [] };
+  const origLog = console.log;
+  const origErr = console.error;
+  console.log = (...args) => captured.out.push(args.join(' '));
+  console.error = (...args) => captured.err.push(args.join(' '));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-package-gate-'));
+  try {
+    assert.equal(main([]), 0, 'the repository tree must be fully published');
+    assert.match(captured.out.join('\n'), /OK: the reachable closure/);
+
+    // A throwaway tree whose only entry point cannot resolve: FAIL, exit 1.
+    captured.out.length = 0;
+    captured.err.length = 0;
+    fs.writeFileSync(path.join(root, 'package.json'),
+      JSON.stringify({ name: 'gate-fail', main: 'index.js', files: ['index.js'] }));
+    fs.writeFileSync(path.join(root, 'index.js'), "module.exports = require('./leak');\n");
+    fs.writeFileSync(path.join(root, 'leak.js'), "module.exports = {};\n");
+    assert.equal(main(['--root', root]), 1);
+    const errText = captured.err.join('\n');
+    assert.match(errText, /FAIL: 1 module\(s\) are reachable at install time/);
+    assert.match(errText, /leak\.js/);
+    assert.match(errText, /reachable from: index\.js/);
+  } finally {
+    console.log = origLog;
+    console.error = origErr;
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

@@ -356,6 +356,20 @@ test('[sqlite] nested canonical mutations fail before the inner callback or pers
   graph.close();
 });
 
+test('[json] missing and legacy file locks are not reclaimable directory locks', () => {
+  const missingJournal = path.join(root, 'missing-reclaim.mutations.json');
+  assert.equal(isReclaimableLock(missingJournal), false);
+
+  const legacyJournal = path.join(root, 'legacy-reclaim.mutations.json');
+  const legacyLock = lockPathFor(legacyJournal);
+  fs.writeFileSync(legacyLock, 'legacy');
+  try {
+    assert.equal(isReclaimableLock(legacyJournal), false);
+  } finally {
+    fs.rmSync(legacyLock, { force: true });
+  }
+});
+
 test('[json] a dead directory-lock owner is reclaimed without deleting a live successor lock', () => {
   const journalPath = path.join(root, 'stale-lock.mutations.json');
   const lockPath = lockPathFor(journalPath);
