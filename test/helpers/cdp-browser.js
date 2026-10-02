@@ -278,35 +278,56 @@ function procfsAvailable() {
 }
 
 /**
- * One `ps` query for every pid in `pids`, mapping pid -> state character.
+ * One `ps` query for every pid in `pids`.
  *
  * Batched because the alternative is one synchronous spawn per pid per poll,
  * which is what made the macOS teardown probe needlessly expensive (#3327
- * review). Pids `ps` does not list are simply absent from the map.
+ * review).
+ *
+ * `ps` exit codes are not a "did it match" signal (unlike `pgrep`): both
+ * procps and macOS exit 1 for an empty selection *and* for a failure, and a
+ * timed-out `spawnSync` can return partial stdout with `result.error` set. So
+ * the return value is explicit about how much the listing can be trusted:
+ *
+ *   - `{ complete: true, states }` -- `ps` ran to completion, so a pid absent
+ *     from `states` is provably gone (`null`).
+ *   - `{ complete: false, states }` -- the query failed or timed out, so an
+ *     absent pid is *unknown* (`undefined`) and must fall back to the signal
+ *     probe rather than be recorded as gone.
+ *
+ * @returns {{ complete: boolean, states: Map<number, string|null> }}
  */
 function readPsStates(pids) {
   const states = new Map();
-  if (pids.length === 0 || process.platform === 'win32') return states;
+  if (pids.length === 0 || process.platform === 'win32') return { complete: true, states };
+  let result;
   try {
-    const result = spawnSync('ps', ['-o', 'pid=,stat=', '-p', pids.join(',')], {
+    result = spawnSync('ps', ['-o', 'pid=,stat=', '-p', pids.join(',')], {
       encoding: 'utf8',
       timeout: PROCESS_PROBE_TIMEOUT_MS,
       windowsHide: true,
     });
-    if (typeof result.stdout !== 'string') return states;
-    for (const line of result.stdout.split('\n')) {
-      const match = /^\s*(\d+)\s+(\S+)/.exec(line);
-      if (match) states.set(Number(match[1]), match[2].slice(0, 1));
-    }
-  } catch { /* best effort: an unreadable probe leaves the signal path */ }
-  return states;
+  } catch {
+    return { complete: false, states };
+  }
+  if (result.error || typeof result.stdout !== 'string') return { complete: false, states };
+  for (const line of result.stdout.split('\n')) {
+    const match = /^\s*(\d+)\s+(\S+)/.exec(line);
+    if (match) states.set(Number(match[1]), match[2].slice(0, 1));
+  }
+  for (const pid of pids) {
+    if (!states.has(pid)) states.set(pid, null);
+  }
+  return { complete: true, states };
 }
 
 /**
  * The state character for each pid that a state source could resolve.
  *
  * `/proc` answers per pid on Linux; macOS has no `/proc`, so every unresolved
- * pid is read through one batched `ps` instead (#3327).
+ * pid is read through one batched `ps` instead (#3327). A pid absent from a
+ * complete `ps` listing is `null` ("gone"); a failed or partial listing leaves
+ * it `undefined` ("unknown") so the caller falls back to the signal probe.
  */
 function readProcessStates(pids) {
   const states = new Map();
@@ -317,7 +338,8 @@ function readProcessStates(pids) {
     else unresolved.push(pid);
   }
   if (unresolved.length > 0) {
-    for (const [pid, state] of readPsStates(unresolved)) states.set(pid, state);
+    const { states: psStates } = readPsStates(unresolved);
+    for (const [pid, state] of psStates) states.set(pid, state);
   }
   return states;
 }
@@ -341,7 +363,7 @@ function readProcessState(pid, { forceFallback = false } = {}) {
     if (state !== undefined) return state;
   }
   if (process.platform === 'win32') return null;
-  return readPsStates([pid]).get(pid) ?? null;
+  return readPsStates([pid]).states.get(pid) ?? null;
 }
 
 /**

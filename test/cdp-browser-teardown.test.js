@@ -115,9 +115,11 @@ test('the batched ps probe maps each pid to its state', { skip: process.platform
   // POSIX runner, so the one leg that reddened shard 4 is covered here even
   // though macOS is not a PR runner (#3327). The zombie (`Z`) parse itself is
   // pinned by the forceFallback assertion below.
-  const states = readPsStates([process.pid, 999_999]);
+  const { complete, states } = readPsStates([process.pid, 999_999]);
+  assert.equal(complete, true, 'a completed ps run must report a complete listing');
+  assert.equal(states.has(process.pid), true, 'the live pid must appear in the listing');
   assert.equal(isLiveState(states.get(process.pid)), true, 'a live pid must read as live');
-  assert.equal(states.has(999_999), false, 'a pid ps does not list is not invented');
+  assert.equal(states.get(999_999), null, 'a pid ps does not list is provably gone');
 });
 
 test('the tree liveness probe reads every pid in one batched query', () => {
