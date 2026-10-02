@@ -60,6 +60,12 @@ const CLOSE_DEADLINE_MS = 15_000;
 // starts in seconds locally (#3240's residue). One retry absorbs that transient
 // miss without masking a page failure, which the launch legs cannot produce.
 const LAUNCH_ATTEMPTS = 2;
+// How long a SIGKILLed tree gets to actually die before `stragglers` is
+// sampled. A killed process is not reaped by its parent instantly, so without
+// this the sample can catch a still-dying pid and report a false straggler on a
+// loaded runner. Bounded and small: it only absorbs the signal-delivery race,
+// never masks a pid that genuinely ignores SIGKILL (#3327).
+const SETTLE_DEADLINE_MS = 1_000;
 
 const CHROME_CANDIDATES = Object.freeze([
   process.platform === 'win32' && 'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -220,7 +226,21 @@ async function killProcessTree(child) {
   // Reap the parent so its exit event fires even when the tree was already gone.
   try { child.kill('SIGKILL'); } catch { /* already dead */ }
   await waitForExit(child, KILL_GRACE_MS);
+  // SIGKILL is asynchronous: a pid can still answer the liveness probe while it
+  // is dying, so give the whole tree a bounded moment to go before deciding
+  // what survived. Without this a loaded runner reports a still-dying pid as a
+  // straggler (#3327).
+  await waitForTreeGone([child.pid, ...descendants], SETTLE_DEADLINE_MS);
   return { descendants, stragglers: [child.pid, ...descendants].filter(isAlive), probedRows: rows.length };
+}
+
+/** Resolve once none of `pids` is alive, or after `timeoutMs` -- whichever is first. */
+async function waitForTreeGone(pids, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!pids.some(isAlive)) return;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
 }
 
 function waitForExit(child, timeoutMs) {
@@ -232,20 +252,63 @@ function waitForExit(child, timeoutMs) {
   });
 }
 
+/**
+ * The kernel-reported state character for `pid`, or null when no state source
+ * can answer.
+ *
+ * `/proc` is the precise source on Linux; macOS has no `/proc`, so `ps` is its
+ * equivalent. Both expose `Z`/`X` for a zombie, which is what the signal probe
+ * below cannot distinguish from a running process (#3327).
+ *
+ * @param {number} pid
+ * @param {object} [options]
+ * @param {boolean} [options.forceFallback] skip `/proc` and read the `ps` shape
+ *   directly; injectable so the macOS path can be pinned on a Linux runner.
+ */
+function readProcessState(pid, { forceFallback = false } = {}) {
+  if (!forceFallback) {
+    try {
+      const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+      return stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
+    } catch { /* not Linux, or the pid is already gone */ }
+  }
+  if (process.platform === 'win32') return null;
+  try {
+    const result = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], {
+      encoding: 'utf8',
+      timeout: PROCESS_PROBE_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    const state = typeof result.stdout === 'string' ? result.stdout.trim() : '';
+    return state === '' ? null : state.slice(0, 1);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a kernel state character means "still running".
+ *
+ * `Z` (zombie) and `X` (dead) are not running; every other state is. Split out
+ * as a pure predicate because this rule is exactly what a macOS zombie tripped:
+ * the signal probe cannot tell `Z` from `S`, so the state character has to
+ * decide, and that decision deserves its own pinned test (#3327).
+ */
+function isLiveState(state) {
+  return state !== 'Z' && state !== 'X';
+}
+
 function isAlive(pid) {
   // A killed process whose parent has not reaped it is left as a zombie; a
   // zombie still answers signal 0, which would report a dead process as a
   // straggler and put a false "did not reap" line in the smoke log. Read the
-  // kernel state where it is exposed, exactly as the diagnostics test does.
-  try {
-    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
-    return state !== 'Z' && state !== 'X';
-  } catch {
-    // No /proc entry (macOS, Windows, or a pid that is truly gone): the signal
-    // probe answers correctly whenever the pid is not a zombie.
-    try { process.kill(pid, 0); return true; } catch { return false; }
-  }
+  // kernel state where it is exposed -- /proc on Linux, `ps` on macOS -- so the
+  // answer means "running", not "not yet reaped" (#3327).
+  const state = readProcessState(pid);
+  if (state !== null) return isLiveState(state);
+  // No state source (Windows) or a pid that is truly gone: the signal probe is
+  // correct whenever the pid is not a zombie.
+  try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
 /**
@@ -602,4 +665,10 @@ module.exports = {
   collectDescendants,
   killProcessTree,
   CLOSE_DEADLINE_MS,
+  // The liveness reader is shared with the teardown test so both agree on what
+  // "still running" means; the signal probe alone reports a macOS zombie alive
+  // (#3327).
+  isAlive,
+  isLiveState,
+  readProcessState,
 };

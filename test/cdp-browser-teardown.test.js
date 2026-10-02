@@ -29,6 +29,9 @@ const {
   collectDescendants,
   killProcessTree,
   CLOSE_DEADLINE_MS,
+  isAlive,
+  isLiveState,
+  readProcessState,
 } = require('./helpers/cdp-browser');
 const { DEFAULT_FILE_TIMEOUT_MS } = require('../scripts/run-test-shard');
 
@@ -103,6 +106,48 @@ test('killing the tree leaves no descendant running', async t => {
   assert.equal(isAlive(parent.pid), false, 'the parent outlived the tree kill');
 });
 
+test('a killed-but-unreaped process is not reported as alive', { skip: process.platform === 'win32' }, async () => {
+  // The macOS leg of #3327: a SIGKILLed pid keeps answering signal 0 until its
+  // parent reaps it, so the signal probe alone called the grandchild a
+  // straggler and reddened shard 4. The grandchild's parent is SIGSTOPped
+  // below, so it cannot reap and the zombie is guaranteed to persist for the
+  // assertions -- deterministic on Linux and macOS, not a race.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-zombie-'));
+  const pidFile = path.join(dir, 'pids.json');
+  const script = [
+    "const { spawn } = require('node:child_process');",
+    "const fs = require('node:fs');",
+    "const grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });",
+    'fs.writeFileSync(process.argv[1], JSON.stringify({ parent: process.pid, grandchild: grandchild.pid }));',
+    'setInterval(() => {}, 1000);',
+  ].join('\n');
+  const parent = spawn(process.execPath, ['-e', script, pidFile], { stdio: 'ignore' });
+  try {
+    const pids = await waitForJson(pidFile);
+    assert.ok(pids && pids.grandchild > 0, 'the fixture never reported its grandchild');
+
+    parent.kill('SIGSTOP');
+    await waitUntilStopped(parent.pid);
+    process.kill(pids.grandchild, 'SIGKILL');
+    await waitUntilGone(pids.grandchild);
+
+    // The state reader is the reason the probe is not trusted, through both
+    // sources: /proc on Linux, and the ps fallback the macOS runner uses.
+    assert.equal(readProcessState(pids.grandchild), 'Z');
+    if (process.platform !== 'win32') {
+      assert.equal(readProcessState(pids.grandchild, { forceFallback: true }), 'Z');
+    }
+    assert.equal(isAlive(pids.grandchild), false, 'a zombie must not count as alive');
+    assert.equal(isLiveState('Z'), false);
+    assert.equal(isLiveState('X'), false);
+    assert.equal(isLiveState('S'), true);
+  } finally {
+    try { parent.kill('SIGCONT'); } catch { /* already gone */ }
+    try { parent.kill('SIGKILL'); } catch { /* already gone */ }
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('the close deadline stays well inside the heavy-file budget', () => {
   // A bounded teardown is only useful if the bound is smaller than the deadline
   // that would otherwise kill the whole file with no evidence.
@@ -110,24 +155,19 @@ test('the close deadline stays well inside the heavy-file budget', () => {
     `${CLOSE_DEADLINE_MS} must be below ${DEFAULT_FILE_TIMEOUT_MS}`);
 });
 
-function isAlive(pid) {
-  // A killed process with no living parent is reparented and left as a zombie
-  // until some init reaps it; a zombie answers signal 0, so the bare probe would
-  // report a dead process as alive. Read the state where the kernel exposes it.
-  try {
-    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
-    return state !== 'Z' && state !== 'X';
-  } catch {
-    try { process.kill(pid, 0); return true; } catch { return false; }
-  }
-}
-
 async function waitUntilGone(pid, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (!isAlive(pid)) return;
     await new Promise(resolve => setTimeout(resolve, 50));
+  }
+}
+
+async function waitUntilStopped(pid, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (readProcessState(pid) === 'T') return;
+    await new Promise(resolve => setTimeout(resolve, 25));
   }
 }
 
