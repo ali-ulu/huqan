@@ -296,10 +296,13 @@ test('no long-lived npm credential is referenced anywhere in the workflow', () =
 test('npm is upgraded past the version that can exchange OIDC', () => {
   // setup-node's Node 22 ships npm 10.x. The OIDC exchange landed in 11.5.1;
   // on an older CLI `npm publish` looks for an _authToken instead and fails.
-  const upgradeIndex = workflowSource.indexOf('npm install -g npm@latest');
+  // Pinned to 11, not @latest: npm 12 skips dependency install scripts and
+  // broke the post-publish checklist of v0.13.1 (#3323).
+  const upgradeIndex = workflowSource.indexOf('npm install -g npm@11');
   const publishIndex = workflowSource.indexOf('- name: Publish');
   assert.ok(upgradeIndex > -1, 'the publish job must install an npm that supports trusted publishing');
   assert.ok(upgradeIndex < publishIndex, 'the upgrade must happen before the publish step');
+  assert.doesNotMatch(workflowSource, /npm install -g npm@latest/, 'a floating npm major must not enter a release unreviewed');
 });
 
 // The step below is executed rather than pattern-matched: the assertion is
