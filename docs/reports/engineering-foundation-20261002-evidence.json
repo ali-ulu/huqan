@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "kind": "engineering-foundation-evidence",
+  "statusSemantics": "Immutable local-preparation snapshot. Commit/push/PR fields describe this audit phase; current delivery status comes from live Git and pull requests, not this historical evidence record.",
+  "observedAt": "2026-10-02",
+  "repository": "ali-ulu/huqan",
+  "measurementBase": "8d92b75c3f17a4c74c511c7d83ec7557542c7b52",
+  "finalBranchBase": "e60ef28f6a9b85cae0557594837a68f0d296965f",
+  "sourceVersion": "0.13.1",
+  "upstreamAfterMeasurement": {
+    "commit": "e60ef28f",
+    "changedFiles": [
+      ".github/workflows/main-ci-watch.yml"
+    ],
+    "relevantMeasuredSourceChanged": false
+  },
+  "worktrees": [
+    {
+      "branch": "docs/development-plan-20261001",
+      "path": "C:/Users/sonfi/Desktop/huqan-main/.worktrees/development-plan-20261001",
+      "files": [
+        "docs/agent-canon.md",
+        "docs/scale-truth-pack.md",
+        "docs/reports/development-plan-20261001.md",
+        "docs/reports/development-plan-20261001-evidence.json",
+        "docs/reports/language-math-requirements-20261001.md",
+        "docs/reports/open-issue-audit-20261001.md",
+        "docs/reports/engineering-foundation-20261002-evidence.json",
+        "docs/task-packs/cognitive-lab-entry-20261001.md",
+        "docs/task-packs/engineering-foundation-20261002.md"
+      ]
+    },
+    {
+      "branch": "fix/ci-source-coverage-20261002",
+      "path": "C:/Users/sonfi/Desktop/huqan-main/.worktrees/ci-source-coverage-20261002",
+      "files": [
+        ".github/workflows/benchmark.yml",
+        "test/ci-change-classifier.test.js"
+      ]
+    },
+    {
+      "branch": "chore/ci-classifier-batch-20261002",
+      "path": "C:/Users/sonfi/Desktop/huqan-main/.worktrees/ci-classifier-batch-20261002",
+      "files": [
+        "test/ci-runtime-classifier.test.js"
+      ]
+    }
+  ],
+  "commitsCreated": 0,
+  "pushed": false,
+  "prCreated": false,
+  "mergedByThisTask": false,
+  "existingTracking": {
+    "master": 3306,
+    "manifest": 3307,
+    "activation": 3310,
+    "nightlyRed": 3327,
+    "newIssuesCreatedForContinuation": 0
+  },
+  "upstreamDreamFix": {
+    "pr": 3313,
+    "merge": "49eae04f",
+    "status": "MERGED_UPSTREAM",
+    "oldLocalPatchPreserved": true,
+    "newDefaultTests": 3,
+    "passed": true
+  },
+  "localCapacity": {
+    "command": "node --expose-gc benchmarks/bench-memory-store-open.js",
+    "exitCode": 0,
+    "node": "v22.22.0",
+    "sqlite": "3.53.1",
+    "native": true,
+    "os": "Windows_NT",
+    "arch": "x64",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "ramBytes": 8362713088,
+    "runs": 1,
+    "warmCalls": 20,
+    "fixture": "one event per memory; one rule per 100; small synthetic JSON",
+    "results": [
+      {
+        "rows": 10000,
+        "historyMs": 0.48,
+        "historyEvents": 1,
+        "openMs": 320.7,
+        "retainedHeapMb": 0.1,
+        "coldKindListMs": 9.7,
+        "warmKindListMs": 1.58,
+        "rules": 100,
+        "gc": true
+      },
+      {
+        "rows": 50000,
+        "historyMs": 0.39,
+        "historyEvents": 1,
+        "openMs": 3800.5,
+        "retainedHeapMb": 0,
+        "coldKindListMs": 83.57,
+        "warmKindListMs": 10.25,
+        "rules": 500,
+        "gc": true
+      },
+      {
+        "rows": 100000,
+        "historyMs": 0.32,
+        "historyEvents": 1,
+        "openMs": 7140.9,
+        "retainedHeapMb": -0.3,
+        "coldKindListMs": 122.26,
+        "warmKindListMs": 16.13,
+        "rules": 1000,
+        "gc": true
+      }
+    ],
+    "limits": [
+      "single-machine single-run, not p95/p99",
+      "retained heap difference is noisy; not RSS",
+      "not Graph100k or concurrent-writer production support"
+    ]
+  },
+  "ciCostSnapshot": {
+    "pr": 3304,
+    "head": "5fd870977dfd6cd60ce1909de1948306bec33c16",
+    "rollup": 81,
+    "checkRuns": 80,
+    "uniqueCheckNames": 77,
+    "success": 66,
+    "skipped": 14,
+    "statusContexts": 1,
+    "runnerWallSeconds": 2027,
+    "benchmarkRun": 36908849559,
+    "benchmarkElapsedSeconds": 604,
+    "runtimeJobs": 20,
+    "nightlyJobs": 30,
+    "cpuMeasured": false,
+    "billingMeasured": false
+  },
+  "ciRouting": {
+    "red": {
+      "command": "node --test test/ci-change-classifier.test.js",
+      "exitCode": 1,
+      "pass": 1,
+      "fail": 3
+    },
+    "green": {
+      "command": "node --test test/ci-change-classifier.test.js test/ci-runtime-classifier.test.js",
+      "exitCode": 0,
+      "pass": 11,
+      "fail": 0,
+      "skip": 0
+    },
+    "coverageRatioTests": {
+      "command": "node --test test/check-coverage.test.js",
+      "exitCode": 0,
+      "pass": 10,
+      "fail": 0,
+      "skip": 0
+    },
+    "independentCodeReview": "APPROVE",
+    "independentJSReview": "APPROVE",
+    "ratchetFloorChanged": false,
+    "requiredNamesChanged": false,
+    "fullC8RunVerified": false
+  },
+  "classifierBatch": {
+    "files": 1043,
+    "baselinePublishedMs": 61246.22,
+    "candidatePublishedMs": 129.293,
+    "baselineSuiteMs": 62463.664,
+    "candidateSuiteMs": 1048.157,
+    "suiteTests": 7,
+    "pass": 7,
+    "fail": 0,
+    "skip": 0,
+    "exitCode": 0,
+    "scopePreservedMutation": true,
+    "transport": "NUL-separated stdin; fixed argv; one Bash process",
+    "independentCodeReview": "APPROVE",
+    "independentJSReview": "APPROVE",
+    "freshIndependentPublishedMs": 126.63,
+    "freshIndependentSuiteMs": 1114.95
+  },
+  "freshPlanChecks": {
+    "command": "node --test test/agent-context.test.js test/memory-store-sqlite-collection.test.js test/memory-query-sqlite-page.test.js test/dream-causal-simulator-default.test.js",
+    "exitCode": 0,
+    "pass": 40,
+    "fail": 0,
+    "skip": 0,
+    "docsDrift": "PASS",
+    "docStatus": "PASS",
+    "architectureTracker": "PASS"
+  },
+  "docsReview": "APPROVE; independent JSON/ledger equality and diff check exit0; no benchmark rerun claimed",
+  "publication": {
+    "issuesUpdated": [3306, 3307, 3310],
+    "freshBodyReadbackMatches": true,
+    "newIssuesCreated": 0,
+    "existingNightlyIssueReused": 3327
+  },
+  "qualitySnapshot": {
+    "sourceFiles": 1231,
+    "over400": 0,
+    "reachable": 1048,
+    "classifiedUnreachable": 203,
+    "notYetWired": 26,
+    "retired": 2,
+    "unacknowledged": 0,
+    "staleAcknowledgements": 0,
+    "staleRetired": 0,
+    "exportCount": 4737,
+    "unusedNamedExports": 0,
+    "allowlistedExports": 47,
+    "opaqueModules": 139,
+    "unmapped": 0,
+    "privateCalls": 0,
+    "layerExceptions": 3
+  },
+  "nightlyFailure": {
+    "issue": 3327,
+    "run": 36984900436,
+    "sha": "8d92b75c3f17a4c74c511c7d83ec7557542c7b52",
+    "runtimeJob": 110767721864,
+    "gateJob": 110771234528,
+    "platform": "macos-latest",
+    "node": 22,
+    "shard": 4,
+    "testFile": "test/cdp-browser-teardown.test.js",
+    "testName": "killing the tree leaves no descendant running",
+    "assertionLine": 102,
+    "error": "AssertionError [ERR_ASSERTION]: nothing may survive the tree kill, got [1774]",
+    "filesCompleted": 225,
+    "otherRuntimeJobsSuccess": 29,
+    "rootCauseVerified": false,
+    "permanentLeakProven": false
+  },
+  "notVerified": [
+    "full npm test",
+    "GitHub CI for local patches",
+    "full c8 ratio/CI cost after restoring routing",
+    "Mac teardown root cause fix",
+    "Graph100k/1M and concurrent-writer capacity",
+    "all NOT_YET_WIRED production adoption",
+    "Cognitive Lab gain",
+    "remote required-check ruleset migration",
+    "external deployment/interoperability"
+  ]
+}

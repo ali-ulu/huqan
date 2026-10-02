@@ -92,6 +92,30 @@ its claim exists in the current artifact.
   Git identity, scope evidence, a two-minute user eye test, and the next-agent
   envelope required by the protocol.
 
+## İşleyen Özellik ve Ölçülü Kontrol
+
+`ENGINEERING-001`
+
+- Özellik tesliminde üretim giriş noktası → gerçek fonksiyon → gözlenen etki
+  → kabul testi zincirini göster. Modülün yüklenmesi veya test import'u,
+  fonksiyonun üretimde çağrıldığını kanıtlamaz.
+- Gerçek varsayılan bağımlılıklarla olumlu ve hata/unknown yolunu doğrula;
+  mock başarı çıktısı, boş fonksiyon ve raporlanan etki gerçek sonuç değildir.
+- Kritik yeni davranışı/caller'ı etkisizleştiren dar negatif veya mutation
+  deneyi kabul testini kırmalıdır. Durum yazılıyorsa ilgili replay/restart ve
+  rollback sınırı da kanıtlanır; her değişikliğe genel mutation koşusu ekleme.
+- Gerekli refactor davranış karakterizasyonuyla yapılır. Görevin doğurduğu
+  yarım bağlantı ve ölü kodu aynı kapsamda çöz; komşu borç için kapsamı büyütme.
+- Public library, kasıtlı no-op/hook ve retired kanıtı açık sınıflandır.
+  NOT_YET_WIRED sayısını azaltmak için modül aktifleştirme veya istisna ekleme.
+- Mevcut kalite kapılarını ve etki seçimini kullan; yeni kontrolün kapsamını,
+  süresini ve yakaladığı somut hatayı raporla. Başarı için test kaldırma,
+  floor düşürme, ağır koşuları her PR'a kopyalama veya ikinci tarayıcı kurma.
+- Yeni issue öncesi güncel açık/kapalı issue, PR ve kaynak geçmişini kontrol et;
+  aynı işin kabul ölçütünü mevcut kayıtta güncelle. Çözülmüş işi tekrar açma.
+- Gain, wiring, test başarısı ve deployment ayrı sonuçlardır. Ölçülmeyen
+  kapasite veya tamamlanmamış özellik teslim raporunda açık kalır.
+
 ## Context and Cache Discipline
 
 `CTX-001`
