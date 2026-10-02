@@ -901,7 +901,7 @@ jobs:
   coverage:
     name: Coverage
     needs: [classify]
-    if: ${{ needs.classify.outputs.source_only == 'true' }}
+    if: ${{ needs.classify.outputs.source_only == 'yes' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -947,7 +947,7 @@ jobs:
   coverage-skip:
     name: Coverage (NOT_APPLICABLE)
     needs: [classify]
-    if: ${{ needs.classify.outputs.source_only != 'true' }}
+    if: ${{ needs.classify.outputs.source_only == 'no' }}
     runs-on: ubuntu-latest
     steps:
       - run: echo "no source change; coverage ratchet not applicable"
@@ -992,15 +992,17 @@ jobs:
       - name: Require the applicable coverage path to pass
         env:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
+          SOURCE_ONLY: ${{ needs.classify.outputs.source_only }}
           COVERAGE_RESULT: ${{ needs.coverage.result }}
           SKIP_RESULT: ${{ needs['coverage-skip'].result }}
         run: |
           set -euo pipefail
           test "${CLASSIFY_RESULT}" = success
-          if [ "${COVERAGE_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
-            echo "Neither the coverage job nor its NOT_APPLICABLE job passed." >&2
-            exit 1
-          fi
+          case "${SOURCE_ONLY}" in
+            yes) test "${COVERAGE_RESULT}" = success ;;
+            no) test "${SKIP_RESULT}" = success ;;
+            *) echo "Invalid source classification: coverage cannot be skipped." >&2; exit 1 ;;
+          esac
 
   benchmark-gate:
     name: Benchmark gate
