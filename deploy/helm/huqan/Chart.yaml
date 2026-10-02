@@ -3,7 +3,7 @@ name: huqan
 description: Local-first AI governance and verification layer (HUQAN) — single-replica deployment chart.
 type: application
 # appVersion tracks the repository package version it was authored against.
-appVersion: "0.13.1"
+appVersion: "0.13.2"
 version: 0.1.0
 kubeVersion: ">=1.25.0-0"
 home: https://github.com/ali-ulu/huqan
