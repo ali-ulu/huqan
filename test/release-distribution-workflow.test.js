@@ -91,3 +91,15 @@ test('the release carries a verifiable signature and refuses an unverified SBOM 
   assert.ok(verifyIndex > -1 && createIndex > verifyIndex, 'bundle verification must run before release creation');
   assert.match(workflow, /SBOM Sigstore attestation bundle/);
 });
+
+test('the SBOM bundle reaches gh attestation verify with a .json name', () => {
+  // gh rejects `--bundle x.sigstore` ("bundle file extension not supported");
+  // the v0.13.2 GitHub release stopped on exactly that.
+  assert.match(workflow, /-name '\*\.sigstore' -o -name '\*\.sigstore\.json'/);
+  const normalise = workflow.indexOf('bundle="${bundle%.sigstore}.sigstore.json"');
+  const verify = workflow.indexOf('gh attestation verify "${sbom}" --bundle "${bundle}"');
+  assert.ok(normalise > -1 && verify > normalise, 'the bundle is renamed to .sigstore.json before it is verified');
+  const publish = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'publish.yml'), 'utf8');
+  assert.match(publish, /cdx\.sigstore\.json"/, 'publish.yml exports the bundle under a name gh accepts');
+  assert.match(publish, /path: sbom-bundle\/\*\.sigstore\.json/);
+});

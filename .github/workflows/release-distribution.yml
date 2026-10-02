@@ -290,12 +290,20 @@ jobs:
           # downloadable bytes. The upstream publish run exported the Sigstore
           # bundle for the SBOM attestation; verify the SBOM against it before
           # publishing either file, so an unsigned release can never be created.
-          mapfile -t bundles < <(find release-artifacts -type f -name '*.sigstore' -print)
+          mapfile -t bundles < <(find release-artifacts -type f \( -name '*.sigstore' -o -name '*.sigstore.json' \) -print)
           if [ "${#bundles[@]}" -ne 1 ]; then
             echo "::error::Expected exactly one Sigstore attestation bundle artifact, found ${#bundles[@]}." >&2
             exit 1
           fi
+          # gh >= 2.9x refuses a --bundle whose name does not end in .json or
+          # .jsonl ("bundle file extension not supported"); that stopped the
+          # v0.13.2 GitHub release. Publish runs up to v0.13.2 exported a bare
+          # .sigstore file, so normalise the name here rather than trusting it.
           bundle="${bundles[0]}"
+          if [[ "${bundle}" != *.json ]]; then
+            cp "${bundle}" "${bundle%.sigstore}.sigstore.json"
+            bundle="${bundle%.sigstore}.sigstore.json"
+          fi
           if ! gh attestation verify "${sbom}" --bundle "${bundle}" --repo "${GITHUB_REPOSITORY}" >/dev/null; then
             echo "::error::SBOM failed Sigstore bundle verification; refusing to publish a release whose signature does not check out." >&2
             exit 1

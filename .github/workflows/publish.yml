@@ -266,13 +266,13 @@ jobs:
             exit 1
           fi
           mkdir -p sbom-bundle
-          cp "${bundle}" "sbom-bundle/huqan-${GITHUB_REF_NAME}.cdx.json.sigstore"
+          cp "${bundle}" "sbom-bundle/huqan-${GITHUB_REF_NAME}.cdx.sigstore.json"
           echo "Exported the Sigstore bundle for the SBOM attestation."
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-attestation-bundle
-          path: sbom-bundle/*.sigstore
+          path: sbom-bundle/*.sigstore.json
           if-no-files-found: error
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
