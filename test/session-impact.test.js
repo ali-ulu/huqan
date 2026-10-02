@@ -29,6 +29,8 @@ function sealed({
   workspaceId = 'default',
   agentId = 'budget-agent',
   identityRef,
+  receiptId,
+  createdAt,
 } = {}) {
   sequence += 1;
   const metadata = { sessionId };
@@ -37,7 +39,7 @@ function sealed({
   if (inputDigest !== undefined) metadata.inputDigest = inputDigest;
   if (identityRef !== undefined) metadata.identity = { identityRef };
   const receipt = {
-    receiptId: `adm-budget-${sequence}`,
+    receiptId: receiptId === undefined ? `adm-budget-${sequence}` : receiptId,
     receiptKind: kind,
     decision: 'allow',
     status: kind === 'external_action_outcome_receipt' ? 'executed' : 'admitted',
@@ -52,7 +54,9 @@ function sealed({
     approvalStatus: 'not_required',
     reason: 'history',
     riskScore: 0,
-    createdAt: new Date(Date.parse('2026-01-01T00:00:00.000Z') + sequence * 1000).toISOString(),
+    createdAt: createdAt === undefined
+      ? new Date(Date.parse('2026-01-01T00:00:00.000Z') + sequence * 1000).toISOString()
+      : createdAt,
     metadata,
   };
   const canonical = buildCanonicalReceiptPayload(receipt, { verdict: fromMcpDecision({ decision: 'allow', reason: 'history' }).verdict });
@@ -564,4 +568,117 @@ test('explicit receipt identityRef is preferred over the legacy agent id', t => 
     agentId: 'agent:default:canonical-a',
     at: receipts[1].createdAt,
   }).total, 2);
+});
+
+
+test('retry projection covers malformed scope and durable-field branches without recording false evidence', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-edge-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const digest = '3'.repeat(64);
+  assert.equal(recordRetriedRefusalSignals([], 42, graph), 0);
+
+  const noWorkspace = [
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+      workspaceId: '   ',
+    }),
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+      workspaceId: '   ',
+    }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(noWorkspace, 's1', graph), 0);
+
+  const unattributed = [
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+      agentId: '   ',
+      identityRef: '   ',
+    }),
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+      agentId: '   ',
+      identityRef: '   ',
+    }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(unattributed, 's1', graph), 2);
+
+  const unusableDurableFields = [
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'other-shell',
+      inputDigest: digest,
+      receiptId: '   ',
+    }),
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'other-shell',
+      inputDigest: digest,
+      createdAt: 'not-an-instant',
+    }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(unusableDurableFields, 's1', graph), 0);
+
+  const malformedDescriptors = [
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 7,
+      inputDigest: digest,
+    }),
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: 7,
+    }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(malformedDescriptors, 's1', graph), 0);
+});
+
+test('session summary fails closed on hostile history objects and defaults malformed escape scopes', () => {
+  const hostile = {
+    receiptKind: 'external_action_admission_receipt',
+    get metadata() {
+      throw new Error('hostile metadata');
+    },
+  };
+  const failed = summarizeSessionImpact([hostile], 's1');
+  assert.equal(failed.status, 'unknown');
+  assert.match(failed.reasons[0], /hostile metadata/);
+
+  const summary = summarizeSessionImpact(
+    [sealed({ sessionId: 's1', score: 10 })],
+    's1',
+    { sandboxEscapes: [null, {}, { workspaceId: '   ' }, { workspaceId: 7 }] },
+  );
+  assert.equal(summary.sandboxEscapeAttempts, 4);
+  assert.match(summary.reasons.join('\n'), /workspace\(s\) default/);
 });
