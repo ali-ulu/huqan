@@ -85,7 +85,7 @@ As a server: `HUQAN_API_KEY=… npm run server` on port 3000 — read-only `/api
 - Only what is wired is governed. An agent that never calls HUQAN is not covered.
 - Some shipped modules have no production caller yet; each is listed with its reason in [`lib/module-reachability.js`](./lib/module-reachability.js). A green unit test is not deployment evidence.
 - The conformance suites are **self-run** in this repository. They are not third-party verification. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
-- The unexpected-egress gate is **fail-open by default** until `HUQAN_EXTERNAL_GUARD_EXPECTED_EGRESS` declares the expected destinations. `huqan doctor` shows its state.
+- The unexpected-egress gate is **fail-open by default** until the expected destinations are declared, either with `HUQAN_EXTERNAL_GUARD_EXPECTED_EGRESS` or by the caller passing an `expectedEgress` policy. `huqan doctor` shows its state.
 - Scale is measured up to 10k graph nodes on one machine: [scale truth pack](./docs/scale-truth-pack.md).
 - It complements IAM, infrastructure security and human governance. It replaces none of them.
 
