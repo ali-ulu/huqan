@@ -107,7 +107,6 @@ every row carries `evidence: ownership-map-2446.md#<row>`).
 | R-MEMSTORE-P (1, Platform) | `lib/memory-lifecycle.js` | stateless composer of 6 modules (write→read→score→verify); 0 static callers (wiring pending, recorded) | (none static; header documents live seam) |
 | R-PROV-T (33, Trust) | `lib/provenance-*.js`, `lib/audit-*.js`, `lib/trust-{policy,status,calibration,evidence-ledger,score-aggregator}.js`, `lib/mutation-{admission,journal-lock}.js`→journal is Knowledge (see below), `lib/admission-horizon.js`, `lib/ingest-{approval,snapshot-build,snapshot-verify}.js`, `lib/module-reachability*.js`, `lib/incident-envelope.js`, `lib/release-evaluation-record.js` | provenance minting (`prov_` sha), audit vocabulary + bounded reads, trust policy/projection, admission seam (never calls runMutationOnce), immutable external snapshots, wiring-audit support, signed attestation formats | ← kernel, conflict-detector, HTTP trust routes, MCP readers |
 | R-PROV-K (4, Knowledge) | `lib/mutation-journal.js`, `lib/mutation-journal-lock.js`, `lib/trust-signals/*.js` | JSON-backend authority for graph runMutationOnce replay protection; robustness-lite stress probe over verify() (takes verify fn, never kernel, writes nothing) | ← graph-mutation-runtime; ← verify-result |
-| R-PROV-P (1, Platform) | `lib/provenance-ingest-adapter.js` | builds provenance then runs kernel.learn + admission envelope (multi-context composition); 0 static callers (wiring pending, recorded) | (none static) |
 | R-PROV-A (2, AgentAction) | `lib/provenance-drift.js`, `lib/provenance-ingest.js` | drift findings queued as pending conflict candidates (never rewrites truth); ingest applies trust policy at the pipeline | ← connectors, kernel-learn-input |
 | R-RECEIPT-T (28, Trust) | `lib/receipt/*` | canonical payload + stableStringify hashing/chaining, chain validation, family classification, seals, read-index, export integrity | pervasive: kernel, graph, HTTP/MCP/workbench readers |
 | R-REGV5-T (4, Trust) | `lib/registry/*` | registry admission + read re-resolving the trust root live | ← HTTP optional-boundaries |
@@ -208,8 +207,8 @@ every row carries `evidence: ownership-map-2446.md#<row>`).
 - **D6 low-confidence rows (kept, flagged):** `personal-execution-model.js`
   (AgentAction; 0 runtime callers — wiring pending), `code-anchor.js` +
   `self-test-oracle.js` (Knowledge/AgentAction; test-only static callers),
-  `memory-lifecycle.js` + `provenance-ingest-adapter.js` (Platform; 0 static
-  callers — confirm wiring or NOT_YET_WIRED), `agent-card.js` (Knowledge;
+  `memory-lifecycle.js` (Platform; 0 static callers — NOT_YET_WIRED;
+  `provenance-ingest-adapter.js` was removed unwired in #3315), `agent-card.js` (Knowledge;
   deployment-claim reading), `shield.js`/`fluent-answer.js` (Platform boundary
   presentation), `error-taxonomy.js` (Platform transport vocabulary).
 - **D7 learn-feeding leaves stay Knowledge** (learn-document, learn-from-llm,

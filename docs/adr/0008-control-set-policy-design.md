@@ -34,6 +34,8 @@ external candidate V2 writer. The public receipt, VC and OTel mappings expose
 exactly seven disclosure fields. These are implementation facts, not evidence
 that the remaining controls are enforced.
 
+_Update 2026-10-02 (#3315): `lib/delegation-service.js` and `lib/agent-capability-report.js` were removed without ever gaining a production caller. The git history keeps them; the statements above describe them as they were when this ADR was written._
+
 ## Shared rules
 
 1. A policy has a stable `policyVersion`, scope, owner, effective time, numeric

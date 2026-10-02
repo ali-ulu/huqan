@@ -64,6 +64,10 @@ const RECORD_PATHS = [
  * human looked at the line; it is not a way to make a failure quiet.
  */
 const ALLOWED = Object.freeze({
+  'docs/adr/0008-control-set-policy-design.md': {
+    'lib/delegation-service.js': 'an ADR records the source as it stood when the decision was taken; the module was removed unwired in #3315 and the ADR carries a dated note saying so',
+    'lib/agent-capability-report.js': 'an ADR records the source as it stood when the decision was taken; the module was removed unwired in #3315 and the ADR carries a dated note saying so',
+  },
   'benchmarks/WATCH.md': {
     'benchmarks/memory-snapshot.json': 'the output path the documented command writes, not a file the repo ships',
   },

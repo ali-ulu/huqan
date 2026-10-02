@@ -1116,10 +1116,6 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
-  "lib/agent-capability-report.js": {
-   "context": "AgentAction",
-   "evidence": "ownership-map-2446.md#R-GATES-A"
-  },
   "lib/agent-failure-signature.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -1947,14 +1943,6 @@
   "lib/self-test-oracle.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
-  },
-  "lib/delegation-rate-counter.js": {
-   "context": "AgentAction",
-   "evidence": "ownership-map-2446.md#R-GATES-A"
-  },
-  "lib/delegation-service.js": {
-   "context": "AgentAction",
-   "evidence": "ownership-map-2446.md#R-GATES-A"
   },
   "lib/identity-privilege-escalation.js": {
    "context": "AgentAction",
@@ -3506,10 +3494,6 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-P"
   },
-  "lib/provenance-ingest-adapter.js": {
-   "kind": "entry",
-   "evidence": "ownership-map-2446.md#R-PROV-P"
-  },
   "lib/ingest-capability.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
@@ -4658,8 +4642,7 @@
   "lib/provenance-ingest.js": {
    "owner": "Trust",
    "consumers": [
-    "Knowledge",
-    "Platform"
+    "Knowledge"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -4762,8 +4745,7 @@
   "lib/trust-policy.js": {
    "owner": "Trust",
    "consumers": [
-    "AgentAction",
-    "Platform"
+    "AgentAction"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6195,13 +6177,6 @@
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
   "lib/admission-horizon.js": {
-   "owner": "Trust",
-   "consumers": [
-    "Platform"
-   ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
-  },
-  "lib/provenance-record-utils.js": {
    "owner": "Trust",
    "consumers": [
     "Platform"

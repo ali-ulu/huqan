@@ -40,7 +40,6 @@ const PROVENANCE_PATHS = [
   'lib/provenance-drift.js',
   'plugins/repo-memory.js',
   'lib/repo-file-pin.js',
-  'lib/provenance-ingest-adapter.js',
   'lib/kernel-learn-input-methods.js',
 ];
 
@@ -106,11 +105,6 @@ const NOT_PINNED = {
     + 'connectors in plugins/repo-memory.js. The adapter call it runs is handed '
     + 'to it by the plugin, and every entry it forwards was already pinned by '
     + 'that adapter, so it has nothing of its own to pin.',
-  'lib/provenance-ingest-adapter.js':
-    'is the kernel.learn orchestration over provenance that lib/provenance-ingest.js '
-    + 'already built. It reads no external content itself, so there is nothing of '
-    + 'its own to pin: a caller-supplied contentHash and sourceVersion pass '
-    + 'straight through the builder, which carries the pin. No production caller yet.',
   'lib/kernel-learn-input-methods.js':
     'is Kernel._normalizeProvenanceInput, moved out of kernel.js (#2122). It shapes '
     + 'the provenance a learn() caller supplied through buildProvenance and reads no '

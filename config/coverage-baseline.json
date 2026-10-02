@@ -189,10 +189,6 @@
       "lines": 88.96,
       "branches": 75.63
     },
-    "lib/agent-capability-report.js": {
-      "lines": 98.41,
-      "branches": 88.23
-    },
     "lib/agent-identity-runtime-resolve.js": {
       "lines": 79.77,
       "branches": 77.08
@@ -816,14 +812,6 @@
     "lib/default-persistence-path.js": {
       "lines": 100,
       "branches": 90.9
-    },
-    "lib/delegation-rate-counter.js": {
-      "lines": 96.18,
-      "branches": 85.36
-    },
-    "lib/delegation-service.js": {
-      "lines": 100,
-      "branches": 95.65
     },
     "lib/deterministic-json-copy.js": {
       "lines": 96.66,
@@ -2852,10 +2840,6 @@
     "lib/prediction-outcome-pairs.js": {
       "lines": 96.83,
       "branches": 88.29
-    },
-    "lib/provenance-ingest-adapter.js": {
-      "lines": 95.69,
-      "branches": 58.82
     },
     "lib/provenance-ingest.js": {
       "lines": 100,

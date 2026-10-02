@@ -72,7 +72,6 @@
       "lib/agent-action-signals.js": "Core",
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
-      "lib/agent-capability-report.js": "Core",
       "lib/agent-failure-signature.js": "Core",
       "lib/agent-identity-runtime-resolve.js": "Core",
       "lib/agent-identity-runtime-shape.js": "Core",
@@ -249,8 +248,6 @@
       "lib/data-egress-gate.js": "Core",
       "lib/data-residency-gate.js": "Core",
       "lib/default-persistence-path.js": "Core",
-      "lib/delegation-rate-counter.js": "Core",
-      "lib/delegation-service.js": "Core",
       "lib/deterministic-json-copy.js": "Core",
       "lib/deterministic-task-runner.js": "Core",
       "lib/dream-embedding.js": "Core",
@@ -814,7 +811,6 @@
       "lib/predicate-parser.js": "Core",
       "lib/prediction-outcome-pairs.js": "Core",
       "lib/provenance-drift.js": "Core",
-      "lib/provenance-ingest-adapter.js": "Core",
       "lib/provenance-ingest.js": "Core",
       "lib/provenance-query-audit-page.js": "Core",
       "lib/provenance-query-query-helpers.js": "Core",
@@ -2247,9 +2243,6 @@
       "lib/data-egress-gate.js": [
         "lib/is-plain-object.js",
         "lib/tool-call-gate.js"
-      ],
-      "lib/delegation-service.js": [
-        "lib/multi-agent-cascade-guard.js"
       ],
       "lib/deterministic-task-runner.js": [
         "lib/task-identifier-lexer.js",
@@ -4399,11 +4392,6 @@
         "lib/is-plain-object.js",
         "lib/provenance-ingest.js",
         "lib/workspace-id.js"
-      ],
-      "lib/provenance-ingest-adapter.js": [
-        "lib/provenance-ingest.js",
-        "lib/provenance-record-utils.js",
-        "lib/trust-policy.js"
       ],
       "lib/provenance-ingest.js": [
         "lib/errors/provenance-error.js",
