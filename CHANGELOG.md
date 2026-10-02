@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.13.1
+
+Released 2026-10-02. The first published release of the 0.13 line. It carries everything listed under v0.13.0 below, plus two fixes found while releasing it.
+
+The `v0.13.0` tag exists but was never published: its `publish.yml` run stopped at the signed-tag gate before installing anything, and release tags in this repository are immutable, so the version moves to 0.13.1 instead of re-pointing the tag.
+
+### Fixed
+- The signed-tag gate in `publish.yml` called `gh api` without a token, so every call failed and a correctly signed tag was reported as unsigned (#3320).
+- A coder test raced git auto-maintenance in its fixture repository (#3319).
+
 ## v0.13.0
 
 Released 2026-10-02. 1035 commits since `v0.12.0` (184 feat, 183 fix, 211 refactor, 16 perf, the rest chore, docs, test, ci and merges). This entry groups them by area; the complete list is [`v0.12.0...v0.13.0`](https://github.com/ali-ulu/huqan/compare/v0.12.0...v0.13.0).
