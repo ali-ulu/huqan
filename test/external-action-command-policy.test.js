@@ -8,6 +8,8 @@ const path = require('node:path');
 const {
   defaultExternalActionPolicyPath,
   readAllowedCommands,
+  parseBypassResponsePolicy,
+  readBypassResponsePolicy,
 } = require('../lib/external-action-command-policy');
 
 function scratch(t) {
@@ -60,4 +62,29 @@ test('the default policy path sits beside the receipt trail and follows its over
     else process.env.HUQAN_EXTERNAL_GUARD_RECEIPTS = previous;
   }
   assert.equal(path.basename(defaultExternalActionPolicyPath({ HUQAN_EXTERNAL_GUARD_POLICY: 'C:/policy/mine.json' })), 'mine.json');
+});
+
+test('bypass response thresholds are explicit policy and have no implicit defaults', t => {
+  const target = scratch(t);
+  assert.equal(readBypassResponsePolicy(target), null);
+
+  fs.writeFileSync(target, JSON.stringify({
+    allowedCommands: ['git status'],
+    bypassResponse: { refusedRetry: { reviewAfter: 2, blockAfter: 3 } },
+  }));
+  assert.deepEqual(readBypassResponsePolicy(target), {
+    refusedRetry: { reviewAfter: 2, blockAfter: 3 },
+  });
+
+  assert.equal(parseBypassResponsePolicy(JSON.stringify({ allowedCommands: [] }), target), null);
+  assert.throws(
+    () => parseBypassResponsePolicy(JSON.stringify({ bypassResponse: {} }), target),
+    /refusedRetry is required/,
+  );
+  assert.throws(
+    () => parseBypassResponsePolicy(JSON.stringify({
+      bypassResponse: { refusedRetry: { reviewAfter: 3, blockAfter: 2 } },
+    }), target),
+    /reviewAfter <= blockAfter/,
+  );
 });
