@@ -6,6 +6,7 @@
 // been calibrated against these records.
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -13,7 +14,9 @@ const { buildCanonicalReceiptPayload, hashCanonicalReceiptPayload } = require('.
 const { fromMcpDecision } = require('../lib/verdict/action-verdict');
 const { MAX_HISTORY_RECEIPTS, readReceiptHistory } = require('../lib/autonomy-receipt-history');
 const { evaluateExternalAction } = require('../lib/external-action-guard');
-const { summarizeSessionImpact } = require('../lib/session-impact');
+const Graph = require('../graph');
+const { readBypassState } = require('../lib/bypass-signal-state');
+const { summarizeSessionImpact, recordRetriedRefusalSignals } = require('../lib/session-impact');
 
 let sequence = 0;
 
@@ -338,4 +341,27 @@ test('readReceiptHistory marks a receipt file it had to cut', () => {
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('repeated verified refusals persist two idempotent bypass signals on the second observation', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const digest = 'c'.repeat(64);
+  const receipts = [
+    sealed({ sessionId: 's1', score: 40, kind: 'external_action_rejection_receipt', toolName: 'shell', inputDigest: digest }),
+    sealed({ sessionId: 's1', score: 30, kind: 'external_action_rejection_receipt', toolName: 'shell', inputDigest: digest }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(receipts, 's1', graph), 2);
+  const at = receipts[1].createdAt;
+  let state = readBypassState(graph, { workspaceId: 'default', agentId: 'budget-agent', at });
+  assert.equal(state.total, 2);
+  assert.equal(Object.values(state.byFingerprint)[0].count, 2);
+
+  recordRetriedRefusalSignals(receipts, 's1', graph);
+  state = readBypassState(graph, { workspaceId: 'default', agentId: 'budget-agent', at });
+  assert.equal(state.total, 2, 'rescanning the same durable receipts must not inflate the count');
 });
