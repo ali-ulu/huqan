@@ -457,3 +457,13 @@ test('the signed-tag gate runs before any package installation or publish', () =
   assert.ok(npmCiIndex > gateIndex, 'the gate must run before npm ci');
   assert.ok(publishIndex > gateIndex, 'the gate must run before the publish step');
 });
+
+test('the signed-tag gate gives gh a token, so a real signature can be read', () => {
+  // The execution tests above stub gh, so they cannot see a missing token. On
+  // a runner gh without GH_TOKEN fails every call and the gate refuses even a
+  // tag GitHub verifies (v0.13.0, run 36945701163).
+  const start = workflowSource.indexOf('- name: Require a signed release tag');
+  const next = workflowSource.indexOf('\n      - ', start + 1);
+  const step = workflowSource.slice(start, next === -1 ? undefined : next);
+  assert.match(step, /\n\s+env:\s*\n\s+GH_TOKEN:\s*\$\{\{\s*github\.token\s*\}\}/);
+});
