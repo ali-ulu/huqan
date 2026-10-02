@@ -213,10 +213,16 @@ jobs:
       # npm >= 11.5.1; on an older CLI `npm publish` silently falls back to
       # looking for an _authToken and fails as if the credential were wrong.
       # This step is therefore load-bearing, not hygiene.
+      #
+      # Pinned to the 11 line, not @latest (#3323). npm 12 no longer runs
+      # dependency install scripts, so the post-publish checklist's tarball
+      # smoke installs huqan without better-sqlite3's binding and fails, and
+      # `npm view --json` changes shape. A major npm bump must arrive as a
+      # reviewed change here, not silently in the middle of a release.
       - name: Install an npm that can exchange OIDC for a publish credential
         run: |
           set -euo pipefail
-          npm install -g npm@latest
+          npm install -g npm@11
           npm --version
 
       # Publishes with GitHub's OIDC identity instead of a long-lived npm

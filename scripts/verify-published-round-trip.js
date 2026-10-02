@@ -80,11 +80,21 @@ function parseArgs(argv) {
   return { sbom };
 }
 
+/**
+ * npm <= 11 prints a single-version `npm view <spec> <field> --json` as the
+ * bare value; npm 12 wraps it in a one-element array (#3323). Accept both so
+ * the verdict does not depend on which npm the runner happens to carry.
+ */
+function parseNpmViewJson(stdout) {
+  const value = JSON.parse(stripBom(stdout));
+  return Array.isArray(value) && value.length === 1 ? value[0] : value;
+}
+
 function npmViewJson(spec, field) {
   const viewed = run(NPM_COMMAND, ['view', spec, field, '--json'], { timeoutMs: 60 * 1000 });
   if (viewed.status !== 0) return { ok: false, output: viewed.output };
   try {
-    return { ok: true, value: JSON.parse(viewed.stdout) };
+    return { ok: true, value: parseNpmViewJson(viewed.stdout) };
   } catch (_) {
     return { ok: false, output: viewed.output };
   }
@@ -331,4 +341,4 @@ if (require.main === module) {
   );
 }
 
-module.exports = {};
+module.exports = { parseNpmViewJson };
