@@ -114,7 +114,7 @@
     "dryRun/2/axiom.learn": {"value":{"output":{"ok":true,"via":"ask","question":"What would be learned from: legacy alias"},"calls":[["kernel.ask","What would be learned from: legacy alias"]]}},
     "dryRun/3/huqan.search": {"value":{"output":{"dryRun":true,"tool":"huqan.search","args":{"query":"q","token":"[REDACTED]"}},"calls":[]}},
     "jsonrpc/notObject": {"value":{"response":{"jsonrpc":"2.0","error":{"code":-32600,"message":"Invalid Request"}},"calls":[]}},
-    "jsonrpc/initialize": {"value":{"response":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"huqan","version":"0.13.1"}}},"calls":[]}},
+    "jsonrpc/initialize": {"value":{"response":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"huqan","version":"0.13.2"}}},"calls":[]}},
     "jsonrpc/initialized": {"value":{"response":null,"calls":[]}},
     "jsonrpc/ping": {"value":{"response":{"jsonrpc":"2.0","id":"p","result":{}},"calls":[]}},
     "jsonrpc/shutdown": {"value":{"response":{"jsonrpc":"2.0","id":9,"result":{}},"calls":[]}},

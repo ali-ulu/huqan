@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.13.2
+
+Released 2026-10-02. A patch release for npm 12. It also proves that the release pipeline runs green from start to finish, which the `v0.13.0` and `v0.13.1` publish runs did not.
+
+### Fixed
+- With npm 12, which no longer runs dependency install scripts, `huqan` failed to start when `better-sqlite3` had no native binding, and the error did not say why. The CLI now explains what is missing and how to approve the install script (#3324).
+- The publish workflow installed `npm@latest`, which pulled in npm 12. npm 12 broke the post-publish release checklist: the tarball smoke test ran without the SQLite binding, and `npm view --json` returned an array. The publish job now pins `npm@11`, and the registry verifier accepts both output shapes (#3323, #3329).
+
 ## v0.13.1
 
 Released 2026-10-02. The first published release of the 0.13 line. It carries everything listed under v0.13.0 below, plus two fixes found while releasing it.
