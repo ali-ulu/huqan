@@ -28,8 +28,10 @@
  * would be reporting the design as a defect. A require outside such a guard
  * either resolves or its caller throws.
  *
- * Usage:  node scripts/check-package-closure.js
+ * Usage:  node scripts/check-package-closure.js [--root <dir>]
  * Exit 0 = the reachable closure is fully published, exit 1 = something is not.
+ * `--root` points the gate at another tree; it exists so the OK and FAIL
+ * verdicts can be exercised in tests without touching this repository.
  */
 
 const fs = require('fs');
@@ -181,8 +183,12 @@ function analyzePackageClosures(opts = {}) {
   }));
 }
 
-function main() {
-  const reports = analyzePackageClosures();
+function main(argv = process.argv.slice(2)) {
+  const rootFlag = argv.indexOf('--root');
+  const root = rootFlag !== -1 && argv[rootFlag + 1]
+    ? path.resolve(argv[rootFlag + 1])
+    : repoRoot;
+  const reports = analyzePackageClosures({ root });
   const failures = reports.filter(report => report.missing.size > 0);
 
   if (failures.length === 0) {
@@ -199,7 +205,7 @@ function main() {
   console.error(`FAIL: ${missingCount} module(s) are reachable at install time but are not published.\n`);
   for (const report of failures) {
     for (const target of [...report.missing.keys()].sort()) {
-      console.error(`  ${path.relative(repoRoot, report.root) || '.'}/${target}`);
+      console.error(`  ${path.relative(root, report.root) || '.'}/${target}`);
       console.error(`      reachable from: ${report.missing.get(target).join(', ')}`);
     }
   }
@@ -220,6 +226,7 @@ module.exports = {
   loadTimeRequires,
   reachableRequires,
   loadTimeEntryPoints,
+  main,
   packageRoots,
   publishedFiles,
 };
