@@ -53,7 +53,13 @@ function makeGraph(name, backend) {
   const opts = { memoryPath: path.join(root, `${name}-${backend}.json`) };
   if (backend === 'sqlite') opts.dbPath = path.join(root, `${name}-${backend}.db`);
   else opts.useSQLite = false;
-  return new Graph(opts);
+  const graph = new Graph(opts);
+  if (backend === 'sqlite') {
+    // Graph silently falls back to JSON when better-sqlite3 is unavailable, so
+    // the sqlite case would otherwise pass while exercising the JSON backend.
+    assert.ok(graph._db, 'the sqlite case must open a SQLite handle, not fall back to JSON');
+  }
+  return graph;
 }
 
 for (const backend of ['sqlite', 'json']) {
