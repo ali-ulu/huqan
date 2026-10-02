@@ -365,3 +365,111 @@ test('repeated verified refusals persist two idempotent bypass signals on the se
   state = readBypassState(graph, { workspaceId: 'default', agentId: 'budget-agent', at });
   assert.equal(state.total, 2, 'rescanning the same durable receipts must not inflate the count');
 });
+
+test('retry signal projection ignores unusable histories and non-repeat evidence', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-skip-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  assert.equal(recordRetriedRefusalSignals([], '', graph), 0);
+  assert.equal(recordRetriedRefusalSignals(null, 's1', graph), 0);
+  assert.equal(recordRetriedRefusalSignals([], 's1', null), 0);
+
+  const digest = 'd'.repeat(64);
+  const validSingle = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const wrongSession = sealed({
+    sessionId: 's2',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const notARejection = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_admission_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const noFingerprint = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+  });
+  const tampered = {
+    ...sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+    }),
+    reason: 'tampered-after-seal',
+  };
+
+  assert.equal(
+    recordRetriedRefusalSignals(
+      [validSingle, wrongSession, notARejection, noFingerprint, tampered],
+      's1',
+      graph,
+    ),
+    0,
+  );
+  const state = readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'budget-agent',
+    at: validSingle.createdAt,
+  });
+  assert.equal(state.total, 0);
+});
+
+test('retry signal projection skips malformed durable fields without aborting the scan', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-fields-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const digest = 'e'.repeat(64);
+  const first = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const second = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  // Preserve hash validity for the first two, and add a third verified row
+  // whose fingerprint differs so the repeated group remains exactly two.
+  const other = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'other',
+    inputDigest: 'f'.repeat(64),
+  });
+
+  assert.equal(recordRetriedRefusalSignals([first, second, other], 's1', graph), 2);
+  const state = readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'budget-agent',
+    at: second.createdAt,
+  });
+  assert.equal(state.total, 2);
+});
