@@ -107,6 +107,11 @@ describe('coder propose', () => {
     git('init', '--initial-branch=main');
     git('config', 'user.email', 'test@example.invalid');
     git('config', 'user.name', 'test');
+    // `git commit` can start detached auto-maintenance that writes
+    // .git/objects/maintenance.lock after the command returns, which made the
+    // before/after tree listing below differ for reasons unrelated to propose.
+    git('config', 'maintenance.auto', 'false');
+    git('config', 'gc.auto', '0');
     fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
     fs.writeFileSync(path.join(root, 'docs', 'notes.md'), 'version v1.0.0\n', 'utf8');
     git('add', '.');
