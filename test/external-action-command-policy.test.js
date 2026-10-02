@@ -88,3 +88,13 @@ test('bypass response thresholds are explicit policy and have no implicit defaul
     /reviewAfter <= blockAfter/,
   );
 });
+
+test('bypass response policy parsing rejects malformed JSON and oversized files', t => {
+  const target = scratch(t);
+  assert.throws(
+    () => parseBypassResponsePolicy('{ nope', target),
+    /invalid JSON in command policy/,
+  );
+  fs.writeFileSync(target, JSON.stringify({ bypassResponse: { refusedRetry: { reviewAfter: 2, blockAfter: 3 } }, padding: 'x'.repeat(70 * 1024) }));
+  assert.throws(() => readBypassResponsePolicy(target), /command policy exceeds/);
+});
