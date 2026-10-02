@@ -4,7 +4,7 @@
 
 ## v0.13.2
 
-Released 2026-10-02. A patch release for npm 12. It also proves that the release pipeline runs green from start to finish, which the `v0.13.0` and `v0.13.1` publish runs did not.
+Released 2026-10-02. A patch release for npm 12. The `v0.13.0` and `v0.13.1` publish runs both ended red; this release is meant to run the whole pipeline green, including the post-publish checklist.
 
 ### Fixed
 - With npm 12, which no longer runs dependency install scripts, `huqan` failed to start when `better-sqlite3` had no native binding, and the error did not say why. The CLI now explains what is missing and how to approve the install script (#3324).
