@@ -1,0 +1,666 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-and-plan-evidence",
+  "observedLocalDates": [
+    "2026-10-01",
+    "2026-10-02"
+  ],
+  "repository": "ali-ulu/huqan",
+  "sourceVersion": "0.12.0",
+  "auditedMain": "83000331c07e4c9bb592dfc75b12851d3aa3ee8a",
+  "mainAtFinalRead": "83000331c07e4c9bb592dfc75b12851d3aa3ee8a",
+  "planBranch": "docs/development-plan-20261001",
+  "fixBranch": "fix/dream-default-causal-20261001",
+  "commitsCreated": 0,
+  "pushed": false,
+  "pullRequestCreated": false,
+  "merged": false,
+  "inputs": [
+    {
+      "name": "HUQAN_Master_Intelligence_Language_Math_Architecture_Report.pdf",
+      "sha256": "305de3092f61dfca53a95d5873d90a74325bba901f0f6c8e2c8802ffd33d4d8d",
+      "snapshot": "6acb3fcf2573910d439979409f09904f5fc39976",
+      "pagesRead": 54,
+      "renderedFigures": [
+        17,
+        18
+      ]
+    },
+    {
+      "name": "Yapıştırılan metin.txt",
+      "sha256": "8e2d4f293aff3b6132bc5ecdfb1fcb6bda30a625af4040591596eb8fecfaf07a",
+      "topicCount": 12
+    }
+  ],
+  "originalIssues": [
+    {
+      "number": 3300,
+      "title": "repo-radar: microsoft/promptwizard — ölçülmüş terfi kapısı, prosedür kaydı ve kalibre doğruluk için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3300",
+      "updatedAt": "2026-10-01T15:35:51Z",
+      "bodySha256": "b7f52520d8ad94f1f6e8eebf0adf4a4dadd0822c9920befb60b448e5d47de89c"
+    },
+    {
+      "number": 3297,
+      "title": "repo-radar: danijar/dreamerv3 — gerçek çıpalı hayal, doğrulamalı terfi ve sınırlı replay ile G2 kapatma",
+      "url": "https://github.com/ali-ulu/huqan/issues/3297",
+      "updatedAt": "2026-10-01T15:07:26Z",
+      "bodySha256": "210595f07c1a091d35f142c4c5e97e0d93ebc64c214277f9d85de971d0c94680"
+    },
+    {
+      "number": 3296,
+      "title": "repo-radar: ContinualAI/avalanche — sınırlı replay belleği, unutma ve transfer metrikleri ile G4 kapatma",
+      "url": "https://github.com/ali-ulu/huqan/issues/3296",
+      "updatedAt": "2026-10-01T15:07:21Z",
+      "bodySha256": "5c6d1e18e72a0bdcbded3aa837ebc9679585aa4e225f78c105b2152884f1aad6"
+    },
+    {
+      "number": 3295,
+      "title": "repo-radar: zou-group/textgrad — sınırlı gradient belleği ve önbellek ile G4 kapatma",
+      "url": "https://github.com/ali-ulu/huqan/issues/3295",
+      "updatedAt": "2026-10-01T15:02:52Z",
+      "bodySha256": "4a2aa8800d00bb2a868d59c9efd2c0e5395d18b9d6a3c21e0482abb58abf72cc"
+    },
+    {
+      "number": 3292,
+      "title": "repo-radar: laude-institute/harbor — içerik kilidi ve reuse/regrade/rerun kararı ile öğrenme defteri disiplini",
+      "url": "https://github.com/ali-ulu/huqan/issues/3292",
+      "updatedAt": "2026-10-01T14:58:59Z",
+      "bodySha256": "b980b4d6a32b7017fdb5464896065e4450ee6b8528bfd3c7e25a15e46dfd20f7"
+    },
+    {
+      "number": 3291,
+      "title": "repo-radar: explodinggradients/ragas — commit damgalı deney, fail-closed şema ve fitness tabanlı terfi için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3291",
+      "updatedAt": "2026-10-01T14:57:14Z",
+      "bodySha256": "cebe9552ed7a37992c91733224ef99830e1d5cc9d9892920dfe6411688fa47d1"
+    },
+    {
+      "number": 3290,
+      "title": "repo-radar: confident-ai/deepeval — eşiksiz karar yok, fail-closed hata ve flaky-metrik koruması için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3290",
+      "updatedAt": "2026-10-01T19:36:47Z",
+      "bodySha256": "972bde0c31b5daf4d47117a2147dfb20eac2489d2e7378d7360ac07d2181b0d2"
+    },
+    {
+      "number": 3289,
+      "title": "repo-radar: promptfoo/promptfoo — eşikli terfi kapısı, fail-closed eşik yorumu ve temel çizgi yarışı için 5 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3289",
+      "updatedAt": "2026-10-01T18:44:43Z",
+      "bodySha256": "7c0c22fb0a9fe47baedc8b690b5df27f4e2d7f20e718977f635c3b7bb30bc039"
+    },
+    {
+      "number": 3288,
+      "title": "repo-radar: EleutherAI/lm-evaluation-harness — kalibre güven aralığı, damgalı sonuç şeması ve task registry çakışma kaydı için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3288",
+      "updatedAt": "2026-10-01T17:38:57Z",
+      "bodySha256": "85af2dc5a7f6b6af1ed835a72c7f2b3fcdfb30b0c1e9f0059e4b0ffce9662d49"
+    },
+    {
+      "number": 3287,
+      "title": "repo-radar: UKGovernmentBEIS/inspect_ai — kalibre güven aralığı, yargıç uyuşması ve NOANSWER muhasebesi için 8 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3287",
+      "updatedAt": "2026-10-01T16:37:26Z",
+      "bodySha256": "e7a7ea5c2ff25ffb996ced6d30814e0cdf165139e15247109267729d4e79f09d"
+    },
+    {
+      "number": 3286,
+      "title": "repo-radar: princeton-nlp/SWE-agent — iz→demo→prompt terfi hattı, skor eşiği ve etiketli unutma için 8 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3286",
+      "updatedAt": "2026-10-01T15:36:48Z",
+      "bodySha256": "c0cc395c8c4872eed3f8a805a211a90208c505b7aded6541cfa66e66359cfbdc"
+    },
+    {
+      "number": 3285,
+      "title": "repo-radar: MemTensor/MemOS — eşikli konsolidasyon, bellek yaşam döngüsü ve çelişkiyle arşivleme için 7 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3285",
+      "updatedAt": "2026-10-01T14:12:15Z",
+      "bodySha256": "ab9aa0786a35a9a4a1856eba01945b400a83fd95cb226fe2c04b991a24b22f81"
+    },
+    {
+      "number": 3284,
+      "title": "repo-radar: WecoAI/aideml — yön-farkındalıklı metrik, NaN en-kötü sentinel'i ve kanıta dayalı terfi için 7 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3284",
+      "updatedAt": "2026-10-01T14:10:09Z",
+      "bodySha256": "ed9ab970c213d363be7ee83378778589cec68bcdcfd4802e26c9efc67600c210"
+    },
+    {
+      "number": 3283,
+      "title": "repo-radar: geekan/MetaGPT — prosedür kütüphanesi, LLM tanım üretimi ve iki katmanlı bellek devri için 7 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3283",
+      "updatedAt": "2026-10-01T14:08:59Z",
+      "bodySha256": "b2d4e5db87ddf7d8ecfc6ce74fbca4238664ab11b5abe46a9553f0c385c504d0"
+    },
+    {
+      "number": 3282,
+      "title": "repo-radar: langchain-ai/deepagents — rubrik bitiş kapısı, pass@k/avg@k dürüstlüğü ve kayıpsız offload için 8 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3282",
+      "updatedAt": "2026-10-01T14:06:35Z",
+      "bodySha256": "d951d5ff3446fe15b8bee20752f6c22a8c1c123d21a34f12334cf65409ea5454"
+    },
+    {
+      "number": 3280,
+      "title": "repo-radar: jennyzzt/dgm — gürültü paylı terfi, kademeli değerlendirme ve hipotez soy hattı için 7 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3280",
+      "updatedAt": "2026-10-01T14:01:40Z",
+      "bodySha256": "7a73ad939c0826fd6b27bd2c889a430eabbb4d3a030a0b6a15d1b814b063cfa0"
+    },
+    {
+      "number": 3279,
+      "title": "repo-radar: kyegomez/tree-of-thoughts — gerekçeli budama, keşif/kabul eşiği ayrımı ve top-k unutma için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3279",
+      "updatedAt": "2026-10-01T13:59:22Z",
+      "bodySha256": "782b5c581567b8a9a1a42ef235311f423a4922c48fc31e3c6db00c15a08f7d98"
+    },
+    {
+      "number": 3277,
+      "title": "repo-radar: microsoft/agent-framework — checkpoint soy hattı, fact sheet konsolidasyonu ve ilerleme defteri için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3277",
+      "updatedAt": "2026-10-01T13:58:30Z",
+      "bodySha256": "c0f331bcfc7d3907dc438258cd57179002b2faa714938c8a4dc2684cc5867283"
+    },
+    {
+      "number": 3276,
+      "title": "repo-radar: leondz/garak — z-score kalibrasyonu, DEFCON kovaları ve dürüst skorlama için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3276",
+      "updatedAt": "2026-10-01T13:52:38Z",
+      "bodySha256": "29772638c288d8d9f881a52c2b33dfe3c74ecc52f5e8c5483868d7c9084c7afd"
+    },
+    {
+      "number": 3269,
+      "title": "repo-radar: RDFLib/rdflib — tersinir unutma, olay yayını ve gc çengeli için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3269",
+      "updatedAt": "2026-10-01T13:45:22Z",
+      "bodySha256": "1fb3b69661fd592b5ba08118686df84246ccd03e69adf7f9e872511eb0eca003"
+    },
+    {
+      "number": 3268,
+      "title": "repo-radar: oxigraph/oxigraph — silinmiş indeksi, çok-permütasyonlu erişim ve istatistikli açıklama için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3268",
+      "updatedAt": "2026-10-01T13:44:01Z",
+      "bodySha256": "dfb2132ec60afc073331a67818e2dcc15ab66fd6dd700c02cde07c239c4692a5"
+    },
+    {
+      "number": 3267,
+      "title": "repo-radar: apache/jena — türetim kaydı varsayılanı, idempotent türetim ve derin iz sürme için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3267",
+      "updatedAt": "2026-10-01T13:43:12Z",
+      "bodySha256": "21b0200b6c1f2c429fe63f07c975e94c8da85e3c7cb3506ef22965ea9e2dddf0"
+    },
+    {
+      "number": 3266,
+      "title": "repo-radar: OpenSPG/KAG — yapılandırılmış iz, alt-adım terfisi ve recall tabanlı kalibrasyon için 7 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3266",
+      "updatedAt": "2026-10-01T13:42:24Z",
+      "bodySha256": "4beb4085ee15dfa65ed1e80b433db403a70d4884c975ef053941169f113104c1"
+    },
+    {
+      "number": 3265,
+      "title": "repo-radar: eyereasoner/eye — varsayılan kanıt açıklaması, defeater muhasebesi ve lemma deposu için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3265",
+      "updatedAt": "2026-10-01T13:40:48Z",
+      "bodySha256": "0221b4f7d031b6102fcf6b03ae3f51baf595841496397d053834869f1fb19735"
+    },
+    {
+      "number": 3264,
+      "title": "repo-radar: souffle-lang/souffle — subsumption tabanlı unutma, kural numaralı kanıt ağacı ve fail-closed bellek kapısı için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3264",
+      "updatedAt": "2026-10-01T13:40:09Z",
+      "bodySha256": "c37d784070d3b3a58c84ad75550f9fde1f39c83a8c3f1a998a738bec85e6684b"
+    },
+    {
+      "number": 3263,
+      "title": "repo-radar: google-deepmind/alphageometry — kanıt izli türetim, fail-closed kapanış kapısı ve kalibrasyon için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3263",
+      "updatedAt": "2026-10-01T13:39:14Z",
+      "bodySha256": "48d27f4c4bcdf2eb6f7d9f8ec7f9028abb971956f7d5a49241bc0ce3a8b548b8"
+    },
+    {
+      "number": 3260,
+      "title": "repo-radar: sigstore/cosign — tipli doğrulama hataları, tlog kanıtı ve makbuza bağlı imza doğrulama için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3260",
+      "updatedAt": "2026-10-01T12:42:09Z",
+      "bodySha256": "23e3d42f49bdba8b714d39f34a901c50e82a70d3324346dfa6bba6b93f68528e"
+    },
+    {
+      "number": 3259,
+      "title": "repo-radar: open-policy-agent/opa — bundle imza bütünlüğü, maskeleme izi ve fail-closed karar kapıları için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3259",
+      "updatedAt": "2026-10-01T12:41:33Z",
+      "bodySha256": "cb90fcf3fb857ed19e1df31667b7db9bd9daedff0965c4abb166e23faaaf66ae"
+    },
+    {
+      "number": 3258,
+      "title": "repo-radar: strands-agents/harness-sdk — fail-closed müdahale kaydı, handler değişmezleri ve hash'li interrupt durumu için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3258",
+      "updatedAt": "2026-10-01T12:39:57Z",
+      "bodySha256": "57581b12f36861629776c173efad348669e588a3cb01bf009468870a4f2a8377"
+    },
+    {
+      "number": 3257,
+      "title": "repo-radar: agno-agi/agno — makbuza bağlı onay (HITL), guardrail denetimi ve hash-bağlı bellek için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3257",
+      "updatedAt": "2026-10-01T20:08:52Z",
+      "bodySha256": "be0a9b603d0538e88d6d36af8b89e8392bcf1008c11381fc0aa56d952a15eb65"
+    },
+    {
+      "number": 3256,
+      "title": "repo-radar: deepset-ai/haystack — fail-closed belge yazımı, içerik-hash kimliği ve denetlenebilir exit_reason için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3256",
+      "updatedAt": "2026-10-01T19:07:52Z",
+      "bodySha256": "3e4095f3f665ebe808f4078c805d4c6966563844c9ed43521a9756ed9f378c79"
+    },
+    {
+      "number": 3255,
+      "title": "repo-radar: microsoft/semantic-kernel — gerekçeli terminate kararı, A2A eşzamanlılık değişmezi ve hash-bağlı bellek için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3255",
+      "updatedAt": "2026-10-01T12:36:41Z",
+      "bodySha256": "5be833c8b7adb0c1e5de22380a0984b5f2c909d2cb39b11ae2710b6b8a32eab5"
+    },
+    {
+      "number": 3254,
+      "title": "repo-radar: pydantic/pydantic-ai — idempotent onay, onay-argüman değişmezi ve koşulsuz SSRF blok için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3254",
+      "updatedAt": "2026-10-01T17:11:47Z",
+      "bodySha256": "28bf863b24013241b0c6540a3a3715da60170aac32621a5fab72da1cbb1d065a"
+    },
+    {
+      "number": 3253,
+      "title": "repo-radar: stanfordnlp/dspy — kodlu ayrıştırma hatası, fail-closed çıkış doğrulaması ve denetlenebilir optimizasyon için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3253",
+      "updatedAt": "2026-10-01T13:07:17Z",
+      "bodySha256": "6110a0f153853c56412e287ffaedeccbc8cbd282b2ecf6af518a2af6c9b289cf"
+    },
+    {
+      "number": 3252,
+      "title": "repo-radar: All-Hands-AI/OpenHands — strict sayfalama, yapılandırılmış engelleme olayı ve idempotent onay için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3252",
+      "updatedAt": "2026-10-01T12:32:56Z",
+      "bodySha256": "0337754cb585cbe0de49d6137e6800b81fbdec0d3da91b0cd4d0898c7e4d32d0"
+    },
+    {
+      "number": 3251,
+      "title": "repo-radar: topoteretes/cognee — zincir bozmayan geçersiz kılma, provenance checksum ve toplu silme onayı için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3251",
+      "updatedAt": "2026-10-01T16:12:00Z",
+      "bodySha256": "aa1952768a7cb576057567baa8750a30d52529df9783f1244f4faa94ba8d8892"
+    },
+    {
+      "number": 3250,
+      "title": "repo-radar: getzep/graphiti — bi-temporal supersede, kaskad silme koruması ve MCP bellek kapısı için 5 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3250",
+      "updatedAt": "2026-10-01T15:07:33Z",
+      "bodySha256": "022373b1854dbd50b876af927f0e96b18cee2cbc88fd7137e31c1d53da9996b0"
+    },
+    {
+      "number": 3249,
+      "title": "repo-radar: langchain-ai/langgraph — checkpoint/makbuz zinciri, idempotent onay kimliği ve capability-driven uyumluluk için 6 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3249",
+      "updatedAt": "2026-10-01T12:30:53Z",
+      "bodySha256": "cf987c7d869559ea2f7053adfd935fa15414cf81c7947f8dcd2e81e63d726f5c"
+    },
+    {
+      "number": 3248,
+      "title": "repo-radar: run-llama/llama_index — fail-closed ingest düşürmesi, hash-bağlı supersede ve sessiz bellek reddi için 5 öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3248",
+      "updatedAt": "2026-10-01T12:26:39Z",
+      "bodySha256": "2e4923ca43517f59a934eb94f06857b19b13a84196e2c88b5c30126bf26d1c50"
+    },
+    {
+      "number": 3247,
+      "title": "repo-radar: langchain-ai/langchain — araç-sonuç statüsü, fail-closed retry ve hash-bağlı ingest için 6 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3247",
+      "updatedAt": "2026-10-01T12:24:35Z",
+      "bodySha256": "6244425c57b52458c89f8f61f4c9e10e6b445ec6a171c5bad5b697890f6b4c38"
+    },
+    {
+      "number": 3246,
+      "title": "repo-radar: guardrails-ai/guardrails — bütçeli reask, deterministic fix ve fail-closed statü ayrımı için 7 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3246",
+      "updatedAt": "2026-10-01T12:08:49Z",
+      "bodySha256": "c55e77808e70f415903523e8a9216a7b56d4d512d844f4014f1a4629d2f23ff7"
+    },
+    {
+      "number": 3244,
+      "title": "repo-radar: letta-ai/letta — MemFS git sürümlü bellek hiyerarşisi ve çapraz-ajan sandbox kapıları",
+      "url": "https://github.com/ali-ulu/huqan/issues/3244",
+      "updatedAt": "2026-10-01T11:11:30Z",
+      "bodySha256": "d2040d2b5f7f038c1a5a27946d57e371988a0180a75a99b659840d485a075d96"
+    },
+    {
+      "number": 3243,
+      "title": "repo-radar: mem0ai/mem0 — hibrit bellek retrieval, kimlik-kapsam koruması ve arama-zamanı decay için 7 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3243",
+      "updatedAt": "2026-10-01T10:15:13Z",
+      "bodySha256": "1ae4c46233a7bf3386d1b1383f29c36424e6ad3fd28cf328ce3b657d85e35eb4"
+    },
+    {
+      "number": 3239,
+      "title": "repo-radar: Aider-AI/aider — bütçeli repo-map bağlamı, boşluk toleranslı edit ve gözlenen doğrulama makbuzu için 7 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3239",
+      "updatedAt": "2026-10-01T08:09:47Z",
+      "bodySha256": "d26141dceadcc72dec8608831e7acf5bb186d60b80ec46372f88268ffee83206"
+    },
+    {
+      "number": 3238,
+      "title": "repo-radar: modelcontextprotocol/python-sdk — MCP sürüm müzakeresi, _meta zarfı ve taşıma/iptal için 7 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3238",
+      "updatedAt": "2026-10-01T07:09:48Z",
+      "bodySha256": "d54d33fda18f3a5aff377b88ed937ad6d1c31a83868dc6bc09d8c53163422daa"
+    },
+    {
+      "number": 3234,
+      "title": "repo-radar: modelcontextprotocol/servers — MCP outputSchema uyum kapısı, capabilities dürüstlüğü ve taşıma/SSRF için 6 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3234",
+      "updatedAt": "2026-10-01T06:33:12Z",
+      "bodySha256": "abe319ea2b54f7286175b3f01c65deb5679b5f6c8c888243fdb76edfda92ec00"
+    },
+    {
+      "number": 3231,
+      "title": "repo-radar: google/adk-python — idempotent bellek ingest, onay geçerliliği ve bilgilendirici eval statüsü için 7 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3231",
+      "updatedAt": "2026-10-01T05:06:32Z",
+      "bodySha256": "8783bc20c807284fa49e46cd0a12c1920b57eb267f5e9c7428728785283fa4d4"
+    },
+    {
+      "number": 3230,
+      "title": "repo-radar: openai/openai-agents-python — guardrail tripwire/reject ayrımı, fail-open tracing ve handoff bağlam filtresi için 6 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3230",
+      "updatedAt": "2026-10-01T04:11:40Z",
+      "bodySha256": "b9ef3e8fd7380a646ed065c08d6d4cfe777b3f187e425628b18a6cb9b4fc71e2"
+    },
+    {
+      "number": 3229,
+      "title": "repo-radar: crewAIInc/crewAI — agent card imza doğrulaması, fail-open hook ve memory admission boşlukları için 7 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3229",
+      "updatedAt": "2026-10-01T03:06:05Z",
+      "bodySha256": "c39bc669bea752cb78d5952873c756e61ec3fbd1a9e87caf8d5152bd4bce1670"
+    },
+    {
+      "number": 3228,
+      "title": "repo-radar: microsoft/autogen — handoff ve intervention seam'leri HUQAN A2A/makbuz zinciri için 6 somut öneri",
+      "url": "https://github.com/ali-ulu/huqan/issues/3228",
+      "updatedAt": "2026-10-01T05:45:52Z",
+      "bodySha256": "145e0d551240da25711c54d38e03512f4f3f50b73cda6684f59765b222c773b6"
+    }
+  ],
+  "originalIssueCount": 50,
+  "originalPullRequestCount": 0,
+  "allOriginalIssuesStillOpen": true,
+  "finalOpenIssueCount": 57,
+  "closedReportIssues": [
+    {
+      "number": 3298,
+      "state": "CLOSED",
+      "stateReason": "COMPLETED",
+      "closedAt": "2026-10-01T20:24:36Z",
+      "comments": 0,
+      "implementationNotInferred": true
+    },
+    {
+      "number": 3299,
+      "state": "CLOSED",
+      "stateReason": "COMPLETED",
+      "closedAt": "2026-10-01T20:23:04Z",
+      "comments": 0,
+      "implementationNotInferred": true
+    }
+  ],
+  "publication": {
+    "master": {
+      "number": 3306,
+      "url": "https://github.com/ali-ulu/huqan/issues/3306"
+    },
+    "children": [
+      {
+        "key": "V0.1",
+        "number": 3307,
+        "url": "https://github.com/ali-ulu/huqan/issues/3307",
+        "title": "Cognitive Lab: strict deney manifesti, B1 baseline ve fail-closed gain evaluator"
+      },
+      {
+        "key": "V0.2",
+        "number": 3308,
+        "url": "https://github.com/ali-ulu/huqan/issues/3308",
+        "title": "Cognitive Lab: karar öncesi olasılık–gözlenen sonuç eşleşmesi ve kalibrasyon ölçümü"
+      },
+      {
+        "key": "I0",
+        "number": 3309,
+        "url": "https://github.com/ali-ulu/huqan/issues/3309",
+        "title": "Belief revision: bağımsız destek, karşı kanıt ve support invalidation için B1 deneyi"
+      },
+      {
+        "key": "I2",
+        "number": 3310,
+        "url": "https://github.com/ali-ulu/huqan/issues/3310",
+        "title": "Procedure learning: qualification→registry için tek opt-in production caller ve B4 transfer kapısı"
+      },
+      {
+        "key": "I1",
+        "number": 3311,
+        "url": "https://github.com/ali-ulu/huqan/issues/3311",
+        "title": "Cognitive Scheduler: aynı bütçede Dream/inference aday sıralaması ve B6 ablation"
+      },
+      {
+        "key": "L0/L1",
+        "number": 3312,
+        "url": "https://github.com/ali-ulu/huqan/issues/3312",
+        "title": "Language baseline: mevcut EN/TR parser adapters ve read-only Common Semantic IR sözleşmesi"
+      }
+    ],
+    "allSevenReadBack": true,
+    "allBodiesMatchedExpected": true,
+    "allOpen": true
+  },
+  "bootstrap": {
+    "result": "PASS",
+    "headEqualsOriginMain": true,
+    "fresh": true,
+    "checkpoint": "fafc3de57243f1650ca748250df97791b6b518a5",
+    "checkpointDrift": "STALE_ANCESTOR"
+  },
+  "sourceGates": {
+    "architectureTrackers": "PASS",
+    "docsDrift": "PASS",
+    "docStatus": "PASS",
+    "cycles": {
+      "result": "PASS",
+      "files": 1231,
+      "cycles": 0
+    },
+    "moduleBoundary": {
+      "result": "PASS",
+      "domainOwners": 855,
+      "platformOwners": 223,
+      "ports": 276,
+      "legacyEdges": 16,
+      "unmapped": 0
+    },
+    "layers": {
+      "result": "PASS",
+      "recordedExceptions": 3
+    },
+    "packageClosure": {
+      "result": "PASS",
+      "modules": 978,
+      "publishedEntryPoints": 46
+    },
+    "fileSize": {
+      "result": "PASS",
+      "knownOver400": 0
+    },
+    "reachability": {
+      "notYetWired": 26,
+      "retired": 2,
+      "unacknowledged": 0,
+      "staleAcknowledgements": 0,
+      "staleRetired": 0
+    }
+  },
+  "testRuns": [
+    {
+      "scope": "baseline inference/learning/reachability",
+      "command": "node --test test/inference-runtime.test.js test/inference-belief-revision.test.js test/trust-calibration.test.js test/experience-learn-production-wiring.test.js test/module-reachability.test.js test/reachability-baseline.test.js",
+      "pass": 56,
+      "fail": 0,
+      "skip": 0
+    },
+    {
+      "scope": "language/parser/semantic",
+      "command": "node --test test/command-parser-characterization.test.js test/predicate-parser-explicit-relations.test.js test/turkish-copula-guards.test.js test/claim-decomposition.test.js test/entity-resolution.test.js test/nlp-lang-en.test.js test/semantic-score.test.js",
+      "pass": 81,
+      "fail": 0,
+      "skip": 0,
+      "reportedByIndependentAudit": true
+    },
+    {
+      "scope": "math/CLI/verify",
+      "files": [
+        "test/inference-belief-revision.test.js",
+        "test/cli-inference-runtime.test.js",
+        "test/trust-calibration.test.js",
+        "test/graph-vector-nearest.test.js",
+        "test/graph-vector-index.test.js",
+        "test/kernel-read-use-cases-contract.test.js",
+        "test/risk-scale.test.js",
+        "test/blast-radius.test.js",
+        "test/verify-semantic.integration.test.js"
+      ],
+      "pass": 88,
+      "fail": 0,
+      "skip": 0,
+      "reportedByIndependentAudit": true
+    },
+    {
+      "scope": "Dream fix red characterization",
+      "command": "node --test test/dream-experiment-loop.test.js",
+      "pass": 7,
+      "fail": 2,
+      "expectedRed": true
+    },
+    {
+      "scope": "Dream/causal fix related suites",
+      "fileCount": 8,
+      "pass": 35,
+      "fail": 0,
+      "skip": 0,
+      "reportedByImplementerAndReviewed": true
+    },
+    {
+      "scope": "fix reachability/baseline",
+      "pass": 23,
+      "fail": 0,
+      "skip": 0
+    },
+    {
+      "scope": "lead fresh final default path verification",
+      "command": "node --test test/dream-experiment-loop.test.js",
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    }
+  ],
+  "fix": {
+    "files": [
+      "lib/dream-experiment-loop-verify.js",
+      "test/dream-experiment-loop.test.js"
+    ],
+    "fault": "default import used module object as CausalSimulator constructor",
+    "correction": "named constructor import",
+    "positiveDefaultRealGraph": true,
+    "noChainStillUnknown": true,
+    "readOnlyGraphConfirmed": true,
+    "oldImportMutationKilled": true,
+    "crossWorkspaceNegativeConfirmedByReviewer": true,
+    "reviews": [
+      "code-reviewer APPROVE",
+      "typescript-reviewer PASS"
+    ],
+    "targetLint": "PASS",
+    "architectureTrackersAfterFix": "PASS",
+    "sourceGatesAfterFix": "PASS",
+    "diffCheck": "PASS",
+    "graphifyUpdate": {
+      "exitCode": 0,
+      "ignored": true,
+      "sqlDiscoveryIncomplete": true
+    }
+  },
+  "planReview": {
+    "result": "APPROVE",
+    "resolvedFindings": [
+      "V0.1 baseline limitation versus evaluator PASS separation",
+      "canonical I2 W1/W2/W4 and V0.1/V0.2 dependencies"
+    ],
+    "sourceCoverage": {
+      "languagePhases": 10,
+      "benchmarks": 8,
+      "pastedMathTopics": 12,
+      "pdfMathSections": 13
+    },
+    "issueMapping": {
+      "total": 50,
+      "unique": 50,
+      "missing": 0,
+      "KEEP": 2,
+      "RESEARCH": 11,
+      "REUSE_REVIEW": 37
+    }
+  },
+  "currentCI": [
+    {
+      "id": 36914406502,
+      "name": "API Contract",
+      "head": "83000331c07e4c9bb592dfc75b12851d3aa3ee8a",
+      "conclusion": "success"
+    },
+    {
+      "id": 36914406342,
+      "name": "Benchmark Regression",
+      "head": "83000331c07e4c9bb592dfc75b12851d3aa3ee8a",
+      "conclusion": "success",
+      "npmTest": "NOT_APPLICABLE; no selected tests"
+    },
+    {
+      "id": 36911063836,
+      "name": "Benchmark Regression",
+      "head": "fafc3de57243f1650ca748250df97791b6b518a5",
+      "conclusion": "success",
+      "npmTest": "selected weighted shards; not fresh full suite"
+    }
+  ],
+  "environmentLimitations": [
+    "initial sandbox Git subprocess/test runner child spawn EPERM; exact checks rerun elevated",
+    "LEVH tools unavailable; no shared memory write",
+    "Graph CALLS index incomplete/noisy; critical callers checked against live source"
+  ],
+  "unverified": [
+    "full local npm test",
+    "Cognitive Lab or intelligence gain",
+    "scheduler superiority",
+    "learned causal/world models",
+    "full production procedure promotion",
+    "external interoperability/deployment",
+    "release/registry publication",
+    "CI of local uncommitted fix"
+  ],
+  "artifacts": [
+    "docs/reports/development-plan-20261001.md",
+    "docs/reports/language-math-requirements-20261001.md",
+    "docs/reports/open-issue-audit-20261001.md",
+    "docs/task-packs/cognitive-lab-entry-20261001.md",
+    "docs/reports/development-plan-20261001-evidence.json"
+  ],
+  "continuation": {
+    "observedAt": "2026-10-02",
+    "sourceVersion": "0.13.1",
+    "mainAtRead": "e60ef28f6a9b85cae0557594837a68f0d296965f",
+    "evidence": "docs/reports/engineering-foundation-20261002-evidence.json",
+    "contract": "docs/task-packs/engineering-foundation-20261002.md",
+    "upstreamDreamFix": "PR3313 / 49eae04f; old local patch preserved, no duplicate publication",
+    "newIssuesCreated": 0,
+    "existingNightlyBlocker": 3327,
+    "historicalFieldsAboveDescribeOriginalAudit": true
+  }
+}

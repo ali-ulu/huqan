@@ -13,8 +13,11 @@ Current measured position for AXIOM graph and memory behavior:
 
 - Graph and Memory Core run locally.
 - Graph state is primarily in-memory.
-- SQLite is used as an optional persistence backend and mirror, not as the primary query engine.
-- Memory Store keeps operational state in memory with optional SQLite persistence.
+- Graph uses SQLite as an optional persistence backend; its primary query path
+  still uses hydrated in-memory nodes, edges, candidates and audit records.
+- In SQLite mode, MemoryStore now reads from SQLite, validates rows in bounded
+  chunks at open, and retains a bounded 2048-entry LRU instead of a full copy
+  (#3208). Its non-SQLite backend retains in-memory operational state.
 - Existing benchmark fixtures cover `small`, `medium`, `large`, and `xlarge`.
 - The largest existing benchmark fixture is `xlarge`, with 140 nodes and 131 edges in the current benchmark results.
 - The end-to-end scale benchmark (#3016) measures `scale-10k` with 10000 nodes and 10000 edges (see below).
@@ -34,7 +37,25 @@ Current measured position for AXIOM graph and memory behavior:
   - `dream()` returns at most 10 hypotheses.
   - Similarity, transitive, gap, symmetry, and contradiction generation are each capped internally.
   - `_biasedWalk()` is bounded by `walkLength` and `walksPerNode`.
-- Memory scale is bounded by the same local process, heap, and fixture behavior unless a dedicated benchmark proves otherwise.
+- Graph scale is bounded by its local process, hydrated heap, and fixture
+  behavior. MemoryStore's bounded retained cache does not remove its linear
+  startup validation cost, synchronous read cost, or SQLite writer contention.
+
+## 2 Ekim 2026 MemoryStore ölçümü
+
+GÖZLENDİ: `8d92b75c3f17a4c74c511c7d83ec7557542c7b52`, Windows x64,
+Node22.22.0, native SQLite3.53.1 üzerinde mevcut
+`node --expose-gc benchmarks/bench-memory-store-open.js` exit0 ile çalıştı.
+10k/50k/100k kayıt açılışı sırasıyla 320.7/3800.5/7140.9 ms; 20 çağrının
+ortalama warm rule-list okuması 1.58/10.25/16.13 ms. Bir kayıt başına bir event
+ve her 100 kayıtta bir rule kullanıldı; ölçüm tek koşudur, p95/p99 değildir.
+Cache dışındaki retained heap farkı 0.1/0/-0.3 MiB; negatif değer GC/gürültüdür,
+RSS veya sıfır bellek maliyeti iddiası değildir.
+
+DOĞRULANMADI: yoğun eşzamanlı yazma, Graph100k, gerçek admission throughput,
+çok süreçli cache freshness veya sunucu ölçeği. Kapasite ve backend kararının
+kabul sözleşmesi [mühendislik görev paketinde](task-packs/engineering-foundation-20261002.md)
+bulunur; bu ölçüm desteklenen production limit ilan etmez.
 
 ## Measured fixtures
 
