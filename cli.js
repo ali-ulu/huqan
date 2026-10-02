@@ -10,6 +10,7 @@ const {
 } = require('./lib/http/process-failure-handlers');
 const { writeStructuredLog } = require('./lib/http/structured-log');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
+const { explainSqliteBindingsError } = require('./lib/sqlite-availability');
 const { parseCommand } = require('./lib/command-parser');
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
@@ -133,7 +134,10 @@ const cliProcessFailureHandlers = createProcessFailureHandlers({
 if (require.main === module) {
   cliProcessFailureHandlers.bind();
   main().catch(error => {
-    if (!reportBootConflict('cli', error)) console.error(`CLI error: ${error?.message || error}`);
+    if (!reportBootConflict('cli', error)) {
+      const sqliteHint = explainSqliteBindingsError(error);
+      console.error(sqliteHint ? `CLI error: ${sqliteHint}` : `CLI error: ${error?.message || error}`);
+    }
     process.exitCode = 1;
   });
 }

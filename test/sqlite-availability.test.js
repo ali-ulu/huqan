@@ -11,6 +11,7 @@ const assert = require('node:assert');
 
 const {
   describeSqliteLoadFailure,
+  explainSqliteBindingsError,
   sqliteUnavailableError,
 } = require('../lib/sqlite-availability');
 
@@ -71,4 +72,19 @@ test('the existing memory-store error prefix is preserved', () => {
   );
 
   assert.match(error.message, /better-sqlite3 is required for SQLite memory storage/);
+});
+
+test('a missing bindings file points at the npm 12 install-script approval', () => {
+  const error = new Error('Could not locate the bindings file. Tried:\n -> /x/better_sqlite3.node');
+
+  const { kind, hint } = describeSqliteLoadFailure(error);
+
+  assert.equal(kind, 'binding_missing');
+  assert.match(hint, /npm install-scripts approve better-sqlite3/);
+  assert.match(explainSqliteBindingsError(error), /npm rebuild better-sqlite3/);
+});
+
+test('explainSqliteBindingsError ignores unrelated errors', () => {
+  assert.equal(explainSqliteBindingsError(new Error('disk on fire')), null);
+  assert.equal(explainSqliteBindingsError(null), null);
 });
