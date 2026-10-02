@@ -31,7 +31,9 @@ const {
   CLOSE_DEADLINE_MS,
   isAlive,
   isLiveState,
+  alivePids,
   readProcessState,
+  readProcessStates,
 } = require('./helpers/cdp-browser');
 const { DEFAULT_FILE_TIMEOUT_MS } = require('../scripts/run-test-shard');
 
@@ -104,6 +106,27 @@ test('killing the tree leaves no descendant running', async t => {
   assert.equal(isAlive(pids.grandchild), false, 'the grandchild outlived the tree kill');
   assert.deepEqual(stragglers, [], `nothing may survive the tree kill, got ${JSON.stringify(stragglers)}`);
   assert.equal(isAlive(parent.pid), false, 'the parent outlived the tree kill');
+});
+
+test('the tree liveness probe reads every pid in one batched query', () => {
+  // #3327 review: the macOS path must not spawn one synchronous `ps` per pid.
+  // `alivePids` resolves the whole set from a single state read, so a tree of N
+  // pids costs one probe, not N. The zombie rule still decides per pid.
+  const self = process.pid;
+  const parent = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  try {
+    const alive = alivePids([self, parent.pid]);
+    assert.deepEqual(alive.sort((a, b) => a - b), [Math.min(self, parent.pid), Math.max(self, parent.pid)]);
+    // A gone pid is absent, not invented, and does not make the call fall back
+    // to a per-pid signal probe.
+    assert.deepEqual(alivePids([999_999]), []);
+    const states = readProcessStates([self, parent.pid]);
+    assert.equal(isLiveState(states.get(self)), true);
+    // A gone pid resolves to the null "gone" state, not an unresolved entry.
+    assert.equal(readProcessStates([999_999]).get(999_999), null);
+  } finally {
+    try { parent.kill('SIGKILL'); } catch { /* already gone */ }
+  }
 });
 
 test('a killed-but-unreaped process is not reported as alive', { skip: process.platform === 'win32' }, async () => {

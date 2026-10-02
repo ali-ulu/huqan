@@ -231,14 +231,14 @@ async function killProcessTree(child) {
   // what survived. Without this a loaded runner reports a still-dying pid as a
   // straggler (#3327).
   await waitForTreeGone([child.pid, ...descendants], SETTLE_DEADLINE_MS);
-  return { descendants, stragglers: [child.pid, ...descendants].filter(isAlive), probedRows: rows.length };
+  return { descendants, stragglers: alivePids([child.pid, ...descendants]), probedRows: rows.length };
 }
 
 /** Resolve once none of `pids` is alive, or after `timeoutMs` -- whichever is first. */
 async function waitForTreeGone(pids, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (!pids.some(isAlive)) return;
+    if (alivePids(pids).length === 0) return;
     await new Promise(resolve => setTimeout(resolve, 25));
   }
 }
@@ -250,6 +250,76 @@ function waitForExit(child, timeoutMs) {
     timer.unref?.();
     child.once('exit', () => { clearTimeout(timer); resolve(); });
   });
+}
+
+/**
+ * The state character `/proc/<pid>/stat` reports, or a sentinel.
+ *
+ * @returns {string|null|undefined} the state character; `null` when procfs is
+ *   present and the pid is gone (so a `ps` spawn would only re-confirm it);
+ *   `undefined` when procfs cannot answer at all (macOS), so the caller falls
+ *   back to `ps`.
+ */
+function readProcState(pid) {
+  try {
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
+  } catch (error) {
+    // Linux with procfs mounted is authoritative: ENOENT means the pid is gone,
+    // and paying for a synchronous `ps` per missing pid would slow teardown for
+    // no answer. Only a genuinely absent procfs falls through to `ps`.
+    if (process.platform === 'linux' && error?.code === 'ENOENT' && procfsAvailable()) return null;
+    return undefined;
+  }
+}
+
+function procfsAvailable() {
+  try { fs.statSync('/proc/self/stat'); return true; } catch { return false; }
+}
+
+/**
+ * One `ps` query for every pid in `pids`, mapping pid -> state character.
+ *
+ * Batched because the alternative is one synchronous spawn per pid per poll,
+ * which is what made the macOS teardown probe needlessly expensive (#3327
+ * review). Pids `ps` does not list are simply absent from the map.
+ */
+function readPsStates(pids) {
+  const states = new Map();
+  if (pids.length === 0 || process.platform === 'win32') return states;
+  try {
+    const result = spawnSync('ps', ['-o', 'pid=,stat=', '-p', pids.join(',')], {
+      encoding: 'utf8',
+      timeout: PROCESS_PROBE_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    if (typeof result.stdout !== 'string') return states;
+    for (const line of result.stdout.split('\n')) {
+      const match = /^\s*(\d+)\s+(\S+)/.exec(line);
+      if (match) states.set(Number(match[1]), match[2].slice(0, 1));
+    }
+  } catch { /* best effort: an unreadable probe leaves the signal path */ }
+  return states;
+}
+
+/**
+ * The state character for each pid that a state source could resolve.
+ *
+ * `/proc` answers per pid on Linux; macOS has no `/proc`, so every unresolved
+ * pid is read through one batched `ps` instead (#3327).
+ */
+function readProcessStates(pids) {
+  const states = new Map();
+  const unresolved = [];
+  for (const pid of pids) {
+    const state = readProcState(pid);
+    if (state !== undefined) states.set(pid, state);
+    else unresolved.push(pid);
+  }
+  if (unresolved.length > 0) {
+    for (const [pid, state] of readPsStates(unresolved)) states.set(pid, state);
+  }
+  return states;
 }
 
 /**
@@ -267,23 +337,11 @@ function waitForExit(child, timeoutMs) {
  */
 function readProcessState(pid, { forceFallback = false } = {}) {
   if (!forceFallback) {
-    try {
-      const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
-      return stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
-    } catch { /* not Linux, or the pid is already gone */ }
+    const state = readProcState(pid);
+    if (state !== undefined) return state;
   }
   if (process.platform === 'win32') return null;
-  try {
-    const result = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], {
-      encoding: 'utf8',
-      timeout: PROCESS_PROBE_TIMEOUT_MS,
-      windowsHide: true,
-    });
-    const state = typeof result.stdout === 'string' ? result.stdout.trim() : '';
-    return state === '' ? null : state.slice(0, 1);
-  } catch {
-    return null;
-  }
+  return readPsStates([pid]).get(pid) ?? null;
 }
 
 /**
@@ -298,17 +356,33 @@ function isLiveState(state) {
   return state !== 'Z' && state !== 'X';
 }
 
+/**
+ * The pids among `pids` that are still running, from one batched state read.
+ *
+ * A killed process whose parent has not reaped it is a zombie: it still answers
+ * signal 0, which would report a dead process as a straggler and put a false
+ * "did not reap" line in the smoke log. The state character decides instead,
+ * and the batched read keeps the macOS `ps` cost to one spawn per call (#3327).
+ */
+function alivePids(pids) {
+  const states = readProcessStates(pids);
+  const alive = [];
+  for (const pid of pids) {
+    const state = states.get(pid);
+    if (state === null) continue; // resolved as gone; no need to signal-probe
+    if (state !== undefined) {
+      if (isLiveState(state)) alive.push(pid);
+      continue;
+    }
+    // No state source (Windows) or a pid it could not resolve: the signal probe
+    // is correct whenever the pid is not a zombie.
+    try { process.kill(pid, 0); alive.push(pid); } catch { /* gone */ }
+  }
+  return alive;
+}
+
 function isAlive(pid) {
-  // A killed process whose parent has not reaped it is left as a zombie; a
-  // zombie still answers signal 0, which would report a dead process as a
-  // straggler and put a false "did not reap" line in the smoke log. Read the
-  // kernel state where it is exposed -- /proc on Linux, `ps` on macOS -- so the
-  // answer means "running", not "not yet reaped" (#3327).
-  const state = readProcessState(pid);
-  if (state !== null) return isLiveState(state);
-  // No state source (Windows) or a pid that is truly gone: the signal probe is
-  // correct whenever the pid is not a zombie.
-  try { process.kill(pid, 0); return true; } catch { return false; }
+  return alivePids([pid]).length === 1;
 }
 
 /**
@@ -627,7 +701,7 @@ async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIME
     const { descendants, stragglers } = await killProcessTree(child);
     const remaining = Math.max(0, deadline - Date.now());
     if (remaining > 0) await waitForExit(child, remaining);
-    const alive = stragglers.filter(isAlive);
+    const alive = alivePids(stragglers);
     if (alive.length > 0) {
       console.error(
         `[cdp-browser] close() did not reap the browser tree within ${CLOSE_DEADLINE_MS}ms; `
@@ -670,5 +744,7 @@ module.exports = {
   // (#3327).
   isAlive,
   isLiveState,
+  alivePids,
   readProcessState,
+  readProcessStates,
 };
