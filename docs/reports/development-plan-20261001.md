@@ -163,9 +163,9 @@ git -C C:\Users\sonfi\Desktop\huqan-main\.worktrees\dream-default-causal-2026100
 İlk denetimin komutları dört plan belgesi ve kanıt JSON'u / iki Dream dosyasını gösteriyordu. Güncel teslimde ek engineering pack/evidence ve canon/scale-truth doküman değişimleri bulunur; CI routing ve classifier batch ayrı dallardadır. Güncel tam scope/check kaydı `engineering-foundation-20261002-evidence.json` içindedir. Başka dosya görünürse teslim kaydıyla karşılaştır.
 
 ```text
-[BAĞLAM] ali-ulu/huqan, package 0.12.0; öncelik ölçülebilir reasoning/learning.
+[BAĞLAM] ali-ulu/huqan; devam denetimi package 0.13.1. Bu tarihli kimlik başlangıç otoritesi değildir: görev öncesi canlı origin/main fetch edilip gerçek package sürümü ve SHA zarfın içine yazılır. Öncelik ölçülebilir reasoning/learning.
 [GÖREV] V0.1 Cognitive Lab manifest/evaluator ve mevcut B1 baseline; yeni cognition engine yok.
 [KABUL] Baseline replay aynı; overlap/budget/missing outcome/authority bypass negatifleri reject; B2–B8 NOT_MEASURED; ilgili test ve mimari kapıları fresh PASS.
 [YASAK] Policy/receipt/wire/schema/release değişikliği; otomatik procedure activation; holdout contamination; yetki genişletme.
-[SÜRÜM] Plan tabanı 83000331c07e4c9bb592dfc75b12851d3aa3ee8a; işe başlarken canlı origin/main yeniden fetch edilir.
+[SÜRÜM] İlk denetim tabanı 83000331c07e4c9bb592dfc75b12851d3aa3ee8a tarihsel kayıttır; devam ölçüm tabanı 8d92b75c3f17a4c74c511c7d83ec7557542c7b52. İşe başlarken ikisi de yürütme tabanı sayılmaz; canlı origin/main SHA ve package sürümü doğrulanıp bu zarf yenilenir.
 ```

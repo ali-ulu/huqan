@@ -60,7 +60,7 @@ Outcome statüleri: observed verified success, observed failure, contradicted, c
 
 ## Karar sözlüğü
 
-Gain sonucu ile integrity sonucu ve activation durumu ayrıdır. Dokuz gain boyutu raporda bulunur; B1 ölçülür, B2–B8 `NOT_MEASURED`. Manifest/evaluator karakterizasyonu PASS olduğunda çıktı **ölçüm altyapısı baseline'ı karakterize edildi** olur; **intelligence gain PASS** olmaz.
+Gain sonucu ile integrity sonucu ve activation durumu ayrıdır. Dokuz gain boyutu — Derivation, Learning, Prediction, Planning, Calibration, Transfer, Autonomy, Efficiency ve Epistemic integrity — raporda bulunur. V0.1 yalnız B1 baseline'ını ölçer; B2–B8 ve Epistemic integrity gain'i `NOT_MEASURED` kalır. Ayrı integrity kabul sonucu bir gain ölçümü sayılmaz. Manifest/evaluator karakterizasyonu PASS olduğunda çıktı **ölçüm altyapısı baseline'ı karakterize edildi** olur; **intelligence gain PASS** olmaz.
 
 Candidate'ın meaningful effect eşiği ve non-inferiority toleransı deney öncesi ayrı mekanizma manifestinde belirlenir. Ölçümden sonra eşik değiştirerek sonucu PASS yapma. Önce pilot sample yeterliliği değerlendir; 100 experience/20 unseen task bütün alanlar için evrensel kabul sayısı değildir.
 
