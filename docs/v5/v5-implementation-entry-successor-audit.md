@@ -195,9 +195,8 @@ external consumer smoke, which exists, and does not ask for a third-party one.
 Local full-suite evidence required an unshallow checkout: a shallow clone makes
 `scripts/agent-context.js` report `CONTEXT_CONFLICT` and four
 `test/agent-context.test.js` cases fail on ancestry that cannot be computed.
-`git fetch --unshallow` resolves it. That is an environment condition, already
-documented in `docs/refactor-technical-debt-research.md`, not repository debt,
-and `docs/current-agent-checkpoint.json` is not stale.
+`git fetch --unshallow` resolves it. That is an environment condition, not
+repository debt, and `docs/current-agent-checkpoint.json` is not stale.
 
 ## Next-agent envelope
 
