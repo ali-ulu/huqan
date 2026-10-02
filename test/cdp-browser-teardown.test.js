@@ -29,6 +29,12 @@ const {
   collectDescendants,
   killProcessTree,
   CLOSE_DEADLINE_MS,
+  isAlive,
+  isLiveState,
+  alivePids,
+  readProcessState,
+  readProcessStates,
+  readPsStates,
 } = require('./helpers/cdp-browser');
 const { DEFAULT_FILE_TIMEOUT_MS } = require('../scripts/run-test-shard');
 
@@ -103,6 +109,86 @@ test('killing the tree leaves no descendant running', async t => {
   assert.equal(isAlive(parent.pid), false, 'the parent outlived the tree kill');
 });
 
+test('the batched ps probe maps each pid to its state', { skip: process.platform === 'win32' }, () => {
+  // The macOS runner reads state through ps, not /proc. This pins the exact
+  // `ps -o pid=,stat= -p a,b,c` parsing (the shape macOS produces) on every
+  // POSIX runner, so the one leg that reddened shard 4 is covered here even
+  // though macOS is not a PR runner (#3327). The zombie (`Z`) parse itself is
+  // pinned by the forceFallback assertion below.
+  const { complete, states } = readPsStates([process.pid, 999_999]);
+  assert.equal(complete, true, 'a completed ps run must report a complete listing');
+  assert.equal(states.has(process.pid), true, 'the live pid must appear in the listing');
+  assert.equal(isLiveState(states.get(process.pid)), true, 'a live pid must read as live');
+  assert.equal(states.get(999_999), null, 'a pid ps does not list is provably gone');
+});
+
+test('the tree liveness probe reads every pid in one batched query', () => {
+  // #3327 review: the macOS path must not spawn one synchronous `ps` per pid.
+  // `alivePids` resolves the whole set from a single state read, so a tree of N
+  // pids costs one probe, not N. The zombie rule still decides per pid.
+  const self = process.pid;
+  const parent = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+  try {
+    const alive = alivePids([self, parent.pid]);
+    assert.deepEqual(alive.sort((a, b) => a - b), [Math.min(self, parent.pid), Math.max(self, parent.pid)]);
+    // A gone pid is absent, not invented, and does not make the call fall back
+    // to a per-pid signal probe.
+    assert.deepEqual(alivePids([999_999]), []);
+    const states = readProcessStates([self, parent.pid]);
+    assert.equal(isLiveState(states.get(self)), true);
+    // On Linux, procfs is authoritative: a gone pid resolves to the null "gone"
+    // state instead of falling back to ps. Windows has no state source and
+    // macOS reads ps, so there the pid is simply unresolved.
+    if (process.platform === 'linux') {
+      assert.equal(readProcessStates([999_999]).get(999_999), null);
+    }
+  } finally {
+    try { parent.kill('SIGKILL'); } catch { /* already gone */ }
+  }
+});
+
+test('a killed-but-unreaped process is not reported as alive', { skip: process.platform === 'win32' }, async () => {
+  // The macOS leg of #3327: a SIGKILLed pid keeps answering signal 0 until its
+  // parent reaps it, so the signal probe alone called the grandchild a
+  // straggler and reddened shard 4. The grandchild's parent is SIGSTOPped
+  // below, so it cannot reap and the zombie is guaranteed to persist for the
+  // assertions -- deterministic on Linux and macOS, not a race.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-zombie-'));
+  const pidFile = path.join(dir, 'pids.json');
+  const script = [
+    "const { spawn } = require('node:child_process');",
+    "const fs = require('node:fs');",
+    "const grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });",
+    'fs.writeFileSync(process.argv[1], JSON.stringify({ parent: process.pid, grandchild: grandchild.pid }));',
+    'setInterval(() => {}, 1000);',
+  ].join('\n');
+  const parent = spawn(process.execPath, ['-e', script, pidFile], { stdio: 'ignore' });
+  try {
+    const pids = await waitForJson(pidFile);
+    assert.ok(pids && pids.grandchild > 0, 'the fixture never reported its grandchild');
+
+    parent.kill('SIGSTOP');
+    await waitUntilStopped(parent.pid);
+    process.kill(pids.grandchild, 'SIGKILL');
+    await waitUntilGone(pids.grandchild);
+
+    // The state reader is the reason the probe is not trusted, through both
+    // sources: /proc on Linux, and the ps fallback the macOS runner uses.
+    assert.equal(readProcessState(pids.grandchild), 'Z');
+    if (process.platform !== 'win32') {
+      assert.equal(readProcessState(pids.grandchild, { forceFallback: true }), 'Z');
+    }
+    assert.equal(isAlive(pids.grandchild), false, 'a zombie must not count as alive');
+    assert.equal(isLiveState('Z'), false);
+    assert.equal(isLiveState('X'), false);
+    assert.equal(isLiveState('S'), true);
+  } finally {
+    try { parent.kill('SIGCONT'); } catch { /* already gone */ }
+    try { parent.kill('SIGKILL'); } catch { /* already gone */ }
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('the close deadline stays well inside the heavy-file budget', () => {
   // A bounded teardown is only useful if the bound is smaller than the deadline
   // that would otherwise kill the whole file with no evidence.
@@ -110,24 +196,19 @@ test('the close deadline stays well inside the heavy-file budget', () => {
     `${CLOSE_DEADLINE_MS} must be below ${DEFAULT_FILE_TIMEOUT_MS}`);
 });
 
-function isAlive(pid) {
-  // A killed process with no living parent is reparented and left as a zombie
-  // until some init reaps it; a zombie answers signal 0, so the bare probe would
-  // report a dead process as alive. Read the state where the kernel exposes it.
-  try {
-    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
-    return state !== 'Z' && state !== 'X';
-  } catch {
-    try { process.kill(pid, 0); return true; } catch { return false; }
-  }
-}
-
 async function waitUntilGone(pid, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (!isAlive(pid)) return;
     await new Promise(resolve => setTimeout(resolve, 50));
+  }
+}
+
+async function waitUntilStopped(pid, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (readProcessState(pid) === 'T') return;
+    await new Promise(resolve => setTimeout(resolve, 25));
   }
 }
 
