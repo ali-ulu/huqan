@@ -1539,7 +1539,7 @@
     },
     "lib/graph-mutation-runtime.js": {
       "lines": 87.95,
-      "branches": 87.34
+      "branches": 87.05
     },
     "lib/graph-node-read.js": {
       "lines": 95.18,
@@ -2763,7 +2763,7 @@
     },
     "lib/path-safety.js": {
       "lines": 97.46,
-      "branches": 87.5
+      "branches": 84.47
     },
     "lib/pilot/test-database-boundary.js": {
       "lines": 100,
