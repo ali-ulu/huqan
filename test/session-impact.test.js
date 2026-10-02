@@ -6,6 +6,7 @@
 // been calibrated against these records.
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -13,7 +14,9 @@ const { buildCanonicalReceiptPayload, hashCanonicalReceiptPayload } = require('.
 const { fromMcpDecision } = require('../lib/verdict/action-verdict');
 const { MAX_HISTORY_RECEIPTS, readReceiptHistory } = require('../lib/autonomy-receipt-history');
 const { evaluateExternalAction } = require('../lib/external-action-guard');
-const { summarizeSessionImpact } = require('../lib/session-impact');
+const Graph = require('../graph');
+const { readBypassState } = require('../lib/bypass-signal-state');
+const { summarizeSessionImpact, recordRetriedRefusalSignals } = require('../lib/session-impact');
 
 let sequence = 0;
 
@@ -23,21 +26,27 @@ function sealed({
   kind = 'external_action_admission_receipt',
   toolName,
   inputDigest,
+  workspaceId = 'default',
+  agentId = 'budget-agent',
+  identityRef,
+  receiptId,
+  createdAt,
 } = {}) {
   sequence += 1;
   const metadata = { sessionId };
   if (score !== undefined) metadata.justification = { blastRadius: { score } };
   if (toolName !== undefined) metadata.toolName = toolName;
   if (inputDigest !== undefined) metadata.inputDigest = inputDigest;
+  if (identityRef !== undefined) metadata.identity = { identityRef };
   const receipt = {
-    receiptId: `adm-budget-${sequence}`,
+    receiptId: receiptId === undefined ? `adm-budget-${sequence}` : receiptId,
     receiptKind: kind,
     decision: 'allow',
     status: kind === 'external_action_outcome_receipt' ? 'executed' : 'admitted',
     admissionId: `budget-${sequence}`,
-    workspaceId: 'default',
-    actor: 'budget-agent',
-    agentId: 'budget-agent',
+    workspaceId,
+    actor: agentId,
+    agentId,
     memoryDraftId: 'not_applicable',
     provenanceId: 'external:budget-agent:history',
     trustPolicyVersion: 'huqan-external-action-guard-v1',
@@ -45,7 +54,9 @@ function sealed({
     approvalStatus: 'not_required',
     reason: 'history',
     riskScore: 0,
-    createdAt: new Date(Date.parse('2026-01-01T00:00:00.000Z') + sequence * 1000).toISOString(),
+    createdAt: createdAt === undefined
+      ? new Date(Date.parse('2026-01-01T00:00:00.000Z') + sequence * 1000).toISOString()
+      : createdAt,
     metadata,
   };
   const canonical = buildCanonicalReceiptPayload(receipt, { verdict: fromMcpDecision({ decision: 'allow', reason: 'history' }).verdict });
@@ -56,6 +67,13 @@ function cut(receipts) {
   Object.defineProperty(receipts, 'truncated', { value: true });
   return receipts;
 }
+
+function rehashed(receipt, patch) {
+  const payload = { ...receipt, ...patch };
+  delete payload.receiptHash;
+  return { ...payload, receiptHash: hashCanonicalReceiptPayload(payload) };
+}
+
 
 test("only this session's verified admission receipts are summed", () => {
   const summary = summarizeSessionImpact([
@@ -338,4 +356,331 @@ test('readReceiptHistory marks a receipt file it had to cut', () => {
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('repeated verified refusals persist two idempotent bypass signals on the second observation', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const digest = 'c'.repeat(64);
+  const receipts = [
+    sealed({ sessionId: 's1', score: 40, kind: 'external_action_rejection_receipt', toolName: 'shell', inputDigest: digest }),
+    sealed({ sessionId: 's1', score: 30, kind: 'external_action_rejection_receipt', toolName: 'shell', inputDigest: digest }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(receipts, 's1', graph), 2);
+  const at = receipts[1].createdAt;
+  let state = readBypassState(graph, { workspaceId: 'default', agentId: 'agent:default:budget-agent', at });
+  assert.equal(state.total, 2);
+  assert.equal(Object.values(state.byFingerprint)[0].count, 2);
+
+  recordRetriedRefusalSignals(receipts, 's1', graph);
+  state = readBypassState(graph, { workspaceId: 'default', agentId: 'agent:default:budget-agent', at });
+  assert.equal(state.total, 2, 'rescanning the same durable receipts must not inflate the count');
+});
+
+test('retry signal projection ignores unusable histories and non-repeat evidence', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-skip-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  assert.equal(recordRetriedRefusalSignals([], '', graph), 0);
+  assert.equal(recordRetriedRefusalSignals(null, 's1', graph), 0);
+  assert.equal(recordRetriedRefusalSignals([], 's1', null), 0);
+
+  const digest = 'd'.repeat(64);
+  const validSingle = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const wrongSession = sealed({
+    sessionId: 's2',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const notARejection = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_admission_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const noFingerprint = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+  });
+  const tampered = {
+    ...sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+    }),
+    reason: 'tampered-after-seal',
+  };
+
+  assert.equal(
+    recordRetriedRefusalSignals(
+      [validSingle, wrongSession, notARejection, noFingerprint, tampered],
+      's1',
+      graph,
+    ),
+    0,
+  );
+  const state = readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'agent:default:budget-agent',
+    at: validSingle.createdAt,
+  });
+  assert.equal(state.total, 0);
+});
+
+test('retry signal projection skips malformed durable fields without aborting the scan', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-fields-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const digest = 'e'.repeat(64);
+  const first = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const second = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  // Preserve hash validity for the first two, and add a third verified row
+  // whose fingerprint differs so the repeated group remains exactly two.
+  const other = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'other',
+    inputDigest: 'f'.repeat(64),
+  });
+
+  assert.equal(recordRetriedRefusalSignals([first, second, other], 's1', graph), 2);
+  const state = readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'agent:default:budget-agent',
+    at: second.createdAt,
+  });
+  assert.equal(state.total, 2);
+});
+
+
+test('retry groups are partitioned by canonical workspace and agent identity', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-scope-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const digest = '1'.repeat(64);
+  const agentAFirst = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+    agentId: 'agent-a',
+  });
+  const agentB = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+    agentId: 'agent-b',
+  });
+  assert.equal(recordRetriedRefusalSignals([agentAFirst, agentB], 's1', graph), 0);
+
+  const agentASecond = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+    agentId: 'agent-a',
+  });
+  assert.equal(recordRetriedRefusalSignals([agentAFirst, agentB, agentASecond], 's1', graph), 2);
+
+  const at = agentASecond.createdAt;
+  assert.equal(readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'agent:default:agent-a',
+    at,
+  }).total, 2);
+  assert.equal(readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'agent:default:agent-b',
+    at,
+  }).total, 0);
+});
+
+test('explicit receipt identityRef is preferred over the legacy agent id', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-identity-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const digest = '2'.repeat(64);
+  const receipts = [
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+      agentId: 'legacy-a',
+      identityRef: 'agent:default:canonical-a',
+    }),
+    sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+      agentId: 'legacy-a',
+      identityRef: 'agent:default:canonical-a',
+    }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(receipts, 's1', graph), 2);
+  assert.equal(readBypassState(graph, {
+    workspaceId: 'default',
+    agentId: 'agent:default:canonical-a',
+    at: receipts[1].createdAt,
+  }).total, 2);
+});
+
+
+test('retry projection covers malformed scope and durable-field branches without recording false evidence', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-session-bypass-edge-'));
+  const graph = new Graph({ useSQLite: false, memoryPath: path.join(root, 'memory.json') });
+  t.after(() => {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const digest = '3'.repeat(64);
+  assert.equal(recordRetriedRefusalSignals([], 42, graph), 0);
+
+  const noWorkspace = [
+    rehashed(sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+    }), { workspaceId: '   ' }),
+    rehashed(sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+    }), { workspaceId: '   ' }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(noWorkspace, 's1', graph), 0);
+
+  const unattributed = [
+    rehashed(sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+    }), { agentId: '   ', actor: '   ' }),
+    rehashed(sealed({
+      sessionId: 's1',
+      score: 10,
+      kind: 'external_action_rejection_receipt',
+      toolName: 'shell',
+      inputDigest: digest,
+    }), { agentId: '   ', actor: '   ' }),
+  ];
+  assert.equal(recordRetriedRefusalSignals(unattributed, 's1', graph), 2);
+
+  const invalidRef = rehashed(sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'other-shell',
+    inputDigest: digest,
+  }), { receiptId: '   ' });
+  const invalidAt = rehashed(sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'other-shell',
+    inputDigest: digest,
+  }), { createdAt: 'not-an-instant' });
+  assert.equal(recordRetriedRefusalSignals([invalidRef, invalidAt], 's1', graph), 0);
+
+  const malformedTool = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  const malformedDigest = sealed({
+    sessionId: 's1',
+    score: 10,
+    kind: 'external_action_rejection_receipt',
+    toolName: 'shell',
+    inputDigest: digest,
+  });
+  assert.equal(recordRetriedRefusalSignals([
+    rehashed(malformedTool, {
+      metadata: { ...malformedTool.metadata, toolName: 7 },
+    }),
+    rehashed(malformedDigest, {
+      metadata: { ...malformedDigest.metadata, inputDigest: 7 },
+    }),
+  ], 's1', graph), 0);
+});
+
+test('session summary fails closed on hostile history objects and defaults malformed escape scopes', () => {
+  const hostile = {
+    receiptKind: 'external_action_admission_receipt',
+    get metadata() {
+      throw new Error('hostile metadata');
+    },
+  };
+  const failed = summarizeSessionImpact([hostile], 's1');
+  assert.equal(failed.status, 'unknown');
+  assert.match(failed.reasons[0], /hostile metadata/);
+
+  const summary = summarizeSessionImpact(
+    [sealed({ sessionId: 's1', score: 10 })],
+    's1',
+    { sandboxEscapes: [null, {}, { workspaceId: '   ' }, { workspaceId: 7 }] },
+  );
+  assert.equal(summary.sandboxEscapeAttempts, 4);
+  assert.match(summary.reasons.join('\n'), /workspace\(s\) default/);
 });
