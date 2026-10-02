@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
@@ -65,5 +66,78 @@ test('CI classifier maps representative paths to the intended gates', (t) => {
 
   for (const [file, expected] of cases) {
     assert.equal(classify(file), expected, file);
+  }
+});
+
+function shellBlock(block) {
+  return block.split('\n').map((line) => line.startsWith('          ') ? line.slice(10) : line).join('\n');
+}
+
+function sourceFlag(changed) {
+  const initial = workflow.match(/^          source_only=([^\n]+)$/m);
+  const loop = workflow.match(/# The ratchet runs[^]*?(^          while IFS= read -r f; do[^]*?^          done <<< "\$\{CHANGED\}")/m);
+  assert.ok(initial && loop, 'the workflow must publish its source classification');
+  const result = spawnSync('bash', ['-c', `${classifierFunctions}\nsource_only=${initial[1]}\n${shellBlock(loop[1])}\nprintf '%s' "$source_only"`], {
+    encoding: 'utf8', env: { ...process.env, CHANGED: changed },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout;
+}
+
+function coverageApplies(job, flag) {
+  const block = workflow.match(new RegExp(`^  ${job}:\\n([^]*?)(?=^  [\\w-]+:|$(?![^]))`, 'm'));
+  assert.ok(block, `workflow job ${job} exists`);
+  const condition = block[1].match(/^    if: \$\{\{ needs\.classify\.outputs\.source_only (==|!=) '([^']+)' \}\}$/m);
+  assert.ok(condition, `job ${job} must use the source classification`);
+  return condition[1] === '==' ? flag === condition[2] : flag !== condition[2];
+}
+
+test('source changes run coverage and docs or test-only changes skip it', (t) => {
+  if (!usableBash()) return t.skip('requires a usable POSIX bash');
+  for (const [changed, expected] of [
+    ['lib/memory-store.js', true], ['cli.js', true], ['scripts/run-tests.js', true],
+    ['docs/architecture.md', false], ['test/graph.test.js', false],
+    ['docs/architecture.md\nlib/memory-store.js', true],
+  ]) {
+    const flag = sourceFlag(changed);
+    assert.equal(coverageApplies('coverage', flag), expected, changed);
+    assert.equal(coverageApplies('coverage-skip', flag), !expected, changed);
+  }
+});
+
+test('missing or invalid classification cannot select the coverage skip path', () => {
+  for (const flag of ['', 'true', 'false', 'unexpected']) {
+    assert.equal(coverageApplies('coverage', flag), false, flag);
+    assert.equal(coverageApplies('coverage-skip', flag), false, flag);
+  }
+});
+
+test('coverage gate requires the matching run path and rejects missing classification', (t) => {
+  if (!usableBash()) return t.skip('requires a usable POSIX bash');
+  const gate = workflow.match(/^  coverage-gate:\n([^]*?)(?=^  [\w-]+:|$(?![^]))/m);
+  const run = gate?.[1].match(/^        run: \|\n([^]*)/m);
+  assert.ok(run, 'coverage gate has a shell acceptance check');
+  assert.match(gate[1], /SOURCE_ONLY: \$\{\{ needs\.classify\.outputs\.source_only \}\}/);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-coverage-gate-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const script = path.join(dir, 'gate.sh');
+  fs.writeFileSync(script, shellBlock(run[1]));
+  for (const [source, coverage, skip, classify, expected] of [
+    ['yes', 'success', 'skipped', 'success', true],
+    ['no', 'skipped', 'success', 'success', true],
+    ['yes', 'skipped', 'success', 'success', false],
+    ['no', 'success', 'skipped', 'success', false],
+    ['yes', 'failure', 'skipped', 'success', false],
+    ['no', 'skipped', 'failure', 'success', false],
+    ['', 'skipped', 'success', 'success', false],
+    ['unexpected', 'success', 'success', 'success', false],
+    ['yes', 'success', 'skipped', 'failure', false],
+  ]) {
+    const result = spawnSync('bash', [script], { encoding: 'utf8', env: {
+      ...process.env, SOURCE_ONLY: source, COVERAGE_RESULT: coverage,
+      SKIP_RESULT: skip, CLASSIFY_RESULT: classify,
+    } });
+    assert.equal(result.error, undefined, `bash execution: ${result.error}`);
+    assert.equal(result.status === 0, expected, `${source}/${coverage}/${skip}/${classify}: ${result.stderr}`);
   }
 });

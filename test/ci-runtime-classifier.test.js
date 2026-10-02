@@ -27,7 +27,19 @@ before(() => {
   const block = workflow.slice(start, end).replace(/^ {10}/gm, '');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-classifier-'));
   scriptPath = path.join(dir, 'classify.sh');
-  fs.writeFileSync(scriptPath, `#!/usr/bin/env bash\n${block}\nis_runtime_file "$1"\n`);
+  fs.writeFileSync(scriptPath, `#!/usr/bin/env bash\n${block}
+if [ "$1" = "--batch" ]; then
+  status=0
+  while IFS= read -r -d '' file; do
+    if ! is_runtime_file "$file"; then
+      printf '%s\\0' "$file"
+      status=1
+    fi
+  done
+  exit "$status"
+fi
+is_runtime_file "$1"
+`);
 });
 
 after(() => {
@@ -72,8 +84,14 @@ describe('CI runtime classifier is fail-closed (#752)', {
     const published = pkg.files.filter((entry) => entry.endsWith('.js'));
     assert.ok(published.length > 50, 'expected a substantial published JS inventory');
 
-    const unclassified = published.filter((file) => !isRuntime(file));
+    // NUL-delimited stdin preserves paths and avoids Windows' argv size limit.
+    const result = spawnSync('bash', [scriptPath, '--batch'], {
+      encoding: 'utf8', input: `${published.join('\0')}\0`,
+    });
+    assert.strictEqual(result.error, undefined, 'bash failed for published inventory');
+    const unclassified = result.stdout.split('\0').filter(Boolean);
     assert.deepStrictEqual(unclassified, [], 'published files not classified as runtime');
+    assert.strictEqual(result.status, 0, `bash batch failed: ${result.stderr}`);
   });
 
   it('an unclassified new root production file counts as runtime', () => {
