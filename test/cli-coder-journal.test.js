@@ -4,12 +4,13 @@
  * CLI journal wiring (#2388).
  *
  * `coder --journal <db>` runs the same pipeline as a journal-less run, plus
- * the Experience chain in a real SQLite file. No mocks: a real task file, a
+ * the Experience chain in a real SQLite file. No filesystem or SQLite mocks: a real task file, a
  * real working tree, a real database file, and an independent read-back of
  * that file to prove the rows survived the CLI process boundary (the close).
  */
 
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
+const { performance } = require('node:perf_hooks');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -17,6 +18,14 @@ const path = require('node:path');
 
 const { runCliCoder } = require('../lib/cli-coder');
 const { loadSqliteDriver } = require('../lib/sqlite-availability');
+
+// These assertions verify native files and durable journal wiring. Keep their
+// budget clock independent of CI host load; production-budget tests separately
+// exercise real measurements and refusals without changing the runtime ceiling.
+beforeEach(t => {
+  let clock = 0;
+  t.mock.method(performance, 'now', () => (clock += 0.1));
+});
 
 function makeRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-xp-'));
