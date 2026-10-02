@@ -45,8 +45,14 @@ jobs:
           alerts=0
           latest_sha="${shas[0]}"
 
+          # Every runs query is scoped to branch=main. A release commit is also
+          # the target of its v* tag, and the tag-triggered "Publish to npm" run
+          # shares the commit's head_sha with head_branch set to the tag. Without
+          # the scope the watcher re-ran those publish runs and opened (then
+          # immediately closed) "ci(main)" alerts for d093ec0/b2be968 (#3325,
+          # #3326) -- a release gate refusing to republish is not main CI red.
           latest_state="$(
-            gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&per_page=100" \
+            gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&branch=main&per_page=100" \
               --jq '
                 [
                   .workflow_runs[]
@@ -91,7 +97,7 @@ jobs:
             short="${sha:0:7}"
 
             failures="$(
-              gh api "repos/$REPO/actions/runs?head_sha=$sha&per_page=100" \
+              gh api "repos/$REPO/actions/runs?head_sha=$sha&branch=main&per_page=100" \
                 --jq '
                   [
                     .workflow_runs
