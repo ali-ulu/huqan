@@ -3,14 +3,19 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
+const path = require('node:path');
+
 const {
   EVIDENCE,
   USAGE_STATUS,
   buildUsageReport,
+  candidateStorePaths,
   evidenceFor,
   formatReport,
+  resolveStorePath,
 } = require('../scripts/capability-usage');
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
+const { resolveDefaultMemoryPath } = require('../lib/default-persistence-path');
 
 /**
  * A stand-in for the store. Real enough to answer the three questions the
@@ -208,5 +213,59 @@ describe('capability usage evidence', () => {
 
     assert.match(text, /NEVER means the evidence would be recorded/u);
     assert.match(text, /silence is not evidence/u);
+  });
+});
+
+describe('capability usage store resolution', () => {
+  // The script reads process.env directly; keep the operator's own DB_PATH out
+  // of the way so the default branch is what these tests actually exercise.
+  function withEnvironment(overrides, run) {
+    const saved = {
+      HUQAN_DB_PATH: process.env.HUQAN_DB_PATH,
+      AXIOM_DB_PATH: process.env.AXIOM_DB_PATH,
+    };
+    delete process.env.HUQAN_DB_PATH;
+    delete process.env.AXIOM_DB_PATH;
+    for (const [name, value] of Object.entries(overrides)) process.env[name] = value;
+    try {
+      return run();
+    } finally {
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  }
+
+  // The regression this check shipped with (#3355): it looked under
+  // USERPROFILE/huqan, a store no HUQAN install writes, so every run reported
+  // "nothing here" and measured nothing while looking healthy.
+  it('resolves the default store the way the product does, not under the user profile', () => {
+    withEnvironment({}, () => {
+      const resolved = resolveStorePath();
+
+      // Same derivation as lib/storage/db-path.js's fallback, so under the test
+      // runner both land in the shared per-run temp root rather than the repo,
+      // and outside it both land on the working directory.
+      assert.equal(resolved, path.resolve(path.dirname(resolveDefaultMemoryPath()), 'memory.db'));
+      assert.equal(path.basename(resolved), 'memory.db');
+      assert.doesNotMatch(resolved, /huqan[\\/]memory\.db/u);
+    });
+  });
+
+  it('honours DB_PATH as the canonical override', () => {
+    withEnvironment({ HUQAN_DB_PATH: '/srv/huqan/data/memory.db' }, () => {
+      assert.equal(resolveStorePath(), '/srv/huqan/data/memory.db');
+      assert.deepEqual(candidateStorePaths(), ['/srv/huqan/data/memory.db']);
+    });
+  });
+
+  it('names the paths it looked at when there is no store', () => {
+    withEnvironment({}, () => {
+      const candidates = candidateStorePaths();
+
+      assert.ok(candidates.includes(path.join(process.cwd(), 'memory.db')));
+      assert.equal(new Set(candidates).size, candidates.length);
+    });
   });
 });
