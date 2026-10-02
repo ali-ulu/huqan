@@ -102,7 +102,7 @@ function evaluate(baseline, summary, root = REPO_ROOT) {
     const floor = baseline.totals && baseline.totals[metric];
     if (!Number.isFinite(floor)) {
       nextTotals[metric] = round(value + slack);
-    } else if (value < floor - slack) {
+    } else if (value < round(floor - slack)) {
       // Same rule as a per-file regression: the floor stays put.
       nextTotals[metric] = floor;
       violations.push(`global ${metric}: ${value}% is below the ${floor}% floor`);
@@ -122,7 +122,7 @@ function evaluate(baseline, summary, root = REPO_ROOT) {
     }
     const nextEntry = { lines: recorded.lines, branches: recorded.branches };
     for (const metric of ['lines', 'branches']) {
-      if (measured[metric] < recorded[metric] - slack) {
+      if (measured[metric] < round(recorded[metric] - slack)) {
         // A regression is not spendable: the floor stays where it was.
         violations.push(`${file} ${metric}: ${measured[metric]}% is below the ${recorded[metric]}% floor`);
       } else {

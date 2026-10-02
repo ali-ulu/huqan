@@ -147,3 +147,18 @@ test('parseArgs rejects junk and unknown options', () => {
   assert.throws(() => parseArgs(['oops']), /unexpected argument/);
   assert.throws(() => parseArgs(['--nope=1']), /unknown option/);
 });
+
+test('a floor written by --update does not fail the measurement it was written from', () => {
+  // The recorded floor is measured + slack. `91.93 - 0.1` is
+  // 91.83000000000001 in IEEE-754, so an unrounded comparison reported an
+  // unchanged 91.83% as a regression: the ratchet flagged a file whose
+  // coverage had not moved at all.
+  const baseline = {
+    slackPoints: 0.1, minFileLines: 20, totals: { lines: 92.96, functions: 90, branches: 82.37 },
+    files: { 'lib/a.js': { lines: 92.67, branches: 91.93 } },
+  };
+  const summary = summaryFor({ 'lib/a.js': { lines: 92.57, branches: 91.83 } }, { lines: 92.86, functions: 90, branches: 82.27 });
+  assert.deepEqual(evaluate(baseline, summary).violations, []);
+  const dropped = summaryFor({ 'lib/a.js': { lines: 92.57, branches: 91.82 } }, { lines: 92.86, functions: 90, branches: 82.27 });
+  assert.equal(evaluate(baseline, dropped).violations.length, 1, 'one hundredth below the measurement is still a drop');
+});
