@@ -122,8 +122,12 @@ test('the tree liveness probe reads every pid in one batched query', () => {
     assert.deepEqual(alivePids([999_999]), []);
     const states = readProcessStates([self, parent.pid]);
     assert.equal(isLiveState(states.get(self)), true);
-    // A gone pid resolves to the null "gone" state, not an unresolved entry.
-    assert.equal(readProcessStates([999_999]).get(999_999), null);
+    // On Linux, procfs is authoritative: a gone pid resolves to the null "gone"
+    // state instead of falling back to ps. Windows has no state source and
+    // macOS reads ps, so there the pid is simply unresolved.
+    if (process.platform === 'linux') {
+      assert.equal(readProcessStates([999_999]).get(999_999), null);
+    }
   } finally {
     try { parent.kill('SIGKILL'); } catch { /* already gone */ }
   }
