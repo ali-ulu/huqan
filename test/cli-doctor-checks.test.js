@@ -167,6 +167,15 @@ test('migrations check sees UNIQUE indexes and ignores a schema qualifier', (t) 
     'the qualified table exists under its bare name; the missing UNIQUE index must be named');
 });
 
+test('migrations check never counts an object in another schema as applied', (t) => {
+  const root = workspace(t);
+  createStore(root, (db) => db.exec('CREATE TABLE shadowed (id TEXT)'));
+  writeMigration(root, '003-aux.sql', 'CREATE TABLE IF NOT EXISTS aux.shadowed (id TEXT);\n');
+  const result = checkMigrations({ rootDir: root });
+  assert.equal(result.ok, false, 'main.shadowed existing says nothing about aux.shadowed');
+  assert.deepEqual(result.missingMigrationObjects, ['003-aux.sql:aux.shadowed']);
+});
+
 test('migrations check passes against the migrations the package ships', (t) => {
   const root = workspace(t);
   createStore(root);
