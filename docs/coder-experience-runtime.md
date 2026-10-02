@@ -54,6 +54,19 @@ The median write time and maximum event size feed the existing budget evaluator.
 An exceeded budget refuses the disk effect but retains the refusal audit events.
 Timing samples are process-local; restart does not invent historical write latency.
 
+## Runtime ownership
+
+The four helpers belong to Trust: they evaluate evidence, procedure eligibility,
+sampling and journal budgets; the coder still owns the actual filesystem effect.
+`budgeted-journal.js` is a public port consumed by the Platform composition roots
+`agentRuntime.js` and `lib/coder/journal-store.js`. `coder-routing-runtime.js` is
+the Trust port called by AgentAction's `lib/coder/apply-derivation.js` before its
+existing write gate. `coder-canary-runtime.js` and `coder-trust-replay.js` are
+called inside that Trust port and have no separate cross-context consumers.
+The Trust helpers consume AgentAction's existing `write-cost-budget.js` budget
+policy and `personal-execution-model.js` dispatch policy through explicit ports;
+their established ownership is preserved.
+
 ## Publication evaluation
 
 The publish workflow runs `scripts/check-release-evaluation.js` before publication.
