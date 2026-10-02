@@ -24,7 +24,7 @@ const PROJECTION_ENV = Object.freeze({
   HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: 'allow',
 });
 
-function runHook(profile, payload, directory) {
+function runHook(profile, payload, directory, extraArgs = []) {
   const receiptLog = path.join(directory, 'receipts.jsonl');
   const memoryPath = path.join(directory, 'memory.json');
   const dbPath = path.join(directory, 'memory.db');
@@ -39,6 +39,7 @@ function runHook(profile, payload, directory) {
       '--receipt-log', receiptLog,
       '--memory-path', memoryPath,
       '--db-path', dbPath,
+      ...extraArgs,
     ], {
       cwd: root,
       input: JSON.stringify(payload),
@@ -91,6 +92,32 @@ test('generic hook blocks an unknown executable before a host can run it', t => 
   assert.equal(run.process.status, 3, run.process.stderr);
   assert.equal(JSON.parse(run.process.stdout).decision, 'review');
   assert.equal(fs.existsSync(sentinel), false);
+});
+
+test('two identical refused calls in one session surface review advice without changing the gate verdict (#3338)', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-bypass-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const policyPath = path.join(directory, 'policy.json');
+  fs.writeFileSync(policyPath, JSON.stringify({
+    bypassResponse: { refusedRetry: { reviewAfter: 2, blockAfter: 3 } },
+  }));
+  const payload = genericPayload('rm -rf /');
+  payload.invocationId = 'bypass-refusal-1';
+  const first = runHook('generic', payload, directory, ['--policy', policyPath]);
+  assert.equal(first.process.status, 2, first.process.stderr);
+  const firstOutput = JSON.parse(first.process.stdout);
+  assert.equal(firstOutput.decision, 'block');
+  assert.deepEqual(firstOutput.bypassAdvice.recommendations, []);
+
+  const repeated = { ...payload, invocationId: 'bypass-refusal-2' };
+  const second = runHook('generic', repeated, directory, ['--policy', policyPath]);
+  assert.equal(second.process.status, 2, second.process.stderr);
+  const secondOutput = JSON.parse(second.process.stdout);
+  assert.equal(secondOutput.decision, 'block', 'advice never changes the gate verdict');
+  assert.equal(secondOutput.bypassAdvice.adviceOnly, true);
+  assert.equal(secondOutput.bypassAdvice.recommendations.length, 1);
+  assert.equal(secondOutput.bypassAdvice.recommendations[0].decision, 'require_review');
+  assert.equal(secondOutput.bypassAdvice.recommendations[0].recommendation, 'review recommended');
 });
 
 test('Codex and Claude projections fail closed before destructive execution', t => {
