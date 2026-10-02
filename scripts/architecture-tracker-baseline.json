@@ -4802,7 +4802,8 @@
       ],
       "lib/session-impact.js": [
         "lib/autonomy-receipt-history.js",
-        "lib/bypass-signal-state.js"
+        "lib/bypass-signal-state.js",
+        "lib/external-action-identity-card.js"
       ],
       "lib/shield.js": [
         "lib/verify-status-vocabulary.js"
