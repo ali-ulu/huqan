@@ -9,28 +9,40 @@
 // re-exports loadTimeRequires so existing importers keep working. This
 // module is never a second authority for packaging decisions.
 //
-// Scope note (inherited from the gate): like check-import-cycles.js this is
-// a *static* read of literal requires. What defers one is a *function body*
-// or a `try`/`catch` block -- the two forms that decide at run time whether
-// the require ever executes. A brace that only groups (an object literal, an
-// `if`/`for`/`while` block at module scope) defers nothing: the require
-// inside it still runs while the module is being evaluated, so the module it
-// names has to be in the tarball.
+// Two read modes, because "may this require run?" has two answers:
+//
+//   loadTimeRequires   only module-scope requires. Used for import-graph
+//                      questions where a call-graph edge is not wanted.
+//   reachableRequires  module-scope requires plus literal requires inside
+//                      function bodies -- anywhere in the shipped file a
+//                      caller can reach. The packaging gate uses this: a
+//                      require behind a CLI subcommand or an MCP tool name
+//                      still runs for a real consumer, so its target must
+//                      ship. Only a `try`/`catch` block is deferred, because
+//                      that is the repository's deliberate guard for a
+//                      repo-only dependency (server.js -> lib/http/v5-import,
+//                      lib/a2a/exchange-route).
+//
+// A require hidden inside `try { } catch { }` is genuinely optional and is
+// excluded from both modes. Everything else -- a function body, an `if`/`for`
+// block, an object or class literal -- is reachable, since the file is
+// present and the caller decides whether to enter.
 
 const fs = require('node:fs');
 const path = require('node:path');
+
 
 /** Keywords whose parenthesised head introduces a block, not a function body. */
 const BLOCK_HEADS = new Set(['if', 'for', 'while', 'switch']);
 
 /**
- * Does the `{` just opened defer what is inside it?
+ * Does the `{` just opened defer a require, for the load-time reading?
  *
- * Only two forms do. A function body runs when something calls it, and a
- * `try`/`catch` block is the repository's deliberate guard for a repo-only
- * dependency -- both mean the require may never execute. Everything else --
- * an object literal, an `if` or `for` block, a bare block -- is evaluated as
- * the module loads, so a require inside it is a load-time require.
+ * A function body runs when something calls it, and a `try`/`catch` block is
+ * the repository's deliberate guard for a repo-only dependency -- both mean
+ * the require may never execute. Everything else -- an object literal, an
+ * `if` or `for` block, a bare block -- is evaluated as the module loads, so a
+ * require inside it is a load-time require.
  *
  * The decision is made from the token immediately before the brace, and where
  * that token is `)`, from the one before its matching `(`:
@@ -73,6 +85,36 @@ function braceDefers(tokens) {
 }
 
 /**
+ * Does the `{` just opened defer a require, for the reachable reading?
+ *
+ * Only a `try`/`catch` block does. A function body, an `if`/`for` block and an
+ * object or class literal all hold requires a caller can reach -- the file is
+ * present and something decides whether to enter -- so their targets have to
+ * ship. `try`/`catch` stays out because it is the documented guard for a
+ * dependency this package does not publish; the require is allowed to fail and
+ * the code handles it.
+ *
+ * @param {string[]} tokens significant tokens seen so far, in source order
+ * @returns {boolean} true when the brace defers its contents
+ */
+function braceDefersReachable(tokens) {
+  const prev = tokens[tokens.length - 1];
+  if (prev === undefined) return false;
+  if (prev === 'try') return true;
+  if (prev !== ')') return false;
+
+  let depth = 0;
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (tokens[i] === ')') depth += 1;
+    else if (tokens[i] === '(') {
+      depth -= 1;
+      if (depth === 0) return tokens[i - 1] === 'catch';
+    }
+  }
+  return false;
+}
+
+/**
  * Relative require specifiers that run when the module is loaded.
  *
  * The scanner steps over comments and string literals so a require mentioned
@@ -84,6 +126,32 @@ function braceDefers(tokens) {
  * @returns {string[]} specifiers, in source order
  */
 function loadTimeRequires(src) {
+  return scanRequires(src, braceDefers);
+}
+
+/**
+ * Relative require specifiers a caller can reach for from this file.
+ *
+ * Same scan as loadTimeRequires, but only a `try`/`catch` block defers -- a
+ * require inside a function body counts. This is what a packaging gate wants:
+ * "may this require run for a real consumer?" is yes for anything the module
+ * can reach once it is installed, however deep the call path.
+ *
+ * @param {string} src module source
+ * @returns {string[]} specifiers, in source order
+ */
+function reachableRequires(src) {
+  return scanRequires(src, braceDefersReachable);
+}
+
+/**
+ * The shared scanner behind both readings.
+ *
+ * @param {string} src module source
+ * @param {(tokens: string[]) => boolean} bracesDefer decides whether an opening brace defers
+ * @returns {string[]} specifiers, in source order
+ */
+function scanRequires(src, bracesDefer) {
   const found = [];
   const deferring = [];
   const tokens = [];
@@ -128,7 +196,7 @@ function loadTimeRequires(src) {
       continue;
     }
 
-    if (c === '{') deferring.push(braceDefers(tokens));
+    if (c === '{') deferring.push(bracesDefer(tokens));
     else if (c === '}') deferring.pop();
 
     if (!/\s/.test(c)) tokens.push(c === '=' && src[i + 1] === '>' ? '=>' : c);
@@ -155,4 +223,4 @@ function resolveLocal(fromFile, spec) {
   return null;
 }
 
-module.exports = { BLOCK_HEADS, braceDefers, loadTimeRequires, resolveLocal };
+module.exports = { BLOCK_HEADS, braceDefers, braceDefersReachable, loadTimeRequires, reachableRequires, scanRequires, resolveLocal };
