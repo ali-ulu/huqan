@@ -34,6 +34,21 @@ function journalStatus(journalPath, operationId) {
   return operation ? operation.status : null;
 }
 
+// #3342: racing workers must not merge their V8 coverage into the c8 report.
+// Two processes deciding the same operation take different replay paths
+// (pre-transaction vs in-transaction) depending on microsecond timing, and
+// c8 merges each child's lib coverage by absolute path -- so the race moved
+// lib/graph-mutation-runtime.js branch/line totals run to run and flaked the
+// Coverage ratchet on a file no PR touched. The assertions below only read
+// worker stdout, never their coverage, so the workers run with an env that
+// leaves NODE_V8_COVERAGE unset. Sequential crash/retry workers keep the
+// inherited env: their paths are deterministic.
+function workerEnv() {
+  const env = { ...process.env };
+  delete env.NODE_V8_COVERAGE;
+  return env;
+}
+
 function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
   const script = `
     const fs = require('node:fs');
@@ -57,6 +72,7 @@ function runConcurrentJournalWorker(memoryPath, barrierPath, operationId, tag) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['-e', script, path.join(__dirname, '..', 'graph.js'), memoryPath, barrierPath, operationId, tag], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: workerEnv(),
     });
     let stdout = ''; let stderr = '';
     child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
@@ -76,9 +92,9 @@ async function releaseJournalWorkers(barrierPath) {
   fs.writeFileSync(barrierPath, 'ready');
 }
 
-function runProcess(args, timeoutMs = 5_000) {
+function runProcess(args, timeoutMs = 5_000, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], ...(options.env ? { env: options.env } : {}) });
     let stdout = ''; let stderr = '';
     let settled = false;
     const timer = setTimeout(() => {
@@ -237,7 +253,7 @@ function runSqliteWorker(dbPath, barrierPath, operationId, tag, options = {}) {
     tag,
     markerPath,
     crashAfterMarker,
-  ]);
+  ], 5_000, { env: workerEnv() });
 }
 
 test('[json] durable journal serializes the same operation across processes', async () => {
@@ -728,6 +744,72 @@ test('[sqlite] concurrent replay recovered after rollback preserves the committe
   const replay = graph._runMutationOnceSqlite('concurrent-operation', () => {
     throw new Error('must not execute');
   }, {});
+  assert.equal(replay.replayed, true);
+  assert.deepEqual(replay.result, result);
+  assert.deepEqual(replay.receipt, graph._readMutationReceipt(receiptRow));
+});
+
+// #3342: a nullish canonical receipt must skip receipt chaining on both
+// backends without failing the commit. Covers the skip arm deterministically
+// instead of relying on whichever full-suite test happens to return null.
+for (const backend of ['sqlite', 'json']) {
+  test(`[${backend}] a null canonical receipt still commits the mutation without a receipt`, () => {
+    const graph = makeGraph('null-receipt', backend);
+    const outcome = graph.runMutationOnce('op-null-receipt', () => ({ applied: true }), {
+      buildCanonicalReceipt: () => null,
+    });
+    assert.equal(outcome.replayed, false);
+    assert.deepEqual(outcome.result, { applied: true });
+    assert.equal(outcome.receipt, null);
+    assert.equal(graph.getCommittedMutationReceiptByOperation('op-null-receipt'), null);
+    // The commit itself persisted: a second call replays instead of rerunning.
+    let reran = false;
+    const replay = graph.runMutationOnce('op-null-receipt', () => {
+      reran = true;
+      return { applied: true };
+    }, { buildCanonicalReceipt: () => null });
+    assert.equal(reran, false);
+    assert.equal(replay.replayed, true);
+    assert.deepEqual(replay.result, { applied: true });
+    graph.close?.();
+  });
+}
+
+// #3342: the in-transaction replay (alreadyCompleted !== null inside
+// the SQLite transaction) was covered only by the two-real-processes race
+// below/above: the loser's replay lands pre-transaction or in-transaction
+// depending on microsecond timing, and the workers' lib coverage merges into
+// the c8 report, so the Coverage ratchet flaked on this file without any
+// related change. Pin the path with a deterministic stub instead: the
+// journal read misses before the transaction and hits inside it, so the
+// mutation must replay without executing.
+test('[sqlite] a completion that lands mid-transaction replays without running the mutation', () => {
+  const graph = Object.create(Graph.prototype);
+  graph._nodes = {};
+  graph._edges = [];
+  graph._candidateClaims = [];
+  graph._auditEvents = [];
+  graph._outIndex = new Map();
+  graph._inIndex = new Map();
+  const result = { learned: 1 };
+  const receiptRow = {
+    operation_id: 'mid-transaction-operation', receipt_id: 'receipt-mid-transaction', workspace_id: 'w',
+    canonical_payload: '{}', previous_receipt_hash: null, receipt_hash: 'hash',
+    committed_at: '2026-01-01T00:00:00.000Z',
+  };
+  let reads = 0;
+  graph._stmts = {
+    getMutationJournal: { get: () => (++reads <= 1 ? undefined : { status: 'completed', result: JSON.stringify(result) }) },
+    getMutationReceiptByOperation: { get: () => receiptRow },
+  };
+  graph._db = { transaction: (callback) => () => callback() };
+
+  let executed = false;
+  const replay = graph._runMutationOnceSqlite('mid-transaction-operation', () => {
+    executed = true;
+    return { ok: true };
+  }, {});
+  assert.equal(executed, false, 'the mid-transaction replay must not run the mutation');
   assert.equal(replay.replayed, true);
   assert.deepEqual(replay.result, result);
   assert.deepEqual(replay.receipt, graph._readMutationReceipt(receiptRow));
