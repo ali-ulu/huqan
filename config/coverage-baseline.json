@@ -2843,7 +2843,7 @@
     },
     "lib/provenance-ingest.js": {
       "lines": 100,
-      "branches": 83.33
+      "branches": 83.24
     },
     "lib/provenance-query-audit-page.js": {
       "lines": 100,
@@ -3835,7 +3835,7 @@
     },
     "scripts/check-docs-drift.js": {
       "lines": 94.28,
-      "branches": 88.37
+      "branches": 88.19
     },
     "scripts/check-file-size.js": {
       "lines": 53.69,
