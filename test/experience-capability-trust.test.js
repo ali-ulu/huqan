@@ -195,3 +195,25 @@ describe('Capability Trust: supporting behavior', () => {
     assert.equal(res.trustState, TRUST_STATES.INSUFFICIENT_DATA);
   });
 });
+
+// The fallback anti-erosion counter lives on the registry itself (it was
+// exercised only through the removed permitted-fallback tests, #3315).
+describe('Capability Trust: fallback-preferred-over counter', () => {
+  it('counts on a registered capability and never auto-creates one', () => {
+    const registry = createCapabilityTrustRegistry();
+    assert.deepEqual(
+      registry.incrementFallbackPreferredOverCount({ workspaceId: 'ws-a', capabilityId: 'cap-unknown' }),
+      { ok: false, code: 'not_found' },
+    );
+    assert.equal(registry.get('ws-a', 'cap-unknown').evidenceWindow.totalCount, 0, 'the miss did not register it');
+
+    recordN(registry, { workspaceId: 'ws-a', capabilityId: 'cap-fb', procedureVersion: 'v1', count: 1, eligibility: 'positive_procedure' });
+    const first = registry.incrementFallbackPreferredOverCount({ workspaceId: 'ws-a', capabilityId: 'cap-fb' });
+    const second = registry.incrementFallbackPreferredOverCount({ workspaceId: 'ws-a', capabilityId: 'cap-fb' });
+    assert.equal(first.ok, true);
+    assert.equal(first.entry.fallbackPreferredOverCount, 1);
+    assert.equal(second.entry.fallbackPreferredOverCount, 2);
+    assert.equal(registry.get('ws-a', 'cap-fb').fallbackPreferredOverCount, 2);
+    assert.equal(registry.incrementFallbackPreferredOverCount().ok, false, 'no arguments is a miss, not a throw');
+  });
+});
