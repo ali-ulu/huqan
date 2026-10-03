@@ -266,6 +266,15 @@ test('verifyManifestDigest rejects a self-consistent but schema-invalid manifest
   assert.equal(result.errors.find((entry) => entry.path === 'budget.tokens').code, MANIFEST_ERROR_CODES.INVALID_FIELD);
 });
 
+test('verifyManifestDigest preserves a shape-valid INSUFFICIENT verdict', () => {
+  const insufficient = validInput({
+    split: { identity: DIGEST_B, train: [], holdout: ['hold-1'], transfer: [] },
+  });
+  const result = verifyManifestDigest(insufficient, validateManifest(insufficient).digest);
+  assert.equal(result.status, MANIFEST_STATUS.INSUFFICIENT);
+  assert.equal(result.errors[0].code, MANIFEST_ERROR_CODES.EMPTY_SPLIT);
+});
+
 
 test('a non-object manifest is rejected rather than thrown on', () => {
   for (const value of [null, 'manifest', 42, []]) {
