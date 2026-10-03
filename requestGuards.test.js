@@ -10,6 +10,7 @@ const {
   constantTimeEqual,
   DEFAULT_RATE_LIMIT_MAX_ENTRIES,
   enforceRateLimitCap,
+  extractApiKey,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
@@ -359,7 +360,30 @@ describe('Request Guards', () => {
     assert.strictEqual(constantTimeEqual('secret', 'secreT'), false);
     assert.strictEqual(constantTimeEqual('', ''), true);
     assert.strictEqual(constantTimeEqual(null, ''), true);
+    assert.strictEqual(constantTimeEqual('', null), true);
+    assert.strictEqual(constantTimeEqual(undefined, undefined), true);
     assert.strictEqual(constantTimeEqual('secret', 'much-longer-secret-value'), false);
+  });
+
+  it('extractApiKey handles header casing, precedence, and malformed values', () => {
+    assert.strictEqual(extractApiKey(), '');
+    assert.strictEqual(extractApiKey({ Authorization: 'bEaReR  bearer-key ' }), 'bearer-key');
+    assert.strictEqual(extractApiKey({ 'X-API-Key': ' header-key ' }), 'header-key');
+    assert.strictEqual(extractApiKey({ authorization: 'Bearer primary', 'x-api-key': 'secondary' }), 'primary');
+    assert.strictEqual(extractApiKey({ authorization: ['Bearer ignored'], 'x-api-key': [' first ', 'second'] }), 'first');
+    assert.strictEqual(extractApiKey({ authorization: 'Basic ignored', 'x-api-key': ' fallback ' }), 'fallback');
+    for (const header of [[], ['', 'second'], 42, {}]) {
+      assert.strictEqual(extractApiKey({ 'x-api-key': header }), '');
+    }
+  });
+
+  it('requireApiKey rejects requests without headers with the generic auth envelope', () => {
+    assert.deepStrictEqual(requireApiKey({}, 'configured-key'), {
+      ok: false,
+      status: 401,
+      headers: { 'WWW-Authenticate': 'Bearer' },
+      error: { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } },
+    });
   });
 
   it('constantTimeEqual does not short-circuit on length mismatch', () => {
