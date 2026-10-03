@@ -113,6 +113,27 @@ test('an unknown nested field is rejected', () => {
   assert.equal(result.errors.find((e) => e.path === 'budget.memoryBytes').code, MANIFEST_ERROR_CODES.UNKNOWN_FIELD);
 });
 
+test('prototype-named keys are unknown, not silently accepted as known fields', () => {
+  const topLevel = validateManifest({ ...validInput(), constructor: 'x' });
+  assert.equal(topLevel.status, MANIFEST_STATUS.REJECT);
+  assert.equal(topLevel.errors.find((e) => e.path === 'constructor').code, MANIFEST_ERROR_CODES.UNKNOWN_FIELD);
+
+  const nested = validInput();
+  nested.budget.constructor = 'x';
+  const nestedResult = validateManifest(nested);
+  assert.equal(nestedResult.status, MANIFEST_STATUS.REJECT);
+  assert.equal(nestedResult.errors.find((e) => e.path === 'budget.constructor').code, MANIFEST_ERROR_CODES.UNKNOWN_FIELD);
+});
+
+test('an own __proto__ key parsed from JSON is rejected', () => {
+  const serialized = JSON.stringify(validInput());
+  const withProto = JSON.parse(`{"__proto__":"x",${serialized.slice(1)}`);
+  assert.ok(Object.hasOwn(withProto, '__proto__'));
+  const result = validateManifest(withProto);
+  assert.equal(result.status, MANIFEST_STATUS.REJECT);
+  assert.equal(result.errors.find((e) => e.path === '__proto__').code, MANIFEST_ERROR_CODES.UNKNOWN_FIELD);
+});
+
 test('an unknown mechanism id is rejected and every B1-B8 flag is required', () => {
   const withUnknown = validInput();
   withUnknown.mechanisms.B9 = 'ENABLED';
