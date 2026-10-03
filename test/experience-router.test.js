@@ -12,7 +12,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { decideRoute, REFUSAL_REASONS } = require('../lib/experience/router');
+const { decideRoute, structuralMatch, specificityOf, REFUSAL_REASONS } = require('../lib/experience/router');
 
 function candidate(overrides = {}) {
   return {
@@ -24,6 +24,41 @@ function candidate(overrides = {}) {
     ...overrides,
   };
 }
+
+describe('Router admission and preference boundaries', () => {
+  it('rejects malformed requests and handles absent declared shapes', () => {
+    for (const args of [undefined, {}, { requestId: '', candidates: [] }, { requestId: 'r', candidates: null }]) {
+      assert.equal(decideRoute(args).code, 'invalid_route_request');
+    }
+    assert.equal(structuralMatch(null, { action: 'write' }), false);
+    assert.equal(structuralMatch([], null), true);
+    assert.equal(specificityOf(null), 0);
+    assert.equal(decideRoute({ requestId: 'r', candidates: [] }).decision.refusalReason, 'no_structural_match');
+  });
+
+  it('gates insufficient evidence by risk, treating unknown risk as high', () => {
+    const route = (riskTier, policy) => decideRoute({ requestId: 'r', request: { declared: { fileType: 'js' }, riskTier },
+      candidates: [candidate({ trustState: 'insufficient-data', boundProcedureVersion: null, trustSnapshotVersion: null })], policy });
+    assert.equal(route('high', null).decision.chosenCapabilityId, 'cap-a');
+    assert.equal(route(undefined, { insufficientDataMaxRiskTier: 'low' }).decision.chosenCapabilityId, 'cap-a');
+    for (const tier of ['medium', 'high', 'unrecognized']) {
+      assert.equal(route(tier, { insufficientDataMaxRiskTier: 'low' }).decision.refusalReason, 'no_eligible_match');
+    }
+    assert.equal(route('high', { insufficientDataMaxRiskTier: 'unrecognized' }).decision.chosenCapabilityId, 'cap-a');
+  });
+
+  it('uses preference only within a structural and trust tie, regardless of candidate order', () => {
+    const a = candidate({ capabilityId: 'a' });
+    const b = candidate({ capabilityId: 'b' });
+    const route = (candidates, preferredCapabilityId) => decideRoute({ requestId: 'r',
+      request: { declared: { fileType: 'js', action: 'write' } }, candidates, preferredCapabilityId }).decision;
+    for (const candidates of [[a, b], [b, a]]) assert.equal(route(candidates, 'b').chosenCapabilityId, 'b');
+    assert.equal(route([a, b], 'missing').chosenCapabilityId, 'a');
+    assert.equal(route([a, a], '').chosenCapabilityId, 'a');
+    assert.equal(route([a, { ...b, trustState: 'probationary' }], 'b').chosenCapabilityId, 'a');
+    assert.equal(route([{ ...a, preconditions: { fileType: 'js', action: 'write' } }, b], 'b').chosenCapabilityId, 'a');
+  });
+});
 
 describe('Deterministic Router: acceptance tests (#2384)', () => {
   it('1. identical request + snapshot, run twice -> identical routing_decided output', () => {
