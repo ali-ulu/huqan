@@ -132,18 +132,12 @@ test('baseline infrastructure PASS is not an intelligence gain PASS', (t) => {
   assert.notEqual(result.intelligenceGain, 'PASS');
 });
 
-test('v0.1 reports calibration non-claims and the two B1 known limitations', (t) => {
+test('v0.1 keeps calibration non-claims but retires B1 limitations resolved by #3309', (t) => {
   const result = evaluate(withGraph(t), manifest(), experiment());
   assert.equal(result.calibration.brier, 'NOT_MEASURED');
   assert.equal(result.calibration.ece, 'NOT_MEASURED');
   assert.equal(result.calibration.reason, 'NO_PRE_OUTCOME_PROBABILITY');
-  assert.deepEqual(
-    result.knownLimitations.map((entry) => [entry.code, entry.status, entry.trackedBy]),
-    [
-      ['duplicate_source_independence', 'KNOWN_LIMITATION', '#3309'],
-      ['support_invalidation', 'KNOWN_LIMITATION', '#3309'],
-    ],
-  );
+  assert.deepEqual(result.knownLimitations, []);
 });
 
 test('evaluating the same frozen baseline twice yields the same digest', (t) => {

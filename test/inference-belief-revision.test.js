@@ -19,10 +19,12 @@ const {
   DERIVED_BELIEF_SCHEMA_VERSION,
   CALIBRATION_STATUS,
   EFFECT_KIND,
+  COUNTER_EVIDENCE_KIND,
   calibrateRuleBelief,
   calibrateRuleBeliefFromStore,
   ruleBeliefAt,
   reviseDerivedConclusionBeliefs,
+  reconcileDerivedConclusionBeliefs,
   derivedBeliefAt,
 } = require('../lib/inference-belief-revision');
 
@@ -102,6 +104,77 @@ test('missing, censored and reported-only outcomes never count as observed succe
     result.ignoredDecisionIds,
     ['censored', 'missing', 'reported'],
   );
+});
+
+test('correlated observations from one source event count as one independent trial', () => {
+  const ruleId = 'rule:source-independence';
+  const pairs = pairsObject(['d1', 'd2', 'd3', 'd4', 'd5'].map((id) => pair(id, ruleId, 'confirmed')));
+  const result = calibrateRuleBelief({
+    ruleId,
+    declaredConfidence: 0.9,
+    at: '2026-09-10T00:00:00.000Z',
+    pairs,
+    effectEvidence: ['d1', 'd2', 'd3', 'd4', 'd5'].map((decisionId) => ({
+      decisionId,
+      kind: EFFECT_KIND.OBSERVED,
+      sourceEventRefs: ['event:one-report'],
+    })),
+  }, { minSamples: 1 });
+
+  assert.equal(result.observedSamples, 1);
+  assert.equal(result.observedSuccesses, 1);
+  assert.equal(result.observedFailures, 0);
+  assert.deepEqual(result.countedDecisionIds, ['d1']);
+  assert.deepEqual(result.correlatedDecisionIds, ['d2', 'd3', 'd4', 'd5']);
+  assert.ok(result.ignoredDecisionIds.includes('d5'));
+  assert.equal(result.history[0].correlatedSamples, 4);
+});
+
+test('support invalidation counter-evidence overrides prior confirmation per source event', () => {
+  const ruleId = 'rule:invalidated-support';
+  const ids = ['d1', 'd2', 'd3', 'd4', 'd5'];
+  const result = calibrateRuleBelief({
+    ruleId,
+    declaredConfidence: 0.9,
+    at: '2026-09-20T00:00:00.000Z',
+    pairs: pairsObject(ids.map((id) => pair(id, ruleId, 'confirmed'))),
+    effectEvidence: ids.map((decisionId, index) => ({
+      decisionId,
+      kind: EFFECT_KIND.OBSERVED,
+      sourceEventRefs: [`event:${index + 1}`],
+    })),
+    counterEvidence: ids.map((decisionId, index) => ({
+      evidenceId: `withdraw:${index + 1}`,
+      ruleId,
+      decisionId,
+      kind: COUNTER_EVIDENCE_KIND.SUPPORT_INVALIDATION,
+      sourceEventRefs: [`event:${index + 1}`],
+    })),
+  });
+
+  assert.equal(result.observedSamples, 5);
+  assert.equal(result.observedSuccesses, 0);
+  assert.equal(result.observedFailures, 5);
+  assert.equal(result.status, CALIBRATION_STATUS.DEFEATED);
+  assert.ok(result.systemConfidence < 0.25);
+});
+
+test('counter-evidence without source-event identity fails closed', () => {
+  const result = calibrateRuleBelief({
+    ruleId: 'rule:bad-counter',
+    declaredConfidence: 0.8,
+    at: '2026-09-20T00:00:00.000Z',
+    pairs: {},
+    counterEvidence: [{
+      evidenceId: 'counter-1',
+      ruleId: 'rule:bad-counter',
+      decisionId: 'd1',
+      kind: COUNTER_EVIDENCE_KIND.SUPPORT_INVALIDATION,
+      sourceEventRefs: [],
+    }],
+  }, { minSamples: 1 });
+  assert.equal(result.status, CALIBRATION_STATUS.INVALID);
+  assert.match(result.reason, /source event/);
 });
 
 test('known observed fixture produces reproducible calibration', () => {
@@ -306,6 +379,45 @@ test('derived conclusions react to material rule downgrade and preserve their hi
     derivedBeliefAt(second, '2026-09-21T00:00:00.000Z').status,
     'degraded',
   );
+});
+
+test('withdrawn support state withdraws the derived belief and preserves the reason', () => {
+  const record = Object.freeze({
+    schemaVersion: DERIVED_RECORD_SCHEMA_VERSION,
+    derivationId: 'prov_withdrawn',
+    ruleId: 'rule:withdrawn',
+    state: 'withdrawn',
+    history: Object.freeze([Object.freeze({
+      at: '2026-09-20T00:00:00.000Z',
+      state: 'withdrawn',
+      reason: 'support_removed_superseded_or_contested',
+    })]),
+  });
+  const belief = {
+    schemaVersion: RULE_BELIEF_SCHEMA_VERSION,
+    ruleId: 'rule:withdrawn',
+    status: CALIBRATION_STATUS.CALIBRATED,
+    reason: 'observed_outcomes_calibrated',
+    systemConfidence: 0.8,
+  };
+  const revised = reviseDerivedConclusionBeliefs(
+    [record],
+    belief,
+    { at: '2026-09-20T00:00:01.000Z' },
+  )[0];
+  assert.equal(revised.status, 'withdrawn');
+  assert.equal(revised.history[0].reason, 'support_removed_superseded_or_contested');
+
+  const reconciled = reconcileDerivedConclusionBeliefs([record], [{
+    schemaVersion: DERIVED_BELIEF_SCHEMA_VERSION,
+    derivationId: record.derivationId,
+    ruleId: record.ruleId,
+    status: 'active',
+    systemConfidence: 0.8,
+    history: [],
+  }], { at: '2026-09-20T00:00:02.000Z' })[0];
+  assert.equal(reconciled.status, 'withdrawn');
+  assert.equal(reconciled.history.at(-1).reason, 'support_removed_superseded_or_contested');
 });
 
 test('defeated rule belief defeats dependent derived conclusion without mutating record state', () => {
