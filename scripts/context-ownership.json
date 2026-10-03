@@ -3842,6 +3842,10 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-b1-replay.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cognitive-lab-manifest.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
@@ -5873,6 +5877,20 @@
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
   "lib/inference-runtime-beliefs.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/inference-belief-revision.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/prediction-outcome-pairs.js": {
    "owner": "Knowledge",
    "consumers": [
     "Platform"
