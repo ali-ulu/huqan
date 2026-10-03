@@ -15,44 +15,15 @@
       "persistence": 37,
       "operator_tool": 24,
       "evidence": 14,
-      "unguarded": 5
+      "egress_operator_gated": 2,
+      "unguarded": 3
     }
   },
   "unguarded": [
     {
-      "file": "lib/pr-guardian/github-client.js",
-      "role": "unguarded",
-      "why": "outbound GitHub API calls on the PR Guardian path; deployment-gated by config rather than by an admission decision",
-      "capabilities": [
-        "egress"
-      ],
-      "sites": [
-        {
-          "line": 28,
-          "capability": "egress",
-          "call": "fetch"
-        }
-      ]
-    },
-    {
-      "file": "lib/pr-guardian/ocr-review-check.js",
-      "role": "unguarded",
-      "why": "spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks, deployment-gated by the endpoint configuration rather than by an admission decision",
-      "capabilities": [
-        "process"
-      ],
-      "sites": [
-        {
-          "line": 288,
-          "capability": "process",
-          "call": "spawnSync"
-        }
-      ]
-    },
-    {
       "file": "lib/runtime-watchdog.js",
       "role": "unguarded",
-      "why": "starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate",
+      "why": "starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate. The watchdog health-fetch is covered by the bounded exception in ADR-014; the server spawn remains open there",
       "capabilities": [
         "egress",
         "process"
@@ -73,7 +44,7 @@
     {
       "file": "rustGraph.js",
       "role": "unguarded",
-      "why": "spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN)",
+      "why": "spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN). The RUST_BIN resolution hardening and the process-launch gate are the open work in ADR-014",
       "capabilities": [
         "process"
       ],
@@ -846,8 +817,8 @@
     },
     {
       "file": "lib/pr-guardian/github-client.js",
-      "role": "unguarded",
-      "why": "outbound GitHub API calls on the PR Guardian path; deployment-gated by config rather than by an admission decision",
+      "role": "egress_operator_gated",
+      "why": "outbound GitHub API calls on the PR Guardian path, which runs as its own deployment and is enabled by operator configuration; no agent action reaches the fetch, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014",
       "capabilities": [
         "egress"
       ],
@@ -861,8 +832,8 @@
     },
     {
       "file": "lib/pr-guardian/ocr-review-check.js",
-      "role": "unguarded",
-      "why": "spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks, deployment-gated by the endpoint configuration rather than by an admission decision",
+      "role": "egress_operator_gated",
+      "why": "spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks. No agent action reaches the spawn, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014",
       "capabilities": [
         "process"
       ],
@@ -1002,7 +973,7 @@
     {
       "file": "lib/runtime-watchdog.js",
       "role": "unguarded",
-      "why": "starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate",
+      "why": "starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate. The watchdog health-fetch is covered by the bounded exception in ADR-014; the server spawn remains open there",
       "capabilities": [
         "egress",
         "process"
@@ -1229,7 +1200,7 @@
     {
       "file": "rustGraph.js",
       "role": "unguarded",
-      "why": "spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN)",
+      "why": "spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN). The RUST_BIN resolution hardening and the process-launch gate are the open work in ADR-014",
       "capabilities": [
         "process"
       ],

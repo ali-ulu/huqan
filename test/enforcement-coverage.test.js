@@ -360,6 +360,20 @@ test('the unguarded surface is listed, not hidden', () => {
   }
 });
 
+test('the operator-gated egress exceptions are named, not absorbed into unguarded', () => {
+  // ADR-014: the PR Guardian's GitHub and OCR egress run on an operator-enabled
+  // deployment with no agent action reaching them, so they carry their own role
+  // instead of inflating the unguarded count. The two open process gaps
+  // (rustGraph, runtime-watchdog) must stay unguarded so the count still shows
+  // the real gap; reclassifying them would hide it.
+  const manifest = buildCoverageManifest();
+  const roleOf = Object.fromEntries(manifest.entries.map((entry) => [entry.file, entry.role]));
+  assert.equal(roleOf['lib/pr-guardian/github-client.js'], 'egress_operator_gated');
+  assert.equal(roleOf['lib/pr-guardian/ocr-review-check.js'], 'egress_operator_gated');
+  assert.equal(roleOf['rustGraph.js'], 'unguarded');
+  assert.equal(roleOf['lib/runtime-watchdog.js'], 'unguarded');
+});
+
 test('the checked-in manifest matches what the scan produces now', () => {
   // Otherwise the published artifact drifts from the tree it describes, which
   // is the same class of failure as documentation drift -- and here it would be
