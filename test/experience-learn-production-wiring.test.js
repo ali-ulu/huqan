@@ -32,6 +32,8 @@ test('reconciliation flags retain explicit evidence and never invent a missing o
     { operationId: 'op', workspaceId: 'w', performed: true, notPerformed: false, reason: 'disk read confirmed' });
   assert.deepEqual(parseExperienceReconcileArgs('op extra --not-performed --reason --workspace'),
     { operationId: 'op', workspaceId: '', performed: false, notPerformed: true, reason: '' });
+  assert.deepEqual(parseExperienceReconcileArgs('op --workspace --not-performed'),
+    { operationId: 'op', workspaceId: '', performed: false, notPerformed: true, reason: '' });
 });
 
 function seedPositive(journal, runId) {
