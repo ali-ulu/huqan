@@ -29,6 +29,7 @@ const {
   RECORD_STATUS,
   CALIBRATION_STATUS,
   METRIC_DIRECTION,
+  MIN_OBSERVED_RECORDS,
   recordDecisionProbability,
   readCalibratedRecords,
   calibrate,
@@ -231,7 +232,35 @@ test('malformed bins and a bad minimum fail closed', () => {
   assert.throws(() => calibrate([], { bins: [0.5] }), /final bin edge must be 1/);
   assert.throws(() => calibrate([], { bins: [0.5, 1.5] }), /in \(0, 1\]/);
   assert.throws(() => calibrate([], { bins: [0.5, 0.9] }), /final bin edge must be 1/);
-  assert.throws(() => calibrate([], { minObserved: 0 }), /positive integer/);
+  assert.throws(() => calibrate([], { minObserved: 0 }), /at least 10/);
+  assert.throws(() => calibrate([], { minObserved: MIN_OBSERVED_RECORDS - 1 }), /at least 10/);
+  assert.throws(() => calibrate([], { minObserved: 2.5 }), /at least 10/);
+  // a larger frozen threshold is allowed; only lowering the floor is refused
+  assert.equal(calibrate([], { minObserved: MIN_OBSERVED_RECORDS + 1 }).status, CALIBRATION_STATUS.INSUFFICIENT);
+});
+
+test('re-recording distinguishes ids that would collide under a plain colon join', (t) => {
+  const graph = memoryGraph(tempDir(t));
+  recordPrediction(graph, { decisionId: 'c', score: 80, at: AT });
+  recordPrediction(graph, { decisionId: 'b:c', score: 80, at: AT });
+  const first = recordDecisionProbability(graph, {
+    measurementId: 'a:b', decisionId: 'c', probability: 0.2, at: AT,
+  });
+  const second = recordDecisionProbability(graph, {
+    measurementId: 'a', decisionId: 'b:c', probability: 0.9, at: AT,
+  });
+  assert.equal(first.replayed, false);
+  assert.equal(second.replayed, false, 'a distinct measurement/decision pair must not replay');
+  assert.equal(second.probability, 0.9);
+});
+
+test('a probability-store read failure propagates instead of reading as empty', (t) => {
+  const graph = memoryGraph(tempDir(t));
+  graph.getCommittedMutationResultsByPrefix = () => { throw new Error('store unavailable'); };
+  assert.throws(
+    () => recordDecisionProbability(graph, { measurementId: 'm', decisionId: 'd', probability: 0.5, at: AT }),
+    /store unavailable/,
+  );
 });
 
 test('recording the same decision under two measurements is one sample, not two', (t) => {
@@ -242,7 +271,7 @@ test('recording the same decision under two measurements is one sample, not two'
   recordOutcome(graph, { decisionId: 'dup', outcome: 'confirmed', idempotencyKey: 'o-dup', at: AT2 });
   const records = readCalibratedRecords(graph);
   assert.equal(records.length, 2, 'both measurements are readable, so the report must collapse them');
-  const report = calibrate(records, { minObserved: 1 });
+  const report = calibrate(records);
   assert.equal(report.measurement.observed, 1);
   assert.equal(report.measurement.duplicate, 1);
   assert.equal(report.measurement.attempt, 1);
@@ -250,7 +279,7 @@ test('recording the same decision under two measurements is one sample, not two'
 
 test('repeating one record cannot reach the minimum sample', () => {
   const one = observed({ decisionId: 'x', probability: 0.7, y: 1 });
-  const report = calibrate([one, one, one], { minObserved: 3 });
+  const report = calibrate([one, one, one]);
   assert.equal(report.status, CALIBRATION_STATUS.INSUFFICIENT);
   assert.equal(report.measurement.observed, 1);
   assert.equal(report.measurement.duplicate, 2);
@@ -265,7 +294,7 @@ test('an observed record that cannot be scored is a measurement error, never a s
     ['probability above 1', observed({ decisionId: 'b', probability: 5, y: 1 })],
     ['probability as text', observed({ decisionId: 'b', probability: '0.5', y: 1 })],
   ]) {
-    const report = calibrate([good, bad], { minObserved: 1 });
+    const report = calibrate([good, bad]);
     assert.equal(report.measurement.measurement_error, 1, label);
     assert.equal(report.measurement.observed, 1, label);
     assert.equal(report.brier, (0.8 - 1) ** 2, label);
