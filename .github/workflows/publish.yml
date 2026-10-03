@@ -208,6 +208,9 @@ jobs:
       - name: Run release security evaluation
         run: npm run test:security-release
 
+      # Set these three as variables of the npm-publish ENVIRONMENT, not the
+      # repository: whoever can write them chooses the evaluator and its key, so
+      # the environment must also require reviewers.
       - name: Require independent release evaluation bound to this source
         run: node scripts/check-release-evaluation.js
         env:

@@ -7,6 +7,8 @@ const { execFileSync } = require('node:child_process');
 const { verifyReleaseEvaluationRecord, EVALUATION_RECORD_VERSION } = require('../lib/release-evaluation-record');
 const { selectedTests } = require('./security-release-evaluation');
 
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 function digestFiles(root, files) {
   const hash = crypto.createHash('sha256');
   for (const file of [...files].sort()) {
@@ -15,13 +17,22 @@ function digestFiles(root, files) {
   return hash.digest('hex');
 }
 
+function implementationIdentities(git) {
+  let priorRelease;
+  try { priorRelease = git(['describe', '--tags', '--match', 'v*', '--abbrev=0', 'HEAD^']); } catch { priorRelease = null; }
+  const range = priorRelease ? [`${priorRelease}..HEAD`] : [];
+  // Authors, committers and Co-Authored-By trailers all took part in the implementation.
+  const trailerEmails = git(['log', '--format=%(trailers:key=Co-authored-by,valueonly,separator=%x0a)', ...range])
+    .split(/\r?\n/).map(line => /<([^>]+)>/.exec(line)?.[1]);
+  return [...new Set([
+    ...git(['log', '--format=%ae%n%ce', ...range]).split(/\r?\n/), ...trailerEmails,
+  ].filter(Boolean))];
+}
+
 function releaseEvaluationInputs(root) {
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   const fixtureFiles = git(['ls-files', 'test/fixtures', 'fixtures']).split(/\r?\n/).filter(Boolean);
-  let priorRelease;
-  try { priorRelease = git(['describe', '--tags', '--match', 'v*', '--abbrev=0', 'HEAD^']); } catch { priorRelease = null; }
-  const implementationAuthors = [...new Set(git(['log', '--format=%ae', ...(priorRelease ? [`${priorRelease}..HEAD`] : [])])
-    .split(/\r?\n/).filter(Boolean))];
+  const implementationAuthors = implementationIdentities(git);
   return { releaseSha: git(['rev-parse', 'HEAD']), implementationAuthors,
     suiteDigests: { securitySuite: digestFiles(root, ['scripts/run-tests.js', ...selectedTests()]),
       fixtures: digestFiles(root, fixtureFiles), lockfile: digestFiles(root, ['package-lock.json']) } };
@@ -32,7 +43,9 @@ function checkReleaseEvaluation(record, { releaseSha, implementationAuthor, impl
   const verified = verifyReleaseEvaluationRecord(record, { now });
   if (!verified.valid || verified.failed) return { ok: false, code: verified.reason };
   if (record.version !== EVALUATION_RECORD_VERSION) return { ok: false, code: 'record_version_mismatch' };
-  if (!expectedEvaluator || record.evaluator !== expectedEvaluator
+  // The evaluator is an email so it is comparable with commit identities; a
+  // login or display name could never match one and would pass silently.
+  if (!expectedEvaluator || !EMAIL.test(expectedEvaluator) || record.evaluator !== expectedEvaluator
     || [...implementationAuthors, implementationAuthor].filter(Boolean)
       .some(author => record.evaluator.toLowerCase() === author.toLowerCase())) {
     return { ok: false, code: 'independent_evaluator_required' };
@@ -70,4 +83,4 @@ function main(env = process.env, root = path.resolve(__dirname, '..')) {
 }
 
 if (require.main === module) process.exitCode = main();
-module.exports = { digestFiles, releaseEvaluationInputs, checkReleaseEvaluation, main };
+module.exports = { digestFiles, implementationIdentities, releaseEvaluationInputs, checkReleaseEvaluation, main };

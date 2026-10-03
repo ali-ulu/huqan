@@ -66,6 +66,10 @@ test('trust replay includes routed negative history omitted from positive source
   for (let index = 0; index < 3; index += 1) add(journal, `negative-${index}`, now + 30 + index, 1,
     { chosenCapabilityId: 'replace', boundProcedureVersion: 'bound' }, 'negative_example');
   add(journal, 'fallback', now + 40, 1, { fallback: { capabilityIds: ['replace'] } });
+  // A dry run records the fallback it would take but never executed it.
+  add(journal, 'fallback-dry', now + 41, 1, { fallback: { capabilityIds: ['replace'] } });
+  const dry = journal.rows.get('fallback-dry');
+  dry.events = dry.events.filter(event => event.type !== 'execution_finished');
   const trust = createCapabilityTrustRegistry();
   assert.equal(trust.createCapability({ workspaceId: 'ws', capabilityId: 'replace', boundProcedureVersion: 'bound' }).ok, true);
   assert.equal(replayCoderTrust({ journal, workspaceId: 'ws', requestId: 'next', capabilityId: 'replace',
