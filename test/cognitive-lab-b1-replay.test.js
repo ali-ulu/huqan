@@ -205,10 +205,30 @@ test('no observed sample is INSUFFICIENT, not a silent success', (t) => {
     observations: {},
     split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
   });
-  const result = run(graph, manifest(), e);
+  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } });
+  const result = run(graph, m, e);
   assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
   assert.equal(result.counts.observed, 0);
   assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
+});
+
+test('a design that disagrees with the verified manifest is rejected', (t) => {
+  const graph = withGraph(t);
+  // The manifest freezes the default split; the experiment asks to replay a
+  // different holdout under that same untampered manifest.
+  const result = run(graph, manifest(), experiment({
+    split: { train: ['t1', 't2', 't3'], holdout: ['h1', 'h2'], transfer: [] },
+  }));
+  assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
+  assert.equal(result.correctnessDigest, null);
+});
+
+test('a design whose budget disagrees with the verified manifest is rejected', (t) => {
+  const graph = withGraph(t);
+  const result = run(graph, manifest(), experiment({ budget: { modelCalls: 9 } }));
+  assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
 });
 
 test('an empty holdout is rejected as insufficient data', (t) => {
