@@ -105,6 +105,32 @@ test('every conflict is collected and fails closed with CONTEXT_CONFLICT', () =>
   }
 });
 
+test('a checkpoint commit absent from a complete clone stays a conflict', () => {
+  assert.throws(
+    () => validateGitState(
+      { ...CHECKPOINT, canonicalMain: 'missing' },
+      evidence(),
+      () => false,
+      { now: NOW, maxAgeMs: MAX_AGE },
+      () => false,
+      () => false,
+    ),
+    /checkpoint main missing is not present in this clone/,
+  );
+});
+
+test('a checkpoint commit absent from a shallow clone is reported unverified', () => {
+  const result = validateGitState(
+    { ...CHECKPOINT, canonicalMain: 'missing' },
+    evidence(),
+    () => false,
+    { now: NOW, maxAgeMs: MAX_AGE },
+    () => false,
+    () => true,
+  );
+  assert.equal(result.checkpointDrift, 'UNVERIFIED_IN_SHALLOW_CLONE');
+});
+
 test('baseline freshness: stale and unknown conflict, a zero limit opts out', () => {
   assert.throws(() => validate({ baselineSyncedAt: NOW - 2 * MAX_AGE }), /last synced with the remote 60 minutes ago, past the 30 minute limit/);
   assert.throws(() => validate({ baselineSyncedAt: null }), /has no recorded sync with the remote/);

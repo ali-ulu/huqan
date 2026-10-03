@@ -53,35 +53,32 @@ const DETERMINISTIC_GIT_STATE = {
 
 // A commit that is present in this clone but not reachable from origin/main, so
 // the fail-closed ancestry test names a real conflict without depending on how
-// much history the checkout holds (#3368). origin/main's parent is the natural
-// "older commit"; a `fetch-depth: 1` checkout has none, so the fallback is a
-// dangling commit built from the empty tree -- present to `git cat-file`, yet
-// an ancestor of nothing. Neither shape touches a ref or the worktree.
+// much history the checkout holds (#3368). `origin/main^` would be an ancestor
+// of origin/main and is therefore accepted as STALE_ANCESTOR, so the fixture is
+// an independent root commit built from the empty tree -- present to
+// `git cat-file`, yet an ancestor of nothing, on shallow and deep checkouts
+// alike. It touches no ref and no worktree.
 function presentNonAncestorCommit() {
   const cp = require('node:child_process');
-  try {
-    return cp.execFileSync('git', ['rev-parse', 'origin/main^'], { encoding: 'utf8' }).trim();
-  } catch {
-    const tree = cp.execFileSync(
-      'git',
-      ['hash-object', '-t', 'tree', '--stdin'],
-      { encoding: 'utf8', input: '' },
-    ).trim();
-    return cp.execFileSync(
-      'git',
-      ['commit-tree', tree, '-m', 'huqan agent-context test fixture'],
-      {
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          GIT_AUTHOR_NAME: 'huqan test',
-          GIT_AUTHOR_EMAIL: 'test@example.invalid',
-          GIT_COMMITTER_NAME: 'huqan test',
-          GIT_COMMITTER_EMAIL: 'test@example.invalid',
-        },
+  const tree = cp.execFileSync(
+    'git',
+    ['hash-object', '-t', 'tree', '--stdin'],
+    { encoding: 'utf8', input: '' },
+  ).trim();
+  return cp.execFileSync(
+    'git',
+    ['commit-tree', tree, '-m', 'huqan agent-context test fixture'],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: 'huqan test',
+        GIT_AUTHOR_EMAIL: 'test@example.invalid',
+        GIT_COMMITTER_NAME: 'huqan test',
+        GIT_COMMITTER_EMAIL: 'test@example.invalid',
       },
-    ).trim();
-  }
+    },
+  ).trim();
 }
 
 test('agent context capsule is deterministic and ordered stable-first', () => {

@@ -60,7 +60,14 @@ function requireGitEvidence(label, args) {
   }
 }
 
-function validateGitState(checkpoint, evidence, isAncestor, options = {}, hasCommit = () => true) {
+function validateGitState(
+  checkpoint,
+  evidence,
+  isAncestor,
+  options = {},
+  hasCommit = () => true,
+  isShallow = () => false,
+) {
   const {
     repository,
     branch,
@@ -111,12 +118,20 @@ function validateGitState(checkpoint, evidence, isAncestor, options = {}, hasCom
      * unchanged tree passed or failed with how deep the checkout happened to
      * be, which is what made the suite flaky.
      *
-     * This stays honest rather than green. The verdict is reported as
-     * UNVERIFIED_IN_SHALLOW_CLONE and the branch-position checks below still
-     * fail closed when the local checkout genuinely trails origin/main, so the
-     * deep-clone cases this guard exists for keep their conflict.
+     * The absence alone is not evidence of shallowness: a commit missing from a
+     * *complete* clone is a real conflict, not an unanswerable question, so the
+     * unverified verdict is reserved for `--is-shallow-repository`. This stays
+     * honest rather than green: the branch-position checks below still fail
+     * closed when the local checkout genuinely trails origin/main, and a
+     * complete clone that cannot find the checkpoint keeps its conflict.
      */
-    checkpointDrift = 'UNVERIFIED_IN_SHALLOW_CLONE';
+    if (isShallow()) {
+      checkpointDrift = 'UNVERIFIED_IN_SHALLOW_CLONE';
+    } else {
+      conflicts.push(
+        `checkpoint main ${checkpoint.canonicalMain} is not present in this clone`,
+      );
+    }
   } else {
     conflicts.push(
       `checkpoint main ${checkpoint.canonicalMain} is not an ancestor of origin/main ${originMain}`,
@@ -214,8 +229,18 @@ function inspectGitState(checkpoint, options = {}) {
       return false;
     }
   };
+  // A commit absent from a shallow clone is a plumbing fact, but the same
+  // absence in a complete clone is a real conflict; only the repository's own
+  // answer to `--is-shallow-repository` separates the two (#3368).
+  const isShallow = () => {
+    try {
+      return runGit(['rev-parse', '--is-shallow-repository']).trim() === 'true';
+    } catch {
+      return false;
+    }
+  };
 
-  return validateGitState(checkpoint, evidence, isAncestor, options, hasCommit);
+  return validateGitState(checkpoint, evidence, isAncestor, options, hasCommit, isShallow);
 }
 
 module.exports = {
