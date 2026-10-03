@@ -596,3 +596,146 @@ test('the live capsule reports a baseline freshness verdict (#682)', (t) => {
   assert.match(capsule, /"baselineFreshness": "FRESH"/);
   assert.match(capsule, new RegExp(`"baselineSyncedAt": "${new Date(syncedAt).toISOString()}"`));
 });
+
+// --- Hermetic wiring of the live collectors (#3368) -----------------------
+//
+// The live tests above skip whenever the checkout has no `origin/main` (the
+// Coverage job's `fetch-depth: 1`), which left the `inspectGitState` wiring --
+// every evidence call, the ancestry/hasCommit/isShallow probes and the baseline
+// path resolution -- unexecuted under the ratchet. Injecting the git runner
+// covers the same code on any checkout depth, without touching a ref.
+
+const GIT_EVIDENCE = {
+  repository: 'git@github.com:ali-ulu/huqan.git',
+  branch: 'feature/hermetic',
+  head: 'feature-tip',
+  originMain: 'remote-tip',
+  tag: '',
+  status: '',
+  gitDir: '/tmp/huqan-git-dir',
+  shallow: 'false',
+};
+
+function fakeGit(overrides = {}) {
+  const answers = { ...GIT_EVIDENCE, ...overrides };
+  const seen = [];
+  const runner = (args) => {
+    const key = args.join(' ');
+    seen.push(key);
+    switch (key) {
+      case 'config --get remote.origin.url': return answers.repository;
+      case 'branch --show-current': return answers.branch;
+      case 'rev-parse HEAD': return answers.head;
+      case 'rev-parse origin/main': return answers.originMain;
+      case 'tag --points-at HEAD': return answers.tag;
+      case 'status --short': return answers.status;
+      case 'rev-parse --git-dir': return answers.gitDir;
+      case 'rev-parse --git-common-dir': return answers.gitDir;
+      case 'rev-parse --is-shallow-repository': return answers.shallow;
+      case `rev-parse --verify --quiet ${answers.checkpoint}^{commit}`:
+        if (answers.present) return answers.checkpoint;
+        throw new Error('missing object');
+      default:
+        if (key.startsWith('merge-base --is-ancestor ')) {
+          const [, , ancestor, descendant] = key.split(' ');
+          if (answers.ancestorPairs && answers.ancestorPairs.has(`${ancestor}>${descendant}`)) return '';
+          throw new Error('not an ancestor');
+        }
+        throw new Error(`unexpected git call: ${key}`);
+    }
+  };
+  return { runner, seen };
+}
+
+const HERMETIC_CHECKPOINT = {
+  repository: 'ali-ulu/huqan',
+  baselineBranch: 'main',
+  canonicalMain: 'checkpoint',
+};
+
+test('inspectGitState reads its evidence through the injected runner, not the live clone (#3368)', () => {
+  const { runner, seen } = fakeGit({
+    originMain: 'checkpoint',
+    ancestorPairs: new Set(['checkpoint>checkpoint', 'checkpoint>feature-tip']),
+  });
+
+  const gitState = inspectGitState(HERMETIC_CHECKPOINT, { maxAgeMs: 0 }, runner);
+
+  assert.equal(gitState.repository, 'ali-ulu/huqan');
+  assert.equal(gitState.currentBranch, 'feature/hermetic');
+  assert.equal(gitState.head, 'feature-tip');
+  assert.equal(gitState.originMain, 'checkpoint');
+  assert.equal(gitState.checkpointDrift, 'CURRENT');
+  assert.equal(gitState.headPosition, 'AHEAD_OF_BASELINE');
+  assert.equal(gitState.baselineFreshness, 'UNMEASURED_BY_CONFIG');
+  assert.equal(seen.includes('rev-parse --is-shallow-repository'), false, 'ancestry answered, no shallowness probe');
+});
+
+test('inspectGitState reports an absent checkpoint commit as unverified only in a shallow clone (#3368)', () => {
+  const shallow = fakeGit({
+    ancestorPairs: new Set(['remote-tip>feature-tip']),
+    checkpoint: 'checkpoint',
+    present: false,
+    shallow: 'true',
+  }).runner;
+  const complete = fakeGit({
+    ancestorPairs: new Set(['remote-tip>feature-tip']),
+    checkpoint: 'checkpoint',
+    present: false,
+    shallow: 'false',
+  }).runner;
+
+  assert.equal(
+    inspectGitState(HERMETIC_CHECKPOINT, { maxAgeMs: 0 }, shallow).checkpointDrift,
+    'UNVERIFIED_IN_SHALLOW_CLONE',
+  );
+  assert.throws(
+    () => inspectGitState(HERMETIC_CHECKPOINT, { maxAgeMs: 0 }, complete),
+    /checkpoint main checkpoint is not present in this clone/,
+  );
+});
+
+test('inspectGitState keeps a present-but-unrelated checkpoint commit a conflict (#3368)', () => {
+  const { runner } = fakeGit({
+    ancestorPairs: new Set(['remote-tip>feature-tip']),
+    checkpoint: 'checkpoint',
+    present: true,
+    shallow: 'true',
+  });
+
+  assert.throws(
+    () => inspectGitState(HERMETIC_CHECKPOINT, { maxAgeMs: 0 }, runner),
+    /checkpoint main checkpoint is not an ancestor of origin\/main remote-tip/,
+  );
+});
+
+test('buildContextCapsule wires the injected runner into the live git section (#3368)', () => {
+  const { runner } = fakeGit({
+    originMain: 'checkpoint',
+    ancestorPairs: new Set(['checkpoint>checkpoint', 'checkpoint>feature-tip']),
+  });
+
+  const capsule = buildContextCapsule({
+    checkpoint: HERMETIC_CHECKPOINT,
+    gitStateOptions: { maxAgeMs: 0 },
+    gitRunner: runner,
+  });
+
+  assert.match(capsule, /"originMain": "checkpoint"/);
+  assert.match(capsule, /"checkpointDrift": "CURRENT"/);
+  assert.match(capsule, /"headPosition": "AHEAD_OF_BASELINE"/);
+});
+
+test('baselineSyncPaths falls back to the one git dir it can resolve (#3368)', () => {
+  const path = require('node:path');
+  const { baselineSyncPaths } = require('../scripts/agent-context-baseline');
+
+  const paths = baselineSyncPaths((args) => {
+    if (args.join(' ') === 'rev-parse --git-dir') return '.git';
+    throw new Error('no common dir');
+  });
+
+  assert.ok(paths.some((candidate) => candidate.endsWith(path.join('.git', 'FETCH_HEAD'))));
+  assert.ok(paths.some((candidate) => candidate.endsWith(path.join('.git', 'refs', 'remotes', 'origin', 'main'))));
+});
+

@@ -56,7 +56,8 @@ function buildContextCapsule(options = {}) {
   const deliveryProtocol = options.deliveryProtocol || readUtf8(deliveryProtocolPath);
   const checkpoint = options.checkpoint
     || JSON.parse(readUtf8(checkpointPath));
-  const gitState = options.gitState || inspectGitState(checkpoint, options.gitStateOptions);
+  const gitState = options.gitState
+    || inspectGitState(checkpoint, options.gitStateOptions, options.gitRunner);
 
   return formatContextCapsule(canon, checkpoint, gitState, deliveryProtocol);
 }

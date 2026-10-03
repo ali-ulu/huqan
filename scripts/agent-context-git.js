@@ -36,10 +36,10 @@ function isReleaseCheckout(branch, releaseTag) {
  * asserted to be byte-identical across calls, and a commit can carry more than
  * one tag.
  */
-function readReleaseTag() {
+function readReleaseTag(runner = runGit) {
   let output;
   try {
-    output = runGit(['tag', '--points-at', 'HEAD'], { allowFailure: true });
+    output = runner(['tag', '--points-at', 'HEAD'], { allowFailure: true });
   } catch {
     // No tag objects present (a shallow or tagless fetch) is not a conflict on
     // its own; it just means this is not identifiable as a release checkout.
@@ -52,9 +52,9 @@ function readReleaseTag() {
     .sort()[0] || '';
 }
 
-function requireGitEvidence(label, args) {
+function requireGitEvidence(label, args, runner = runGit) {
   try {
-    return runGit(args);
+    return runner(args);
   } catch {
     throw contextConflict(`${label} is unavailable`);
   }
@@ -197,21 +197,21 @@ function validateGitState(
  * capsule's *shape* passes `maxAgeMs: 0` so its result stops depending on how
  * long ago someone last fetched (#1291).
  */
-function inspectGitState(checkpoint, options = {}) {
+function inspectGitState(checkpoint, options = {}, runner = runGit) {
   const evidence = {
     repository: normalizeGitHubRepository(
-      requireGitEvidence('remote.origin.url', ['config', '--get', 'remote.origin.url']),
+      requireGitEvidence('remote.origin.url', ['config', '--get', 'remote.origin.url'], runner),
     ),
-    branch: requireGitEvidence('current branch', ['branch', '--show-current']),
-    head: requireGitEvidence('HEAD', ['rev-parse', 'HEAD']),
-    originMain: requireGitEvidence('origin/main', ['rev-parse', 'origin/main']),
-    releaseTag: readReleaseTag(),
-    worktree: requireGitEvidence('worktree status', ['status', '--short']),
-    baselineSyncedAt: readBaselineSyncedAt(),
+    branch: requireGitEvidence('current branch', ['branch', '--show-current'], runner),
+    head: requireGitEvidence('HEAD', ['rev-parse', 'HEAD'], runner),
+    originMain: requireGitEvidence('origin/main', ['rev-parse', 'origin/main'], runner),
+    releaseTag: readReleaseTag(runner),
+    worktree: requireGitEvidence('worktree status', ['status', '--short'], runner),
+    baselineSyncedAt: readBaselineSyncedAt(undefined, runner),
   };
   const isAncestor = (ancestor, descendant) => {
     try {
-      runGit(['merge-base', '--is-ancestor', ancestor, descendant]);
+      runner(['merge-base', '--is-ancestor', ancestor, descendant]);
       return true;
     } catch {
       return false;
@@ -223,7 +223,7 @@ function inspectGitState(checkpoint, options = {}) {
   // merely exited non-zero (#3368).
   const hasCommit = (sha) => {
     try {
-      runGit(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`]);
+      runner(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`]);
       return true;
     } catch {
       return false;
@@ -234,7 +234,7 @@ function inspectGitState(checkpoint, options = {}) {
   // answer to `--is-shallow-repository` separates the two (#3368).
   const isShallow = () => {
     try {
-      return runGit(['rev-parse', '--is-shallow-repository']).trim() === 'true';
+      return runner(['rev-parse', '--is-shallow-repository']).trim() === 'true';
     } catch {
       return false;
     }
