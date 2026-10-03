@@ -15,9 +15,10 @@
  *     → review → persistent queue
  *     → reject → audit + drop
  *
- * Tests are green-safe: harness-load and inventory tests pass today; contract
- * invariant tests are registered as skip/todo because the boundary does not
- * exist yet.  Later PRs (FAZ2-2 through FAZ2-7) turn each contract green.
+ * Tests are green-safe: harness-load and inventory tests pass today; the
+ * contract invariants are registered with `it.todo` because the boundary does
+ * not exist in the shipped runtime (`_commitMutation` is absent).  They are
+ * kept as tracked todos so the gap stays visible instead of silently skipped.
  *
  * Evidence references: docs/audits/faz2-pr1-boundary-red-evidence.md
  */
@@ -115,51 +116,26 @@ describe('FAZ2-PR1 contract: F-001 background write paths', () => {
     const k = makeKernel();
     assert.ok(
       typeof k._crossLink === 'function',
-      '_crossLink must exist — confirmed direct addEdge caller at kernel.js:1018'
+      '_crossLink must exist — it is a confirmed direct addEdge caller'
     );
   });
 
   // CONTRACT: after FAZ2-2, every call to graph.addEdge from background paths
   // must go through _commitMutation.
-  it.skip(
-    '[FAZ2-2] _autoThinkTick must route addEdge through kernel._commitMutation',
-    // Reason: _commitMutation not yet implemented.  FAZ2-2 adds it.
-    // Source evidence: kernel.js:1582 — direct graph.addEdge, no gate, no audit.
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] _autoThinkTick must route addEdge through kernel._commitMutation');
 
-  it.skip(
-    '[FAZ2-2] dream(learnFromDream) must route addEdge through kernel._commitMutation',
-    // Source evidence: kernel.js:1671 — direct graph.addEdge, no gate, no audit.
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] dream(learnFromDream) must route addEdge through kernel._commitMutation');
 
-  it.skip(
-    '[FAZ2-2] selfEvolve must route addEdge through kernel._commitMutation',
-    // Source evidence: kernel.js:2007 — direct graph.addEdge, no gate, no audit.
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] selfEvolve must route addEdge through kernel._commitMutation');
 
-  it.skip(
-    '[FAZ2-2] _crossLink must route addEdge through kernel._commitMutation',
-    // Source evidence: kernel.js:1018 — direct graph.addEdge, no gate, no audit.
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] _crossLink must route addEdge through kernel._commitMutation');
 });
 
 // ---------------------------------------------------------------------------
 // SECTION 3: Admission gate default-on (F-002)
 // ---------------------------------------------------------------------------
 describe('FAZ2-PR1 contract: F-002 admission gate default-on', () => {
-  it('[FAZ2-2] kernel.learn defaults admission on without explicit override', () => {
+  it('kernel.learn defaults admission on without explicit override', () => {
     const k = makeKernel();
     const result = k.learn('test fakt', { workspaceId: 'default' });
     assert.ok(result.ok, 'learn should succeed without admissionRequired');
@@ -169,13 +145,7 @@ describe('FAZ2-PR1 contract: F-002 admission gate default-on', () => {
 
   // MCP execution stays as a later integration contract because this PR only
   // hardens kernel.learn; it does not change MCP approval execution/persistence.
-  it.skip(
-    '[FAZ2-5] MCP axiom.learn execution must not bypass default admission',
-    // Source evidence: mcpServer.js:757 — kernel.learn called without admissionRequired.
-    () => {
-      throw new Error('FAZ2-5 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] MCP axiom.learn execution must not bypass default admission');
 });
 
 // ---------------------------------------------------------------------------
@@ -202,29 +172,11 @@ describe('FAZ2-PR1 contract: F-003 plugin direct graph writes', () => {
 
   // CONTRACT: after FAZ2-4, plugins must call kernel._commitMutation instead
   // of accessing kernel.graph directly.
-  it.skip(
-    '[FAZ2-4] company-brain.js must not call kernel.graph.addNode/addEdge directly',
-    // Source evidence: plugins/company-brain.js:46-48 — direct kernel.graph.addNode/addEdge.
-    () => {
-      throw new Error('FAZ2-4 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] company-brain.js must not call kernel.graph.addNode/addEdge directly');
 
-  it.skip(
-    '[FAZ2-4] repo-memory.js must not call kernel.graph.addNode/addEdge directly',
-    // Source evidence: plugins/repo-memory.js:42-44 — direct kernel.graph.addNode/addEdge.
-    () => {
-      throw new Error('FAZ2-4 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] repo-memory.js must not call kernel.graph.addNode/addEdge directly');
 
-  it.skip(
-    '[FAZ2-4] /api/ingest must route through admission before calling plugin.run()',
-    // Source evidence: lib/ingest.js — plugin.run() called without admission gate.
-    () => {
-      throw new Error('FAZ2-4 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] /api/ingest must route through admission before calling plugin.run()');
 });
 
 // ---------------------------------------------------------------------------
@@ -236,44 +188,13 @@ describe('FAZ2-PR1 contract: _commitMutation future interface', () => {
    * implements it.  They skip today because the method does not exist.
    */
 
-  it.skip(
-    '[FAZ2-2] _commitMutation(mutation, context) must exist on Kernel prototype',
-    () => {
-      const k = makeKernel();
-      assert.strictEqual(typeof k._commitMutation, 'function');
-    }
-  );
+  it.todo('[unimplemented] _commitMutation(mutation, context) must exist on Kernel prototype');
 
-  it.skip(
-    '[FAZ2-2] _commitMutation must require non-null provenance in context',
-    () => {
-      const k = makeKernel();
-      assert.throws(
-        () => k._commitMutation({ from: 'a', to: 'b', relation: 'r' }, null),
-        /provenance/i,
-        '_commitMutation must reject null context / missing provenance'
-      );
-    }
-  );
+  it.todo('[unimplemented] _commitMutation must require non-null provenance in context');
 
-  it.skip(
-    '[FAZ2-2] _commitMutation outcome allow must write to graph and emit audit event',
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] _commitMutation outcome allow must write to graph and emit audit event');
 
-  it.skip(
-    '[FAZ2-2] _commitMutation outcome review must enqueue to persistent store, not write graph',
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] _commitMutation outcome review must enqueue to persistent store, not write graph');
 
-  it.skip(
-    '[FAZ2-2] _commitMutation outcome reject must emit audit event and not write graph',
-    () => {
-      throw new Error('FAZ2-2 not yet merged');
-    }
-  );
+  it.todo('[unimplemented] _commitMutation outcome reject must emit audit event and not write graph');
 });
