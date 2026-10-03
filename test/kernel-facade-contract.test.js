@@ -394,6 +394,11 @@ let INSTALL_ERROR = null;
 
 const DEFAULT_INSTALL_TIMEOUT_MS = 120_000;
 const WINDOWS_INSTALL_TIMEOUT_MS = 180_000;
+// A single registry stall used to abort the whole install and redden the shard.
+// "spawnSync ETIMEDOUT" is reported when the timeout kills the child, so the
+// successful first attempt is what keeps output captured and the retry only
+// runs when the first attempt did not install.
+const MAX_INSTALL_ATTEMPTS = 2;
 
 function installTimeoutMs(platform = process.platform) {
   return platform === 'win32' ? WINDOWS_INSTALL_TIMEOUT_MS : DEFAULT_INSTALL_TIMEOUT_MS;
@@ -441,17 +446,37 @@ function createTarballInstall(platform = process.platform) {
   // the last registry URL it was waiting on (spawnSync returns captured output
   // even when it kills the child). Keep the 120s budget everywhere except
   // Windows, where hosted runners have now crossed that boundary while still
-  // making registry progress (#2803). The file-level shard deadline remains
-  // the outer hang guard; this only gives the real package install more room.
+  // making registry progress (#2803). A bounded retry absorbs a transient
+  // registry stall so one slow attempt does not redden the whole shard (#3372).
+  // The file-level shard deadline remains the outer hang guard.
   const installTimeout = installTimeoutMs(platform);
-  const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
-    cwd: INSTALL_DIR, encoding: 'utf8', timeout: installTimeout, shell: true,
-    env: { ...process.env, NO_COLOR: '1' },
-  });
-  const installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
-  if (installResult.error) assert.fail(`npm install error after ${installTimeout / 1000}s: ${installResult.error.message}\n${installOutput}`);
-  if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installOutput}`);
-  assert.ok(fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan')), 'huqan must be installed');
+  let installResult;
+  let installOutput = '';
+  let lastFailure;
+  for (let attempt = 1; attempt <= MAX_INSTALL_ATTEMPTS; attempt += 1) {
+    installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
+      cwd: INSTALL_DIR, encoding: 'utf8', timeout: installTimeout, shell: true,
+      env: { ...process.env, NO_COLOR: '1' },
+    });
+    installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
+    if (installResult.error) {
+      lastFailure = `npm install error after ${installTimeout / 1000}s (attempt ${attempt}/${MAX_INSTALL_ATTEMPTS}): ${installResult.error.message}\n${installOutput}`;
+      continue;
+    }
+    if (installResult.status !== 0) {
+      lastFailure = `npm install exit ${installResult.status} (attempt ${attempt}/${MAX_INSTALL_ATTEMPTS}): ${installOutput}`;
+      continue;
+    }
+    // A zero exit is not proof the package landed; the retry loop keys off the
+    // installed tree so a silently partial install is retried, not trusted.
+    if (fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan'))) {
+      lastFailure = null;
+      break;
+    }
+    lastFailure = `npm install exited 0 but left no huqan package (attempt ${attempt}/${MAX_INSTALL_ATTEMPTS}): ${installOutput}`;
+  }
+  // assert.fail() throws, so reaching here with a failure is the exhausted case.
+  if (lastFailure) assert.fail(lastFailure);
   return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
 }
 
