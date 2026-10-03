@@ -2,6 +2,8 @@
 
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -17,6 +19,24 @@ const {
 const repoRoot = path.join(__dirname, '..');
 
 const commit = (subject, body = '') => ({ hash: 'a'.repeat(40), subject, body });
+
+/**
+ * A throwaway repository with a `v0.12.0` tag and one conventional commit on
+ * top, so the CLI preview reads history that exists instead of depending on the
+ * tags and checkout depth of whatever clone runs the suite (#3367).
+ */
+function fixtureRepo(t) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-changelog-'));
+  t.after(() => { try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); } catch { /* best effort */ } });
+  const git = args => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+  git(['init', '-q']);
+  git(['config', 'user.email', 'fixture@example.invalid']);
+  git(['config', 'user.name', 'Fixture']);
+  git(['commit', '-q', '--allow-empty', '-m', 'chore: seed the fixture']);
+  git(['tag', 'v0.12.0']);
+  git(['commit', '-q', '--allow-empty', '-m', 'feat(cli): add doctor command']);
+  return dir;
+}
 
 test('classify maps each conventional type to its section', () => {
   const cases = [
@@ -129,10 +149,12 @@ test('renderEntry omits the reference parenthesis when a commit names none', () 
   const rendered = renderEntry(groupCommits([commit('chore: tidy the workflow')]), { repoUrl: 'https://x' });
   assert.equal(rendered, '### Internal\n- tidy the workflow');
 });
-test('the cli previews an entry from the repository history', () => {
+test('the cli previews an entry from the repository history', t => {
+  const fixture = fixtureRepo(t);
   const result = spawnSync(process.execPath, ['scripts/changelog.js', '--since-tag=v0.12.0'], {
     cwd: repoRoot,
     encoding: 'utf8',
+    env: { ...process.env, HUQAN_CHANGELOG_REPO_ROOT: fixture },
   });
 
   assert.equal(result.status, 0, `changelog preview failed\nstderr:\n${result.stderr}`);
@@ -142,7 +164,11 @@ test('the cli previews an entry from the repository history', () => {
 
 test('the cli defaults to a preview and leaves CHANGELOG.md untouched', () => {
   const before = require('node:fs').readFileSync(path.join(repoRoot, 'CHANGELOG.md'), 'utf8');
-  const result = spawnSync(process.execPath, ['scripts/changelog.js'], { cwd: repoRoot, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, ['scripts/changelog.js'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: { ...process.env, HUQAN_CHANGELOG_REPO_ROOT: repoRoot },
+  });
 
   assert.equal(result.status, 0, `changelog preview failed\nstderr:\n${result.stderr}`);
   const after = require('node:fs').readFileSync(path.join(repoRoot, 'CHANGELOG.md'), 'utf8');

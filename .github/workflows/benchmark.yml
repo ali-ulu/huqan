@@ -907,7 +907,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The suite's live Git validation inspects the checkpoint's ancestry
+          # against origin/main, so this job needs the same full history and
+          # fetched baseline the other test jobs take (#3368). A shallow,
+          # single-branch checkout left origin/main absent, the checkpoint
+          # commit unresolvable and the live tests either red or skipped --
+          # skipping them removed scripts/agent-context-*.js from the measured
+          # set and dropped those files below their ratchet floors.
+          fetch-depth: 0
           persist-credentials: false
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22

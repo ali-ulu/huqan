@@ -20,13 +20,19 @@
  *   node scripts/changelog.js                  # preview the entry on stdout
  *   node scripts/changelog.js --write          # prepend it to CHANGELOG.md
  *   node scripts/changelog.js --since-tag=v0.12.0
+ *
+ * `HUQAN_CHANGELOG_REPO_ROOT` points the generator at another worktree. The
+ * tests use it to read a fixture repository so the preview does not depend on
+ * whichever tags and history depth the checkout happens to carry.
  */
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const repoRoot = path.resolve(__dirname, '..');
+const repoRoot = process.env.HUQAN_CHANGELOG_REPO_ROOT
+  ? path.resolve(process.env.HUQAN_CHANGELOG_REPO_ROOT)
+  : path.resolve(__dirname, '..');
 const CHANGELOG_PATH = path.join(repoRoot, 'CHANGELOG.md');
 
 // Conventional commit type -> the changelog section it belongs to. The four

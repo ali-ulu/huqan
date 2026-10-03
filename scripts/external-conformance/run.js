@@ -5,10 +5,16 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { spawnSyncWindowsAware, npmCommand } = require('../spawn-windows-aware');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const KEEP = process.argv.includes('--keep');
 const JSON_ONLY = process.argv.includes('--json');
+
+// npm is an npm.cmd shim on Windows, which spawnSync refuses to launch directly
+// (CVE-2024-27980 hardening). spawnSyncWindowsAware carries the shared
+// workaround every other script-invoking call site uses.
+const NPM_COMMAND = npmCommand();
 
 function log(...args) {
   if (!JSON_ONLY) console.log(...args);
@@ -21,11 +27,10 @@ function fail(message, detail) {
 }
 
 function npm(args, cwd) {
-  return spawnSync('npm', args, {
+  return spawnSyncWindowsAware(NPM_COMMAND, args, {
     cwd,
     encoding: 'utf8',
     timeout: 600000,
-    shell: true,
     env: { ...process.env, NO_COLOR: '1' },
   });
 }

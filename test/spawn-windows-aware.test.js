@@ -7,9 +7,15 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 
-const { spawnSyncWindowsAware } = require('../scripts/spawn-windows-aware');
+const { spawnSyncWindowsAware, npmCommand } = require('../scripts/spawn-windows-aware');
 
 const onWindows = process.platform === 'win32';
+
+test('npmCommand picks the .cmd shim on Windows and npm elsewhere', () => {
+  assert.equal(npmCommand('win32'), 'npm.cmd');
+  assert.equal(npmCommand('linux'), 'npm');
+  assert.equal(npmCommand(), onWindows ? 'npm.cmd' : 'npm');
+});
 
 test('a .cmd shim runs, where a direct spawn refuses to start it', { skip: !onWindows }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cmd-spawn-'));
@@ -75,11 +81,14 @@ test('every launcher of an installed bin goes through the shim', () => {
   // scripts/verify-tarball-shared.js (one `run` for every tarball launcher),
   // so that module is the site now -- and the orchestrator is pinned to
   // delegating through it, so a fifth site cannot open-code the shim either.
+  // #3387 pinned scripts/external-conformance/run.js, which open-coded
+  // `spawnSync(..., { shell: true })` instead of this shim.
   const root = path.resolve(__dirname, '..');
   const sites = [
     'scripts/verify-tarball-shared.js',
     'scripts/launch-installed-package-smoke-context.js',
     'test/kernel-facade-contract.test.js',
+    'scripts/external-conformance/run.js',
   ];
   for (const site of sites) {
     const text = fs.readFileSync(path.join(root, site), 'utf8');

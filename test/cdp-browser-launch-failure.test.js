@@ -69,32 +69,27 @@ test('a child that never announces a DevTools endpoint rejects on the deadline',
   }
 });
 
-// A stand-in browser has to be spawned exactly the way a real one is: by path,
-// with no shell. That needs a directly executable file, which a shebang script
-// is on POSIX but not on Windows (CreateProcess cannot run one). The control
-// flow under test -- a rejecting launch reaps the child -- is platform
-// independent, and the Windows-specific reaping (taskkill by parentage) is
-// pinned separately in cdp-browser-teardown.test.js.
-const windowsSkip = process.platform === 'win32'
-  ? 'a stand-in browser cannot be spawned by path on Windows without a shell'
-  : false;
-
-test('a launch that never reaches DevTools reaps the browser it spawned', { skip: windowsSkip }, async t => {
+// A stand-in browser is spawned exactly the way a real one is: by path, with no
+// shell, so the control flow under test (a rejecting launch reaps the child) is
+// the production one. The spawn target is the running interpreter and the
+// stand-in is a script argument, so the file never has to be directly
+// executable -- a shebang is not on Windows (#3369), where a bare `fake-chrome`
+// raced the OS and failed with ENOENT before the child could be reaped.
+test('a launch that never reaches DevTools reaps the browser it spawned', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-launch-'));
   const pidFile = path.join(dir, 'pid');
   // A stand-in browser: stays alive, ignores the Chrome flags, and never prints
   // the `ws://.../devtools/browser/...` line waitForDevToolsEndpoint looks for.
-  const fake = path.join(dir, 'fake-chrome');
+  const fake = path.join(dir, 'fake-chrome.js');
   fs.writeFileSync(fake, [
-    '#!/usr/bin/env node',
     "require('node:fs').writeFileSync(process.env.FAKE_CHROME_PIDFILE, String(process.pid));",
     'setInterval(() => {}, 1000);',
     '',
-  ].join('\n'), { mode: 0o755 });
+  ].join('\n'));
 
   const previousChrome = process.env.HUQAN_CHROME;
   const previousPidFile = process.env.FAKE_CHROME_PIDFILE;
-  process.env.HUQAN_CHROME = fake;
+  process.env.HUQAN_CHROME = process.execPath;
   process.env.FAKE_CHROME_PIDFILE = pidFile;
   t.after(() => {
     if (previousChrome === undefined) delete process.env.HUQAN_CHROME; else process.env.HUQAN_CHROME = previousChrome;
@@ -103,7 +98,7 @@ test('a launch that never reaches DevTools reaps the browser it spawned', { skip
   });
 
   await assert.rejects(
-    () => launchBrowserSession({ devToolsTimeoutMs: 500 }),
+    () => launchBrowserSession({ devToolsTimeoutMs: 500, commandPrefix: [fake] }),
     /did not report a DevTools endpoint in 500ms/,
     'the launch must reject rather than hang',
   );

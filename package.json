@@ -415,6 +415,8 @@
     "lib/code-change-blast-radius.js",
     "lib/code-change-decision-summary.js",
     "lib/code-change-path-classification.js",
+    "lib/cognitive-lab-b1-replay.js",
+    "lib/cognitive-lab-manifest.js",
     "lib/command-exec-gate.js",
     "lib/command-exec-gate-structure.js",
     "lib/command-exec-gate-targets.js",
@@ -1285,7 +1287,7 @@
     "lib/cli-inference-runtime.js"
   ],
   "dependencies": {
-    "better-sqlite3": "^12.10.0",
+    "better-sqlite3": "^13.0.3",
     "js-yaml": "^5.2.3",
     "proper-lockfile": "4.1.2"
   },
