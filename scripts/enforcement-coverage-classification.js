@@ -44,6 +44,13 @@ const ROLES = Object.freeze({
    */
   adapter_read: 'ingests external data; performs no mutation of the outside world',
   /**
+   * Leaves the machine only on a path a human operator turned on by
+   * configuration, on a separately deployed process with no agent in the loop
+   * to admit. The decision is written down in ADR-014 rather than left to a
+   * per-file reason.
+   */
+  egress_operator_gated: 'egress on an operator-enabled, separately deployed path; no agent action reaches it, recorded as a deliberate exception in ADR-014',
+  /**
    * Genuinely outside the boundary. Listed rather than hidden -- a governance
    * product that conceals its own gaps is making the error it exists to
    * prevent.
@@ -225,19 +232,19 @@ const CLASSIFIED = Object.freeze({
   // ── outside the boundary, listed ───────────────────────────────────────
   'rustGraph.js': Object.freeze({
     role: 'unguarded',
-    why: 'spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN)',
+    why: 'spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN). The RUST_BIN resolution hardening and the process-launch gate are the open work in ADR-014',
   }),
   'lib/runtime-watchdog.js': Object.freeze({
     role: 'unguarded',
-    why: 'starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate',
+    why: 'starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate. The watchdog health-fetch is covered by the bounded exception in ADR-014; the server spawn remains open there',
   }),
   'lib/pr-guardian/github-client.js': Object.freeze({
-    role: 'unguarded',
-    why: 'outbound GitHub API calls on the PR Guardian path; deployment-gated by config rather than by an admission decision',
+    role: 'egress_operator_gated',
+    why: 'outbound GitHub API calls on the PR Guardian path, which runs as its own deployment and is enabled by operator configuration; no agent action reaches the fetch, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014',
   }),
   'lib/pr-guardian/ocr-review-check.js': Object.freeze({
-    role: 'unguarded',
-    why: 'spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks, deployment-gated by the endpoint configuration rather than by an admission decision',
+    role: 'egress_operator_gated',
+    why: 'spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks. No agent action reaches the spawn, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014',
   }),
 });
 
