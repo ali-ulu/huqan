@@ -31,7 +31,7 @@ const os = require('os');
 const path = require('path');
 
 const VERSION = '1.0.0';
-const DEFAULT_CHILDREN = 2;
+const DEFAULT_SIZES = [1, 2, 4, 8];
 const DEFAULT_WRITES_PER_CHILD = 40;
 const MAX_CHILDREN = 16;
 
@@ -82,6 +82,7 @@ function childMain() {
   const label = process.argv.find((a) => a.startsWith('--label=')).slice(8);
 
   const started = process.hrtime.bigint();
+  const latencies = [];
   let attempts = 0;
   let failures = 0;
   let firstFailure = null;
@@ -91,12 +92,14 @@ function childMain() {
     const store = new MemoryStore({ useSQLite: true, dbPath });
     for (let i = 0; i < writes; i += 1) {
       attempts += 1;
+      const t0 = process.hrtime.bigint();
       try {
         store.store({ content: `${label}-${i}`, workspaceId: 'contention' });
       } catch (error) {
         failures += 1;
         if (!firstFailure) firstFailure = `${error.code || ''} ${error.message}`.trim();
       }
+      latencies.push(Number(process.hrtime.bigint() - t0) / 1e6);
     }
     store.close();
   } else {
@@ -105,70 +108,122 @@ function childMain() {
     const graph = new Graph({ useSQLite: true, memoryPath, dbPath });
     for (let i = 0; i < writes; i += 1) {
       attempts += 1;
+      const of = `${label}-n${i}`;
+      const ot = `${label}-n${i + 1}`;
+      const t0 = process.hrtime.bigint();
       try {
-        const from = `${label}-n${i}`;
-        const to = `${label}-n${i + 1}`;
-        graph.addNode(from, 'bench', null, {});
-        graph.addNode(to, 'bench', null, {});
-        graph.addEdge(from, to, 'RELATES_TO', {});
+        graph.addNode(of, 'bench', null, {});
+        graph.addNode(ot, 'bench', null, {});
+        graph.addEdge(of, ot, 'RELATES_TO', {});
       } catch (error) {
         failures += 1;
         if (!firstFailure) firstFailure = `${error.code || ''} ${error.message}`.trim();
       }
+      // better-sqlite3 is synchronous, so one iteration's wall time is also the
+      // longest the process's event loop is blocked waiting for (or doing) the
+      // write.
+      latencies.push(Number(process.hrtime.bigint() - t0) / 1e6);
     }
     graph.closeSqlite();
   }
 
   const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
-  process.stdout.write(`${JSON.stringify({ label, attempts, failures, firstFailure, elapsedMs })}\n`);
+  // Latencies are rounded to 0.1 ms; the parent only needs the distribution.
+  const rounded = latencies.map((ms) => Number(ms.toFixed(1)));
+  process.stdout.write(`${JSON.stringify({ label, attempts, failures, firstFailure, elapsedMs, latencies: rounded })}\n`);
 }
 
-function runTarget(target, { children, writesPerChild, verbose }) {
-  const dir = tempDir(`huqan-contention-${target}-`);
-  const ext = target === 'memory' ? 'db' : 'graph.db';
-  const contendedPath = path.join(dir, `contended.${ext}`);
-  const soloPath = path.join(dir, `solo.${ext}`);
+// Nearest-rank percentile on a small sorted sample. Returns ms to 0.1.
+function percentile(sorted, p) {
+  if (sorted.length === 0) return null;
+  const rank = Math.ceil((p / 100) * sorted.length) - 1;
+  const index = Math.min(sorted.length - 1, Math.max(0, rank));
+  return Number(sorted[index].toFixed(1));
+}
 
-  const contendedStart = process.hrtime.bigint();
-  const contended = [];
-  for (let c = 0; c < children; c += 1) {
-    contended.push(runChild(target, contendedPath, writesPerChild, `c${c}`));
+function summarizeLatencies(latencies) {
+  if (latencies.length === 0) {
+    return { p50Ms: null, p95Ms: null, p99Ms: null, maxEventLoopBlockMs: null };
   }
-  const contendedMs = Number(process.hrtime.bigint() - contendedStart) / 1e6;
+  const sorted = [...latencies].sort((a, b) => a - b);
+  return {
+    p50Ms: percentile(sorted, 50),
+    p95Ms: percentile(sorted, 95),
+    p99Ms: percentile(sorted, 99),
+    // better-sqlite3 is synchronous: the slowest iteration is the longest the
+    // process's event loop was unavailable.
+    maxEventLoopBlockMs: percentile(sorted, 100),
+  };
+}
 
-  const soloStart = process.hrtime.bigint();
-  const solo = runChild(target, soloPath, writesPerChild * children, 'solo');
-  const soloMs = Number(process.hrtime.bigint() - soloStart) / 1e6;
+function runOnce(target, pathForFile, children, writesPerChild, verbose) {
+  const start = process.hrtime.bigint();
+  const procs = [];
+  for (let c = 0; c < children; c += 1) {
+    procs.push(runChild(target, pathForFile, writesPerChild, `c${c}`));
+  }
+  const wallMs = Number(process.hrtime.bigint() - start) / 1e6;
 
-  const attempts = contended.reduce((sum, r) => sum + r.attempts, 0);
-  const failures = contended.reduce((sum, r) => sum + r.failures, 0);
-  const failureExamples = contended
+  const attempts = procs.reduce((sum, r) => sum + r.attempts, 0);
+  const failures = procs.reduce((sum, r) => sum + r.failures, 0);
+  const latencies = procs.flatMap((r) => r.latencies || []);
+  const failureExamples = procs
     .filter((r) => r.firstFailure)
     .map((r) => `${r.label}: ${r.firstFailure}`);
 
   if (verbose) {
     process.stderr.write(
-      `[${target}] children=${children} writes/child=${writesPerChild} `
-      + `contended=${contendedMs.toFixed(1)}ms solo=${soloMs.toFixed(1)}ms\n`,
+      `[${target}] n=${children} writes=${attempts} wall=${wallMs.toFixed(1)}ms `
+      + `failures=${failures}\n`,
     );
   }
 
   return {
-    target,
     children,
     writesPerChild,
     totalWrites: attempts,
-    contendedMs: Number(contendedMs.toFixed(1)),
-    soloMs: Number(soloMs.toFixed(1)),
-    slowdownX: soloMs > 0 ? Number((contendedMs / soloMs).toFixed(2)) : null,
-    writesPerSecond: contendedMs > 0 ? Number((attempts / (contendedMs / 1000)).toFixed(1)) : null,
+    wallMs: Number(wallMs.toFixed(1)),
+    writesPerSecond: wallMs > 0 ? Number((attempts / (wallMs / 1000)).toFixed(1)) : null,
+    ...summarizeLatencies(latencies),
     sqliteBusyFailures: failures,
     failureExamples,
   };
 }
 
+function runTarget(target, { sizes, writesPerChild, verbose }) {
+  const dir = tempDir(`huqan-contention-${target}-`);
+  const ext = target === 'memory' ? 'db' : 'graph.db';
+  const contendedPath = path.join(dir, `contended.${ext}`);
+  const soloPath = path.join(dir, `solo.${ext}`);
+
+  // One process writing the largest volume is the uncontended reference; its
+  // time is scaled linearly to the volume each contended size writes, so the
+  // slowdown compares like with like rather than a small contended run against
+  // a large solo run.
+  const maxWrites = writesPerChild * Math.max(...sizes);
+  const soloStart = process.hrtime.bigint();
+  runChild(target, soloPath, maxWrites, 'solo');
+  const soloMs = Number(process.hrtime.bigint() - soloStart) / 1e6;
+  const soloPerWriteMs = soloMs / maxWrites;
+
+  const perN = sizes.map((n) => {
+    const run = runOnce(target, contendedPath, n, writesPerChild, verbose);
+    const expectedSoloMs = soloPerWriteMs * run.totalWrites;
+    return {
+      ...run,
+      soloMs: Number(soloMs.toFixed(1)),
+      slowdownX: expectedSoloMs > 0 ? Number((run.wallMs / expectedSoloMs).toFixed(2)) : null,
+    };
+  });
+
+  return { target, writesPerChild, soloMs: Number(soloMs.toFixed(1)), perN };
+}
+
 function main() {
-  const children = Math.min(MAX_CHILDREN, Math.max(2, parseArg('children', DEFAULT_CHILDREN)));
+  const requested = parseArg('children', null);
+  const sizes = requested !== null
+    ? [Math.min(MAX_CHILDREN, Math.max(1, requested))]
+    : DEFAULT_SIZES;
   const writesPerChild = Math.max(1, parseArg('writes', DEFAULT_WRITES_PER_CHILD));
   const verbose = process.argv.includes('--verbose');
   const targets = process.argv.includes('--target=memory')
@@ -177,12 +232,15 @@ function main() {
       ? ['graph']
       : ['graph', 'memory'];
 
-  const results = targets.map((target) => runTarget(target, { children, writesPerChild, verbose }));
+  const results = targets.map((target) => runTarget(target, { sizes, writesPerChild, verbose }));
 
-  const report = { version: VERSION, generatedAt: new Date().toISOString(), children, writesPerChild, results };
+  const report = { version: VERSION, generatedAt: new Date().toISOString(), sizes, writesPerChild, results };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 
-  const totalFailures = results.reduce((sum, r) => sum + r.sqliteBusyFailures, 0);
+  const totalFailures = results.reduce(
+    (sum, r) => sum + r.perN.reduce((s, n) => s + n.sqliteBusyFailures, 0),
+    0,
+  );
   if (totalFailures > 0) {
     process.stderr.write(`\n${totalFailures} write(s) failed under contention.\n`);
     process.exitCode = 1;
@@ -192,4 +250,4 @@ function main() {
 if (process.argv.includes('--child')) childMain();
 else main();
 
-module.exports = { runTarget, childMain };
+module.exports = { runTarget, runOnce, childMain, summarizeLatencies };

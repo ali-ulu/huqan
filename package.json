@@ -22,6 +22,7 @@
     "bench:label-lookup": "node benchmarks/bench-label-lookup.js",
     "bench:graph-save": "node benchmarks/bench-graph-save.js",
     "bench:graph-save:check": "node benchmarks/check-graph-save.js --strict-timing",
+    "bench:sqlite-contention": "node benchmarks/bench-sqlite-write-contention.js",
     "bench:observability": "node benchmarks/observability-agent-v3-baseline.js",
     "bench:observability:load": "node benchmarks/observability-load-smoke.js",
     "bench:observability:soak": "node --expose-gc benchmarks/observability-soak.js",

@@ -109,6 +109,74 @@ magnitude faster than the scan (about 0.03 ms vs 3.3 ms per query, ~97x over
 (~0.003 ms vs ~4.9 ms, >1500x). Exact numbers are machine-dependent; run the
 command to reproduce.
 
+## Capacity limits: multi-process SQLite write contention (#3314)
+
+The row above measures one process. This section measures what the runtime
+actually ships: several long-lived processes (agent MCP servers, the HTTP
+server, the CLI) writing the **same** graph/memory database file. SQLite allows
+one writer per file, so the question is how much throughput is lost and whether
+a write fails with `SQLITE_BUSY` after the configured retries.
+
+Benchmark: `benchmarks/bench-sqlite-write-contention.js`. It spawns real OS
+processes (`spawnSync`), one SQLite handle each, against one file per target.
+`--children=N` runs a single size; the default sizes are `1, 2, 4, 8`. The
+uncontended reference is one process writing the largest volume, scaled linearly
+to each contended size. Graph draws are `addNode`/`addEdge`; memory draws are
+`MemoryStore.store`. `better-sqlite3` is synchronous, so one iteration's wall
+time is also the longest its process's event loop was blocked.
+
+Environment: commit `87253f7`, Node v24.21.0, linux x64, AMD EPYC 9B14 (4 vCPU).
+`--writes=30` (30 writes per child). Absolute timings are advisory; the shapes
+(no failure, flat p95, growing per-process block) are what matters.
+
+Graph writes:
+
+| N (processes) | total writes | wall ms | writes/s | p50 ms | p95 ms | p99 ms | max event-loop block ms | slowdown vs solo | `SQLITE_BUSY` failures |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 30  | 313.4  | 95.9  | 6.4 | 8.3 | 8.4  | 8.4  | 1.65 | 0 |
+| 2 | 60  | 528.8  | 113.5 | 6.3 | 6.9 | 10.4 | 10.4 | 1.39 | 0 |
+| 4 | 120 | 1079.3 | 111.2 | 6.3 | 7.8 | 10.9 | 12.4 | 1.42 | 0 |
+| 8 | 240 | 2222.6 | 108.0 | 6.5 | 8.7 | 11.2 | 16.7 | 1.46 | 0 |
+
+Memory writes:
+
+| N (processes) | total writes | wall ms | writes/s | p50 ms | p95 ms | p99 ms | max event-loop block ms | slowdown vs solo | `SQLITE_BUSY` failures |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 30  | 128.6 | 233.3 | 1.4 | 1.6 | 3.5 | 3.5 | 2.35 | 0 |
+| 2 | 60  | 222.6 | 269.5 | 1.5 | 2.1 | 5.2 | 5.2 | 2.03 | 0 |
+| 4 | 120 | 463.2 | 259.1 | 1.6 | 2.1 | 5.6 | 5.6 | 2.12 | 0 |
+| 8 | 240 | 995.0 | 241.2 | 1.6 | 2.1 | 5.6 | 6.3 | 2.27 | 0 |
+
+Reading (subject to the small write budget and the 4 vCPU host):
+
+- Throughput is **flat from N=2 onward** for both targets: the single-writer
+  lock serialises writes, so adding processes does not add write throughput.
+- No `SQLITE_BUSY` failure survived the configured retries at any N. The lock
+  is absorbed by waiting, not by failing.
+- The async cost is per-process event-loop block, and it grows with N: graph
+  max block rises 8.4 → 16.7 ms, memory 3.5 → 6.3 ms. That is the figure that
+  matters for an agent client sharing one file, not aggregate throughput.
+- The graph per-write baseline is ~5× the memory one (two node upserts plus an
+  edge row per draw), which is why the same N blocks the graph loop longer.
+
+### Migration condition (threshold, not a decision)
+
+The measurements do **not** justify a storage change now. Treat this as the
+condition to revisit, with the numbers to be re-measured at real agent counts:
+
+> Revisit moving graph writes behind a single-writer process (or another store)
+> **only if**, at the expected agent count M, a re-run of this benchmark shows
+> graph p95 lock wait above **50 ms** or any `SQLITE_BUSY` failure after retries.
+
+At M = 8 processes and a 30-write budget the measured graph p95 is 8.7 ms and
+failures are 0, so the condition is unmet by ~6×. Cheaper options come first if
+it is ever crossed: a single writer process with the others as clients, shorter
+checkpoint holds, or a smaller `busy_timeout`. A different database is last.
+
+`NOT_MEASURED`: agent counts above 8, writes-per-agent above 30, contention
+while one process runs a full checkpoint, and any host other than the 4 vCPU
+machine above. Nothing here is extrapolated beyond the table.
+
 ## Benchmark commands
 
 ```bash
@@ -118,6 +186,8 @@ node benchmarks/bench-label-lookup.js --quick
 node benchmarks/bench-label-lookup.js --fixtures=n-1000,n-10000
 node benchmarks/bench-scale-10k.js --quick
 node benchmarks/bench-scale-10k.js --fixtures=scale-100k --iterations=1
+node benchmarks/bench-sqlite-write-contention.js --writes=30
+node benchmarks/bench-sqlite-write-contention.js --children=8 --writes=100
 node benchmarks/verifBench.js
 node --test benchmarks/bench.test.js benchmarks/bench-label-lookup.test.js benchmarks/bench-scale-10k.test.js benchmarks/check-regression.test.js
 ```
