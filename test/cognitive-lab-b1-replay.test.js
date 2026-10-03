@@ -57,7 +57,7 @@ function manifest(overrides = {}) {
       B7: 'NOT_MEASURED',
       B8: 'NOT_MEASURED',
     },
-    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: 'unknown', wallTimeMs: 'unknown', compute: 'unknown' },
+    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: null, wallTimeMs: null, compute: null },
     measurementVersion: 'cognitive-lab-v0.1',
     thresholdConfigHash: DIGEST,
     ...overrides,
@@ -107,9 +107,11 @@ test('a baselined B1 run reports observed, censored and missing separately', (t)
   assert.equal(result.status, REPLAY_STATUS.REPLAYED);
   assert.equal(result.schemaVersion, REPLAY_SCHEMA_VERSION);
   assert.equal(result.benchmark, 'B1');
+  assert.equal(result.counts.attempt, 8);
   assert.equal(result.counts.eligible, 5);
   assert.equal(result.counts.observed, 3);
   assert.equal(result.counts.censored, 1);
+  assert.equal(result.counts.measurement_error, 0);
   assert.equal(result.counts.observed + result.counts.censored + result.counts.missing
     + result.counts.reported + result.counts.uncounted, result.counts.ingested);
   assert.ok(result.correctnessDigest);
@@ -184,6 +186,19 @@ test('a tampered manifest is rejected before the run', (t) => {
   assert.equal(good.status, REPLAY_STATUS.REPLAYED);
   assert.equal(result.status, REPLAY_STATUS.REJECT);
   assert.equal(result.error.code, REPLAY_ERROR_CODES.DIGEST_MISMATCH);
+});
+
+test('a self-consistent but schema-invalid manifest is rejected before replay', (t) => {
+  const graph = withGraph(t);
+  const invalid = manifest();
+  invalid.budget.tokens = 'unknown';
+  const result = replayBaseline(graph, {
+    manifest: invalid,
+    manifestDigest: computeManifestDigest(invalid),
+    experiment: experiment(),
+  });
+  assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.INVALID_MANIFEST);
 });
 
 test('a non-B1 benchmark is rejected', (t) => {
