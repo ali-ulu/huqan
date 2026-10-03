@@ -62,7 +62,7 @@ function presentNonAncestorCommit() {
   const cp = require('node:child_process');
   const tree = cp.execFileSync(
     'git',
-    ['hash-object', '-t', 'tree', '--stdin'],
+    ['hash-object', '-t', 'tree', '-w', '--stdin'],
     { encoding: 'utf8', input: '' },
   ).trim();
   return cp.execFileSync(
