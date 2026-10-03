@@ -21,8 +21,8 @@ const TEST_CONFIG = {
   },
 };
 
-test('bounded soak proves queue growth, reconnect completeness, and subscriber cleanup', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak proves queue growth, reconnect completeness, and subscriber cleanup', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   assert.equal(report.workload.eventWrites, 30);
   assert.equal(report.workload.queueJobs, 6);
   assert.equal(report.resources.queueDepth, 6);
@@ -34,8 +34,8 @@ test('bounded soak proves queue growth, reconnect completeness, and subscriber c
   assert.equal(report.resources.databaseTiming.calls > 0, true);
 });
 
-test('bounded soak publishes sampled process-resource and cleanup evidence', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak publishes sampled process-resource and cleanup evidence', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   assert.equal(report.schemaVersion, 2);
   assert.equal(report.resources.samples.length, TEST_CONFIG.cycles);
   assert.equal(report.resources.curve.sampleCount, TEST_CONFIG.cycles);
@@ -51,16 +51,16 @@ test('bounded soak publishes sampled process-resource and cleanup evidence', () 
   assert.equal(typeof report.resources.lifecycle.afterCleanup.activeHandles, 'object');
 });
 
-test('bounded soak gate fails closed on an exceeded resource target', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak gate fails closed on an exceeded resource target', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   assert.throws(
     () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxDbFileBytes: 0 }),
     /OBSERVABILITY_SOAK_TARGET_FAILED:.*dbFileBytes=/,
   );
 });
 
-test('bounded soak gate fails closed on leaked process resources', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak gate fails closed on leaked process resources', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   report.resources.lifecycle.activeHandleDeltaAfterCleanup = 1;
   assert.throws(
     () => assertSoakTargets(report, TEST_CONFIG.targets),
@@ -68,8 +68,8 @@ test('bounded soak gate fails closed on leaked process resources', () => {
   );
 });
 
-test('bounded soak gate fails closed if SQLite is not closed', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak gate fails closed if SQLite is not closed', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   report.resources.lifecycle.sqliteConnectionOpenAfterClose = true;
   assert.throws(
     () => assertSoakTargets(report, TEST_CONFIG.targets),
@@ -77,8 +77,8 @@ test('bounded soak gate fails closed if SQLite is not closed', () => {
   );
 });
 
-test('the gate still enforces cpuRatio, which this config only declines to measure', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('the gate still enforces cpuRatio, which this config only declines to measure', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
 
   assert.throws(
     () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxCpuRatio: -1 }),
