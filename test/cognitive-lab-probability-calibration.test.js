@@ -233,3 +233,41 @@ test('malformed bins and a bad minimum fail closed', () => {
   assert.throws(() => calibrate([], { bins: [0.5, 0.9] }), /final bin edge must be 1/);
   assert.throws(() => calibrate([], { minObserved: 0 }), /positive integer/);
 });
+
+test('recording the same decision under two measurements is one sample, not two', (t) => {
+  const graph = memoryGraph(tempDir(t));
+  recordPrediction(graph, { decisionId: 'dup', score: 80, at: AT });
+  recordDecisionProbability(graph, { measurementId: 'm1', decisionId: 'dup', probability: 0.9, at: AT });
+  recordDecisionProbability(graph, { measurementId: 'm2', decisionId: 'dup', probability: 0.1, at: AT });
+  recordOutcome(graph, { decisionId: 'dup', outcome: 'confirmed', idempotencyKey: 'o-dup', at: AT2 });
+  const records = readCalibratedRecords(graph);
+  assert.equal(records.length, 2, 'both measurements are readable, so the report must collapse them');
+  const report = calibrate(records, { minObserved: 1 });
+  assert.equal(report.measurement.observed, 1);
+  assert.equal(report.measurement.duplicate, 1);
+  assert.equal(report.measurement.attempt, 1);
+});
+
+test('repeating one record cannot reach the minimum sample', () => {
+  const one = observed({ decisionId: 'x', probability: 0.7, y: 1 });
+  const report = calibrate([one, one, one], { minObserved: 3 });
+  assert.equal(report.status, CALIBRATION_STATUS.INSUFFICIENT);
+  assert.equal(report.measurement.observed, 1);
+  assert.equal(report.measurement.duplicate, 2);
+});
+
+test('an observed record that cannot be scored is a measurement error, never a silent 0 or NaN', () => {
+  const good = observed({ decisionId: 'g', probability: 0.8, y: 1 });
+  for (const [label, bad] of [
+    ['missing y', { ...observed({ decisionId: 'b', probability: 0.5, y: 1 }), y: undefined }],
+    ['null y', { ...observed({ decisionId: 'b', probability: 0.5, y: 1 }), y: null }],
+    ['y outside {0,1}', { ...observed({ decisionId: 'b', probability: 0.5, y: 1 }), y: 2 }],
+    ['probability above 1', observed({ decisionId: 'b', probability: 5, y: 1 })],
+    ['probability as text', observed({ decisionId: 'b', probability: '0.5', y: 1 })],
+  ]) {
+    const report = calibrate([good, bad], { minObserved: 1 });
+    assert.equal(report.measurement.measurement_error, 1, label);
+    assert.equal(report.measurement.observed, 1, label);
+    assert.equal(report.brier, (0.8 - 1) ** 2, label);
+  }
+});
