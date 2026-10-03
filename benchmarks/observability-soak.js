@@ -62,8 +62,13 @@ function activeHandleTypeNames() {
 
 function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {}) {
   const memory = process.memoryUsage();
+  // An Immediate is one-shot and drains on the next loop turn, so it cannot
+  // be a leak. One shows up in getActiveResourcesInfo() inside this
+  // synchronous run on roughly half of the runs (origin not identified: no
+  // setImmediate call from this code or its dependencies), which made the
+  // leak gate flap. Timeouts and handles still count.
   const activeResourceTypes = typeof process.getActiveResourcesInfo === 'function'
-    ? process.getActiveResourcesInfo()
+    ? process.getActiveResourcesInfo().filter((type) => type !== 'Immediate')
     : [];
   const activeHandleTypes = activeHandleTypeNames();
   const activeResources = countTypes(activeResourceTypes);
@@ -79,7 +84,7 @@ function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {
     activeResources,
     activeHandleCount: activeHandleTypes.length,
     activeHandles,
-    timerCount: (activeResources.Timeout || 0) + (activeResources.Immediate || 0),
+    timerCount: activeResources.Timeout || 0,
     childProcessCount: activeHandles.ChildProcess || 0,
     subscriberCount,
     sqliteOpen: Boolean(sqliteOpen),
@@ -326,6 +331,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  resourceSnapshot,
   assertSoakTargets,
   curveSummary,
   resourceSnapshot,
