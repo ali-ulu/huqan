@@ -330,7 +330,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  resourceSnapshot,
   assertSoakTargets,
   curveSummary,
   resourceSnapshot,
