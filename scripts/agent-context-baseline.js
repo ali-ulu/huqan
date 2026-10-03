@@ -56,11 +56,11 @@ function resolveBaselineMaxAgeMs(env = process.env) {
  * `git gc` rewrites it without contacting anything, so it would report a sync
  * that never happened.
  */
-function baselineSyncPaths() {
+function baselineSyncPaths(runner = runGit) {
   const dirs = new Set();
   for (const arg of ['--git-dir', '--git-common-dir']) {
     try {
-      dirs.add(path.resolve(repoRoot, runGit(['rev-parse', arg])));
+      dirs.add(path.resolve(repoRoot, runner(['rev-parse', arg])));
     } catch {
       // A missing common dir just means there is one fewer place to look.
     }
@@ -74,9 +74,10 @@ function baselineSyncPaths() {
   return candidates;
 }
 
-function readBaselineSyncedAt(candidates = baselineSyncPaths()) {
+function readBaselineSyncedAt(candidates, runner = runGit) {
+  const list = candidates || baselineSyncPaths(runner);
   let newest = null;
-  for (const candidate of candidates) {
+  for (const candidate of list) {
     let stat;
     try {
       stat = fs.statSync(candidate);

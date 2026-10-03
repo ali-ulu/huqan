@@ -36,10 +36,10 @@ function isReleaseCheckout(branch, releaseTag) {
  * asserted to be byte-identical across calls, and a commit can carry more than
  * one tag.
  */
-function readReleaseTag() {
+function readReleaseTag(runner = runGit) {
   let output;
   try {
-    output = runGit(['tag', '--points-at', 'HEAD'], { allowFailure: true });
+    output = runner(['tag', '--points-at', 'HEAD'], { allowFailure: true });
   } catch {
     // No tag objects present (a shallow or tagless fetch) is not a conflict on
     // its own; it just means this is not identifiable as a release checkout.
@@ -52,15 +52,22 @@ function readReleaseTag() {
     .sort()[0] || '';
 }
 
-function requireGitEvidence(label, args) {
+function requireGitEvidence(label, args, runner = runGit) {
   try {
-    return runGit(args);
+    return runner(args);
   } catch {
     throw contextConflict(`${label} is unavailable`);
   }
 }
 
-function validateGitState(checkpoint, evidence, isAncestor, options = {}) {
+function validateGitState(
+  checkpoint,
+  evidence,
+  isAncestor,
+  options = {},
+  hasCommit = () => true,
+  isShallow = () => false,
+) {
   const {
     repository,
     branch,
@@ -97,6 +104,33 @@ function validateGitState(checkpoint, evidence, isAncestor, options = {}) {
   if (isAncestor(checkpoint.canonicalMain, originMain)) {
     if (originMain !== checkpoint.canonicalMain) {
       checkpointDrift = 'STALE_ANCESTOR';
+    }
+  } else if (!hasCommit(checkpoint.canonicalMain)) {
+    /**
+     * The checkpoint commit is not in this clone, so the ancestry question
+     * cannot be answered either way (#3368).
+     *
+     * A shallow checkout (`fetch-depth: 1` -- the Coverage job) holds only the
+     * tip of main, so a checkpoint commit a few merges back is absent and
+     * `merge-base --is-ancestor` exits 128. Reading that as "not an ancestor"
+     * turned a clone-plumbing fact into a hard CONTEXT_CONFLICT on a checkpoint
+     * that is, on the real repository, a valid ancestor of main: the same
+     * unchanged tree passed or failed with how deep the checkout happened to
+     * be, which is what made the suite flaky.
+     *
+     * The absence alone is not evidence of shallowness: a commit missing from a
+     * *complete* clone is a real conflict, not an unanswerable question, so the
+     * unverified verdict is reserved for `--is-shallow-repository`. This stays
+     * honest rather than green: the branch-position checks below still fail
+     * closed when the local checkout genuinely trails origin/main, and a
+     * complete clone that cannot find the checkpoint keeps its conflict.
+     */
+    if (isShallow()) {
+      checkpointDrift = 'UNVERIFIED_IN_SHALLOW_CLONE';
+    } else {
+      conflicts.push(
+        `checkpoint main ${checkpoint.canonicalMain} is not present in this clone`,
+      );
     }
   } else {
     conflicts.push(
@@ -163,28 +197,50 @@ function validateGitState(checkpoint, evidence, isAncestor, options = {}) {
  * capsule's *shape* passes `maxAgeMs: 0` so its result stops depending on how
  * long ago someone last fetched (#1291).
  */
-function inspectGitState(checkpoint, options = {}) {
+function inspectGitState(checkpoint, options = {}, runner = runGit) {
   const evidence = {
     repository: normalizeGitHubRepository(
-      requireGitEvidence('remote.origin.url', ['config', '--get', 'remote.origin.url']),
+      requireGitEvidence('remote.origin.url', ['config', '--get', 'remote.origin.url'], runner),
     ),
-    branch: requireGitEvidence('current branch', ['branch', '--show-current']),
-    head: requireGitEvidence('HEAD', ['rev-parse', 'HEAD']),
-    originMain: requireGitEvidence('origin/main', ['rev-parse', 'origin/main']),
-    releaseTag: readReleaseTag(),
-    worktree: requireGitEvidence('worktree status', ['status', '--short']),
-    baselineSyncedAt: readBaselineSyncedAt(),
+    branch: requireGitEvidence('current branch', ['branch', '--show-current'], runner),
+    head: requireGitEvidence('HEAD', ['rev-parse', 'HEAD'], runner),
+    originMain: requireGitEvidence('origin/main', ['rev-parse', 'origin/main'], runner),
+    releaseTag: readReleaseTag(runner),
+    worktree: requireGitEvidence('worktree status', ['status', '--short'], runner),
+    baselineSyncedAt: readBaselineSyncedAt(undefined, runner),
   };
   const isAncestor = (ancestor, descendant) => {
     try {
-      runGit(['merge-base', '--is-ancestor', ancestor, descendant]);
+      runner(['merge-base', '--is-ancestor', ancestor, descendant]);
       return true;
     } catch {
       return false;
     }
   };
+  // Distinguishes "this commit is not an ancestor" from "this commit is not in
+  // the clone at all": `rev-parse --verify` succeeds only when the object is
+  // present, so a shallow checkout answers false here where the ancestry test
+  // merely exited non-zero (#3368).
+  const hasCommit = (sha) => {
+    try {
+      runner(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  // A commit absent from a shallow clone is a plumbing fact, but the same
+  // absence in a complete clone is a real conflict; only the repository's own
+  // answer to `--is-shallow-repository` separates the two (#3368).
+  const isShallow = () => {
+    try {
+      return runner(['rev-parse', '--is-shallow-repository']).trim() === 'true';
+    } catch {
+      return false;
+    }
+  };
 
-  return validateGitState(checkpoint, evidence, isAncestor, options);
+  return validateGitState(checkpoint, evidence, isAncestor, options, hasCommit, isShallow);
 }
 
 module.exports = {
