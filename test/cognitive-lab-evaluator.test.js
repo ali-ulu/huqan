@@ -211,6 +211,29 @@ test('a missing outcome is INSUFFICIENT, never a silent success', (t) => {
   assert.equal(result.error.code, EVALUATOR_ERROR_CODES.MISSING_OUTCOME);
   assert.equal(result.counts.observed, 0);
   assert.equal(result.correctnessDigest, null);
+  assert.equal(result.benchmark, 'B1');
+  for (const dimension of GAIN_DIMENSIONS) {
+    assert.equal(result.gain[dimension], 'NOT_MEASURED', `${dimension} must not be measured on an insufficient evaluation`);
+  }
+});
+
+test('a refused evaluation keeps the benchmark but measures no gain dimension', (t) => {
+  const insufficient = evaluate(withGraph(t), manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } }), experiment({
+    outcomes: { h1: 'censored', h2: 'censored' },
+    observations: {},
+    split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
+  }));
+  assert.equal(insufficient.status, EVALUATOR_STATUS.INSUFFICIENT);
+  assert.equal(insufficient.benchmark, 'B1');
+  for (const dimension of GAIN_DIMENSIONS) {
+    assert.equal(insufficient.gain[dimension], 'NOT_MEASURED', `${dimension} must not be measured on an insufficient replay`);
+  }
+
+  const rejected = evaluate(withGraph(t), manifest(), experiment({ budget: { modelCalls: Number.NaN } }));
+  assert.equal(rejected.status, EVALUATOR_STATUS.REJECT);
+  for (const dimension of GAIN_DIMENSIONS) {
+    assert.equal(rejected.gain[dimension], 'NOT_MEASURED', `${dimension} must not be measured on a rejected replay`);
+  }
 });
 
 test('a reported effect is not counted as an observed success', (t) => {

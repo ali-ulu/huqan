@@ -3846,6 +3846,10 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-evaluator.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cognitive-lab-manifest.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
