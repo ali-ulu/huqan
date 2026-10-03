@@ -91,9 +91,9 @@ test('the gate still enforces cpuRatio, which this config only declines to measu
   );
 });
 
-// An Immediate appears inside the synchronous soak on about half of the runs
-// and drains on the next loop turn. It must not read as a leaked resource, or
-// the gate flaps; a leaked Timeout must still be seen.
+// The closed SQLite driver leaves a one-shot Immediate that drains on the next
+// loop turn. It must not read as a leaked resource, or the gate flaps; a
+// leaked Timeout must still be seen.
 test('the leak gate ignores one-shot Immediates and still counts Timeouts', async () => {
   const before = resourceSnapshot();
   const immediate = setImmediate(() => {});
