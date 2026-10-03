@@ -151,6 +151,17 @@ test('a split that leaks a holdout id into train is rejected', (t) => {
   assert.equal(result.correctnessDigest, null);
 });
 
+test('a split whose transfer id also appears in train or holdout is rejected', (t) => {
+  const graph = withGraph(t);
+  for (const transfer of [['t1'], ['h1']]) {
+    const e = experiment({ split: { train: ['t1', 't2', 't3'], holdout: ['h1', 'h2', 'h3', 'h4', 'h5'], transfer } });
+    const result = run(graph, manifest(), e);
+    assert.equal(result.status, REPLAY_STATUS.REJECT);
+    assert.equal(result.error.code, REPLAY_ERROR_CODES.OVERLAP);
+    assert.equal(result.correctnessDigest, null);
+  }
+});
+
 test('a workflow that copies holdout labels into train fails integrity', (t) => {
   const graph = withGraph(t);
   const result = replayBaseline(
