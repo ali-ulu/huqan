@@ -284,10 +284,18 @@ describe('module boundary gate CLI (#2446)', () => {
   const PROBE = 'lib/agent-action-decisions.js';
 
   function runGate(env = {}) {
+    // The gate honors HUQAN_CONTEXT_OWNERSHIP to let the negative test point it
+    // at a temp manifest. Inheriting the parent env here would leak that
+    // override into the positive test too: whichever order the runner picks,
+    // "stays green" would read the probe's stripped manifest and report
+    // `FAIL unmapped: <PROBE>`. Start from a clean env and re-add the override
+    // only when the caller asks for it.
+    const base = { ...process.env };
+    delete base.HUQAN_CONTEXT_OWNERSHIP;
     return spawnSync(process.execPath, [GATE], {
       cwd: path.join(__dirname, '..'),
       encoding: 'utf8',
-      env: { ...process.env, ...env },
+      env: { ...base, ...env },
     });
   }
 
@@ -315,5 +323,23 @@ describe('module boundary gate CLI (#2446)', () => {
     const result = runGate();
     assert.equal(result.status, 0, `gate should pass; stderr: ${result.stderr}`);
     assert.match(result.stdout, /0 unmapped/);
+  });
+
+  it('ignores an inherited HUQAN_CONTEXT_OWNERSHIP override when green', () => {
+    const committed = JSON.parse(fs.readFileSync(OWNERSHIP_PATH, 'utf8'));
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-leak-')));
+    const tmp = path.join(dir, 'ctx.json');
+    fs.writeFileSync(tmp, JSON.stringify(manifestWithout(committed, PROBE)), 'utf8');
+    const previous = process.env.HUQAN_CONTEXT_OWNERSHIP;
+    process.env.HUQAN_CONTEXT_OWNERSHIP = tmp;
+    try {
+      const result = runGate();
+      assert.equal(result.status, 0, `an inherited override must not leak; stderr: ${result.stderr}`);
+      assert.match(result.stdout, /0 unmapped/);
+    } finally {
+      if (previous === undefined) delete process.env.HUQAN_CONTEXT_OWNERSHIP;
+      else process.env.HUQAN_CONTEXT_OWNERSHIP = previous;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
