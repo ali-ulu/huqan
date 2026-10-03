@@ -415,6 +415,7 @@
     "lib/code-change-blast-radius.js",
     "lib/code-change-decision-summary.js",
     "lib/code-change-path-classification.js",
+    "lib/cognitive-lab-manifest.js",
     "lib/command-exec-gate.js",
     "lib/command-exec-gate-structure.js",
     "lib/command-exec-gate-targets.js",

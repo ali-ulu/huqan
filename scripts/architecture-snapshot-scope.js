@@ -121,6 +121,11 @@ const OCP_ALLOWED = Object.freeze([
     why: 'switch (operator) is closed by the parser: the guard regex above it admits only those eight operators, so no feature can add a case. Stays a switch (#2140).',
     review_by: '2026-12-31',
   },
+  {
+    file: 'lib/cognitive-lab-manifest.js',
+    why: 'switch (kind) validates node kinds from the MANIFEST_SPEC contract grammar (#3374), not a feature set. Stays a switch.',
+    review_by: '2026-12-31',
+  },
 ]);
 
 const isOcpAllowed = (file) => OCP_ALLOWED.some((entry) => entry.file === file);
