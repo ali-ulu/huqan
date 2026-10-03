@@ -57,7 +57,7 @@ function manifest(overrides = {}) {
       B7: 'NOT_MEASURED',
       B8: 'NOT_MEASURED',
     },
-    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: 'unknown', wallTimeMs: 'unknown', compute: 'unknown' },
+    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: null, wallTimeMs: null, compute: null },
     measurementVersion: 'cognitive-lab-v0.1',
     thresholdConfigHash: DIGEST,
     ...overrides,
@@ -107,9 +107,11 @@ test('a baselined B1 run reports observed, censored and missing separately', (t)
   assert.equal(result.status, REPLAY_STATUS.REPLAYED);
   assert.equal(result.schemaVersion, REPLAY_SCHEMA_VERSION);
   assert.equal(result.benchmark, 'B1');
+  assert.equal(result.counts.attempt, 8);
   assert.equal(result.counts.eligible, 5);
   assert.equal(result.counts.observed, 3);
   assert.equal(result.counts.censored, 1);
+  assert.equal(result.counts.measurement_error, 0);
   assert.equal(result.counts.observed + result.counts.censored + result.counts.missing
     + result.counts.reported + result.counts.uncounted, result.counts.ingested);
   assert.ok(result.correctnessDigest);
@@ -140,6 +142,16 @@ test('a reported effect is not counted as an observed success', (t) => {
   const result = run(graph, manifest(), e);
   assert.equal(result.counts.observed, 3);
   assert.equal(result.counts.reported, 1);
+});
+
+test('an unknown effect with an outcome is measurement_error, not observed', (t) => {
+  const result = run(withGraph(t), manifest(), experiment({
+    observations: { h1: 'observed', h2: 'unknown', h3: 'observed', h4: 'observed', h5: 'observed' },
+    outcomes: { h1: 'confirmed', h2: 'confirmed', h3: 'incident', h4: 'confirmed', h5: 'censored' },
+  }));
+  assert.equal(result.status, REPLAY_STATUS.REPLAYED);
+  assert.equal(result.counts.observed, 3);
+  assert.equal(result.counts.measurement_error, 1);
 });
 
 test('a split that leaks a holdout id into train is rejected', (t) => {
@@ -186,6 +198,19 @@ test('a tampered manifest is rejected before the run', (t) => {
   assert.equal(result.error.code, REPLAY_ERROR_CODES.DIGEST_MISMATCH);
 });
 
+test('a self-consistent but schema-invalid manifest is rejected before replay', (t) => {
+  const graph = withGraph(t);
+  const invalid = manifest();
+  invalid.budget.tokens = 'unknown';
+  const result = replayBaseline(graph, {
+    manifest: invalid,
+    manifestDigest: computeManifestDigest(invalid),
+    experiment: experiment(),
+  });
+  assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.INVALID_MANIFEST);
+});
+
 test('a non-B1 benchmark is rejected', (t) => {
   const graph = withGraph(t);
   const result = run(graph, manifest(), experiment({ benchmark: 'B2' }));
@@ -214,9 +239,9 @@ test('no observed sample is INSUFFICIENT, not a silent success', (t) => {
   const e = experiment({
     outcomes: { h1: 'censored', h2: 'censored' },
     observations: {},
-    split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
+    split: { train: ['t1'], holdout: ['h1', 'h2'], transfer: [] },
   });
-  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } });
+  const m = manifest({ split: { identity: DIGEST, train: ['t1'], holdout: ['h1', 'h2'], transfer: [] } });
   const result = run(graph, m, e);
   assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
   assert.equal(result.counts.observed, 0);
@@ -242,9 +267,33 @@ test('a design whose budget disagrees with the verified manifest is rejected', (
   assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
 });
 
-test('an empty holdout is rejected as insufficient data', (t) => {
+test('an empty design holdout that disagrees with the verified manifest is rejected', (t) => {
   const graph = withGraph(t);
-  const result = run(graph, manifest(), experiment({ split: { train: ['t1'], holdout: [], transfer: [] } }));
+  const result = run(graph, manifest(), experiment({ split: { train: ['t1', 't2', 't3'], holdout: [], transfer: [] } }));
   assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
+});
+
+test('a manifest with an empty train split is INSUFFICIENT before replay', (t) => {
+  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1'], transfer: [] } });
+  const result = run(withGraph(t), m, experiment({
+    split: { train: [], holdout: ['h1'], transfer: [] },
+    outcomes: { h1: 'confirmed' },
+    observations: { h1: 'observed' },
+  }));
+  assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
+  assert.equal(result.correctnessDigest, null);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
+});
+
+test('a manifest with an empty holdout split is INSUFFICIENT before design comparison', (t) => {
+  const m = manifest({ split: { identity: DIGEST, train: ['t1'], holdout: [], transfer: [] } });
+  const result = run(withGraph(t), m, experiment({
+    split: { train: ['t1'], holdout: [], transfer: [] },
+    outcomes: {},
+    observations: {},
+  }));
+  assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
+  assert.equal(result.correctnessDigest, null);
   assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
 });
