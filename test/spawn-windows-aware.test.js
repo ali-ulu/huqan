@@ -75,11 +75,14 @@ test('every launcher of an installed bin goes through the shim', () => {
   // scripts/verify-tarball-shared.js (one `run` for every tarball launcher),
   // so that module is the site now -- and the orchestrator is pinned to
   // delegating through it, so a fifth site cannot open-code the shim either.
+  // #3387 pinned scripts/external-conformance/run.js, which open-coded
+  // `spawnSync(..., { shell: true })` instead of this shim.
   const root = path.resolve(__dirname, '..');
   const sites = [
     'scripts/verify-tarball-shared.js',
     'scripts/launch-installed-package-smoke-context.js',
     'test/kernel-facade-contract.test.js',
+    'scripts/external-conformance/run.js',
   ];
   for (const site of sites) {
     const text = fs.readFileSync(path.join(root, site), 'utf8');
