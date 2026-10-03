@@ -37,4 +37,17 @@ function spawnSyncWindowsAware(command, args = [], options = {}) {
   return cp.spawnSync(shell, ['/d', '/s', '/c', command, ...args], options);
 }
 
-module.exports = { spawnSyncWindowsAware };
+/**
+ * The platform-correct `npm` executable: on Windows it is the `npm.cmd` shim,
+ * which spawnSyncWindowsAware below (and this module's callers) knows how to
+ * launch. Kept as a function of the platform so both arms stay measurable,
+ * rather than a module-level ternary whose Windows arm never executes on Linux.
+ *
+ * @param {NodeJS.Platform} [platform]
+ * @returns {string}
+ */
+function npmCommand(platform = process.platform) {
+  return platform === 'win32' ? 'npm.cmd' : 'npm';
+}
+
+module.exports = { spawnSyncWindowsAware, npmCommand };

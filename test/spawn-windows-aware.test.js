@@ -7,9 +7,15 @@ const os = require('node:os');
 const path = require('node:path');
 const cp = require('node:child_process');
 
-const { spawnSyncWindowsAware } = require('../scripts/spawn-windows-aware');
+const { spawnSyncWindowsAware, npmCommand } = require('../scripts/spawn-windows-aware');
 
 const onWindows = process.platform === 'win32';
+
+test('npmCommand picks the .cmd shim on Windows and npm elsewhere', () => {
+  assert.equal(npmCommand('win32'), 'npm.cmd');
+  assert.equal(npmCommand('linux'), 'npm');
+  assert.equal(npmCommand(), onWindows ? 'npm.cmd' : 'npm');
+});
 
 test('a .cmd shim runs, where a direct spawn refuses to start it', { skip: !onWindows }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cmd-spawn-'));
