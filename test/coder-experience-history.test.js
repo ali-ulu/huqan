@@ -17,6 +17,7 @@ function add(journal, id, at, cost, routing, eligibility = 'positive_procedure')
     { eventId: `${id}:start`, type: 'run_started', payload: { createdAt: new Date(at).toISOString() } },
     { eventId: `${id}:action`, type: 'action_proposed', payload: { path: 'docs/a.md', operationType: 'replace_text' } },
     ...(routing ? [{ eventId: `${id}:route`, type: 'routing_decided', payload: routing }] : []),
+    { eventId: `${id}:finished`, type: 'execution_finished', payload: {} },
     { eventId: `${id}:close`, type: 'run_closed', payload: { measurements: {
       executionCost: cost, verificationCost: 0, canaryOverheadCost: 0,
     } } },
