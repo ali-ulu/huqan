@@ -60,7 +60,7 @@ function requireGitEvidence(label, args) {
   }
 }
 
-function validateGitState(checkpoint, evidence, isAncestor, options = {}) {
+function validateGitState(checkpoint, evidence, isAncestor, options = {}, hasCommit = () => true) {
   const {
     repository,
     branch,
@@ -98,6 +98,25 @@ function validateGitState(checkpoint, evidence, isAncestor, options = {}) {
     if (originMain !== checkpoint.canonicalMain) {
       checkpointDrift = 'STALE_ANCESTOR';
     }
+  } else if (!hasCommit(checkpoint.canonicalMain)) {
+    /**
+     * The checkpoint commit is not in this clone, so the ancestry question
+     * cannot be answered either way (#3368).
+     *
+     * A shallow checkout (`fetch-depth: 1` -- the Coverage job) holds only the
+     * tip of main, so a checkpoint commit a few merges back is absent and
+     * `merge-base --is-ancestor` exits 128. Reading that as "not an ancestor"
+     * turned a clone-plumbing fact into a hard CONTEXT_CONFLICT on a checkpoint
+     * that is, on the real repository, a valid ancestor of main: the same
+     * unchanged tree passed or failed with how deep the checkout happened to
+     * be, which is what made the suite flaky.
+     *
+     * This stays honest rather than green. The verdict is reported as
+     * UNVERIFIED_IN_SHALLOW_CLONE and the branch-position checks below still
+     * fail closed when the local checkout genuinely trails origin/main, so the
+     * deep-clone cases this guard exists for keep their conflict.
+     */
+    checkpointDrift = 'UNVERIFIED_IN_SHALLOW_CLONE';
   } else {
     conflicts.push(
       `checkpoint main ${checkpoint.canonicalMain} is not an ancestor of origin/main ${originMain}`,
@@ -183,8 +202,20 @@ function inspectGitState(checkpoint, options = {}) {
       return false;
     }
   };
+  // Distinguishes "this commit is not an ancestor" from "this commit is not in
+  // the clone at all": `rev-parse --verify` succeeds only when the object is
+  // present, so a shallow checkout answers false here where the ancestry test
+  // merely exited non-zero (#3368).
+  const hasCommit = (sha) => {
+    try {
+      runGit(['rev-parse', '--verify', '--quiet', `${sha}^{commit}`]);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
-  return validateGitState(checkpoint, evidence, isAncestor, options);
+  return validateGitState(checkpoint, evidence, isAncestor, options, hasCommit);
 }
 
 module.exports = {

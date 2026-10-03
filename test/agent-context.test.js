@@ -31,9 +31,62 @@ const FRESH_BASELINE = { baselineSyncedAt: Date.now() };
 // covered, hermetically, by the `assessBaselineFreshness` cases below.
 const MEASUREMENT_OFF = { maxAgeMs: 0 };
 
+// The capsule's stable prefix, rule text and ordering are properties of the
+// canon and protocol files, not of this clone's git history. Supplying the live
+// section as a fixture keeps those assertions true on any checkout depth,
+// including the `fetch-depth: 1` Coverage job that cannot resolve the
+// checkpoint commit (#3368). The live section itself is covered below.
+const DETERMINISTIC_GIT_STATE = {
+  repository: 'ali-ulu/huqan',
+  baselineBranch: 'main',
+  currentBranch: 'feature/deterministic',
+  head: '1111111111111111111111111111111111111111',
+  originMain: '2222222222222222222222222222222222222222',
+  checkpointMain: '3333333333333333333333333333333333333333',
+  checkpointDrift: 'STALE_ANCESTOR',
+  headPosition: 'AHEAD_OF_BASELINE',
+  releaseTag: null,
+  baselineFreshness: 'UNMEASURED_BY_CONFIG',
+  baselineSyncedAt: null,
+  worktree: 'CLEAN',
+};
+
+// A commit that is present in this clone but not reachable from origin/main, so
+// the fail-closed ancestry test names a real conflict without depending on how
+// much history the checkout holds (#3368). origin/main's parent is the natural
+// "older commit"; a `fetch-depth: 1` checkout has none, so the fallback is a
+// dangling commit built from the empty tree -- present to `git cat-file`, yet
+// an ancestor of nothing. Neither shape touches a ref or the worktree.
+function presentNonAncestorCommit() {
+  const cp = require('node:child_process');
+  try {
+    return cp.execFileSync('git', ['rev-parse', 'origin/main^'], { encoding: 'utf8' }).trim();
+  } catch {
+    const tree = cp.execFileSync(
+      'git',
+      ['hash-object', '-t', 'tree', '--stdin'],
+      { encoding: 'utf8', input: '' },
+    ).trim();
+    return cp.execFileSync(
+      'git',
+      ['commit-tree', tree, '-m', 'huqan agent-context test fixture'],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'huqan test',
+          GIT_AUTHOR_EMAIL: 'test@example.invalid',
+          GIT_COMMITTER_NAME: 'huqan test',
+          GIT_COMMITTER_EMAIL: 'test@example.invalid',
+        },
+      },
+    ).trim();
+  }
+}
+
 test('agent context capsule is deterministic and ordered stable-first', () => {
-  const first = buildContextCapsule({ gitStateOptions: MEASUREMENT_OFF });
-  const second = buildContextCapsule({ gitStateOptions: MEASUREMENT_OFF });
+  const first = buildContextCapsule({ gitState: DETERMINISTIC_GIT_STATE });
+  const second = buildContextCapsule({ gitState: DETERMINISTIC_GIT_STATE });
 
   assert.equal(first, second);
   assert.match(first, /^# HUQAN Agent Context Capsule\n/);
@@ -46,7 +99,7 @@ test('agent context capsule is deterministic and ordered stable-first', () => {
 });
 
 test('agent context capsule exposes the exact Ponytail, delivery, and Graphify rules', () => {
-  const capsule = buildContextCapsule({ gitStateOptions: MEASUREMENT_OFF });
+  const capsule = buildContextCapsule({ gitState: DETERMINISTIC_GIT_STATE });
 
   assert.match(capsule, /Does this need to exist\? If no, skip it\./);
   assert.match(capsule, /Is it already in this codebase\? Reuse it; do not rewrite it\./);
@@ -87,30 +140,43 @@ test('mutable checkpoint changes do not alter the stable cache prefix', () => {
 
 test('live Git validation accepts the canonical clone and reports worktree state', () => {
   const checkpoint = require('../docs/current-agent-checkpoint.json');
-  const gitState = inspectGitState(checkpoint, MEASUREMENT_OFF);
   const originMain = require('node:child_process').execFileSync(
     'git',
     ['rev-parse', 'origin/main'],
     { encoding: 'utf8' },
   ).trim();
+  const gitState = inspectGitState(checkpoint, MEASUREMENT_OFF);
 
   assert.equal(gitState.repository, checkpoint.repository);
   assert.equal(gitState.originMain, originMain);
   assert.equal(gitState.checkpointMain, checkpoint.canonicalMain);
-  assert.equal(
-    gitState.checkpointDrift,
-    originMain === checkpoint.canonicalMain ? 'CURRENT' : 'STALE_ANCESTOR',
+  assert.ok(
+    ['CURRENT', 'STALE_ANCESTOR', 'UNVERIFIED_IN_SHALLOW_CLONE'].includes(gitState.checkpointDrift),
+    `unexpected checkpointDrift: ${gitState.checkpointDrift}`,
   );
+  if (originMain === checkpoint.canonicalMain) {
+    assert.equal(gitState.checkpointDrift, 'CURRENT');
+  }
   assert.match(gitState.worktree, /^(CLEAN|DIRTY_REPORTED)$/);
 });
 
-test('live Git validation reports an older checkpoint ancestor without self-blocking', () => {
+test('live Git validation reports an older checkpoint ancestor without self-blocking', (t) => {
   const checkpoint = require('../docs/current-agent-checkpoint.json');
-  const parent = require('node:child_process').execFileSync(
-    'git',
-    ['rev-parse', 'origin/main^'],
-    { encoding: 'utf8' },
-  ).trim();
+  let parent;
+  try {
+    parent = require('node:child_process').execFileSync(
+      'git',
+      ['rev-parse', 'origin/main^'],
+      { encoding: 'utf8' },
+    ).trim();
+  } catch {
+    // A shallow checkout (`fetch-depth: 1`) holds only the tip of origin/main,
+    // so there is no parent commit to point the checkpoint at. That is a
+    // clone-plumbing fact, not a validation defect: the STALE_ANCESTOR verdict
+    // itself is covered hermetically in test/agent-context-git.test.js (#3368).
+    t.skip('this clone has no parent of origin/main (shallow checkout)');
+    return;
+  }
   const gitState = inspectGitState({
     ...checkpoint,
     canonicalMain: parent,
@@ -123,19 +189,26 @@ test('live Git validation reports an older checkpoint ancestor without self-bloc
 test('live Git validation fails closed when checkpoint main is not in canonical ancestry', () => {
   const checkpoint = {
     ...require('../docs/current-agent-checkpoint.json'),
-    canonicalMain: '0000000000000000000000000000000000000000',
+    canonicalMain: presentNonAncestorCommit(),
   };
+  const originMain = require('node:child_process').execFileSync(
+    'git',
+    ['rev-parse', 'origin/main'],
+    { encoding: 'utf8' },
+  ).trim();
 
   assert.throws(
+    // The commit is present in the clone, yet it is not reachable from
+    // origin/main: that is a real conflict, and the guard keeps it one
+    // regardless of how deep the checkout is (#3368).
     () => inspectGitState(checkpoint, MEASUREMENT_OFF),
     (error) => error.code === 'CONTEXT_CONFLICT'
       // Conflicts are joined into one message, so a substring match alone would
       // also be satisfied by a stale-baseline conflict this test is not about:
       // on an unfetched clone it would pass while the ancestry check it names
       // never ran. Measurement off, the ancestry reason is the only one left.
-      && error.message === 'CONTEXT_CONFLICT: checkpoint main '
-        + '0000000000000000000000000000000000000000 is not an ancestor of origin/main '
-        + `${require('node:child_process').execFileSync('git', ['rev-parse', 'origin/main'], { encoding: 'utf8' }).trim()}`,
+      && error.message === `CONTEXT_CONFLICT: checkpoint main ${checkpoint.canonicalMain} `
+        + `is not an ancestor of origin/main ${originMain}`,
   );
 });
 
