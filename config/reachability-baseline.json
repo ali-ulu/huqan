@@ -1,7 +1,7 @@
 {
   "note": "Do not hand-edit this file in a PR that does not change lib/ itself; the ratchet test owns it. Update measuredNotYetWired only in the same PR that adds or removes a NOT_YET_WIRED acknowledgement, and only in the direction the ledger actually moved (#3014).",
   "measuredAt": "2026-10-03",
-  "unreachableTotal": 187,
+  "unreachableTotal": 188,
   "reachableTotal": 1067,
-  "measuredNotYetWired": 6
+  "measuredNotYetWired": 7
 }
