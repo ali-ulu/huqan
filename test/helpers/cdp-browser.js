@@ -536,11 +536,16 @@ function connect(webSocketDebuggerUrl) {
  * rebuilding the CDP facade. A failure reaps the child it spawned and removes
  * its profile directory before rethrowing.
  *
+ * @param {string[]} [commandPrefix] arguments inserted before the browser flags.
+ *   Empty for a real browser; a caller with a stand-in browser passes the
+ *   interpreter's script here so the executable stays `process.execPath` and
+ *   the launch path is the same on every platform (#3369).
  * @returns {Promise<{child: import('node:child_process').ChildProcess, socket: WebSocket, profileDir: string}>}
  */
-async function openBrowserSession(executable, devToolsTimeoutMs) {
+async function openBrowserSession(executable, devToolsTimeoutMs, commandPrefix = []) {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cdp-'));
   const child = spawn(executable, [
+    ...commandPrefix,
     '--headless=new',
     '--disable-gpu',
     '--no-sandbox',
@@ -620,14 +625,17 @@ async function withLaunchRetry(open, attempts) {
  *   without waiting the full production deadline.
  * @param {number} [options.launchAttempts] how many times to try a full launch;
  *   injectable so a test can pin the retry without a real browser.
+ * @param {string[]} [options.commandPrefix] arguments inserted before the
+ *   browser flags; a stand-in browser passes the interpreter's script here so
+ *   the spawn target stays `process.execPath` (#3369).
  * @returns {Promise<object>} the CDP session facade
  */
-async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIMEOUT_MS, launchAttempts = LAUNCH_ATTEMPTS } = {}) {
+async function launchBrowserSession({ devToolsTimeoutMs = DEVTOOLS_ENDPOINT_TIMEOUT_MS, launchAttempts = LAUNCH_ATTEMPTS, commandPrefix = [] } = {}) {
   const executable = findBrowser();
   if (!executable) throw new Error('no Chromium-family browser found');
 
   const session = await withLaunchRetry(
-    () => openBrowserSession(executable, devToolsTimeoutMs),
+    () => openBrowserSession(executable, devToolsTimeoutMs, commandPrefix),
     launchAttempts,
   );
   const { child, socket, profileDir } = session;
