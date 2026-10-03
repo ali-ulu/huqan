@@ -245,11 +245,13 @@ test('a missing outcome is INSUFFICIENT, never a silent success', (t) => {
 
 test('a refused evaluation keeps the benchmark but measures no gain dimension', (t) => {
   const insufficient = evaluate(withGraph(t), manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } }), experiment({
-    outcomes: { h1: 'censored', h2: 'censored' },
-    observations: {},
+    outcomes: { h1: 'confirmed', h2: 'incident' },
+    observations: { h1: 'observed', h2: 'observed' },
     split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
   }));
   assert.equal(insufficient.status, EVALUATOR_STATUS.INSUFFICIENT);
+  assert.equal(insufficient.error.code, EVALUATOR_ERROR_CODES.MANIFEST_INSUFFICIENT);
+  assert.match(insufficient.integrity.detail, /manifest_empty_split/);
   assert.equal(insufficient.benchmark, 'B1');
   for (const dimension of GAIN_DIMENSIONS) {
     assert.equal(insufficient.gain[dimension], 'NOT_MEASURED', `${dimension} must not be measured on an insufficient replay`);
