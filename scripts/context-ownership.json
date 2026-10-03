@@ -5883,6 +5883,20 @@
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
+  "lib/inference-belief-revision.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/prediction-outcome-pairs.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
   "lib/inference-runtime-recovery.js": {
    "owner": "Knowledge",
    "consumers": [
