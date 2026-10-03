@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const DEFAULT_CONFIG = require('../benchmarks/fixtures/observability-soak-targets.json');
-const { assertSoakTargets, runSoak } = require('../benchmarks/observability-soak');
+const { assertSoakTargets, resourceSnapshot, runSoak } = require('../benchmarks/observability-soak');
 
 const TEST_CONFIG = {
   ...DEFAULT_CONFIG,
@@ -21,8 +21,8 @@ const TEST_CONFIG = {
   },
 };
 
-test('bounded soak proves queue growth, reconnect completeness, and subscriber cleanup', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak proves queue growth, reconnect completeness, and subscriber cleanup', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   assert.equal(report.workload.eventWrites, 30);
   assert.equal(report.workload.queueJobs, 6);
   assert.equal(report.resources.queueDepth, 6);
@@ -34,8 +34,8 @@ test('bounded soak proves queue growth, reconnect completeness, and subscriber c
   assert.equal(report.resources.databaseTiming.calls > 0, true);
 });
 
-test('bounded soak publishes sampled process-resource and cleanup evidence', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak publishes sampled process-resource and cleanup evidence', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   assert.equal(report.schemaVersion, 2);
   assert.equal(report.resources.samples.length, TEST_CONFIG.cycles);
   assert.equal(report.resources.curve.sampleCount, TEST_CONFIG.cycles);
@@ -51,16 +51,16 @@ test('bounded soak publishes sampled process-resource and cleanup evidence', () 
   assert.equal(typeof report.resources.lifecycle.afterCleanup.activeHandles, 'object');
 });
 
-test('bounded soak gate fails closed on an exceeded resource target', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak gate fails closed on an exceeded resource target', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   assert.throws(
     () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxDbFileBytes: 0 }),
     /OBSERVABILITY_SOAK_TARGET_FAILED:.*dbFileBytes=/,
   );
 });
 
-test('bounded soak gate fails closed on leaked process resources', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak gate fails closed on leaked process resources', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   report.resources.lifecycle.activeHandleDeltaAfterCleanup = 1;
   assert.throws(
     () => assertSoakTargets(report, TEST_CONFIG.targets),
@@ -68,8 +68,8 @@ test('bounded soak gate fails closed on leaked process resources', () => {
   );
 });
 
-test('bounded soak gate fails closed if SQLite is not closed', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('bounded soak gate fails closed if SQLite is not closed', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
   report.resources.lifecycle.sqliteConnectionOpenAfterClose = true;
   assert.throws(
     () => assertSoakTargets(report, TEST_CONFIG.targets),
@@ -77,8 +77,8 @@ test('bounded soak gate fails closed if SQLite is not closed', () => {
   );
 });
 
-test('the gate still enforces cpuRatio, which this config only declines to measure', () => {
-  const report = runSoak({ config: TEST_CONFIG });
+test('the gate still enforces cpuRatio, which this config only declines to measure', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
 
   assert.throws(
     () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxCpuRatio: -1 }),
@@ -89,4 +89,21 @@ test('the gate still enforces cpuRatio, which this config only declines to measu
     true,
     'the shipped fixture must keep a real CPU budget for the full benchmark',
   );
+});
+
+// The closed SQLite driver leaves a one-shot Immediate that drains on the next
+// loop turn. It must not read as a leaked resource, or the gate flaps; a
+// leaked Timeout must still be seen.
+test('the leak gate ignores one-shot Immediates and still counts Timeouts', async () => {
+  const before = resourceSnapshot();
+  const immediate = setImmediate(() => {});
+  const withImmediate = resourceSnapshot();
+  clearImmediate(immediate);
+  assert.equal(withImmediate.timerCount, before.timerCount);
+  assert.equal(withImmediate.activeResourceCount, before.activeResourceCount);
+  const timeout = setTimeout(() => {}, 60_000);
+  const withTimeout = resourceSnapshot();
+  clearTimeout(timeout);
+  assert.equal(withTimeout.timerCount, before.timerCount + 1);
+  assert.equal(withTimeout.activeResourceCount, before.activeResourceCount + 1);
 });

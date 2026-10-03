@@ -27,6 +27,7 @@ const {
   WRITE_COST_DECISIONS,
   WRITE_COST_REASONS,
   evaluateWriteCostBudget,
+  writeCostGuard,
   summarizeWriteCost,
 } = require('../lib/experience/write-cost-budget');
 const { createExperienceJournal } = require('../lib/experience/journal');
@@ -141,6 +142,42 @@ describe('E0-c write-cost budget: the check', () => {
     );
     assert.equal(tight.decision, WRITE_COST_DECISIONS.REFUSE);
     assert.equal(tight.reason, WRITE_COST_REASONS.EVENT_TOO_SLOW);
+  });
+});
+
+describe('E0-c write-cost budget: the deterministic guard (#3373)', () => {
+  it('allows a run inside the size and count ceilings without any timing input', () => {
+    const res = writeCostGuard({ bytesPerEvent: 165, eventsPerRun: 7 });
+    assert.equal(res.decision, WRITE_COST_DECISIONS.ALLOW);
+    assert.equal(res.reason, WRITE_COST_REASONS.WITHIN_BUDGET);
+  });
+
+  it('refuses an oversized event without consulting the host clock', () => {
+    const res = writeCostGuard({ bytesPerEvent: WRITE_COST_CEILING.MAX_JSON_BYTES_PER_EVENT + 1, eventsPerRun: 7 });
+    assert.equal(res.decision, WRITE_COST_DECISIONS.REFUSE);
+    assert.equal(res.reason, WRITE_COST_REASONS.EVENT_TOO_LARGE);
+  });
+
+  it('refuses a run that overruns the event-count ceiling', () => {
+    const res = writeCostGuard({ bytesPerEvent: 165, eventsPerRun: WRITE_COST_CEILING.MAX_EVENTS_PER_RUN + 1 });
+    assert.equal(res.decision, WRITE_COST_DECISIONS.REFUSE);
+    assert.equal(res.reason, WRITE_COST_REASONS.TOO_MANY_EVENTS);
+  });
+
+  it('refuses an unmeasured size rather than treating absence as compliance', () => {
+    const res = writeCostGuard({ eventsPerRun: 7 });
+    assert.equal(res.decision, WRITE_COST_DECISIONS.REFUSE);
+    assert.equal(res.reason, WRITE_COST_REASONS.UNMEASURED);
+    assert.match(res.detail, /bytesPerEvent/);
+  });
+
+  it('is immune to a slow host: a lagging msPerEvent can never make it refuse', () => {
+    // The old timing gate was `evaluateWriteCostBudget`; a loaded CI runner
+    // could push the median past the ceiling and refuse a legitimate run.
+    // The guard must ignore that figure entirely, so a wildly slow append is
+    // still an allowed run when size and count are within budget.
+    const res = writeCostGuard({ msPerEvent: WRITE_COST_CEILING.MAX_MS_PER_EVENT * 1000, bytesPerEvent: 165, eventsPerRun: 7 });
+    assert.equal(res.decision, WRITE_COST_DECISIONS.ALLOW);
   });
 });
 

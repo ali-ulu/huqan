@@ -10,10 +10,29 @@ const HuqanStorage = require('../storage');
 const { resolveExperienceJournal } = require('../agentRuntime');
 const { buildLearningProposal } = require('../lib/experience/learning-intake');
 const { createCliCommandHandlers } = require('../lib/cli-command-handlers');
-const { parseCommand } = require('../lib/command-parser');
+const { parseCommand, parseExperienceLearnArgs, parseExperienceReconcileArgs } = require('../lib/command-parser');
 const { callTool, TOOL_SCHEMAS } = require('../mcpServer');
 
 const PARAMS = { path: 'notes.txt', oldText: 'draft', newText: 'final' };
+
+test('learning command preserves invalid JSON and missing operands for admission to reject', () => {
+  assert.deepEqual(parseExperienceLearnArgs(), { runId: '', workspaceId: 'default', kind: undefined,
+    params: undefined, parentVersion: undefined });
+  assert.equal(parseExperienceLearnArgs('run --params {invalid').params, null);
+  assert.equal(parseExperienceLearnArgs('run --parent-version 0').parentVersion, 0);
+  assert.ok(Number.isNaN(parseExperienceLearnArgs('run --parent-version invalid').parentVersion));
+  assert.equal(parseExperienceLearnArgs('run --parent-version --workspace w').parentVersion, undefined);
+  assert.equal(parseExperienceLearnArgs('--workspace w --kind replace_text').runId, '');
+});
+
+test('reconciliation flags retain explicit evidence and never invent a missing operand', () => {
+  assert.deepEqual(parseExperienceReconcileArgs(), { operationId: '', workspaceId: '', performed: false,
+    notPerformed: false, reason: '' });
+  assert.deepEqual(parseExperienceReconcileArgs('op --performed --workspace w --reason "disk read confirmed"'),
+    { operationId: 'op', workspaceId: 'w', performed: true, notPerformed: false, reason: 'disk read confirmed' });
+  assert.deepEqual(parseExperienceReconcileArgs('op extra --not-performed --reason --workspace'),
+    { operationId: 'op', workspaceId: '', performed: false, notPerformed: true, reason: '' });
+});
 
 function seedPositive(journal, runId) {
   assert.equal(journal.append({

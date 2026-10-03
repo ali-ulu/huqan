@@ -3,6 +3,7 @@ const AgentV3 = require('./agent.v3');
 const HuqanStorage = require('./storage');
 const { createWorkflowRuntime } = require('./workflow-runtime');
 const { createExperienceJournal } = require('./lib/experience/journal');
+const { budgetExperienceJournal } = require('./lib/experience/budgeted-journal');
 const { openJournalConnection } = require('./lib/experience/journal-connection');
 const { createOperationLedger } = require('./lib/experience/reconciliation');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
@@ -160,7 +161,7 @@ function resolveExperienceJournalOption(opts, storage) {
     closeWithStorage(storage, own);
   }
   const store = own || storage;
-  return { journal: createExperienceJournal({ store }), store };
+  return { journal: budgetExperienceJournal(createExperienceJournal({ store })), store };
 }
 
 function createAgent(opts = {}) {

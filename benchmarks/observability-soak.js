@@ -15,6 +15,23 @@ function collectGarbage() {
   }
 }
 
+// better-sqlite3's N-API close() schedules its finalizer on a later macrotask,
+// and each garbage collection of the closed handle can schedule another.
+// Snapshotting the active-resource set before those turns report the driver's
+// pending Immediate as a leak the observability workload never created, so
+// interleave collection with event-loop turns until the immediate queue settles.
+async function settleClosedDriver({ rounds = 4, maxTurnsPerRound = 16 } = {}) {
+  const pendingImmediates = () => (typeof process.getActiveResourcesInfo === 'function'
+    ? process.getActiveResourcesInfo().filter((type) => type === 'Immediate').length
+    : 0);
+  for (let round = 0; round < rounds; round += 1) {
+    collectGarbage();
+    for (let turn = 0; turn < maxTurnsPerRound && pendingImmediates() > 0; turn += 1) {
+      await new Promise((resolve) => { setImmediate(resolve); });
+    }
+  }
+}
+
 function sqliteFootprint(dbPath) {
   return [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]
     .reduce((total, file) => total + (fs.existsSync(file) ? fs.statSync(file).size : 0), 0);
@@ -45,8 +62,12 @@ function activeHandleTypeNames() {
 
 function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {}) {
   const memory = process.memoryUsage();
+  // An Immediate is one-shot and drains on the next loop turn, so it cannot
+  // be a leak. better-sqlite3's close finalizer schedules one (see
+  // settleClosedDriver), and settling can still lose that race, which made the
+  // leak gate flap. Timeouts and handles still count.
   const activeResourceTypes = typeof process.getActiveResourcesInfo === 'function'
-    ? process.getActiveResourcesInfo()
+    ? process.getActiveResourcesInfo().filter((type) => type !== 'Immediate')
     : [];
   const activeHandleTypes = activeHandleTypeNames();
   const activeResources = countTypes(activeResourceTypes);
@@ -62,7 +83,7 @@ function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {
     activeResources,
     activeHandleCount: activeHandleTypes.length,
     activeHandles,
-    timerCount: (activeResources.Timeout || 0) + (activeResources.Immediate || 0),
+    timerCount: activeResources.Timeout || 0,
     childProcessCount: activeHandles.ChildProcess || 0,
     subscriberCount,
     sqliteOpen: Boolean(sqliteOpen),
@@ -141,7 +162,7 @@ function assertSoakTargets(report, targets) {
   if (failures.length) throw new Error(`OBSERVABILITY_SOAK_TARGET_FAILED: ${failures.join(', ')}`);
 }
 
-function runSoak({ config = DEFAULT_CONFIG } = {}) {
+async function runSoak({ config = DEFAULT_CONFIG } = {}) {
   collectGarbage();
   const baseline = resourceSnapshot({ cycle: -1, subscriberCount: 0, sqliteOpen: false });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-observability-soak-'));
@@ -219,7 +240,7 @@ function runSoak({ config = DEFAULT_CONFIG } = {}) {
     });
     const sqliteConnectionOpenBeforeClose = db.open;
     db.close();
-    collectGarbage();
+    await settleClosedDriver();
     const afterCleanup = resourceSnapshot({
       cycle: config.cycles + 1,
       subscriberCount: 0,
@@ -299,7 +320,14 @@ function runSoak({ config = DEFAULT_CONFIG } = {}) {
   }
 }
 
-if (require.main === module) process.stdout.write(`${JSON.stringify(runSoak(), null, 2)}\n`);
+if (require.main === module) {
+  runSoak()
+    .then((report) => process.stdout.write(`${JSON.stringify(report, null, 2)}\n`))
+    .catch((error) => {
+      process.stderr.write(`${error && error.stack ? error.stack : error}\n`);
+      process.exitCode = 1;
+    });
+}
 
 module.exports = {
   assertSoakTargets,

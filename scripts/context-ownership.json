@@ -2484,6 +2484,22 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
   },
+  "lib/experience/budgeted-journal.js": {
+   "context": "Trust",
+   "evidence": "coder-experience-runtime.md#runtime-ownership"
+  },
+  "lib/experience/coder-routing-runtime.js": {
+   "context": "Trust",
+   "evidence": "coder-experience-runtime.md#runtime-ownership"
+  },
+  "lib/experience/coder-canary-runtime.js": {
+   "context": "Trust",
+   "evidence": "coder-experience-runtime.md#runtime-ownership"
+  },
+  "lib/experience/coder-trust-replay.js": {
+   "context": "Trust",
+   "evidence": "coder-experience-runtime.md#runtime-ownership"
+  },
   "lib/experience/journal-connection.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
@@ -5333,6 +5349,26 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/experience/budgeted-journal.js": {
+   "owner": "Trust",
+   "consumers": ["Platform"],
+   "evidence": "coder-experience-runtime.md#runtime-ownership: agentRuntime.js and lib/coder/journal-store.js"
+  },
+  "lib/experience/coder-routing-runtime.js": {
+   "owner": "Trust",
+   "consumers": ["AgentAction"],
+   "evidence": "coder-experience-runtime.md#runtime-ownership: lib/coder/apply-derivation.js"
+  },
+  "lib/experience/write-cost-budget.js": {
+   "owner": "AgentAction",
+   "consumers": ["Trust"],
+   "evidence": "coder-experience-runtime.md#runtime-ownership: lib/experience/budgeted-journal.js"
+  },
+  "lib/experience/personal-execution-model.js": {
+   "owner": "AgentAction",
+   "consumers": ["Trust"],
+   "evidence": "coder-experience-runtime.md#runtime-ownership: lib/experience/coder-routing-runtime.js"
   },
   "lib/experience/journal-connection.js": {
    "owner": "Trust",
