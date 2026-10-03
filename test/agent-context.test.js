@@ -81,6 +81,26 @@ function presentNonAncestorCommit() {
   ).trim();
 }
 
+// `origin/main` is a remote-tracking ref, so it exists only where the checkout
+// fetched the branch. The Coverage job checks out with `fetch-depth: 1`, whose
+// single-branch fetch leaves the ref absent, and the live assertions below then
+// have no baseline to inspect -- `inspectGitState` fails closed on the missing
+// evidence, which is correct for the guard but not a defect in the tree (#3368).
+// Skip on that plumbing fact; the ancestry and freshness verdicts are covered
+// hermetically in test/agent-context-git.test.js.
+function hasOriginMain() {
+  try {
+    require('node:child_process').execFileSync(
+      'git',
+      ['rev-parse', '--verify', '--quiet', 'origin/main'],
+      { stdio: 'ignore' },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 test('agent context capsule is deterministic and ordered stable-first', () => {
   const first = buildContextCapsule({ gitState: DETERMINISTIC_GIT_STATE });
   const second = buildContextCapsule({ gitState: DETERMINISTIC_GIT_STATE });
@@ -135,7 +155,11 @@ test('mutable checkpoint changes do not alter the stable cache prefix', () => {
   assert.notEqual(first, second);
 });
 
-test('live Git validation accepts the canonical clone and reports worktree state', () => {
+test('live Git validation accepts the canonical clone and reports worktree state', (t) => {
+  if (!hasOriginMain()) {
+    t.skip('this clone has no origin/main remote-tracking ref (shallow single-branch checkout)');
+    return;
+  }
   const checkpoint = require('../docs/current-agent-checkpoint.json');
   const originMain = require('node:child_process').execFileSync(
     'git',
@@ -183,7 +207,11 @@ test('live Git validation reports an older checkpoint ancestor without self-bloc
   assert.equal(gitState.checkpointDrift, 'STALE_ANCESTOR');
 });
 
-test('live Git validation fails closed when checkpoint main is not in canonical ancestry', () => {
+test('live Git validation fails closed when checkpoint main is not in canonical ancestry', (t) => {
+  if (!hasOriginMain()) {
+    t.skip('this clone has no origin/main remote-tracking ref (shallow single-branch checkout)');
+    return;
+  }
   const checkpoint = {
     ...require('../docs/current-agent-checkpoint.json'),
     canonicalMain: presentNonAncestorCommit(),
@@ -540,6 +568,10 @@ test('assessBaselineFreshness draws the line exactly at the threshold (#682)', (
 });
 
 test('the live capsule reports a baseline freshness verdict (#682)', (t) => {
+  if (!hasOriginMain()) {
+    t.skip('this clone has no origin/main remote-tracking ref (shallow single-branch checkout)');
+    return;
+  }
   // Accepting any of the four verdicts made this assertion true no matter what
   // the clock said -- but reaching it required surviving `validateGitState`,
   // which throws on STALE and UNKNOWN, so the test failed on an unfetched clone
