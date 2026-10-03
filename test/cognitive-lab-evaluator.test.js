@@ -61,7 +61,7 @@ function manifest(overrides = {}) {
       B7: 'NOT_MEASURED',
       B8: 'NOT_MEASURED',
     },
-    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: 'unknown', wallTimeMs: 'unknown', compute: 'unknown' },
+    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: null, wallTimeMs: null, compute: null },
     measurementVersion: 'cognitive-lab-v0.1',
     thresholdConfigHash: DIGEST,
     ...overrides,
@@ -132,6 +132,20 @@ test('baseline infrastructure PASS is not an intelligence gain PASS', (t) => {
   assert.notEqual(result.intelligenceGain, 'PASS');
 });
 
+test('v0.1 reports calibration non-claims and the two B1 known limitations', (t) => {
+  const result = evaluate(withGraph(t), manifest(), experiment());
+  assert.equal(result.calibration.brier, 'NOT_MEASURED');
+  assert.equal(result.calibration.ece, 'NOT_MEASURED');
+  assert.equal(result.calibration.reason, 'NO_PRE_OUTCOME_PROBABILITY');
+  assert.deepEqual(
+    result.knownLimitations.map((entry) => [entry.code, entry.status, entry.trackedBy]),
+    [
+      ['duplicate_source_independence', 'KNOWN_LIMITATION', '#3309'],
+      ['support_invalidation', 'KNOWN_LIMITATION', '#3309'],
+    ],
+  );
+});
+
 test('evaluating the same frozen baseline twice yields the same digest', (t) => {
   const first = evaluate(withGraph(t), manifest(), experiment());
   const second = evaluate(withGraph(t), manifest(), experiment());
@@ -194,6 +208,18 @@ test('mutation: an ignored budget that disagrees with the manifest is rejected',
 
 test('mutation: a tampered manifest is rejected before the run', (t) => {
   const result = evaluateGain(withGraph(t), { manifest: manifest(), manifestDigest: DIGEST, experiment: experiment() });
+  assert.equal(result.status, EVALUATOR_STATUS.REJECT);
+  assert.equal(result.error.code, EVALUATOR_ERROR_CODES.INVALID_MANIFEST);
+});
+
+test('mutation: a self-consistent schema-invalid manifest is rejected', (t) => {
+  const invalidManifest = manifest();
+  invalidManifest.budget.tokens = 'unknown';
+  const result = evaluateGain(withGraph(t), {
+    manifest: invalidManifest,
+    manifestDigest: computeManifestDigest(invalidManifest),
+    experiment: experiment(),
+  });
   assert.equal(result.status, EVALUATOR_STATUS.REJECT);
   assert.equal(result.error.code, EVALUATOR_ERROR_CODES.INVALID_MANIFEST);
 });
