@@ -144,6 +144,16 @@ test('a reported effect is not counted as an observed success', (t) => {
   assert.equal(result.counts.reported, 1);
 });
 
+test('an unknown effect with an outcome is measurement_error, not observed', (t) => {
+  const result = run(withGraph(t), manifest(), experiment({
+    observations: { h1: 'observed', h2: 'unknown', h3: 'observed', h4: 'observed', h5: 'observed' },
+    outcomes: { h1: 'confirmed', h2: 'confirmed', h3: 'incident', h4: 'confirmed', h5: 'censored' },
+  }));
+  assert.equal(result.status, REPLAY_STATUS.REPLAYED);
+  assert.equal(result.counts.observed, 3);
+  assert.equal(result.counts.measurement_error, 1);
+});
+
 test('a split that leaks a holdout id into train is rejected', (t) => {
   const graph = withGraph(t);
   const e = experiment({ split: { train: ['h1'], holdout: ['h1', 'h2'], transfer: [] } });
@@ -229,9 +239,9 @@ test('no observed sample is INSUFFICIENT, not a silent success', (t) => {
   const e = experiment({
     outcomes: { h1: 'censored', h2: 'censored' },
     observations: {},
-    split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
+    split: { train: ['t1'], holdout: ['h1', 'h2'], transfer: [] },
   });
-  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } });
+  const m = manifest({ split: { identity: DIGEST, train: ['t1'], holdout: ['h1', 'h2'], transfer: [] } });
   const result = run(graph, m, e);
   assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
   assert.equal(result.counts.observed, 0);
@@ -257,9 +267,21 @@ test('a design whose budget disagrees with the verified manifest is rejected', (
   assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
 });
 
-test('an empty holdout is rejected as insufficient data', (t) => {
+test('an empty holdout is INSUFFICIENT, not REJECT', (t) => {
   const graph = withGraph(t);
   const result = run(graph, manifest(), experiment({ split: { train: ['t1'], holdout: [], transfer: [] } }));
-  assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
+});
+
+test('a manifest with an empty train split is INSUFFICIENT before replay', (t) => {
+  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1'], transfer: [] } });
+  const result = run(withGraph(t), m, experiment({
+    split: { train: [], holdout: ['h1'], transfer: [] },
+    outcomes: { h1: 'confirmed' },
+    observations: { h1: 'observed' },
+  }));
+  assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
+  assert.equal(result.correctnessDigest, null);
   assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
 });
