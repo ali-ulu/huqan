@@ -267,11 +267,11 @@ test('a design whose budget disagrees with the verified manifest is rejected', (
   assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
 });
 
-test('an empty holdout is INSUFFICIENT, not REJECT', (t) => {
+test('an empty design holdout that disagrees with the verified manifest is rejected', (t) => {
   const graph = withGraph(t);
-  const result = run(graph, manifest(), experiment({ split: { train: ['t1'], holdout: [], transfer: [] } }));
-  assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
-  assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
+  const result = run(graph, manifest(), experiment({ split: { train: ['t1', 't2', 't3'], holdout: [], transfer: [] } }));
+  assert.equal(result.status, REPLAY_STATUS.REJECT);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.BUDGET_MISMATCH);
 });
 
 test('a manifest with an empty train split is INSUFFICIENT before replay', (t) => {
@@ -280,6 +280,18 @@ test('a manifest with an empty train split is INSUFFICIENT before replay', (t) =
     split: { train: [], holdout: ['h1'], transfer: [] },
     outcomes: { h1: 'confirmed' },
     observations: { h1: 'observed' },
+  }));
+  assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
+  assert.equal(result.correctnessDigest, null);
+  assert.equal(result.error.code, REPLAY_ERROR_CODES.INSUFFICIENT_DATA);
+});
+
+test('a manifest with an empty holdout split is INSUFFICIENT before design comparison', (t) => {
+  const m = manifest({ split: { identity: DIGEST, train: ['t1'], holdout: [], transfer: [] } });
+  const result = run(withGraph(t), m, experiment({
+    split: { train: ['t1'], holdout: [], transfer: [] },
+    outcomes: {},
+    observations: {},
   }));
   assert.equal(result.status, REPLAY_STATUS.INSUFFICIENT);
   assert.equal(result.correctnessDigest, null);
