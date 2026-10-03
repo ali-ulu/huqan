@@ -66,6 +66,68 @@ test('changed support provenance withdraws descendants and preserves prior histo
   assert.equal(run({ action: 'admit', derivationId: result.records[0].derivationId }).reason, 'derived_state_withdrawn');
 });
 
+test('support invalidation becomes idempotent counter-evidence and survives restart', t => {
+  const { kernel, run, options } = fixture(t);
+  for (let index = 1; index < 5; index++) {
+    kernel.graph.addNode(`Alice${index}`, `Alice${index}`);
+    kernel.graph.addEdge(`Alice${index}`, 'Bob', 'knows', {
+      provenance: {
+        provenanceId: `support-${index}`,
+        sourceType: 'document',
+        sourceRef: `doc:${index}`,
+        workspaceId: 'default',
+      },
+    });
+  }
+  const rules = [rule('support-rule', 'connected', 'knows')];
+  const initial = run({ rules });
+  assert.equal(initial.records.length, 5);
+  const before = run({ action: 'calibrate', ruleId: 'support-rule', declaredConfidence: 0.9 });
+  assert.equal(before.beliefs[0].status, 'insufficient');
+  assert.ok(before.derivedBeliefs.every((belief) => belief.status === 'insufficient'));
+
+  for (const record of initial.records) {
+    kernel.graph.addEdge(record.fact.args[0].value, 'Bob', 'knows', {
+      provenance: {
+        provenanceId: `replacement-${record.derivationId}`,
+        sourceType: 'document',
+        sourceRef: `replacement:${record.derivationId}`,
+        workspaceId: 'default',
+      },
+    });
+  }
+
+  const reconciled = run({ action: 'reconcile' });
+  assert.ok(reconciled.records.every((record) => record.state === 'withdrawn'));
+  assert.equal(reconciled.counterEvidence.length, 5);
+  assert.ok(reconciled.counterEvidence.every((entry) => entry.kind === 'support_invalidation'));
+  assert.ok(reconciled.derivedBeliefs.every((belief) => belief.status === 'withdrawn'));
+
+  const replayed = run({ action: 'reconcile' });
+  assert.equal(replayed.counterEvidence.length, 5);
+  assert.deepEqual(
+    replayed.counterEvidence.map((entry) => entry.evidenceId),
+    reconciled.counterEvidence.map((entry) => entry.evidenceId),
+  );
+
+  const revised = run({ action: 'calibrate', ruleId: 'support-rule', declaredConfidence: 0.9 });
+  assert.equal(revised.beliefs[0].status, 'defeated');
+  assert.equal(revised.beliefs[0].observedSamples, 5);
+  assert.equal(revised.beliefs[0].observedFailures, 5);
+  assert.equal(revised.beliefs[0].correlatedDecisionIds.length, 0);
+  assert.ok(revised.derivedBeliefs.every((belief) => belief.status === 'withdrawn'));
+
+  kernel.graph.save();
+  const reopened = new Kernel({ ...options, noLoad: false });
+  t.after(() => { reopened.graph.close(); reopened.memory?.close?.(); });
+  const { runInference } = require('../lib/cli-inference-runtime');
+  const history = runInference(reopened, { action: 'history' });
+  assert.equal(history.runs.at(-1).counterEvidence.length, 5);
+  const afterRestart = runInference(reopened, { action: 'reconcile' });
+  assert.equal(afterRestart.counterEvidence.length, 5);
+  assert.ok(afterRestart.records.every((record) => record.state === 'withdrawn'));
+});
+
 test('cycles terminate and the production result exposes budget exhaustion', t => {
   const { run } = fixture(t);
   const rules = [rule('r1', 'connected', 'knows'), rule('r2', 'knows', 'connected')];
