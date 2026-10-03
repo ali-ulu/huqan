@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Kernel = require('../kernel');
+const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-adversarial-self-'));
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -45,7 +46,7 @@ function seed(kernel) {
 }
 
 describe('adversarial self test', () => {
-  const runKnownFailing = process.env.AXIOM_RUN_KNOWN_FAILING_REGRESSIONS === '1';
+  const runKnownFailing = readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS') === '1';
   const knownFailingIt = runKnownFailing ? it : it.skip;
 
   it('keeps false claims out of verified truth and exposes downgrade metadata', () => {

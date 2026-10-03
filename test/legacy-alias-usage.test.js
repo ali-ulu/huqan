@@ -77,6 +77,28 @@ test('an absent variable is not a legacy use', () => {
   assert.equal(legacyAliasUsage().total, 0);
 });
 
+test('the known-failing regression gate is registered under the canonical name', () => {
+  // #3394: the skipped "known failing" suites read the legacy AXIOM_ spelling
+  // straight off process.env, which nothing sets, so the suites could never be
+  // run. Registration here is what makes HUQAN_RUN_KNOWN_FAILING_REGRESSIONS
+  // resolvable; without it the suite change fails HUQAN_ENV_SUFFIX_UNKNOWN.
+  assert.equal(
+    readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS', { HUQAN_RUN_KNOWN_FAILING_REGRESSIONS: '1' }),
+    '1',
+  );
+  assert.equal(
+    readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS', { AXIOM_RUN_KNOWN_FAILING_REGRESSIONS: '1' }),
+    '1',
+  );
+  assert.throws(
+    () => readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS', {
+      HUQAN_RUN_KNOWN_FAILING_REGRESSIONS: '1',
+      AXIOM_RUN_KNOWN_FAILING_REGRESSIONS: '0',
+    }),
+    (error) => error.code === 'HUQAN_ENV_CONFLICT',
+  );
+});
+
 test('the conflicting-configuration error still fails closed and counts nothing', () => {
   // HUQAN_ENV_CONFLICT must keep throwing; a metric that changed the decision
   // it measures would be a worse bug than the one it is measuring.
