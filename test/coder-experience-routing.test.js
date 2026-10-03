@@ -117,3 +117,43 @@ test('requested learned dispatch fails closed without its journal', () => {
     assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('a canary trial survives runs that never executed', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-canary-unexecuted-'));
+  let store;
+  try {
+    fs.mkdirSync(path.join(root, 'docs'));
+    fs.writeFileSync(path.join(root, 'docs/a.md'), 'before');
+    fs.writeFileSync(path.join(root, 'docs/drift.md'), 'absent');
+    fs.writeFileSync(path.join(root, 'docs/ambiguous.md'), 'before before');
+    const task = { id: 'learned', level: 'l0', allowedPaths: ['docs/a.md'],
+      operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } };
+    const repoState = { branch: 'feat/test', dirty: false, hasUntracked: false };
+    store = openRoutingJournal(path.join(root, 'journal.db'));
+    const reset = () => fs.writeFileSync(path.join(root, 'docs/a.md'), 'before');
+    assert.equal(applyDerivation({ task, root, repoState, journal: store.journal, runId: 'source' }).ok, true);
+    reset();
+    assert.equal(applyDerivation({ task: { ...task, operation: { ...task.operation, replace: 'after-alternative' } },
+      root, repoState, journal: store.journal, runId: 'alternate-source' }).ok, true);
+    reset();
+    const qualificationPaths = ['docs/drift.md', 'docs/ambiguous.md'];
+    const experience = { riskTier: 'low', candidates: [
+      { capabilityId: 'replace', sourceRunIds: ['source'], qualificationPaths },
+      { capabilityId: 'replace-secondary', sourceRunIds: ['alternate-source'], parentVersion: 1,
+        params: { path: 'docs/a.md', oldText: 'before', newText: 'after-alternative' }, qualificationPaths },
+    ], canary: { trialId: 'trial-unexecuted',
+      baselineCapabilityId: 'replace', candidateCapabilityId: 'replace-secondary' } };
+    const run = (runId, extra = {}) => applyDerivation({ task: { ...task, experience }, root, repoState,
+      journal: store.journal, runId, ...extra });
+    const dry = run('dry', { dryRun: true });
+    assert.equal(dry.ok, true);
+    assert.ok(store.journal.read('dry').some(event => event.type === 'routing_decided'),
+      'the dry run must carry the canary routing decision this test depends on');
+    const real = run('real');
+    assert.equal(real.ok, true, `a dry run must not poison the trial: ${real.reason}`);
+    assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'after');
+  } finally {
+    store?.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
