@@ -62,8 +62,12 @@ function activeHandleTypeNames() {
 
 function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {}) {
   const memory = process.memoryUsage();
+  // An Immediate is one-shot and drains on the next loop turn, so it cannot
+  // be a leak. better-sqlite3's close finalizer schedules one (see
+  // settleClosedDriver), and settling can still lose that race, which made the
+  // leak gate flap. Timeouts and handles still count.
   const activeResourceTypes = typeof process.getActiveResourcesInfo === 'function'
-    ? process.getActiveResourcesInfo()
+    ? process.getActiveResourcesInfo().filter((type) => type !== 'Immediate')
     : [];
   const activeHandleTypes = activeHandleTypeNames();
   const activeResources = countTypes(activeResourceTypes);
@@ -79,7 +83,7 @@ function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {
     activeResources,
     activeHandleCount: activeHandleTypes.length,
     activeHandles,
-    timerCount: (activeResources.Timeout || 0) + (activeResources.Immediate || 0),
+    timerCount: activeResources.Timeout || 0,
     childProcessCount: activeHandles.ChildProcess || 0,
     subscriberCount,
     sqliteOpen: Boolean(sqliteOpen),

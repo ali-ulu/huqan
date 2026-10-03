@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const DEFAULT_CONFIG = require('../benchmarks/fixtures/observability-soak-targets.json');
-const { assertSoakTargets, runSoak } = require('../benchmarks/observability-soak');
+const { assertSoakTargets, resourceSnapshot, runSoak } = require('../benchmarks/observability-soak');
 
 const TEST_CONFIG = {
   ...DEFAULT_CONFIG,
@@ -89,4 +89,21 @@ test('the gate still enforces cpuRatio, which this config only declines to measu
     true,
     'the shipped fixture must keep a real CPU budget for the full benchmark',
   );
+});
+
+// The closed SQLite driver leaves a one-shot Immediate that drains on the next
+// loop turn. It must not read as a leaked resource, or the gate flaps; a
+// leaked Timeout must still be seen.
+test('the leak gate ignores one-shot Immediates and still counts Timeouts', async () => {
+  const before = resourceSnapshot();
+  const immediate = setImmediate(() => {});
+  const withImmediate = resourceSnapshot();
+  clearImmediate(immediate);
+  assert.equal(withImmediate.timerCount, before.timerCount);
+  assert.equal(withImmediate.activeResourceCount, before.activeResourceCount);
+  const timeout = setTimeout(() => {}, 60_000);
+  const withTimeout = resourceSnapshot();
+  clearTimeout(timeout);
+  assert.equal(withTimeout.timerCount, before.timerCount + 1);
+  assert.equal(withTimeout.activeResourceCount, before.activeResourceCount + 1);
 });

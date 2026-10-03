@@ -227,22 +227,22 @@
       ],
       "sites": [
         {
-          "line": 122,
+          "line": 124,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 123,
+          "line": 125,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 137,
+          "line": 139,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 138,
+          "line": 140,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
@@ -257,7 +257,7 @@
       ],
       "sites": [
         {
-          "line": 34,
+          "line": 35,
           "capability": "fs_write",
           "call": "nodeFs.mkdirSync"
         }

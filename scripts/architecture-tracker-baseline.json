@@ -169,6 +169,7 @@
       "lib/cli-conflicts-command.js": "Core",
       "lib/cli-conflicts.js": "Core",
       "lib/cli-doctor.js": "Core",
+      "lib/cli-experience-learn.js": "Core",
       "lib/cli-experience-read.js": "Core",
       "lib/cli-experience-reconcile.js": "Core",
       "lib/cli-gate-evaluation.js": "Core",
@@ -207,6 +208,8 @@
       "lib/coder/observed-verification.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
+      "lib/cognitive-lab-b1-replay.js": "Core",
+      "lib/cognitive-lab-manifest.js": "Core",
       "lib/collector-seal-config.js": "Core",
       "lib/command-allowlist-miner.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
@@ -282,16 +285,21 @@
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
       "lib/experience/adapter-scope.js": "Application",
+      "lib/experience/budgeted-journal.js": "Application",
       "lib/experience/canary.js": "Application",
       "lib/experience/capability-trust-canary-extension.js": "Application",
       "lib/experience/capability-trust-fallback-extension.js": "Application",
       "lib/experience/capability-trust.js": "Application",
+      "lib/experience/coder-canary-runtime.js": "Application",
+      "lib/experience/coder-routing-runtime.js": "Application",
+      "lib/experience/coder-trust-replay.js": "Application",
       "lib/experience/compiler.js": "Application",
       "lib/experience/contract.js": "Application",
       "lib/experience/effect-boundary.js": "Application",
       "lib/experience/journal-connection.js": "Application",
       "lib/experience/journal.js": "Application",
       "lib/experience/learn-read-back.js": "Application",
+      "lib/experience/learning-intake.js": "Application",
       "lib/experience/learning.js": "Application",
       "lib/experience/optimization-hypothesis.js": "Application",
       "lib/experience/personal-execution-model.js": "Application",
@@ -679,6 +687,7 @@
       "lib/mcp-tool-policy.js": "Core",
       "lib/mcp/approval-detail-tool.js": "UI",
       "lib/mcp/compliance-audit-tool.js": "UI",
+      "lib/mcp/experience-learn-tool.js": "UI",
       "lib/mcp/experience-read-tool.js": "UI",
       "lib/mcp/fractal-learn-tool.js": "UI",
       "lib/mcp/gate-refusal.js": "UI",
@@ -703,6 +712,7 @@
       "lib/memory-blast-radius.js": "Adapters",
       "lib/memory-event-read.js": "Adapters",
       "lib/memory-event-source.js": "Adapters",
+      "lib/memory-lifecycle.js": "Adapters",
       "lib/memory-link-read.js": "Adapters",
       "lib/memory-link-source.js": "Adapters",
       "lib/memory-link-write.js": "Adapters",
@@ -1142,6 +1152,7 @@
       "scripts/check-naming-conformance.js": "UI",
       "scripts/check-package-closure.js": "UI",
       "scripts/check-pr-guardian-webhook-url.js": "UI",
+      "scripts/check-release-evaluation.js": "UI",
       "scripts/check-security-invariants.js": "UI",
       "scripts/check-structured-log-format.js": "UI",
       "scripts/check-v5-identity-readiness.js": "UI",
@@ -1176,6 +1187,7 @@
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
+      "scripts/generate-context-ports.js": "UI",
       "scripts/generate-protocol-vectors.js": "UI",
       "scripts/huqan-watchdog.js": "UI",
       "scripts/junit-merge.js": "UI",
@@ -1195,6 +1207,7 @@
       "scripts/pr-guardian-self-review.js": "UI",
       "scripts/release-verify.js": "UI",
       "scripts/replay-impact-thresholds.js": "UI",
+      "scripts/repo-radar/pick-target.js": "UI",
       "scripts/require-scan.js": "UI",
       "scripts/restore.js": "UI",
       "scripts/retained-deep-imports.js": "UI",
@@ -1205,6 +1218,7 @@
       "scripts/seed-demo.js": "UI",
       "scripts/setup-sqlite.js": "UI",
       "scripts/shard-hang-diagnostics.js": "UI",
+      "scripts/shipped-runtime-files.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
       "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
@@ -1310,6 +1324,7 @@
         "agent.js",
         "agent.v3.js",
         "lib/environment-compat.js",
+        "lib/experience/budgeted-journal.js",
         "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
         "lib/experience/reconciliation.js",
@@ -1355,6 +1370,7 @@
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
         "lib/kernel-factory.js",
+        "lib/sqlite-availability.js",
         "llmAdapter.js",
         "mcpServer.js",
         "persistencePaths.js"
@@ -1916,6 +1932,7 @@
         "lib/cli-capability-commands.js",
         "lib/cli-company-ingest.js",
         "lib/cli-conflicts-command.js",
+        "lib/cli-experience-learn.js",
         "lib/cli-experience-read.js",
         "lib/cli-experience-reconcile.js",
         "lib/cli-help.js",
@@ -1941,6 +1958,9 @@
         "lib/unexpected-egress-doctor.js",
         "persistencePaths.js",
         "rustGraph.js"
+      ],
+      "lib/cli-experience-learn.js": [
+        "lib/experience/learning-intake.js"
       ],
       "lib/cli-experience-read.js": [
         "lib/experience/read-model.js"
@@ -2073,6 +2093,7 @@
         "lib/coder/experience-reporter.js",
         "lib/coder/observed-verification.js",
         "lib/deterministic-task-runner.js",
+        "lib/experience/coder-routing-runtime.js",
         "lib/experience/contract.js",
         "lib/path-safety.js"
       ],
@@ -2085,6 +2106,7 @@
         "lib/experience/verifier.js"
       ],
       "lib/coder/journal-store.js": [
+        "lib/experience/budgeted-journal.js",
         "lib/experience/journal.js",
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
@@ -2094,6 +2116,17 @@
         "lib/deterministic-task-runner.js",
         "lib/path-safety.js",
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/cognitive-lab-b1-replay.js": [
+        "lib/cognitive-lab-manifest.js",
+        "lib/content-hash.js",
+        "lib/inference-belief-revision.js",
+        "lib/is-plain-object.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/cognitive-lab-manifest.js": [
+        "lib/content-hash.js",
+        "lib/is-plain-object.js"
       ],
       "lib/collector-seal-config.js": [
         "lib/environment-compat.js"
@@ -2337,6 +2370,9 @@
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/experience/budgeted-journal.js": [
+        "lib/experience/write-cost-budget.js"
+      ],
       "lib/experience/canary.js": [
         "lib/experience/router.js"
       ],
@@ -2346,6 +2382,24 @@
       "lib/experience/capability-trust.js": [
         "lib/experience/capability-trust-canary-extension.js",
         "lib/experience/capability-trust-fallback-extension.js"
+      ],
+      "lib/experience/coder-canary-runtime.js": [
+        "lib/experience/canary.js",
+        "lib/experience/learning-intake.js",
+        "lib/experience/optimization-hypothesis.js"
+      ],
+      "lib/experience/coder-routing-runtime.js": [
+        "lib/experience/capability-trust.js",
+        "lib/experience/coder-canary-runtime.js",
+        "lib/experience/coder-trust-replay.js",
+        "lib/experience/compiler.js",
+        "lib/experience/learning-intake.js",
+        "lib/experience/personal-execution-model.js",
+        "lib/experience/procedure-registry.js",
+        "lib/path-safety.js"
+      ],
+      "lib/experience/coder-trust-replay.js": [
+        "lib/experience/learning-intake.js"
       ],
       "lib/experience/effect-boundary.js": [
         "lib/experience/reconciliation.js",
@@ -2362,6 +2416,11 @@
       ],
       "lib/experience/learn-read-back.js": [
         "lib/experience/verifier.js"
+      ],
+      "lib/experience/learning-intake.js": [
+        "lib/experience/compiler.js",
+        "lib/experience/learning.js",
+        "lib/experience/read-model.js"
       ],
       "lib/experience/optimization-hypothesis.js": [
         "lib/experience/canary.js"
@@ -3875,6 +3934,11 @@
         "lib/mcp-input-sanitizers.js",
         "lib/mcp/response-builders.js"
       ],
+      "lib/mcp/experience-learn-tool.js": [
+        "lib/experience/learning-intake.js",
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp/response-builders.js"
+      ],
       "lib/mcp/experience-read-tool.js": [
         "lib/experience/read-model.js",
         "lib/mcp-input-sanitizers.js",
@@ -3909,6 +3973,7 @@
         "lib/mcp-approval-store.js",
         "lib/mcp-input-sanitizers.js",
         "lib/mcp/compliance-audit-tool.js",
+        "lib/mcp/experience-learn-tool.js",
         "lib/mcp/experience-read-tool.js",
         "lib/mcp/response-builders.js",
         "lib/mcp/system-status-tool.js",
@@ -4008,6 +4073,13 @@
         "lib/memory-event-source.js",
         "lib/memory-record-utils.js",
         "lib/memory-store-utils.js"
+      ],
+      "lib/memory-lifecycle.js": [
+        "lib/admission-horizon.js",
+        "lib/is-plain-object.js",
+        "lib/memory-admission-gate.js",
+        "lib/memory-recall-gate.js",
+        "lib/trust-score-aggregator.js"
       ],
       "lib/memory-link-read.js": [
         "lib/memory-link-source.js",
@@ -4350,6 +4422,7 @@
         "lib/self-healer/finding-classifier.js"
       ],
       "lib/post-incident-review.js": [
+        "lib/incident-envelope.js",
         "lib/trust-evidence-ledger.js"
       ],
       "lib/pr-guardian/derivation-check.js": [
@@ -5439,6 +5512,7 @@
         "lib/external-action-guard.js"
       ],
       "scripts/capability-usage.js": [
+        "lib/default-persistence-path.js",
         "lib/environment-compat.js",
         "lib/observability/instrumentation-marker.js",
         "lib/workflow-contract.js"
@@ -5465,6 +5539,10 @@
       "scripts/check-package-closure.js": [
         "scripts/require-scan.js",
         "scripts/retained-deep-imports.js"
+      ],
+      "scripts/check-release-evaluation.js": [
+        "lib/release-evaluation-record.js",
+        "scripts/security-release-evaluation.js"
       ],
       "scripts/check-structured-log-format.js": [
         "lib/http/structured-log.js"
@@ -5547,9 +5625,16 @@
         "scripts/external-conformance/consumer-schema.js",
         "scripts/external-conformance/consumer-v5.js"
       ],
+      "scripts/external-conformance/run.js": [
+        "scripts/spawn-windows-aware.js"
+      ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",
         "scripts/fitness-dashboard-charts.js"
+      ],
+      "scripts/generate-context-ports.js": [
+        "scripts/check-import-cycles.js",
+        "scripts/check-module-boundary.js"
       ],
       "scripts/generate-protocol-vectors.js": [
         "lib/receipt/canonical-receipt.js",
@@ -5557,6 +5642,7 @@
         "lib/receipt/receipt-export.js"
       ],
       "scripts/huqan-watchdog.js": [
+        "lib/huqan-state-root.js",
         "lib/runtime-watchdog.js"
       ],
       "scripts/knowledge-graph-demo.js": [
@@ -5948,6 +6034,12 @@
         "to": "rustGraph.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-experience-learn.js",
+        "to": "lib/experience/learning-intake.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
       },
       {
         "from": "lib/cli-experience-read.js",
