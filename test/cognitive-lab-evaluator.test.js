@@ -229,9 +229,9 @@ test('a missing outcome is INSUFFICIENT, never a silent success', (t) => {
   const e = experiment({
     outcomes: { h1: 'censored', h2: 'censored' },
     observations: {},
-    split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
+    split: { train: ['t1'], holdout: ['h1', 'h2'], transfer: [] },
   });
-  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } });
+  const m = manifest({ split: { identity: DIGEST, train: ['t1'], holdout: ['h1', 'h2'], transfer: [] } });
   const result = evaluate(graph, m, e);
   assert.equal(result.status, EVALUATOR_STATUS.INSUFFICIENT);
   assert.equal(result.error.code, EVALUATOR_ERROR_CODES.MISSING_OUTCOME);
