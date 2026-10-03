@@ -123,7 +123,7 @@ const OCP_ALLOWED = Object.freeze([
   },
   {
     file: 'lib/cognitive-lab-manifest.js',
-    why: 'switch (kind) dispatches over the frozen MANIFEST_SPEC contract grammar (#3374): the kinds are the module\'s own schema vocabulary, not a feature set, so a new case is a schema version change rather than a growing dispatch. Stays a switch.',
+    why: 'switch (kind) validates node kinds from the MANIFEST_SPEC contract grammar (#3374), not a feature set. Stays a switch.',
     review_by: '2026-12-31',
   },
 ]);
