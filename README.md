@@ -107,15 +107,6 @@ npm ci && npm test                    # full suite
 npm run conformance:external          # consumer conformance
 ```
 
-[Roadmap](./docs/current-operating-roadmap.md) ·
-[Agent Action Firewall](./docs/agent-action-firewall.md) ·
-[A2A deployment](./docs/a2a-deployment.md) ·
-[Threat model](./THREAT_MODEL.md) ·
-[Security](./SECURITY.md) ·
-[Contributing](./CONTRIBUTING.md) ·
-[Changelog](./CHANGELOG.md) ·
-[Discussions](https://github.com/ali-ulu/huqan/discussions)
-
 When this page and the repository disagree, the repository wins.
 
 ## License
