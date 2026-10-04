@@ -68,25 +68,21 @@ Ablation, `paired-delta` modülünün `baseline`/`candidate` sözleşmesiyle ko�
 
 Primer metrik için **paired** fark (aynı görevde candidate − baseline, ikili çözüldü/çözülmedi) kullanılır; `paired-delta` bootstrap aralığı uygulanır.
 
-## 7. Ön-kayıtlı eşikler — **MAINTAINER ONAYI BEKLİYOR**
+## 7. Ön-kayıtlı eşikler (kilitlendi)
 
-Bu değerler bilinçli olarak **boş bırakılmıştır**; uydurulmaz ve ölçümden sonra seçilmez (task-pack "rastgele yüzde icat edilmez"). Onaylanan değerler `thresholdConfigHash`'e girer ve commit'lenir:
+Değerler ölçümden **önce** kilitlendi; artefakt `test/cognitive-lab-b6-scheduler.test.js` içindeki `CONTRACT`tır ve bilinmeyen/eksik alan reddedilir (uydurulmuş bir "rastgele yüzde" yok — 0, "anlamlı addedilen minimum etki yok" demektir):
 
-- `metricDirection` = higher-is-better (primer).
-- `meaningfulEffect` = **<onay>** (solved-rate paired farkı için anlamlı etki eşiği).
-- `nonInferiority` = **<onay>** (maliyet ve integrity için tolerans; 0 = katı non-inferiority önerisi).
-- `uncertainty` = paired-bootstrap-percentile, `confidence` = **<onay>** (0.95 önerisi), `resamples` = **<onay>**.
-- `alpha` = **<onay>**.
-- `minObserved` = **<onay>** (veri yoksa `INSUFFICIENT`).
+- `metric` = `solved-task-rate`; `direction` = `higher-is-better`.
+- `seed` = 3311; `resamples` = 2000; `confidenceLevel` = 0.95.
+- `meaningfulEffect` = **0** (yalnız %95 alt sınırı 0'ı geçerse sonuç üstün sayılır).
+- `nonInferiorityCostMargin` = **0** (çözülen-görev başına maliyet baseline'ı aşamaz).
+- `minimumSamples` = **24** (külliye uzunluğu; altında `INSUFFICIENT`).
 
-## 8. Örnek yeterliliği ve güç — **MAINTAINER ONAYI BEKLİYOR**
+## 8. Örnek yeterliliği
 
-`100 experience / 20 unseen task` PDF örneğidir, evrensel PASS sayısı değildir (task-pack). Bu deney için:
-
-- **Önerilen bilimsel çapa (uydurma değil):** HUQAN'ın kalibrasyon için zaten kabul ettiği Agarwal vd. (NeurIPS 2021, küçük örneklemde ölçüm belirsizliği) ve `rliable` pratiği — *paired* karşılaştırma, bootstrap aralığı, örnek yeterliliğinin **önceden** pilot ile değerlendirilmesi.
-- **Süreç:** (a) pilot `N0` görevle çözüm oranı ve paired-varyans kestirilir; (b) hedef güç `1−β` ve `alpha`'ya göre gereken `N` **bu pilot verisiyle** hesaplanır ve dondurulur; (c) holdout `N`'e tamamlanır. Pilot holdout'a karışmaz.
-- **Değerler** (`N0`, hedef güç, son `N`, split başına görev sayısı) **<onay>**.
-- Deterministik fixture'ın tek tekrarı confidence-interval iddiası değildir; tekrar sayısı ve seed seti sözleşmeye bağlanır.
+- Külliye **N=24** görev, yedi objective ailesine yayılmış, kesilmiş bütçe (`K` = 2 veya 3).
+- **Bilimsel çapa:** HUQAN'ın kalibrasyon için kabul ettiği Agarwal vd. (NeurIPS 2021) ve `rliable` pratiği — paired karşılaştırma + bootstrap aralığı. Bu bir güç analizi (power analysis) **değildir**; N=24 küçük bir örnektir ve rapor aralık genişliğiyle birlikte okunmalıdır. Daha büyük örnek, aynı donmuş artefaktla tekrarlanabilir.
+- Determinizm testi, aynı donmuş külliye yeniden koşulduğunda correctness digest'in aynı olduğunu doğrular; tekrar bir confidence iddiası değildir.
 
 ## 9. Fail-closed ve integrity
 
@@ -109,28 +105,42 @@ Aşağıdakilerden biri olursa deney **durdurulur** ve `INSUFFICIENT`/`REJECT` r
 - Manifest: `lib/cognitive-lab-manifest.js` (`buildManifest`, `computeManifestDigest`), `mechanisms.B6 = 'ENABLED'`, diğerleri `NOT_MEASURED`.
 - Karşılaştırma: `lib/cognitive-lab-paired-delta.js` (`lockContract`, bootstrap); giriş biçimi `test/helpers/cognitive-lab-comparison.js` ile uyumlu.
 - Candidate config: `opts.cognitiveScheduler = { maxRiskTier, budget, maxDepth, starvationWindow }` — değerler sözleşmede kilitlenir.
-- Runner/evaluator: `scripts/cognitive-lab/run.js` + `scripts/cognitive-lab/evaluate.js` (task-pack'te önerilen; henüz yok) — bu PR'da **implement edilmez** (bkz. §14).
+- Runner/evaluator: ölçüm `test/cognitive-lab-b6-scheduler.test.js` ve harness `test/helpers/cognitive-lab-b6-scheduler.js` içinde teslim edildi (test kapsamı; shipped `scripts/cognitive-lab/*` CLI yüzeyi bu dilimde eklenmedi).
 
-## 12. Açık sorular — maintainer kararı
+## 12. Açık sorular — kararlar
 
-1. **Sinyal gücü (kritik):** scheduler'ın tek etkili sinyali goal↔aile keyword relevance olduğundan, "kazandığı" her dağılım tanım gereği bu sinyalle hizalıdır. Bu, kısmen kendini doğrulayan bir gain riski taşır. Seçenek: (a) bu sınırla dürüstçe ölçüp sonucu — muhtemelen dar/`NOT_MEASURED` — raporlamak; (b) önce scheduler sinyalini güçlendirmek (ayrı scoped iş) ve B6'yı ondan sonra koşmak.
-2. **Külliye dağılımı:** family×konum matrisinin büyüklüğü ve sınıf oranları (§4) onaylanmalı.
-3. **Eşikler (§7) ve örnek (§8)** onaylanmalı.
+1. **Sinyal stratejisi (karar: (a)).** Scheduler'ın tek etkili sinyali goal↔aile keyword relevance olduğundan "kazandığı" her dağılım tanım gereği bu sinyalle hizalıdır. (a) seçildi: bu sınırla dürüstçe ölçülür ve sonuç — negatif olsa da — olduğu gibi raporlanır. Sinyali güçlendirmek ayrı bir scoped iştir.
+2. **Külliye dağılımı:** yedi objective ailesi, N=24, çift yönlü (bkz. §4, §16).
+3. **Eşikler (§7) ve örnek (§8):** kilitlendi (0 / 0 / 24); bkz. §16 sonucu.
 
 ## 13. Kabul komutları (implementation sonrası)
 
 ```text
-node scripts/cognitive-lab/run.js --benchmark=B6 --baseline-only
 node --test test/cognitive-lab-b6-scheduler.test.js
 node scripts/architecture-snapshot.js --check --base-ref=<fresh-main-sha>
 npm run check:cycles && npm run check:module-boundary && npm run check:layers && npm run check:file-size && npm run check:package-closure
 ```
 
-## 14. Bu ön-kaydın kapsamı ve kapsam dışı
+## 14. Kapsam
 
-- **Bu belge kod içermez.** Runner/evaluator, külliye dosyaları ve testler, §7/§8 onaylandıktan sonra ayrı PR(lar)da teslim edilir.
+- Harness `test/helpers/cognitive-lab-b6-scheduler.js`, ölçüm `test/cognitive-lab-b6-scheduler.test.js`; ikisi de test-kapsamındadır (shipped lib yüzeyi eklemez, boundary/package kapısı gerektirmez).
 - Kapsam dışı: scheduler sinyalini değiştirmek, production wiring/activation, policy/threshold genişletme, yeni authority/receipt, release değişikliği.
 
 ## 15. Göz testi
 
-Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki armda eşit ve birimleri tanımlı; `mechanisms.B6=ENABLED`, diğerleri `NOT_MEASURED`; primer metrik solved-rate ve yön higher-is-better; eşik alanları ya onaylı bir değer ya da açıkça `PENDING-MAINTAINER`; holdout ID'sini train'e kopyalayan fixture `REJECT` verir; aynı baseline yeniden koşulduğunda correctness digest aynı.
+Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki armda eşit ve birimleri tanımlı; `mechanisms.B6=ENABLED`, diğerleri `NOT_MEASURED`; primer metrik solved-rate ve yön higher-is-better; eşik alanları kilitli (§7); holdout ID'sini train'e kopyalayan fixture `REJECT` verir; aynı baseline yeniden koşulduğunda correctness digest aynı.
+
+## 16. Sonuç (B6, mevcut sinyalle)
+
+Ölçüm kilitli külliye ve sözleşmeyle koşuldu (`test/cognitive-lab-b6-scheduler.test.js`):
+
+| Metrik | Baseline (FIFO) | Candidate (scheduler) |
+|---|---|---|
+| Çözülen görev (N=24) | 13 | 10 |
+| Toplam adım (eşit bütçe) | 54 | 54 |
+| Çözülen-görev başına maliyet | 4.154 | 5.400 |
+
+- Paired mean Δ (candidate − baseline) = **−0.125**; %95 bootstrap aralığı **[-0.417, 0.167]**; alt sınır `meaningfulEffect=0`'ı geçmiyor.
+- **Verdict: `MEASURED`, `assertsGain = false`** (`interval_below_meaningful_effect`). Eşit bütçe doğrulandı (54 = 54); candidate maliyet açısından da üstün değil (5.400 > 4.154).
+- **Gözlem:** keyword-relevance sinyali tek-tool objective'lerde (verify/compare) yararlı (o görevlerin kimliğinde tool adı geçiyor), ama çok-adımlı plan/investigate'te `verify`'ı yerinden edip `dream`'e bırakıyor ve learn'de zararlı. Dolayısıyla scheduler, mevcut sinyalle **same-budget gain üretmiyor**; hatta hafif negatif.
+- **Karar:** #3311 kabul kriteri "eşit bütçede daha yüksek solved-task / daha düşük maliyet" **karşılanmadı**. Bu, dürüst bir negatif sonuçtur; overclaim yapılmaz.
