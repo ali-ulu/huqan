@@ -210,3 +210,45 @@ test('a priority mutation that drops the risk ceiling is caught by the ablation'
   const mutated = scheduleCandidates({ candidates }, { maxRiskTier: 'high' });
   assert.deepEqual(mutated.order, ['risky:1', 'safe:1']);
 });
+
+test('#3447: the wired scheduler keeps the plan order on a learn goal (the solution step runs first)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1-learn-'));
+  const agent = freshAgent(dir);
+  try {
+    const plan = agent.plan('öğren yeni kural');
+    assert.equal(plan.data.objective, 'learn');
+    assert.deepEqual(plan.data.steps.map((step) => step.id), ['ingest', 'confirm']);
+
+    const run = agent.run('öğren yeni kural', {
+      resume: false,
+      maxSteps: 2,
+      maxIterations: 2,
+      timeBudgetMs: 5000,
+      cognitiveScheduler: { maxRiskTier: 'low', budget: 100 },
+    });
+    assert.equal(run.ok, true);
+    // The learn objective's relied-on step must lead; before #3447 the key
+    // tie-break put `confirm` first and pushed the solution step out of budget.
+    assert.equal(run.data.steps[0].id, 'ingest');
+  } finally {
+    releaseAgentStorage(agent, dir);
+  }
+});
+
+test('#3447: the wired scheduler promotes the verify step on a plan goal', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1-plan-'));
+  const agent = freshAgent(dir);
+  try {
+    const run = agent.run('plan görev adım', {
+      resume: false,
+      maxSteps: 2,
+      maxIterations: 2,
+      timeBudgetMs: 5000,
+      cognitiveScheduler: { maxRiskTier: 'low', budget: 100 },
+    });
+    assert.equal(run.ok, true);
+    assert.equal(run.data.steps[0].action, 'verify');
+  } finally {
+    releaseAgentStorage(agent, dir);
+  }
+});

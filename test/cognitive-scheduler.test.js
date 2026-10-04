@@ -105,4 +105,43 @@ test('malformed input is rejected with a typed code, never coerced', () => {
   assert.equal(scheduleCandidates({ candidates: [{ key: 'a:1' }] }).code, SCHEDULER_ERROR_CODES.MISSING_FIELD);
   assert.equal(scheduleCandidates({ candidates: [candidate('a:1', { riskTier: 'critical' })] }).code, SCHEDULER_ERROR_CODES.UNKNOWN_RISK_TIER);
   assert.equal(scheduleCandidates({ candidates: [candidate('a:1', { cost: -1 })] }).code, SCHEDULER_ERROR_CODES.INVALID_FIELD);
+  assert.equal(scheduleCandidates({ candidates: [candidate('a:1')] }, { tieBreak: 'nonsense' }).code, SCHEDULER_ERROR_CODES.INVALID_FIELD);
+});
+
+test('#3447: the objective role lifts the relied-on step when the goal names no tool', () => {
+  // "öğren yeni kural" is objective `learn`; the goal names no tool, so without
+  // the role signal every candidate would tie and fall to the key tie-break
+  // (`confirm` < `ingest`). The role signal must pick the learn step instead.
+  const candidates = [
+    { key: 'ingest', family: 'learn' },
+    { key: 'confirm', family: 'verify' },
+  ];
+  const withoutRole = scheduleCandidates({ candidates, goal: 'yeni kural' });
+  assert.deepEqual(withoutRole.order, ['confirm', 'ingest'], 'without the role signal the key tie-break wins');
+
+  const withRole = scheduleCandidates({ candidates, goal: 'yeni kural', objective: 'learn' });
+  assert.deepEqual(withRole.order, ['ingest', 'confirm'], 'the learn objective must rank its relied-on step first');
+});
+
+test('#3447: the objective role is weaker than a goal-named tool', () => {
+  // The goal names "dream" (relevance 0.6) while the objective is `learn`
+  // (role 0.2). The named tool must win, so the two signals never conflict.
+  const named = scoreCandidate({ family: 'dream', relevance: null, urgency: 0, riskTier: 'low', cost: 1 }, 'dream kedi', 'learn');
+  const role = scoreCandidate({ family: 'learn', relevance: null, urgency: 0, riskTier: 'low', cost: 1 }, 'dream kedi', 'learn');
+  assert.ok(named > role, 'a goal-named family must outrank the objective role');
+});
+
+test('#3447: input-order tie-break preserves the plan (FIFO) order on an exact tie', () => {
+  const candidates = [candidate('b:1'), candidate('a:1'), candidate('c:1')];
+  const byKey = scheduleCandidates({ candidates });
+  assert.deepEqual(byKey.order, ['a:1', 'b:1', 'c:1'], 'the default tie-break stays the key order');
+
+  const byInput = scheduleCandidates({ candidates }, { tieBreak: 'input-order' });
+  assert.deepEqual(byInput.order, ['b:1', 'a:1', 'c:1'], 'input-order must keep the plan order on a tie');
+});
+
+test('#3447: relevance still outranks input order, so a named step still moves up', () => {
+  const candidates = [candidate('ask:1', { family: 'ask' }), candidate('verify:1', { family: 'verify' }), candidate('dream:1', { family: 'dream' })];
+  const result = scheduleCandidates({ candidates, goal: 'dream kedi', objective: 'investigate' }, { tieBreak: 'input-order' });
+  assert.equal(result.order[0], 'dream:1', 'the goal-named step must lead even under input-order tie-break');
 });

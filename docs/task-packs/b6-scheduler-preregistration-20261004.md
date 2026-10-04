@@ -144,3 +144,19 @@ Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki 
 - **Verdict: `MEASURED`, `assertsGain = false`** (`interval_below_meaningful_effect`). İki kol da tam **38 adım** harcadı (eşit bütçe); holdout'ta çözülen-görev başına maliyet baseline 3.33, candidate 10.00 → maliyet de üstün değil.
 - **Gözlem:** keyword-relevance sinyali yalnız kendi ailesinde (train: verify/compare) yararlı; yabancı/çok-adımlı ailelerde zararlı (transfer 2→0, holdout 6→2). Çok-adımlı planlarda `verify`'ı yerinden edip `dream`'e bırakıyor; learn'de `ingest` yerine `confirm`'e geçip çözümü kaçırıyor.
 - **Karar:** #3311 kabul kriteri "eşit bütçede daha yüksek solved-task / daha düşük maliyet" **karşılanmadı**. Bu, dürüst bir negatif sonuçtur; overclaim yapılmaz. Sinyal güçlendirme ayrı bir scoped iştir.
+
+## 17. Sonuç v2 — sinyal güçlendirme sonrası (#3447)
+
+#3447 relevance sinyalini güçlendirdi: objective→adım-rolü sinyali (ağırlık **0.2**, keyword 0.6'dan zayıf) ve gerçek koşuda `tieBreak: 'input-order'` (eşit skorda plan/FIFO sırası; varsayılan `key` korunur). **Külliye #3446'da fix'ten önce donduğu için bu bir yeniden-ölçümdür, fix'e uydurulmuş değil.**
+
+| Split | n | Baseline | Candidate | Δ |
+|---|---|---|---|---|
+| train | 4 | 0 | 4 | +4 |
+| transfer | 4 | 2 | 4 | +2 |
+| **holdout (primer)** | **9** | **6** | **9** | **+3** |
+| tümü | 17 | 8 | 17 | +9 |
+
+- Holdout paired mean Δ = **+0.333**; %95 bootstrap aralığı **[0.111, 0.556]**; alt sınır `meaningfulEffect=0`'ı geçiyor.
+- İki kol da **38 adım** (eşit bütçe); holdout çözülen-görev başına maliyet baseline 3.33 → candidate **2.22** (non-inferior).
+- **Verdict: `MEASURED`, `assertsGain = true`.** Candidate, dondurulmuş külliyede **hiçbir görevi kaybettirmiyor** (hurt = 0).
+- **Sınır (dürüstlük):** holdout n=9 ve yalnız bir gözlem külliye olduğundan bu bir *nokta tahmini*dir; aralık genişliğiyle okunmalıdır. Kazançların çoğu `verify`/`reason`/`compare` adımlarının bütçeye girmesinden geliyor. Daha büyük/bağımsız bir holdout, aynı donmuş artefaktla tekrarlanmalıdır.

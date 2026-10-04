@@ -195,7 +195,7 @@ function digest(records) {
   return records.map((record) => `${record.taskId}:${record.baseline.stepIds.join('>')}|${record.candidate.stepIds.join('>')}`).join('\n');
 }
 
-test('the frozen corpus satisfies the locked minimums and is bidirectional', () => {
+test('the frozen corpus is discriminative and the strengthened scheduler never harms a task', () => {
   const contract = lockContract(CONTRACT);
   assert.ok(TASKS.length >= contract.minimumSamples, `corpus ${TASKS.length} < minimumSamples ${contract.minimumSamples}`);
   const holdout = TASKS.filter((task) => task.split === 'holdout');
@@ -206,8 +206,16 @@ test('the frozen corpus satisfies the locked minimums and is bidirectional', () 
   const records = runCorpus();
   const helped = records.filter((record) => record.solvedCandidate > record.solvedBaseline).length;
   const hurt = records.filter((record) => record.solvedCandidate < record.solvedBaseline).length;
+  const baselineSolved = records.reduce((sum, record) => sum + record.solvedBaseline, 0);
   assert.ok(helped > 0, `expected at least one task the scheduler helps, got ${helped}`);
-  assert.ok(hurt > 0, `expected at least one task the scheduler hurts, got ${hurt}`);
+  // The corpus was frozen in #3446, before the #3447 signal change, so a
+  // measured delta is not fitted to the fix. It must stay discriminative: the
+  // baseline solves some tasks and misses others, so the delta is not an
+  // artefact of an all-solved or all-unsolved corpus.
+  assert.ok(baselineSolved > 0 && baselineSolved < records.length, `baseline must be discriminative, solved ${baselineSolved}/${records.length}`);
+  // #3447 acceptance: the strengthened scheduler is non-inferior on every task
+  // of the frozen corpus -- it never loses a task the baseline solved.
+  assert.equal(hurt, 0, `the strengthened scheduler must not lose a task the baseline solved, hurt ${hurt}`);
 });
 
 test('B6 equal-budget ablation: measured on holdout, integrity clean, no overclaimed gain', () => {
