@@ -11,6 +11,7 @@ const {
   createAuditJournal,
   createRuntimeWatchdog,
   readAndVerifyAudit,
+  NOOP_TERMINAL_HANDLER,
 } = require('../lib/runtime-watchdog');
 const auditApi = require('../lib/runtime-watchdog-audit');
 const { bindHumanApprovalConsole, defaultAuditPath } = require('../scripts/huqan-watchdog');
@@ -95,6 +96,7 @@ test('missed heartbeat locks execution path and terminates the managed HUQAN chi
     missedHeartbeats: 2,
     startupGraceMs: 0,
     timers: { setInterval() { return { unref() {} }; }, clearInterval() {} },
+    onTerminal: NOOP_TERMINAL_HANDLER,
   });
   try {
     watchdog.start();
@@ -123,6 +125,7 @@ test('startup grace and single-flight heartbeat prevent a slow boot from looking
     startupGraceMs: 30_000,
     clock: () => 1_000,
     timers: { setInterval() { return { unref() {} }; }, clearInterval() {} },
+    onTerminal: NOOP_TERMINAL_HANDLER,
   });
   try {
     watchdog.start();
@@ -163,7 +166,25 @@ test('audit path and heartbeat target reject ambiguous trust boundaries', () => 
   }
 });
 
-test('interactive shutdown console requires the exact confirmation and a human identity', () => {
+  test('onTerminal is required so a terminal state cannot pass silently', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-runtime-watchdog-terminal-'));
+    try {
+      const audit = createAuditJournal({ auditPath: path.join(dir, 'audit.jsonl') });
+      const base = { serverPath: path.join(dir, 'server.js'), healthUrl: 'http://127.0.0.1:3000/health', audit };
+      assert.throws(
+        () => createRuntimeWatchdog(base),
+        /onTerminal/,
+        'a caller that forgets onTerminal must fail loudly instead of dropping the terminal signal',
+      );
+      assert.throws(() => createRuntimeWatchdog({ ...base, onTerminal: 'not-a-function' }), /onTerminal/);
+      // The explicit opt-out is the only way to accept no terminal callback.
+      assert.doesNotThrow(() => createRuntimeWatchdog({ ...base, onTerminal: NOOP_TERMINAL_HANDLER }));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('interactive shutdown console requires the exact confirmation and a human identity', () => {
   const input = new PassThrough();
   const output = new PassThrough();
   input.isTTY = true;

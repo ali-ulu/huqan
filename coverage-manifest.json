@@ -30,12 +30,12 @@
       ],
       "sites": [
         {
-          "line": 22,
+          "line": 33,
           "capability": "egress",
           "call": "fetch"
         },
         {
-          "line": 86,
+          "line": 102,
           "capability": "process",
           "call": "spawnProcess"
         }
@@ -980,12 +980,12 @@
       ],
       "sites": [
         {
-          "line": 22,
+          "line": 33,
           "capability": "egress",
           "call": "fetch"
         },
         {
-          "line": 86,
+          "line": 102,
           "capability": "process",
           "call": "spawnProcess"
         }
