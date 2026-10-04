@@ -2160,6 +2160,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/context-canary.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/code-anchor.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-LEARN-A"
@@ -4412,6 +4416,13 @@
    "owner": "Knowledge",
    "consumers": [
     "AgentAction",
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/context-canary.js": {
+   "owner": "AgentAction",
+   "consumers": [
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"

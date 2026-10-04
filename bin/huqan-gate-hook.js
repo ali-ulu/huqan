@@ -88,6 +88,14 @@ async function main() {
       await runBrowserSessionCommand();
       return;
     }
+    // `canary` issues a context canary to plant in a prompt, document or
+    // memory entry; AB14 blocks any action that carries it. Nothing is stored:
+    // the id verifies itself, and the fingerprint is what receipts will name.
+    if (command === 'canary') {
+      const { issueContextCanary } = require('../lib/context-canary');
+      process.stdout.write(`${JSON.stringify(issueContextCanary())}\n`);
+      return;
+    }
     if (['install', 'uninstall', 'status'].includes(command)) {
       runGateCommand(command);
       return;
