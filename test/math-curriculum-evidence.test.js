@@ -54,7 +54,7 @@ test('#3472: the curriculum record exists and carries all 13 headings', () => {
     'Decision Theory', 'Formal Logic', 'Cryptographic Mathematics',
   ];
   for (const heading of headings) {
-    assert.match(text, new RegExp(heading.replace(/[/]/g, '\\/')), `the record must name ${heading}`);
+    assert.ok(text.includes(heading), `the record must name ${heading}`);
   }
 });
 
