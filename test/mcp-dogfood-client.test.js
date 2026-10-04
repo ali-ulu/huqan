@@ -62,10 +62,12 @@ function createDogfoodClient(envOverrides = {}) {
   function request(method, params = {}) {
     return new Promise((resolve, reject) => {
       const id = nextId++;
+      // Initialize also includes child startup and cold module/SQLite loading.
+      // Keep the tighter RPC deadline once the server is available.
       const timer = setTimeout(() => {
         pending.delete(id);
         reject(new Error(`Timed out waiting for ${method}`));
-      }, 10000);
+      }, method === 'initialize' ? 30000 : 10000);
 
       pending.set(id, {
         resolve: (message) => {

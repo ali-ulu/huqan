@@ -165,6 +165,14 @@ const CLASSIFIED = Object.freeze({
     why: 'writes the emergency stop records that the identity gate, MCP dispatch, the agent step executor and A2A admission read before acting, and appends the receipt of each stop and lift; gating these writes through admission would be circular. The directory comes from HUQAN_EMERGENCY_STOP_DIR or the state root, never a request field; each record file is named by a hash of its scope and created exclusively, so a stop cannot be overwritten',
   }),
   // ── operator tools ─────────────────────────────────────────────────────
+  'bin/huqan-cognitive-lab.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the directly invoked isolated calibration CLI copies DB/WAL into its own mkdtemp directory for read-only authentication and removes only that private scratch directory; it exposes no agent-request route and never writes the supplied database during this check',
+  }),
+  'lib/cognitive-lab-cli.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the directly invoked calibration CLI creates only its own private lab directory and exclusive state marker beneath the operator root; existing state is bound to a frozen experiment and locked before its Graph journal is opened, without writing canonical memory',
+  }),
   // #2168 split backupRestore.js; its writes and spawns now live in these three.
   'lib/storage/backup-restore-store.js': Object.freeze({
     role: 'operator_tool',

@@ -53,6 +53,16 @@ test('the cycle checker actually detects a cycle when one exists', () => {
   assert.match(cycles[0], /a\.js -> b\.js -> c\.js -> a\.js/);
 });
 
+test('an unlisted dependency is a leaf and does not hide a real cycle', () => {
+  const graph = new Map([
+    ['a.js', ['external.js', 'b.js']],
+    ['b.js', ['a.js']],
+  ]);
+
+  assert.deepEqual(findCycles(graph), ['a.js -> b.js -> a.js']);
+  assert.equal(graph.has('external.js'), false);
+});
+
 test('stripComments removes line and block comments without touching real require() calls', () => {
   const source = [
     "// a leading comment mentioning require('./ghost')",
