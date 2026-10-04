@@ -125,3 +125,41 @@ test('the no-experience baseline cannot act on an intent-only task', (t) => {
   assert.equal(observed.result.ok, false);
   assert.equal(observed.target, 'before');
 });
+
+// #3310 B4 §17 context gate: blockquote and fenced-code occurrences are refused
+// for learned dispatch only; quoted strings and closed fences are not covered.
+const FENCE = '```';
+for (const [name, content, reason] of [
+  ['a blockquote line', 'note\n> before\n', 'protected_context'],
+  ['an indented blockquote line', 'note\n   > was before\n', 'protected_context'],
+  ['an open fenced block', `note\n${FENCE}\nbefore\n${FENCE}\n`, 'protected_context'],
+  ['a quoted string', 'source = "before"\n', null],
+  ['text after a closed fence', `${FENCE}\nx\n${FENCE}\nbefore\n`, null],
+]) {
+  test(`context gate: ${name} is ${reason ? 'refused' : 'still written'}`, (t) => {
+    const root = withSource(t);
+    fs.writeFileSync(path.join(root, 'docs/a.md'), content);
+    const observed = dispatch(root, intentTask());
+    if (reason) {
+      assert.equal(observed.result.reason, reason);
+      assert.equal(observed.target, content, 'a protected occurrence is not rewritten');
+    } else {
+      assert.equal(observed.result.ok, true);
+      assert.equal(observed.target, content.replace('before', 'after'));
+    }
+  });
+}
+
+test('context gate covers full learned tasks but not the deterministic coder', (t) => {
+  const root = withSource(t);
+  const quoted = 'note\n> before\n';
+  fs.writeFileSync(path.join(root, 'docs/a.md'), quoted);
+  const full = { ...SOURCE_TASK, experience: { riskTier: 'low', candidates: [{ capabilityId: 'replace',
+    sourceRunIds: ['source'], qualificationPaths: ['docs/drift.md', 'docs/ambiguous.md'] }] } };
+  const learned = dispatch(root, full, 'full-learned');
+  assert.equal(learned.result.reason, 'protected_context');
+  assert.equal(learned.target, quoted);
+  const plain = dispatch(root, SOURCE_TASK, 'plain');
+  assert.equal(plain.result.ok, true, 'the gate is a learned-route policy, not a coder rule');
+  assert.equal(plain.target, 'note\n> after\n');
+});
