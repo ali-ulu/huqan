@@ -104,6 +104,22 @@ jobs:
       - name: Require the V5 agent-identity readiness verdict
         run: npm run check:v5-identity
 
+      # #3418: these two shipped as `npm run` scripts and ran only indirectly,
+      # through the tests that import their functions. A regression that broke
+      # the scan while leaving the imported function green could land. Both are
+      # dependency-free and sub-second, so they belong in this no-install job.
+      - name: Require every world-acting call site to carry a recorded role
+        run: node scripts/enforcement-coverage.js
+
+      # The check above rewrites coverage-manifest.json, so a committed manifest
+      # that no longer matches the tree is the same drift it reports. Fail here
+      # rather than leaving it for the next author to regenerate.
+      - name: Require the committed enforcement manifest to match the tree
+        run: git diff --exit-code coverage-manifest.json
+
+      - name: Require the benign false-block rate to hold its recorded baseline
+        run: node scripts/benign-false-block-rate.js
+
   source-gates:
     name: Architecture source gates
     runs-on: ubuntu-latest
