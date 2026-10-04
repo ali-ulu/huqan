@@ -28,6 +28,7 @@ const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
 const AgentV3 = require('../agent.v3');
 const { scheduleCandidates } = require('../lib/cognitive-scheduler');
+const { scheduleQueuedSteps } = require('../lib/agent-step-progression');
 
 const BYPASS = Kernel.createAdmissionBypassOpts('i1-b6');
 
@@ -91,6 +92,48 @@ test('without the option the run keeps its FIFO order', () => {
     assert.equal(run.data.steps[0].action, 'ask');
   } finally {
     releaseAgentStorage(agent, dir);
+  }
+});
+
+test('scheduleQueuedSteps applies only a total order and never drops work on a partial one', () => {
+  const queued = [
+    { id: 'ask-1', action: 'ask', tool: 'ask' },
+    { id: 'verify-2', action: 'verify', tool: 'verify' },
+    { id: 'dream-3', action: 'dream', tool: 'dream' },
+  ];
+  const opts = { cognitiveScheduler: { maxRiskTier: 'low', budget: 1 } };
+
+  const result = scheduleQueuedSteps({ state: {}, queued, opts, goal: 'dream kedi' });
+
+  assert.equal(result.applied, false);
+  assert.equal(result.deferred.length, 2);
+  assert.ok(result.deferred.includes('ask-1') || result.deferred.includes('dream-3'));
+  // A budget that can afford only one step must not shrink the durable queue.
+  assert.deepEqual(queued.map((step) => step.id), ['ask-1', 'verify-2', 'dream-3']);
+});
+
+test('a cognitive scheduler whose budget selects nothing leaves the run byte-for-byte on FIFO', () => {
+  const goal = 'dream kedi hayvandir mi?';
+  const fifoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1-sched-fifo-'));
+  const fifoAgent = freshAgent(fifoDir);
+  const zeroDir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1-sched-zero-'));
+  const zeroAgent = freshAgent(zeroDir);
+  try {
+    const fifo = fifoAgent.run(goal, { resume: false, maxIterations: 4, timeBudgetMs: 5000 });
+    const zero = zeroAgent.run(goal, {
+      resume: false,
+      maxIterations: 4,
+      timeBudgetMs: 5000,
+      cognitiveScheduler: { maxRiskTier: 'low', budget: 0 },
+    });
+    assert.equal(fifo.ok, true);
+    assert.equal(zero.ok, true);
+    // Zero selected in a schedulable queue is a no-op, not a discarded plan:
+    // the run executes the same steps in the same order as the un-scheduled one.
+    assert.deepEqual(zero.data.steps.map((step) => step.action), fifo.data.steps.map((step) => step.action));
+  } finally {
+    releaseAgentStorage(fifoAgent, fifoDir);
+    releaseAgentStorage(zeroAgent, zeroDir);
   }
 });
 
