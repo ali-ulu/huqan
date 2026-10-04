@@ -205,16 +205,20 @@ test('a lower Brier that breaches the ECE non-inferiority margin does not gain',
   assert.equal(report.reason, 'non_inferiority_violated');
 });
 
-test('the same records may not be read twice as independent pairs', () => {
-  const ids = ['a', 'b'];
-  const baseline = [...arm(ids, 0.5, 1), ...arm(ids, 0.5, 1)];
-  const candidate = arm(ids, 0.5, 1);
-  // The duplicate baseline record maps to the same decision id, so the arm has
-  // two decisions and the candidate has two: the pairing holds and the duplicate
-  // does not inflate the paired count.
+test('the same decision id keeps its first record in paired and calibration scoring', () => {
+  const ids = Array.from({ length: 10 }, (_, i) => `d${i}`);
+  const first = arm(ids, 0.2, 0);
+  const baseline = [...first, observed({ decisionId: 'd0', probability: 1, y: 0 })];
+  const candidate = arm(ids, 0.2, 0);
+
   const report = pairedCalibrationDelta({ baseline, candidate, contract: CONTRACT });
-  assert.equal(report.measurement.baselineObserved, 2);
-  assert.equal(report.status, PAIRED_STATUS.INSUFFICIENT);
+
+  assert.equal(report.status, PAIRED_STATUS.MEASURED);
+  assert.equal(report.measurement.baselineObserved, 10);
+  assert.equal(report.measurement.paired, 10);
+  assert.equal(report.delta.brier.mean, 0, 'the later duplicate must not replace the first record');
+  assert.equal(report.baseline.brier, report.candidate.brier);
+  assert.equal(report.gain, false);
 });
 
 test('a verified equal budget leaves the measured gain intact', () => {
