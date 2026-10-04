@@ -169,3 +169,16 @@ Külliye hash'i ve split kimlikleri kayıtlı; dört kol için bütçe eşit ve 
    - sınıf (ii) ve transfer v1 ile aynı türlerdir. v2 hedef içeriklerinin hiçbiri v1 ile ortak değildir; digest `d63fd30e62e0b9559dc41a042585729579297c0dc65f591ebed4fe95b6a8a575`.
 3. **Kapı öncesi v2 referansı (bu ekle birlikte ölçüldü):** A0 13 / A1 13 / A2 18 / O 24 doğru; yanlış yazma A0 0 / A1 13 / A2 3. A2'nin üç yanlış yazması üç korunan bağlam vakasıdır. Verdict `REJECT`.
 4. **Karar kuralı:** Doğrulayıcı verdict yalnız v2 üzerinden, §7 sözleşmesi değiştirilmeden verilir. v1'in kapıyla yeniden ölçümü yalnız tanısal olarak raporlanır ve kazanç kanıtı sayılmaz. Kapı kuralı ya da v2 külliyesi, kapı ölçüldükten sonra değiştirilirse sonuç `REJECT` olur.
+
+## 18. Sonuç (bağlam kapısı ile)
+
+Kapı §17.1'deki kuralla, kural ve külliye değiştirilmeden uygulandı (`lib/experience/coder-routing-runtime.js`, `protected_context`).
+
+| Külliye | Rol | A0 | A1 | A2 | O | A2 yanlış yazma | Primer A2 − A1 (%95) | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| v2 | **doğrulayıcı** | 13 | 13 | **19** | 24 | **1** | +6/24 [−1/24; 13/24] | **`REJECT`** |
+| v1 | tanısal (görülmüş veri) | 13 | 13 | 21 | 24 | 0 | +8/24 [+1/24; 14/24] | sayılmaz |
+
+- **Doğrulayıcı verdict: `REJECT` (`candidate_wrong_write`), `intelligenceGain = NOT_MEASURED`.** Kapı alıntı satırı ve kod bloğu vakalarını durdurdu. Düz anlatımdaki geçmiş kaydı göremedi ve yazdı. Ayrıca kod bloğundaki **güncel** kullanım örneğini de reddetti, yani doğru bir değişikliği kaçırdı. Guard olmasa da primer aralık sıfırı geçmiyor.
+- **v1 tanısal sonucu, §17'nin neden gerekli olduğunu gösteriyor:** v1'de evaluator `MEASURED / paired_gain_measured` verir. Kapı bu üç vakaya bakılarak tasarlandığı için bu bir holdout uyumudur ve kazanç kanıtı sayılmaz.
+- **Karar:** sözdizimsel bir bağlam kapısı yanlış yazmaları 3'ten 1'e indirdi ama sıfırlamadı, ve bir doğru değişikliğin bedeline mal oldu. Kalan hata anlamsaldır (tırnaksız geçmiş anlatım). Sözdizimiyle çözülemez. B4 gain kabulü **karşılanmadı**. Ölçüm tarafında kalan seçenekler ürün kararıdır: `medium` risk politikası (3 doğru değişiklik kaçırılıyor), anlamsal bağlam sinyali, yol genellemesi.

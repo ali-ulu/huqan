@@ -174,30 +174,22 @@ test('the contract is locked: unknown, missing and invalid fields are rejected',
   assert.throws(() => lockContract({ ...CONTRACT, minimumSamples: 0 }), /invalid contract field/);
 });
 
-test('B4 result under the locked contract: trust guard REJECT, diagnostic delta reported', () => {
+// v1 is seen data since the context gate was designed from its three wrong
+// writes (§17). Its re-run is diagnostic only: the evaluator reports a gain
+// here, and that is exactly the holdout fit §17 refuses to count.
+test('v1 diagnostic re-run after the context gate shows the fit §17 does not count', () => {
   const report = evaluate(corpus(), CONTRACT);
-  assert.equal(report.status, 'REJECT');
-  assert.equal(report.reason, 'candidate_wrong_write');
-  assert.equal(report.assertsGain, false);
+  assert.equal(report.status, 'MEASURED');
+  assert.equal(report.assertsGain, true, 'seen-data gain, deliberately not accepted as evidence');
   assert.equal(report.intelligenceGain, 'NOT_MEASURED');
-  assert.deepEqual(report.correct, { A0: 13, A1: 13, A2: 18, O: 24 });
-  assert.deepEqual(report.transferCorrect, { A0: 2, A1: 6, A2: 2, O: 8 });
-  assert.deepEqual(report.wrongWrites, { A0: 0, A1: 13, A2: 3 });
-  // Independently of the guard, the primary interval does not clear zero:
-  // the medium-risk counter-cases cost A2 what the gates won elsewhere.
-  assert.equal(report.primary.mean, 5 / 24);
-  assert.deepEqual(report.primary.interval, { lower: -1 / 24, upper: 11 / 24 });
-  assert.equal(report.clearsEffect, false);
-  assert.equal(report.secondary.mean, 5 / 24);
-  assert.equal(report.oracleRecovery, 0.75);
-  const semantic = corpus().filter(row => row.kind === 'semantic');
-  assert.ok(semantic.every(row => row.A2.wrongWrite === 1), 'every A2 wrong write is a quoted-context semantic case');
+  assert.deepEqual(report.correct, { A0: 13, A1: 13, A2: 21, O: 24 });
+  assert.deepEqual(report.wrongWrites, { A0: 0, A1: 13, A2: 0 });
+  assert.deepEqual(report.primary.interval, { lower: 1 / 24, upper: 14 / 24 });
 });
 
-// §17: the confirmatory v2 corpus is locked, and measured on the route as it
-// stands, before any context gate exists. The gate's PR must move these
-// numbers against this committed reference, not against v1.
-test('v2 confirmatory corpus is locked with the approved counts and measured before the gate', () => {
+// §17: the confirmatory verdict comes from the v2 corpus alone. Pre-gate
+// reference (recorded in the addendum): A2 18/24 with three wrong writes.
+test('B4 confirmatory v2 result with the context gate: still REJECT', () => {
   const count = (split, cls) => TASKS_V2.filter(task => task.split === split && (!cls || task.class === cls)).length;
   assert.deepEqual([count('holdout', 'i'), count('holdout', 'ii'), count('holdout', 'iii'), count('transfer')], [8, 10, 6, 8]);
   assert.equal(CORPUS_DIGEST_V2, 'd63fd30e62e0b9559dc41a042585729579297c0dc65f591ebed4fe95b6a8a575');
@@ -207,10 +199,16 @@ test('v2 confirmatory corpus is locked with the approved counts and measured bef
   const report = evaluate(rows, CONTRACT, { tasks: TASKS_V2 });
   assert.equal(report.status, 'REJECT');
   assert.equal(report.reason, 'candidate_wrong_write');
-  assert.deepEqual(report.correct, { A0: 13, A1: 13, A2: 18, O: 24 });
-  assert.deepEqual(report.wrongWrites, { A0: 0, A1: 13, A2: 3 });
-  assert.deepEqual(rows.filter(row => row.A2.wrongWrite).map(row => row.kind).sort(),
-    ['protected-blockquote', 'protected-fence', 'protected-prose']);
+  assert.equal(report.intelligenceGain, 'NOT_MEASURED');
+  assert.deepEqual(report.correct, { A0: 13, A1: 13, A2: 19, O: 24 });
+  assert.deepEqual(report.transferCorrect, { A0: 2, A1: 6, A2: 2, O: 8 });
+  assert.deepEqual(report.wrongWrites, { A0: 0, A1: 13, A2: 1 });
+  // The gate cannot see unquoted prose, and it also refuses a current code example.
+  assert.deepEqual(rows.filter(row => row.A2.wrongWrite).map(row => row.kind), ['protected-prose']);
+  assert.equal(rows.find(row => row.kind === 'fence-change').A2.correct, 0);
+  assert.equal(report.primary.mean, 6 / 24);
+  assert.deepEqual(report.primary.interval, { lower: -1 / 24, upper: 13 / 24 });
+  assert.equal(report.clearsEffect, false, 'even without the guard the interval does not clear zero');
 });
 
 test('every arm spends one dispatch per task and the run is deterministic', () => {
