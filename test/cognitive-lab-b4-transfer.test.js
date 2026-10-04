@@ -21,8 +21,42 @@ const test = require('node:test');
 
 const { createPairedSampler } = require('../lib/cognitive-lab-paired-delta');
 const {
+  MANIFEST_SCHEMA_VERSION,
+  validateManifest,
+  computeManifestDigest,
+} = require('../lib/cognitive-lab-manifest');
+const {
   TASKS, SOURCE_OPERATIONS, CORPUS_DIGEST, FAMILIES, runCorpus, trainTree, TASKS_V2, CORPUS_DIGEST_V2,
 } = require('./helpers/cognitive-lab-b4-transfer');
+
+const B4_MANIFEST_SEED = 33100;
+const B4_MANIFEST_COMMIT = 'a8228ce1a1c43048a3b7cf2bf5440de41c1f8fcc';
+const MECHANISM_IDS = Object.freeze(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8']);
+
+// §15 expects the run to emit a Cognitive Lab manifest with B4 ENABLED and every
+// other mechanism NOT_MEASURED. The manifest is data over the frozen corpus:
+// the split ids are the task ids, the fixture digest is the corpus digest, and
+// the budget is one dispatch per arm per task, so the sealed design is
+// reproducible from the manifest alone.
+function b4Manifest({ tasks = TASKS, digest = CORPUS_DIGEST } = {}) {
+  const ids = split => tasks.filter(task => task.split === split).map(task => task.taskId);
+  return {
+    schemaVersion: MANIFEST_SCHEMA_VERSION,
+    source: { repository: 'ali-ulu/huqan', commit: B4_MANIFEST_COMMIT, dirty: false },
+    fixture: { digest },
+    split: { identity: digest, train: Object.keys(SOURCE_OPERATIONS).sort(), holdout: ids('holdout'), transfer: ids('transfer') },
+    frame: { repository: 'ali-ulu/huqan', branch: 'main', environment: 'offline', task: 'B4-procedure-transfer' },
+    seed: B4_MANIFEST_SEED,
+    mechanisms: Object.fromEntries(MECHANISM_IDS.map(id => [id, id === 'B4' ? 'ENABLED' : 'NOT_MEASURED'])),
+    budget: { modelCalls: tasks.length * ARMS.length, toolCalls: 0, humanCalls: 0, tokens: null, wallTimeMs: null, compute: null },
+    measurementVersion: 'cognitive-lab-v0.2',
+    thresholdConfigHash: computeManifestDigest(CONTRACT),
+  };
+}
+
+function mechanismsReport() {
+  return Object.freeze(Object.fromEntries(MECHANISM_IDS.map(id => [id, id === 'B4' ? 'ENABLED' : 'NOT_MEASURED'])));
+}
 
 const ARMS = Object.freeze(['A0', 'A1', 'A2']);
 // Approved 4 Oct 2026 (§7). Every field is required; nothing is chosen at scoring time.
@@ -122,6 +156,7 @@ function evaluate(records, rawContract, { tasks = TASKS, trainContents = trainTa
     primary: { mean: mean(primary), interval: bootstrapInterval(primary, contract) },
     secondary: { mean: mean(secondary), interval: bootstrapInterval(secondary, contract) },
     oracleRecovery: sum(holdout, 'A2') / sum(holdout, 'O'),
+    mechanisms: mechanismsReport(),
     intelligenceGain: 'NOT_MEASURED',
   };
   report.clearsEffect = report.primary.interval.lower > contract.meaningfulEffect;
@@ -215,6 +250,37 @@ test('every arm spends one dispatch per task and the run is deterministic', () =
   for (const row of corpus()) for (const arm of ARMS) assert.equal(row[arm].dispatches, 1);
   const digest = rows => rows.map(row => [row.taskId, ...ARMS.map(arm => `${row[arm].correct}${row[arm].wrongWrite}`)].join(':')).join('\n');
   assert.equal(digest(runCorpus()), digest(corpus()));
+});
+
+// §15: the run emits a Cognitive Lab manifest with B4 ENABLED and the rest
+// NOT_MEASURED. The manifest is data over the frozen corpus, so its digest is
+// stable and a tampered flag is rejected before any outcome is scored.
+test('the run emits a valid B4 manifest with only B4 enabled', () => {
+  const validated = validateManifest(b4Manifest());
+  assert.equal(validated.status, 'VALID');
+  assert.equal(validated.manifest.mechanisms.B4, 'ENABLED');
+  for (const id of MECHANISM_IDS.filter(id => id !== 'B4')) {
+    assert.equal(validated.manifest.mechanisms[id], 'NOT_MEASURED', `${id} must not be enabled by this slice`);
+  }
+  assert.equal(validated.digest, validateManifest(b4Manifest()).digest, 'manifest digest is deterministic');
+  assert.equal(validated.manifest.split.holdout.length, 24);
+  assert.equal(validated.manifest.split.transfer.length, 8);
+});
+
+test('the manifest fails closed on a missing field and an invalid mechanism flag', () => {
+  const { mechanisms: _omitted, ...missing } = b4Manifest();
+  assert.equal(validateManifest(missing).status, 'REJECT');
+  const tampered = b4Manifest();
+  tampered.mechanisms.B1 = 'ON';
+  const result = validateManifest(tampered);
+  assert.equal(result.status, 'REJECT');
+  assert.equal(result.errors.find(error => error.path === 'mechanisms.B1').code, 'manifest_invalid_field');
+});
+
+test('evaluator reports the mechanism flags the manifest enables', () => {
+  const report = evaluate(corpus(), CONTRACT);
+  assert.equal(report.mechanisms.B4, 'ENABLED');
+  assert.deepEqual(Object.keys(report.mechanisms).filter(id => report.mechanisms[id] !== 'NOT_MEASURED'), ['B4']);
 });
 
 test('evaluator can assert a gain when the guard holds and the interval clears', () => {
