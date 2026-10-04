@@ -517,6 +517,15 @@ test('ruleAdmissionBlocked: defeated/degraded/low-confidence rules block, no-bel
   assert.equal(ruleAdmissionBlocked([calibrated], 'other-rule'), false);
   assert.equal(ruleAdmissionBlocked([], 'r'), false);
   assert.equal(ruleAdmissionBlocked(null, 'r'), false);
+  // Fail-closed on duplicates: a healthy entry must not mask a defeated one.
+  assert.equal(
+    ruleAdmissionBlocked([calibrated, { ...calibrated, status: CALIBRATION_STATUS.DEFEATED }], 'r'),
+    true,
+  );
+  assert.equal(
+    ruleAdmissionBlocked([{ ...calibrated, status: CALIBRATION_STATUS.DEFEATED }, calibrated], 'r'),
+    true,
+  );
 });
 
 // The block must not be fakeable by duplicate evidence: outcomes from one
