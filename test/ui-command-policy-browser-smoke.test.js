@@ -63,6 +63,11 @@ test('command policy: real dashboard load, save, classify, conflict and locale s
     throw new Error(`Browser condition did not settle: ${expression}; status=${await evaluate("document.getElementById('policy-status')?.textContent")}`);
   }
   await browser.navigate(`${base}/`);
+  // The first navigation can finish before the async i18n catalogue load does.
+  // Wait for that bootstrap to persist its resolved locale before overriding it;
+  // otherwise a late English init can race this write and put "en" back into
+  // storage just before the reload (#3435).
+  await wait("window.HUQAN_I18N && localStorage.getItem('huqan-locale') === window.HUQAN_I18N.getCurrentLocale()");
   await evaluate("localStorage.setItem('huqan-locale','tr'); true");
   await browser.navigate(`${base}/`);
   await wait("document.documentElement.lang === 'tr' && document.querySelector('#v-rules h1').textContent === 'Kurallar'");
