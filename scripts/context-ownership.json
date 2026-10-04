@@ -3878,6 +3878,14 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-paired-delta.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-budget-envelope.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/json-clone.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
