@@ -4,7 +4,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Kernel = require('../kernel');
-const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-aviation-'));
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -81,9 +80,6 @@ describe('Stress Aviation Regression', () => {
     'VR is decision speed',
   ];
 
-  const runKnownFailing = readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS') === '1';
-  const knownFailingIt = runKnownFailing ? it : it.skip;
-
   it('keeps aviation seed facts valid and status contract stable', () => {
     const kernel = makeKernel('aviation-smoke');
     withMutedConsole(() => {
@@ -99,7 +95,7 @@ describe('Stress Aviation Regression', () => {
   });
 
   for (const [index, claim] of falseClaims.entries()) {
-    knownFailingIt(`TODO(v0.9-semantic-gate): aviation false claim #${index + 1} stays false-positive today: ${claim}`, () => {
+    it(`aviation false claim #${index + 1} is not verified: ${claim}`, () => {
       const kernel = makeKernel(`aviation-${index + 1}`);
       withMutedConsole(() => {
         for (const seed of seeds) {
