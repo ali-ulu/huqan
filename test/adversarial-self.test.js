@@ -4,7 +4,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Kernel = require('../kernel');
-const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-adversarial-self-'));
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -46,9 +45,6 @@ function seed(kernel) {
 }
 
 describe('adversarial self test', () => {
-  const runKnownFailing = readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS') === '1';
-  const knownFailingIt = runKnownFailing ? it : it.skip;
-
   it('keeps false claims out of verified truth and exposes downgrade metadata', () => {
     const kernel = makeKernel('false-claim');
     seed(kernel);
@@ -85,7 +81,7 @@ describe('adversarial self test', () => {
     assert.ok(raw.meta.semanticTrust.warnings.includes('STRAWMAN_ATTRIBUTION') || raw.meta.semanticTrust.warnings.includes('WEASEL_WORDS'));
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): weak partial match still downgrades incorrectly today', () => {
+  it('weak partial match is downgraded to unknown', () => {
     const kernel = makeKernel('weak-partial');
     seed(kernel);
 

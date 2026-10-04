@@ -4,7 +4,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Kernel = require('../kernel');
-const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-sqlite-'));
 const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
@@ -55,9 +54,6 @@ function withMutedConsole(fn) {
 }
 
 describe('Stress SQLite Backend Stability', () => {
-  const runKnownFailing = readCompatibleEnvironmentVariable('RUN_KNOWN_FAILING_REGRESSIONS') === '1';
-  const knownFailingIt = runKnownFailing ? it : it.skip;
-
   it('keeps semantic safety stable on SQLite roundtrip for known true facts', (t) => {
     const kernel = makeKernel('sqlite-roundtrip');
     const stats = kernel.graph.getStats();
@@ -99,7 +95,7 @@ describe('Stress SQLite Backend Stability', () => {
     assert.strictEqual(trueFact.status, 'verified');
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): SQLite false claim B737 has 4 engines stays false-positive today', (t) => {
+  it('SQLite false claim B737 has 4 engines is not verified', (t) => {
     const kernel = makeKernel('sqlite-false-b737');
     const stats = kernel.graph.getStats();
     if (stats.backend !== 'sqlite') {
@@ -120,7 +116,7 @@ describe('Stress SQLite Backend Stability', () => {
     assert.notStrictEqual(result.status, 'verified', 'false claim must not be verified on SQLite backend');
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): SQLite false claim EDDF is in Paris stays false-positive today', (t) => {
+  it('SQLite false claim EDDF is in Paris is not verified', (t) => {
     const kernel = makeKernel('sqlite-false-eddf');
     const stats = kernel.graph.getStats();
     if (stats.backend !== 'sqlite') {
@@ -140,7 +136,7 @@ describe('Stress SQLite Backend Stability', () => {
     assert.notStrictEqual(result.status, 'verified', 'false location claim must not be verified on SQLite backend');
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): SQLite false claim TCAS is weather radar stays false-positive today', (t) => {
+  it('SQLite false claim TCAS is weather radar is not verified', (t) => {
     const kernel = makeKernel('sqlite-false-tcas');
     const stats = kernel.graph.getStats();
     if (stats.backend !== 'sqlite') {
