@@ -15,21 +15,23 @@ function collectGarbage() {
   }
 }
 
-// better-sqlite3's N-API close() schedules its finalizer on a later macrotask,
-// and each garbage collection of the closed handle can schedule another.
-// Snapshotting the active-resource set before those turns report the driver's
-// pending Immediate as a leak the observability workload never created, so
-// interleave collection with event-loop turns until the immediate queue settles.
-async function settleClosedDriver({ rounds = 4, maxTurnsPerRound = 16 } = {}) {
-  const pendingImmediates = () => (typeof process.getActiveResourcesInfo === 'function'
-    ? process.getActiveResourcesInfo().filter((type) => type === 'Immediate').length
-    : 0);
-  for (let round = 0; round < rounds; round += 1) {
+// Active-resource counting is only meaningful once the event loop has drained.
+// better-sqlite3's N-API close() finalizes on a later macrotask, and a Timeout
+// can linger for a turn after clearTimeout, so snapshotting while those turns
+// are still pending reports a transient handle as a leak the observability
+// workload never created (#3416). The previous fixed number of Immediate turns
+// was not enough on Node 24, where the close finalizer can land a turn later.
+// Interleave collection with real event-loop turns for a bounded settle window
+// so the measurement is quiescent on every Node version instead of racing.
+const SETTLE_WINDOW_MS = 50;
+
+async function settleEventLoop({ windowMs = SETTLE_WINDOW_MS } = {}) {
+  const deadline = Date.now() + windowMs;
+  do {
     collectGarbage();
-    for (let turn = 0; turn < maxTurnsPerRound && pendingImmediates() > 0; turn += 1) {
-      await new Promise((resolve) => { setImmediate(resolve); });
-    }
-  }
+    await new Promise((resolve) => { setTimeout(resolve, 1); });
+  } while (Date.now() < deadline);
+  collectGarbage();
 }
 
 function sqliteFootprint(dbPath) {
@@ -64,7 +66,7 @@ function resourceSnapshot({ cycle, subscriberCount = 0, sqliteOpen = false } = {
   const memory = process.memoryUsage();
   // An Immediate is one-shot and drains on the next loop turn, so it cannot
   // be a leak. better-sqlite3's close finalizer schedules one (see
-  // settleClosedDriver), and settling can still lose that race, which made the
+  // settleEventLoop), and settling can still lose that race, which made the
   // leak gate flap. Timeouts and handles still count.
   const activeResourceTypes = typeof process.getActiveResourcesInfo === 'function'
     ? process.getActiveResourcesInfo().filter((type) => type !== 'Immediate')
@@ -240,7 +242,7 @@ async function runSoak({ config = DEFAULT_CONFIG } = {}) {
     });
     const sqliteConnectionOpenBeforeClose = db.open;
     db.close();
-    await settleClosedDriver();
+    await settleEventLoop();
     const afterCleanup = resourceSnapshot({
       cycle: config.cycles + 1,
       subscriberCount: 0,
