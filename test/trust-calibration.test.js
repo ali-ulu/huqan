@@ -49,6 +49,37 @@ test('runTrustCalibration: requires a graph', () => {
   assert.throws(() => runTrustCalibration(null), /graph/);
 });
 
+// A threshold that gates a trust decision must fail closed: a non-finite or
+// negative minOutcomes used to make `totalOutcomes >= minOutcomes` silently
+// false and switch the downgrade off. It must throw instead.
+test('calibration thresholds fail closed on a non-finite or negative value', () => {
+  const records = [{ declared: 0.9 }, { declared: 0.8 }];
+  for (const bad of [NaN, Infinity, -Infinity, -1, '5', null]) {
+    assert.throws(
+      () => deriveCalibrationVerdict({ actor: 'a', sourceType: 'github', records, verified: 0, contradicted: 9, minOutcomes: bad }),
+      /minOutcomes must be a finite, non-negative number/,
+      `deriveCalibrationVerdict accepted minOutcomes=${String(bad)}`,
+    );
+  }
+  // A finite, non-negative threshold still works.
+  const ok = deriveCalibrationVerdict({ actor: 'a', sourceType: 'github', records, verified: 0, contradicted: 9, minOutcomes: 5 });
+  assert.ok(ok.suggestedCap !== null);
+});
+
+test('runTrustCalibration and the kernel passthrough reject a non-finite minOutcomes', () => {
+  const kernel = makeKernel('calibration-threshold');
+  kernel.graph.addNode('n-threshold', 'n-threshold', {
+    provenanceId: 'prov_threshold', sourceRef: 'file:t.md:S', sourceType: 'document',
+    actor: 'actorT', workspaceId: 'default', declaredConfidence: 0.9, confidence: 0.8,
+  }, { workspaceId: 'default' });
+  assert.throws(() => runTrustCalibration(kernel.graph, { workspaceId: 'default', minOutcomes: NaN }), /minOutcomes must be a finite/);
+  assert.throws(() => kernel.calibrateTrustPolicy({ workspaceId: 'default', minOutcomes: NaN }), /minOutcomes must be a finite/);
+  assert.throws(() => kernel.calibrateTrustPolicy({ workspaceId: 'default', minOutcomes: -1 }), /minOutcomes must be a finite/);
+  // The default and a valid explicit threshold still produce a report.
+  assert.ok(kernel.calibrateTrustPolicy({ workspaceId: 'default' }).pairs >= 1);
+  assert.ok(kernel.calibrateTrustPolicy({ workspaceId: 'default', minOutcomes: 3 }).pairs >= 1);
+});
+
 test('deriveCalibrationVerdict: no suggested cap without enough contradicting outcomes', () => {
   const records = [{ declared: 0.9 }, { declared: 0.8 }];
   const few = deriveCalibrationVerdict({ actor: 'a', sourceType: 'github', records, verified: 0, contradicted: 3, minOutcomes: 5 });
