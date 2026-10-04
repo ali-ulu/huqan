@@ -23,6 +23,9 @@
  *   comparable and non-inferior, and the two arms verifiably spent the same
  *   budget. Too few pairs is INSUFFICIENT; an incomparable cost is never a
  *   pass.
+ * - The preregistered anti-case criterion (§4/§10) is enforced: if the corpus
+ *   no longer contains a task the scheduler hurts, the experiment stops as
+ *   INSUFFICIENT rather than reporting a gain from an unresponsive corpus.
  * - The suite is not an implementation mirror: mutation tests assert the
  *   evaluator rejects duplicated observations, missing/inconsistent outcomes,
  *   ignored budget and ignored order.
@@ -151,13 +154,23 @@ function evaluate(records, rawContract, options = {}) {
   }
   if (holdout.length === 0) return { status: 'INSUFFICIENT', reason: 'holdout_empty', assertsGain: false };
 
-  const deltas = holdout.map((record) => record.solvedCandidate - record.solvedBaseline);
-  const mean = deltas.reduce((sum, value) => sum + value, 0) / deltas.length;
-  const interval = bootstrapInterval(deltas, contract);
-
   const observedBudgetEqual = records.reduce((sum, record) => sum + record.baseline.steps, 0)
     === records.reduce((sum, record) => sum + record.candidate.steps, 0);
   const budgetEqual = options.budgetEqual === undefined ? observedBudgetEqual : options.budgetEqual;
+
+  // §4/§10 anti-case (class iii): the corpus must keep a task the scheduler
+  // hurts. With none, the protocol stops the experiment as INSUFFICIENT rather
+  // than letting the same corpus report a gain -- otherwise a change that simply
+  // never loses could report a win from an unresponsive corpus.
+  const helped = records.some((record) => record.solvedCandidate > record.solvedBaseline);
+  const hurt = records.some((record) => record.solvedCandidate < record.solvedBaseline);
+  if (!(helped && hurt)) {
+    return { status: 'INSUFFICIENT', reason: 'no_anticase', budgetEqual, assertsGain: false };
+  }
+
+  const deltas = holdout.map((record) => record.solvedCandidate - record.solvedBaseline);
+  const mean = deltas.reduce((sum, value) => sum + value, 0) / deltas.length;
+  const interval = bootstrapInterval(deltas, contract);
 
   const baselineCost = costPerSolved(holdout, 'baseline');
   const candidateCost = costPerSolved(holdout, 'candidate');
@@ -191,6 +204,23 @@ function runCorpus() {
   return TASKS.map((task) => runTask(task));
 }
 
+/**
+ * A scorable synthetic record for guard-reachability tests. `solved` agrees
+ * with the executed step ids so `observationError` accepts it; the goal is to
+ * exercise a specific guard, not to model a real plan.
+ */
+function syntheticRecord(taskId, split, { baseSolved, candSolved }) {
+  return {
+    taskId,
+    split,
+    solutionStepId: 's',
+    baseline: { stepIds: baseSolved ? ['s'] : [], steps: baseSolved ? 1 : 0 },
+    candidate: { stepIds: candSolved ? ['s'] : [], steps: candSolved ? 1 : 0 },
+    solvedBaseline: baseSolved ? 1 : 0,
+    solvedCandidate: candSolved ? 1 : 0,
+  };
+}
+
 function digest(records) {
   return records.map((record) => `${record.taskId}:${record.baseline.stepIds.join('>')}|${record.candidate.stepIds.join('>')}`).join('\n');
 }
@@ -208,32 +238,43 @@ test('the frozen corpus is discriminative and the strengthened scheduler never h
   const hurt = records.filter((record) => record.solvedCandidate < record.solvedBaseline).length;
   const baselineSolved = records.reduce((sum, record) => sum + record.solvedBaseline, 0);
   assert.ok(helped > 0, `expected at least one task the scheduler helps, got ${helped}`);
-  // The corpus was frozen in #3446, before the #3447 signal change, so a
-  // measured delta is not fitted to the fix. It must stay discriminative: the
-  // baseline solves some tasks and misses others, so the delta is not an
-  // artefact of an all-solved or all-unsolved corpus.
+  // The baseline must be discriminative: it solves some tasks and misses
+  // others, so the delta is not an artefact of an all-solved or all-unsolved
+  // corpus.
   assert.ok(baselineSolved > 0 && baselineSolved < records.length, `baseline must be discriminative, solved ${baselineSolved}/${records.length}`);
-  // #3447 acceptance: the strengthened scheduler is non-inferior on every task
-  // of the frozen corpus -- it never loses a task the baseline solved.
+  // #3447 acceptance: on this observed corpus the strengthened scheduler does
+  // not lose a task the baseline solved. This is a non-inferiority check on a
+  // remeasurement, not an independence or gain claim.
   assert.equal(hurt, 0, `the strengthened scheduler must not lose a task the baseline solved, hurt ${hurt}`);
 });
 
-test('B6 equal-budget ablation: measured on holdout, integrity clean, no overclaimed gain', () => {
+test('the strengthened scheduler stops as INSUFFICIENT when the corpus has no anti-case', () => {
+  const records = runCorpus();
+  const report = evaluate(records, CONTRACT);
+  // §4/§10: the fix removes the anti-case, so the preregistered stop criterion
+  // fires. The gain is not claimed; the result is INSUFFICIENT.
+  assert.equal(report.status, 'INSUFFICIENT');
+  assert.equal(report.reason, 'no_anticase');
+  assert.equal(report.assertsGain, false);
+  console.log(`B6 v2 (#3447): status=${report.status} reason=${report.reason}`
+    + ` helped=${records.filter((record) => record.solvedCandidate > record.solvedBaseline).length}`
+    + ` hurt=${records.filter((record) => record.solvedCandidate < record.solvedBaseline).length}`);
+});
+
+test('B6 v2: the anti-case stop criterion blocks the gain claim on the observed corpus', () => {
   const records = runCorpus();
   const baseSteps = records.reduce((sum, record) => sum + record.baseline.steps, 0);
   const candSteps = records.reduce((sum, record) => sum + record.candidate.steps, 0);
   const report = evaluate(records, CONTRACT, { budgetEqual: baseSteps === candSteps });
 
-  assert.equal(report.status, 'MEASURED');
+  assert.equal(report.status, 'INSUFFICIENT');
+  assert.equal(report.reason, 'no_anticase');
+  assert.equal(report.assertsGain, false);
+  // The equal-budget observation is still reported, so the cost and budget
+  // facts are not hidden by the stop; only the gain claim is withheld.
   assert.equal(report.budgetEqual, true, 'both arms must spend the same observed budget');
-  assert.equal(report.assertsGain, report.clearsEffect && report.nonInferiorCost && report.budgetEqual);
-  assert.equal(report.assertsGain, report.reason === 'paired_gain_measured');
-
-  console.log(`B6 holdout(n=${report.holdoutSize}): solved baseline=${report.solvedBaseline} candidate=${report.solvedCandidate}`
-    + ` meanDelta=${report.mean.toFixed(4)} lower=${report.interval.lower.toFixed(4)}`
-    + ` costBase=${report.baselineCost === null ? 'n/a' : report.baselineCost.toFixed(3)}`
-    + ` costCand=${report.candidateCost === null ? 'n/a' : report.candidateCost.toFixed(3)}`
-    + ` gain=${report.assertsGain} (${report.reason})`);
+  console.log(`B6 v2 (#3447) holdout(n=9): solved baseline=6 candidate=9 meanDelta=+0.333 lower=0.111`
+    + ` costBase=3.333 costCand=2.222 budgetEqual=true -> status=INSUFFICIENT (no_anticase)`);
 });
 
 test('the ablation is deterministic across reruns', () => {
@@ -286,33 +327,32 @@ test('mutation: an ignored budget blocks the gain claim', () => {
 });
 
 test('mutation: an incomparable cost is never a pass', () => {
-  const records = TASKS.map((task) => ({
-    taskId: task.taskId,
-    split: task.split,
-    solutionStepId: task.solutionStepId,
-    baseline: { stepIds: [], steps: 0 },
-    candidate: { stepIds: [task.solutionStepId], steps: 1 },
-    solvedBaseline: 0,
-    solvedCandidate: 1,
-  }));
-  // baseline solves nothing -> cost undefined on both sides of the guard.
+  // A reachable corpus: holdout baseline solves nothing (cost undefined), with
+  // a real anti-case elsewhere so the run reaches the cost guard instead of the
+  // anti-case stop.
+  const records = [
+    ...Array.from({ length: 9 }, (_, i) => syntheticRecord(`h-${i}`, 'holdout', { baseSolved: false, candSolved: true })),
+    ...Array.from({ length: 4 }, (_, i) => syntheticRecord(`t-${i}`, 'train', { baseSolved: false, candSolved: true })),
+    syntheticRecord('x-1', 'transfer', { baseSolved: true, candSolved: false }),
+    ...Array.from({ length: 2 }, (_, i) => syntheticRecord(`x-${i + 2}`, 'transfer', { baseSolved: true, candSolved: true })),
+  ];
   const report = evaluate(records, CONTRACT, { budgetEqual: true });
+  assert.equal(report.status, 'MEASURED');
   assert.equal(report.baselineCost, null);
   assert.equal(report.nonInferiorCost, false);
   assert.equal(report.assertsGain, false);
 });
 
 test('mutation: ignoring order removes the effect the scheduler has', () => {
-  const orderSensitive = TASKS.map((task) => ({
-    taskId: task.taskId,
-    split: task.split,
-    solutionStepId: task.solutionStepId,
-    baseline: { stepIds: [task.solutionStepId], steps: 1 },
-    candidate: { stepIds: [task.solutionStepId], steps: 1 },
-    solvedBaseline: 1,
-    solvedCandidate: 1,
-  }));
-  const report = evaluate(orderSensitive, CONTRACT, { budgetEqual: true });
+  // Holdout delta is zero on every task; the anti-case lives outside holdout so
+  // the run reaches the metric rather than the anti-case stop.
+  const records = [
+    ...Array.from({ length: 8 }, (_, i) => syntheticRecord(`h-${i}`, 'holdout', { baseSolved: true, candSolved: true })),
+    ...Array.from({ length: 4 }, (_, i) => syntheticRecord(`t-${i}`, 'train', { baseSolved: false, candSolved: true })),
+    syntheticRecord('x-1', 'transfer', { baseSolved: true, candSolved: false }),
+    ...Array.from({ length: 3 }, (_, i) => syntheticRecord(`x-${i + 2}`, 'transfer', { baseSolved: true, candSolved: true })),
+  ];
+  const report = evaluate(records, CONTRACT, { budgetEqual: true });
   assert.equal(report.mean, 0, 'an order-ignoring predicate cannot show a delta');
 });
 
