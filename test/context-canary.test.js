@@ -40,7 +40,7 @@ const REWRITES = [
   ['prefix dropped, bare id', `id=${FIXED.canaryId}`, 'plain'],
   ['upper-cased', FIXED.marker.toUpperCase(), 'plain'],
   ['uuid-shaped', `ref ${uuidShape(FIXED.canaryId)}`, 'plain'],
-  ['zero-width split', FIXED.canaryId.split('').join('​'), 'normalized'],
+  ['zero-width split', FIXED.canaryId.split('').join('\u200b'), 'normalized'],
   ['fullwidth digits', FIXED.marker.replace(/[0-9]/g, (d) => String.fromCharCode(0xff10 + Number(d))), 'normalized'],
   ['base64', Buffer.from(`leak: ${FIXED.marker}`).toString('base64'), 'base64'],
   ['base64url', Buffer.from(`leak: ${FIXED.marker}`).toString('base64url'), 'base64'],
