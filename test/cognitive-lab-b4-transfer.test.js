@@ -21,7 +21,7 @@ const test = require('node:test');
 
 const { createPairedSampler } = require('../lib/cognitive-lab-paired-delta');
 const {
-  TASKS, SOURCE_OPERATIONS, CORPUS_DIGEST, FAMILIES, runCorpus, trainTree,
+  TASKS, SOURCE_OPERATIONS, CORPUS_DIGEST, FAMILIES, runCorpus, trainTree, TASKS_V2, CORPUS_DIGEST_V2,
 } = require('./helpers/cognitive-lab-b4-transfer');
 
 const ARMS = Object.freeze(['A0', 'A1', 'A2']);
@@ -192,6 +192,25 @@ test('B4 result under the locked contract: trust guard REJECT, diagnostic delta 
   assert.equal(report.oracleRecovery, 0.75);
   const semantic = corpus().filter(row => row.kind === 'semantic');
   assert.ok(semantic.every(row => row.A2.wrongWrite === 1), 'every A2 wrong write is a quoted-context semantic case');
+});
+
+// §17: the confirmatory v2 corpus is locked, and measured on the route as it
+// stands, before any context gate exists. The gate's PR must move these
+// numbers against this committed reference, not against v1.
+test('v2 confirmatory corpus is locked with the approved counts and measured before the gate', () => {
+  const count = (split, cls) => TASKS_V2.filter(task => task.split === split && (!cls || task.class === cls)).length;
+  assert.deepEqual([count('holdout', 'i'), count('holdout', 'ii'), count('holdout', 'iii'), count('transfer')], [8, 10, 6, 8]);
+  assert.equal(CORPUS_DIGEST_V2, 'd63fd30e62e0b9559dc41a042585729579297c0dc65f591ebed4fe95b6a8a575');
+  const targets = new Set(TASKS.map(task => task.tree[task.targetPath]));
+  assert.ok(TASKS_V2.every(task => !targets.has(task.tree[task.targetPath])), 'v2 shares no target content with v1');
+  const rows = runCorpus(TASKS_V2);
+  const report = evaluate(rows, CONTRACT, { tasks: TASKS_V2 });
+  assert.equal(report.status, 'REJECT');
+  assert.equal(report.reason, 'candidate_wrong_write');
+  assert.deepEqual(report.correct, { A0: 13, A1: 13, A2: 18, O: 24 });
+  assert.deepEqual(report.wrongWrites, { A0: 0, A1: 13, A2: 3 });
+  assert.deepEqual(rows.filter(row => row.A2.wrongWrite).map(row => row.kind).sort(),
+    ['protected-blockquote', 'protected-fence', 'protected-prose']);
 });
 
 test('every arm spends one dispatch per task and the run is deterministic', () => {

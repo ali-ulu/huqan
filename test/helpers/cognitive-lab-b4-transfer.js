@@ -48,7 +48,28 @@ const CLASS_PLAN = Object.freeze([
   ['holdout', 'iii', 'semantic', 3], ['transfer', 'transfer', 'other-path', 6],
   ['transfer', 'transfer', 'other-path-ambiguous', 2],
 ]);
+// Confirmatory corpus for the context gate (§17), locked before the gate is
+// written: same approved counts, fresh seed, and contexts that test the gate in
+// both directions (code examples that must change, plain prose it cannot see).
+const SEED_V2 = 33100;
+const CLASS_PLAN_V2 = Object.freeze([
+  ['holdout', 'i', 'applicable', 6], ['holdout', 'i', 'quoted-change', 1], ['holdout', 'i', 'fence-change', 1],
+  ['holdout', 'ii', 'ambiguous', 3], ['holdout', 'ii', 'drift', 2], ['holdout', 'ii', 'demoted', 3],
+  ['holdout', 'ii', 'foreign', 2], ['holdout', 'iii', 'medium-risk', 3], ['holdout', 'iii', 'protected-blockquote', 1],
+  ['holdout', 'iii', 'protected-fence', 1], ['holdout', 'iii', 'protected-prose', 1],
+  ['transfer', 'transfer', 'other-path', 6], ['transfer', 'transfer', 'other-path-ambiguous', 2],
+]);
 const SOURCE_VARIANT = Object.freeze({ demoted: 'demoted', foreign: 'foreign' });
+const FENCE = '```';
+// v2 contexts: [content builder, expected outcome]. Fenced blocks look the same
+// whether they show current usage or a historical example.
+const CONTEXTS = Object.freeze({
+  'quoted-change': [(find, lead, tail) => `${lead}\nsource = "${find}"\n${tail}\n`, 'change'],
+  'fence-change': [(find, lead, tail) => `${lead}\nCurrent usage:\n${FENCE}\n${find}\n${FENCE}\n${tail}\n`, 'change'],
+  'protected-blockquote': [(find, lead, tail) => `${lead}\n> Earlier notes recorded ${find} at release time.\n${tail}\n`, 'refuse'],
+  'protected-fence': [(find, lead, tail) => `${lead}\nThe previous example read:\n${FENCE}\n${find}\n${FENCE}\n${tail}\n`, 'refuse'],
+  'protected-prose': [(find, lead, tail) => `${lead}\nUntil the last release this page said ${find} and that history stays.\n${tail}\n`, 'refuse'],
+});
 
 const sha256 = text => crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 
@@ -64,7 +85,11 @@ function taskTree(kind, family, random) {
   const target = kind.startsWith('other-path') ? TRANSFER_TARGET : TARGET;
   let content = once;
   let expected = { outcome: 'change', content: once.replace(family.find, family.replace) };
-  if (kind === 'ambiguous' || kind === 'other-path-ambiguous') {
+  if (CONTEXTS[kind]) {
+    const [build, outcome] = CONTEXTS[kind];
+    content = build(family.find, lead, tail);
+    expected = outcome === 'change' ? { outcome, content: content.replace(family.find, family.replace) } : { outcome };
+  } else if (kind === 'ambiguous' || kind === 'other-path-ambiguous') {
     content = `${once}${family.find}\n`;
     expected = { outcome: 'refuse' };
   } else if (kind === 'drift') {
@@ -83,10 +108,10 @@ function taskTree(kind, family, random) {
   return { target, tree: { [target]: content, ...qualification }, expected };
 }
 
-function buildCorpus() {
-  const random = createPairedSampler(SEED);
+function buildCorpus(plan = CLASS_PLAN, seed = SEED) {
+  const random = createPairedSampler(seed);
   const tasks = [];
-  for (const [split, cls, kind, count] of CLASS_PLAN) {
+  for (const [split, cls, kind, count] of plan) {
     for (let index = 0; index < count; index += 1) {
       const family = FAMILIES[Math.floor(random() * FAMILIES.length)];
       const { target, tree, expected } = taskTree(kind, family, random);
@@ -102,6 +127,8 @@ const TASKS = buildCorpus();
 const SOURCE_OPERATIONS = Object.freeze(Object.fromEntries(FAMILIES.map(family => [`source-${family.id}`,
   Object.freeze({ path: TARGET, find: family.find, replace: family.replace })])));
 const CORPUS_DIGEST = computeManifestDigest({ tasks: TASKS, sourceOperations: SOURCE_OPERATIONS });
+const TASKS_V2 = buildCorpus(CLASS_PLAN_V2, SEED_V2);
+const CORPUS_DIGEST_V2 = computeManifestDigest({ tasks: TASKS_V2, sourceOperations: SOURCE_OPERATIONS });
 
 function openJournal(file) {
   const store = openCoderJournal(file);
@@ -216,7 +243,7 @@ function runArm(arm, task, sourceFile, dir) {
 }
 
 /** Run the frozen corpus through every arm. Returns one record per task. */
-function runCorpus() {
+function runCorpus(tasks = TASKS) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-b4-transfer-'));
   try {
     const sources = new Map();
@@ -230,7 +257,7 @@ function runCorpus() {
       }
       return sources.get(key);
     };
-    return TASKS.map(task => {
+    return tasks.map(task => {
       const sourceFile = sourceFor(task);
       return Object.freeze({ taskId: task.taskId, split: task.split, class: task.class, kind: task.kind,
         expected: task.expected.outcome, A0: runArm('A0', task, sourceFile, dir), A1: runArm('A1', task, sourceFile, dir),
@@ -242,4 +269,4 @@ function runCorpus() {
 }
 
 module.exports = { SEED, TASKS, SOURCE_OPERATIONS, CORPUS_DIGEST, CLASS_PLAN, FAMILIES, runCorpus, outcomeOf,
-  trainTree, buildSourceJournal, verifySourceOperations };
+  trainTree, buildSourceJournal, verifySourceOperations, SEED_V2, CLASS_PLAN_V2, TASKS_V2, CORPUS_DIGEST_V2 };
