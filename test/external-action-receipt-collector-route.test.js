@@ -24,8 +24,10 @@ function makeResponse() {
   res.statusCode = null;
   res._headers = null;
   res._body = null;
-  res.writeHead = (code, headers) => { res.statusCode = code; res._headers = headers; };
-  res.end = (data) => { res._body = data ? JSON.parse(String(data)) : null; };
+  res.headersSent = false;
+  res.writableEnded = false;
+  res.writeHead = (code, headers) => { res.statusCode = code; res._headers = headers; res.headersSent = true; };
+  res.end = (data) => { res._body = data ? JSON.parse(String(data)) : null; res.writableEnded = true; };
   return res;
 }
 
@@ -96,4 +98,35 @@ test('collector route fails closed for mixed-tenant data without reflecting rece
   assert.equal(res._body.error.code, 'RECEIPT_BATCH_REJECTED');
   assert.equal(res._body.error.details.reason, 'mixed_tenant_batch');
   assert.equal(JSON.stringify(res._body).includes('owner-b'), false);
+});
+
+test('collector route answers a parse failure with a coded 400 instead of an empty body (#3430)', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-collector-route-'));
+  const route = createExternalActionReceiptCollectorRoute({
+    collectorRoot: root,
+    parseJsonRequest: async () => { throw new Error('stream aborted'); },
+  });
+  const res = makeResponse();
+  const handled = await route(makeRequest(), res, new URL('http://x/api/v5/receipts/batches'));
+  assert.equal(handled, true);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res._body.ok, false);
+  assert.equal(res._body.error.code, 'RECEIPT_BATCH_INVALID_JSON');
+});
+
+test('collector route leaves a parse failure response alone when the parser already wrote one (#3430)', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-collector-route-'));
+  const route = createExternalActionReceiptCollectorRoute({
+    collectorRoot: root,
+    parseJsonRequest: async (_req, res) => {
+      res.writeHead(415, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: { code: 'PARSER_ALREADY_ANSWERED' } }));
+      throw new Error('written');
+    },
+  });
+  const res = makeResponse();
+  const handled = await route(makeRequest(), res, new URL('http://x/api/v5/receipts/batches'));
+  assert.equal(handled, true);
+  assert.equal(res.statusCode, 415);
+  assert.equal(res._body.error.code, 'PARSER_ALREADY_ANSWERED');
 });
