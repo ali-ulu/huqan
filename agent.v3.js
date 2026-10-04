@@ -15,7 +15,7 @@ const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
 const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
-const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp } = require('./lib/agent-step-progression');
+const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps } = require('./lib/agent-step-progression');
 
 const UNCERTAIN_PAUSE = 'experience_effect_uncertain';
 const V3_RATIONALES = Object.freeze({
@@ -189,6 +189,11 @@ class AgentV3 {
       // The enabled loop owns its bounded cycle before legacy fallback steps.
       prepareDreamQueue(queued, state);
     }
+
+    // #3311: opt-in cognitive scheduler. It only reorders the plan's eligible
+    // steps before the loop drains them; without opts.cognitiveScheduler the
+    // queue is untouched and the FIFO order is byte-for-byte unchanged.
+    scheduleQueuedSteps({ state, queued, opts, goal, objective: activePlan.objective });
 
     const runCapacity = Math.max(0, Math.min(
       queued.length,

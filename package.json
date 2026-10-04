@@ -418,6 +418,7 @@
     "lib/code-change-path-classification.js",
     "lib/cognitive-lab-b1-replay.js",
     "lib/cognitive-lab-manifest.js",
+    "lib/cognitive-scheduler.js",
     "lib/command-exec-gate.js",
     "lib/command-exec-gate-structure.js",
     "lib/command-exec-gate-targets.js",
