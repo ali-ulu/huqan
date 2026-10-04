@@ -62,7 +62,7 @@ function stripComments(source) {
     .replace(/(^|[^:\\])\/\/[^\n]*/g, '$1');
 }
 
-function buildGraph(allFiles, sourceFiles) {
+function buildGraph(allFiles, sourceFiles, root = repoRoot) {
   const known = new Set(allFiles);
 
   const resolve = (fromFile, request) => {
@@ -77,7 +77,7 @@ function buildGraph(allFiles, sourceFiles) {
 
   const graph = new Map();
   for (const file of sourceFiles) {
-    const source = stripComments(fs.readFileSync(path.join(repoRoot, file), 'utf8'));
+    const source = stripComments(fs.readFileSync(path.join(root, file), 'utf8'));
     const deps = [...source.matchAll(/require\(\s*['"`](\.[^'"`]+)['"`]\s*\)/g)]
       .map((match) => resolve(file, match[1]))
       .filter((dep) => dep && !IS_TEST.test(dep));
