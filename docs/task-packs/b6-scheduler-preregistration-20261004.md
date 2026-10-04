@@ -44,19 +44,18 @@ Ablation, `paired-delta` modülünün `baseline`/`candidate` sözleşmesiyle ko�
 
 ## 4. Görev külliyatı (donmuş, hash'li)
 
-- **Biçim:** her görev bir JSON kaydıdır: `taskId`, `sourceEventId`, `split`, `goal` (külliye metni), `plan` (sıralı adım listesi; her adım `{id, tool, input}`), `solutionStepId`, `budget.toolCalls = K`, `familyMatrix` (aile×konum).
-- **"Solved" yüklemi (predicate):** bir koşuda `solutionStepId`, bütçe ile çalıştırılan ilk `K` adım arasında yer alıyorsa görev **solved**'dır. Aksi halde unsolved. (Adım başına maliyet = 1 tool-call; `K` = adım sayısı sınırı.)
-- **Kesilmiş bütçe garantisi:** her görevde `plan.length > K` (aksi halde sıra no-op olur, §2) ve `K ≥ 1`.
-- **Körlük (blind):** külliye üreticisi, hangi arm'ın lehine olduğunu hesaplamaz; görevler family×konum matrisi üzerinden **deterministik seed** ile üretilir, elle seçilmez. Her görev yalnız `split` etiketiyle sınıflanır.
-- **Çeşitlilik zorunluluğu:** külliye üç sınıfı da içerir — (i) FIFO'nun zaten çözdüğü, (ii) FIFO'nun kaçırdığı, (iii) sıra-değişiminin çözümü bütçe dışına itebildiği (anti-vaka). Anti-vaka yoksa gain ölçümü tek yönlü/rigged sayılır ve verdict `INSUFFICIENT` olur.
-- **Hash:** `fixture.digest` = `computeManifestDigest(tasks)`; külliye dosyası deneyden önce commit'lenir ve değiştirilemez.
-- **Bilinen sınır:** sıralayıcının tek etkili sinyali goal↔aile keyword relevance'tır (urgency/risk plan adımlarında tanımsız olduğundan katkı ~0). Bu nedenle külliye, çözüm-adımı ailesi ile goal sözcükleri arasındaki ilişkiyi **çeşitlendirir**; tüm çözüm adımlarını goal'da adı geçen aileye koymak rigged olur ve yasaktır (bkz. §12).
+- **Biçim:** her görev bir kayıttır: `taskId`, `goal` (külliye metni), `objective`, `solutionStepId` (çözümü belirleyen plan adım id'si), `K` (bütçe), `split`. Plan, uydurma bir JSON değil, **gerçek** agent planıdır (`lib/agent-planning-policy.js` objective şablonu; `id` = plan adım kimliği).
+- **"Solved" yüklemi (predicate):** bir koşuda `solutionStepId`, bütçe ile çalıştırılan ilk `K` adım arasında yer alıyorsa görev **solved**'dır (adım başına maliyet = 1 adım). Aynı tool'u kullanan başka bir adım çözüm saymaz; id ile eşleşme aranır.
+- **Kesilmiş bütçe garantisi:** her görevde `K < plan.length` (aksi halde sıra no-op olur, §2) ve `K ≥ 1`.
+- **Çeşitlilik zorunluluğu:** külliye, sinyalin kayırdığı aileleri (train) ve kayırmadığı çok-adımlı/yabancı aileleri birlikte içerir; çift yönlüdür (hem kazandıran hem kaybettiren vaka). Test bunu assert eder; anti-vaka yoksa verdict `INSUFFICIENT` olur.
+- **Hash:** `CORPUS_DIGEST = computeManifestDigest(tasks)` (`lib/cognitive-lab-manifest.js`); külliye test dosyasında donmuştur ve ölçüm bu digest'i taşır.
+- **Bilinen sınır:** sıralayıcının tek etkili sinyali goal↔aile keyword relevance'tır (urgency/risk plan adımlarında tanımsız olduğundan katkı ~0). Bu, kısmen kendini doğrulayan bir gain riski taşır; §12'de (a) kararı bu sınırla dürüst ölçümdür.
 
 ## 5. Split ve leakage
 
-- `train` (sinyal/sözleşme kontrolü), `holdout` (primer), `transfer` (ikincil) bölümleri `taskId` ile ayrık; aynı `sourceEventId` hiçbir iki bölümde görünmez.
-- Holdout/transfer kimliği eğitime (külliye üretimi/ayar) sızmaz; sızma `REJECT` (§9).
-- Aynı olaydan türetilen örnekler bağımsız sayılmaz; istatistikte tekilleştirilir.
+- `train` (sinyalin kayırdığı aile), `holdout` (**primer**), `transfer` (yabancı aile) bölümleri `taskId` ile ayrıktır; hiçbir görev iki bölümde görünmez.
+- Karar, **yalnız holdout** üzerinden verilir; train/transfer yalnız bağlam olarak raporlanır (sinyale hizalı oldukları için primer olamazlar).
+- Aynı olaydan türetilen örnekler bağımsız sayılmaz; külliye her görev için tek gözlem üretir.
 
 ## 6. Metrikler ve yön
 
@@ -76,12 +75,12 @@ Değerler ölçümden **önce** kilitlendi; artefakt `test/cognitive-lab-b6-sche
 - `seed` = 3311; `resamples` = 2000; `confidenceLevel` = 0.95.
 - `meaningfulEffect` = **0** (yalnız %95 alt sınırı 0'ı geçerse sonuç üstün sayılır).
 - `nonInferiorityCostMargin` = **0** (çözülen-görev başına maliyet baseline'ı aşamaz).
-- `minimumSamples` = **24** (külliye uzunluğu; altında `INSUFFICIENT`).
+- `minimumSamples` = **16**, `minimumHoldout` = **8** — **sabit** (külliye uzunluğundan türetilmez; görev silinse bile örnek kapısı düşmez). Altında `INSUFFICIENT`.
 
 ## 8. Örnek yeterliliği
 
-- Külliye **N=24** görev, yedi objective ailesine yayılmış, kesilmiş bütçe (`K` = 2 veya 3).
-- **Bilimsel çapa:** HUQAN'ın kalibrasyon için kabul ettiği Agarwal vd. (NeurIPS 2021) ve `rliable` pratiği — paired karşılaştırma + bootstrap aralığı. Bu bir güç analizi (power analysis) **değildir**; N=24 küçük bir örnektir ve rapor aralık genişliğiyle birlikte okunmalıdır. Daha büyük örnek, aynı donmuş artefaktla tekrarlanabilir.
+- Külliye **N=17** görev: `train`=4, `transfer`=4, `holdout`=9 (primer). Kesilmiş bütçe (`K` = 2 veya 3).
+- **Bilimsel çapa:** HUQAN'ın kalibrasyon için kabul ettiği Agarwal vd. (NeurIPS 2021) ve `rliable` pratiği — paired karşılaştırma + bootstrap aralığı. Bu bir güç analizi **değildir**; holdout n=9 küçük bir örnektir ve rapor aralık genişliğiyle okunmalıdır. Daha büyük örnek, aynı donmuş artefaktla tekrarlanabilir.
 - Determinizm testi, aynı donmuş külliye yeniden koşulduğunda correctness digest'in aynı olduğunu doğrular; tekrar bir confidence iddiası değildir.
 
 ## 9. Fail-closed ve integrity
@@ -132,15 +131,16 @@ Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki 
 
 ## 16. Sonuç (B6, mevcut sinyalle)
 
-Ölçüm kilitli külliye ve sözleşmeyle koşuldu (`test/cognitive-lab-b6-scheduler.test.js`):
+Ölçüm kilitli külliye (`CORPUS_DIGEST = 55e9cfb0a04f84e1…`) ve sözleşmeyle koşuldu (`test/cognitive-lab-b6-scheduler.test.js`). Karar **holdout** üzerinden:
 
-| Metrik | Baseline (FIFO) | Candidate (scheduler) |
-|---|---|---|
-| Çözülen görev (N=24) | 13 | 10 |
-| Toplam adım (eşit bütçe) | 54 | 54 |
-| Çözülen-görev başına maliyet | 4.154 | 5.400 |
+| Split | n | Baseline çözülen | Candidate çözülen |
+|---|---|---|---|
+| train (sinyalin kayırdığı) | 4 | 0 | 3 |
+| transfer (yabancı) | 4 | 2 | 0 |
+| **holdout (primer)** | **9** | **6** | **2** |
+| tümü | 17 | 8 | 5 |
 
-- Paired mean Δ (candidate − baseline) = **−0.125**; %95 bootstrap aralığı **[-0.417, 0.167]**; alt sınır `meaningfulEffect=0`'ı geçmiyor.
-- **Verdict: `MEASURED`, `assertsGain = false`** (`interval_below_meaningful_effect`). Eşit bütçe doğrulandı (54 = 54); candidate maliyet açısından da üstün değil (5.400 > 4.154).
-- **Gözlem:** keyword-relevance sinyali tek-tool objective'lerde (verify/compare) yararlı (o görevlerin kimliğinde tool adı geçiyor), ama çok-adımlı plan/investigate'te `verify`'ı yerinden edip `dream`'e bırakıyor ve learn'de zararlı. Dolayısıyla scheduler, mevcut sinyalle **same-budget gain üretmiyor**; hatta hafif negatif.
-- **Karar:** #3311 kabul kriteri "eşit bütçede daha yüksek solved-task / daha düşük maliyet" **karşılanmadı**. Bu, dürüst bir negatif sonuçtur; overclaim yapılmaz.
+- Primer (holdout) paired mean Δ = **−0.444**; %95 bootstrap aralığı **[-0.889, 0.000]**; alt sınır `meaningfulEffect=0`'ı geçmiyor.
+- **Verdict: `MEASURED`, `assertsGain = false`** (`interval_below_meaningful_effect`). İki kol da tam **38 adım** harcadı (eşit bütçe); holdout'ta çözülen-görev başına maliyet baseline 3.33, candidate 10.00 → maliyet de üstün değil.
+- **Gözlem:** keyword-relevance sinyali yalnız kendi ailesinde (train: verify/compare) yararlı; yabancı/çok-adımlı ailelerde zararlı (transfer 2→0, holdout 6→2). Çok-adımlı planlarda `verify`'ı yerinden edip `dream`'e bırakıyor; learn'de `ingest` yerine `confirm`'e geçip çözümü kaçırıyor.
+- **Karar:** #3311 kabul kriteri "eşit bütçede daha yüksek solved-task / daha düşük maliyet" **karşılanmadı**. Bu, dürüst bir negatif sonuçtur; overclaim yapılmaz. Sinyal güçlendirme ayrı bir scoped iştir.
