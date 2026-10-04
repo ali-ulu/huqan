@@ -23,6 +23,7 @@
       "agent.v3.js": "Application",
       "agentRuntime.js": "Application",
       "backupRestore.js": "Adapters",
+      "bin/huqan-cognitive-lab.js": "UI",
       "bin/huqan-gate-hook.js": "UI",
       "bin/huqan-mcp.js": "UI",
       "causalSimulator.js": "Core",
@@ -209,7 +210,15 @@
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
       "lib/cognitive-lab-b1-replay.js": "Core",
+      "lib/cognitive-lab-budget-envelope.js": "Core",
+      "lib/cognitive-lab-cli.js": "Core",
+      "lib/cognitive-lab-comparison-contract.js": "Core",
+      "lib/cognitive-lab-comparison-store.js": "Core",
+      "lib/cognitive-lab-comparison.js": "Core",
+      "lib/cognitive-lab-evaluator.js": "Core",
       "lib/cognitive-lab-manifest.js": "Core",
+      "lib/cognitive-lab-paired-delta.js": "Core",
+      "lib/cognitive-lab-probability-calibration.js": "Core",
       "lib/collector-seal-config.js": "Core",
       "lib/command-allowlist-miner.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
@@ -220,6 +229,7 @@
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/command-shape-log.js": "Core",
+      "lib/common-semantic-ir.js": "Core",
       "lib/company-brain-identity.js": "Core",
       "lib/company-brain-ingest.js": "Core",
       "lib/company-brain-query.js": "Core",
@@ -1336,6 +1346,11 @@
         "lib/storage/backup-restore-paths.js",
         "lib/storage/backup-restore-restore.js"
       ],
+      "bin/huqan-cognitive-lab.js": [
+        "graph.js",
+        "lib/cognitive-lab-cli.js",
+        "lib/cognitive-lab-comparison-store.js"
+      ],
       "bin/huqan-gate-hook.js": [
         "lib/browser-session-observer.js",
         "lib/gate-hook-evaluate.js",
@@ -2124,9 +2139,51 @@
         "lib/is-plain-object.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/cognitive-lab-budget-envelope.js": [
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-cli.js": [
+        "lib/cognitive-lab-comparison-contract.js",
+        "lib/cognitive-lab-comparison-store.js"
+      ],
+      "lib/cognitive-lab-comparison-contract.js": [
+        "lib/cognitive-lab-budget-envelope.js",
+        "lib/cognitive-lab-manifest.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/cognitive-lab-probability-calibration.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-comparison-store.js": [
+        "lib/cognitive-lab-comparison-contract.js",
+        "lib/cognitive-lab-comparison.js",
+        "lib/cognitive-lab-manifest.js",
+        "lib/cognitive-lab-probability-calibration.js",
+        "lib/is-plain-object.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/cognitive-lab-comparison.js": [
+        "lib/cognitive-lab-budget-envelope.js",
+        "lib/cognitive-lab-comparison-contract.js",
+        "lib/cognitive-lab-manifest.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/cognitive-lab-probability-calibration.js"
+      ],
+      "lib/cognitive-lab-evaluator.js": [
+        "lib/cognitive-lab-b1-replay.js",
+        "lib/cognitive-lab-manifest.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/cognitive-lab-manifest.js": [
         "lib/content-hash.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-paired-delta.js": [
+        "lib/cognitive-lab-budget-envelope.js",
+        "lib/cognitive-lab-probability-calibration.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-probability-calibration.js": [
+        "lib/prediction-outcome-pairs.js"
       ],
       "lib/collector-seal-config.js": [
         "lib/environment-compat.js"
@@ -2159,6 +2216,12 @@
       "lib/command-shape-log.js": [
         "lib/external-action-envelope.js",
         "lib/external-action-receipt.js"
+      ],
+      "lib/common-semantic-ir.js": [
+        "lib/claim-decomposition.js",
+        "lib/command-parser.js",
+        "lib/entity-resolution.js",
+        "lib/predicate-parser.js"
       ],
       "lib/company-brain-identity.js": [
         "lib/entity-resolution.js"

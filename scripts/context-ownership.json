@@ -4345,6 +4345,26 @@
   "lib/http-human-oversight-adapter-input.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-TRANSPORT-P"
+  },
+  "bin/huqan-cognitive-lab.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-ENTRY-P"
+  },
+  "lib/cognitive-lab-cli.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-comparison-contract.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-comparison.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-comparison-store.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
   }
  },
  "unassigned": {},

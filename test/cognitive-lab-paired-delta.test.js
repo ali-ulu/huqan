@@ -107,7 +107,14 @@ test('a candidate that states the outcome beats a miscalibrated baseline', () =>
   const ids = Array.from({ length: 40 }, (_, i) => `d${i}`);
   const baseline = ids.map((decisionId, i) => observed({ decisionId, probability: 0.9, y: i % 2 }));
   const candidate = ids.map((decisionId, i) => observed({ decisionId, probability: i % 2, y: i % 2 }));
-  const report = pairedCalibrationDelta({ baseline, candidate, contract: CONTRACT });
+  const report = pairedCalibrationDelta({
+    baseline, candidate, contract: CONTRACT,
+    budget: {
+      envelope: ENVELOPE,
+      baselineUsage: { tokens: 4_000, calls: 400 },
+      candidateUsage: { tokens: 4_000, calls: 400 },
+    },
+  });
   assert.equal(report.status, PAIRED_STATUS.MEASURED);
   assert.ok(Math.abs(report.delta.brier.mean - 0.41) < 1e-9);
   assert.ok(report.delta.brier.lower > CONTRACT.meaningfulEffect, 'the interval lower bound must clear the locked effect');
@@ -292,9 +299,11 @@ test('an unreported side is UNKNOWN and cannot pass as a gain', () => {
   assert.equal(report.gain, false);
 });
 
-test('omitting the budget keeps the prior paired-delta behaviour', () => {
+test('omitting the budget cannot assert an equal-budget gain', () => {
   const { baseline, candidate } = gainArms();
   const report = pairedCalibrationDelta({ baseline, candidate, contract: CONTRACT });
   assert.equal(report.budget, null);
-  assert.equal(report.gain, true);
+  assert.equal(report.gain, false);
+  assert.equal(report.assertsGain, false);
+  assert.equal(report.reason, 'budget_not_verified');
 });
