@@ -16,6 +16,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const {
   listSourceFiles,
@@ -74,20 +75,24 @@ test('stripComments does not treat "://" inside a string as a comment start', ()
   assert.ok(clean.includes("require('./b')"));
 });
 
-// buildGraph reads files off disk via fs.readFileSync(path.join(repoRoot,
-// file)), so these write real throwaway files under the repo root rather
-// than stubbing fs -- mirrors how buildGraph is actually exercised by main().
-const repoRoot = path.resolve(__dirname, '..');
+// buildGraph reads files off disk via fs.readFileSync(path.join(root, file)),
+// so these write real throwaway files rather than stubbing fs -- mirrors how
+// buildGraph is actually exercised by main(). They go into a private temp
+// directory, NOT the repo root: a synchronous test writes its files and tears
+// them down within one callback, but the test runner interleaves async test
+// files, so a repo-root fixture is briefly visible to other tests that walk
+// the working tree. The reachability baseline (#3417) scans every module under
+// the repo root, which made it intermittently count these files as
+// unreachable modules and fail.
 function buildGraphFromSources(files, sources) {
-  for (const file of files) {
-    fs.writeFileSync(path.join(repoRoot, file), sources[file]);
-  }
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-import-cycles-'));
   try {
-    return buildGraph(files, files);
-  } finally {
     for (const file of files) {
-      fs.rmSync(path.join(repoRoot, file), { force: true });
+      fs.writeFileSync(path.join(scratch, file), sources[file]);
     }
+    return buildGraph(files, files, scratch);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 }
 
@@ -111,6 +116,31 @@ test('a real (non-commented) cycle between two throwaway files is still detected
   };
   const graph = buildGraphFromSources(files, sources);
   assert.equal(findCycles(graph).length, 1);
+});
+
+test('buildGraph reads fixtures from the supplied root, leaving the repo tree untouched', () => {
+  // Regression guard for #3417: when buildGraph could only read from the repo
+  // root, these fixtures were written into it and briefly counted as
+  // unreachable modules by the reachability baseline. The root parameter keeps
+  // them out.
+  const repoRoot = path.resolve(__dirname, '..');
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-import-cycles-'));
+  const files = ['rootprobe-a.js', 'rootprobe-b.js'];
+  try {
+    fs.writeFileSync(path.join(scratch, 'rootprobe-a.js'), "const b = require('./rootprobe-b');\n");
+    fs.writeFileSync(path.join(scratch, 'rootprobe-b.js'), 'module.exports = {};\n');
+    const graph = buildGraph(files, files, scratch);
+    assert.deepEqual(graph.get('rootprobe-a.js'), ['rootprobe-b.js']);
+    for (const file of files) {
+      assert.equal(
+        fs.existsSync(path.join(repoRoot, file)),
+        false,
+        `${file} leaked into the repository root`,
+      );
+    }
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('ProvenanceError keeps its identity after moving out of kernel.js', () => {
