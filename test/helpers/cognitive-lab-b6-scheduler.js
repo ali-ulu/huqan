@@ -55,7 +55,7 @@ const TASKS = Object.freeze([
   { taskId: 'reason-2', goal: 'why is the sky blue', objective: 'reason', solutionStepId: 'reason', K: 2, split: 'transfer' },
   { taskId: 'investigate-1', goal: 'bu durumu incele', objective: 'investigate', solutionStepId: 'verify', K: 3, split: 'transfer' },
   { taskId: 'investigate-2', goal: 'genel durum nedir', objective: 'investigate', solutionStepId: 'verify', K: 3, split: 'transfer' },
-  // holdout (primary): bidirectional and not the family the signal keys on.
+  // holdout (primary): varied objectives and not the family the signal keys on.
   { taskId: 'compare-3', goal: 'compare iki seçenek', objective: 'compare', solutionStepId: 'compare', K: 2, split: 'holdout' },
   { taskId: 'learn-1', goal: 'öğren yeni kural', objective: 'learn', solutionStepId: 'ingest', K: 2, split: 'holdout' },
   { taskId: 'learn-2', goal: 'ekle yeni bilgi', objective: 'learn', solutionStepId: 'ingest', K: 2, split: 'holdout' },
