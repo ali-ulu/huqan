@@ -100,6 +100,21 @@ describe('shard-hang-diagnostics process tree (#2814)', () => {
     assert.equal(lines.some(line => line.includes('sbin/init')), false, 'a sibling of the child is not its descendant');
   });
 
+  test('an older Windows process with a reused parent PID is not treated as a descendant', () => {
+    const rows = [
+      { pid: 240, ppid: 1, elapsed: null, created: 1_000, command: 'node.exe --test test/x.test.js' },
+      { pid: 241, ppid: 240, elapsed: null, created: 1_100, command: 'node.exe -e child' },
+      // Win32_Process.ParentProcessId records the creator PID. If 241 was later
+      // reused, an older system process can still appear to point at it.
+      { pid: 900, ppid: 241, elapsed: null, created: 500, command: 'winlogon.exe' },
+    ];
+    assert.deepEqual(
+      collectDescendants(rows, 240).map(({ row }) => row.pid),
+      [241],
+    );
+    assert.equal(formatProcessTree(rows, 240).some(line => line.includes('winlogon.exe')), false);
+  });
+
   test('a reaped root yields no tree instead of a wrong one', () => {
     // This is the state the old synchronous deadline left behind: it looked at a
     // pid whose children had already been reparented, so anything read then
