@@ -147,7 +147,9 @@ Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki 
 
 ## 17. Sonuç v2 — sinyal güçlendirme sonrası (#3447)
 
-#3447 relevance sinyalini güçlendirdi: objective→adım-rolü sinyali (ağırlık **0.2**, keyword 0.6'dan zayıf) ve gerçek koşuda `tieBreak: 'input-order'` (eşit skorda plan/FIFO sırası; varsayılan `key` korunur). **Külliye #3446'da fix'ten önce donduğu için bu bir yeniden-ölçümdür, fix'e uydurulmuş değil.**
+#3447 relevance sinyalini güçlendirdi: objective→adım-rolü sinyali (goal'da adı geçmeyen adımlar arasında tie-break; goal'da adı geçen adımı **asla** geçemez) ve gerçek koşuda `tieBreak: 'input-order'` (eşit skorda plan/FIFO sırası; varsayılan `key` korunur).
+
+**Bu, daha önce gözlenmiş bir külliye üzerinde bir yeniden-ölçümdür.** §16 zaten holdout'ta kayıpları raporlamıştı; külliye fix'ten önce donmuş olsa da bu, sonucun o gözlemlerden bağımsız olduğunu göstermez.
 
 | Split | n | Baseline | Candidate | Δ |
 |---|---|---|---|---|
@@ -156,7 +158,6 @@ Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki 
 | **holdout (primer)** | **9** | **6** | **9** | **+3** |
 | tümü | 17 | 8 | 17 | +9 |
 
-- Holdout paired mean Δ = **+0.333**; %95 bootstrap aralığı **[0.111, 0.556]**; alt sınır `meaningfulEffect=0`'ı geçiyor.
-- İki kol da **38 adım** (eşit bütçe); holdout çözülen-görev başına maliyet baseline 3.33 → candidate **2.22** (non-inferior).
-- **Verdict: `MEASURED`, `assertsGain = true`.** Candidate, dondurulmuş külliyede **hiçbir görevi kaybettirmiyor** (hurt = 0).
-- **Sınır (dürüstlük):** holdout n=9 ve yalnız bir gözlem külliye olduğundan bu bir *nokta tahmini*dir; aralık genişliğiyle okunmalıdır. Kazançların çoğu `verify`/`reason`/`compare` adımlarının bütçeye girmesinden geliyor. Daha büyük/bağımsız bir holdout, aynı donmuş artefaktla tekrarlanmalıdır.
+- Holdout paired mean Δ = **+0.333**; %95 bootstrap aralığı **[0.111, 0.556]**; iki kol da **38 adım** (eşit bütçe); holdout çözülen-görev başına maliyet baseline 3.33 → candidate **2.22**.
+- **Verdict: `INSUFFICIENT` (`no_anticase`).** Güçlendirilmiş scheduler dondurulmuş külliyede baseline'ın çözdüğü hiçbir görevi kaybetmiyor (hurt = 0). §4/§10 anti-vaka (sınıf iii) koşulu gereği, anti-vaka ortadan kalkınca deney `MEASURED` vermez; `INSUFFICIENT` raporlar ve **gain iddia edilmez**.
+- **Yorum (dürüstlük):** pozitif delta ve sıfır kayıp, sinyalin vaat edilen yönde çalıştığına dair kanıttır; ancak ön-kayıtlı anti-vaka kriteri sağlanmadığı için bu bir kazanç iddiası değildir. Sinyalin gerçek kazancı, anti-vakayı geri getiren daha geniş/bağımsız bir külliyede yeniden ölçülmelidir.

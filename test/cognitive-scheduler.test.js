@@ -124,11 +124,23 @@ test('#3447: the objective role lifts the relied-on step when the goal names no 
 });
 
 test('#3447: the objective role is weaker than a goal-named tool', () => {
-  // The goal names "dream" (relevance 0.6) while the objective is `learn`
-  // (role 0.2). The named tool must win, so the two signals never conflict.
-  const named = scoreCandidate({ family: 'dream', relevance: null, urgency: 0, riskTier: 'low', cost: 1 }, 'dream kedi', 'learn');
-  const role = scoreCandidate({ family: 'learn', relevance: null, urgency: 0, riskTier: 'low', cost: 1 }, 'dream kedi', 'learn');
+  // The goal names "dream" (relevance 1) while the objective is `learn` (role
+  // 0.2). Even when the role candidate is urgent and the named one is a risky,
+  // zero-urgency step, the named step must win: the role bonus can only
+  // reorder within the non-goal tier.
+  const named = scoreCandidate({ family: 'dream', relevance: null, urgency: 0, riskTier: 'high', cost: 1 }, 'dream kedi', 'learn');
+  const role = scoreCandidate({ family: 'learn', relevance: null, urgency: 1, riskTier: 'low', cost: 1 }, 'dream kedi', 'learn');
   assert.ok(named > role, 'a goal-named family must outrank the objective role');
+  const result = scheduleCandidates({
+    candidates: [
+      candidate('learn:1', { family: 'learn', urgency: 1, riskTier: 'low', cost: 1 }),
+      candidate('dream:1', { family: 'dream', urgency: 0, riskTier: 'high', cost: 1 }),
+    ],
+    goal: 'dream kedi',
+    objective: 'learn',
+    budget: 1,
+  }, { maxRiskTier: 'high' });
+  assert.deepEqual(result.order, ['dream:1'], 'the goal-named step must hold a one-step budget');
 });
 
 test('#3447: input-order tie-break preserves the plan (FIFO) order on an exact tie', () => {
