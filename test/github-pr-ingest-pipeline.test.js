@@ -212,6 +212,13 @@ test('repo-memory-github resolves its token through the environment-compat shim 
     'same',
   );
   assert.equal(await capturedToken({}, { token: 'caller-token' }), 'caller-token');
+  assert.equal(
+    await capturedToken(
+      { HUQAN_GITHUB_TOKEN: 'canonical', AXIOM_GITHUB_TOKEN: 'legacy' },
+      { token: 'caller-token' },
+    ),
+    'caller-token',
+  );
   await assert.rejects(
     () => capturedToken({ HUQAN_GITHUB_TOKEN: 'canonical', AXIOM_GITHUB_TOKEN: 'legacy' }),
     (error) => error.code === 'HUQAN_ENV_CONFLICT',
