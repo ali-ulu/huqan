@@ -1672,6 +1672,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/common-semantic-ir.js": {
+   "context": "Knowledge",
+   "evidence": "ownership-map-2446.md#R-VERIFY-K"
+  },
   "lib/command-policy-editor.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -5433,6 +5437,7 @@
   "lib/command-parser.js": {
    "owner": "AgentAction",
    "consumers": [
+    "Knowledge",
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"

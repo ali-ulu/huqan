@@ -113,6 +113,16 @@ test('negation changes polarity and is not swallowed as modality', () => {
   assert.equal(negative.modality.status, 'unknown');
 });
 
+test('non-Turkish negation is not reported as affirmative polarity', () => {
+  // The baseline predicate parser only detects Turkish negation (`değil`);
+  // for an English negation like "does not require" it measures no polarity,
+  // so the IR must stay `unknown` instead of defaulting to `affirmative`.
+  const ir = buildCommonSemanticIR('The deployment does not require approval');
+  assert.equal(ir.language.value, 'en');
+  assert.equal(ir.relations.status, 'present');
+  assert.equal(ir.relations.value[0].polarity, 'unknown');
+});
+
 test('ambiguity is preserved as candidates and never silently resolved', () => {
   const ambiguous = buildCommonSemanticIR('AI helps');
   assert.equal(ambiguous.entities.status, 'unknown', 'AI must not be resolved without a domain');
@@ -158,6 +168,10 @@ test('the validator rejects records that look measured but are not', () => {
   const unknownWithValue = JSON.parse(JSON.stringify(valid));
   unknownWithValue.modality = { status: 'unknown', value: 'possible' };
   assert.equal(validateCommonSemanticIR(unknownWithValue).valid, false);
+
+  const unknownWithoutReason = JSON.parse(JSON.stringify(valid));
+  unknownWithoutReason.modality = { status: 'unknown', value: null, reason: '  ' };
+  assert.equal(validateCommonSemanticIR(unknownWithoutReason).valid, false);
 
   const badLanguage = JSON.parse(JSON.stringify(valid));
   badLanguage.language = { status: 'present', value: 'de' };
