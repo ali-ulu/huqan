@@ -26,6 +26,7 @@ const {
   reviseDerivedConclusionBeliefs,
   reconcileDerivedConclusionBeliefs,
   derivedBeliefAt,
+  ruleAdmissionBlocked,
 } = require('../lib/inference-belief-revision');
 
 function pair(decisionId, ruleId, outcomeState) {
@@ -499,4 +500,73 @@ test('calibrateRuleBeliefFromStore reads the persisted prediction pairs', (t) =>
   });
   assert.equal(result.systemConfidence, direct.systemConfidence);
   assert.equal(result.calibratedConfidence, direct.calibratedConfidence);
+});
+
+// The negative-evidence predicate both admission paths share. A rule whose
+// calibrated belief is defeated, degraded, or below what it declared blocks
+// admission; a rule with no belief is not blocked (absence is not evidence).
+test('ruleAdmissionBlocked: defeated/degraded/low-confidence rules block, no-belief does not', () => {
+  const calibrated = { ruleId: 'r', status: CALIBRATION_STATUS.CALIBRATED, systemConfidence: 0.9, declaredConfidence: 0.9 };
+  assert.equal(ruleAdmissionBlocked([calibrated], 'r'), false);
+  assert.equal(ruleAdmissionBlocked([{ ...calibrated, status: CALIBRATION_STATUS.DEFEATED }], 'r'), true);
+  assert.equal(ruleAdmissionBlocked([{ ...calibrated, status: CALIBRATION_STATUS.DEGRADED }], 'r'), true);
+  assert.equal(ruleAdmissionBlocked([{ ...calibrated, status: CALIBRATION_STATUS.INVALID }], 'r'), true);
+  // Insufficient evidence is not negative evidence: it must not block.
+  assert.equal(ruleAdmissionBlocked([{ ...calibrated, status: CALIBRATION_STATUS.INSUFFICIENT }], 'r'), false);
+  assert.equal(ruleAdmissionBlocked([{ ...calibrated, systemConfidence: 0.4, declaredConfidence: 0.9 }], 'r'), true);
+  assert.equal(ruleAdmissionBlocked([calibrated], 'other-rule'), false);
+  assert.equal(ruleAdmissionBlocked([], 'r'), false);
+  assert.equal(ruleAdmissionBlocked(null, 'r'), false);
+});
+
+// The block must not be fakeable by duplicate evidence: outcomes from one
+// source event count as one independent trial, so a rule cannot be re-admitted
+// by replaying the same event. `calibrateRuleBelief` de-duplicates; this pins
+// the behaviour the admission gate depends on.
+test('a defeated rule stays blocked; duplicate evidence cannot unblock it', () => {
+  const ruleId = 'rule:blocked-once';
+  const pairs = pairsObject(['d1', 'd2', 'd3', 'd4', 'd5'].map((id) => pair(id, ruleId, 'incident')));
+  // Five adverse outcomes from ONE source event collapse to a single
+  // independent trial, which degrades but cannot defeat a 0.95 declaration.
+  const oneReport = ['d1', 'd2', 'd3', 'd4', 'd5'].map((decisionId) => ({
+    decisionId,
+    kind: EFFECT_KIND.OBSERVED,
+    sourceEventRefs: ['event:one-report'],
+  }));
+  const correlated = calibrateRuleBelief({
+    ruleId,
+    declaredConfidence: 0.95,
+    at: '2026-09-10T00:00:00.000Z',
+    pairs,
+    effectEvidence: oneReport,
+  }, { minSamples: 1 });
+  assert.equal(correlated.observedSamples, 1);
+  assert.notEqual(correlated.status, CALIBRATION_STATUS.DEFEATED);
+
+  // The same five outcomes from five independent sources defeat the rule, and
+  // replaying the same evidence cannot unblock it.
+  const independent = ['d1', 'd2', 'd3', 'd4', 'd5'].map((decisionId) => ({
+    decisionId,
+    kind: EFFECT_KIND.OBSERVED,
+    sourceEventRefs: [`event:${decisionId}`],
+  }));
+  const defeated = calibrateRuleBelief({
+    ruleId,
+    declaredConfidence: 0.95,
+    at: '2026-09-10T00:00:00.000Z',
+    pairs,
+    effectEvidence: independent,
+  }, { minSamples: 1 });
+  assert.equal(defeated.status, CALIBRATION_STATUS.DEFEATED);
+  assert.equal(ruleAdmissionBlocked([defeated], ruleId), true);
+
+  const replayed = calibrateRuleBelief({
+    ruleId,
+    declaredConfidence: 0.95,
+    at: '2026-09-10T00:00:00.000Z',
+    pairs,
+    effectEvidence: independent,
+  }, { minSamples: 1 });
+  assert.equal(replayed.observedSamples, 5);
+  assert.equal(ruleAdmissionBlocked([replayed], ruleId), true);
 });
