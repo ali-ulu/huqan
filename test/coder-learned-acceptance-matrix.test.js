@@ -17,8 +17,16 @@ const { loadSqliteDriver } = require('../lib/sqlite-availability');
 const TASK = { id: 'matrix', level: 'l0', allowedPaths: ['docs/a.md'],
   operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } };
 const REPO_STATE = { branch: 'feat/test', dirty: false, hasUntracked: false };
-const EXPERIENCE = { riskTier: 'low', candidates: [{ capabilityId: 'replace',
-  sourceRunIds: ['source'], qualificationPaths: ['docs/drift.md', 'docs/ambiguous.md'] }] };
+const CANDIDATE = { capabilityId: 'replace', sourceRunIds: ['source'],
+  qualificationPaths: ['docs/drift.md', 'docs/ambiguous.md'] };
+// Each row runs as a full task and as an intent-only task (#3310 B4 §11): the
+// intent-only form carries no text and takes it from hash-bound params.
+const MODES = Object.freeze({
+  full: () => ({ ...TASK, experience: { riskTier: 'low', candidates: [CANDIDATE] } }),
+  intentOnly: () => ({ ...TASK, operation: { type: 'replace_text', path: 'docs/a.md' },
+    experience: { intentOnly: true, riskTier: 'low', candidates: [{ ...CANDIDATE,
+      params: { path: 'docs/a.md', oldText: 'before', newText: 'after' } }] } }),
+});
 
 // Slow CI commits would trip the real-clock write-cost budget; a deterministic
 // clock keeps the matrix about source admission alone.
@@ -53,13 +61,13 @@ function alterJournal(root, statement) {
 }
 
 // Every dispatch reopens the journal, as a new process would.
-function dispatchLearned(root, { runId = 'learned', workspaceId } = {}) {
+function dispatchLearned(root, { runId = 'learned', workspaceId, mode = 'full' } = {}) {
   const target = path.join(root, 'docs/a.md');
   fs.writeFileSync(target, 'before');
   let store = openJournal(root);
   let result;
   try {
-    result = applyDerivation({ task: { ...TASK, experience: EXPERIENCE }, root, repoState: REPO_STATE,
+    result = applyDerivation({ task: MODES[mode](), root, repoState: REPO_STATE,
       journal: store.journal, runId, ...(workspaceId ? { workspaceId } : {}) });
   } finally { store.close(); }
   store = openJournal(root);
@@ -76,65 +84,67 @@ function assertRefusedBeforeDisk(observed, reason) {
   assert.ok(observed.types.includes('run_closed'), 'the refusal itself is sealed evidence');
 }
 
-test('control: a verified sealed source dispatches its learned procedure to disk', (t) => {
-  const root = withRoot(t);
-  assert.equal(runSource(root).manifest.learningEligibility, 'positive_procedure');
-  const observed = dispatchLearned(root);
-  assert.equal(observed.result.ok, true);
-  assert.equal(observed.content, 'after');
-  assert.ok(observed.types.includes('routing_decided') && observed.types.includes('execution_finished'));
-});
+for (const mode of Object.keys(MODES)) {
+  test(`${mode}: control: a verified sealed source dispatches its learned procedure to disk`, (t) => {
+    const root = withRoot(t);
+    assert.equal(runSource(root).manifest.learningEligibility, 'positive_procedure');
+    const observed = dispatchLearned(root, { mode });
+    assert.equal(observed.result.ok, true);
+    assert.equal(observed.content, 'after');
+    assert.ok(observed.types.includes('routing_decided') && observed.types.includes('execution_finished'));
+  });
 
-test('a source record altered on disk is refused as an integrity mismatch', (t) => {
-  const root = withRoot(t);
-  runSource(root);
-  alterJournal(root, `UPDATE experience_journal SET body = replace(body, 'feat/test', 'feat/forged')
-    WHERE run_id = 'source' AND type = 'run_started'`);
-  assertRefusedBeforeDisk(dispatchLearned(root), 'integrity_mismatch');
-});
+  test(`${mode}: a source record altered on disk is refused as an integrity mismatch`, (t) => {
+    const root = withRoot(t);
+    runSource(root);
+    alterJournal(root, `UPDATE experience_journal SET body = replace(body, 'feat/test', 'feat/forged')
+      WHERE run_id = 'source' AND type = 'run_started'`);
+    assertRefusedBeforeDisk(dispatchLearned(root, { mode }), 'integrity_mismatch');
+  });
 
-test('a source with the same operation but no qualified outcome cannot teach', (t) => {
-  const root = withRoot(t, 'before before');
-  const source = runSource(root);
-  assert.equal(source.result.ok, false);
-  assert.equal(source.manifest.learningEligibility, 'ineligible');
-  assertRefusedBeforeDisk(dispatchLearned(root), 'source_not_eligible');
-});
+  test(`${mode}: a source with the same operation but no qualified outcome cannot teach`, (t) => {
+    const root = withRoot(t, 'before before');
+    const source = runSource(root);
+    assert.equal(source.result.ok, false);
+    assert.equal(source.manifest.learningEligibility, 'ineligible');
+    assertRefusedBeforeDisk(dispatchLearned(root, { mode }), 'source_not_eligible');
+  });
 
-test('an executed source whose verification was censored cannot teach', (t) => {
-  const root = withRoot(t);
-  runSource(root);
-  alterJournal(root, `DELETE FROM experience_journal WHERE run_id = 'source' AND type = 'verification'`);
-  const store = openJournal(root);
-  try {
-    const manifest = store.journal.manifest('source');
-    assert.equal(manifest.executionStatus, 'completed');
-    assert.equal(manifest.outcomeStatus, 'unknown');
-  } finally { store.close(); }
-  assertRefusedBeforeDisk(dispatchLearned(root), 'source_not_eligible');
-});
+  test(`${mode}: an executed source whose verification was censored cannot teach`, (t) => {
+    const root = withRoot(t);
+    runSource(root);
+    alterJournal(root, `DELETE FROM experience_journal WHERE run_id = 'source' AND type = 'verification'`);
+    const store = openJournal(root);
+    try {
+      const manifest = store.journal.manifest('source');
+      assert.equal(manifest.executionStatus, 'completed');
+      assert.equal(manifest.outcomeStatus, 'unknown');
+    } finally { store.close(); }
+    assertRefusedBeforeDisk(dispatchLearned(root, { mode }), 'source_not_eligible');
+  });
 
-test('a source that never sealed is refused as still being written', (t) => {
-  const root = withRoot(t);
-  runSource(root);
-  alterJournal(root, `DELETE FROM experience_journal WHERE run_id = 'source' AND type = 'run_closed'`);
-  assertRefusedBeforeDisk(dispatchLearned(root), 'run_not_sealed');
-});
+  test(`${mode}: a source that never sealed is refused as still being written`, (t) => {
+    const root = withRoot(t);
+    runSource(root);
+    alterJournal(root, `DELETE FROM experience_journal WHERE run_id = 'source' AND type = 'run_closed'`);
+    assertRefusedBeforeDisk(dispatchLearned(root, { mode }), 'run_not_sealed');
+  });
 
-test('a source from another workspace does not transfer across the workspace boundary', (t) => {
-  const root = withRoot(t);
-  runSource(root);
-  assertRefusedBeforeDisk(dispatchLearned(root, { workspaceId: 'other-workspace' }), 'workspace_mismatch');
-});
+  test(`${mode}: a source from another workspace does not transfer across the workspace boundary`, (t) => {
+    const root = withRoot(t);
+    runSource(root);
+    assertRefusedBeforeDisk(dispatchLearned(root, { workspaceId: 'other-workspace', mode }), 'workspace_mismatch');
+  });
 
-test('replaying a completed learned request id after restart cannot repeat its disk effect', (t) => {
-  const root = withRoot(t);
-  runSource(root);
-  const first = dispatchLearned(root, { runId: 'once' });
-  assert.equal(first.result.ok, true);
-  const replay = dispatchLearned(root, { runId: 'once' });
-  assert.equal(replay.result.ok, false);
-  assert.equal(replay.result.reason, 'learned_execution_evidence_failed');
-  assert.equal(replay.content, 'before', 'the replay must not rewrite the restored target');
-  assert.deepEqual(replay.types, first.types, 'the sealed first run is not extended by the replay');
-});
+  test(`${mode}: replaying a completed learned request id after restart cannot repeat its disk effect`, (t) => {
+    const root = withRoot(t);
+    runSource(root);
+    const first = dispatchLearned(root, { runId: 'once', mode });
+    assert.equal(first.result.ok, true);
+    const replay = dispatchLearned(root, { runId: 'once', mode });
+    assert.equal(replay.result.ok, false);
+    assert.equal(replay.result.reason, 'learned_execution_evidence_failed');
+    assert.equal(replay.content, 'before', 'the replay must not rewrite the restored target');
+    assert.deepEqual(replay.types, first.types, 'the sealed first run is not extended by the replay');
+  });
+}
