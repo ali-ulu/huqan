@@ -43,8 +43,9 @@ const PROBE_TIMEOUT_MS = 10_000;
  * Two shapes, because `ps` does not exist on Windows -- it fails with ENOENT,
  * which would have made this produce nothing at all on the Windows matrix legs
  * (#2450) -- so the Windows probe asks the OS through PowerShell and prints
- * `pid|ppid|command`. Pure, so the parsing is pinned by a test rather than by a
- * live hang.
+ * `pid|ppid|created|command` (the parser also accepts the legacy three-field
+ * probe used by older fixtures). Pure, so the parsing is pinned by a test rather
+ * than by a live hang.
  */
 function parseProcessTable(text) {
   const rows = [];
@@ -162,6 +163,37 @@ function killProcessTree(rootPid) {
   }
 }
 
+
+/**
+ * Describe, without executing, how a timed-out process tree should be killed.
+ *
+ * Keeping the platform decision pure is important for two reasons: Linux
+ * coverage can exercise the Windows safety policy, and the timeout callback no
+ * longer hides a large untestable win32 branch. On Windows with a trustworthy
+ * process snapshot, only creation-time-validated PIDs are targeted; on a CIM
+ * outage taskkill /T remains the last-resort tree cleanup. The final pass never
+ * re-targets snapshot descendants because their PIDs may have been reused.
+ */
+function timeoutKillPlan(platform, rootPid, descendants, tableAvailable, finalPass = false) {
+  const signal = finalPass ? 'SIGKILL' : 'SIGTERM';
+  if (platform !== 'win32') {
+    return { treeRoot: null, pids: [rootPid, ...descendants], signal };
+  }
+  if (!tableAvailable) {
+    return { treeRoot: rootPid, pids: [rootPid], signal };
+  }
+  if (finalPass) {
+    return { treeRoot: null, pids: [rootPid], signal };
+  }
+  return { treeRoot: null, pids: [...descendants].reverse().concat(rootPid), signal };
+}
+
+/** Execute a kill plan. Dependencies are injectable so every branch is testable. */
+function executeKillPlan(plan, { killTree = killProcessTree, terminate = terminatePid } = {}) {
+  if (plan.treeRoot !== null) killTree(plan.treeRoot);
+  for (const pid of plan.pids) terminate(pid, plan.signal);
+}
+
 /**
  * Print the child's process tree and return the pids to terminate with it.
  *
@@ -239,33 +271,16 @@ function runFileToDeadline({ cwd, file, partPath, concurrency, env, timeoutMs, s
     deadlineTimer = setTimeout(() => {
       timedOut = true;
       const { descendants, tableAvailable } = reportChildTree(child.pid, shard, file);
-      if (process.platform === 'win32') {
-        if (tableAvailable) {
-          // Do not use taskkill /T when we have a trustworthy snapshot.
-          // Windows keeps a creator PID forever, so PID reuse can otherwise
-          // make system processes look like descendants. Kill only the
-          // creation-time-validated snapshot, deepest first, then the root.
-          for (const pid of [...descendants].reverse()) terminatePid(pid, 'SIGTERM');
-          terminatePid(child.pid, 'SIGTERM');
-        } else {
-          // Last-resort fallback for a CIM outage: taskkill is still preferable
-          // to leaking a whole tree into the next shard file.
-          killProcessTree(child.pid);
-          terminatePid(child.pid, 'SIGTERM');
-        }
-      } else {
-        for (const pid of [child.pid, ...descendants]) terminatePid(pid, 'SIGTERM');
-      }
-      // A process that ignores SIGTERM must not hold the whole shard. On
-      // Windows, do not re-kill snapshot descendant PIDs after the grace period:
-      // one may already have exited and had its PID reused.
+      executeKillPlan(timeoutKillPlan(
+        process.platform, child.pid, descendants, tableAvailable, false,
+      ));
+      // A process that ignores SIGTERM must not hold the whole shard. The pure
+      // plan keeps Windows from re-targeting descendant PIDs after the grace
+      // period, when a dead child PID might already have been reused.
       killTimer = setTimeout(() => {
-        if (process.platform === 'win32') {
-          if (!tableAvailable) killProcessTree(child.pid);
-          terminatePid(child.pid, 'SIGKILL');
-        } else {
-          for (const pid of [child.pid, ...descendants]) terminatePid(pid, 'SIGKILL');
-        }
+        executeKillPlan(timeoutKillPlan(
+          process.platform, child.pid, descendants, tableAvailable, true,
+        ));
         settle({ status: null, signal: 'SIGKILL', timedOut: true });
       }, KILL_GRACE_MS);
       killTimer.unref?.();
@@ -279,9 +294,11 @@ module.exports = {
   KILL_GRACE_MS,
   PROBE_TIMEOUT_MS,
   collectDescendants,
+  executeKillPlan,
   formatProcessTree,
   killProcessTree,
   parseProcessTable,
   runFileToDeadline,
+  timeoutKillPlan,
   testArgsFor,
 };
