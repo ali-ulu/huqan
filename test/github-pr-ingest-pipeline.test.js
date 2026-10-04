@@ -176,6 +176,55 @@ test('repo-memory-github prefers the approved commit SHA as the fetch ref', asyn
   assert.match(fileRecord.sourceRef, new RegExp(SHA));
 });
 
+test('repo-memory-github resolves its token through the environment-compat shim (#3429)', async () => {
+  const { ingestGithubRepo } = require('../lib/connectors/repo-memory-github');
+  const { pinnedRepoFile } = require('../lib/repo-file-pin');
+
+  const capturedToken = async (environment, extraInput = {}) => {
+    const captured = [];
+    const kernel = {
+      proposeNode: () => ({ decision: 'allow', node: { id: 'n' }, admission: { receiptId: 'r' } }),
+      proposeEdge: () => ({ decision: 'allow', edge: { id: 'e' }, admission: { receiptId: 'r' } }),
+    };
+    const stubFetch = async (repoUrl, opts) => {
+      captured.push(opts.token);
+      return [];
+    };
+    await ingestGithubRepo(kernel, {
+      repoUrl: 'https://github.com/ali-ulu/huqan',
+      workspaceId: 'default',
+      environment,
+      ...extraInput,
+    }, {
+      fetchRepoFiles: stubFetch,
+      parseRepoUrl: () => ({ owner: 'ali-ulu', repo: 'huqan' }),
+      isMarkdownPath: () => false,
+      parseMarkdown: () => [],
+      pinnedRepoFile,
+    });
+    return captured[0];
+  };
+
+  assert.equal(await capturedToken({ HUQAN_GITHUB_TOKEN: 'canonical-token' }), 'canonical-token');
+  assert.equal(await capturedToken({ AXIOM_GITHUB_TOKEN: 'legacy-token' }), 'legacy-token');
+  assert.equal(
+    await capturedToken({ HUQAN_GITHUB_TOKEN: 'same', AXIOM_GITHUB_TOKEN: 'same' }),
+    'same',
+  );
+  assert.equal(await capturedToken({}, { token: 'caller-token' }), 'caller-token');
+  assert.equal(
+    await capturedToken(
+      { HUQAN_GITHUB_TOKEN: 'canonical', AXIOM_GITHUB_TOKEN: 'legacy' },
+      { token: 'caller-token' },
+    ),
+    'caller-token',
+  );
+  await assert.rejects(
+    () => capturedToken({ HUQAN_GITHUB_TOKEN: 'canonical', AXIOM_GITHUB_TOKEN: 'legacy' }),
+    (error) => error.code === 'HUQAN_ENV_CONFLICT',
+  );
+});
+
 const SECRET = 'github-pr-ingest-pipeline-secret';
 const DELIVERY = '83e4273f-dd89-22f4-92bc-5da478ed1069';
 

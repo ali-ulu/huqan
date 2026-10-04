@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
-const { hasSharedSemanticAnchor, phraseMatches } = require('../lib/verify-turkish-text');
+const { containsWholePhrase, hasSharedSemanticAnchor, phraseMatches } = require('../lib/verify-turkish-text');
 
 function makeKernel() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-verify-anchor-'));
@@ -32,6 +32,12 @@ function unwrap(result) {
 }
 
 describe('#1170 semantic anchor boundaries', () => {
+  it('pins containsWholePhrase exact and empty-needle boundaries for coverage', () => {
+    assert.equal(containsWholePhrase('doktor', 'doktor'), true);
+    assert.equal(containsWholePhrase('doktor', ''), false);
+    assert.equal(containsWholePhrase('doktor', 'doktor uzman'), false);
+  });
+
   it('accepts exact and bounded Turkish inflection but rejects arbitrary or reversing substrings', () => {
     assert.equal(phraseMatches('doktor', 'doktor'), true);
     assert.equal(phraseMatches('doktor', 'doktorlar'), true);
