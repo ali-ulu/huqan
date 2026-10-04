@@ -151,7 +151,7 @@ Külliye hash'i ve split kimlikleri kayıtlı; dört kol için bütçe eşit ve 
 - **İkincil:** A2 − A0 = +0,208, aynı aralık; oracle geri kazanımı 18/24 = 0,75.
 - **Transfer:** prosedür yola bağlı olduğu için A2, farklı yoldaki 6 uygulanabilir görevin hepsini reddetti (`source_procedure_mismatch`). Naif tekrar bu 6 görevi doğru yaptı ama 2 belirsiz vakada yanlış yazdı.
 - **Karar:** #3310'un B4 gain kabulü **karşılanmadı**. Bu dürüst bir negatif sonuçtur. Sonucu değiştirebilecek iki ayrı iş var ve ikisi de ürün kararıdır: (1) alıntı veya geçmiş satırı ayırt eden, bağlama duyarlı bir qualification kapısı; (2) yeterli geçmişi olmayan prosedürlerin `medium` risk katmanında nasıl ele alınacağı. Yol genellemesi ayrıca transfer splitini etkiler.
-- **Göz testi sapması (§15):** Cognitive Lab manifesti (`mechanisms.B4 = ENABLED`) bu dilimde üretilmedi. Külliye digest'i `computeManifestDigest({ tasks, sourceOperations })` ile hesaplanır ve testte sabitlenir.
+- **Göz testi sapması (§15):** Cognitive Lab manifesti (`mechanisms.B4 = ENABLED`) ilk dilimde üretilmedi. Külliye digest'i `computeManifestDigest({ tasks, sourceOperations })` ile hesaplanır ve testte sabitlenir. **Kapanış (post-hoc kayıt, sözleşme değişmedi):** #3456 diliminde `test/cognitive-lab-b4-transfer.test.js` artık §15'in beklediği manifesti üretir (`b4Manifest()`, `mechanisms.B4 = ENABLED`, diğerleri `NOT_MEASURED`, `seed = 33100`, split id'leri donmuş külliye task id'leri, `fixture.digest = CORPUS_DIGEST`). Manifest `validateManifest` ile VALID; eksik alan ve geçersiz bayrak REJECT. Evaluator raporu `mechanisms` alanını taşır. §7 eşikleri, §3/§8 külliye ve verdict değişmedi.
 
 ## 17. Ek: bağlam kapısı ön-kaydı (kapı yazılmadan önce kilitlendi)
 
