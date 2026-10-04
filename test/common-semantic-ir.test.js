@@ -69,6 +69,22 @@ test('unmeasurable fields are explicit unknown diagnostics, never a silent drop'
   assert.match(ir.confidence.reason, /not_calibrated/);
 });
 
+test('modality and time changes retain their unknown diagnostics', () => {
+  const pairs = [
+    ['modality', 'no_modality_parser_in_baseline',
+      'The service is available', 'The service may be available'],
+    ['temporal', 'no_temporal_parser_in_baseline',
+      'The service is available', 'The service was available yesterday'],
+  ];
+
+  for (const [field, reason, baselineText, changedText] of pairs) {
+    for (const text of [baselineText, changedText]) {
+      const ir = buildCommonSemanticIR(text, { normalizeWord: NORMALIZE });
+      assert.deepEqual(ir[field], { status: 'unknown', value: null, reason });
+    }
+  }
+});
+
 test('language identification is marker-based and falls back to unknown, never a guess', () => {
   assert.equal(detectLanguage('Deployment veritabanı zaman aşımı nedeniyle başarısız olur'), 'tr');
   assert.equal(detectLanguage('The deployment causes the incident'), 'en');
