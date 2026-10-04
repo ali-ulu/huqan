@@ -8,6 +8,15 @@ const os = require('node:os');
 const { applyDerivation } = require('../lib/coder/apply-derivation');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const { loadSqliteDriver } = require('../lib/sqlite-availability');
+const { budgetExperienceJournal } = require('../lib/experience/budgeted-journal');
+
+// Slow CI commits (Windows) would trip the real-clock write-cost budget on the
+// source run; a deterministic clock keeps these tests about durability alone.
+function openDurabilityJournal(file) {
+  const store = openCoderJournal(file);
+  let clock = 0;
+  return { ...store, journal: budgetExperienceJournal(store.journal, { now: () => (clock += 0.1) }) };
+}
 
 test('learned dispatch refuses before disk effect when SQLite cannot record execution start', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-learned-durability-'));
@@ -22,7 +31,7 @@ test('learned dispatch refuses before disk effect when SQLite cannot record exec
     const task = { id: 'durable-learned', level: 'l0', allowedPaths: ['docs/a.md'],
       operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } };
     const repoState = { branch: 'feat/test', dirty: false, hasUntracked: false };
-    store = openCoderJournal(journalPath);
+    store = openDurabilityJournal(journalPath);
     const source = applyDerivation({ task, root, repoState, journal: store.journal, runId: 'source' });
     assert.equal(source.ok, true);
     assert.equal(store.journal.manifest('source').learningEligibility, 'positive_procedure');
@@ -36,7 +45,7 @@ test('learned dispatch refuses before disk effect when SQLite cannot record exec
         WHEN NEW.run_id = 'denied' AND NEW.type = 'execution_started'
         BEGIN SELECT RAISE(FAIL, 'fixture execution-start commit refused'); END`);
     } finally { db.close(); }
-    store = openCoderJournal(journalPath);
+    store = openDurabilityJournal(journalPath);
     fs.writeFileSync(target, 'before');
     const experience = { riskTier: 'low', candidates: [{ capabilityId: 'replace',
       sourceRunIds: ['source'], qualificationPaths: ['docs/drift.md', 'docs/ambiguous.md'] }] };
@@ -47,7 +56,7 @@ test('learned dispatch refuses before disk effect when SQLite cannot record exec
     assert.equal(denied.experience.failed, 'persist_failed');
     assert.equal(fs.readFileSync(target, 'utf8'), 'before');
     store.close();
-    store = openCoderJournal(journalPath);
+    store = openDurabilityJournal(journalPath);
     const events = store.journal.read('denied');
     assert.ok(events.some(event => event.type === 'routing_decided'));
     assert.ok(!events.some(event => event.type === 'execution_started' || event.type === 'execution_finished'));
@@ -72,10 +81,10 @@ test('a read-only journal cannot authorize a learned disk effect', () => {
       operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } };
     const repoState = { branch: 'feat/test', dirty: false, hasUntracked: false };
     const journalPath = path.join(root, 'journal.db');
-    store = openCoderJournal(journalPath);
+    store = openDurabilityJournal(journalPath);
     assert.equal(applyDerivation({ task, root, repoState, journal: store.journal, runId: 'source' }).ok, true);
     store.close();
-    store = openCoderJournal(journalPath);
+    store = openDurabilityJournal(journalPath);
     fs.writeFileSync(target, 'before');
     const experience = { riskTier: 'low', candidates: [{ capabilityId: 'replace',
       sourceRunIds: ['source'], qualificationPaths: ['docs/drift.md', 'docs/ambiguous.md'] }] };
