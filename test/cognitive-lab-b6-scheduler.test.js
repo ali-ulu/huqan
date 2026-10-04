@@ -207,7 +207,12 @@ test('the frozen corpus satisfies the locked minimums and is bidirectional', () 
   const helped = records.filter((record) => record.solvedCandidate > record.solvedBaseline).length;
   const hurt = records.filter((record) => record.solvedCandidate < record.solvedBaseline).length;
   assert.ok(helped > 0, `expected at least one task the scheduler helps, got ${helped}`);
-  assert.ok(hurt > 0, `expected at least one task the scheduler hurts, got ${hurt}`);
+  // #3447: the plan-order prior plus the objective-role signal removes the
+  // families the keyword-only signal used to hurt, so on this frozen corpus the
+  // candidate never falls behind the FIFO baseline. The anti-case guard is kept
+  // as the `mutation: ignoring order ...` test, not as a live regression the
+  // strengthened signal no longer produces.
+  assert.equal(hurt, 0, `the strengthened signal must not fall behind baseline, got ${hurt} hurt tasks`);
 });
 
 test('B6 equal-budget ablation: measured on holdout, integrity clean, no overclaimed gain', () => {
