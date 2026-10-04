@@ -152,3 +152,20 @@ Külliye hash'i ve split kimlikleri kayıtlı; dört kol için bütçe eşit ve 
 - **Transfer:** prosedür yola bağlı olduğu için A2, farklı yoldaki 6 uygulanabilir görevin hepsini reddetti (`source_procedure_mismatch`). Naif tekrar bu 6 görevi doğru yaptı ama 2 belirsiz vakada yanlış yazdı.
 - **Karar:** #3310'un B4 gain kabulü **karşılanmadı**. Bu dürüst bir negatif sonuçtur. Sonucu değiştirebilecek iki ayrı iş var ve ikisi de ürün kararıdır: (1) alıntı veya geçmiş satırı ayırt eden, bağlama duyarlı bir qualification kapısı; (2) yeterli geçmişi olmayan prosedürlerin `medium` risk katmanında nasıl ele alınacağı. Yol genellemesi ayrıca transfer splitini etkiler.
 - **Göz testi sapması (§15):** Cognitive Lab manifesti (`mechanisms.B4 = ENABLED`) bu dilimde üretilmedi. Külliye digest'i `computeManifestDigest({ tasks, sourceOperations })` ile hesaplanır ve testte sabitlenir.
+
+## 17. Ek: bağlam kapısı ön-kaydı (kapı yazılmadan önce kilitlendi)
+
+**Karar (maintainer, 4 Ekim 2026):** §16'daki üç yanlış yazmayı hedefleyen bağlam duyarlı bir uygunluk kapısı denenir.
+
+**Sorun:** Kapı §16'daki üç vakaya bakılarak tasarlandı. Aynı v1 holdout ile yeniden ölçülürse sonuç holdout'a uydurulmuş olur ve kazanç yapay görünür (§5'in leakage yasağı). Bu nedenle:
+
+1. **Kapı kuralı (değişmez):** Learned route — tam tanımlı ve `intentOnly` dispatch — hedef dosyada metnin tek geçişi
+   - (a) ilk boşluk dışı karakteri `>` olan bir markdown alıntı satırındaysa, ya da
+   - (b) ` ``` ` ile açılıp kapanan bir kod bloğunun içindeyse
+   yazmadan `protected_context` ile reddeder. Tırnak içi metin kurala dahil değildir; yapılandırma değerleri meşru olarak değişir. Deneyimsiz deterministik coder (A0, O) değişmez.
+2. **Doğrulayıcı külliye v2 (seed 33100):** onaylı sayılar aynıdır (holdout 8 / 10 / 6, transfer 8). Bağlamlar kapıyı iki yönden sınar:
+   - sınıf (i): 6 düz uygulanabilir; 1 tırnak içi yapılandırma değeri (`change`); 1 kod bloğunda **güncel** kullanım örneği (`change`; kapı bunu yanlış reddeder).
+   - sınıf (iii): 3 `medium` risk; 1 alıntı satırında geçmiş kayıt, 1 kod bloğunda **eski** örnek, 1 düz anlatımda geçmiş kayıt (üçü `refuse`; sonuncusunu kapı göremez).
+   - sınıf (ii) ve transfer v1 ile aynı türlerdir. v2 hedef içeriklerinin hiçbiri v1 ile ortak değildir; digest `d63fd30e62e0b9559dc41a042585729579297c0dc65f591ebed4fe95b6a8a575`.
+3. **Kapı öncesi v2 referansı (bu ekle birlikte ölçüldü):** A0 13 / A1 13 / A2 18 / O 24 doğru; yanlış yazma A0 0 / A1 13 / A2 3. A2'nin üç yanlış yazması üç korunan bağlam vakasıdır. Verdict `REJECT`.
+4. **Karar kuralı:** Doğrulayıcı verdict yalnız v2 üzerinden, §7 sözleşmesi değiştirilmeden verilir. v1'in kapıyla yeniden ölçümü yalnız tanısal olarak raporlanır ve kazanç kanıtı sayılmaz. Kapı kuralı ya da v2 külliyesi, kapı ölçüldükten sonra değiştirilirse sonuç `REJECT` olur.
