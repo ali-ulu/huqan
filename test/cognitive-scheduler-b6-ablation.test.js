@@ -50,10 +50,21 @@ function freshAgent(dir, options = {}) {
   });
 }
 
+/**
+ * The default storage opens its own SQLite handle at dir/memory.db. Close it
+ * before removing the temp directory: Windows refuses to delete a file whose
+ * handle is still open (EPERM), and a best-effort rm keeps the failure from
+ * masking the assertion that already ran.
+ */
+function releaseAgentStorage(agent, dir) {
+  try { agent.storage.close(); } catch (_) { /* closing is best effort */ }
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* removing is best effort */ }
+}
+
 test('an opt-in scheduler reorders plan steps before the loop drains them', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1-sched-on-'));
+  const agent = freshAgent(dir);
   try {
-    const agent = freshAgent(dir);
     const plan = agent.plan('dream kedi hayvandir mi?');
     assert.deepEqual(plan.data.steps.map((step) => step.action), ['ask', 'verify', 'dream']);
 
@@ -67,19 +78,19 @@ test('an opt-in scheduler reorders plan steps before the loop drains them', () =
     // The goal names "dream", so relevance lifts the dream step ahead of ask.
     assert.equal(run.data.steps[0].action, 'dream');
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    releaseAgentStorage(agent, dir);
   }
 });
 
 test('without the option the run keeps its FIFO order', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1-sched-off-'));
+  const agent = freshAgent(dir);
   try {
-    const agent = freshAgent(dir);
     const run = agent.run('dream kedi hayvandir mi?', { resume: false, maxIterations: 1, timeBudgetMs: 5000 });
     assert.equal(run.ok, true);
     assert.equal(run.data.steps[0].action, 'ask');
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    releaseAgentStorage(agent, dir);
   }
 });
 
