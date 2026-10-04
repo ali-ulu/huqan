@@ -918,6 +918,27 @@ jobs:
           persist-credentials: false
       - name: Fetch baseline branch for live Git validation
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # The full suite runs test/agent-context.test.js, whose live Git guard
+      # needs a named branch and an origin/main the checked-out commit descends
+      # from. actions/checkout leaves pull-request worktrees detached, so the
+      # guard fails closed on branch identity alone -- the same root cause
+      # #2616 fixed for the shard and fast-contract jobs, which the coverage
+      # job never received. The four live Git tests therefore failed only in
+      # this job while a parallel job on the identical commit stayed green
+      # (#3426, run 37132172227).
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
+      - name: Name checked-out branch for live Git validation
+        env:
+          HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
+      - name: Materialize current baseline ancestry for live Git validation
+        if: github.event_name == 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
