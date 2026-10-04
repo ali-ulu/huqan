@@ -54,12 +54,13 @@ function parseProcessTable(text) {
     if (line.includes('|')) {
       const [pid, ppid, third = '', ...rest] = line.split('|');
       const creation = Number(third);
-      const hasCreation = rest.length > 0 && Number.isFinite(creation) && creation > 0;
+      const hasCreationField = rest.length > 0 && /^\d+$/.test(third.trim());
+      const hasCreation = hasCreationField && Number.isFinite(creation) && creation > 0;
       const row = {
         pid: Number(pid),
         ppid: Number(ppid),
         elapsed: null,
-        command: (hasCreation ? rest : [third, ...rest]).join('|').trim(),
+        command: (hasCreationField ? rest : [third, ...rest]).join('|').trim(),
       };
       if (hasCreation) row.created = creation;
       rows.push(row);
