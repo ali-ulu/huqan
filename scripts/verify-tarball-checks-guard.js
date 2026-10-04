@@ -51,6 +51,21 @@ function verifyDecisionExplainer(label, consumer, env) {
   else fail(`${label}: installed runCapability('explain') failed\n${probe.output.slice(-1000)}`);
 }
 
+/**
+ * #3419: the probes below used `try { JSON.parse(x) } catch (_) {}`, which
+ * collapsed "the child printed a non-JSON stream" and "the child printed JSON
+ * whose decision failed" into the same generic verdict. Parse once with the
+ * process context attached so a malformed stream names its source instead of
+ * silently leaving the variable null.
+ */
+function parseJsonOutput(result, describe) {
+  try {
+    return { value: JSON.parse(result.stdout), error: null };
+  } catch (error) {
+    return { value: null, error: `${describe} stdout is not JSON: ${error.message}` };
+  }
+}
+
 function verifyExternalGuard(label, binDir, cwd, env) {
   const guardBin = packageBin(binDir, 'huqan-gate');
   if (!fs.existsSync(guardBin)) return;
@@ -71,12 +86,12 @@ function verifyExternalGuard(label, binDir, cwd, env) {
     '--memory-path', path.join(cwd, 'guard-memory.json'),
     '--db-path', path.join(cwd, 'guard-memory.db'),
   ], { cwd, env, input: payload, timeoutMs: 60 * 1000 });
-  let output = null;
-  try { output = JSON.parse(guard.stdout); } catch (_) {}
-  if (guard.status === 2 && output?.decision === 'block' && fs.existsSync(receiptLog)) {
+  const output = parseJsonOutput(guard, 'installed huqan-gate block probe');
+  if (guard.status === 2 && output.value?.decision === 'block' && fs.existsSync(receiptLog)) {
     ok('installed huqan-gate blocks a denylisted command and persists a receipt');
   } else {
-    fail(`${label}: installed huqan-gate did not fail closed\n${guard.output.slice(-1000)}`);
+    fail(`${label}: installed huqan-gate did not fail closed`
+      + `${output.error ? ` (${output.error})` : ''}\n${guard.output.slice(-1000)}`);
   }
 
   const installRoot = path.join(cwd, 'gate-install-probe');
@@ -84,18 +99,19 @@ function verifyExternalGuard(label, binDir, cwd, env) {
   const install = run(guardBin, ['install', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
   const status = run(guardBin, ['status', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
   const uninstall = run(guardBin, ['uninstall', '--profile', 'codex', '--target-root', installRoot], { cwd, env });
-  let installOutput = null;
-  let statusOutput = null;
-  let uninstallOutput = null;
-  try { installOutput = JSON.parse(install.stdout); } catch (_) {}
-  try { statusOutput = JSON.parse(status.stdout); } catch (_) {}
-  try { uninstallOutput = JSON.parse(uninstall.stdout); } catch (_) {}
-  if (install.status === 0 && installOutput?.sentinel?.decision === 'block'
-      && status.status === 0 && statusOutput?.clients?.[0]?.installed === true
-      && uninstall.status === 0 && uninstallOutput?.removed === true) {
+  const installOutput = parseJsonOutput(install, 'installed huqan-gate install');
+  const statusOutput = parseJsonOutput(status, 'installed huqan-gate status');
+  const uninstallOutput = parseJsonOutput(uninstall, 'installed huqan-gate uninstall');
+  if (install.status === 0 && installOutput.value?.sentinel?.decision === 'block'
+      && status.status === 0 && statusOutput.value?.clients?.[0]?.installed === true
+      && uninstall.status === 0 && uninstallOutput.value?.removed === true) {
     ok('installed huqan-gate can install, self-validate, report, and uninstall the Codex profile');
   } else {
-    fail(`${label}: installed huqan-gate management lifecycle failed\n`
+    const parseErrors = [installOutput, statusOutput, uninstallOutput]
+      .map((parsed) => parsed.error)
+      .filter(Boolean);
+    fail(`${label}: installed huqan-gate management lifecycle failed`
+      + `${parseErrors.length > 0 ? ` (${parseErrors.join('; ')})` : ''}\n`
       + `${[install.output, status.output, uninstall.output].join('\n').slice(-2000)}`);
   }
 }
@@ -173,6 +189,7 @@ function verifyMcp(label, binDir, cwd, env, expectedVersion = pkg.version) {
 }
 
 module.exports = {
+  parseJsonOutput,
   verifyA2aRuntime,
   verifyDecisionExplainer,
   verifyExternalGuard,
