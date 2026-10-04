@@ -123,6 +123,39 @@ test('bounded input and unavailable native SQLite fail closed and release the st
   release();
 });
 
+test('marker path replacement cannot change the already-opened marker evidence', async t => {
+  const box = sandbox(t);
+  const input = comparisonInput();
+  const state = invoke(['init', '--root', box.root], input, box).output.state;
+  const markerPath = path.join(state, 'comparison-state.json');
+  const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  const read = fs.readFileSync;
+  const readSync = fs.readSync;
+  let swapped = false;
+  let opened = 0;
+  const replacePath = file => {
+    if (!swapped && (file === markerPath || typeof file === 'number')) {
+      fs.renameSync(markerPath, `${markerPath}.prior`);
+      fs.writeFileSync(markerPath, JSON.stringify({ ...marker, designDigest: 'a'.repeat(64) }));
+      swapped = true;
+    }
+  };
+  fs.readFileSync = (file, ...args) => {
+    replacePath(file);
+    return read(file, ...args);
+  };
+  fs.readSync = (file, ...args) => { replacePath(file); return readSync(file, ...args); };
+  try {
+    await assert.rejects(runCognitiveLab(['report', '--state', state], {
+      stdin: Readable.from([JSON.stringify({ runId: input.runId })]),
+      readDesign: () => ({ digest: marker.designDigest }),
+      openGraph: () => { opened += 1; throw new Error('verified initial marker'); },
+    }), /verified initial marker/);
+    assert.equal(swapped, true);
+    assert.equal(opened, 1);
+  } finally { fs.readFileSync = read; fs.readSync = readSync; }
+});
+
 test('forged marker and absent store are rejected before any SQLite schema or file write', t => {
   const box = sandbox(t);
   const state = fs.mkdtempSync(path.join(box.root, 'huqan-cognitive-lab-'));

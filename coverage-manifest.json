@@ -2,18 +2,18 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 56,
-    "sites": 121,
+    "files": 58,
+    "sites": 127,
     "byCapability": {
       "process": 18,
       "egress": 4,
-      "fs_write": 99
+      "fs_write": 105
     },
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
+      "operator_tool": 30,
       "persistence": 37,
-      "operator_tool": 24,
       "evidence": 14,
       "egress_operator_gated": 2,
       "unguarded": 3
@@ -105,6 +105,36 @@
           "line": 30,
           "capability": "egress",
           "call": "fetch"
+        }
+      ]
+    },
+    {
+      "file": "bin/huqan-cognitive-lab.js",
+      "role": "operator_tool",
+      "why": "the directly invoked isolated calibration CLI copies DB/WAL into its own mkdtemp directory for read-only authentication and removes only that private scratch directory; it exposes no agent-request route and never writes the supplied database during this check",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 19,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 23,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 24,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 34,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
         }
       ]
     },
@@ -275,6 +305,26 @@
           "line": 96,
           "capability": "process",
           "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cognitive-lab-cli.js",
+      "role": "operator_tool",
+      "why": "the directly invoked calibration CLI creates only its own private lab directory and exclusive state marker beneath the operator root; existing state is bound to a frozen experiment and locked before its Graph journal is opened, without writing canonical memory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 86,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 88,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
         }
       ]
     },
