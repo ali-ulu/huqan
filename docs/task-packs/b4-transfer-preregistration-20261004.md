@@ -1,6 +1,6 @@
 # B4 — Learned procedure transfer ön-kaydı (preregistration)
 
-**Status:** ölçüm ÖNCESİ a priori protokol taslağı; implementation ve sonuç yoktur, gain iddiası yoktur. Görev ailesi maintainer kararıyla seçildi (§3). Eşikler (§7) ve külliye dağılımı (§4, §8) **önerilen** değerlerdir; implementation PR'ı açılmadan önce maintainer onayıyla kilitlenir.
+**Status:** protokol ölçümden önce kilitlendi. Görev ailesi (§3), eşikler (§7) ve dağılım (§8) 4 Ekim 2026'da maintainer tarafından onaylandı. Ölçüm koşuldu; sonuç §16'dadır. Gain iddiası yoktur.
 **Base:** `6850fe9c` (main), package `0.13.2`.
 **Issue:** [#3310](https://github.com/ali-ulu/huqan/issues/3310), program [#3306](https://github.com/ali-ulu/huqan/issues/3306). Öncül: kaynak admission kabul matrisi #3445, kalıcı kayıt şartı #3443; biçim referansı B6 ön-kaydı (#3444/#3446).
 **Reuse:** `lib/coder/apply-derivation.js` (public giriş), `lib/experience/coder-routing-runtime.js` (learned route), `lib/coder/journal-store.js`, `lib/experience/budgeted-journal.js` (deterministik bütçe saati), `lib/cognitive-lab-manifest.js` (`computeManifestDigest`), B6'nın paired bootstrap / `lockContract` deseni (`test/cognitive-lab-b6-scheduler.test.js`).
@@ -73,7 +73,7 @@ Bu yüzden B4 külliyesi **eksik tanımlı görev** ailesidir (§3): görev yaln
 
 Primer fark görev başına ikilidir (doğru = 1); B6'daki seeded paired bootstrap uygulanır.
 
-## 7. Önerilen eşikler (maintainer onayı bekliyor)
+## 7. Ön-kayıtlı eşikler (kilitlendi, 4 Ekim 2026)
 
 Değerler ölçümden **önce** kilitlenir; artefakt implementation testindeki `CONTRACT` olur ve bilinmeyen/eksik alan reddedilir:
 
@@ -112,7 +112,7 @@ Aşağıdakilerden biri olursa deney durdurulur ve `INSUFFICIENT`/`REJECT` rapor
 
 ## 12. Açık sorular
 
-1. **Eşikler (§7) ve dağılım (§8):** maintainer onayı bekliyor.
+1. **Eşikler (§7) ve dağılım (§8):** onaylandı ve kilitlendi.
 2. **Sınıf (iii) "anlam olarak yanlış bağlam" vakaları:** bugünkü kapılar bunu ayırt edemez. Vakalar iki kolu da cezalandırır ve bu bilinçli bir tercihtir. Vakalar külliyeden çıkarılırsa ölçüm learned route lehine çarpık olur.
 3. **Transfer splitinin primer olmaması:** mevcut prosedür yola bağlı olduğu için transfer primer seçilirse sonuç yapı gereği negatif çıkar. Yol genellemesi ayrı bir ürün kararıdır.
 
@@ -126,9 +126,29 @@ npm run check:cycles && npm run check:module-boundary && npm run check:layers &&
 
 ## 14. Kapsam
 
-- İçinde: bu ön-kayıt; sonraki dilimde §11 wiring'i, harness ve ölçüm testi.
+- İçinde: bu ön-kayıt, §11 wiring'i (`experience.intentOnly`), harness ve ölçüm testi.
 - Dışında: yol/bağlam genellemesi, otomatik prosedür üretimi, yeni authority/receipt, policy/threshold genişletme, release değişikliği, diğer canary/PEM/fallback modüllerinin topluca bağlanması.
 
 ## 15. Göz testi
 
 Külliye hash'i ve split kimlikleri kayıtlı; dört kol için bütçe eşit ve birimleri tanımlı; `mechanisms.B4 = ENABLED`, diğerleri `NOT_MEASURED`; primer metrik A2 − A1 doğru-sonuç oranı; A2 yanlış yazmada `REJECT`; holdout içeriğini train'e kopyalayan fixture `REJECT` verir; aynı kol yeniden koşulduğunda correctness digest'i aynı.
+
+## 16. Sonuç (B4, mevcut learned route ile)
+
+Ölçüm kilitli külliye ve sözleşmeyle koşuldu (`test/cognitive-lab-b4-transfer.test.js`, harness `test/helpers/cognitive-lab-b4-transfer.js`). Her kol görev başına tek dispatch harcadı. Aynı koşu iki kez tekrarlandığında sonuçlar birebir aynı çıktı.
+
+| Split | n | A0 doğru | A1 doğru | A2 doğru | O doğru |
+|---|---|---|---|---|---|
+| **holdout (primer)** | **24** | 13 | 13 | **18** | 24 |
+| transfer | 8 | 2 | 6 | 2 | 8 |
+
+| Yanlış yazma (tüm görevler) | A0 | A1 | A2 |
+|---|---|---|---|
+| sayı | 0 | 13 | **3** |
+
+- **Verdict: `REJECT` (`candidate_wrong_write`), `assertsGain = false`, `intelligenceGain = NOT_MEASURED`.** A2'nin üç yanlış yazmasının üçü de sınıf (iii) "alıntılanmış geçmiş satır" vakasıdır: metin bir kez geçiyor ama değişmemesi gerekiyor, ve mevcut kapılar bağlamı ayırt etmiyor. Deneyimsiz baseline (A0) hiç yanlış yazmadı; bu, A0'a göre gerçek bir güven gerilemesidir.
+- **Guard olmasa da kazanç yok:** primer fark A2 − A1 = **+0,208** (5/24), %95 bootstrap aralığı **[−0,042; 0,458]**; alt sınır `meaningfulEffect = 0`'ı geçmiyor. Kapılar belirsiz hedef (3), güveni düşmüş kaynak (3) ve workspace dışı kaynak (2) vakalarında naif tekrarın 8 yanlış yazmasını önledi. Buna karşılık `medium` risk katmanında, yetersiz güven geçmişi nedeniyle 3 doğru değişikliği reddetti.
+- **İkincil:** A2 − A0 = +0,208, aynı aralık; oracle geri kazanımı 18/24 = 0,75.
+- **Transfer:** prosedür yola bağlı olduğu için A2, farklı yoldaki 6 uygulanabilir görevin hepsini reddetti (`source_procedure_mismatch`). Naif tekrar bu 6 görevi doğru yaptı ama 2 belirsiz vakada yanlış yazdı.
+- **Karar:** #3310'un B4 gain kabulü **karşılanmadı**. Bu dürüst bir negatif sonuçtur. Sonucu değiştirebilecek iki ayrı iş var ve ikisi de ürün kararıdır: (1) alıntı veya geçmiş satırı ayırt eden, bağlama duyarlı bir qualification kapısı; (2) yeterli geçmişi olmayan prosedürlerin `medium` risk katmanında nasıl ele alınacağı. Yol genellemesi ayrıca transfer splitini etkiler.
+- **Göz testi sapması (§15):** Cognitive Lab manifesti (`mechanisms.B4 = ENABLED`) bu dilimde üretilmedi. Külliye digest'i `computeManifestDigest({ tasks, sourceOperations })` ile hesaplanır ve testte sabitlenir.
