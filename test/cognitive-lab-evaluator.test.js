@@ -61,7 +61,7 @@ function manifest(overrides = {}) {
       B7: 'NOT_MEASURED',
       B8: 'NOT_MEASURED',
     },
-    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: 'unknown', wallTimeMs: 'unknown', compute: 'unknown' },
+    budget: { modelCalls: 8, toolCalls: 0, humanCalls: 0, tokens: null, wallTimeMs: null, compute: null },
     measurementVersion: 'cognitive-lab-v0.1',
     thresholdConfigHash: DIGEST,
     ...overrides,
@@ -132,6 +132,14 @@ test('baseline infrastructure PASS is not an intelligence gain PASS', (t) => {
   assert.notEqual(result.intelligenceGain, 'PASS');
 });
 
+test('v0.1 keeps calibration non-claims but retires B1 limitations resolved by #3309', (t) => {
+  const result = evaluate(withGraph(t), manifest(), experiment());
+  assert.equal(result.calibration.brier, 'NOT_MEASURED');
+  assert.equal(result.calibration.ece, 'NOT_MEASURED');
+  assert.equal(result.calibration.reason, 'NO_PRE_OUTCOME_PROBABILITY');
+  assert.deepEqual(result.knownLimitations, []);
+});
+
 test('evaluating the same frozen baseline twice yields the same digest', (t) => {
   const first = evaluate(withGraph(t), manifest(), experiment());
   const second = evaluate(withGraph(t), manifest(), experiment());
@@ -198,14 +206,26 @@ test('mutation: a tampered manifest is rejected before the run', (t) => {
   assert.equal(result.error.code, EVALUATOR_ERROR_CODES.INVALID_MANIFEST);
 });
 
+test('mutation: a self-consistent schema-invalid manifest is rejected', (t) => {
+  const invalidManifest = manifest();
+  invalidManifest.budget.tokens = 'unknown';
+  const result = evaluateGain(withGraph(t), {
+    manifest: invalidManifest,
+    manifestDigest: computeManifestDigest(invalidManifest),
+    experiment: experiment(),
+  });
+  assert.equal(result.status, EVALUATOR_STATUS.REJECT);
+  assert.equal(result.error.code, EVALUATOR_ERROR_CODES.INVALID_MANIFEST);
+});
+
 test('a missing outcome is INSUFFICIENT, never a silent success', (t) => {
   const graph = withGraph(t);
   const e = experiment({
     outcomes: { h1: 'censored', h2: 'censored' },
     observations: {},
-    split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
+    split: { train: ['t1'], holdout: ['h1', 'h2'], transfer: [] },
   });
-  const m = manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } });
+  const m = manifest({ split: { identity: DIGEST, train: ['t1'], holdout: ['h1', 'h2'], transfer: [] } });
   const result = evaluate(graph, m, e);
   assert.equal(result.status, EVALUATOR_STATUS.INSUFFICIENT);
   assert.equal(result.error.code, EVALUATOR_ERROR_CODES.MISSING_OUTCOME);
@@ -219,11 +239,13 @@ test('a missing outcome is INSUFFICIENT, never a silent success', (t) => {
 
 test('a refused evaluation keeps the benchmark but measures no gain dimension', (t) => {
   const insufficient = evaluate(withGraph(t), manifest({ split: { identity: DIGEST, train: [], holdout: ['h1', 'h2'], transfer: [] } }), experiment({
-    outcomes: { h1: 'censored', h2: 'censored' },
-    observations: {},
+    outcomes: { h1: 'confirmed', h2: 'incident' },
+    observations: { h1: 'observed', h2: 'observed' },
     split: { train: [], holdout: ['h1', 'h2'], transfer: [] },
   }));
   assert.equal(insufficient.status, EVALUATOR_STATUS.INSUFFICIENT);
+  assert.equal(insufficient.error.code, EVALUATOR_ERROR_CODES.MANIFEST_INSUFFICIENT);
+  assert.match(insufficient.integrity.detail, /manifest_empty_split/);
   assert.equal(insufficient.benchmark, 'B1');
   for (const dimension of GAIN_DIMENSIONS) {
     assert.equal(insufficient.gain[dimension], 'NOT_MEASURED', `${dimension} must not be measured on an insufficient replay`);

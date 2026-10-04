@@ -220,6 +220,19 @@ test('a changed field changes the digest', () => {
   assert.notEqual(base.digest, changed.digest);
 });
 
+test('frame and budget are bound by the manifest digest', () => {
+  const base = validateManifest(validInput()).digest;
+  const frameChanged = validateManifest(validInput({
+    frame: { repository: 'ali-ulu/huqan', branch: 'main', environment: 'ci', task: 'different-task' },
+  })).digest;
+  const budgetChanged = validateManifest(validInput({
+    budget: { modelCalls: 101, toolCalls: 200, humanCalls: 0, tokens: 50000, wallTimeMs: 120000, compute: null },
+  })).digest;
+  assert.notEqual(base, frameChanged);
+  assert.notEqual(base, budgetChanged);
+});
+
+
 test('buildManifest returns the frozen manifest and throws a typed error otherwise', () => {
   const built = buildManifest(validInput());
   assert.equal(built.manifest.seed, 42);
@@ -244,6 +257,24 @@ test('verifyManifestDigest accepts the real digest and rejects a tampered manife
   assert.equal(result.status, MANIFEST_STATUS.REJECT);
   assert.equal(result.errors[0].code, MANIFEST_ERROR_CODES.DIGEST_MISMATCH);
 });
+
+test('verifyManifestDigest rejects a self-consistent but schema-invalid manifest', () => {
+  const invalid = validInput();
+  invalid.budget.tokens = 'unknown';
+  const result = verifyManifestDigest(invalid, computeManifestDigest(invalid));
+  assert.equal(result.status, MANIFEST_STATUS.REJECT);
+  assert.equal(result.errors.find((entry) => entry.path === 'budget.tokens').code, MANIFEST_ERROR_CODES.INVALID_FIELD);
+});
+
+test('verifyManifestDigest preserves a shape-valid INSUFFICIENT verdict', () => {
+  const insufficient = validInput({
+    split: { identity: DIGEST_B, train: [], holdout: ['hold-1'], transfer: [] },
+  });
+  const result = verifyManifestDigest(insufficient, validateManifest(insufficient).digest);
+  assert.equal(result.status, MANIFEST_STATUS.INSUFFICIENT);
+  assert.equal(result.errors[0].code, MANIFEST_ERROR_CODES.EMPTY_SPLIT);
+});
+
 
 test('a non-object manifest is rejected rather than thrown on', () => {
   for (const value of [null, 'manifest', 42, []]) {
