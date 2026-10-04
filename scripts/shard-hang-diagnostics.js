@@ -43,16 +43,27 @@ const PROBE_TIMEOUT_MS = 10_000;
  * Two shapes, because `ps` does not exist on Windows -- it fails with ENOENT,
  * which would have made this produce nothing at all on the Windows matrix legs
  * (#2450) -- so the Windows probe asks the OS through PowerShell and prints
- * `pid|ppid|command`. Pure, so the parsing is pinned by a test rather than by a
- * live hang.
+ * `pid|ppid|created|command` (the parser also accepts the legacy three-field
+ * probe used by older fixtures). Pure, so the parsing is pinned by a test rather
+ * than by a live hang.
  */
 function parseProcessTable(text) {
   const rows = [];
   for (const line of String(text).split(/\r?\n/)) {
     if (line.trim() === '') continue;
     if (line.includes('|')) {
-      const [pid, ppid, ...rest] = line.split('|');
-      rows.push({ pid: Number(pid), ppid: Number(ppid), elapsed: null, command: rest.join('|').trim() });
+      const [pid, ppid, third = '', ...rest] = line.split('|');
+      const creation = Number(third);
+      const hasCreationField = rest.length > 0 && /^\d+$/.test(third.trim());
+      const hasCreation = hasCreationField && Number.isFinite(creation) && creation > 0;
+      const row = {
+        pid: Number(pid),
+        ppid: Number(ppid),
+        elapsed: null,
+        command: (hasCreationField ? rest : [third, ...rest]).join('|').trim(),
+      };
+      if (hasCreation) row.created = creation;
+      rows.push(row);
       continue;
     }
     const match = /^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/.exec(line);
@@ -76,15 +87,24 @@ function collectDescendants(rows, rootPid, maxRows = Infinity) {
     if (!byParent.has(row.ppid)) byParent.set(row.ppid, []);
     byParent.get(row.ppid).push(row);
   }
+  const root = rows.find(row => row.pid === rootPid);
   const collected = [];
-  const walk = (pid, depth) => {
+  const seen = new Set([rootPid]);
+  const walk = (pid, depth, parentCreated) => {
     for (const row of byParent.get(pid) || []) {
       if (collected.length >= maxRows) return;
+      if (seen.has(row.pid)) continue;
+      // Win32_Process.ParentProcessId is the creator PID, not a live parent
+      // identity. A long-lived process can therefore point at a PID that was
+      // later reused by this test tree. Creation time makes that stale edge
+      // impossible: a child cannot predate its parent.
+      if (parentCreated != null && row.created != null && row.created < parentCreated) continue;
+      seen.add(row.pid);
       collected.push({ row, depth });
-      walk(row.pid, depth + 1);
+      walk(row.pid, depth + 1, row.created ?? parentCreated);
     }
   };
-  walk(rootPid, 0);
+  walk(rootPid, 0, root?.created ?? null);
   return collected;
 }
 
@@ -104,7 +124,7 @@ function readProcessTable() {
   const [command, args] = process.platform === 'win32'
     ? ['powershell.exe', [
       '-NoProfile', '-NonInteractive', '-Command',
-      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)|$($_.ParentProcessId)|$($_.CommandLine)" }',
+      'Get-CimInstance Win32_Process | ForEach-Object { $c=0; if ($_.CreationDate) { $c=$_.CreationDate.ToUniversalTime().Ticks }; "$($_.ProcessId)|$($_.ParentProcessId)|$c|$($_.CommandLine)" }',
     ]]
     : ['ps', ['-e', '-o', 'pid=,ppid=,etime=,args=']];
   const result = spawnSync(command, args, { encoding: 'utf8', timeout: PROBE_TIMEOUT_MS, windowsHide: true });
@@ -144,6 +164,37 @@ function killProcessTree(rootPid) {
   }
 }
 
+
+/**
+ * Describe, without executing, how a timed-out process tree should be killed.
+ *
+ * Keeping the platform decision pure is important for two reasons: Linux
+ * coverage can exercise the Windows safety policy, and the timeout callback no
+ * longer hides a large untestable win32 branch. On Windows with a trustworthy
+ * process snapshot, only creation-time-validated PIDs are targeted; on a CIM
+ * outage taskkill /T remains the last-resort tree cleanup. The final pass never
+ * re-targets snapshot descendants because their PIDs may have been reused.
+ */
+function timeoutKillPlan(platform, rootPid, descendants, tableAvailable, finalPass = false) {
+  const signal = finalPass ? 'SIGKILL' : 'SIGTERM';
+  if (platform !== 'win32') {
+    return { treeRoot: null, pids: [rootPid, ...descendants], signal };
+  }
+  if (!tableAvailable) {
+    return { treeRoot: rootPid, pids: [rootPid], signal };
+  }
+  if (finalPass) {
+    return { treeRoot: null, pids: [rootPid], signal };
+  }
+  return { treeRoot: null, pids: [...descendants].reverse().concat(rootPid), signal };
+}
+
+/** Execute a kill plan. Dependencies are injectable so every branch is testable. */
+function executeKillPlan(plan, { killTree = killProcessTree, terminate = terminatePid } = {}) {
+  if (plan.treeRoot !== null) killTree(plan.treeRoot);
+  for (const pid of plan.pids) terminate(pid, plan.signal);
+}
+
 /**
  * Print the child's process tree and return the pids to terminate with it.
  *
@@ -156,13 +207,16 @@ function reportChildTree(rootPid, shard, file) {
   const table = readProcessTable();
   if (!table) {
     console.error(`${prefix} ${file} timed out; this platform produced no process table to explain it (#2814)`);
-    return [];
+    return { descendants: [], tableAvailable: false };
   }
   const lines = formatProcessTree(table, rootPid);
   console.error(`${prefix} process tree under pid ${rootPid} when ${file} was killed (${lines.length} descendant${lines.length === 1 ? '' : 's'}, #2814):`);
   if (lines.length === 0) console.error(`${prefix}   (no descendant process: the file's own process was what hung)`);
   for (const line of lines) console.error(`${prefix}   ${line}`);
-  return collectDescendants(table, rootPid).map(({ row }) => row.pid);
+  return {
+    descendants: collectDescendants(table, rootPid).map(({ row }) => row.pid),
+    tableAvailable: true,
+  };
 }
 
 /**
@@ -217,16 +271,17 @@ function runFileToDeadline({ cwd, file, partPath, concurrency, env, timeoutMs, s
     // file that actually hangs; the grace below only bounds the killing.
     deadlineTimer = setTimeout(() => {
       timedOut = true;
-      const descendants = reportChildTree(child.pid, shard, file);
-      // The tree kill needs no table, so a grandchild is reaped even on the
-      // legs where the probe produced nothing; the per-pid kills stay as the
-      // POSIX path and the backstop.
-      killProcessTree(child.pid);
-      for (const pid of [child.pid, ...descendants]) terminatePid(pid, 'SIGTERM');
-      // A process that ignores SIGTERM must not hold the whole shard: the
-      // deadline bounds the run, and the report is written either way.
+      const { descendants, tableAvailable } = reportChildTree(child.pid, shard, file);
+      executeKillPlan(timeoutKillPlan(
+        process.platform, child.pid, descendants, tableAvailable, false,
+      ));
+      // A process that ignores SIGTERM must not hold the whole shard. The pure
+      // plan keeps Windows from re-targeting descendant PIDs after the grace
+      // period, when a dead child PID might already have been reused.
       killTimer = setTimeout(() => {
-        for (const pid of [child.pid, ...descendants]) terminatePid(pid, 'SIGKILL');
+        executeKillPlan(timeoutKillPlan(
+          process.platform, child.pid, descendants, tableAvailable, true,
+        ));
         settle({ status: null, signal: 'SIGKILL', timedOut: true });
       }, KILL_GRACE_MS);
       killTimer.unref?.();
@@ -240,9 +295,11 @@ module.exports = {
   KILL_GRACE_MS,
   PROBE_TIMEOUT_MS,
   collectDescendants,
+  executeKillPlan,
   formatProcessTree,
   killProcessTree,
   parseProcessTable,
   runFileToDeadline,
+  timeoutKillPlan,
   testArgsFor,
 };

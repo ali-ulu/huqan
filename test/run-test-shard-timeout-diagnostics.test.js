@@ -16,11 +16,13 @@ const { DEFAULT_FILE_TIMEOUT_MS } = require('../scripts/run-test-shard');
 const {
   KILL_GRACE_MS,
   collectDescendants,
+  executeKillPlan,
   formatProcessTree,
   killProcessTree,
   parseProcessTable,
   runFileToDeadline,
   testArgsFor,
+  timeoutKillPlan,
 } = require('../scripts/shard-hang-diagnostics');
 
 // Attribute order in the arg list is what binds a destination to a reporter, so
@@ -69,7 +71,7 @@ describe('shard-hang-diagnostics process table (#2814)', () => {
   // `ps` does not exist on Windows (ENOENT), so the Windows legs get their table
   // from PowerShell instead. A single-format parser would print no diagnostic at
   // all on exactly the matrix legs #2450 added.
-  test('the Windows probe format is parsed too, and an empty command survives it', () => {
+  test('the legacy Windows probe format is parsed too, and an empty command survives it', () => {
     const rows = parseProcessTable([
       '240|1|node.exe --test test/ui-command-policy-browser-smoke.test.js',
       '321|240|',
@@ -78,6 +80,80 @@ describe('shard-hang-diagnostics process table (#2814)', () => {
       { pid: 240, ppid: 1, elapsed: null, command: 'node.exe --test test/ui-command-policy-browser-smoke.test.js' },
       { pid: 321, ppid: 240, elapsed: null, command: '' },
     ]);
+  });
+
+  test('the current Windows probe carries creation time without leaking a missing zero into command', () => {
+    const rows = parseProcessTable([
+      '240|1|1000|node.exe --test test/x.test.js',
+      '321|240|1100|node.exe -e child',
+      '555|321|0|',
+    ].join('\r\n'));
+    assert.deepEqual(rows, [
+      { pid: 240, ppid: 1, elapsed: null, command: 'node.exe --test test/x.test.js', created: 1000 },
+      { pid: 321, ppid: 240, elapsed: null, command: 'node.exe -e child', created: 1100 },
+      { pid: 555, ppid: 321, elapsed: null, command: '' },
+    ]);
+  });
+});
+
+describe('shard-hang-diagnostics timeout kill policy (#2814)', () => {
+  test('POSIX plans target the root and validated descendants on both passes', () => {
+    assert.deepEqual(
+      timeoutKillPlan('linux', 10, [11, 12], true, false),
+      { treeRoot: null, pids: [10, 11, 12], signal: 'SIGTERM' },
+    );
+    assert.deepEqual(
+      timeoutKillPlan('linux', 10, [11, 12], true, true),
+      { treeRoot: null, pids: [10, 11, 12], signal: 'SIGKILL' },
+    );
+  });
+
+  test('Windows with a process table kills validated descendants deepest-first only on the first pass', () => {
+    assert.deepEqual(
+      timeoutKillPlan('win32', 10, [11, 12], true, false),
+      { treeRoot: null, pids: [12, 11, 10], signal: 'SIGTERM' },
+    );
+    assert.deepEqual(
+      timeoutKillPlan('win32', 10, [11, 12], true, true),
+      { treeRoot: null, pids: [10], signal: 'SIGKILL' },
+    );
+  });
+
+  test('Windows without a process table falls back to taskkill on both passes', () => {
+    assert.deepEqual(
+      timeoutKillPlan('win32', 10, [11, 12], false, false),
+      { treeRoot: 10, pids: [10], signal: 'SIGTERM' },
+    );
+    assert.deepEqual(
+      timeoutKillPlan('win32', 10, [11, 12], false, true),
+      { treeRoot: 10, pids: [10], signal: 'SIGKILL' },
+    );
+  });
+
+  test('executeKillPlan invokes only the operations named by the plan', () => {
+    const calls = [];
+    executeKillPlan(
+      { treeRoot: 10, pids: [12, 10], signal: 'SIGTERM' },
+      {
+        killTree: pid => calls.push(['tree', pid]),
+        terminate: (pid, signal) => calls.push(['pid', pid, signal]),
+      },
+    );
+    assert.deepEqual(calls, [
+      ['tree', 10],
+      ['pid', 12, 'SIGTERM'],
+      ['pid', 10, 'SIGTERM'],
+    ]);
+
+    calls.length = 0;
+    executeKillPlan(
+      { treeRoot: null, pids: [10], signal: 'SIGKILL' },
+      {
+        killTree: pid => calls.push(['tree', pid]),
+        terminate: (pid, signal) => calls.push(['pid', pid, signal]),
+      },
+    );
+    assert.deepEqual(calls, [['pid', 10, 'SIGKILL']]);
   });
 });
 
@@ -98,6 +174,33 @@ describe('shard-hang-diagnostics process tree (#2814)', () => {
       [[241, 0], [242, 1]],
     );
     assert.equal(lines.some(line => line.includes('sbin/init')), false, 'a sibling of the child is not its descendant');
+  });
+
+  test('an older Windows process with a reused parent PID is not treated as a descendant', () => {
+    const rows = [
+      { pid: 240, ppid: 1, elapsed: null, created: 1_000, command: 'node.exe --test test/x.test.js' },
+      { pid: 241, ppid: 240, elapsed: null, created: 1_100, command: 'node.exe -e child' },
+      // Win32_Process.ParentProcessId records the creator PID. If 241 was later
+      // reused, an older system process can still appear to point at it.
+      { pid: 900, ppid: 241, elapsed: null, created: 500, command: 'winlogon.exe' },
+    ];
+    assert.deepEqual(
+      collectDescendants(rows, 240).map(({ row }) => row.pid),
+      [241],
+    );
+    assert.equal(formatProcessTree(rows, 240).some(line => line.includes('winlogon.exe')), false);
+  });
+
+  test('a malformed PID cycle is bounded instead of revisiting the same process', () => {
+    const rows = [
+      { pid: 240, ppid: 242, elapsed: null, command: 'root' },
+      { pid: 241, ppid: 240, elapsed: null, command: 'child' },
+      { pid: 242, ppid: 241, elapsed: null, command: 'cycle' },
+    ];
+    assert.deepEqual(
+      collectDescendants(rows, 240).map(({ row }) => row.pid),
+      [241, 242],
+    );
   });
 
   test('a reaped root yields no tree instead of a wrong one', () => {
