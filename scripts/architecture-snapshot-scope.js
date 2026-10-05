@@ -176,6 +176,15 @@ const FAN_OUT_SIGNAL = 20;
  */
 const FANOUT_ALLOWED = Object.freeze([
   {
+    file: 'index.js',
+    ceiling: 21,
+    why: 'The package-root facade exports the existing SDK ports plus CausalRuntime and LearnedCausalEngine (#3467). '
+      + 'These requires expose public constructors only; episode learning and execution remain in lib/causal/. '
+      + 'docs/causal-learning-r12.md and test/learned-causal-engine.test.js pin the public caller. '
+      + 'No domain decisions live in this entrypoint.',
+    review_by: '2026-12-31',
+  },
+  {
     file: 'kernel.js',
     ceiling: 28,
     why: 'The remaining requires wire the admission-gated learn() chokepoint and its single audit sink, which '
