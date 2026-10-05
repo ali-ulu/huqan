@@ -214,6 +214,22 @@ test('corrupt, non-object and unbounded request files fail closed', (t) => {
   assertCanonicalUntouched(box);
 });
 
+test('a symlinked request file is refused rather than followed', (t) => {
+  const box = sandbox(t);
+  const target = writeText(box, 'real.json', JSON.stringify(replayRequest()));
+  const link = path.join(box.root, 'link.json');
+  try {
+    fs.symlinkSync(target, link, 'file');
+  } catch (error) {
+    t.skip(`symlink unsupported on this platform: ${error.code}`);
+    return;
+  }
+  const refused = invoke(['replay', '--replay-manifest', link], box);
+  assert.equal(refused.code, 1);
+  assert.equal(refused.output.status, 'REJECT');
+  assertCanonicalUntouched(box);
+});
+
 test('a tampered or schema-invalid manifest is rejected with no canonical writes', (t) => {
   const box = sandbox(t);
   const tampered = replayRequest({ manifestDigest: DIGEST });
