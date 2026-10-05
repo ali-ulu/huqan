@@ -5,6 +5,7 @@ const { Graph } = require('./graph');
 const { clamp01, findScopedNode, simulationOverlay, uniqueStrings } = require('./lib/causal-simulator-scoring');
 const { dedupeAffectedNodes, missingNodeResult, scoreChains } = require('./lib/causal-simulator-chains');
 const { describeChain, deriveRecommendation, generateSummary } = require('./lib/causal-simulator-report');
+const { rollout, compare, explainPrediction } = require('./lib/causal/symbolic-world-model');
 
 class CausalSimulator {
   constructor(graph, { causalRuntime = null } = {}) {
@@ -29,6 +30,21 @@ class CausalSimulator {
   explainFailure(input) {
     if (!this.causalRuntime) return { status: 'UNKNOWN', reason: 'learned_causal_runtime_not_configured' };
     return this.causalRuntime.failure(input);
+  }
+
+  // Level 2 world model (#3468): bounded multistep rollout over learned steps.
+  rolloutPlan(input) {
+    if (!this.causalRuntime) return { level: 2, status: 'UNKNOWN', reason: 'learned_causal_runtime_not_configured', steps: [], finalState: null };
+    return rollout(this.causalRuntime.snapshot(), input);
+  }
+
+  comparePlans(input) {
+    if (!this.causalRuntime) return { level: 2, status: 'UNKNOWN', reason: 'learned_causal_runtime_not_configured', selected: null, alternatives: [] };
+    return compare(this.causalRuntime.snapshot(), input);
+  }
+
+  explainPrediction(result) {
+    return explainPrediction(result);
   }
 
   /**
