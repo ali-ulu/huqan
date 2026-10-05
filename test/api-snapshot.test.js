@@ -89,6 +89,73 @@ test('API snapshot order does not depend on the host locale', () => {
   assert.ok(commands.indexOf('öğret') < commands.indexOf('onayla'), commands.join(' '));
 });
 
+test('API diff judges union branches as schemas, not as opaque set members', () => {
+  const base = {
+    exports: [], types: [],
+    mcp: [{
+      name: 'huqan.example',
+      inputSchema: { type: 'object', properties: {} },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          data: { anyOf: [{ type: 'null' }, { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }] },
+        },
+      },
+      annotations: {},
+    }],
+  };
+
+  // Adding an optional property inside a branch is additive.
+  const additive = structuredClone(base);
+  additive.mcp[0].outputSchema.properties.data.anyOf[1].properties.note = { type: 'string' };
+  assert.deepEqual(diffSnapshots(base, additive).breaking, []);
+
+  // Reordering the branches is not a removal.
+  const reordered = structuredClone(base);
+  reordered.mcp[0].outputSchema.properties.data.anyOf.reverse();
+  assert.deepEqual(diffSnapshots(base, reordered).breaking, []);
+
+  // Dropping a branch is still a removal.
+  const dropped = structuredClone(base);
+  dropped.mcp[0].outputSchema.properties.data.anyOf = [dropped.mcp[0].outputSchema.properties.data.anyOf[1]];
+  assert.ok(diffSnapshots(base, dropped).breaking.some((item) => item.reason.includes('accepted schema value removed')));
+
+  // Removing a property inside a branch is still a removal.
+  const shrunk = structuredClone(base);
+  delete shrunk.mcp[0].outputSchema.properties.data.anyOf[1].properties.id;
+  assert.ok(diffSnapshots(base, shrunk).breaking.some((item) => item.reason.includes('property removed (id)')));
+
+  // Branches that share a `type` must be paired by identity, not by order: a
+  // reorder of two `string` branches with different enums is not a change.
+  const repeated = {
+    exports: [], types: [],
+    mcp: [{
+      name: 'huqan.example',
+      inputSchema: { type: 'object', properties: {} },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          value: { anyOf: [{ type: 'string', enum: ['a'] }, { type: 'string', enum: ['b'] }] },
+        },
+      },
+      annotations: {},
+    }],
+  };
+  const repeatedReordered = structuredClone(repeated);
+  repeatedReordered.mcp[0].outputSchema.properties.value.anyOf.reverse();
+  assert.deepEqual(diffSnapshots(repeated, repeatedReordered).breaking, []);
+
+  // A constraint keyword that compareSchema does not itself walk (minItems)
+  // still narrows acceptance, so changing it inside a branch is breaking.
+  const constrained = structuredClone(repeated);
+  constrained.mcp[0].outputSchema.properties.value.anyOf[0] = { type: 'array', minItems: 1 };
+  constrained.mcp[0].outputSchema.properties.value.anyOf[1] = { type: 'array', minItems: 1 };
+  const tightened = structuredClone(constrained);
+  tightened.mcp[0].outputSchema.properties.value.anyOf[0] = { type: 'array', minItems: 2 };
+  tightened.mcp[0].outputSchema.properties.value.anyOf[1] = { type: 'array', minItems: 2 };
+  assert.ok(diffSnapshots(constrained, tightened).breaking.some((item) => item.reason.includes('minItems: constraint changed')));
+});
+
 function typeSnapshot(kind, name, signature) {
   return { exports: [], types: [{ file: 'x.d.ts', declarations: [{ kind, name, signature }] }] };
 }

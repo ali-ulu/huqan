@@ -17,7 +17,7 @@ const PARAMS = { path: 'notes.txt', oldText: 'draft', newText: 'final' };
 
 test('learning command preserves invalid JSON and missing operands for admission to reject', () => {
   assert.deepEqual(parseExperienceLearnArgs(), { runId: '', workspaceId: 'default', kind: undefined,
-    params: undefined, parentVersion: undefined });
+    params: undefined, parentVersion: undefined, sourceRunIds: undefined });
   assert.equal(parseExperienceLearnArgs('run --params {invalid').params, null);
   assert.equal(parseExperienceLearnArgs('run --parent-version 0').parentVersion, 0);
   assert.ok(Number.isNaN(parseExperienceLearnArgs('run --parent-version invalid').parentVersion));
@@ -127,7 +127,8 @@ test('Experience learning is production-reachable through CLI and MCP from a rea
   const parsed = parseCommand('experience-learn run-learn-positive --workspace workspace-a');
   assert.equal(parsed.command, 'experience-learn');
   assert.deepEqual(parsed.args, {
-    runId: 'run-learn-positive', workspaceId: 'workspace-a', kind: undefined, params: undefined, parentVersion: undefined,
+    runId: 'run-learn-positive', workspaceId: 'workspace-a', kind: undefined, params: undefined,
+    parentVersion: undefined, sourceRunIds: undefined,
   });
   const parsedParams = parseCommand(
     `experience-learn run-learn-positive --workspace workspace-a --params ${JSON.stringify(PARAMS)}`,
@@ -285,4 +286,214 @@ test('the learn tool is registered and read-only on the MCP surface', () => {
   const schema = TOOL_SCHEMAS.find((s) => s.name === 'huqan.experience_learn');
   assert.equal(schema.annotations.readOnlyHint, true);
   assert.equal(schema.annotations.destructiveHint, false);
+});
+
+/** Seed a sealed, positively verified run so it can serve as a baseline. */
+function seedSealedPositive(journal, runId) {
+  // Seal the way production does: append the terminal `run_closed` event.
+  // `journal.close(runId)` only sets an in-memory flag and does not survive a
+  // restart, so it cannot back a read-back that must replay after restart.
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-start', type: 'run_started',
+  }).ok, true);
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-finished',
+    type: 'execution_finished', executionStatus: 'completed',
+  }).ok, true);
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-verified', type: 'verification',
+    verdict: 'verified',
+    proofs: { integrity: true, coverage: true, verification: true, provenance: true, permission: true },
+  }).ok, true);
+  assert.equal(journal.append({
+    runId, workspaceId: 'workspace-a', eventId: 'event-closed', type: 'run_closed',
+    causedByEventId: 'event-verified', executionStatus: 'completed', outcomeStatus: 'verified',
+    payload: { verdict: 'complete', coverage: { covered: true } },
+  }).ok, true);
+}
+
+test('a run reads its prior sealed run back as a checkable baseline (run A→B)', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-baseline-'));
+  const kernel = {};
+  const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel }, storage);
+  seedSealedPositive(journal, 'run-a');
+  seedSealedPositive(journal, 'run-b');
+
+  const baselineA = buildLearningProposal(journal, { runId: 'run-a', workspaceId: 'workspace-a' });
+  assert.equal(baselineA.ok, true);
+  assert.deepEqual(baselineA.baselineSourceHashes, [], 'a first run chains from nothing');
+
+  const chained = buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
+  });
+  assert.equal(chained.ok, true);
+  assert.deepEqual(chained.baselineSourceHashes, [baselineA.sourceHash]);
+  // The admitted record is keyed by the full source list, so the candidate must
+  // be reachable from a chained proposal, not only from an unchained one. The
+  // procedure needs compile params, so it is checked through a params-bearing
+  // call rather than here.
+  assert.ok(chained.candidate, 'a chained positive run still yields a candidate');
+  const chainedWithParams = buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'], params: PARAMS,
+  });
+  assert.ok(chainedWithParams.procedure, 'a chained positive run still compiles its procedure');
+
+  // The baseline is bound into the proposal's identity: a proposal that names
+  // no baseline is a different record, not the same record with a footnote.
+  const unchained = buildLearningProposal(journal, { runId: 'run-b', workspaceId: 'workspace-a' });
+  assert.equal(unchained.ok, true);
+  assert.notEqual(unchained.hash, chained.hash);
+
+  // The MCP surface reaches the same chained proposal from the same record.
+  const mcp = callTool(kernel, {
+    name: 'huqan.experience_learn',
+    arguments: { runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'] },
+  });
+  assert.equal(mcp.ok, true);
+  assert.deepEqual(mcp.data.baselineSourceHashes, [baselineA.sourceHash]);
+  assert.equal(mcp.data.hash, chained.hash);
+});
+
+test('a baseline that is missing, open or mismatched refuses the proposal', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-baseline-refuse-'));
+  const kernel = {};
+  const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel }, storage);
+  seedSealedPositive(journal, 'run-a');
+  seedSealedPositive(journal, 'run-b');
+  seedOpen(journal, 'run-open');
+
+  // A run in another workspace must not be readable as this workspace's
+  // baseline, even though it is sealed and positively verified.
+  assert.equal(journal.append({
+    runId: 'run-other-ws', workspaceId: 'workspace-b', eventId: 'event-start', type: 'run_started',
+  }).ok, true);
+  assert.equal(journal.append({
+    runId: 'run-other-ws', workspaceId: 'workspace-b', eventId: 'event-finished',
+    type: 'execution_finished', executionStatus: 'completed',
+  }).ok, true);
+  assert.equal(journal.append({
+    runId: 'run-other-ws', workspaceId: 'workspace-b', eventId: 'event-verified', type: 'verification',
+    verdict: 'verified',
+    proofs: { integrity: true, coverage: true, verification: true, provenance: true, permission: true },
+  }).ok, true);
+  assert.equal(journal.append({
+    runId: 'run-other-ws', workspaceId: 'workspace-b', eventId: 'event-closed', type: 'run_closed',
+    causedByEventId: 'event-verified', executionStatus: 'completed', outcomeStatus: 'verified',
+    payload: { verdict: 'complete', coverage: { covered: true } },
+  }).ok, true);
+
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a', 'run-a'],
+  }).code, 'baseline_invalid', 'a duplicated baseline is invalid, not read twice');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-b'],
+  }).code, 'baseline_invalid', 'a run cannot be its own baseline (A→A is not a chain)');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: [],
+  }).code, 'baseline_invalid', 'an empty baseline list is invalid, not "no baseline"');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-missing'],
+  }).code, 'run_not_found');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-open'],
+  }).code, 'baseline_not_sealed');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-other-ws'],
+  }).code, 'baseline_workspace_mismatch');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'], kind: 'replace_text',
+  }).ok, true, 'a valid baseline still succeeds');
+
+  const mcp = callTool(kernel, {
+    name: 'huqan.experience_learn',
+    arguments: { runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-open'] },
+  });
+  assert.equal(mcp.ok, false);
+  assert.equal(mcp.error.message, 'baseline_not_sealed');
+});
+
+test('a chained proposal replays identically across a journal restart', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-baseline-replay-'));
+  const dbPath = path.join(root, 'memory.db');
+  let storage = new HuqanStorage({ kernel: {}, dbPath });
+  // Close before removing: Windows cannot unlink an open SQLite file, and the
+  // reopen below replaces `storage`, so one hook must close the current handle
+  // first. Two hooks would remove the directory while it is still open.
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel: {} }, storage);
+  seedSealedPositive(journal, 'run-a');
+  seedSealedPositive(journal, 'run-b');
+  const before = buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
+  });
+  assert.equal(before.ok, true);
+
+  // Restart: close the store and read the same record back through a new
+  // handle and a new kernel. A seal that only lived in process memory would
+  // not survive, so a chained proposal must replay from the durable record.
+  storage.close();
+  storage = new HuqanStorage({ kernel: {}, dbPath });
+  const reopened = resolveExperienceJournal({ kernel: {} }, storage);
+  const after = buildLearningProposal(reopened, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
+  });
+  assert.deepEqual(after.baselineSourceHashes, before.baselineSourceHashes);
+  assert.equal(after.hash, before.hash);
+});
+
+test('a baseline whose record is corrupt is refused as an integrity mismatch', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-baseline-tamper-'));
+  const kernel = {};
+  const storage = new HuqanStorage({ kernel, dbPath: path.join(root, 'memory.db') });
+  t.after(() => {
+    storage.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const journal = resolveExperienceJournal({ kernel }, storage);
+  seedSealedPositive(journal, 'run-a');
+  seedSealedPositive(journal, 'run-b');
+
+  // A tampered record is one the journal's integrity check rejects on read.
+  // The chain must translate that into a baseline-specific refusal rather than
+  // silently chaining from a record it could not verify.
+  const corrupting = {
+    read(runId, opts) {
+      if (runId === 'run-a') {
+        const error = new Error('record hash does not match');
+        error.code = 'INTEGRITY_MISMATCH';
+        throw error;
+      }
+      return journal.read(runId, opts);
+    },
+    manifest: (runId) => journal.manifest(runId),
+  };
+
+  const refused = buildLearningProposal(corrupting, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
+  });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.code, 'baseline_integrity_mismatch');
+
+  // The same record read clean still chains, so the refusal is about the
+  // record's integrity, not about chaining at all.
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
+  }).ok, true);
 });
