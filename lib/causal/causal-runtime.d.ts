@@ -1,3 +1,5 @@
+import { Rollout, RolloutInput, PlanComparison, PredictionExplanation } from './symbolic-world-model';
+
 export type CausalState = Readonly<Record<string, string | number | boolean | null>>;
 export const PREFIX: 'causal-episode-v1:';
 export interface CausalAction { readonly name: string; readonly args?: CausalState; readonly cost: number; }
@@ -33,6 +35,10 @@ export class CausalRuntime {
   constructor(options: { graph: CausalGraph; journal: CausalJournal; workspaceId?: string; frameId: string; evaluatePolicy?: CausalPolicy; minSupport?: number; maxOperations?: number });
   observeJournalEpisode(input: { runId: string; eventId: string }): Readonly<{ episode: Readonly<Record<string, unknown>>; replayed: boolean }>;
   withdrawSupport(input: { sourceHash: string; reason: string }): Readonly<{ sourceHash: string; replayed: boolean }>;
+  snapshot(): Readonly<{ workspaceId: string; frameId: string; evaluatePolicy?: CausalPolicy; forward(input: { preState: CausalState; action: CausalAction }): CausalPrediction }>;
+  rollout(input: RolloutInput): Rollout;
+  compare(input: { preState: CausalState; desiredState: CausalState; plans: readonly (readonly CausalAction[])[]; maxOperations?: number }): PlanComparison;
+  explainPrediction(result: Rollout): PredictionExplanation;
   forward(input: { preState: CausalState; action: CausalAction }): CausalPrediction;
   inverse(input: { preState: CausalState; desiredState: CausalState; actions: readonly CausalAction[] }): CausalInverse;
   failure(input: { prediction: CausalPrediction; preState: CausalState; runId: string; eventId: string }): CausalFailure;

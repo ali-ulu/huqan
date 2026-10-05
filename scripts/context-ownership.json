@@ -24,6 +24,10 @@
    "context": "Knowledge",
    "evidence": "#3467 episode projection over injected journal and graph"
   },
+  "lib/causal/symbolic-world-model.js": {
+   "context": "Knowledge",
+   "evidence": "#3468 bounded multistep rollout over learned transitions"
+  },
   "adapters/external-action/generic-adapter.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-ADAPTERS-A"
@@ -3488,7 +3492,7 @@
   },
   "bin/huqan-causal-lab.js": {
    "kind": "entry",
-   "evidence": "#3467 private-state B2/B3 experiment composition root"
+   "evidence": "#3467/#3468 private-state B2/B3 and B5 experiment composition root"
   },
   "lib/cognitive-lab-causal-world.js": {
    "kind": "infra",
@@ -3497,6 +3501,18 @@
   "lib/cognitive-lab-causal-experiment.js": {
    "kind": "infra",
    "evidence": "#3467 frozen experiment and measurement orchestration"
+  },
+  "lib/cognitive-lab-world-model-world.js": {
+   "kind": "infra",
+   "evidence": "#3468 synthetic multistep outcome environment"
+  },
+  "lib/cognitive-lab-world-model-design.js": {
+   "kind": "infra",
+   "evidence": "#3468 preregistered B5 design and input generator"
+  },
+  "lib/cognitive-lab-world-model-experiment.js": {
+   "kind": "infra",
+   "evidence": "#3468 B5 measurement orchestration"
   },
   "agentRuntime.js": {
    "kind": "entry",

@@ -53,10 +53,10 @@ test('skipping the per-step policy check breaks the unsafe-plan-is-refused asser
 test('disabling the simulator Level 2 caller breaks the production-facade assertion', () => {
   // The Graph identity check is deliberately retained; call the prototype.
   const { CausalSimulator } = require('../causalSimulator');
-  const host = { causalRuntime: { snapshot: () => MODEL } };
+  const host = { causalRuntime: { rollout: input => engine.rollout(MODEL, input) } };
   const assertion = Simulator => assert.equal(Simulator.prototype.rolloutPlan.call(host, { preState: PRE, plan: [ACTIONS.unlock], desiredState: GOAL }).goalReached, true);
   assertion(CausalSimulator);
   const { CausalSimulator: Mutant } = mutant('causalSimulator.js',
-    'return rollout(this.causalRuntime.snapshot(), input);', "return { level: 2, status: 'UNKNOWN', goalReached: null };");
+    'return this.causalRuntime.rollout(input);', "return { level: 2, status: 'UNKNOWN', goalReached: null };");
   assert.throws(() => assertion(Mutant), { code: 'ERR_ASSERTION' });
 });

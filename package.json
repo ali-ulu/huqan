@@ -1319,6 +1319,11 @@
     "lib/causal/causal-runtime.d.ts",
     "lib/cognitive-lab-causal-world.js",
     "lib/cognitive-lab-causal-experiment.js",
+    "lib/causal/symbolic-world-model.js",
+    "lib/causal/symbolic-world-model.d.ts",
+    "lib/cognitive-lab-world-model-world.js",
+    "lib/cognitive-lab-world-model-design.js",
+    "lib/cognitive-lab-world-model-experiment.js",
     "bin/huqan-causal-lab.js"
   ],
   "dependencies": {
