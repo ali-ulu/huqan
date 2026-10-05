@@ -177,10 +177,11 @@ const FAN_OUT_SIGNAL = 20;
 const FANOUT_ALLOWED = Object.freeze([
   {
     file: 'index.js',
-    ceiling: 21,
-    why: 'The package-root facade exports the existing SDK ports plus CausalRuntime and LearnedCausalEngine (#3467). '
-      + 'These requires expose public constructors only; episode learning and execution remain in lib/causal/. '
-      + 'docs/causal-learning-r12.md and test/learned-causal-engine.test.js pin the public caller. '
+    ceiling: 22,
+    why: 'The package-root facade exposes the transport-independent A2A dispatcher (#3477) plus '
+      + 'CausalRuntime and LearnedCausalEngine (#3467). These requires expose reviewed public constructors/functions; '
+      + 'signing, admission, dispatch, episode learning and execution remain in their owning modules. '
+      + 'docs/a2a-pre-dispatch-intervention.md and docs/causal-learning-r12.md pin the public callers. '
       + 'No domain decisions live in this entrypoint.',
     review_by: '2026-12-31',
   },

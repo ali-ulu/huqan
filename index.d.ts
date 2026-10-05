@@ -3,6 +3,20 @@ import KernelV2 = require('./kernel.v2');
 import { CausalRuntime } from './lib/causal/causal-runtime';
 import { LearnedCausalEngine } from './lib/causal/learned-causal-engine';
 
+type A2aStageContext = Readonly<{
+  workspaceId: string;
+  sourceAgentId: string;
+  policyVersion: string;
+  now: () => string;
+  signal: AbortSignal;
+}>;
+type A2aMessage = Readonly<Record<string, unknown>>;
+type A2aIntervention =
+  | { decision: 'allow' | 'drop'; reason: string; message?: never }
+  | { decision: 'modify'; reason: string; message: A2aMessage };
+type A2aAdmission = { decision: 'allow' | 'block' | 'drop' | 'review' | 'dryrun'; reason: string };
+type A2aStage<T> = (message: A2aMessage, context: A2aStageContext) => T | Promise<T>;
+
 /**
  * Package root export (#329).
  *
@@ -48,6 +62,35 @@ declare const huqan: typeof KernelV2 & {
   snapshotAgentIdentityAuthority: (request?: Record<string, unknown>) => Record<string, unknown>;
   AGENT_IDENTITY_RUNTIME_VERSION: string;
   IDENTITY_RUNTIME_ERRORS: Record<string, string>;
+
+  createA2aHandoffDispatcher: (options: {
+    graph: {
+      runMutationOnce: (operationId: string, mutate: () => unknown,
+        options: { buildCanonicalReceipt: () => Readonly<Record<string, unknown>> }) => unknown;
+      getCommittedMutationReceiptByOperation: (id: string) => unknown;
+      getCommittedMutationReceiptById: (id: string) => unknown;
+    };
+    workspaceId: string;
+    sourceAgentId: string;
+    policyVersion: string;
+    now?: () => string;
+    timeoutMs?: number;
+    intervention: A2aStage<A2aIntervention>;
+    prepare: A2aStage<A2aMessage>;
+    verify: A2aStage<A2aAdmission>;
+    admission: A2aStage<A2aAdmission>;
+    dispatch: A2aStage<unknown>;
+  }) => { handoff: (message: unknown) => Promise<Readonly<{
+    decision: 'allow' | 'drop' | 'modify';
+    status: 'in_progress' | 'blocked' | 'dropped' | 'replayed' | 'dispatched' | 'unknown';
+    reason: string;
+    dispatchAttempted: boolean;
+    receipt?: unknown;
+    outcomeReceipt?: unknown;
+    response?: unknown;
+    deliveryRecorded?: boolean;
+    previousOutcome?: string;
+  }>> };
 
   HumanOversightApprovalRuntime: Record<string, any>;
   createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;

@@ -35,6 +35,7 @@ const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
 const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
 const prGuardian = require('./lib/pr-guardian');
 const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
+const { createA2aHandoffDispatcher } = require('./lib/a2a/handoff-dispatch');
 const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
 const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
 const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
@@ -123,6 +124,9 @@ module.exports.PRGuardian = prGuardian;
 module.exports.MultiAgentCascadeGuard = multiAgentCascadeGuard;
 module.exports.createMultiAgentCascadeGuard = multiAgentCascadeGuard.createMultiAgentCascadeGuard;
 module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;
+
+// Outbound host SDK seam; signing, admission and transport remain host-owned.
+module.exports.createA2aHandoffDispatcher = createA2aHandoffDispatcher;
 
 // Bounded Trust Receipt pilot surface for one real issuer-to-receiver event.
 module.exports.TrustReceiptPilot = trustReceiptPilot;
