@@ -71,3 +71,44 @@ test('incomplete records never build', () => {
     assert.throws(() => buildReleaseEvaluationRecord(bad), /required|hex|digest|integer|instant|object|empty/i);
   }
 });
+
+// The measurement contract's `INSUFFICIENT != 0`: a record that observed
+// nothing is absence of evidence, not a clean pass. It must not verify as
+// `failed: false`, or a mistyped/empty run would publish as green.
+test('a record with no observed outcomes is insufficient, never a clean pass', () => {
+  const record = buildReleaseEvaluationRecord(input({ passCount: 0, failCount: 0 }));
+  const verified = verifyReleaseEvaluationRecord(record, { now: '2026-06-01T00:00:00.000Z' });
+  assert.equal(verified.valid, false);
+  assert.equal(verified.reason, 'evaluation_insufficient');
+});
+
+// A declared pass@k expectation the record did not meet is a failure. `failCount`
+// alone would report a clean pass while the run fell short of what it promised.
+test('a declared passAtK that is not met fails, and a met one passes', () => {
+  const short = buildReleaseEvaluationRecord(input({ passCount: 8, passAtK: 10 }));
+  const shortVerified = verifyReleaseEvaluationRecord(short, { now: '2026-06-01T00:00:00.000Z' });
+  assert.equal(shortVerified.valid, true);
+  assert.equal(shortVerified.failed, true);
+  assert.equal(shortVerified.reason, 'pass_at_k_not_met');
+
+  const met = buildReleaseEvaluationRecord(input({ passCount: 10, passAtK: 10 }));
+  assert.deepEqual(
+    verifyReleaseEvaluationRecord(met, { now: '2026-06-01T00:00:00.000Z' }),
+    { valid: true, failed: false, reason: null },
+  );
+  // Not declared is distinct from declared 0 and from a NaN expectation.
+  const undeclared = buildReleaseEvaluationRecord(input());
+  assert.equal(undeclared.passAtK, null);
+});
+
+test('a non-finite or negative passAtK never builds', () => {
+  for (const bad of [NaN, Infinity, -Infinity, -1, '10', 1.5]) {
+    assert.throws(
+      () => buildReleaseEvaluationRecord(input({ passAtK: bad })),
+      /passAtK must be a non-negative integer/,
+      `buildReleaseEvaluationRecord accepted passAtK=${String(bad)}`,
+    );
+  }
+  // A declared 0 is legal and distinct from "not declared".
+  assert.equal(buildReleaseEvaluationRecord(input({ passAtK: 0 })).passAtK, 0);
+});
