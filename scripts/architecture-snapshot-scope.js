@@ -177,11 +177,12 @@ const FAN_OUT_SIGNAL = 20;
 const FANOUT_ALLOWED = Object.freeze([
   {
     file: 'index.js',
-    ceiling: 20,
-    why: 'The package-root facade exports the existing SDK ports and the transport-independent A2A handoff '
-      + 'dispatcher (#3477). These requires only expose reviewed public constructors/functions; signing, '
-      + 'admission and dispatch remain injected by the host. docs/a2a-pre-dispatch-intervention.md and '
-      + 'test/a2a-pre-dispatch-intervention.test.js pin the public caller. No domain decisions live in this entrypoint.',
+    ceiling: 22,
+    why: 'The package-root facade exposes the transport-independent A2A dispatcher (#3477) plus '
+      + 'CausalRuntime and LearnedCausalEngine (#3467). These requires expose reviewed public constructors/functions; '
+      + 'signing, admission, dispatch, episode learning and execution remain in their owning modules. '
+      + 'docs/a2a-pre-dispatch-intervention.md and docs/causal-learning-r12.md pin the public callers. '
+      + 'No domain decisions live in this entrypoint.',
     review_by: '2026-12-31',
   },
   {

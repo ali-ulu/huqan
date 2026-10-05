@@ -23,6 +23,7 @@
       "agent.v3.js": "Application",
       "agentRuntime.js": "Application",
       "backupRestore.js": "Adapters",
+      "bin/huqan-causal-lab.js": "UI",
       "bin/huqan-cognitive-lab.js": "UI",
       "bin/huqan-gate-hook.js": "UI",
       "bin/huqan-mcp.js": "UI",
@@ -37,6 +38,7 @@
       "examples/observability-client.js": "UI",
       "examples/shell-observation-client.js": "UI",
       "finalizer.js": "Application",
+      "fixtures/cognitive-lab/causal-confirmatory-generator.js": "Application",
       "github-app-server.js": "UI",
       "graph.js": "Core",
       "index.js": "UI",
@@ -58,8 +60,11 @@
       "lib/a2a/exchange-route-handler.js": "Application",
       "lib/a2a/exchange-route-refusals.js": "Application",
       "lib/a2a/exchange-route.js": "Application",
+      "lib/a2a/handoff-dispatch.js": "Application",
       "lib/a2a/inter-agent-receipt-chain.js": "Application",
       "lib/a2a/negotiate-route.js": "Application",
+      "lib/a2a/pre-dispatch-intervention-receipt.js": "Application",
+      "lib/a2a/pre-dispatch-intervention.js": "Application",
       "lib/a2a/replay-store.js": "Application",
       "lib/a2a/retry-classification.js": "Application",
       "lib/a2a/routes.js": "Application",
@@ -145,6 +150,8 @@
       "lib/causal-simulator-scoring.js": "Core",
       "lib/causal/causal-edge-errors.js": "Application",
       "lib/causal/causal-edge.js": "Application",
+      "lib/causal/causal-episode-contract.js": "Application",
+      "lib/causal/causal-runtime.js": "Application",
       "lib/causal/causal-traversal-edges.js": "Application",
       "lib/causal/causal-traversal-resolvers.js": "Application",
       "lib/causal/causal-traversal.js": "Application",
@@ -154,6 +161,7 @@
       "lib/causal/causal-verdict-weights.js": "Application",
       "lib/causal/causal-verdict.js": "Application",
       "lib/causal/index.js": "Application",
+      "lib/causal/learned-causal-engine.js": "Application",
       "lib/claim-decomposition.js": "Core",
       "lib/claim-read.js": "Core",
       "lib/cli-agent-commands.js": "Core",
@@ -184,6 +192,8 @@
       "lib/cli-ingest-preview.js": "Core",
       "lib/cli-knowledge-commands.js": "Core",
       "lib/cli-learn-review.js": "Core",
+      "lib/cli-memory-lifecycle.js": "Core",
+      "lib/cli-memory-query.js": "Core",
       "lib/cli-mutation-audit-intent.js": "Core",
       "lib/cli-mutation-audit.js": "Core",
       "lib/cli-mutation-gate.js": "Core",
@@ -211,6 +221,8 @@
       "lib/coder/verify-ocr.js": "Application",
       "lib/cognitive-lab-b1-replay.js": "Core",
       "lib/cognitive-lab-budget-envelope.js": "Core",
+      "lib/cognitive-lab-causal-experiment.js": "Application",
+      "lib/cognitive-lab-causal-world.js": "Application",
       "lib/cognitive-lab-cli.js": "Core",
       "lib/cognitive-lab-comparison-contract.js": "Core",
       "lib/cognitive-lab-comparison-store.js": "Core",
@@ -219,12 +231,15 @@
       "lib/cognitive-lab-manifest.js": "Core",
       "lib/cognitive-lab-paired-delta.js": "Core",
       "lib/cognitive-lab-probability-calibration.js": "Core",
+      "lib/cognitive-scheduler.js": "Core",
       "lib/collector-seal-config.js": "Core",
       "lib/command-allowlist-miner.js": "Core",
       "lib/command-exec-gate-structure.js": "Core",
       "lib/command-exec-gate-targets.js": "Core",
       "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
+      "lib/command-parser-memory-lifecycle-args.js": "Core",
+      "lib/command-parser-memory-query-args.js": "Core",
       "lib/command-parser-review-args.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
@@ -251,6 +266,7 @@
       "lib/connectors/repo-memory-records.js": "Adapters",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
+      "lib/context-canary.js": "Core",
       "lib/contradiction-rules-opposition-detectors.js": "Core",
       "lib/contradiction-rules-text.js": "Core",
       "lib/contradiction-rules-value-detectors.js": "Core",
@@ -509,6 +525,7 @@
       "lib/http/ingest-approval-runtime.js": "UI",
       "lib/http/ingest-http-routes.js": "UI",
       "lib/http/memory-approval-routes.js": "UI",
+      "lib/http/memory-query-route.js": "UI",
       "lib/http/optional-boundaries.js": "UI",
       "lib/http/pr-guardian-auth.js": "UI",
       "lib/http/pr-guardian-body.js": "UI",
@@ -702,6 +719,7 @@
       "lib/mcp/fractal-learn-tool.js": "UI",
       "lib/mcp/gate-refusal.js": "UI",
       "lib/mcp/json-rpc-handler.js": "UI",
+      "lib/mcp/memory-query-tool.js": "UI",
       "lib/mcp/operator-authorization.js": "UI",
       "lib/mcp/operator-tool-schemas.js": "UI",
       "lib/mcp/read-workflow-tools.js": "UI",
@@ -738,7 +756,9 @@
       "lib/memory-package-import.js": "Adapters",
       "lib/memory-patch-metadata.js": "Adapters",
       "lib/memory-persistence-paths.js": "Adapters",
+      "lib/memory-query-bm25.js": "Adapters",
       "lib/memory-query-engine.js": "Adapters",
+      "lib/memory-query-read.js": "Adapters",
       "lib/memory-query-sqlite.js": "Adapters",
       "lib/memory-recall-gate.js": "Adapters",
       "lib/memory-record-read.js": "Adapters",
@@ -1123,6 +1143,7 @@
       "scripts/a2a-conformance/run-support.js": "UI",
       "scripts/a2a-conformance/run.js": "UI",
       "scripts/a2a-conformance/verifier.js": "UI",
+      "scripts/a2a-intervention-mutation.js": "UI",
       "scripts/agent-context-baseline.js": "UI",
       "scripts/agent-context-git.js": "UI",
       "scripts/agent-context-primitives.js": "UI",
@@ -1167,6 +1188,7 @@
       "scripts/check-structured-log-format.js": "UI",
       "scripts/check-v5-identity-readiness.js": "UI",
       "scripts/check-workflow-governance.js": "UI",
+      "scripts/ci-cost-breakdown.js": "UI",
       "scripts/ci-impact-plan-agent.js": "UI",
       "scripts/ci-impact-plan-build.js": "UI",
       "scripts/ci-impact-plan-paths.js": "UI",
@@ -1346,6 +1368,13 @@
         "lib/storage/backup-restore-paths.js",
         "lib/storage/backup-restore-restore.js"
       ],
+      "bin/huqan-causal-lab.js": [
+        "causalSimulator.js",
+        "graph.js",
+        "lib/cognitive-lab-causal-experiment.js",
+        "lib/content-hash.js",
+        "lib/experience/journal.js"
+      ],
       "bin/huqan-cognitive-lab.js": [
         "graph.js",
         "lib/cognitive-lab-cli.js",
@@ -1353,6 +1382,7 @@
       ],
       "bin/huqan-gate-hook.js": [
         "lib/browser-session-observer.js",
+        "lib/context-canary.js",
         "lib/gate-hook-evaluate.js",
         "lib/gate-hook-identity.js",
         "lib/gate-hook-input.js",
@@ -1385,6 +1415,8 @@
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
         "lib/kernel-factory.js",
+        "lib/memory-lifecycle.js",
+        "lib/receipt/receipt-chain.js",
         "lib/sqlite-availability.js",
         "llmAdapter.js",
         "mcpServer.js",
@@ -1434,8 +1466,11 @@
       "index.js": [
         "kernel.js",
         "kernel.v2.js",
+        "lib/a2a/handoff-dispatch.js",
         "lib/agent-action-firewall.js",
         "lib/agent-identity-runtime.js",
+        "lib/causal/causal-runtime.js",
+        "lib/causal/learned-causal-engine.js",
         "lib/error-prevention/index.js",
         "lib/external-action-adapter.js",
         "lib/external-action-guard.js",
@@ -1565,6 +1600,12 @@
         "lib/server-response-helpers.js",
         "requestGuards.js"
       ],
+      "lib/a2a/handoff-dispatch.js": [
+        "lib/a2a/bounded-exchange-values.js",
+        "lib/a2a/pre-dispatch-intervention-receipt.js",
+        "lib/a2a/pre-dispatch-intervention.js",
+        "lib/trust-evidence-ledger.js"
+      ],
       "lib/a2a/inter-agent-receipt-chain.js": [
         "lib/emergency-stop.js",
         "lib/receipt/cryptographic-profile-contract.js",
@@ -1577,6 +1618,14 @@
         "lib/environment-compat.js",
         "lib/server-response-helpers.js",
         "requestGuards.js"
+      ],
+      "lib/a2a/pre-dispatch-intervention-receipt.js": [
+        "lib/a2a/bounded-exchange-values.js",
+        "lib/trust-evidence-ledger.js"
+      ],
+      "lib/a2a/pre-dispatch-intervention.js": [
+        "lib/a2a/bounded-exchange-contract.js",
+        "lib/a2a/bounded-exchange-values.js"
       ],
       "lib/a2a/replay-store.js": [
         "lib/a2a/task-store.js"
@@ -1680,7 +1729,8 @@
         "toolPolicy.js"
       ],
       "lib/agent-step-progression.js": [
-        "lib/agent-memory-state.js"
+        "lib/agent-memory-state.js",
+        "lib/cognitive-scheduler.js"
       ],
       "lib/agent-v3-budget-methods.js": [
         "lib/agent-v3-loop-budget.js"
@@ -1863,6 +1913,14 @@
         "graph.js",
         "lib/causal/causal-edge-errors.js"
       ],
+      "lib/causal/causal-episode-contract.js": [
+        "lib/content-hash.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/causal/causal-runtime.js": [
+        "lib/causal/causal-episode-contract.js",
+        "lib/causal/learned-causal-engine.js"
+      ],
       "lib/causal/causal-traversal-resolvers.js": [
         "lib/causal/causal-edge.js",
         "lib/causal/causal-traversal-edges.js"
@@ -1894,6 +1952,9 @@
         "lib/causal/causal-edge.js",
         "lib/causal/causal-traversal.js",
         "lib/causal/causal-verdict.js"
+      ],
+      "lib/causal/learned-causal-engine.js": [
+        "lib/causal/causal-episode-contract.js"
       ],
       "lib/claim-decomposition.js": [
         "lib/text-utils.js"
@@ -1953,6 +2014,8 @@
         "lib/cli-help.js",
         "lib/cli-inference-command.js",
         "lib/cli-knowledge-commands.js",
+        "lib/cli-memory-lifecycle.js",
+        "lib/cli-memory-query.js",
         "lib/cli-status-command.js"
       ],
       "lib/cli-company-ingest.js": [
@@ -2142,7 +2205,18 @@
       "lib/cognitive-lab-budget-envelope.js": [
         "lib/is-plain-object.js"
       ],
+      "lib/cognitive-lab-causal-experiment.js": [
+        "lib/causal/causal-episode-contract.js",
+        "lib/causal/causal-runtime.js",
+        "lib/cognitive-lab-budget-envelope.js",
+        "lib/cognitive-lab-causal-world.js",
+        "lib/cognitive-lab-manifest.js"
+      ],
+      "lib/cognitive-lab-causal-world.js": [
+        "lib/causal/causal-episode-contract.js"
+      ],
       "lib/cognitive-lab-cli.js": [
+        "lib/cognitive-lab-b1-replay.js",
         "lib/cognitive-lab-comparison-contract.js",
         "lib/cognitive-lab-comparison-store.js"
       ],
@@ -2208,6 +2282,8 @@
       ],
       "lib/command-parser.js": [
         "lib/cli-workflow-adapter.js",
+        "lib/command-parser-memory-lifecycle-args.js",
+        "lib/command-parser-memory-query-args.js",
         "lib/command-parser-review-args.js"
       ],
       "lib/command-policy-editor.js": [
@@ -2312,6 +2388,9 @@
         "lib/canonical-target-match.js",
         "lib/risk-policy-constants.js",
         "lib/risk-scale.js"
+      ],
+      "lib/context-canary.js": [
+        "lib/is-plain-object.js"
       ],
       "lib/contradiction-rules-opposition-detectors.js": [
         "lib/contradiction-rules-text.js",
@@ -2537,6 +2616,7 @@
         "lib/external-action-identity-log.js"
       ],
       "lib/external-action-egress-gates.js": [
+        "lib/context-canary.js",
         "lib/data-egress-gate.js",
         "lib/data-residency-gate.js",
         "lib/external-action-command-policy.js",
@@ -3274,6 +3354,9 @@
         "lib/mcp-capability-nonce-store.js",
         "mcpServer.js"
       ],
+      "lib/http/memory-query-route.js": [
+        "lib/memory-query-read.js"
+      ],
       "lib/http/optional-boundaries.js": [
         "lib/a2a/routes.js",
         "lib/http/command-policy-route.js",
@@ -3323,6 +3406,7 @@
       "lib/http/read-workflow-actions.js": [
         "lib/entity-resolution.js",
         "lib/http/experience-read-route.js",
+        "lib/http/memory-query-route.js",
         "lib/http/workflow-envelope.js",
         "lib/http/workflow-request-validation.js",
         "lib/web-research-workflow.js"
@@ -3562,6 +3646,7 @@
         "lib/prediction-outcome-pairs.js"
       ],
       "lib/inference-derived-admission.js": [
+        "lib/inference-belief-revision.js",
         "lib/inference-derived-record.js"
       ],
       "lib/inference-derived-dependency.js": [
@@ -3691,6 +3776,8 @@
         "lib/environment-compat.js"
       ],
       "lib/kernel-inference-methods.js": [
+        "lib/inference-belief-revision.js",
+        "lib/inference-runtime-store.js",
         "lib/inference-runtime.js",
         "lib/kernel-method-install.js"
       ],
@@ -4022,6 +4109,10 @@
         "lib/mcp-envelope-format.js",
         "lib/mcp/tool-surface.js"
       ],
+      "lib/mcp/memory-query-tool.js": [
+        "lib/mcp/response-builders.js",
+        "lib/memory-query-read.js"
+      ],
       "lib/mcp/operator-authorization.js": [
         "lib/mcp-operator-capability.js",
         "requestGuards.js"
@@ -4038,6 +4129,7 @@
         "lib/mcp/compliance-audit-tool.js",
         "lib/mcp/experience-learn-tool.js",
         "lib/mcp/experience-read-tool.js",
+        "lib/mcp/memory-query-tool.js",
         "lib/mcp/response-builders.js",
         "lib/mcp/system-status-tool.js",
         "lib/mcp/trust-receipt-detail-tool.js",
@@ -4214,7 +4306,12 @@
         "lib/path-safety.js",
         "lib/sqlite-persistence-validation.js"
       ],
+      "lib/memory-query-bm25.js": [
+        "lib/memory-store-utils.js",
+        "lib/text-utils.js"
+      ],
       "lib/memory-query-engine.js": [
+        "lib/memory-query-bm25.js",
         "lib/memory-recall-gate.js",
         "lib/memory-record-utils.js",
         "lib/memory-store-utils.js"

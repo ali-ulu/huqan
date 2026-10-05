@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -26,4 +27,24 @@ test('consumer compile generates both ESM-style and require-style imports', () =
   assert.match(generated.esm, /from 'huqan\/cli';/);
   assert.match(generated.cjs, /require\('huqan'\)/);
   assert.match(generated.cjs, /require\('huqan\/cli'\)/);
+});
+
+test('consumer compile branch coverage is independent of the published manifest shape', t => {
+  assert.deepEqual(publishedDeclarations({ name: 'empty-package' }), []);
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-consumer-decls-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(root, 'classic.d.ts'), 'declare const value: number;\nexport = value;\n');
+  fs.writeFileSync(path.join(root, 'namespace.d.ts'), 'export declare const value: number;\n');
+
+  const generated = generateConsumerSources({
+    name: 'fixture-package',
+    files: ['namespace.d.ts', 'classic.d.ts'],
+  }, root);
+
+  assert.equal(generated.declarations.length, 2);
+  assert.match(generated.esm, /import PublicDecl_0_classic from 'fixture-package\/classic';/);
+  assert.match(generated.esm, /import \* as PublicDecl_1_namespace from 'fixture-package\/namespace';/);
+  assert.match(generated.cjs, /require\('fixture-package\/classic'\)/);
+  assert.match(generated.cjs, /require\('fixture-package\/namespace'\)/);
 });

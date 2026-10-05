@@ -69,6 +69,8 @@ const RULES = [
     files: [
       'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js',
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
+      'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
+      'fixtures/cognitive-lab/causal-confirmatory-generator.js',
     ],
     dirs: [
       'plugins/', 'lib/a2a/', 'lib/automation-safety-gate/', 'lib/causal/', 'lib/calibration/', 'lib/coder/', 'lib/error-prevention/',

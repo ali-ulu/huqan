@@ -169,6 +169,10 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'the directly invoked isolated calibration CLI copies DB/WAL into its own mkdtemp directory for read-only authentication and removes only that private scratch directory; it exposes no agent-request route and never writes the supplied database during this check',
   }),
+  'bin/huqan-causal-lab.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the directly invoked bounded causal experiment uses only a checked private mkdtemp directory and removes only that owned scratch path; it exposes no agent action route, opens no canonical memory, and has no network effects',
+  }),
   'lib/cognitive-lab-cli.js': Object.freeze({
     role: 'operator_tool',
     why: 'the directly invoked calibration CLI creates only its own private lab directory and exclusive state marker beneath the operator root; existing state is bound to a frozen experiment and locked before its Graph journal is opened, without writing canonical memory',

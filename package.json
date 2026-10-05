@@ -8,7 +8,8 @@
     "huqan": "./cli.js",
     "huqan-mcp": "./bin/huqan-mcp.js",
     "huqan-gate": "./bin/huqan-gate-hook.js",
-    "huqan-cognitive-lab": "./bin/huqan-cognitive-lab.js"
+    "huqan-cognitive-lab": "./bin/huqan-cognitive-lab.js",
+    "huqan-causal-lab": "./bin/huqan-causal-lab.js"
   },
   "scripts": {
     "prepublishOnly": "npm run check:package-closure",
@@ -1310,7 +1311,15 @@
     "lib/cognitive-lab-comparison-store.js",
     "lib/cognitive-lab-probability-calibration.js",
     "lib/cognitive-lab-paired-delta.js",
-    "lib/cognitive-lab-budget-envelope.js"
+    "lib/cognitive-lab-budget-envelope.js",
+    "lib/causal/causal-episode-contract.js",
+    "lib/causal/learned-causal-engine.js",
+    "lib/causal/learned-causal-engine.d.ts",
+    "lib/causal/causal-runtime.js",
+    "lib/causal/causal-runtime.d.ts",
+    "lib/cognitive-lab-causal-world.js",
+    "lib/cognitive-lab-causal-experiment.js",
+    "bin/huqan-causal-lab.js"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",

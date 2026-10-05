@@ -7,11 +7,28 @@ const { dedupeAffectedNodes, missingNodeResult, scoreChains } = require('./lib/c
 const { describeChain, deriveRecommendation, generateSummary } = require('./lib/causal-simulator-report');
 
 class CausalSimulator {
-  constructor(graph) {
+  constructor(graph, { causalRuntime = null } = {}) {
     if (!graph || !(graph instanceof Graph)) {
       throw new Error('CausalSimulator requires a Graph instance');
     }
     this.graph = graph;
+    this.causalRuntime = causalRuntime;
+  }
+
+  // Explicit single-step learned API. Existing graph traversal stays intact.
+  predictTransition(input) {
+    if (!this.causalRuntime) return { status: 'UNKNOWN', reason: 'learned_causal_runtime_not_configured', postState: null };
+    return this.causalRuntime.forward(input);
+  }
+
+  proposeActions(input) {
+    if (!this.causalRuntime) return { status: 'UNKNOWN', reason: 'learned_causal_runtime_not_configured', candidates: [], rejected: [] };
+    return this.causalRuntime.inverse(input);
+  }
+
+  explainFailure(input) {
+    if (!this.causalRuntime) return { status: 'UNKNOWN', reason: 'learned_causal_runtime_not_configured' };
+    return this.causalRuntime.failure(input);
   }
 
   /**

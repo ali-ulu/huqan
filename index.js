@@ -173,3 +173,7 @@ module.exports.credentialToPublicReceipt = trustInteropVc.credentialToPublicRece
 module.exports.HUQAN_CREDENTIAL_TYPE = trustInteropVc.HUQAN_CREDENTIAL_TYPE;
 module.exports.publicReceiptToSpan = trustInteropOtel.publicReceiptToSpan;
 module.exports.toOtlpHttpPayload = trustInteropOtel.toOtlpHttpPayload;
+
+// Opt-in bounded causal learning over verified ExperienceJournal outcomes.
+module.exports.CausalRuntime = require('./lib/causal/causal-runtime').CausalRuntime;
+module.exports.LearnedCausalEngine = require('./lib/causal/learned-causal-engine').LearnedCausalEngine;
