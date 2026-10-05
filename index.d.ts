@@ -1,5 +1,6 @@
 import Kernel = require('./kernel');
 import KernelV2 = require('./kernel.v2');
+import { CausalRuntime, LearnedCausalEngine } from './lib/causal/causal-runtime';
 
 /**
  * Package root export (#329).
@@ -11,6 +12,8 @@ import KernelV2 = require('./kernel.v2');
  */
 declare const huqan: typeof KernelV2 & {
   KernelV2: typeof KernelV2;
+  CausalRuntime: typeof CausalRuntime;
+  LearnedCausalEngine: typeof LearnedCausalEngine;
 
   /** @deprecated Use KernelV2 / require('huqan'). Removed in the next major. */
   KernelV1: typeof Kernel;

@@ -12,6 +12,9 @@
   "Observability"
  ],
  "owners": {
+  "lib/causal/causal-episode-contract.js": { "context": "Knowledge", "evidence": "#3467 scoped immutable episode contract" },
+  "lib/causal/learned-causal-engine.js": { "context": "Knowledge", "evidence": "#3467 bounded learned transition model" },
+  "lib/causal/causal-runtime.js": { "context": "Knowledge", "evidence": "#3467 episode projection over injected journal and graph" },
   "adapters/external-action/generic-adapter.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-ADAPTERS-A"
@@ -3442,6 +3445,10 @@
   }
  },
  "platform": {
+  "fixtures/cognitive-lab/causal-confirmatory-generator.js": { "kind": "infra", "evidence": "#3467 preregistered synthetic experiment input generator; never imported by learner" },
+  "bin/huqan-causal-lab.js": { "kind": "entry", "evidence": "#3467 private-state B2/B3 experiment composition root" },
+  "lib/cognitive-lab-causal-world.js": { "kind": "infra", "evidence": "#3467 synthetic outcome environment" },
+  "lib/cognitive-lab-causal-experiment.js": { "kind": "infra", "evidence": "#3467 frozen experiment and measurement orchestration" },
   "agentRuntime.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-ENTRY-P"
@@ -4399,6 +4406,10 @@
   }
  ],
  "publishedPorts": {
+  "lib/causal/causal-episode-contract.js": { "owner": "Knowledge", "consumers": ["Platform"], "evidence": "#3467 canonical episode/hash contract used by measurement infrastructure" },
+  "lib/causal/learned-causal-engine.js": { "owner": "Knowledge", "consumers": ["Platform"], "evidence": "#3467 public opt-in engine export" },
+  "lib/causal/causal-runtime.js": { "owner": "Knowledge", "consumers": ["Platform"], "evidence": "#3467 public runtime export and experiment caller" },
+  "causalSimulator.js": { "owner": "Knowledge", "consumers": ["Platform"], "evidence": "#3467 production causal lab facade caller" },
   "adapters/utils/learn-entries.js": {
    "owner": "Trust",
    "consumers": [
