@@ -960,6 +960,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-query-read.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
   "lib/memory-query-sqlite.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
@@ -1673,6 +1677,10 @@
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
   "lib/command-parser-memory-lifecycle-args.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
+  "lib/command-parser-memory-query-args.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
@@ -3758,6 +3766,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/cli-memory-query.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
   "lib/cli-mutation-audit-intent.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-CLI-P"
@@ -4010,6 +4022,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
+  "lib/http/memory-query-route.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
   "lib/http/external-action-receipt-collector-route.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
@@ -4246,6 +4262,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
+  "lib/mcp/memory-query-tool.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
   "lib/mcp/fractal-learn-tool.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
@@ -4415,6 +4435,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/memory-query-read.js": {
+   "owner": "Memory",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "memory record search projection shared by huqan.memory_query, GET /api/memory/query and the memory-query CLI"
+  },
   "adapters/utils/learn-entries.js": {
    "owner": "Trust",
    "consumers": [
