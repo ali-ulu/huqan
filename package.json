@@ -24,6 +24,7 @@
     "bench:graph-save": "node benchmarks/bench-graph-save.js",
     "bench:graph-save:check": "node benchmarks/check-graph-save.js --strict-timing",
     "bench:sqlite-contention": "node benchmarks/bench-sqlite-write-contention.js",
+    "bench:capacity": "node benchmarks/bench-capacity-envelope.js",
     "bench:observability": "node benchmarks/observability-agent-v3-baseline.js",
     "bench:observability:load": "node benchmarks/observability-load-smoke.js",
     "bench:observability:soak": "node --expose-gc benchmarks/observability-soak.js",

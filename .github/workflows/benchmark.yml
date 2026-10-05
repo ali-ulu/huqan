@@ -139,9 +139,11 @@ jobs:
 
           is_perf_file() {
             # Performance-sensitive files trigger the benchmark regression gate.
-            case "$1" in
-              benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
-              benchmarks/bench-graph-save.js|benchmarks/check-graph-save.js|\
+              case "$1" in
+               benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
+               benchmarks/bench-graph-save.js|benchmarks/check-graph-save.js|\
+               benchmarks/bench-sqlite-write-contention.js|benchmarks/bench-capacity-envelope.js|\
+               benchmarks/bench-memory-store-open.js|benchmarks/bench-memory-query-page.js|\
               benchmarks/snapshot-memory.js|benchmarks/verifBench.js|benchmarks/results.json|\
               benchmarks/fixtures/*|graph.js|kernel.js|kernel.v2.js|storage.js|causalSimulator.js|\
               finalizer.js|rustGraph.js|lib/memory-store.js|lib/ingest.js|lib/causal/*|\
@@ -701,6 +703,50 @@ jobs:
             echo ""
             if [ -f benchmarks/graph-save-current.json ]; then
               node benchmarks/check-graph-save.js benchmarks/graph-save-baseline.json benchmarks/graph-save-current.json --strict-timing
+            else
+              echo "Benchmark report was not produced."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Capacity envelope (#3503). Nightly measurement of the R46 E3 envelope:
+  # raw store contention at 1/4/16 writers (reused from the contention
+  # bench), kernel learn+query legs, open/RSS, WAL sidecars and the cold
+  # restart split. Measured-only by design: the report carries an `slo`
+  # field with the observed numbers but no threshold, so this job records
+  # the envelope instead of gating on it.
+  # ---------------------------------------------------------------------
+  capacity-envelope-nightly:
+    name: Capacity envelope (nightly)
+    needs: classify
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      - name: Run the capacity envelope benchmark
+        run: node benchmarks/bench-capacity-envelope.js > benchmarks/capacity-envelope-current.json
+      - name: Upload the benchmark report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: capacity-envelope-benchmark-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/capacity-envelope-current.json
+          if-no-files-found: warn
+      - name: Publish the benchmark summary
+        if: always()
+        run: |
+          {
+            echo "## Capacity envelope (#3503)"
+            echo ""
+            if [ -f benchmarks/capacity-envelope-current.json ]; then
+              node -e "const r=require('./benchmarks/capacity-envelope-current.json'); console.log('backend: '+r.backend); for (const leg of r.learn.perN) console.log('learn n='+leg.children+' p50='+leg.p50Ms+' p95='+leg.p95Ms+' p99='+leg.p99Ms+' busy='+leg.sqliteBusyFailures+' queueLag='+leg.queueLagMs); console.log('rssSlopeBytesPerWrite: '+r.open.rss.slopeBytesPerWrite); console.log('wal: '+JSON.stringify(r.wal)); console.log('restart: '+JSON.stringify(r.restart)); console.log('slo: '+JSON.stringify(r.slo));"
             else
               echo "Benchmark report was not produced."
             fi

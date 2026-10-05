@@ -38,8 +38,10 @@ const path = require('path');
 
 const { isSqliteBusyError } = require('../lib/sqlite-busy-retry');
 
-const VERSION = '1.1.0';
-const DEFAULT_SIZES = [1, 2, 4, 8];
+const VERSION = '1.2.0';
+// #3503: the sweep covers 1/2/4/8/16 writers; 16 is the MAX_CHILDREN cap and
+// the top of the capacity envelope, not an opt-in extra.
+const DEFAULT_SIZES = [1, 2, 4, 8, 16];
 const DEFAULT_WRITES_PER_CHILD = 40;
 const DEFAULT_CHECKPOINT_CYCLES = 4;
 const MAX_CHILDREN = 16;
@@ -422,10 +424,15 @@ async function main() {
   }
 }
 
-if (process.argv.includes('--child')) childMain();
-else main().catch((error) => {
-  process.stderr.write(`${error && error.stack ? error.stack : error}\n`);
-  process.exitCode = 1;
-});
+// Only auto-run when executed directly: the capacity envelope wrapper
+// (#3503) requires this module for runTarget/summarizeLatencies, and that
+// require must not start a second benchmark in the requiring process.
+if (require.main === module) {
+  if (process.argv.includes('--child')) childMain();
+  else main().catch((error) => {
+    process.stderr.write(`${error && error.stack ? error.stack : error}\n`);
+    process.exitCode = 1;
+  });
+}
 
 module.exports = { runTarget, runOnce, runCheckpointScenario, childMain, summarizeLatencies };
