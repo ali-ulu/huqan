@@ -2,85 +2,36 @@
 
 // Retrieval strategies compared by benchmarks/retrieval-experiment.js (#3462).
 //
-// Both strategies read through the real MemoryStore.query path, so the
-// workspace boundary and the active-status filter are the store's own, not a
-// re-implementation. Neither strategy is wired into the product: the candidate
-// exists only inside this experiment until a measured result argues for it.
+// Both strategies are the shipped MemoryStore.query path, so the workspace
+// boundary, the active-status filter and the ranking are the store's own --
+// the experiment measures exactly what callers get, not a re-implementation.
 //
-//   baseline  - what huqan does today: `query({ text })`, a case-insensitive
-//               substring match on the whole query, ordered by createdAt.
-//   candidate - BM25 over word tokens of the same active records, ties broken
-//               by memoryId so the order is deterministic.
-const { normalizeText } = require('../lib/text-utils');
-
-const BM25_K1 = 1.2;
-const BM25_B = 0.75;
-const SCORE_DECIMALS = 6;
-
-function round(value) {
-  return Number(value.toFixed(SCORE_DECIMALS));
-}
-
+//   baseline  - the default: `query({ text })`, a case-insensitive substring
+//               match on the whole query, ordered by createdAt.
+//   candidate - the opt-in `query({ text, retrievalMode: 'bm25' })`
+//               (lib/memory-query-bm25.js), ties broken by memoryId.
 function contentText(record) {
   return typeof record.content === 'string' ? record.content : JSON.stringify(record.content);
 }
 
-function tokenize(text) {
-  return normalizeText(text).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+function runStoreQuery(store, opts, label) {
+  const result = store.query({ ...opts, limit: null });
+  if (!result.ok) throw new Error(`${label} query failed: ${result.error.message}`);
+  return result;
 }
 
-// Today's path has nothing to prepare: every search is a store query.
 function prepareBaseline(store, workspaceId) {
-  return (queryText) => {
-    const result = store.query({ workspaceId, text: queryText, limit: null });
-    if (!result.ok) throw new Error(`baseline query failed: ${result.error.message}`);
-    return result.memories.map((record) => ({ record, explain: { matched: 'substring' } }));
-  };
+  return (queryText) => runStoreQuery(store, { workspaceId, text: queryText }, 'baseline').memories
+    .map((record) => ({ record, explain: { matched: 'substring' } }));
 }
 
-function buildIndex(records) {
-  const docs = records.map((record) => {
-    const tokens = tokenize(contentText(record));
-    const tf = new Map();
-    for (const token of tokens) tf.set(token, (tf.get(token) || 0) + 1);
-    return { record, length: tokens.length, tf };
-  });
-  const df = new Map();
-  for (const doc of docs) for (const term of doc.tf.keys()) df.set(term, (df.get(term) || 0) + 1);
-  const avgLength = docs.length ? docs.reduce((sum, doc) => sum + doc.length, 0) / docs.length : 0;
-  return { docs, df, avgLength };
-}
-
-function idf(index, term) {
-  const n = index.docs.length;
-  const df = index.df.get(term) || 0;
-  return Math.log(1 + (n - df + 0.5) / (df + 0.5));
-}
-
-function scoreDoc(index, doc, terms) {
-  const contributions = [];
-  for (const term of terms) {
-    const tf = doc.tf.get(term) || 0;
-    if (tf === 0) continue;
-    const termIdf = idf(index, term);
-    const norm = tf + BM25_K1 * (1 - BM25_B + BM25_B * (doc.length / (index.avgLength || 1)));
-    contributions.push({ term, tf, idf: round(termIdf), contribution: round(termIdf * (tf * (BM25_K1 + 1)) / norm) });
-  }
-  const score = round(contributions.reduce((sum, entry) => sum + entry.contribution, 0));
-  return { score, terms: contributions };
-}
-
-// The index is built once from the store's own active, in-workspace records.
 function prepareCandidate(store, workspaceId) {
-  const result = store.query({ workspaceId, limit: null });
-  if (!result.ok) throw new Error(`candidate query failed: ${result.error.message}`);
-  const index = buildIndex(result.memories);
   return (queryText) => {
-    const terms = [...new Set(tokenize(queryText))];
-    return index.docs
-      .map((doc) => ({ record: doc.record, explain: scoreDoc(index, doc, terms) }))
-      .filter((hit) => hit.explain.score > 0)
-      .sort((a, b) => (b.explain.score - a.explain.score) || a.record.memoryId.localeCompare(b.record.memoryId));
+    const result = runStoreQuery(store, { workspaceId, text: queryText, retrievalMode: 'bm25', explain: true }, 'candidate');
+    return result.memories.map((record, i) => {
+      const { score, terms } = result.retrieval.scores[i];
+      return { record, explain: { score, terms } };
+    });
   };
 }
 
@@ -89,4 +40,4 @@ const STRATEGIES = Object.freeze({
   candidate: Object.freeze({ name: 'bm25-lexical', prepare: prepareCandidate }),
 });
 
-module.exports = { STRATEGIES, tokenize, contentText };
+module.exports = { STRATEGIES, contentText };
