@@ -1,0 +1,102 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-10-05T02:22:34.714Z",
+  "workload": "evaluateSemiNaive (reachable + type-inherit) then buildRecords",
+  "sizes": [
+    100,
+    400,
+    1000
+  ],
+  "perSize": [
+    {
+      "facts": 201,
+      "candidates": 200,
+      "records": 200,
+      "uniqueIds": 200,
+      "duplicateIds": 0,
+      "duplicateSuppressed": 200,
+      "evaluationMs": 27.01,
+      "buildMs": 4.97,
+      "recordOverEvaluationRatio": 0.184,
+      "totalBytes": 364561,
+      "bytesPerRecord": 1823,
+      "rerunStable": true
+    },
+    {
+      "facts": 801,
+      "candidates": 800,
+      "records": 800,
+      "uniqueIds": 800,
+      "duplicateIds": 0,
+      "duplicateSuppressed": 800,
+      "evaluationMs": 93.81,
+      "buildMs": 13.91,
+      "recordOverEvaluationRatio": 0.148,
+      "totalBytes": 1462861,
+      "bytesPerRecord": 1829,
+      "rerunStable": true
+    },
+    {
+      "facts": 2001,
+      "candidates": 2000,
+      "records": 2000,
+      "uniqueIds": 2000,
+      "duplicateIds": 0,
+      "duplicateSuppressed": 2000,
+      "evaluationMs": 461.21,
+      "buildMs": 24.32,
+      "recordOverEvaluationRatio": 0.053,
+      "totalBytes": 3661461,
+      "bytesPerRecord": 1831,
+      "rerunStable": true
+    }
+  ],
+  "crossRuleDedup": {
+    "candidates": 1,
+    "uniqueFactKeys": 1,
+    "duplicateSuppressed": 1
+  },
+  "crossSnapshotGrowth": [
+    {
+      "snapshot": 1,
+      "facts": 1,
+      "records": 1
+    },
+    {
+      "snapshot": 2,
+      "facts": 2,
+      "records": 3
+    },
+    {
+      "snapshot": 3,
+      "facts": 3,
+      "records": 6
+    },
+    {
+      "snapshot": 4,
+      "facts": 4,
+      "records": 10
+    },
+    {
+      "snapshot": 5,
+      "facts": 5,
+      "records": 15
+    },
+    {
+      "snapshot": 6,
+      "facts": 6,
+      "records": 21
+    },
+    {
+      "snapshot": 7,
+      "facts": 7,
+      "records": 28
+    },
+    {
+      "snapshot": 8,
+      "facts": 8,
+      "records": 36
+    }
+  ],
+  "idempotencyKey": "derivationId (sha256 over workspaceId+fact+ruleId+bindings+supports+snapshot)"
+}
