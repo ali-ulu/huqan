@@ -61,7 +61,9 @@ function checkReleaseEvaluation(record, { releaseSha, implementationAuthor, impl
   if (!suiteDigests || Object.entries(suiteDigests).some(([name, digest]) => record.suiteDigests[name] !== digest)) {
     return { ok: false, code: 'suite_digest_mismatch' };
   }
-  if (record.passCount === 0 || record.criticalFindings.length > 0) {
+  // `passCount === 0` and a failed `passAtK` are already `!verified.valid` /
+  // `verified.failed`; only accepted-but-present critical findings remain.
+  if (record.criticalFindings.length > 0) {
     return { ok: false, code: 'evaluation_not_clear' };
   }
   return { ok: true, recordId: record.recordId };
