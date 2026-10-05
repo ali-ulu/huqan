@@ -18,7 +18,7 @@ function runBench(args) {
 describe('bench-capacity-envelope (#3503)', () => {
   it('smoke reports the envelope shape (p50/p95/p99, busy, rss, wal, restart, slo)', () => {
     const result = runBench(['--writes=2', '--children=1,2']);
-    if (result.status !== 0 && /sqlite/i.test(result.stderr)) {
+    if (result.status !== 0 && /requires the sqlite backend/.test(result.stderr)) {
       // better-sqlite3 unavailable: the backend guard fails the run by design.
       return;
     }
@@ -40,8 +40,11 @@ describe('bench-capacity-envelope (#3503)', () => {
         assert.equal(typeof leg[field], 'number', `${field} missing`);
       }
       assert.equal(typeof leg.sqliteBusyFailures, 'number');
+      assert.equal(typeof leg.otherFailures, 'number');
       assert.equal(typeof leg.queueLagMs, 'number');
       assert.equal(typeof leg.maxEventLoopBlockMs, 'number');
+      // The page-100 leg must read a seeded store, never an empty one.
+      assert.equal(leg.emptyPages, 0, 'query leg measured an empty store');
     }
 
     // Open/RSS, WAL sidecars, cold restart split.
@@ -51,6 +54,7 @@ describe('bench-capacity-envelope (#3503)', () => {
     for (const field of ['dbBytes', 'walBytes', 'shmBytes']) {
       assert.equal(typeof report.wal[field], 'number', `wal.${field} missing`);
     }
+    assert.equal(typeof report.wal.afterClose, 'object', 'wal.afterClose missing');
     for (const field of ['warmQueryMs', 'reopenOpenMs', 'coldQueryMs']) {
       assert.equal(typeof report.restart[field], 'number', `restart.${field} missing`);
     }

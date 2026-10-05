@@ -211,13 +211,25 @@ export interface MemoryQueryLinksResult {
 
 export interface MemoryQueryOptions {
   workspaceId?: string;
-  limit?: number;
+  limit?: number | null;
   offset?: number;
   contentIncludes?: string;
   text?: string;
   metadata?: Record<string, unknown>;
   orderBy?: string;
   order?: 'asc' | 'desc';
+  kind?: string;
+  status?: string;
+  actor?: string;
+  sourceType?: string;
+  sourceRef?: string;
+  includeDeleted?: boolean;
+  includeTombstoned?: boolean;
+  createdAfter?: string;
+  createdBefore?: string;
+  updatedAfter?: string;
+  updatedBefore?: string;
+  recall?: boolean | Record<string, unknown>;
 }
 
 export interface MemoryQueryResult {
