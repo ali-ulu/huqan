@@ -29,7 +29,7 @@ const {
   atom,
   createRule,
 } = require('../lib/inference-rule-ir');
-const { evaluateSemiNaive } = require('../lib/inference-semi-naive');
+const { evaluateSemiNaive, EVALUATION_STATUS } = require('../lib/inference-semi-naive');
 const { buildRecords, reconcile } = require('../lib/inference-runtime-records');
 const { factKey } = require('../lib/inference-semi-naive-values');
 
@@ -44,8 +44,13 @@ function fact(predicate, ...values) {
 function parseSizes() {
   const hit = process.argv.find((arg) => arg.startsWith('--sizes='));
   if (!hit) return DEFAULT_SIZES;
-  return hit.slice('--sizes='.length).split(',')
-    .map((s) => Math.max(1, Number(s) || 1));
+  const sizes = hit.slice('--sizes='.length).split(',')
+    .map((s) => Number(s))
+    // A non-finite or non-positive size would give buildFacts no endpoint, so
+    // drop it and fall back rather than build an unbounded fixture.
+    .filter((n) => Number.isFinite(n) && n >= 1)
+    .map((n) => Math.floor(n));
+  return sizes.length > 0 ? sizes : DEFAULT_SIZES;
 }
 
 // Two rules that each fire exactly once per dataset index. Both join their
@@ -95,6 +100,13 @@ function measureSize(n) {
   const evalStart = process.hrtime.bigint();
   const evaluation = evaluateSemiNaive(rules, facts, { timeoutMs: 30000 });
   const evaluationMs = Number(process.hrtime.bigint() - evalStart) / 1e6;
+
+  // A stopped (timed-out / budget-capped) evaluation has only partial
+  // candidates, so its cost row would understate the work and mislead. Refuse
+  // it instead of reporting it as a completed measurement.
+  if (evaluation.status !== EVALUATION_STATUS.COMPLETE) {
+    throw new Error(`evaluation did not complete for n=${n}: ${evaluation.stoppedReason}`);
+  }
 
   const buildStart = process.hrtime.bigint();
   const records = buildRecords(evaluation, snapshot, 'rule-catalog-v1', WORKSPACE, at);

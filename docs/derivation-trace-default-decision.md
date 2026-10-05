@@ -32,12 +32,15 @@ is kept. The record is the extra work:
 
 | derived records | buildMs | bytes/record | total bytes | record/evaluation |
 | --- | --- | --- | --- | --- |
-| 200 | 5.4 | 1823 | 0.36 MB | 0.19 |
-| 800 | 15.6 | 1829 | 1.46 MB | 0.17 |
-| 2000 | 29.4 | 1831 | 3.66 MB | 0.06 |
+| 200 | 5.11 | 1823 | 0.36 MB | 0.186 |
+| 800 | 14.49 | 1829 | 1.46 MB | 0.157 |
+| 2000 | 24.00 | 1831 | 3.66 MB | 0.050 |
+
+(Timings vary run to run; `bytes/record` does not. The values above are from
+the committed `docs/reports/derivation-trace-20261005.json`.)
 
 - **Time**: ~0.015 ms per record; the record/evaluation ratio falls as the
-  graph grows (0.19 → 0.06), so recording never dominates the derivation it
+  graph grows (0.186 → 0.050), so recording never dominates the derivation it
   describes.
 - **Space**: ~1.8 KB per record, stable across sizes. 2000 derived facts cost
   ~3.7 MB. This is the number a retention/compaction bound must be sized

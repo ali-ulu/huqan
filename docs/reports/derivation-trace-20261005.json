@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-05T02:22:34.714Z",
+  "generatedAt": "2026-10-05T02:34:01.206Z",
   "workload": "evaluateSemiNaive (reachable + type-inherit) then buildRecords",
   "sizes": [
     100,
@@ -15,9 +15,9 @@
       "uniqueIds": 200,
       "duplicateIds": 0,
       "duplicateSuppressed": 200,
-      "evaluationMs": 27.01,
-      "buildMs": 4.97,
-      "recordOverEvaluationRatio": 0.184,
+      "evaluationMs": 27.5,
+      "buildMs": 5.11,
+      "recordOverEvaluationRatio": 0.186,
       "totalBytes": 364561,
       "bytesPerRecord": 1823,
       "rerunStable": true
@@ -29,9 +29,9 @@
       "uniqueIds": 800,
       "duplicateIds": 0,
       "duplicateSuppressed": 800,
-      "evaluationMs": 93.81,
-      "buildMs": 13.91,
-      "recordOverEvaluationRatio": 0.148,
+      "evaluationMs": 92.16,
+      "buildMs": 14.49,
+      "recordOverEvaluationRatio": 0.157,
       "totalBytes": 1462861,
       "bytesPerRecord": 1829,
       "rerunStable": true
@@ -43,9 +43,9 @@
       "uniqueIds": 2000,
       "duplicateIds": 0,
       "duplicateSuppressed": 2000,
-      "evaluationMs": 461.21,
-      "buildMs": 24.32,
-      "recordOverEvaluationRatio": 0.053,
+      "evaluationMs": 484.59,
+      "buildMs": 24,
+      "recordOverEvaluationRatio": 0.05,
       "totalBytes": 3661461,
       "bytesPerRecord": 1831,
       "rerunStable": true
