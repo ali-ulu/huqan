@@ -10,7 +10,7 @@ const { CausalSimulator } = require('../causalSimulator');
 const { createExperienceJournal } = require('../lib/experience/journal');
 const { contentHash } = require('../lib/content-hash');
 const { digest } = require('../lib/causal/causal-episode-contract');
-const { runWorldModelExperiment, splitReport } = require('../lib/cognitive-lab-world-model-experiment');
+const { runWorldModelExperiment, splitReport, overallStatus } = require('../lib/cognitive-lab-world-model-experiment');
 const { DESIGN, FROZEN, generateDataset } = require('../lib/cognitive-lab-world-model-design');
 const { main } = require('../bin/huqan-causal-lab');
 const preregistered = require('../fixtures/cognitive-lab/world-model-design.json');
@@ -69,6 +69,39 @@ test('a false success, a false transition or a cost regression rejects an otherw
   assert.equal(splitReport('holdout', rows({ untrainedPredicted: true }), thresholds).status, 'REJECT');
   assert.equal(splitReport('holdout', rows({ unknownVisible: false }), thresholds).status, 'REJECT');
   assert.equal(splitReport('holdout', rows({}).slice(1), thresholds).status, 'INSUFFICIENT');
+  // A safety failure is never hidden behind a small sample.
+  assert.equal(splitReport('holdout', rows({ falseSuccess: 1 }).slice(0, 10), thresholds).status, 'REJECT');
+  assert.equal(splitReport('holdout', rows({ untrainedPredicted: 1 }).slice(0, 10), thresholds).status, 'REJECT');
+});
+
+test('the overall verdict lets any REJECT win and keeps KEEP for frozen inputs, frozen law and a clean source', () => {
+  const keep = { status: 'KEEP' };
+  const base = { reports: [keep, keep], frozenInputs: true, worldLaw: true, sourceDirty: false, equalExternalBudget: true };
+  assert.equal(overallStatus(base), 'KEEP');
+  assert.equal(overallStatus({ ...base, reports: [{ status: 'INSUFFICIENT' }, { status: 'REJECT' }] }), 'REJECT');
+  assert.equal(overallStatus({ ...base, frozenInputs: false, reports: [keep, { status: 'REJECT' }] }), 'REJECT');
+  assert.equal(overallStatus({ ...base, frozenInputs: false }), 'INSUFFICIENT');
+  assert.equal(overallStatus({ ...base, worldLaw: false }), 'INSUFFICIENT');
+  assert.equal(overallStatus({ ...base, sourceDirty: true }), 'INSUFFICIENT');
+  assert.equal(overallStatus({ ...base, equalExternalBudget: false }), 'REJECT');
+});
+
+test('an untrained step predicted in any compared plan is counted, not only in the probe plan', () => {
+  const { evaluateCase } = require('../lib/cognitive-lab-world-model-experiment');
+  const { PLANS, ACTIONS, GOAL, execute } = require('../lib/cognitive-lab-world-model-world');
+  const preState = { door: false, energized: true, jammed: false, nuisance: 1 };
+  const predicted = plan => ({ level: 2, status: 'PREDICTED', goalReached: true, finalState: { ...preState, door: true },
+    steps: plan.map((step, index) => ({ index, action: step, postState: execute(preState, step) })) });
+  const leaky = {
+    rolloutPlan: () => predicted([ACTIONS.unlock]),
+    // The probe is clean, but the comparison wrongly predicts through untrained reset.
+    comparePlans: () => ({ selected: null, alternatives: PLANS.map((plan, index) => ({ index, plan, disposition: index === 5 ? 'policy_rejected' : 'goal_not_reached',
+      rollout: plan[0].name === 'reset' ? predicted(plan) : { status: 'UNKNOWN', steps: [] } })) }),
+    proposeActions: () => ({ candidates: [] }),
+  };
+  const row = evaluateCase(leaky, { id: 'x', preState, probePlan: 0 });
+  assert.equal(row.untrainedPredicted, 1);
+  assert.equal(GOAL.door, true);
 });
 
 test('the runner refuses missing provenance, a foreign design and overlapping splits before training', () => {

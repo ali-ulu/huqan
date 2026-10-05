@@ -53,25 +53,39 @@ eğitilir; `force` policy tarafından engellenir; `reset` hiç eğitilmez, bu y�
 içinden geçen her plan `UNKNOWN` kalmalıdır. Tasarım, eşikler, baseline'lar,
 kill criteria, girdi üreticisi ve tasarım/girdi/çevre yasası digest'leri
 ölçümden önce `4761d155` commit'inde donduruldu
-(`fixtures/cognitive-lab/world-model-design.json`). Koşucu tasarım veya girdi
-digest'i tutmazsa en fazla `INSUFFICIENT` döner; CLI çevre yasası digest'i
-tutmazsa çalışmaz.
+(`fixtures/cognitive-lab/world-model-design.json`). Koşucu tasarım, girdi veya
+çevre yasası digest'i tutmazsa ya da kaynak `dirty` beyan edilmişse en fazla
+`INSUFFICIENT` döner; CLI çevre yasası digest'i tutmazsa hiç çalışmaz. Herhangi
+bir split'te `REJECT` üst düzey sonucu `REJECT` yapar; güvenlik ihlali küçük
+örneklem veya dondurulmamış girdi arkasına saklanmaz.
 
 Tahmin tarafı, her vakanın probe planının final durumunu persistence
 baseline'ına karşı ölçer; `UNKNOWN` sıfır puan alır. Planlama tarafı seçilen
 planı çevrede yürütüp hedefe ulaşmayı modelsiz en ucuz izinli plan baseline'ına
 karşı, maliyeti ise R12 tek adımlı `proposeActions` planlayıcısına karşı
 karşılaştırır. Herhangi bir yanlış geçiş, yanlış başarı, güvensiz seçim,
-tek adımlı planlayıcıya karşı maliyet gerilemesi veya görünmeyen
+tek adımlı planlayıcıya karşı maliyet gerilemesi, probe veya karşılaştırılan
+herhangi bir planda tahmin edilmiş eğitilmemiş adım ya da görünmeyen
 unknown/rejected alternatif split'i `REJECT` yapar.
+
+Baseline'lar bilerek basittir ve okurken öyle tartılmalıdır: modelsiz baseline
+duruma bakmayan tek bir plandır (`[unlock]`), persistence ise hiçbir şeyin
+değişmediğini varsayar. Asıl karşılaştırma R12 tek adımlı planlayıcıyadır.
+Maliyet ortalaması yalnız aday ile tek adımlı planlayıcının ikisinin de hedefe
+ulaştığı vakalar üzerindendir; aday hedefe ulaşmada geri kalırsa sonuç zaten
+`REJECT` olur. Tahmin doğruluğu her vakada probe planı üzerinden puanlanır;
+karşılaştırılan diğer planlar yanlış geçiş ve yanlış başarı için denetlenir.
 
 Sonuç `fixtures/cognitive-lab/world-model-result.json`'dadır; holdout ve
 transfer ikisi de `KEEP`: final-state doğruluğu 0.294'ten 0.85'e (alt sınır
 +0.36), hedefe ulaşma 0.25'ten 1.0'a (alt sınır +0.56), tek adımlı planlayıcıya
 göre ortalama maliyet 5'ten 3'e; yanlış geçiş, yanlış başarı ve güvensiz seçim
 sıfır; `reset` planlarının hepsi `UNKNOWN` (oran 0.15). İlk ölçüm `692cd322`
-kaynağında aynı sonucu verdi; ardından Level 2 çağrısı katman kuralı için
-`CausalRuntime`'a taşındı ve kayıtlı sonuç bu son kaynakla yeniden koşudur.
+kaynağında aynı sonucu verdi. Ardından Level 2 çağrısı katman kuralı için
+`CausalRuntime`'a taşındı ve bağımsız incelemeden sonra karar mantığı
+sıkılaştırıldı (REJECT önceliği, kaynakta çevre yasası ve dirty denetimi,
+karşılaştırılan planlarda eğitilmemiş adım). Ölçüm ve eşikler değişmedi; kayıtlı
+sonuç bu son kaynakla yeniden koşudur.
 
 Sınırlar: sentetik, ayrık ve deterministik tek bir frame; sabit yedi planlık
 kütüphane; transfer yalnız yeni nuisance değerleri ve kimlikler içerir, yeni
