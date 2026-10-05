@@ -96,18 +96,24 @@ function packBudget(hits, budgetChars) {
   return { packed, used };
 }
 
-function assertInScope(hits, allowedIds, strategyName, queryId) {
-  for (const hit of hits) {
-    if (!allowedIds.has(hit.record.memoryId)) {
-      throw new Error(`${strategyName} returned out-of-scope memory ${hit.record.memoryId} for ${queryId}`);
-    }
+// A hit is scored only if it is an active record of the corpus workspace and
+// appears once: a repeated id would count one relevant memory several times.
+function assertValidHits(hits, scope, strategyName, queryId) {
+  const seen = new Set();
+  for (const { record } of hits) {
+    const inScope = scope.allowedIds.has(record.memoryId)
+      && record.workspaceId === scope.workspaceId && record.status === 'active';
+    if (!inScope) throw new Error(`${strategyName} returned out-of-scope memory ${record.memoryId} for ${queryId}`);
+    if (seen.has(record.memoryId)) throw new Error(`${strategyName} returned memory ${record.memoryId} twice for ${queryId}`);
+    seen.add(record.memoryId);
   }
 }
 
 function scoreStrategy(store, corpus, strategy, options, allowedIds) {
+  const scope = { allowedIds, workspaceId: corpus.workspaceId };
   const perQuery = corpus.queries.map((query) => {
     const hits = strategy.retrieve(store, corpus.workspaceId, query.text);
-    assertInScope(hits, allowedIds, strategy.name, query.id);
+    assertValidHits(hits, scope, strategy.name, query.id);
     const top = hits.slice(0, options.k);
     const relevant = new Set(query.relevant);
     const hitCount = (list) => list.filter((hit) => relevant.has(hit.record.memoryId)).length;

@@ -112,6 +112,26 @@ describe('retrieval experiment (#3462)', () => {
         /leaky returned out-of-scope memory x-tombstoned for q01/);
     });
 
+    it('refuses an allowed id carried by a record from another workspace or status', () => {
+      for (const override of [{ workspaceId: 'other' }, { status: 'tombstoned' }]) {
+        const forged = {
+          name: 'forged',
+          retrieve: (store) => [{ record: { ...store._memories.get(store.makeMemoryKey('lab', 'm03')), ...override }, explain: {} }],
+        };
+        assert.throws(() => runExperiment(corpus(), { strategies: { baseline: STRATEGIES.baseline, candidate: forged } }),
+          /forged returned out-of-scope memory m03 for q01/);
+      }
+    });
+
+    it('refuses a strategy that returns the same memory twice for one query', () => {
+      const repeating = {
+        name: 'repeating',
+        retrieve: (store) => Array.from({ length: 5 }, () => ({ record: store._memories.get(store.makeMemoryKey('lab', 'm07')), explain: {} })),
+      };
+      assert.throws(() => runExperiment(corpus(), { strategies: { baseline: STRATEGIES.baseline, candidate: repeating } }),
+        /repeating returned memory m07 twice for q01/);
+    });
+
     for (const [opts, message] of [
       [{ k: 0 }, /k must be a positive integer/],
       [{ repetitions: 1.5 }, /repetitions must be a positive integer/],
@@ -136,6 +156,9 @@ describe('retrieval experiment (#3462)', () => {
     it('rejects unknown and non-integer arguments', () => {
       assert.throws(() => parseArgs(['--fast']), /unknown argument: --fast/);
       assert.throws(() => parseArgs(['--k', 'many']), /--k needs an integer/);
+      assert.throws(() => parseArgs(['--seed', '']), /--seed needs an integer/);
+      assert.throws(() => parseArgs(['--seed', '  ']), /--seed needs an integer/);
+      assert.throws(() => parseArgs(['--seed']), /--seed needs an integer/);
     });
   });
 });

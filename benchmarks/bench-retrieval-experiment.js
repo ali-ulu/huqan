@@ -18,9 +18,12 @@ function parseArgs(argv) {
     if (flag === '--explain') opts.explain = true;
     else if (flag === '--no-latency') delete opts.clock;
     else if (INTEGER_FLAGS[flag]) {
-      const value = Number(argv[++i]);
-      if (!Number.isInteger(value)) throw new Error(`${flag} needs an integer`);
-      opts[INTEGER_FLAGS[flag]] = value;
+      const raw = argv[++i];
+      // Number('') is 0, so a missing or blank operand must be refused before conversion.
+      if (raw === undefined || raw.trim() === '' || !Number.isInteger(Number(raw))) {
+        throw new Error(`${flag} needs an integer`);
+      }
+      opts[INTEGER_FLAGS[flag]] = Number(raw);
     } else {
       throw new Error(`unknown argument: ${flag}`);
     }
