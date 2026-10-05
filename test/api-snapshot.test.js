@@ -89,6 +89,43 @@ test('API snapshot order does not depend on the host locale', () => {
   assert.ok(commands.indexOf('öğret') < commands.indexOf('onayla'), commands.join(' '));
 });
 
+test('API diff judges union branches as schemas, not as opaque set members', () => {
+  const base = {
+    exports: [], types: [],
+    mcp: [{
+      name: 'huqan.example',
+      inputSchema: { type: 'object', properties: {} },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          data: { anyOf: [{ type: 'null' }, { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }] },
+        },
+      },
+      annotations: {},
+    }],
+  };
+
+  // Adding an optional property inside a branch is additive.
+  const additive = structuredClone(base);
+  additive.mcp[0].outputSchema.properties.data.anyOf[1].properties.note = { type: 'string' };
+  assert.deepEqual(diffSnapshots(base, additive).breaking, []);
+
+  // Reordering the branches is not a removal.
+  const reordered = structuredClone(base);
+  reordered.mcp[0].outputSchema.properties.data.anyOf.reverse();
+  assert.deepEqual(diffSnapshots(base, reordered).breaking, []);
+
+  // Dropping a branch is still a removal.
+  const dropped = structuredClone(base);
+  dropped.mcp[0].outputSchema.properties.data.anyOf = [dropped.mcp[0].outputSchema.properties.data.anyOf[1]];
+  assert.ok(diffSnapshots(base, dropped).breaking.some((item) => item.reason.includes('accepted schema value removed')));
+
+  // Removing a property inside a branch is still a removal.
+  const shrunk = structuredClone(base);
+  delete shrunk.mcp[0].outputSchema.properties.data.anyOf[1].properties.id;
+  assert.ok(diffSnapshots(base, shrunk).breaking.some((item) => item.reason.includes('property removed (id)')));
+});
+
 function typeSnapshot(kind, name, signature) {
   return { exports: [], types: [{ file: 'x.d.ts', declarations: [{ kind, name, signature }] }] };
 }

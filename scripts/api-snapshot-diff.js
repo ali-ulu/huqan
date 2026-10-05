@@ -22,10 +22,38 @@ function compareSchema(base, current, context, breaking) {
       addBreaking(breaking, context.area, context.key, `${context.path}: schema shape changed`);
       return;
     }
-    const currentSet = new Set(current.map((item) => stableStringify(item, 0)));
-    for (const item of base) {
-      if (!currentSet.has(stableStringify(item, 0))) {
+    // A union branch (`anyOf`/`oneOf`/`allOf`) is itself a schema, so compare
+    // branches as schemas rather than as an unordered set of opaque strings.
+    // The set comparison reported any edit inside a branch -- including adding
+    // an optional property -- as "accepted schema value removed", because the
+    // branch's serialized form changed. Pair branches by their discriminator
+    // (`type`), then recurse, so an edit inside a branch is judged by the same
+    // rules as any other schema.
+    const typeOf = (branch) => (branch && typeof branch === 'object' && typeof branch.type === 'string'
+      ? branch.type : null);
+    const used = new Set();
+    const takeMatch = (branch) => {
+      const type = typeOf(branch);
+      for (let index = 0; index < current.length; index += 1) {
+        if (used.has(index)) continue;
+        if (type !== null && typeOf(current[index]) === type) return index;
+      }
+      if (type === null) {
+        // No discriminator: fall back to an exact match, then to the first
+        // unused branch that also has no discriminator.
+        const exact = current.findIndex((item, index) => !used.has(index) && stableStringify(item, 0) === stableStringify(branch, 0));
+        if (exact !== -1) return exact;
+        return current.findIndex((item, index) => !used.has(index) && typeOf(item) === null);
+      }
+      return -1;
+    };
+    for (const branch of base) {
+      const matchIndex = takeMatch(branch);
+      if (matchIndex === -1) {
         addBreaking(breaking, context.area, context.key, `${context.path}: accepted schema value removed`);
+      } else {
+        used.add(matchIndex);
+        compareSchema(branch, current[matchIndex], { ...context, path: `${context.path}[${matchIndex}]` }, breaking);
       }
     }
     return;
