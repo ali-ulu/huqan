@@ -37,7 +37,13 @@ const Graph = require('../../graph');
 const { createBackup, restoreBackup } = require('../../backupRestore');
 const { normalizeWorkspaceId } = require('../../lib/graph-record-utils');
 
-const NUM_RUNS = 40;
+// The restore arm backs up and restores the whole database per run, so on the
+// Windows runner the full corpus crosses the 90 s per-file deadline and the
+// shard kills the file as a hang (#3520). The workspace-scoping logic under
+// test is platform-neutral, so Windows runs a quarter of the cases — enough to
+// exercise Windows paths and locking, inside the deadline — while every other
+// platform keeps the full corpus.
+const NUM_RUNS = process.platform === 'win32' ? 10 : 40;
 const NODE_IDS = ['n0', 'n1', 'n2'];
 const MAX_WORKSPACES = 4;
 const RELATION = 'relates';
