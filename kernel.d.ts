@@ -209,38 +209,6 @@ export interface MemoryQueryLinksResult {
   error?: { code: string; message: string };
 }
 
-export interface MemoryQueryOptions {
-  workspaceId?: string;
-  limit?: number | null;
-  offset?: number;
-  contentIncludes?: string;
-  text?: string;
-  metadata?: Record<string, unknown>;
-  orderBy?: string;
-  order?: 'asc' | 'desc';
-  kind?: string;
-  status?: string;
-  actor?: string;
-  sourceType?: string;
-  sourceRef?: string;
-  includeDeleted?: boolean;
-  includeTombstoned?: boolean;
-  createdAfter?: string;
-  createdBefore?: string;
-  updatedAfter?: string;
-  updatedBefore?: string;
-  recall?: boolean | Record<string, unknown>;
-}
-
-export interface MemoryQueryResult {
-  ok: boolean;
-  memories?: unknown[];
-  total?: number;
-  limit?: number | null;
-  offset?: number;
-  error?: { code: string; message: string };
-}
-
 export interface KernelOptions {
   noLoad?: boolean;
   memoryPath?: string;
@@ -325,7 +293,6 @@ declare class Kernel {
   memory: {
     close(): void;
     list(opts?: Kernel.MemoryListOptions): Kernel.MemoryListResult;
-    query(opts?: Kernel.MemoryQueryOptions): Kernel.MemoryQueryResult;
     queryLinks(opts?: Kernel.MemoryQueryLinksOptions): Kernel.MemoryQueryLinksResult;
     // Restore replaces memory.db underneath an open handle, so the CLI closes
     // and reopens the store around it -- see #1848. A consumer writing that

@@ -8,7 +8,7 @@
 // envelope the other benches do not cover:
 //
 //   - workload: real kernel.learn() through the admission gate (no bypass)
-//     plus one store.query page-100 per iteration, forked into N processes;
+//     plus one store.list page-100 per iteration, forked into N processes;
 //     the store is seeded with MEMORY_SEED records first, since learn() writes
 //     the graph rather than kernel.memory;
 //   - open/RSS: process.memoryUsage().rss before/after open plus a
@@ -174,7 +174,7 @@ function childMain() {
         if (isSqliteBusyError(result.error)) state.busyFailures += 1;
         else state.otherFailures += 1;
       } else {
-        const page = kernel.memory.query({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
+        const page = kernel.memory.list({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
         ok = !!(page && page.ok === true && Array.isArray(page.memories) && page.memories.length === MEMORY_SEED);
         if (!ok) state.emptyPages += 1;
       }
@@ -282,7 +282,7 @@ async function main() {
   const warmSamples = [];
   for (let i = 0; i < 5; i += 1) {
     const t0 = process.hrtime.bigint();
-    warmKernel.memory.query({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
+    warmKernel.memory.list({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
     warmSamples.push(Number(process.hrtime.bigint() - t0) / 1e6);
   }
   closeKernel(warmKernel);
@@ -290,7 +290,7 @@ async function main() {
   const coldKernel = openKernel(dbPath, memoryPath);
   const reopenOpenMs = Number(process.hrtime.bigint() - reopenStart) / 1e6;
   const coldStart = process.hrtime.bigint();
-  coldKernel.memory.query({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
+  coldKernel.memory.list({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
   const coldQueryMs = Number(process.hrtime.bigint() - coldStart) / 1e6;
   closeKernel(coldKernel);
 
@@ -317,7 +317,7 @@ async function main() {
     sizes,
     writesPerChild,
     contention,
-    learn: { workload: 'kernel.learn (admission, no bypass) + store.query page-100', perN: learnPerN },
+    learn: { workload: 'kernel.learn (admission, no bypass) + store.list page-100', perN: learnPerN },
     open: {
       rss: {
         beforeBytes: rssBefore,

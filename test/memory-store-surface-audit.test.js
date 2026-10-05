@@ -116,7 +116,7 @@ const UNREACHED_SURFACE = Object.freeze({
  * The declared set is deliberately the consumed surface, not the whole class.
  * The other 33 public methods stay classified above rather than published.
  */
-const KERNEL_DECLARED_MEMORY_METHODS = Object.freeze(['close', 'list', 'queryLinks', 'reopen', 'query']);
+const KERNEL_DECLARED_MEMORY_METHODS = Object.freeze(['close', 'list', 'queryLinks', 'reopen']);
 const KERNEL_MEMORY_CALLS_UNDECLARED = Object.freeze([]);
 
 function publicMethods(ctor) {
