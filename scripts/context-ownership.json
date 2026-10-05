@@ -2640,6 +2640,18 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-A2A-A-A"
   },
+    "lib/a2a/handoff-dispatch.js": {
+      "context": "AgentAction",
+      "evidence": "docs/a2a-pre-dispatch-intervention.md: public index.js dispatcher orders intervention, admission and transport; test/a2a-pre-dispatch-intervention.test.js proves signed receiver and durable decisions"
+    },
+    "lib/a2a/pre-dispatch-intervention.js": {
+      "context": "AgentAction",
+      "evidence": "docs/a2a-pre-dispatch-intervention.md: handoff-dispatch.js validates allow/drop/modify and narrows action scope before admission"
+    },
+    "lib/a2a/pre-dispatch-intervention-receipt.js": {
+      "context": "AgentAction",
+      "evidence": "docs/a2a-pre-dispatch-intervention.md: handoff-dispatch.js binds decision hashes to existing trust_evidence and Graph durability before transport"
+    },
   "lib/a2a/bounded-exchange-authority.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-A2A-A-A"
@@ -5238,6 +5250,11 @@
     "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/a2a/handoff-dispatch.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "index.js public createA2aHandoffDispatcher export; docs/a2a-pre-dispatch-intervention.md and test/a2a-pre-dispatch-intervention.test.js prove the SDK caller"
   },
   "rustGraph.js": {
    "owner": "Knowledge",
