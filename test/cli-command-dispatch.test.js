@@ -186,6 +186,7 @@ const COMMANDS = [
   'öğret', 'verify', 'sor', 'neden', 'karşılaştır', 'mri', 'tartis', 'celiski', 'llm-sor', 'plan', 'ajan', 'yükle',
   'company-ingest', 'company-query', 'ingest-status', 'backup', 'kaydet', 'onaylar', 'onayla', 'audit', 'receipt',
   'coder', 'restore', 'düşün', 'optimize', 'konsolide', 'evolve', 'quickstart', 'durum', 'rüya', 'hypotheses',
+  'memory-lifecycle',
   'selam', 'yardım', 'anlamadım',
 ];
 const FAILING = { kernel: { capabilityFails: true } };
@@ -228,6 +229,8 @@ const CASES = [
   ['rüya', ''], ['rüya', '', {}, { dream: [{ from: 'kedi', to: 'hayvan', type: 'is_a', confidence: 0.912 }] }],
   ['hypotheses', {}], ['hypotheses', { propose: true }, { json: true }], ['hypotheses', { review: true }],
   ['hypotheses', { tuning: true, apply: true }], ['hypotheses', 'text-args'],
+  ['memory-lifecycle', { action: 'tombstone', memoryId: 'm1', reason: 'r', workspaceId: '', content: '' }],
+  ['memory-lifecycle', { action: 'tombstone', memoryId: 'm1', reason: '' }],
   ['selam', ''], ['yardım', ''], ['anlamadım', ''],
 ];
 
@@ -328,7 +331,10 @@ const GOLDEN = {
   // #3044 adds the `experience-learn` usage line (one line) to the same help.
   // #3220 re-recorded it for the single added `inference <JSON request>` usage
   // line; diffing against main shows exactly that one added line and nothing else.
-  'yardım': '207d4abcce09be5b83f8638746da60efcb8fc4f9c57700e473839cc2a0ff229c',
+  // #3461 adds the `memory-lifecycle` usage line (one line) to the same
+  // generated help; diffing against main shows exactly that one added line.
+  'yardım': '8a39c14761a37948e95eae4ca1b649c552eb66132c77da16e8fa008af5f2f649',
+  'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
 };
