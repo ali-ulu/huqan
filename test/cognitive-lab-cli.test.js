@@ -15,7 +15,7 @@ const { comparisonInput, budgets } = require('./helpers/cognitive-lab-comparison
 const BIN = path.resolve(__dirname, '../bin/huqan-cognitive-lab.js');
 
 function sandbox(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-paired-cli-test-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-paired-cli-test-')));
   const canonical = path.join(root, 'canonical-memory.json');
   fs.writeFileSync(canonical, '{"private":"untouched"}');
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
