@@ -334,6 +334,15 @@ test('a run reads its prior sealed run back as a checkable baseline (run A→B)'
   });
   assert.equal(chained.ok, true);
   assert.deepEqual(chained.baselineSourceHashes, [baselineA.sourceHash]);
+  // The admitted record is keyed by the full source list, so the candidate must
+  // be reachable from a chained proposal, not only from an unchained one. The
+  // procedure needs compile params, so it is checked through a params-bearing
+  // call rather than here.
+  assert.ok(chained.candidate, 'a chained positive run still yields a candidate');
+  const chainedWithParams = buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'], params: PARAMS,
+  });
+  assert.ok(chainedWithParams.procedure, 'a chained positive run still compiles its procedure');
 
   // The baseline is bound into the proposal's identity: a proposal that names
   // no baseline is a different record, not the same record with a footnote.
@@ -388,6 +397,9 @@ test('a baseline that is missing, open or mismatched refuses the proposal', asyn
   assert.equal(buildLearningProposal(journal, {
     runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a', 'run-a'],
   }).code, 'baseline_invalid', 'a duplicated baseline is invalid, not read twice');
+  assert.equal(buildLearningProposal(journal, {
+    runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-b'],
+  }).code, 'baseline_invalid', 'a run cannot be its own baseline (A→A is not a chain)');
   assert.equal(buildLearningProposal(journal, {
     runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: [],
   }).code, 'baseline_invalid', 'an empty baseline list is invalid, not "no baseline"');

@@ -124,6 +124,36 @@ test('API diff judges union branches as schemas, not as opaque set members', () 
   const shrunk = structuredClone(base);
   delete shrunk.mcp[0].outputSchema.properties.data.anyOf[1].properties.id;
   assert.ok(diffSnapshots(base, shrunk).breaking.some((item) => item.reason.includes('property removed (id)')));
+
+  // Branches that share a `type` must be paired by identity, not by order: a
+  // reorder of two `string` branches with different enums is not a change.
+  const repeated = {
+    exports: [], types: [],
+    mcp: [{
+      name: 'huqan.example',
+      inputSchema: { type: 'object', properties: {} },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          value: { anyOf: [{ type: 'string', enum: ['a'] }, { type: 'string', enum: ['b'] }] },
+        },
+      },
+      annotations: {},
+    }],
+  };
+  const repeatedReordered = structuredClone(repeated);
+  repeatedReordered.mcp[0].outputSchema.properties.value.anyOf.reverse();
+  assert.deepEqual(diffSnapshots(repeated, repeatedReordered).breaking, []);
+
+  // A constraint keyword that compareSchema does not itself walk (minItems)
+  // still narrows acceptance, so changing it inside a branch is breaking.
+  const constrained = structuredClone(repeated);
+  constrained.mcp[0].outputSchema.properties.value.anyOf[0] = { type: 'array', minItems: 1 };
+  constrained.mcp[0].outputSchema.properties.value.anyOf[1] = { type: 'array', minItems: 1 };
+  const tightened = structuredClone(constrained);
+  tightened.mcp[0].outputSchema.properties.value.anyOf[0] = { type: 'array', minItems: 2 };
+  tightened.mcp[0].outputSchema.properties.value.anyOf[1] = { type: 'array', minItems: 2 };
+  assert.ok(diffSnapshots(constrained, tightened).breaking.some((item) => item.reason.includes('minItems: constraint changed')));
 });
 
 function typeSnapshot(kind, name, signature) {

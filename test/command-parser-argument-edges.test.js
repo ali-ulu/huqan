@@ -16,7 +16,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseCommand, parseCompanyIngestArgs } = require('../lib/command-parser');
+const { parseCommand, parseCompanyIngestArgs, parseExperienceLearnArgs } = require('../lib/command-parser');
 
 const KERNEL = { normalizeWord: (value) => String(value), graph: { getNode: () => null } };
 const parse = (text) => JSON.parse(JSON.stringify(parseCommand(text, { kernel: KERNEL })));
@@ -48,6 +48,18 @@ test('approvals scopes to a workspace only when one is named', () => {
   assert.equal(parse('approvals').command, 'onaylar');
   assert.deepEqual(parse('approvals --workspace w').args, { workspaceId: 'w' });
   assert.equal(parse('approvals --workspace').command, 'anlamadım');
+});
+
+test('experience-learn distinguishes an absent --source-runs from a malformed one', () => {
+  // Absent: a first run with no baseline.
+  assert.equal(parseExperienceLearnArgs('run-b').sourceRunIds, undefined);
+  assert.deepEqual(parseExperienceLearnArgs('run-b --source-runs run-a,run-c').sourceRunIds, ['run-a', 'run-c']);
+  // Present with a missing operand must reach baseline validation as invalid,
+  // not silently degrade to an unchained proposal.
+  assert.deepEqual(parseExperienceLearnArgs('run-b --source-runs --kind replace_text').sourceRunIds, ['']);
+  // An empty slot is preserved so `a,,b` is refused rather than read as `a,b`.
+  assert.deepEqual(parseExperienceLearnArgs('run-b --source-runs a,,b').sourceRunIds, ['a', '', 'b']);
+  assert.deepEqual(parseExperienceLearnArgs('run-b --source-runs a,').sourceRunIds, ['a', '']);
 });
 
 test('company ingest arguments default every field that is not given', () => {

@@ -26,41 +26,53 @@ function compareSchema(base, current, context, breaking) {
     // branches as schemas rather than as an unordered set of opaque strings.
     // The set comparison reported any edit inside a branch -- including adding
     // an optional property -- as "accepted schema value removed", because the
-    // branch's serialized form changed. Pair branches by their discriminator
-    // (`type`), then recurse, so an edit inside a branch is judged by the same
-    // rules as any other schema.
+    // branch's serialized form changed. Pair identical branches first (so a
+    // reorder of branches that share a `type` does not mispair them), then pair
+    // the remaining edited branches by their `type` discriminator and recurse,
+    // so an edit inside a branch is judged by the same rules as any schema.
     const typeOf = (branch) => (branch && typeof branch === 'object' && typeof branch.type === 'string'
       ? branch.type : null);
-    const used = new Set();
-    const takeMatch = (branch) => {
+    const usedBase = new Set();
+    const usedCurrent = new Set();
+    base.forEach((branch, index) => {
+      const serialized = stableStringify(branch, 0);
+      const match = current.findIndex((item, at) => !usedCurrent.has(at) && stableStringify(item, 0) === serialized);
+      if (match !== -1) {
+        usedBase.add(index);
+        usedCurrent.add(match);
+      }
+    });
+    base.forEach((branch, index) => {
+      if (usedBase.has(index)) return;
       const type = typeOf(branch);
-      for (let index = 0; index < current.length; index += 1) {
-        if (used.has(index)) continue;
-        if (type !== null && typeOf(current[index]) === type) return index;
+      let match = -1;
+      if (type !== null) {
+        match = current.findIndex((item, at) => !usedCurrent.has(at) && typeOf(item) === type);
+      } else {
+        match = current.findIndex((item, at) => !usedCurrent.has(at) && typeOf(item) === null);
       }
-      if (type === null) {
-        // No discriminator: fall back to an exact match, then to the first
-        // unused branch that also has no discriminator.
-        const exact = current.findIndex((item, index) => !used.has(index) && stableStringify(item, 0) === stableStringify(branch, 0));
-        if (exact !== -1) return exact;
-        return current.findIndex((item, index) => !used.has(index) && typeOf(item) === null);
-      }
-      return -1;
-    };
-    for (const branch of base) {
-      const matchIndex = takeMatch(branch);
-      if (matchIndex === -1) {
+      if (match === -1) {
         addBreaking(breaking, context.area, context.key, `${context.path}: accepted schema value removed`);
       } else {
-        used.add(matchIndex);
-        compareSchema(branch, current[matchIndex], { ...context, path: `${context.path}[${matchIndex}]` }, breaking);
+        usedCurrent.add(match);
+        compareSchema(branch, current[match], { ...context, path: `${context.path}[${match}]` }, breaking);
       }
-    }
+    });
     return;
   }
 
   for (const field of ['type', 'const', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength']) {
     if (Object.hasOwn(base, field) && stableStringify(base[field], 0) !== stableStringify(current[field], 0)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}.${field}: constraint changed`);
+    }
+  }
+
+  // Constraint keywords that live beside the compared fields still narrow what
+  // a schema accepts, so a change to one is breaking even though it is not a
+  // property or a union branch. Pure annotations (description, title, default,
+  // examples) are excluded: they do not change acceptance.
+  for (const field of ['minItems', 'maxItems', 'uniqueItems', 'format', 'multipleOf', 'exclusiveMinimum', 'exclusiveMaximum', 'minProperties', 'maxProperties']) {
+    if (stableStringify(base[field], 0) !== stableStringify(current[field], 0)) {
       addBreaking(breaking, context.area, context.key, `${context.path}.${field}: constraint changed`);
     }
   }
