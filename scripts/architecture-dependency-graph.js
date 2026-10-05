@@ -70,6 +70,7 @@ const RULES = [
       'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js',
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
+      'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
       'fixtures/cognitive-lab/causal-confirmatory-generator.js',
     ],
     dirs: [
