@@ -1684,6 +1684,10 @@
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-VERIFY-K"
   },
+  "lib/action-ir.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-EXTACTION-A"
+  },
   "lib/command-policy-editor.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -5513,6 +5517,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/common-semantic-ir.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#R-VERIFY-K; L2 candidate Action IR consumes the L1 record (#3476)"
   },
   "lib/error-prevention/index.js": {
    "owner": "AgentAction",
