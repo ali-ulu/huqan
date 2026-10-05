@@ -483,6 +483,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: package-lock.json
+      # windows-latest ships Visual Studio 18 (VS 2026); the node-gyp bundled
+      # with Node 22 (11.5.0) cannot detect it, so any npm ci step that reaches
+      # "node-gyp rebuild" (e.g. better-sqlite3 after a dependabot lockfile
+      # regen drops its "gypfile": false marker, #3527) fails all Windows
+      # shards. npm 11.6.3 bundles node-gyp ^12.1.0, which supports VS 2026.
+      - name: Upgrade npm for Visual Studio 2026 support (node-gyp >= 12.1.0)
+        if: runner.os == 'Windows' && matrix.node-version == 22
+        run: npm install -g npm@11.6.3
       - run: npm ci --include=optional
       # A failed-jobs rerun retains the successful producer's outputs. Its
       # artifact belongs to that producer attempt, not github.run_attempt here.

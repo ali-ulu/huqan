@@ -35,6 +35,14 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      # windows-latest ships Visual Studio 18 (VS 2026); Node 22's bundled
+      # node-gyp 11.5.0 cannot detect it, so any npm ci step that reaches
+      # "node-gyp rebuild" fails (see #3527). npm 11.6.3 bundles node-gyp
+      # ^12.1.0, which supports VS 2026.
+      - name: Upgrade npm for Visual Studio 2026 support (node-gyp >= 12.1.0)
+        if: runner.os == 'Windows'
+        run: npm install -g npm@11.6.3
+
       - name: Install repository dependencies
         run: npm ci --include=optional
 
