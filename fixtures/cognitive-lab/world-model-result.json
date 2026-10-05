@@ -8,7 +8,7 @@
     "schemaVersion": "huqan-cognitive-lab-manifest-v1",
     "source": {
       "repository": "ali-ulu/huqan",
-      "commit": "823f4292855787b2cabe206fb2c8367a12efb3b2",
+      "commit": "ba6bc32c681652c904c7d5d93d9955be9a1b113e",
       "dirty": false
     },
     "fixture": {
@@ -403,7 +403,7 @@
     "measurementVersion": "world-model-b5-v1",
     "thresholdConfigHash": "473c535743ab67c129a93623703d0eb8abf451b1200997e1535ed14ea88e6f2f"
   },
-  "manifestDigest": "78fcab7daa6e0ffb2e90e79dd78a50ea69cc33b96dd2aab92341ed884595bc67",
+  "manifestDigest": "f6e989271f21eb220c2529d9918465c8579cf57306235d34cfd86aad16ea5b98",
   "trainingEpisodes": 256,
   "externalBudget": {
     "schemaVersion": "huqan-cognitive-lab-budget-envelope-v1",
@@ -9517,7 +9517,7 @@
     "lib/cognitive-lab-world-model-world.js": "9e5b90501107ac53a7529ed3e62248fa2737cf87e00ddd9dcccbcc1002985b8f",
     "lib/causal/learned-causal-engine.js": "351be7b16eceb900b96d47d12e2ef5db0f702289587c1f8a17e9cae9c7e77dbf",
     "lib/causal/symbolic-world-model.js": "ff9efc2489c784dd22f4130233fb90dbe18a2aa1d500db25cdbb24543bc22154",
-    "lib/cognitive-lab-world-model-design.js": "be53411d37715ff316bdcc653c756fda58df5a7b8bba68ace1b22745f10c029d",
+    "lib/cognitive-lab-world-model-design.js": "edc1361dd1481a3d42e9dfe97629038918da51cd6eeb8482adbf951d9abda001",
     "lib/cognitive-lab-world-model-experiment.js": "8d01287874f63b78e4d0e6416c75d38d96fe8ff3510adbdd59a68534945dbfc9",
     "bin/huqan-causal-lab.js": "fd6fa471201f9e82474b9c1e93a72178ec44be52465f19aef1fbefad7e4bad84"
   }
