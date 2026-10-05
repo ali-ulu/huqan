@@ -416,7 +416,11 @@ test('a chained proposal replays identically across a journal restart', async (t
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-experience-learn-baseline-replay-'));
   const dbPath = path.join(root, 'memory.db');
   let storage = new HuqanStorage({ kernel: {}, dbPath });
+  // Close before removing: Windows cannot unlink an open SQLite file, and the
+  // reopen below replaces `storage`, so one hook must close the current handle
+  // first. Two hooks would remove the directory while it is still open.
   t.after(() => {
+    storage.close();
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -433,7 +437,6 @@ test('a chained proposal replays identically across a journal restart', async (t
   // not survive, so a chained proposal must replay from the durable record.
   storage.close();
   storage = new HuqanStorage({ kernel: {}, dbPath });
-  t.after(() => storage.close());
   const reopened = resolveExperienceJournal({ kernel: {} }, storage);
   const after = buildLearningProposal(reopened, {
     runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
