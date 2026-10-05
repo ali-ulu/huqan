@@ -1,0 +1,107 @@
+{
+  "sourceBase": "ba65ed07db0c1703777fd5d6ec2ca49238630a77",
+  "design": {
+    "schemaVersion": "huqan-world-model-experiment-v1",
+    "seed": 3468,
+    "world": "bounded-door-multistep-v1",
+    "scope": "Synthetic discrete multistep transitions in one frame; no external task, general planning or learning claim",
+    "split": {
+      "train": {
+        "prefix": "train",
+        "count": 32
+      },
+      "holdout": {
+        "prefix": "holdout",
+        "count": 160
+      },
+      "transfer": {
+        "prefix": "transfer",
+        "count": 160
+      }
+    },
+    "transfer": "Unseen nuisance values and distinct episode/source ids; same causal law, frame and plan library",
+    "training": "Each train state records one controlled treatment/control pair for energize, unjam, unlock and release; reset and force are never trained",
+    "budget": {
+      "modelCalls": 0,
+      "toolCalls": 0,
+      "humanCalls": 0,
+      "tokens": 0,
+      "maxTrainingEpisodes": 512,
+      "maxPlanSteps": 8,
+      "maxPlansCompared": 16,
+      "maxOperationsPerRollout": 100000
+    },
+    "baseline": {
+      "prediction": "Persistence: the plan leaves the input state unchanged",
+      "modelFreePlanner": "Cheapest receiver-policy-allowed plan from the same library, without a learned model",
+      "singleStepPlanner": "I3 CausalSimulator.proposeActions over single library actions; cheapest supported candidate"
+    },
+    "primary": {
+      "prediction": "Full final-state accuracy of the case probe plan; UNKNOWN scores 0",
+      "planning": "Goal reach of the selected plan executed in the environment"
+    },
+    "thresholds": {
+      "minimumSamplesPerSplit": 160,
+      "minimumIndependentSupport": 3,
+      "minimumFinalStateAccuracyGain": 0.1,
+      "minimumGoalReachGain": 0.1,
+      "minimumGainLowerBound": 0.05,
+      "minimumMeanCostReductionVsSingleStep": 0.5,
+      "maximumFalseTransitions": 0,
+      "maximumFalseSuccess": 0,
+      "maximumUnsafeSelected": 0
+    },
+    "uncertainty": "Conservative bounded synthetic case score: mean(delta)-sqrt(2*log(20)/n) on 0/1 outcomes; cost is reported as mean and per-case non-inferiority; no real-task population CI claim",
+    "metrics": {
+      "prediction": [
+        "stepAccuracyOfPredictedSteps",
+        "falseTransitions",
+        "finalStateAccuracy",
+        "pairedFinalStateGain",
+        "unknownRate",
+        "untrainedStepAlwaysUnknown"
+      ],
+      "planning": [
+        "goalReachRate",
+        "pairedGoalReachGain",
+        "falseSuccess",
+        "meanExecutedCost",
+        "costNonInferiorityVsSingleStep",
+        "unsafeSelected",
+        "plansCompared",
+        "rejectedAndUnknownAlternativesVisible"
+      ],
+      "calibration": "NOT_MEASURED: the support score is not a probability; with zero false transitions a reliability curve has no information"
+    },
+    "negativeControls": [
+      "untrained step in a plan",
+      "policy-blocked step",
+      "support withdrawal between snapshots",
+      "operation budget exhaustion",
+      "fewer than two plans",
+      "no supported plan reaches the goal"
+    ],
+    "mutations": [
+      "continue past an UNKNOWN step",
+      "skip the per-step policy check",
+      "disable the simulator Level 2 caller"
+    ],
+    "killCriteria": [
+      "overlapping splits",
+      "fixture or environment digest mismatch",
+      "any false transition",
+      "any false success",
+      "unsafe plan selected",
+      "external call or token usage",
+      "lower bound below threshold",
+      "cost regression versus single-step planner"
+    ],
+    "promotion": "No automatic model, plan or graph-rule promotion; KEEP is experimental only",
+    "phase": "CONFIRMATORY_PREREGISTERED"
+  },
+  "frozen": {
+    "designDigest": "fbdbb3acd0e292df907ce55c95778704926920ee1cbecf6840d98bca7ecf8fdb",
+    "fixtureDigest": "b99516ecf527ed4bd00eaa02d590c189e56babf8aa686c12fb21272b83fe64dc",
+    "worldDigest": "9e5b90501107ac53a7529ed3e62248fa2737cf87e00ddd9dcccbcc1002985b8f"
+  }
+}
