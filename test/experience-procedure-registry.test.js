@@ -132,6 +132,13 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
 
     registry.register({ workspaceId: 'ws-a', procedure: v1 });
     registry.register({ workspaceId: 'ws-a', procedure: v2 });
+    // Activation is gated on version-bound qualification evidence (#3460).
+    const passing = qualify({
+      procedure: v2, inputs: ['line with bar in it'], apply: applySingleSite, observe: (input) => input,
+    });
+    assert.equal(passing.ok, true);
+    registry.recordQualification({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version, details: passing });
+
     const activated = registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version });
     assert.equal(activated.ok, true);
     assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v2.kind }).version, v2.version);
@@ -140,6 +147,71 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     assert.equal(oldFetch.ok, true);
     assert.equal(oldFetch.entry.hash, v1.hash, 'old version payload must never become the new one');
     assert.notEqual(oldFetch.entry.hash, v2.hash);
+  });
+
+  it('8. activation fails closed without qualification evidence, and evidence is bound to the exact hash', () => {
+    const registry = createProcedureRegistry();
+    const v1 = compileReplaceText({ parentVersion: 0 });
+    const v2 = compileReplaceText({
+      parentVersion: v1.version,
+      params: { path: 'a.txt', oldText: 'bar', newText: 'baz' },
+    });
+    registry.register({ workspaceId: 'ws-a', procedure: v1 });
+    registry.register({ workspaceId: 'ws-a', procedure: v2 });
+
+    // Registered is not qualified: activation without evidence is refused.
+    const unproven = registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version });
+    assert.equal(unproven.ok, false);
+    assert.equal(unproven.code, CODES.QUALIFICATION_MISSING);
+    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v2.kind }).code, CODES.NO_ACTIVE_VERSION);
+
+    // Evidence recorded against v1 must not authorize v2: the binding is the
+    // version's own immutable hash, not the kind.
+    const passV1 = qualify({
+      procedure: v1, inputs: ['line with foo in it'], apply: applySingleSite, observe: (input) => input,
+    });
+    assert.equal(passV1.ok, true);
+    registry.recordQualification({ workspaceId: 'ws-a', kind: v1.kind, version: v1.version, details: passV1 });
+    assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version }).code,
+      CODES.QUALIFICATION_MISSING);
+    assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v1.kind, version: v1.version }).ok, true);
+
+    // A rejecting outcome is not evidence, even when bound to the version.
+    registry.recordQualification({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version, details: { ok: false, code: 'qualify_rejected:drift' } });
+    assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version }).code,
+      CODES.QUALIFICATION_MISSING);
+  });
+
+  it('9. a promotion can be rolled back to the previously active version, and the undo is auditable', () => {
+    const registry = createProcedureRegistry();
+    const v1 = compileReplaceText({ parentVersion: 0 });
+    const v2 = compileReplaceText({
+      parentVersion: v1.version,
+      params: { path: 'a.txt', oldText: 'bar', newText: 'baz' },
+    });
+    registry.register({ workspaceId: 'ws-a', procedure: v1 });
+    registry.register({ workspaceId: 'ws-a', procedure: v2 });
+    for (const [procedure, input] of [[v1, 'line with foo in it'], [v2, 'line with bar in it']]) {
+      const pass = qualify({ procedure, inputs: [input], apply: applySingleSite, observe: (value) => value });
+      registry.recordQualification({ workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version, details: pass });
+    }
+
+    // First activation has no prior version to fall back to.
+    assert.equal(registry.rollbackActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).code, CODES.NO_ROLLBACK_TARGET);
+
+    registry.setActiveVersion({ workspaceId: 'ws-a', kind: v1.kind, version: v1.version });
+    registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version });
+    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).version, v2.version);
+
+    const rolledBack = registry.rollbackActiveVersion({ workspaceId: 'ws-a', kind: v1.kind });
+    assert.equal(rolledBack.ok, true);
+    assert.equal(rolledBack.activeVersion, v1.version);
+    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).version, v1.version);
+
+    // Both the promotion and the undo are recorded, in order.
+    const history = registry.getRollbackHistory({ workspaceId: 'ws-a', kind: v1.kind });
+    assert.deepEqual(history.entries.map((entry) => [entry.fromVersion, entry.toVersion]),
+      [[null, v1.version], [v1.version, v2.version], [v2.version, v1.version]]);
   });
 
   it('6. coverage gate refuses a kind with zero recorded drift/ambiguous rejections, even with a passing qualify()', () => {
