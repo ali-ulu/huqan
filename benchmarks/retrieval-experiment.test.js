@@ -65,7 +65,7 @@ describe('retrieval experiment (#3462)', () => {
   describe('latency', () => {
     it('is measured only with an injected clock and is advisory', () => {
       const report = runExperiment(corpus(), { clock: fakeClock(), repetitions: 3 });
-      assert.deepEqual(report.baseline.latency, { samples: 27, medianMs: 1, p95Ms: 1 });
+      assert.deepEqual(report.baseline.latency, { prepareMs: 1, samples: 27, medianMs: 1, p95Ms: 1 });
       assert.deepEqual(report.comparison.latency, { baselineMedianMs: 1, candidateMedianMs: 1, status: 'ADVISORY' });
     });
 
@@ -74,7 +74,7 @@ describe('retrieval experiment (#3462)', () => {
         const order = [];
         const tracing = Object.fromEntries(Object.entries(STRATEGIES).map(([side, strategy]) => [side, {
           name: strategy.name,
-          retrieve: (store, ws, text) => { order.push(`${side}:${text}`); return strategy.retrieve(store, ws, text); },
+          prepare: (store, ws) => { const search = strategy.prepare(store, ws); return (text) => { order.push(`${side}:${text}`); return search(text); }; },
         }]));
         runExperiment(corpus(), { seed, clock: fakeClock(), strategies: tracing });
         return order;
@@ -106,7 +106,7 @@ describe('retrieval experiment (#3462)', () => {
     it('refuses a strategy that returns a memory outside the active workspace records', () => {
       const leaky = {
         name: 'leaky',
-        retrieve: (store) => [{ record: store._memories.get(store.makeMemoryKey('lab', 'x-tombstoned')), explain: {} }],
+        prepare: (store) => () => [{ record: store._memories.get(store.makeMemoryKey('lab', 'x-tombstoned')), explain: {} }],
       };
       assert.throws(() => runExperiment(corpus(), { strategies: { baseline: STRATEGIES.baseline, candidate: leaky } }),
         /leaky returned out-of-scope memory x-tombstoned for q01/);
@@ -116,7 +116,7 @@ describe('retrieval experiment (#3462)', () => {
       for (const override of [{ workspaceId: 'other' }, { status: 'tombstoned' }]) {
         const forged = {
           name: 'forged',
-          retrieve: (store) => [{ record: { ...store._memories.get(store.makeMemoryKey('lab', 'm03')), ...override }, explain: {} }],
+          prepare: (store) => () => [{ record: { ...store._memories.get(store.makeMemoryKey('lab', 'm03')), ...override }, explain: {} }],
         };
         assert.throws(() => runExperiment(corpus(), { strategies: { baseline: STRATEGIES.baseline, candidate: forged } }),
           /forged returned out-of-scope memory m03 for q01/);
@@ -126,7 +126,7 @@ describe('retrieval experiment (#3462)', () => {
     it('refuses a strategy that returns the same memory twice for one query', () => {
       const repeating = {
         name: 'repeating',
-        retrieve: (store) => Array.from({ length: 5 }, () => ({ record: store._memories.get(store.makeMemoryKey('lab', 'm07')), explain: {} })),
+        prepare: (store) => () => Array.from({ length: 5 }, () => ({ record: store._memories.get(store.makeMemoryKey('lab', 'm07')), explain: {} })),
       };
       assert.throws(() => runExperiment(corpus(), { strategies: { baseline: STRATEGIES.baseline, candidate: repeating } }),
         /repeating returned memory m07 twice for q01/);
@@ -150,7 +150,8 @@ describe('retrieval experiment (#3462)', () => {
       assert.equal(typeof parseArgs([]).clock, 'function');
       assert.equal(Object.hasOwn(parseArgs(['--no-latency']), 'clock'), false);
       assert.deepEqual({ ...parseArgs(['--k', '3', '--budget', '200', '--explain', '--no-latency']) },
-        { repetitions: 20, k: 3, budgetChars: 200, explain: true });
+        { corpus: 'small', repetitions: 20, k: 3, budgetChars: 200, explain: true });
+      assert.equal(parseArgs(['--corpus', 'github']).corpus, 'github');
     });
 
     it('rejects unknown and non-integer arguments', () => {
@@ -159,6 +160,8 @@ describe('retrieval experiment (#3462)', () => {
       assert.throws(() => parseArgs(['--seed', '']), /--seed needs an integer/);
       assert.throws(() => parseArgs(['--seed', '  ']), /--seed needs an integer/);
       assert.throws(() => parseArgs(['--seed']), /--seed needs an integer/);
+      assert.throws(() => parseArgs(['--corpus', 'toString']), /--corpus must be one of: small, github/);
+      assert.throws(() => parseArgs(['--corpus']), /--corpus must be one of/);
     });
   });
 });
