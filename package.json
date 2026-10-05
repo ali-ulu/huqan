@@ -51,6 +51,7 @@
     "check:benign-false-block-rate": "node scripts/benign-false-block-rate.js",
     "check:enforcement-coverage": "node scripts/enforcement-coverage.js",
     "update:shard-weights": "node scripts/update-shard-weights.js",
+    "ci:cost-breakdown": "node scripts/ci-cost-breakdown.js",
     "coverage": "c8 --reporter=json-summary --reporter=text-summary --all --include='*.js' --include='lib/**/*.js' --include='scripts/**/*.js' node scripts/run-tests.js --test-concurrency=1",
     "check:coverage": "node scripts/check-coverage.js",
     "check:security-invariants": "node scripts/check-security-invariants.js",
