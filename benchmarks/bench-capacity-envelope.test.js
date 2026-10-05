@@ -32,7 +32,7 @@ describe('bench-capacity-envelope (#3503)', () => {
     assert.ok(Array.isArray(report.contention.perN));
     assert.equal(report.contention.perN.length, 2);
 
-    // Kernel learn+query leg: p50/p95/p99, busy counters, queue lag.
+    // Kernel learn leg: p50/p95/p99, busy counters, queue lag.
     assert.ok(Array.isArray(report.learn.perN));
     assert.equal(report.learn.perN.length, 2);
     for (const leg of report.learn.perN) {
@@ -43,9 +43,23 @@ describe('bench-capacity-envelope (#3503)', () => {
       assert.equal(typeof leg.otherFailures, 'number');
       assert.equal(typeof leg.queueLagMs, 'number');
       assert.equal(typeof leg.maxEventLoopBlockMs, 'number');
+      // Each leg is labelled so queue lag can be read per writer count.
+      assert.equal(typeof leg.leg, 'string', 'leg label missing');
       // The page-100 leg must read a seeded store, never an empty one.
       assert.equal(leg.emptyPages, 0, 'query leg measured an empty store');
     }
+
+    // SQL page vs scan over the one seeded dataset: both distributions present,
+    // and the scan must have read the whole workspace.
+    assert.equal(typeof report.read, 'object', 'read leg missing');
+    for (const side of ['page', 'scan']) {
+      for (const field of ['p50Ms', 'p95Ms', 'p99Ms']) {
+        assert.equal(typeof report.read[side][field], 'number', `read.${side}.${field} missing`);
+      }
+    }
+    assert.equal(report.read.page.records, 100, 'page leg did not read a full page');
+    assert.ok(report.read.scan.records > report.read.page.records, 'scan leg read no more than a page');
+    assert.equal(typeof report.read.scanOverPageP50, 'number', 'scan/page ratio missing');
 
     // Open/RSS, WAL sidecars, cold restart split.
     for (const field of ['beforeBytes', 'afterOpenBytes', 'afterWritesBytes', 'slopeBytesPerWrite']) {
