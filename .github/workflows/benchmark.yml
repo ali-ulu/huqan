@@ -429,6 +429,17 @@ jobs:
         os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
         node-version: [22, 24]
         shard: [1, 2, 3, 4, 5]
+        # Pull requests run Windows on Node 24 only; Linux keeps both Node
+        # versions, and main pushes, the nightly and manual runs keep the
+        # Windows x Node 22 legs. Measured over 3-5 Oct (1700 runs): Windows
+        # shards were 47% of all runner time and every PR started 20 test jobs,
+        # enough on its own to fill the hosted concurrency pool -- the likely
+        # cause of the "job was not acquired by Runner" cancellations on main.
+        # This drops five PR jobs (20 -> 15). A Node-22-only Windows break now
+        # surfaces on the main push replay instead of the PR. The required
+        # check is the "npm test gate" aggregate, not a per-leg name, so no
+        # ruleset context moves.
+        exclude: ${{ fromJSON(github.event_name == 'pull_request' && '[{"os":"windows-latest","node-version":22}]' || '[]') }}
     defaults:
       run:
         shell: bash
