@@ -832,6 +832,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-T"
   },
+  "lib/memory-decontamination.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-T; pure scorer called only by lib/memory-recall-gate.js (#3464)"
+  },
   "lib/provenance-drift.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-PROV-T"
@@ -4530,6 +4534,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/fuzzy-normalization.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#3464: lib/memory-decontamination.js (Trust) scores overlap with meaningfulTokens/normalizeFuzzyText"
   },
   "lib/context-canary.js": {
    "owner": "AgentAction",
