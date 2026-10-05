@@ -6,6 +6,7 @@ const test = require('node:test');
 const { createServer } = require('../mcpServer');
 const {
   FILTER_AUDIT_VERSION,
+  FILTER_DECISIONS,
   FILTER_REASONS,
   auditToolSurfaceFilter,
 } = require('../lib/mcp/tool-surface-filter-audit');
@@ -67,6 +68,16 @@ test('#3482 every withheld operator tool is recorded block with its reason', () 
     assert.equal(record.decision, 'allow');
     assert.equal(record.reason, FILTER_REASONS.MODEL_VISIBLE);
   }
+});
+
+test('#3482 the filter vocabulary agrees with the gate contract without importing it', () => {
+  // The production module mirrors MCP_GATE_DECISIONS with literals so the
+  // Platform context opens no published-port edge into the AgentAction-owned
+  // gate contract (#2446 rule 2). This pins the agreement the require would
+  // have carried; test files are outside the port boundary.
+  const { MCP_GATE_DECISIONS } = require('../lib/mcp-gate-adapter-contract');
+  assert.equal(FILTER_DECISIONS.allow, MCP_GATE_DECISIONS.allow);
+  assert.equal(FILTER_DECISIONS.block, MCP_GATE_DECISIONS.block);
 });
 
 test('#3482 a tool on both sides is recorded fail-closed as a surface conflict', () => {

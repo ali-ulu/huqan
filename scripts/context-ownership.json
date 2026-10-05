@@ -4350,6 +4350,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
+  "lib/mcp/tool-surface-filter-audit.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
   "lib/mcp/tool-surface.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
