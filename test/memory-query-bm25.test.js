@@ -92,6 +92,21 @@ describe('memory query: retrievalMode bm25 is opt-in', () => {
     assert.deepEqual(result.memories.map((m) => m.memoryId), ['m-1', 'm-2']);
   });
 
+  test('an edited record is ranked by its new text, not a cached one', () => {
+    const editable = record('m-1', 'alpha alpha beta');
+    const other = record('m-2', 'alpha beta gamma delta');
+    const context = contextWith([editable, other]);
+    assert.deepEqual(runQuery(context, { text: 'alpha', retrievalMode: 'bm25' }).memories.map((m) => m.memoryId), ['m-1', 'm-2']);
+    editable.content = 'gamma only now';
+    assert.deepEqual(runQuery(context, { text: 'alpha', retrievalMode: 'bm25' }).memories.map((m) => m.memoryId), ['m-2']);
+  });
+
+  test('ranks records longer than the term cache admits', () => {
+    const long = record('m-long', `needle ${'filler '.repeat(1000)}`);
+    const result = runQuery(contextWith([long, record('m-short', 'hay')]), { text: 'needle', retrievalMode: 'bm25' });
+    assert.deepEqual(result.memories.map((m) => m.memoryId), ['m-long']);
+  });
+
   test('ranks only what the recall gate lets through', () => {
     const unprovenanced = record('m-x', 'recall gate provenance exact', { provenance: undefined });
     const result = runQuery(contextWith([...RECORDS, unprovenanced]), {
