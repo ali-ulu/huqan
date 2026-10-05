@@ -176,6 +176,15 @@ const FAN_OUT_SIGNAL = 20;
  */
 const FANOUT_ALLOWED = Object.freeze([
   {
+    file: 'index.js',
+    ceiling: 20,
+    why: 'The package-root facade exports the existing SDK ports and the transport-independent A2A handoff '
+      + 'dispatcher (#3477). These requires only expose reviewed public constructors/functions; signing, '
+      + 'admission and dispatch remain injected by the host. docs/a2a-pre-dispatch-intervention.md and '
+      + 'test/a2a-pre-dispatch-intervention.test.js pin the public caller. No domain decisions live in this entrypoint.',
+    review_by: '2026-12-31',
+  },
+  {
     file: 'kernel.js',
     ceiling: 28,
     why: 'The remaining requires wire the admission-gated learn() chokepoint and its single audit sink, which '
