@@ -68,12 +68,31 @@ function normalizeOptions(opts = {}) {
   return merged;
 }
 
-function seedStore(corpus) {
+// A corpus may list only memoryId, content and createdAt; every other field
+// defaults to an active memory of the corpus workspace.
+function toMemoryRecord(corpus, record) {
+  return {
+    workspaceId: corpus.workspaceId, kind: 'memory-record', status: 'active', metadata: {}, provenance: {},
+    ...structuredClone(record),
+  };
+}
+
+function seedStore(records) {
   const store = new MemoryStore({ useSQLite: false });
-  for (const record of corpus.records) {
-    store._memories.set(store.makeMemoryKey(record.workspaceId, record.memoryId), structuredClone(record));
-  }
+  for (const record of records) store._memories.set(store.makeMemoryKey(record.workspaceId, record.memoryId), record);
   return store;
+}
+
+// Each strategy prepares once (the candidate builds its index here), so
+// per-query latency is the search alone; the one-off cost is prepareMs.
+function prepareStrategies(store, workspaceId, options) {
+  return Object.fromEntries(['baseline', 'candidate'].map((side) => {
+    const strategy = options.strategies[side];
+    const start = options.clock ? options.clock() : 0;
+    const search = strategy.prepare(store, workspaceId);
+    const prepareMs = options.clock ? round(options.clock() - start) : undefined;
+    return [side, { name: strategy.name, search, prepareMs }];
+  }));
 }
 
 function round(value) {
@@ -109,10 +128,9 @@ function assertValidHits(hits, scope, strategyName, queryId) {
   }
 }
 
-function scoreStrategy(store, corpus, strategy, options, allowedIds) {
-  const scope = { allowedIds, workspaceId: corpus.workspaceId };
+function scoreStrategy(strategy, corpus, options, scope) {
   const perQuery = corpus.queries.map((query) => {
-    const hits = strategy.retrieve(store, corpus.workspaceId, query.text);
+    const hits = strategy.search(query.text);
     assertValidHits(hits, scope, strategy.name, query.id);
     const top = hits.slice(0, options.k);
     const relevant = new Set(query.relevant);
@@ -142,7 +160,7 @@ function percentile(sorted, fraction) {
   return sorted[Math.min(sorted.length - 1, Math.ceil(fraction * sorted.length) - 1)];
 }
 
-function measureLatency(store, corpus, options) {
+function measureLatency(prepared, corpus, options) {
   if (!options.clock) return { baseline: 'NOT_MEASURED', candidate: 'NOT_MEASURED' };
   const random = createPairedSampler(options.seed);
   const samples = { baseline: [], candidate: [] };
@@ -152,16 +170,17 @@ function measureLatency(store, corpus, options) {
       const sides = random() < 0.5 ? ['baseline', 'candidate'] : ['candidate', 'baseline'];
       for (const side of sides) {
         const start = options.clock();
-        options.strategies[side].retrieve(store, corpus.workspaceId, query.text);
+        prepared[side].search(query.text);
         samples[side].push(options.clock() - start);
       }
     }
   }
-  const summarize = (values) => {
-    const sorted = [...values].sort((a, b) => a - b);
-    return { samples: sorted.length, medianMs: round(percentile(sorted, 0.5)), p95Ms: round(percentile(sorted, 0.95)) };
+  const summarize = (side) => {
+    const sorted = [...samples[side]].sort((a, b) => a - b);
+    return { prepareMs: prepared[side].prepareMs, samples: sorted.length,
+      medianMs: round(percentile(sorted, 0.5)), p95Ms: round(percentile(sorted, 0.95)) };
   };
-  return { baseline: summarize(samples.baseline), candidate: summarize(samples.candidate) };
+  return { baseline: summarize('baseline'), candidate: summarize('candidate') };
 }
 
 function compareMetric(baseline, candidate) {
@@ -192,13 +211,17 @@ function explainOf(perQuery) {
 function runExperiment(corpus, opts = {}) {
   verifyFrozenCorpus(corpus);
   const options = normalizeOptions(opts);
-  const store = seedStore(corpus);
-  const allowedIds = new Set(corpus.records
-    .filter((record) => record.workspaceId === corpus.workspaceId && record.status === 'active')
-    .map((record) => record.memoryId));
-  const baseline = scoreStrategy(store, corpus, options.strategies.baseline, options, allowedIds);
-  const candidate = scoreStrategy(store, corpus, options.strategies.candidate, options, allowedIds);
-  const latency = measureLatency(store, corpus, options);
+  const records = corpus.records.map((record) => toMemoryRecord(corpus, record));
+  const scope = {
+    workspaceId: corpus.workspaceId,
+    allowedIds: new Set(records
+      .filter((record) => record.workspaceId === corpus.workspaceId && record.status === 'active')
+      .map((record) => record.memoryId)),
+  };
+  const prepared = prepareStrategies(seedStore(records), corpus.workspaceId, options);
+  const baseline = scoreStrategy(prepared.baseline, corpus, options, scope);
+  const candidate = scoreStrategy(prepared.candidate, corpus, options, scope);
+  const latency = measureLatency(prepared, corpus, options);
   const report = {
     schema: SCHEMA,
     scope: 'experiment-only',

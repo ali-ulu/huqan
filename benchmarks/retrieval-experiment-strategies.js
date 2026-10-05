@@ -29,10 +29,13 @@ function tokenize(text) {
   return normalizeText(text).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 }
 
-function baselineRetrieve(store, workspaceId, queryText) {
-  const result = store.query({ workspaceId, text: queryText, limit: null });
-  if (!result.ok) throw new Error(`baseline query failed: ${result.error.message}`);
-  return result.memories.map((record) => ({ record, explain: { matched: 'substring' } }));
+// Today's path has nothing to prepare: every search is a store query.
+function prepareBaseline(store, workspaceId) {
+  return (queryText) => {
+    const result = store.query({ workspaceId, text: queryText, limit: null });
+    if (!result.ok) throw new Error(`baseline query failed: ${result.error.message}`);
+    return result.memories.map((record) => ({ record, explain: { matched: 'substring' } }));
+  };
 }
 
 function buildIndex(records) {
@@ -67,20 +70,23 @@ function scoreDoc(index, doc, terms) {
   return { score, terms: contributions };
 }
 
-function candidateRetrieve(store, workspaceId, queryText) {
+// The index is built once from the store's own active, in-workspace records.
+function prepareCandidate(store, workspaceId) {
   const result = store.query({ workspaceId, limit: null });
   if (!result.ok) throw new Error(`candidate query failed: ${result.error.message}`);
   const index = buildIndex(result.memories);
-  const terms = [...new Set(tokenize(queryText))];
-  return index.docs
-    .map((doc) => ({ record: doc.record, explain: scoreDoc(index, doc, terms) }))
-    .filter((hit) => hit.explain.score > 0)
-    .sort((a, b) => (b.explain.score - a.explain.score) || a.record.memoryId.localeCompare(b.record.memoryId));
+  return (queryText) => {
+    const terms = [...new Set(tokenize(queryText))];
+    return index.docs
+      .map((doc) => ({ record: doc.record, explain: scoreDoc(index, doc, terms) }))
+      .filter((hit) => hit.explain.score > 0)
+      .sort((a, b) => (b.explain.score - a.explain.score) || a.record.memoryId.localeCompare(b.record.memoryId));
+  };
 }
 
 const STRATEGIES = Object.freeze({
-  baseline: Object.freeze({ name: 'substring-createdAt', retrieve: baselineRetrieve }),
-  candidate: Object.freeze({ name: 'bm25-lexical', retrieve: candidateRetrieve }),
+  baseline: Object.freeze({ name: 'substring-createdAt', prepare: prepareBaseline }),
+  candidate: Object.freeze({ name: 'bm25-lexical', prepare: prepareCandidate }),
 });
 
 module.exports = { STRATEGIES, tokenize, contentText };
