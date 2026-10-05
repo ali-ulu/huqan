@@ -124,6 +124,12 @@ describe('decontamination scorer: validation', () => {
     assert.strictEqual(evaluateDecontamination({ text: 'x', corpus: CORPUS, ngramSize: 2 }).ok, false);
     assert.strictEqual(evaluateDecontamination({ text: 'x', corpus: [42] }).ok, false);
   });
+
+  test('rejects a non-object input, a non-string text and an oversized text', () => {
+    assert.strictEqual(evaluateDecontamination(null).ok, false);
+    assert.strictEqual(evaluateDecontamination({ text: 42, corpus: CORPUS }).ok, false);
+    assert.strictEqual(evaluateDecontamination({ text: 'x'.repeat(200001), corpus: CORPUS }).ok, false);
+  });
 });
 
 describe('recall gate: self-contamination screen (#3464)', () => {
@@ -224,6 +230,28 @@ describe('recall gate: self-contamination screen (#3464)', () => {
     const before = JSON.stringify({ input, corpus });
     evaluate([input], { decontamination: { corpus } });
     assert.strictEqual(JSON.stringify({ input, corpus }), before);
+  });
+
+  test('withholds an oversized record instead of skipping the screen', () => {
+    const giant = record('x'.repeat(200001), { memoryId: 'mem-giant' });
+    const clean = record('deployment checklist for the canary rollout window', { memoryId: 'mem-clean' });
+    const result = evaluate([giant, clean], { decontamination: { corpus: CORPUS } });
+    assert.strictEqual(result.ok, true);
+    const verdict = result.decisions.find((d) => d.memoryId === 'mem-giant');
+    assert.strictEqual(verdict.decision, 'withhold');
+    assert.strictEqual(verdict.reason, 'decontamination_error');
+    assert.strictEqual(result.admitted.length, 1);
+  });
+
+  test('rejects a non-object call and an unparseable observedAt without admitting', () => {
+    for (const input of [null, 'not-an-object', 42]) {
+      const result = evaluateMemoryRecall(input);
+      assert.strictEqual(result.ok, false);
+      assert.deepStrictEqual(result.admitted, []);
+    }
+    const badTime = evaluate([record(SOURCE_TEXT)], { observedAt: 'not-a-timestamp' });
+    assert.strictEqual(badTime.ok, false);
+    assert.deepStrictEqual(badTime.admitted, []);
   });
 });
 
