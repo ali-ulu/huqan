@@ -952,6 +952,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-query-bm25.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
   "lib/memory-query-engine.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
