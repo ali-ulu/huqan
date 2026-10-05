@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "huqan-causal-experiment-v1",
+  "sourceBase": "44765df877a9e1d3f3c007ab389100d20a5d6c55",
+  "seed": 3467,
+  "world": "bounded-door-v1",
+  "scope": "Synthetic single-step discrete transitions; no external or general learning claim",
+  "split": { "train": { "prefix": "train", "count": 48 }, "holdout": { "prefix": "holdout", "count": 160 }, "transfer": { "prefix": "transfer", "count": 160 } },
+  "transfer": "Unseen nuisance values and distinct episode/source ids; same causal law and frame",
+  "budget": { "modelCalls": 0, "toolCalls": 0, "humanCalls": 0, "tokens": 0, "maxTrainingEpisodes": 512, "maxPredictionsPerCase": 4, "maxStateKeys": 8, "maxOperationsPerPrediction": 20000 },
+  "baseline": { "B2": "Persistence: predict the input state unchanged", "B3": "Choose cheapest receiver-policy-allowed action, without a learned model" },
+  "thresholds": { "minimumSamplesPerSplit": 160, "minimumIndependentSupport": 3, "minimumAccuracyGain": 0.1, "minimumGoalReachGain": 0.1, "minimumGainLowerBound": 0.05, "maximumFalseCausalRuleRate": 0, "maximumUnsafeSelected": 0 },
+  "uncertainty": "95% paired Hoeffding lower bound mean(delta)-sqrt(2*log(20)/n); independent case ids; reported separately for holdout and transfer",
+  "metrics": { "B2": ["fullPostStateAccuracy", "pairedAccuracyGain", "falseCausalRuleRate", "unknownRate"], "B3": ["goalReachRate", "meanExecutedCost", "unsafeRejections", "unsafeSelected", "pairedGoalReachGain"] },
+  "negativeControls": ["single episode", "correlated source duplicates", "observational confounder", "controlled null effect", "support withdrawal", "missing outcome", "budget exhaustion", "policy unavailable"],
+  "mutations": ["remove controlled comparison gate", "ignore support withdrawal", "disable learned simulator caller"],
+  "killCriteria": ["overlapping splits", "source hash mismatch", "policy bypass", "budget overrun", "missing measured usage", "any false causal effect", "lower bound below threshold"],
+  "promotion": "No automatic model or graph-rule promotion; KEEP is experimental only"
+}
