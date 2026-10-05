@@ -1311,9 +1311,6 @@
     "lib/causal/causal-runtime.d.ts",
     "lib/cognitive-lab-causal-world.js",
     "lib/cognitive-lab-causal-experiment.js",
-    "fixtures/cognitive-lab/causal-design.json",
-    "fixtures/cognitive-lab/causal-confirmatory-design.json",
-    "fixtures/cognitive-lab/causal-confirmatory-fixture.json",
     "bin/huqan-causal-lab.js"
   ],
   "dependencies": {
