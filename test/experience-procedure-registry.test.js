@@ -180,6 +180,16 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     registry.recordQualification({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version, details: { ok: false, code: 'qualify_rejected:drift' } });
     assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version }).code,
       CODES.QUALIFICATION_MISSING);
+
+    // A passing result for a DIFFERENT version, submitted under v3's version
+    // key, must not authorize v3: the evidence hash has to match the entry.
+    const v3 = compileReplaceText({
+      parentVersion: v2.version, params: { path: 'a.txt', oldText: 'baz', newText: 'qux' },
+    });
+    registry.register({ workspaceId: 'ws-a', procedure: v3 });
+    registry.recordQualification({ workspaceId: 'ws-a', kind: v3.kind, version: v3.version, details: passV1 });
+    assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v3.kind, version: v3.version }).code,
+      CODES.QUALIFICATION_MISSING, 'a pass whose procedureHash names another version is not evidence');
   });
 
   it('9. a promotion can be rolled back to the previously active version, and the undo is auditable', () => {
@@ -203,12 +213,23 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version });
     assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).version, v2.version);
 
+    // Re-activating the already-active version is a no-op, not a `v2 -> v2`
+    // record that would later swallow a rollback.
+    const retry = registry.setActiveVersion({ workspaceId: 'ws-a', kind: v1.kind, version: v2.version });
+    assert.equal(retry.ok, true);
+    assert.equal(retry.idempotent, true);
+
     const rolledBack = registry.rollbackActiveVersion({ workspaceId: 'ws-a', kind: v1.kind });
     assert.equal(rolledBack.ok, true);
     assert.equal(rolledBack.activeVersion, v1.version);
     assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).version, v1.version);
 
-    // Both the promotion and the undo are recorded, in order.
+    // The undo is consumed: a second rollback must not reactivate v2.
+    assert.equal(registry.rollbackActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).code,
+      CODES.NO_ROLLBACK_TARGET);
+    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v1.kind }).version, v1.version);
+
+    // History is append-only and records the real moves, in order.
     const history = registry.getRollbackHistory({ workspaceId: 'ws-a', kind: v1.kind });
     assert.deepEqual(history.entries.map((entry) => [entry.fromVersion, entry.toVersion]),
       [[null, v1.version], [v1.version, v2.version], [v2.version, v1.version]]);
