@@ -74,7 +74,7 @@ test('the post-mutation CLI audit reports rather than blocks', () => {
   // state change already happened, so refusing here would only hide it.
   assert.match(
     readSource('cli.js'),
-    /_commitCliMutation\(command, classification = null\) \{[\s\S]{0,300}?auditRecorded \? '' : `\\nWarning:/,
+    /_commitCliMutation\(command, classification = null, extra = null\) \{[\s\S]{0,400}?auditRecorded \? '' : `\\nWarning:/,
     'a failed commit audit must degrade to a warning, not a refusal',
   );
 });

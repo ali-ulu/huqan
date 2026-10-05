@@ -103,18 +103,25 @@ class CLI {
   // Records that a mutation actually completed. Its failure is reported, not
   // fatal: the state change already happened, so refusing it here would only
   // hide it (#760).
-  _commitCliMutation(command, classification = null) {
-    const audit = commitCliMutation(this.kernel, command, classification);
+  _commitCliMutation(command, classification = null, extra = null) {
+    const audit = extra
+      ? commitCliMutation(this.kernel, command, classification, extra)
+      : commitCliMutation(this.kernel, command, classification);
     return audit.auditRecorded ? '' : `\nWarning: ${command} completed, but its commit audit record could not be written (${audit.errorCode}).`;
   }
 
   // Builds the MemoryLifecycle the `memory-lifecycle` command drives, or null
-  // when the kernel has no store exposing the two reversible primitives. The
-  // lifecycle is rebuilt per call so its chain tip stays per-invocation.
+  // when the kernel has no store exposing the two reversible primitives. Built
+  // once and reused, so the chain tip threads from one CLI mutation to the next
+  // within a session -- rebuilding per call would restart every receipt at
+  // genesis and leave an operator unable to link successive mutations (#3461).
   _memoryLifecycle() {
     const store = this.kernel && this.kernel.memory;
     if (!store || typeof store.tombstone !== 'function' || typeof store.supersede !== 'function') return null;
-    return new MemoryLifecycle(this.kernel, { memoryStore: store, chain: MEMORY_LIFECYCLE_CHAIN });
+    if (!this._memoryLifecycleInstance || this._memoryLifecycleInstance.kernel !== this.kernel) {
+      this._memoryLifecycleInstance = new MemoryLifecycle(this.kernel, { memoryStore: store, chain: MEMORY_LIFECYCLE_CHAIN });
+    }
+    return this._memoryLifecycleInstance;
   }
 
 }
