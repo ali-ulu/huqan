@@ -4,7 +4,7 @@
 //        [--k 5] [--seed 3462] [--budget 150] [--repetitions 20] [--explain]
 //        [--no-latency]
 // small  - hand-written, 9 queries: shows the harness and its decoys work.
-// github - last 1000 merged huqan PRs, 408 issue-title queries with relevance
+// github - last 1000 merged huqan PRs, 409 issue-title queries with relevance
 //          taken from GitHub's closing links (build-retrieval-github-corpus.js).
 // Prints the #3462 retrieval experiment report as JSON. Latency uses the
 // process clock unless --no-latency is given, in which case it is reported

@@ -31,7 +31,9 @@ function cleanText(text) {
   return String(text || '')
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/^.*\b(closes|fixes|resolves|refs|co-authored-by|generated with)\b.*$/gim, ' ')
+    // Only a closing keyword directly followed by a reference is boilerplate;
+    // a title such as "Fixes flaky gate test" is content.
+    .replace(/^[ \t]*(?:[-*][ \t]*)?(?:(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?):?[ \t]+(?:[\w.-]+\/[\w.-]+)?#\d+.*|co-authored-by:.*|\W*generated with\b.*)$/gim, ' ')
     .replace(/https?:\/\/\S+/g, ' ')
     .replace(/\S+@\S+\.\S+/g, ' ')
     .replace(/#\d+/g, ' ')

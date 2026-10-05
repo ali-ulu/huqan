@@ -15,6 +15,9 @@ describe('retrieval GitHub corpus (#3462)', () => {
     it('strips numbers, links, emails, code and closing boilerplate from text', () => {
       const text = cleanText('[#12] Fix gate\nCloses #12\nsee https://x.test/a and a@b.io\n```js\nconst k = 1;\n```\n<!-- note -->');
       assert.equal(cleanText('Refs #9'), '');
+      assert.equal(cleanText('- Fixes: owner/repo#9, #10\nCo-Authored-By: A <a@b.io>\n🤖 Generated with Tool'), '');
+      assert.equal(cleanText('Fixes flaky gate test'), 'Fixes flaky gate test');
+      assert.equal(cleanText('Resolve refs before closing'), 'Resolve refs before closing');
       assert.equal(text, 'Fix gate see and');
     });
 
@@ -45,12 +48,12 @@ describe('retrieval GitHub corpus (#3462)', () => {
   });
 
   describe('frozen fixture', () => {
-    it('pins baseline and candidate recall@10 on 408 issue-title queries', () => {
+    it('pins baseline and candidate recall@10 on 409 issue-title queries', () => {
       const corpus = loadFrozenCorpus(CORPORA.github);
       const { corpus: summary, baseline, candidate } = runExperiment(corpus, { k: 10 });
-      assert.deepEqual([summary.records, summary.queries], [1000, 408]);
-      assert.deepEqual([baseline.precisionAtK, baseline.recallAtK], [0.0037, 0.0368]);
-      assert.deepEqual([candidate.precisionAtK, candidate.recallAtK], [0.088, 0.866]);
+      assert.deepEqual([summary.records, summary.queries], [1000, 409]);
+      assert.deepEqual([baseline.precisionAtK, baseline.recallAtK], [0.0037, 0.0367]);
+      assert.deepEqual([candidate.precisionAtK, candidate.recallAtK], [0.0856, 0.8419]);
     });
   });
 });
