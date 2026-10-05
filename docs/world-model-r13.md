@@ -52,7 +52,7 @@ Dünya `bounded-door-multistep-v1`'dir: `energize`, `unjam`, `unlock`, `release`
 eğitilir; `force` policy tarafından engellenir; `reset` hiç eğitilmez, bu yüzden
 içinden geçen her plan `UNKNOWN` kalmalıdır. Tasarım, eşikler, baseline'lar,
 kill criteria, girdi üreticisi ve tasarım/girdi/çevre yasası digest'leri
-ölçümden önce `067a3573` commit'inde donduruldu
+ölçümden önce `4761d155` commit'inde donduruldu
 (`fixtures/cognitive-lab/world-model-design.json`). Koşucu tasarım veya girdi
 digest'i tutmazsa en fazla `INSUFFICIENT` döner; CLI çevre yasası digest'i
 tutmazsa çalışmaz.
@@ -69,7 +69,7 @@ Sonuç `fixtures/cognitive-lab/world-model-result.json`'dadır; holdout ve
 transfer ikisi de `KEEP`: final-state doğruluğu 0.294'ten 0.85'e (alt sınır
 +0.36), hedefe ulaşma 0.25'ten 1.0'a (alt sınır +0.56), tek adımlı planlayıcıya
 göre ortalama maliyet 5'ten 3'e; yanlış geçiş, yanlış başarı ve güvensiz seçim
-sıfır; `reset` planlarının hepsi `UNKNOWN` (oran 0.15). İlk ölçüm `01357267`
+sıfır; `reset` planlarının hepsi `UNKNOWN` (oran 0.15). İlk ölçüm `692cd322`
 kaynağında aynı sonucu verdi; ardından Level 2 çağrısı katman kuralı için
 `CausalRuntime`'a taşındı ve kayıtlı sonuç bu son kaynakla yeniden koşudur.
 
