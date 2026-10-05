@@ -1,6 +1,7 @@
 import Kernel = require('./kernel');
 import KernelV2 = require('./kernel.v2');
-import { CausalRuntime, LearnedCausalEngine } from './lib/causal/causal-runtime';
+import { CausalRuntime } from './lib/causal/causal-runtime';
+import { LearnedCausalEngine } from './lib/causal/learned-causal-engine';
 
 /**
  * Package root export (#329).

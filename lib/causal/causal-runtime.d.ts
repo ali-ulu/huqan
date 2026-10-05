@@ -1,4 +1,5 @@
 export type CausalState = Readonly<Record<string, string | number | boolean | null>>;
+export const PREFIX: 'causal-episode-v1:';
 export interface CausalAction { readonly name: string; readonly args?: CausalState; readonly cost: number; }
 export interface CausalPredicted {
   readonly status: 'PREDICTED'; readonly reason: string;
@@ -36,10 +37,4 @@ export class CausalRuntime {
   inverse(input: { preState: CausalState; desiredState: CausalState; actions: readonly CausalAction[] }): CausalInverse;
   failure(input: { prediction: CausalPrediction; preState: CausalState; runId: string; eventId: string }): CausalFailure;
   inspect(): Readonly<{ workspaceId: string; frameId: string; episodes: number; withdrawn: readonly string[]; sourceHashes: readonly string[] }>;
-}
-export class LearnedCausalEngine {
-  constructor(options?: { episodes?: readonly Record<string, unknown>[]; withdrawn?: readonly string[]; minSupport?: number; maxOperations?: number });
-  forward(input: { workspaceId: string; frameId: string; preState: CausalState; action: CausalAction }): CausalPrediction;
-  inverse(input: { workspaceId: string; frameId: string; preState: CausalState; desiredState: CausalState; actions: readonly CausalAction[]; evaluatePolicy?: CausalPolicy }): CausalInverse;
-  failure(input: { prediction: CausalPrediction; preState: CausalState; observedPostState: CausalState }): CausalFailure;
 }

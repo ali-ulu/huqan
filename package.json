@@ -1305,6 +1305,7 @@
     "lib/cognitive-lab-budget-envelope.js",
     "lib/causal/causal-episode-contract.js",
     "lib/causal/learned-causal-engine.js",
+    "lib/causal/learned-causal-engine.d.ts",
     "lib/causal/causal-runtime.js",
     "lib/causal/causal-runtime.d.ts",
     "lib/cognitive-lab-causal-world.js",
