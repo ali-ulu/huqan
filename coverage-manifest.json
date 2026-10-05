@@ -327,12 +327,12 @@
           "call": "fs.writeFileSync"
         },
         {
-          "line": 143,
+          "line": 149,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 154,
+          "line": 160,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
