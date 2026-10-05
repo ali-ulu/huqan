@@ -333,7 +333,9 @@ const GOLDEN = {
   // line; diffing against main shows exactly that one added line and nothing else.
   // #3461 adds the `memory-lifecycle` usage line (one line) to the same
   // generated help; diffing against main shows exactly that one added line.
-  'yardım': '8a39c14761a37948e95eae4ca1b649c552eb66132c77da16e8fa008af5f2f649',
+  // The memory record search adds the `memory-query` usage line (one line);
+  // diffing the help text against main shows exactly that one added line.
+  'yardım': '36cab08438c89aca73a9e1275720ea037955958ce859d76c037854f53abc90fe',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',

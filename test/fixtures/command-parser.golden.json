@@ -11534,5 +11534,98 @@
    },
    "workflowId": "experience-read"
   }
+ },
+ {
+  "input": "memory-query recall gate provenance --workspace ws --limit 5 --explain",
+  "noKernel": {
+   "command": "memory-query",
+   "args": {
+    "text": "recall gate provenance",
+    "workspaceId": "ws",
+    "retrievalMode": "",
+    "limit": "5",
+    "offset": "",
+    "explain": true,
+    "json": false,
+    "error": ""
+   },
+   "workflowId": "memory-query"
+  },
+  "knownNode": {
+   "command": "memory-query",
+   "args": {
+    "text": "recall gate provenance",
+    "workspaceId": "ws",
+    "retrievalMode": "",
+    "limit": "5",
+    "offset": "",
+    "explain": true,
+    "json": false,
+    "error": ""
+   },
+   "workflowId": "memory-query"
+  }
+ },
+ {
+  "input": "memory-query exact phrase --mode substring --json",
+  "noKernel": {
+   "command": "memory-query",
+   "args": {
+    "text": "exact phrase",
+    "workspaceId": "default",
+    "retrievalMode": "substring",
+    "limit": "",
+    "offset": "",
+    "explain": false,
+    "json": true,
+    "error": ""
+   },
+   "workflowId": "memory-query"
+  },
+  "knownNode": {
+   "command": "memory-query",
+   "args": {
+    "text": "exact phrase",
+    "workspaceId": "default",
+    "retrievalMode": "substring",
+    "limit": "",
+    "offset": "",
+    "explain": false,
+    "json": true,
+    "error": ""
+   },
+   "workflowId": "memory-query"
+  }
+ },
+ {
+  "input": "memory-query recall gate --workspace",
+  "noKernel": {
+   "command": "memory-query",
+   "args": {
+    "text": "",
+    "workspaceId": "default",
+    "retrievalMode": "",
+    "limit": "",
+    "offset": "",
+    "explain": false,
+    "json": false,
+    "error": "--workspace requires a value"
+   },
+   "workflowId": "memory-query"
+  },
+  "knownNode": {
+   "command": "memory-query",
+   "args": {
+    "text": "",
+    "workspaceId": "default",
+    "retrievalMode": "",
+    "limit": "",
+    "offset": "",
+    "explain": false,
+    "json": false,
+    "error": "--workspace requires a value"
+   },
+   "workflowId": "memory-query"
+  }
  }
 ]
