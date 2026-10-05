@@ -5978,7 +5978,8 @@
   "lib/inference-belief-revision.js": {
    "owner": "Knowledge",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
