@@ -25,7 +25,7 @@ function mutant(relative, original, replacement) {
   const file = path.resolve(__dirname, '..', relative);
   const source = fs.readFileSync(file, 'utf8');
   assert.equal(source.split(original).length - 1, 1, 'mutation must have exactly one target');
-  const compiledFile = file.replace(/\\.js$/, '.mutant.cjs');
+  const compiledFile = file.replace(/\.js$/, '.mutant.cjs');
   const compiled = new Module(compiledFile, module);
   compiled.filename = compiledFile;
   compiled.paths = module.paths;
