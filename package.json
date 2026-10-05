@@ -904,6 +904,7 @@
     "lib/memory-query-read.js",
     "lib/memory-query-engine.js",
     "lib/memory-recall-gate.js",
+    "lib/memory-decontamination.js",
     "lib/memory-lifecycle.js",
     "lib/memory-record-utils.js",
     "lib/memory-schema.js",
