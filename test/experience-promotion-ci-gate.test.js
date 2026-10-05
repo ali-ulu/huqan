@@ -5,11 +5,13 @@
  *
  * The pure gate is characterized directly (a disjoint interval promotes, a
  * touching or overlapping interval is refused, too few samples is
- * INSUFFICIENT, malformed input is refused), and then the registry seam is
+ * INSUFFICIENT, malformed input is refused, the contract must be pre-locked and
+ * scores bound to the versions compared), and then the registry seam is
  * exercised with real `compiler.js`/`qualify()` output so the optional
  * `promotionEvidence` wiring is proven end to end: a candidate whose interval
- * does not clear the incumbent's leaves the active pointer where it was, and
- * the evidence is optional so an unmeasured activation is unchanged.
+ * does not clear the incumbent's leaves the active pointer where it was, a
+ * promotion is version-bound, and the evidence is optional so an unmeasured
+ * activation is unchanged.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -20,12 +22,17 @@ const {
   DIRECTIONS,
   lockPromotionContract,
   evaluatePromotionGate,
+  guardPromotionMove,
 } = require('../lib/experience/promotion-ci-gate');
 const { compile, qualify, KINDS } = require('../lib/experience/compiler');
 const { createProcedureRegistry, CODES } = require('../lib/experience/procedure-registry');
 
-const CONTRACT = Object.freeze({ direction: DIRECTIONS.HIGHER_IS_BETTER, confidenceLevel: 0.95, minSamples: 10 });
-const LOWER_CONTRACT = Object.freeze({ direction: DIRECTIONS.LOWER_IS_BETTER, confidenceLevel: 0.95, minSamples: 10 });
+const CONTRACT = lockPromotionContract({
+  direction: DIRECTIONS.HIGHER_IS_BETTER, confidenceLevel: 0.95, minSamples: 10,
+}).contract;
+const LOWER_CONTRACT = lockPromotionContract({
+  direction: DIRECTIONS.LOWER_IS_BETTER, confidenceLevel: 0.95, minSamples: 10,
+}).contract;
 
 const PROVENANCE = Object.freeze({ sourceSha: 'sha-1', procedureVersion: '1', configHash: 'cfg-1' });
 
@@ -137,6 +144,38 @@ describe('Promotion CI gate: pure rule (#3463)', () => {
     assert.equal(result.code, GATE_CODES.DIRECTION_MISMATCH);
   });
 
+  it('binds scores to the versions compared: a stale or unrelated version is refused, not read as clearance', () => {
+    const result = evaluatePromotionGate({
+      contract: CONTRACT,
+      expect: { activeVersion: 1, candidateVersion: 2 },
+      activeScore: { mean: 0.10, n: 40, ci: { lower: 0.05, upper: 0.15 }, version: 0 },
+      candidateScore: { mean: 0.90, n: 40, ci: { lower: 0.85, upper: 0.95 }, version: 2 },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, GATE_CODES.VERSION_MISMATCH);
+    const ok = evaluatePromotionGate({
+      contract: CONTRACT,
+      expect: { activeVersion: 1, candidateVersion: 2 },
+      activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 }, version: 1 },
+      candidateScore: { mean: 0.80, n: 40, ci: { lower: 0.72, upper: 0.88 }, version: 2 },
+    });
+    assert.equal(ok.status, GATE_STATUS.PROMOTE);
+  });
+
+  it('refuses a contract that was not pre-locked: only lockPromotionContract() output is accepted', () => {
+    const bare = { direction: DIRECTIONS.HIGHER_IS_BETTER, confidenceLevel: 0.95, minSamples: 10 };
+    const frozenBare = Object.freeze({ ...bare });
+    for (const contract of [bare, frozenBare, { ...CONTRACT }]) {
+      const result = evaluatePromotionGate({
+        contract,
+        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 } },
+        candidateScore: { mean: 0.75, n: 40, ci: { lower: 0.70, upper: 0.80 } },
+      });
+      assert.equal(result.ok, false, 'a scoring-time contract must be refused');
+      assert.equal(result.code, GATE_CODES.INVALID_CONTRACT);
+    }
+  });
+
   it('fails closed on a malformed contract: missing, unknown, non-finite or out-of-range fields', () => {
     const bad = [
       undefined,
@@ -150,15 +189,10 @@ describe('Promotion CI gate: pure rule (#3463)', () => {
       { ...CONTRACT, direction: 'sideways' },
     ];
     for (const contract of bad) {
-      const result = evaluatePromotionGate({
-        contract,
-        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 } },
-        candidateScore: { mean: 0.75, n: 40, ci: { lower: 0.70, upper: 0.80 } },
-      });
+      const result = lockPromotionContract(contract);
       assert.equal(result.ok, false, `contract ${JSON.stringify(contract)} must be refused`);
       assert.equal(result.code, GATE_CODES.INVALID_CONTRACT);
     }
-    assert.equal(lockPromotionContract(CONTRACT).ok, true);
   });
 
   it('fails closed on a malformed score: non-finite mean, bad n, inverted or non-finite interval', () => {
@@ -169,6 +203,7 @@ describe('Promotion CI gate: pure rule (#3463)', () => {
       { mean: 0.6, n: 40, ci: { lower: 0.7, upper: 0.5 } },
       { mean: 0.6, n: 40, ci: { lower: Infinity, upper: 0.6 } },
       { mean: 0.6, n: 40, ci: null },
+      { mean: 0.6, n: 40, ci: { lower: 0.5, upper: 0.6 }, version: '' },
     ];
     for (const candidateScore of bad) {
       const result = evaluatePromotionGate({
@@ -180,56 +215,145 @@ describe('Promotion CI gate: pure rule (#3463)', () => {
       assert.equal(result.code, GATE_CODES.INVALID_SCORE);
     }
   });
+
+  it('returns a failure result for null evidence instead of throwing', () => {
+    const result = evaluatePromotionGate(null);
+    assert.equal(result.ok, false);
+    assert.equal(result.code, GATE_CODES.INVALID_SCORE);
+  });
+});
+
+describe('Promotion CI gate: move guard (#3463)', () => {
+  it('lets the move proceed when no evidence is supplied, on first activation, or when re-activating', () => {
+    assert.equal(guardPromotionMove({ promotionEvidence: undefined, currentVersion: 1, candidateVersion: 2 }).ok, true);
+    assert.equal(guardPromotionMove({ promotionEvidence: { contract: CONTRACT }, currentVersion: undefined, candidateVersion: 2 }).ok, true);
+    assert.equal(guardPromotionMove({ promotionEvidence: { contract: CONTRACT }, currentVersion: 2, candidateVersion: 2 }).ok, true);
+    assert.equal(guardPromotionMove().ok, true);
+  });
+
+  it('fails closed without throwing when the supplied evidence is null or malformed', () => {
+    const guard = guardPromotionMove({ promotionEvidence: null, currentVersion: 1, candidateVersion: 2 });
+    assert.equal(guard.ok, false);
+    assert.equal(guard.code, GATE_CODES.INVALID_CONTRACT);
+    const bare = guardPromotionMove({
+      promotionEvidence: {
+        contract: { direction: DIRECTIONS.HIGHER_IS_BETTER, confidenceLevel: 0.95, minSamples: 10 },
+        activeScore: { mean: 0.6, n: 40, ci: { lower: 0.55, upper: 0.65 } },
+        candidateScore: { mean: 0.8, n: 40, ci: { lower: 0.72, upper: 0.88 } },
+      },
+      currentVersion: 1, candidateVersion: 2,
+    });
+    assert.equal(bare.ok, false);
+    assert.equal(bare.code, GATE_CODES.INVALID_CONTRACT);
+  });
+
+  it('returns the gate verdict when a real promotion is compared', () => {
+    const guard = guardPromotionMove({
+      promotionEvidence: {
+        contract: CONTRACT,
+        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 }, version: 1 },
+        candidateScore: { mean: 0.80, n: 40, ci: { lower: 0.72, upper: 0.88 }, version: 2 },
+      },
+      currentVersion: 1, candidateVersion: 2,
+    });
+    assert.equal(guard.ok, true);
+    assert.equal(guard.promotion.status, GATE_STATUS.PROMOTE);
+  });
 });
 
 describe('Promotion CI gate: registry seam (#3463)', () => {
-  it('refuses activation when the supplied candidate interval does not clear the active version', () => {
-    const procedure = compileReplaceText();
-    const registry = qualifiedRegistry(procedure);
+  function promotionEvidence(overrides = {}) {
+    return {
+      contract: CONTRACT,
+      activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 }, version: 1 },
+      candidateScore: { mean: 0.80, n: 40, ci: { lower: 0.72, upper: 0.88 }, version: 2 },
+      ...overrides,
+    };
+  }
 
+  function twoVersionRegistry() {
+    const v1 = compileReplaceText({ parentVersion: 0 });
+    const v2 = compileReplaceText({ parentVersion: v1.version, params: { path: 'a.txt', oldText: 'bar', newText: 'baz' } });
+    const registry = createProcedureRegistry();
+    for (const procedure of [v1, v2]) {
+      registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
+      const input = procedure.version === 1 ? 'line with foo in it' : 'line with bar in it';
+      const pass = qualify({ procedure, inputs: [input], apply: applySingleSite, observe: (value) => value });
+      assert.equal(pass.ok, true);
+      registry.recordQualification({ workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version, details: pass });
+    }
+    assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v1.kind, version: v1.version }).ok, true);
+    return { registry, v1, v2 };
+  }
+
+  it('refuses promotion when the candidate interval does not clear the active version', () => {
+    const { registry, v1, v2 } = twoVersionRegistry();
     const refused = registry.setActiveVersion({
-      workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version,
-      promotionEvidence: {
-        contract: CONTRACT,
-        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.50, upper: 0.70 } },
-        candidateScore: { mean: 0.62, n: 40, ci: { lower: 0.55, upper: 0.69 } },
-      },
+      workspaceId: 'ws-a', kind: v2.kind, version: v2.version,
+      promotionEvidence: promotionEvidence({
+        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.50, upper: 0.70 }, version: v1.version },
+        candidateScore: { mean: 0.62, n: 40, ci: { lower: 0.55, upper: 0.69 }, version: v2.version },
+      }),
     });
     assert.equal(refused.ok, false);
     assert.equal(refused.code, GATE_CODES.CI_NOT_CLEARED);
-    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: procedure.kind }).code, CODES.NO_ACTIVE_VERSION);
+    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v2.kind }).version, v1.version);
   });
 
-  it('activates when the supplied candidate interval strictly clears the active version', () => {
-    const procedure = compileReplaceText();
-    const registry = qualifiedRegistry(procedure);
-
+  it('promotes when the candidate interval strictly clears the active version', () => {
+    const { registry, v1, v2 } = twoVersionRegistry();
     const activated = registry.setActiveVersion({
-      workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version,
-      promotionEvidence: {
-        contract: CONTRACT,
-        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 } },
-        candidateScore: { mean: 0.80, n: 40, ci: { lower: 0.72, upper: 0.88 } },
-      },
+      workspaceId: 'ws-a', kind: v2.kind, version: v2.version,
+      promotionEvidence: promotionEvidence({
+        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 }, version: v1.version },
+        candidateScore: { mean: 0.80, n: 40, ci: { lower: 0.72, upper: 0.88 }, version: v2.version },
+      }),
     });
     assert.equal(activated.ok, true);
-    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: procedure.kind }).version, procedure.version);
+    assert.equal(registry.getActiveVersion({ workspaceId: 'ws-a', kind: v2.kind }).version, v2.version);
+  });
+
+  it('refuses a promotion whose scores are not bound to the versions being compared', () => {
+    const { registry, v2 } = twoVersionRegistry();
+    const stale = registry.setActiveVersion({
+      workspaceId: 'ws-a', kind: v2.kind, version: v2.version,
+      promotionEvidence: promotionEvidence({
+        activeScore: { mean: 0.10, n: 40, ci: { lower: 0.05, upper: 0.15 }, version: 99 },
+      }),
+    });
+    assert.equal(stale.ok, false);
+    assert.equal(stale.code, GATE_CODES.VERSION_MISMATCH);
   });
 
   it('reports INSUFFICIENT as a refusal, not a promotion', () => {
-    const procedure = compileReplaceText();
-    const registry = qualifiedRegistry(procedure);
-
+    const { registry, v2 } = twoVersionRegistry();
     const insufficient = registry.setActiveVersion({
-      workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version,
-      promotionEvidence: {
-        contract: CONTRACT,
-        activeScore: { mean: 0.60, n: 40, ci: { lower: 0.55, upper: 0.65 } },
-        candidateScore: { mean: 0.90, n: 2, ci: { lower: 0.85, upper: 0.95 } },
-      },
+      workspaceId: 'ws-a', kind: v2.kind, version: v2.version,
+      promotionEvidence: promotionEvidence({
+        candidateScore: { mean: 0.90, n: 2, ci: { lower: 0.85, upper: 0.95 }, version: v2.version },
+      }),
     });
     assert.equal(insufficient.ok, false);
     assert.equal(insufficient.code, GATE_CODES.INSUFFICIENT);
+  });
+
+  it('first activation and re-activation are not promotions, so refusing evidence does not block them', () => {
+    const procedure = compileReplaceText();
+    const registry = qualifiedRegistry(procedure);
+    const refusing = {
+      contract: CONTRACT,
+      activeScore: { mean: 0.90, n: 40, ci: { lower: 0.85, upper: 0.95 } },
+      candidateScore: { mean: 0.10, n: 40, ci: { lower: 0.05, upper: 0.15 } },
+    };
+    // No incumbent yet: nothing to clear.
+    const first = registry.setActiveVersion({ workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version,
+      promotionEvidence: refusing });
+    assert.equal(first.ok, true);
+    // Already active: idempotent, gate skipped even though the evidence refuses.
+    const again = registry.setActiveVersion({ workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version,
+      promotionEvidence: refusing });
+    assert.equal(again.ok, true);
+    assert.equal(again.idempotent, true);
   });
 
   it('omitting the evidence keeps the pre-#3463 behaviour: qualification alone activates', () => {
@@ -245,11 +369,7 @@ describe('Promotion CI gate: registry seam (#3463)', () => {
     registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
     const result = registry.setActiveVersion({
       workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version,
-      promotionEvidence: {
-        contract: CONTRACT,
-        activeScore: { mean: 0.10, n: 40, ci: { lower: 0.05, upper: 0.15 } },
-        candidateScore: { mean: 0.90, n: 40, ci: { lower: 0.85, upper: 0.95 } },
-      },
+      promotionEvidence: promotionEvidence(),
     });
     assert.equal(result.ok, false);
     assert.equal(result.code, CODES.QUALIFICATION_MISSING);
