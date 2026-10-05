@@ -20,6 +20,8 @@ const {
   CODES,
 } = require('../lib/experience/procedure-registry');
 
+const PROVENANCE = Object.freeze({ sourceSha: 'sha-1', procedureVersion: '1', configHash: 'cfg-1' });
+
 function candidate(sources = ['src-1']) {
   return Object.freeze({
     status: 'candidate',
@@ -58,7 +60,7 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     const registry = createProcedureRegistry();
     const procedure = compileReplaceText();
 
-    const registered = registry.register({ workspaceId: 'ws-a', procedure });
+    const registered = registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
     assert.equal(registered.ok, true);
     assert.equal(registered.idempotent, false);
 
@@ -78,8 +80,8 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     const registry = createProcedureRegistry();
     const procedure = compileReplaceText();
 
-    const first = registry.register({ workspaceId: 'ws-a', procedure });
-    const second = registry.register({ workspaceId: 'ws-a', procedure });
+    const first = registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
+    const second = registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
 
     assert.equal(first.ok, true);
     assert.equal(second.ok, true);
@@ -91,12 +93,12 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
   it('3. same key, different hash -> refused with a tamper-shaped code, not silently overwritten', () => {
     const registry = createProcedureRegistry();
     const procedure = compileReplaceText();
-    registry.register({ workspaceId: 'ws-a', procedure });
+    registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
 
     // Same (kind, version) but a different hash — simulate tampering by
     // freezing a copy with an altered hash rather than the compiled one.
     const tampered = Object.freeze({ ...procedure, hash: `${procedure.hash}-tampered` });
-    const result = registry.register({ workspaceId: 'ws-a', procedure: tampered });
+    const result = registry.register({ workspaceId: 'ws-a', procedure: tampered, provenance: PROVENANCE });
 
     assert.equal(result.ok, false);
     assert.equal(result.code, CODES.TAMPER_DETECTED);
@@ -109,7 +111,7 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
   it('4. cross-workspace registration or lookup is refused, never bleeds between workspaces', () => {
     const registry = createProcedureRegistry();
     const procedure = compileReplaceText();
-    registry.register({ workspaceId: 'ws-a', procedure });
+    registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
 
     const crossLookup = registry.get({ workspaceId: 'ws-b', kind: procedure.kind, version: procedure.version });
     assert.equal(crossLookup.ok, false);
@@ -119,7 +121,7 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     // silently treated as some shared/default namespace other callers
     // could collide into.
     assert.throws(() => registry.get({ workspaceId: '', kind: procedure.kind, version: procedure.version }), TypeError);
-    assert.throws(() => registry.register({ workspaceId: null, procedure }), TypeError);
+    assert.throws(() => registry.register({ workspaceId: null, procedure, provenance: PROVENANCE }), TypeError);
   });
 
   it('5. an old version remains fetchable by its own version number after a newer version becomes active', () => {
@@ -130,8 +132,8 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
       params: { path: 'a.txt', oldText: 'bar', newText: 'baz' },
     });
 
-    registry.register({ workspaceId: 'ws-a', procedure: v1 });
-    registry.register({ workspaceId: 'ws-a', procedure: v2 });
+    registry.register({ workspaceId: 'ws-a', procedure: v1, provenance: PROVENANCE });
+    registry.register({ workspaceId: 'ws-a', procedure: v2, provenance: PROVENANCE });
     // Activation is gated on version-bound qualification evidence (#3460).
     const passing = qualify({
       procedure: v2, inputs: ['line with bar in it'], apply: applySingleSite, observe: (input) => input,
@@ -156,8 +158,8 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
       parentVersion: v1.version,
       params: { path: 'a.txt', oldText: 'bar', newText: 'baz' },
     });
-    registry.register({ workspaceId: 'ws-a', procedure: v1 });
-    registry.register({ workspaceId: 'ws-a', procedure: v2 });
+    registry.register({ workspaceId: 'ws-a', procedure: v1, provenance: PROVENANCE });
+    registry.register({ workspaceId: 'ws-a', procedure: v2, provenance: PROVENANCE });
 
     // Registered is not qualified: activation without evidence is refused.
     const unproven = registry.setActiveVersion({ workspaceId: 'ws-a', kind: v2.kind, version: v2.version });
@@ -186,7 +188,7 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     const v3 = compileReplaceText({
       parentVersion: v2.version, params: { path: 'a.txt', oldText: 'baz', newText: 'qux' },
     });
-    registry.register({ workspaceId: 'ws-a', procedure: v3 });
+    registry.register({ workspaceId: 'ws-a', procedure: v3, provenance: PROVENANCE });
     registry.recordQualification({ workspaceId: 'ws-a', kind: v3.kind, version: v3.version, details: passV1 });
     assert.equal(registry.setActiveVersion({ workspaceId: 'ws-a', kind: v3.kind, version: v3.version }).code,
       CODES.QUALIFICATION_MISSING, 'a pass whose procedureHash names another version is not evidence');
@@ -199,8 +201,8 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
       parentVersion: v1.version,
       params: { path: 'a.txt', oldText: 'bar', newText: 'baz' },
     });
-    registry.register({ workspaceId: 'ws-a', procedure: v1 });
-    registry.register({ workspaceId: 'ws-a', procedure: v2 });
+    registry.register({ workspaceId: 'ws-a', procedure: v1, provenance: PROVENANCE });
+    registry.register({ workspaceId: 'ws-a', procedure: v2, provenance: PROVENANCE });
     for (const [procedure, input] of [[v1, 'line with foo in it'], [v2, 'line with bar in it']]) {
       const pass = qualify({ procedure, inputs: [input], apply: applySingleSite, observe: (value) => value });
       registry.recordQualification({ workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version, details: pass });
@@ -238,7 +240,7 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
   it('6. coverage gate refuses a kind with zero recorded drift/ambiguous rejections, even with a passing qualify()', () => {
     const registry = createProcedureRegistry();
     const procedure = compileReplaceText();
-    registry.register({ workspaceId: 'ws-a', procedure });
+    registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
 
     const passing = qualify({
       procedure,
@@ -263,8 +265,8 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     const registry = createProcedureRegistry();
     const candidateA = compileReplaceText();
     const candidateB = compileReplaceText({ parentVersion: 5 });
-    registry.register({ workspaceId: 'ws-a', procedure: candidateA });
-    registry.register({ workspaceId: 'ws-a', procedure: candidateB });
+    registry.register({ workspaceId: 'ws-a', procedure: candidateA, provenance: PROVENANCE });
+    registry.register({ workspaceId: 'ws-a', procedure: candidateB, provenance: PROVENANCE });
 
     // Drift fires against candidateA: oldText absent from the observed input.
     const drifted = qualify({
@@ -298,5 +300,44 @@ describe('Procedure Registry: acceptance tests (#2382 design comment)', () => {
     // coverage read (same workspace + kind) is identical.
     const gateForB = registry.evaluateCoverageGate({ workspaceId: 'ws-a', kind: candidateB.kind });
     assert.equal(gateForB.admissible, true);
+  });
+
+  it('#3465 register() refuses a missing provenance stamp and stores nothing', () => {
+    const registry = createProcedureRegistry();
+    const procedure = compileReplaceText();
+    const none = registry.register({ workspaceId: 'ws-a', procedure });
+    assert.equal(none.ok, false);
+    assert.equal(none.code, CODES.PROVENANCE_MISSING);
+    assert.deepEqual(none.missing, ['sourceSha', 'procedureVersion', 'configHash']);
+    const partial = registry.register({ workspaceId: 'ws-a', procedure, provenance: { sourceSha: 'x', configHash: '' } });
+    assert.deepEqual(partial.missing, ['procedureVersion', 'configHash']);
+    assert.equal(registry.get({ workspaceId: 'ws-a', kind: procedure.kind, version: procedure.version }).code, CODES.NOT_FOUND);
+  });
+
+  it('#3465 the stamp is stored on the entry and kept on idempotent re-register', () => {
+    const registry = createProcedureRegistry();
+    const procedure = compileReplaceText();
+    registry.register({ workspaceId: 'ws-a', procedure, provenance: PROVENANCE });
+    const again = registry.register({ workspaceId: 'ws-a', procedure, provenance: { ...PROVENANCE, sourceSha: 'sha-2' } });
+    assert.equal(again.idempotent, true);
+    assert.deepEqual(again.entry.provenance, PROVENANCE);
+  });
+
+  it('#3465 override is an explicit audited event, needs actor+reason, and is undoable', () => {
+    const registry = createProcedureRegistry();
+    const v1 = compileReplaceText();
+    const v2 = compileReplaceText({ parentVersion: 1 });
+    registry.register({ workspaceId: 'ws-a', procedure: v1, provenance: PROVENANCE });
+    registry.register({ workspaceId: 'ws-a', procedure: v2, provenance: PROVENANCE });
+    const key = { workspaceId: 'ws-a', kind: v1.kind };
+    assert.equal(registry.overrideActiveVersion({ ...key, version: v1.version, actor: 'op' }).code, CODES.OVERRIDE_REASON_MISSING);
+    assert.equal(registry.overrideActiveVersion({ ...key, version: 99, actor: 'op', reason: 'r' }).code, CODES.NOT_FOUND);
+    assert.equal(registry.setActiveVersion({ ...key, version: v1.version }).code, CODES.QUALIFICATION_MISSING);
+    assert.equal(registry.overrideActiveVersion({ ...key, version: v1.version, actor: 'op', reason: 'hotfix' }).ok, true);
+    assert.equal(registry.overrideActiveVersion({ ...key, version: v2.version, actor: 'op', reason: 'again' }).ok, true);
+    assert.equal(registry.rollbackActiveVersion(key).activeVersion, v1.version);
+    const kinds = registry.getRollbackHistory(key).entries.map((e) => e.kind);
+    assert.deepEqual(kinds, ['override', 'override', 'rollback']);
+    assert.equal(registry.getRollbackHistory(key).entries[0].reason, 'hotfix');
   });
 });
