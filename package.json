@@ -893,6 +893,7 @@
     "lib/memory-package-export.js",
     "lib/memory-package-import.js",
     "lib/memory-package-import-runner.js",
+    "lib/memory-query-bm25.js",
     "lib/memory-query-engine.js",
     "lib/memory-recall-gate.js",
     "lib/memory-lifecycle.js",
