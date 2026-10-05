@@ -51,7 +51,6 @@ function isTestFile(file) {
     || base.endsWith('.spec.js')
     || base.endsWith('-test.js')
     || base.endsWith('_test.js')
-    || base.startsWith('test-')
     || base === 'test.js';
 }
 

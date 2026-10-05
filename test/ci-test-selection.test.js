@@ -86,7 +86,10 @@ test('test file detection matches the shard manifest vocabulary', () => {
   assert.equal(isTestFile('lib/thing.spec.js'), true);
   assert.equal(isTestFile('lib/thing-test.js'), true);
   assert.equal(isTestFile('lib/thing_test.js'), true);
-  assert.equal(isTestFile('test-thing.js'), true);
+  // Node's default discovery also takes test-*.js, but in this repo that
+  // prefix only names build scripts and modules (scripts/test-consumer-compile.js).
+  assert.equal(isTestFile('test-thing.js'), false);
+  assert.equal(isTestFile('scripts/test-consumer-compile.js'), false);
   assert.equal(isTestFile('lib/thing.js'), false);
   assert.equal(isTestFile('docs/thing.md'), false);
 });
