@@ -2556,6 +2556,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
   },
+  "lib/experience/promotion-ci-gate.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-EXP-T-T"
+  },
   "lib/experience/learn-read-back.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
