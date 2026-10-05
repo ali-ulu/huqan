@@ -8,6 +8,8 @@ const Graph = require('../graph');
 const { CausalSimulator } = require('../causalSimulator');
 const { createExperienceJournal } = require('../lib/experience/journal');
 const { runCausalExperiment } = require('../lib/cognitive-lab-causal-experiment');
+const { runWorldModelExperiment } = require('../lib/cognitive-lab-world-model-experiment');
+const { DESIGN: WORLD_MODEL_DESIGN, FROZEN: WORLD_MODEL_FROZEN } = require('../lib/cognitive-lab-world-model-design');
 const { contentHash } = require('../lib/content-hash');
 
 const design = Object.freeze({
@@ -136,33 +138,61 @@ function generateConfirmatoryDataset(seed = design.seed) {
   };
 }
 
+// R12 (B2/B3) stays the default run; `--benchmark B5` selects the R13 world
+// model experiment (#3468). Each benchmark pins its own frozen environment law.
+const BENCHMARKS = Object.freeze({
+  B2B3: Object.freeze({
+    world: 'lib/cognitive-lab-causal-world.js',
+    worldDigest: design.worldDigest,
+    scope: design.scope,
+    run: options => runCausalExperiment({ ...options, design, dataset: generateConfirmatoryDataset() }),
+    files: ['lib/causal/learned-causal-engine.js', 'lib/cognitive-lab-causal-experiment.js'],
+  }),
+  B5: Object.freeze({
+    world: 'lib/cognitive-lab-world-model-world.js',
+    worldDigest: WORLD_MODEL_FROZEN.worldDigest,
+    scope: WORLD_MODEL_DESIGN.scope,
+    run: options => runWorldModelExperiment(options),
+    files: [
+      'lib/causal/learned-causal-engine.js',
+      'lib/causal/symbolic-world-model.js',
+      'lib/cognitive-lab-world-model-design.js',
+      'lib/cognitive-lab-world-model-experiment.js',
+    ],
+  }),
+});
+const USAGE = 'huqan-causal-lab [--benchmark B5] --source-commit <40-character Git SHA> --source-dirty <true|false>';
+
+function parseArgs(args) {
+  const selected = args[0] === '--benchmark' && args[1] === 'B5' ? 'B5' : 'B2B3';
+  const rest = selected === 'B5' ? args.slice(2) : args;
+  if (
+    rest.length !== 4
+    || rest[0] !== '--source-commit'
+    || !/^[a-f0-9]{40}$/.test(rest[1])
+    || rest[2] !== '--source-dirty'
+    || !['true', 'false'].includes(rest[3])
+  ) {
+    throw new TypeError(`explicit ${USAGE.replace('huqan-causal-lab ', '')} required`);
+  }
+  return { benchmark: BENCHMARKS[selected], sourceCommit: rest[1], sourceDirty: rest[3] === 'true' };
+}
+
 function main(args) {
   if (args.length === 1 && args[0] === '--help') {
-    return {
-      usage: 'huqan-causal-lab --source-commit <40-character Git SHA> --source-dirty <true|false>',
-      scope: design.scope,
-    };
+    return { usage: USAGE, scope: design.scope, benchmarks: { default: design.scope, B5: WORLD_MODEL_DESIGN.scope } };
   }
-  if (
-    args.length !== 4
-    || args[0] !== '--source-commit'
-    || !/^[a-f0-9]{40}$/.test(args[1])
-    || args[2] !== '--source-dirty'
-    || !['true', 'false'].includes(args[3])
-  ) {
-    throw new TypeError('explicit --source-commit <40-character Git SHA> --source-dirty <true|false> required');
-  }
+  const { benchmark, sourceCommit, sourceDirty } = parseArgs(args);
 
   // Git converts line endings on Windows. The frozen law hashes normalized
   // UTF-8 source, while sourceFileHashes below report actual installed bytes.
   const worldSource = fs
-    .readFileSync(path.join(__dirname, '..', 'lib/cognitive-lab-causal-world.js'), 'utf8')
+    .readFileSync(path.join(__dirname, '..', benchmark.world), 'utf8')
     .replace(/\r\n/g, '\n');
-  if (contentHash(worldSource) !== design.worldDigest) {
+  if (contentHash(worldSource) !== benchmark.worldDigest) {
     throw new Error('frozen environment law digest mismatch');
   }
 
-  const dataset = generateConfirmatoryDataset();
   const root = fs.realpathSync(os.tmpdir());
   const scratch = fs.mkdtempSync(path.join(root, 'huqan-causal-lab-'));
   if (path.dirname(scratch) !== root || !path.basename(scratch).startsWith('huqan-causal-lab-')) {
@@ -177,22 +207,19 @@ function main(args) {
       dbPath: path.join(scratch, 'memory.db'),
     });
     const journal = createExperienceJournal();
-    const result = runCausalExperiment({
+    const result = benchmark.run({
       graph,
       journal,
       createSimulator: (store, options) => new CausalSimulator(store, options),
-      design,
-      dataset,
-      sourceCommit: args[1],
-      sourceDirty: args[3] === 'true',
+      sourceCommit,
+      sourceDirty,
     });
     const files = [
       'causalSimulator.js',
       'lib/causal/causal-episode-contract.js',
-      'lib/causal/learned-causal-engine.js',
       'lib/causal/causal-runtime.js',
-      'lib/cognitive-lab-causal-world.js',
-      'lib/cognitive-lab-causal-experiment.js',
+      benchmark.world,
+      ...benchmark.files,
       'bin/huqan-causal-lab.js',
     ];
     return {
