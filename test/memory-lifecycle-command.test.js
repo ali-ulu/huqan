@@ -19,10 +19,7 @@ const assert = require('node:assert/strict');
 const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
-const { createCliCommandHandlers } = require('../lib/cli-command-handlers');
 const { parseCommand } = require('../lib/command-parser');
-
-const HANDLERS = createCliCommandHandlers({ callMcpTool: () => null, createApprovalStoreFromKernel: () => null });
 
 function makeCli() {
   return new CLI({ kernelInstance: new Kernel(isolatedKernelOptions('memory-lifecycle-cli')) });
@@ -35,7 +32,7 @@ function seed(cli, content = { fact: 'water is wet' }) {
 function run(cli, input) {
   const parsed = parseCommand(input);
   assert.equal(parsed.command, 'memory-lifecycle', input);
-  return HANDLERS['memory-lifecycle'](cli, parsed.args);
+  return cli.execute('memory-lifecycle', parsed.args);
 }
 
 function status(cli, memoryId) {

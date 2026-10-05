@@ -183,6 +183,15 @@ const FANOUT_ALLOWED = Object.freeze([
       + 'Symbol is module-private here. The movable method groups already left (#2122, #3097).',
     review_by: '2026-12-31',
   },
+  {
+    file: 'cli.js',
+    ceiling: 20,
+    why: 'Two of the requires wire the MemoryLifecycle the `memory-lifecycle` command drives (#3461): the Adapters '
+      + 'lifecycle may not require its Application receipt collaborators itself, and cli.js is the only ring allowed '
+      + 'to supply them. The wiring cannot move to a lib/ helper -- a lib/memory-* module is still Adapters, and a '
+      + 'lib/cli-* handler is still Core, so either would re-open the same upward edge.',
+    review_by: '2027-03-31',
+  },
 ]);
 
 const isFanoutAllowed = (file, fanOut, entries = FANOUT_ALLOWED) => ENTRYPOINTS.includes(file)

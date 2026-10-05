@@ -1668,6 +1668,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/command-parser-memory-lifecycle-args.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/command-parser.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -3731,6 +3735,10 @@
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
   "lib/cli-learn-review.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-memory-lifecycle.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },

@@ -25,8 +25,16 @@ const { runCliRepl } = require('./lib/cli-repl');
 const { installCliRuntimeMethods } = require('./lib/cli-runtime-methods');
 const { evaluateCliGate } = require('./lib/cli-gate-evaluation');
 const { createCliCommandHandlers } = require('./lib/cli-command-handlers');
+const { MemoryLifecycle } = require('./lib/memory-lifecycle');
+const { GENESIS_PREVIOUS_HASH, appendReceiptToChain, validateReceiptChain } = require('./lib/receipt/receipt-chain');
 
 const CLI_COMMAND_HANDLERS = createCliCommandHandlers({ callMcpTool, createApprovalStoreFromKernel });
+
+// The receipt collaborators `MemoryLifecycle` cannot require itself: it lives
+// in the Adapters ring while lib/receipt/* is Application, so the layer policy
+// puts the wiring here in the UI entrypoint. Built once -- the chain primitives
+// are pure functions, so every lifecycle shares the same collaborators.
+const MEMORY_LIFECYCLE_CHAIN = Object.freeze({ GENESIS_PREVIOUS_HASH, appendReceiptToChain, validateReceiptChain });
 
 // Passed through to the approval runtime only when the caller supplied them.
 const APPROVAL_RUNTIME_OPTIONS = Object.freeze([
@@ -77,6 +85,7 @@ class CLI {
     const cli = { kernel: this.kernel, agent: this.agent, dream: this.dream, llm: this.llm, mcpOperatorToken: this._mcpOperatorToken,
       approvalRuntime: (...a) => this._approvalRuntime(...a), backupOptions: (...a) => this._backupOptions(...a),
       commitCliMutation: (...a) => this._commitCliMutation(...a), createOperatorCapability: (...a) => this._createOperatorCapability(...a),
+      memoryLifecycle: () => this._memoryLifecycle(),
       ensureCompanyCapabilities: (...a) => this._ensureCompanyCapabilities(...a), ensureProductCapabilities: (...a) => this._ensureProductCapabilities(...a),
       formatCliGateMessage: (...a) => this._formatCliGateMessage(...a) };
     const handler = Object.hasOwn(CLI_COMMAND_HANDLERS, command) ? CLI_COMMAND_HANDLERS[command] : null;
@@ -97,6 +106,15 @@ class CLI {
   _commitCliMutation(command, classification = null) {
     const audit = commitCliMutation(this.kernel, command, classification);
     return audit.auditRecorded ? '' : `\nWarning: ${command} completed, but its commit audit record could not be written (${audit.errorCode}).`;
+  }
+
+  // Builds the MemoryLifecycle the `memory-lifecycle` command drives, or null
+  // when the kernel has no store exposing the two reversible primitives. The
+  // lifecycle is rebuilt per call so its chain tip stays per-invocation.
+  _memoryLifecycle() {
+    const store = this.kernel && this.kernel.memory;
+    if (!store || typeof store.tombstone !== 'function' || typeof store.supersede !== 'function') return null;
+    return new MemoryLifecycle(this.kernel, { memoryStore: store, chain: MEMORY_LIFECYCLE_CHAIN });
   }
 
 }
