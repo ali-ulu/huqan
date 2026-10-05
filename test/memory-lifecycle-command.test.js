@@ -171,19 +171,24 @@ test('each accepted mutation gets a unique receipt id, even when repeated', () =
 test('the chain threads across successive CLI invocations', () => {
   const cli = makeCli();
   const id = seed(cli, { fact: 'v1' });
-  const chain = require('../lib/receipt/receipt-chain');
   const first = run(cli, `memory-lifecycle tombstone ${id} --reason one`);
-  const second = run(cli, `memory-lifecycle supersede ${id} --content {"fact":"v2"} --reason two`);
   const firstHash = first.match(/chain (\S+)/)[1];
+  // Capture the second command's own chained receipt, not a re-derivation of
+  // the chain primitive: only the real mutation proves the CLI reused the
+  // first command's tip. A fresh lifecycle per command would restart at
+  // genesis and drop the link.
+  const lifecycle = cli._memoryLifecycle();
+  const supersede = lifecycle.supersede.bind(lifecycle);
+  let secondChained;
+  lifecycle.supersede = (...callArgs) => {
+    const result = supersede(...callArgs);
+    secondChained = result.receipt?.chainedReceipt;
+    return result;
+  };
+  const second = run(cli, `memory-lifecycle supersede ${id} --content {"fact":"v2"} --reason two`);
   const secondHash = second.match(/chain (\S+)/)[1];
-  // The second mutation links to the first; a fresh lifecycle per command
-  // would restart the chain at genesis and lose that link.
-  assert.notEqual(secondHash, firstHash);
-  const relinked = chain.appendReceiptToChain(
-    { receiptId: 'x', action: 'a', memoryId: id, newMemoryId: '', workspaceId: 'default', actor: 'operator:cli', createdAt: 't', reason: 'two', eventId: 'e' },
-    firstHash,
-  );
-  assert.equal(relinked.previousReceiptHash, firstHash);
+  assert.equal(secondChained.previousReceiptHash, firstHash);
+  assert.equal(secondChained.receiptHash, secondHash);
 });
 
 test('the operator reason and receipt id are recorded on both audit phases', () => {
@@ -205,6 +210,21 @@ test('the operator reason and receipt id are recorded on both audit phases', () 
   assert.match(committed.details.receiptId, /^mlr_tombstone_/);
   const attempted = events.find((event) => event.details.phase === 'attempted');
   assert.equal(attempted.details.receiptId, undefined);
+});
+
+test('a workspace-scoped mutation is audited under that workspace, not default', () => {
+  const cli = makeCli();
+  const id = cli.kernel.memory.store({ content: { fact: 'scoped' }, workspaceId: 'w1' }).memory.memoryId;
+  const before = (cli.kernel.graph._auditEvents || []).length;
+  const output = run(cli, `memory-lifecycle tombstone ${id} --reason scoped --workspace w1`);
+  assert.match(output, /tombstoned \(reversible; status deleted\)/);
+  const events = (cli.kernel.graph._auditEvents || [])
+    .slice(before)
+    .filter((event) => event.targetType === 'cli_mutation' && event.targetId === 'memory-lifecycle');
+  assert.equal(events.length, 2, 'attempted and committed');
+  // Both phases must name w1: a query scoped to w1 would otherwise miss the
+  // removal, and the record would appear to have happened in `default`.
+  for (const event of events) assert.equal(event.workspaceId, 'w1');
 });
 
 test('a failed commit audit is reported, not swallowed', () => {
