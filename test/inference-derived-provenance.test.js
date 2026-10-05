@@ -30,6 +30,8 @@ const {
   buildCandidateInput,
   admitDerivedRecord,
 } = require('../lib/inference-derived-admission');
+const { commitRun } = require('../lib/inference-runtime-store');
+const { RULE_BELIEF_SCHEMA_VERSION } = require('../lib/inference-belief-revision');
 
 const DERIVED_AT = '2026-09-28T01:10:00.000Z';
 
@@ -446,4 +448,104 @@ test('withdrawing one source support cascades to downstream derivations and inva
     derivedStateAt(firstAfter, '2026-09-28T01:21:00.000Z').reason,
     'support_superseded',
   );
+});
+
+// #3459: negative learning evidence must reach the intake decision. A rule
+// whose calibrated belief is defeated must not admit a new conclusion, even
+// when verification and the admission evaluator would otherwise allow it.
+// `admitDerivedRecord` is the seam both the kernel runtime and the CLI route
+// through, so this pins the shared contract.
+test('a defeated rule belief blocks admission before candidate ingress', () => {
+  const record = buildRecord();
+  let ingressCalls = 0;
+  const result = admitDerivedRecord(record, {
+    ruleBeliefs: [{ ruleId: record.ruleId, schemaVersion: RULE_BELIEF_SCHEMA_VERSION, status: 'defeated', systemConfidence: 0.1, declaredConfidence: 0.9 }],
+    verifyDerived: () => ({ status: 'verified', evidence: ['irrelevant'] }),
+    ingestCandidateClaim: () => {
+      ingressCalls += 1;
+      throw new Error('must not run');
+    },
+  }, { at: '2026-09-28T01:16:00.000Z' });
+
+  assert.equal(ingressCalls, 0);
+  assert.equal(result.status, DERIVED_ADMISSION_STATUS.HELD);
+  assert.equal(result.reason, 'rule_belief_not_admissible');
+  assert.equal(result.record.state, DERIVED_STATES.PROVISIONAL);
+});
+
+// The kernel derive path reads the workspace's calibrated beliefs from the
+// inference run store and feeds them to the same seam, so a defeated rule is
+// held without any CLI involvement. An empty store blocks nothing.
+test('the kernel derive path holds a derivation whose rule belief is defeated', () => {
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite: false,
+    loadPlugins: false,
+    memoryStoreUseSQLite: false,
+  });
+  const workspaceId = 'ws-negative-evidence';
+  try {
+    const ruleId = 'rule:affects-through-type';
+    commitRun(kernel.graph, workspaceId, 0, {
+      action: 'calibrate',
+      at: '2026-09-28T01:15:00.000Z',
+      beliefs: [{ ruleId, schemaVersion: RULE_BELIEF_SCHEMA_VERSION, status: 'defeated', systemConfidence: 0.1, declaredConfidence: 0.9 }],
+      derivedBeliefs: [],
+      effects: [],
+      counterEvidence: [],
+      records: [],
+    }, kernel);
+
+    const result = kernel.derive({
+      workspaceId,
+      rules: [createRule({
+        id: ruleId,
+        head: atom('affects', [variable('X'), variable('Z')]),
+        body: [
+          atom('CAUSES', [variable('X'), variable('Y')]),
+          atom('is_a', [variable('Y'), variable('Z')]),
+        ],
+      })],
+      facts: [
+        fact('CAUSES', 'smoking', 'cancer'),
+        fact('is_a', 'cancer', 'disease'),
+      ],
+    }, { admit: true, now: '2026-09-28T01:17:00.000Z' });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.data.admission.applied, true);
+    assert.equal(result.data.admission.admittedCount, 0);
+    assert.ok(result.data.derivedFacts.length >= 1);
+    for (const derived of result.data.derivedFacts) {
+      assert.equal(derived.admissionStatus, 'held');
+    }
+    const heldEdges = kernel.graph.getEdges('smoking', workspaceId)
+      .filter((edge) => edge.relation === 'affects' && edge.to === 'disease');
+    assert.equal(heldEdges.length, 0);
+
+    // Idempotent: repeating the derive admits nothing and writes no edge.
+    const again = kernel.derive({
+      workspaceId,
+      rules: [createRule({
+        id: ruleId,
+        head: atom('affects', [variable('X'), variable('Z')]),
+        body: [
+          atom('CAUSES', [variable('X'), variable('Y')]),
+          atom('is_a', [variable('Y'), variable('Z')]),
+        ],
+      })],
+      facts: [
+        fact('CAUSES', 'smoking', 'cancer'),
+        fact('is_a', 'cancer', 'disease'),
+      ],
+    }, { admit: true, now: '2026-09-28T01:18:00.000Z' });
+    assert.equal(again.data.admission.admittedCount, 0);
+    assert.equal(
+      kernel.graph.getEdges('smoking', workspaceId)
+        .filter((edge) => edge.relation === 'affects' && edge.to === 'disease').length,
+      0,
+    );
+  } finally {
+    kernel.graph.close();
+  }
 });

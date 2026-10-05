@@ -220,11 +220,21 @@ test('#3472 heading 10 — getWeight is exponential decay with half-life ln2/lam
   const { getWeight } = requireModule('lib/graph-node-weight.js');
   const lambda = 0.1;
   const halfLifeSeconds = Math.log(2) / lambda;
-  const weight = getWeight(
-    () => ({ weight: 1, lastAccessed: Date.now() - halfLifeSeconds * 1000 }),
-    lambda, 'n',
-  );
-  assert.ok(Math.abs(weight - 0.5) < 1e-6, `half-life decay must halve the weight, got ${weight}`);
+  // Pin the clock: the module reads Date.now() itself, so computing the
+  // reference instant from an independent Date.now() call let the two differ
+  // by a millisecond under load and pushed the ratio past the 1e-6 tolerance.
+  const originalDateNow = Date.now;
+  const now = originalDateNow();
+  Date.now = () => now;
+  try {
+    const weight = getWeight(
+      () => ({ weight: 1, lastAccessed: now - halfLifeSeconds * 1000 }),
+      lambda, 'n',
+    );
+    assert.ok(Math.abs(weight - 0.5) < 1e-6, `half-life decay must halve the weight, got ${weight}`);
+  } finally {
+    Date.now = originalDateNow;
+  }
 });
 
 test('#3472 heading 11 — the decision vocabulary is closed', () => {

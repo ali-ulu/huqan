@@ -1,7 +1,7 @@
 {
-  "note": "The ratchet test owns this file. measuredNotYetWired changes only in the same PR that adds or removes a NOT_YET_WIRED acknowledgement, and only in the direction the ledger actually moved (#3014). unreachableTotal/reachableTotal are measured counts: they move with any tracked source file, so re-measure them in the same PR that adds or removes one, lib/ or not.",
+  "note": "Do not hand-edit this file in a PR that does not change lib/ itself; the ratchet test owns it. Update measuredNotYetWired only in the same PR that adds or removes a NOT_YET_WIRED acknowledgement, and only in the direction the ledger actually moved (#3014). unreachableTotal is a measured count: it also moves when a new standalone file (e.g. a benchmarks/ entry point) is added, so re-measure it in the same PR.",
   "measuredAt": "2026-10-04",
-  "unreachableTotal": 189,
-  "reachableTotal": 1078,
-  "measuredNotYetWired": 5
+  "unreachableTotal": 188,
+  "reachableTotal": 1079,
+  "measuredNotYetWired": 4
 }
