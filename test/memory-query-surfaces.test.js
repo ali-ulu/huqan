@@ -111,6 +111,11 @@ describe('memory query projection', () => {
       [{ text: 'x', workspaceId: 'ws-a', offset: -1 }, /offset must be a non-negative integer/],
       [{ text: 'x', workspaceId: 'ws-a', explain: 'yes' }, /explain must be a boolean/],
       [{ text: 'x', workspaceId: 'ws-a', retrievalMode: 'substring', explain: true }, /explain requires retrievalMode bm25/],
+      // An explicitly empty value is malformed, not a request for the default.
+      [{ text: 'x', workspaceId: 'ws-a', limit: '' }, /limit must be an integer/],
+      [{ text: 'x', workspaceId: 'ws-a', offset: '' }, /offset must be a non-negative integer/],
+      [{ text: 'x', workspaceId: 'ws-a', explain: '' }, /explain must be a boolean/],
+      [{ text: 'x', workspaceId: 'ws-a', retrievalMode: '' }, /retrievalMode must be one of/],
     ]) {
       const result = normalizeMemoryQueryInput(input);
       assert.equal(result.ok, false);
@@ -169,6 +174,16 @@ describe('memory query surfaces', () => {
     assert.deepEqual(refusedJson, { ok: false, code: 'invalid_request', message: 'retrievalMode must be one of: bm25, substring' });
   });
 
+  test('the CLI keeps quoted text out of flag parsing', () => {
+    const args = (input) => parseCommand(input).args;
+    assert.deepEqual([args('memory-query "use --explain in docs" --workspace ws').text, args('memory-query "use --explain in docs" --workspace ws').explain],
+      ['use --explain in docs', false]);
+    assert.deepEqual([args("memory-query 'a --workspace b' c").text, args("memory-query 'a --workspace b' c").workspaceId], ['a --workspace b c', 'default']);
+    assert.equal(args('memory-query x --workspace "team a"').workspaceId, 'team a');
+    assert.deepEqual([args('memory-query "--json"').text, args('memory-query "--json"').json], ['--json', false]);
+    assert.equal(args('memory-query x --workspace ""').error, '--workspace requires a value');
+  });
+
   test('the CLI sends huqan.memory_query arguments that match the declared input schema', () => {
     const sent = [];
     const spying = createCliCommandHandlers({
@@ -199,6 +214,11 @@ describe('memory query surfaces', () => {
     assert.equal((await httpGet(kernel, 'workspaceId=ws-a')).status, 400);
     assert.equal((await httpGet(kernel, `text=${'x'.repeat(600)}&workspaceId=ws-a`)).body.message, 'text exceeds 500 characters');
     assert.equal((await httpGet({}, 'text=x&workspaceId=ws-a')).status, 503);
+    // Neither truncated into a valid value nor defaulted when empty.
+    const padded = await httpGet(kernel, 'text=x&workspaceId=ws-a&limit=0000000101');
+    assert.deepEqual([padded.status, padded.body.message], [400, 'limit must be an integer from 1 to 100']);
+    assert.equal((await httpGet(kernel, 'text=x&workspaceId=ws-a&limit=')).status, 400);
+    assert.equal((await httpGet(kernel, 'text=x&workspaceId=ws-a&offset=')).status, 400);
     let status = null;
     const router = createReadWorkflowHttpRouter({
       kernel,
