@@ -16,6 +16,7 @@ const UNSAFE_PUBLIC_API_COMMANDS = Object.freeze([
   'remove',
   'tombstone',
   'supersede',
+  'memory lifecycle',
   'link',
   'backup',
   'export',

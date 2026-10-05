@@ -47,7 +47,10 @@ const PRODUCTION_SURFACE = Object.freeze({
   store: 'lib/error-prevention/store.js, benchmarks/bench-memory-scale.js',
   get: 'lib/error-prevention/{store,evidence,integrity,engine}.js',
   list: 'lib/error-prevention/store.js, server.js (kernel.memory.list)',
-  supersede: 'lib/error-prevention/{store,engine,lifecycle}.js',
+  supersede: 'lib/error-prevention/{store,engine,lifecycle}.js, lib/memory-lifecycle.js',
+  // First non-test caller for tombstone (#3461): MemoryLifecycle's receipt-bound
+  // tombstone, reached by the CLI `memory-lifecycle` operator command.
+  tombstone: 'lib/memory-lifecycle.js (CLI memory-lifecycle)',
   queryLinks: 'server.js (kernel.memory.queryLinks)',
   close: 'kernel.js',
   reopen: 'lib/sqlite-restore.js (kernel.memory.reopen), for cli.js restore (#1848)',
@@ -86,7 +89,7 @@ const TEST_ONLY_SURFACE = Object.freeze([
   'findByStatus', 'findLinkedMemories', 'findLinks', 'getBacklinks',
   'getEvents', 'getLinks', 'importPackage', 'link', 'linkMemories',
   'linksForMemory', 'load', 'memoriesBetween', 'patchMetadata',
-  'save', 'since', 'tombstone', 'traverseLinks',
+  'save', 'since', 'traverseLinks',
 ]);
 
 /**
