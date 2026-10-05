@@ -1037,6 +1037,7 @@
     "lib/sqlite-persistence-validation.js",
     "lib/sqlite-restore.js",
     "lib/ssrf-guard.js",
+    "lib/storage/checkpoint-lineage.js",
     "lib/storage/db-path.js",
     "lib/storage/run-state-keys.js",
     "lib/storage/run-state-methods.js",
