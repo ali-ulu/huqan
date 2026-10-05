@@ -75,6 +75,15 @@ test('validateCheckpointChain reports content tampering and broken links distinc
   assert.equal(dropped.reason, CHAIN_INVALID_REASONS.GENESIS_MISMATCH, 'a first row not anchored on genesis is a mismatch');
 });
 
+test('the checkpoint chain has its own genesis marker, distinct from the receipt chain', () => {
+  const { GENESIS_PREVIOUS_HASH: RECEIPT_GENESIS } = require('../lib/receipt/receipt-chain');
+  assert.notEqual(
+    GENESIS_PREVIOUS_HASH,
+    RECEIPT_GENESIS,
+    'a shared marker would let a checkpoint validate in a receipt chain position',
+  );
+});
+
 // ─── the storage surface ─────────────────────────────────────────────────────
 
 test('a saved checkpoint is stamped and its chain verifies', () => withStorage((storage) => {

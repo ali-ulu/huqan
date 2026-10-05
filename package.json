@@ -521,6 +521,7 @@
     "lib/connectors/repo-memory-path-ingest.js",
     "lib/connectors/repo-memory-records.js",
     "lib/content-hash.js",
+    "lib/hash-chain.js",
     "lib/contested-read-policy.js",
     "lib/contradiction-rules.js",
     "lib/contradiction-rules-opposition-detectors.js",
