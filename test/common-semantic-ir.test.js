@@ -16,6 +16,8 @@ const assert = require('node:assert/strict');
 const {
   COMMON_SEMANTIC_IR_VERSION,
   SEMANTIC_IR_FIELDS,
+  IDENTIFIED_LANGUAGES,
+  PACK_LANGUAGES,
   detectLanguage,
   buildCommonSemanticIR,
   validateCommonSemanticIR,
@@ -23,6 +25,8 @@ const {
 const { parseCommand } = require('../lib/command-parser');
 const { parsePredicate } = require('../lib/predicate-parser');
 const { decomposeClaim } = require('../lib/claim-decomposition');
+const createNlp = require('../nlp');
+const BASELINE_GOLDEN = require('./fixtures/common-semantic-ir-en-tr-baseline.golden.json');
 
 const NORMALIZE = (word) => String(word);
 
@@ -190,7 +194,7 @@ test('the validator rejects records that look measured but are not', () => {
   assert.equal(validateCommonSemanticIR(unknownWithoutReason).valid, false);
 
   const badLanguage = JSON.parse(JSON.stringify(valid));
-  badLanguage.language = { status: 'present', value: 'de' };
+  badLanguage.language = { status: 'present', value: 'fr' };
   assert.equal(validateCommonSemanticIR(badLanguage).valid, false);
 
   const badConfidence = JSON.parse(JSON.stringify(valid));
@@ -199,4 +203,79 @@ test('the validator rejects records that look measured but are not', () => {
 
   assert.equal(validateCommonSemanticIR(null).valid, false);
   assert.equal(validateCommonSemanticIR([]).valid, false);
+});
+
+// ---------------------------------------------------------------------------
+// L2 language adapters (#3476): new languages read through the shipped `nlp/`
+// packs. The contract is the track line "yeni dil semantic/policy core'u
+// değiştirmez" -- same record, same validator, EN/TR unchanged.
+// ---------------------------------------------------------------------------
+
+test('EN/TR records are byte-identical to the pre-adapter baseline', () => {
+  // The golden was produced by the L1 module *before* the adapters existed,
+  // so this compares against the old code, not against the new code's output.
+  assert.ok(BASELINE_GOLDEN.cases.length >= 20, 'the regression corpus must not shrink');
+  for (const entry of BASELINE_GOLDEN.cases) {
+    const ir = buildCommonSemanticIR(entry.text, { domain: entry.domain, normalizeWord: NORMALIZE });
+    assert.deepEqual(ir, entry.ir, entry.text);
+  }
+});
+
+test('German and Arabic are identified; unmarked text still stays unknown', () => {
+  assert.equal(detectLanguage('Die Bereitstellung erfordert eine Genehmigung'), 'de');
+  assert.equal(detectLanguage('Katzen sind Tiere'), 'de');
+  assert.equal(detectLanguage('القط هو حيوان'), 'ar');
+  assert.equal(detectLanguage('hello world'), 'unknown');
+  assert.equal(detectLanguage('Bereitstellung Genehmigung'), 'unknown');
+});
+
+test('shared ö/ü decides nothing alone: German evidence makes it German, otherwise Turkish', () => {
+  // The baseline read every ö/ü as Turkish, which mislabeled German such as
+  // "Größe ist für ...". That is the only baseline label the adapters change.
+  assert.equal(detectLanguage('Die Größe ist für alle gleich'), 'de');
+  assert.equal(detectLanguage('göz üzüm'), 'tr');
+  // A Turkish-only letter or marker still wins over any German word.
+  assert.equal(detectLanguage('Größe için bir değer'), 'tr');
+});
+
+test('a pack language carries its pack claims verbatim and measures nothing else', () => {
+  for (const [language, text] of [
+    ['de', 'der grosse hund ist ein tier'],
+    ['ar', 'القط الكبير هو حيوان صغير'],
+  ]) {
+    const ir = buildCommonSemanticIR(text);
+    const facts = createNlp(language).extractFacts(text);
+    assert.equal(ir.language.value, language);
+    assert.equal(ir.claims.status, 'present');
+    assert.deepEqual(
+      ir.claims.value.map(({ subject, predicate }) => ({ subject, predicate })),
+      facts,
+      `${language} claims are the pack's facts, not a re-derivation`,
+    );
+    // The command grammar and predicate parser are TR/EN: they are not run on
+    // a language they were not written for.
+    assert.deepEqual(ir.intent, { status: 'unknown', value: null, reason: `no_intent_parser_for_language:${language}` });
+    assert.equal(ir.relations.status, 'unknown');
+    assert.equal(ir.constraints.status, 'unknown');
+    assert.equal(ir.confidence.status, 'unknown');
+  }
+});
+
+test('every identified language satisfies the same record contract', () => {
+  const samples = {
+    tr: 'Kedi hayvandır',
+    en: 'Cats are animals',
+    de: 'Katzen sind Tiere',
+    ar: 'القط هو حيوان',
+  };
+  for (const language of IDENTIFIED_LANGUAGES) {
+    const text = samples[language];
+    assert.ok(text, `${language} needs a contract sample`);
+    const ir = buildCommonSemanticIR(text);
+    assert.equal(ir.version, COMMON_SEMANTIC_IR_VERSION);
+    assert.deepEqual(Object.keys(ir).filter((key) => key !== 'version'), [...SEMANTIC_IR_FIELDS]);
+    assert.equal(ir.language.value, language);
+    assert.deepEqual(validateCommonSemanticIR(ir), { valid: true, errors: [] }, language);
+  }
+  for (const language of PACK_LANGUAGES) assert.ok(IDENTIFIED_LANGUAGES.includes(language));
 });

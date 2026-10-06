@@ -215,3 +215,26 @@ test('a secret-looking command is redacted in the plan and the execution envelop
   assert.ok(!JSON.stringify(ir).includes(secret));
   assert.match(ir.execution.value.envelope.command, /REDACTED/);
 });
+
+test('a plan in a new language leaves policy unchanged and is never authorized (#3476)', () => {
+  // The same allowed action, phrased in each language. Policy is the guard's
+  // decision on the action and must not move with the language; only the
+  // TR/EN command grammar can verify a plan, so a German or Arabic plan stays
+  // unverified and fail-closed until a parser for that language exists.
+  const baseline = buildActionIR({ text: 'neden hava sıcak', action: action() }, OPTS);
+  assert.equal(baseline.execution.value.authorized, true);
+
+  for (const [language, text] of [
+    ['de', 'Lies die Datei README'],
+    ['ar', 'اقرأ هو الملف'],
+  ]) {
+    const ir = buildActionIR({ text, action: action() }, OPTS);
+    assert.equal(ir.language.value, language);
+    assert.deepEqual(ir.policy, baseline.policy, `${language} must not change the policy decision`);
+    assert.equal(ir.verification.value.verified, false);
+    assert.equal(ir.verification.value.checks.find((c) => c.name === 'plan_understood').passed, false);
+    assert.equal(ir.planSafety.value, PLAN_SAFETY.UNKNOWN);
+    assert.equal(ir.execution.value.authorized, false);
+    assert.deepEqual(validateActionIR(ir), { valid: true, errors: [] });
+  }
+});
