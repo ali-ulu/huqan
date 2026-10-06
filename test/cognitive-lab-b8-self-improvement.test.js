@@ -13,14 +13,20 @@ const { evaluateCanaryTrial, createPromotionAdmissionRegistry } = require('../li
 const { createCapabilityTrustRegistry } = require('../lib/experience/capability-trust');
 const { createReflectivePromotion } = require('../lib/experience/reflective-promotion');
 
-const DESIGN_DIGEST = '76669808823df2d11f2041d6c5aa870761e71a98045372e94c23529e14988b83';
+const DESIGN_DIGEST = '0cf15b0ce1a9722b3e0e2ed5f63734456b3cbea65fc1cee686bb4cf43e4df2bb';
 const T0 = Date.parse('2026-01-01T00:00:00Z');
 const MIN = 60 * 1000;
 const NOW = T0 + 500 * MIN;
 const PROPOSER = 'learner-agent';
 const REVIEWER = 'independent-reviewer';
-const UNSAFE = new Set(['self_approval', 'learner_peer_approval', 'learner_toggle', 'authority_expansion']);
+const UNSAFE = new Set(['self_approval', 'learner_peer_approval', 'learner_toggle', 'authority_expansion', 'undeclared_expansion']);
 const HARMFUL = new Set(['overfit', 'late_regression']);
+// #3551: artifact scopes the derivation reads. Every pre-existing class
+// carries the same scope on both sides (no derived widening); the new
+// undeclared_expansion class declares nothing while its candidate scope
+// differs from the bound one.
+const SCOPE_A = Object.freeze({ tools: Object.freeze(['read']) });
+const SCOPE_B = Object.freeze({ tools: Object.freeze(['read', 'write']) });
 
 function runs(count, { cost, negatives = 0, from = 0 }) {
   return Array.from({ length: count }, (_, i) => ({ occurredAt: T0 + (from + i) * MIN, eventId: `e${from + i}`, runId: `r${from + i}`,
@@ -37,6 +43,8 @@ function population(split, { perClass, learnerPrincipals }) {
         candidateRuns: runs(12, { cost: cls === 'overfit' ? 50 : 5 }), baselineRuns: runs(12, { cost: 10 }),
         postRuns: runs(12, { cost: 5, negatives: cls === 'late_regression' ? 6 : 0, from: 100 }),
         authorityDelta: cls === 'authority_expansion' ? { [['policy', 'scope', 'approval', 'capability'][i % 4]]: { widen: true } } : {},
+        candidateScope: cls === 'undeclared_expansion' ? SCOPE_B : SCOPE_A,
+        boundScope: SCOPE_A,
         authority: cls === 'self_approval' ? { approverId: PROPOSER } : cls === 'learner_peer_approval' ? { approverId: peer }
           : cls === 'learner_toggle' ? { toggleAdminId: peer } : { approverId: REVIEWER } });
     }
@@ -91,7 +99,8 @@ function runA1(cases, learnerPrincipals) {
   const loop = createReflectivePromotion({ trust, admissions, learnerPrincipals });
   for (const c of cases) {
     const proposal = loop.propose({ workspaceId: 'ws', capabilityId: c.capabilityId, artifactType: ['procedure', 'rule', 'model'][c.capabilityId.length % 3],
-      candidateVersion: 'v2', proposedBy: PROPOSER, authorityDelta: c.authorityDelta });
+      candidateVersion: 'v2', proposedBy: PROPOSER, authorityDelta: c.authorityDelta,
+      candidateArtifact: { scope: c.candidateScope }, boundArtifact: { scope: c.boundScope } });
     if (!proposal.ok) continue;
     const canary = loop.evaluateCanary({ candidateId: proposal.candidateId, candidateRuns: c.candidateRuns, baselineWindowRuns: c.baselineRuns, startAt: T0 });
     if (canary.state !== 'canary_passed') continue;
