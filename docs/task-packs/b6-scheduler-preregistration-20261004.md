@@ -161,3 +161,14 @@ Manifest `source.commit`/`fixture.digest`/`split.identity` doğru; `budget` iki 
 - Holdout paired mean Δ = **+0.333**; %95 bootstrap aralığı **[0.111, 0.556]**; iki kol da **38 adım** (eşit bütçe); holdout çözülen-görev başına maliyet baseline 3.33 → candidate **2.22**.
 - **Verdict: `INSUFFICIENT` (`no_anticase`).** Güçlendirilmiş scheduler dondurulmuş külliyede baseline'ın çözdüğü hiçbir görevi kaybetmiyor (hurt = 0). §4/§10 anti-vaka (sınıf iii) koşulu gereği, anti-vaka ortadan kalkınca deney `MEASURED` vermez; `INSUFFICIENT` raporlar ve **gain iddia edilmez**.
 - **Yorum (dürüstlük):** pozitif delta ve sıfır kayıp, sinyalin vaat edilen yönde çalıştığına dair kanıttır; ancak ön-kayıtlı anti-vaka kriteri sağlanmadığı için bu bir kazanç iddiası değildir. Sinyalin gerçek kazancı, anti-vakayı geri getiren daha geniş/bağımsız bir külliyede yeniden ölçülmelidir.
+
+## 18. Manifest bağlama (#3562, I6c)
+
+§11/§15 `mechanisms.B6 = 'ENABLED'` ve manifest alanlarını zaten kilitliyordu; ancak ölçüm yalnız test dosyasında yaşıyordu ve bir Cognitive Lab manifesti üretmiyordu. Bu dilim, ölçümü üretim yüzeyine bağlar:
+
+- `lib/cognitive-lab-b6-evaluator.js` — donmuş `CONTRACT` (metric/direction/seed/resamples/confidence/meaningfulEffect/nonInferiorityCostMargin/minimumSamples/minimumHoldout) ve saf, fail-closed `evaluate`. Test dosyasındaki kopya buraya taşındı; `test/cognitive-lab-b6-scheduler.test.js` aynı sözleşmeyi bu modülden okur, böylece iki taraf kayamaz.
+- `lib/cognitive-lab-b6-experiment.js` — `runB6Experiment` kayıtlardan split türetir, `mechanisms.B6='ENABLED'` (diğerleri `NOT_MEASURED`) manifesti üretir ve değerlendirme raporunu manifest ile birlikte döner. Çıktı **candidate-only**: `authority='MODEL_AUTHORITY'`, `canonical=false`, `automaticPromotion=false`; hiçbir kod yolu terfi ettirmez.
+- `lib/cognitive-lab-cli.js` — opt-in `b6 --b6-records FILE` alt yolu runner'ı çağırır; store açmaz, kanonik belleğe dokunmaz (B1 `replay` deseniyle aynı).
+
+Külliye hâlâ test harness'ında kalır (gerçek AgentV3 döngüsünü sürer); runner `records` üzerinde saf bir fonksiyondur. Külliyenin gerçek koşusundaki sonuç değişmez: **`INSUFFICIENT` (`no_anticase`), `assertsGain=false`** — yani manifest yayımlanır ama **gain iddia edilmez**. Doğrulama cümlesi: "Neural cognition yok; output candidate only."
+

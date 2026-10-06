@@ -3570,6 +3570,14 @@
    "kind": "infra",
    "evidence": "#3474 I6 B7 measurement orchestration"
   },
+  "lib/cognitive-lab-b6-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B6 equal-budget ablation evaluator and frozen contract"
+  },
+  "lib/cognitive-lab-b6-experiment.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B6 manifest-emitting measurement runner"
+  },
   "fixtures/cognitive-lab/causal-confirmatory-generator.js": {
    "kind": "infra",
    "evidence": "#3467 preregistered synthetic experiment input generator; never imported by learner"
