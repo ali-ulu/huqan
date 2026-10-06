@@ -119,7 +119,23 @@ test('an option token is not accepted as an option value', t => {
   const out = path.join(directory, 'card.json');
   const result = issue(directory, ['--agent-id', 'openhands', '--owner', '--capabilities', 'shell', '--out', out]);
   assert.equal(result.status, 1);
-  assert.match(JSON.parse(result.stdout).errors.join(','), /owner_actor_id_required/);
+  const errors = JSON.parse(result.stdout).errors;
+  assert.deepEqual(errors, ['owner_required']);
+  assert.equal(fs.existsSync(out), false);
+});
+
+test('a signature path that is another option is refused, not written', t => {
+  const directory = sandbox(t);
+  const keys = path.join(directory, 'keys');
+  assert.equal(issue(directory, ['--generate-keypair', keys]).status, 0);
+  const out = path.join(directory, 'card.json');
+  const result = issue(directory, [
+    '--agent-id', 'openhands', '--owner', 'actor:ali', '--capabilities', 'shell',
+    '--out', out, '--sign-key', path.join(keys, 'identity-card-private.pem'),
+    '--out-signature', '--workspace-id', 'default',
+  ]);
+  assert.equal(result.status, 1);
+  assert.ok(JSON.parse(result.stdout).errors.includes('out-signature_required'));
   assert.equal(fs.existsSync(out), false);
 });
 

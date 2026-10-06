@@ -619,17 +619,17 @@
       ],
       "sites": [
         {
-          "line": 110,
+          "line": 112,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 125,
+          "line": 127,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 142,
+          "line": 175,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         }
