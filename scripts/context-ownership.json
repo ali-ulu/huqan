@@ -2712,6 +2712,14 @@
    "context": "AgentAction",
    "evidence": "docs/a2a-pre-dispatch-intervention.md: public index.js dispatcher orders intervention, admission and transport; test/a2a-pre-dispatch-intervention.test.js proves signed receiver and durable decisions"
   },
+  "lib/a2a/handoff-cursor.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-handoff-cursor.md: durable active-delegator cursor beside the replay/task stores; test/a2a-handoff-cursor.test.js proves restart resume and termination closure"
+  },
+  "lib/a2a/handoff-termination.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-handoff-cursor.md: handoff-cursor.js resolves the human/target close through this termination allowlist"
+  },
   "lib/a2a/pre-dispatch-intervention.js": {
    "context": "AgentAction",
    "evidence": "docs/a2a-pre-dispatch-intervention.md: handoff-dispatch.js validates allow/drop/modify and narrows action scope before admission"
@@ -5531,6 +5539,20 @@
     "Platform"
    ],
    "evidence": "index.js public createA2aHandoffDispatcher export; docs/a2a-pre-dispatch-intervention.md and test/a2a-pre-dispatch-intervention.test.js prove the SDK caller"
+  },
+  "lib/a2a/handoff-cursor.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public createA2aHandoffCursor export; docs/a2a-handoff-cursor.md and test/a2a-handoff-cursor.test.js prove the SDK caller"
+  },
+  "lib/a2a/handoff-termination.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public resolveHandoffTermination export; docs/a2a-handoff-cursor.md and test/a2a-handoff-cursor.test.js prove the SDK caller"
   },
   "rustGraph.js": {
    "owner": "Knowledge",
