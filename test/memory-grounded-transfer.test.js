@@ -31,7 +31,7 @@ const {
   projectStructuralLatent,
   projectWorldState,
   scoreMeasuredAgreement,
-} = require('../lib/grounded-transfer-check');
+} = require('../lib/memory-grounded-transfer');
 
 const NOW = '2026-10-06T12:00:00.000Z';
 

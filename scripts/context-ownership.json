@@ -1028,7 +1028,7 @@
    "context": "Memory",
    "evidence": "#3471 K1 CognitiveMessage envelope and reference frames built on memory-schema-checks"
   },
-  "lib/grounded-transfer-check.js": {
+  "lib/memory-grounded-transfer.js": {
    "context": "Memory",
    "evidence": "#3475 I7 candidate-only grounded transfer check over K1 reference frames"
   },
