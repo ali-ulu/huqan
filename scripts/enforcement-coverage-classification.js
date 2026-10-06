@@ -98,6 +98,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'proves a gate command by running it against a denylisted envelope and writes the adapter that will call it; the spawns are the gate proving itself and the write is the integration it just proved, refused entirely if the sentinel does not block',
   }),
+  'lib/external-action-identity-issue.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'mints the capability card an operator hands to the gate (#2505); the write is refused if the target exists, and there is no agent in the loop -- an agent that could mint its own authority would defeat the card',
+  }),
   'adapters/external-action/generic-adapter.js': Object.freeze({
     role: 'enforcement',
     why: 'the generated custom-agent adapter: its one spawn is the call to the gate itself, made before the agent acts, so gating it would be circular -- it fails closed on a gate it cannot start, parse or recognise',
