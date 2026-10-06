@@ -52,15 +52,17 @@ kimlik, hangi yetkiyle, kimin adına yaptı" demez. Faz C (#1769) bunun için
   "workspaceId": "default",
   "capabilities": ["file_read", "shell"],
   "delegationChain": ["orchestrator", "future-agent-2035"],
-  "issuedAt": "2026-01-01T00:00:00.000Z",
-  "expiresAt": "2026-01-01T12:00:00.000Z"
+  "issuedAt": "2026-10-06T09:00:00.000Z",
+  "expiresAt": "2026-10-06T21:00:00.000Z"
 }
 ```
 
 `expiresAt` zorunludur ve kartın ömrü en fazla 24 saattir
 (`identity_card_expires_at_missing` / `identity_card_lifetime_exceeded`).
 `issuedAt` ile `expiresAt` arasındaki pencere gerçek saate göre değerlendirilir;
-süresi geçmiş bir kart `block` olur.
+süresi geçmiş bir kart `block` olur. Örnekteki tarihler yalnız biçimi gösterir;
+kendi kartınızı `huqan-gate identity issue` ile üretin (aşağıda), çünkü sabit
+tarihli bir kart kısa süre sonra süresi geçmiş olur.
 
 `capabilities` zarfın `kind` sözlüğünden değer alır; `*` hepsini kapsar.
 `delegationChain` verilirse son eleman `agentId` olmak zorundadır. Kart

@@ -106,6 +106,46 @@ test('issuing over an existing card fails rather than overwriting it', t => {
   assert.equal(fs.readFileSync(out, 'utf8'), 'operator-owned');
 });
 
+test('an invalid explicit lifetime is refused, not silently defaulted', () => {
+  const { card, errors } = buildIdentityCard({
+    agentId: 'a', ownerActorId: 'actor:ali', capabilities: ['shell'], lifetimeMs: Number.NaN,
+  }, new Date('2026-01-01T00:00:00.000Z'));
+  assert.equal(card, null);
+  assert.ok(errors.includes('lifetime_invalid'));
+});
+
+test('an option token is not accepted as an option value', t => {
+  const directory = sandbox(t);
+  const out = path.join(directory, 'card.json');
+  const result = issue(directory, ['--agent-id', 'openhands', '--owner', '--capabilities', 'shell', '--out', out]);
+  assert.equal(result.status, 1);
+  assert.match(JSON.parse(result.stdout).errors.join(','), /owner_actor_id_required/);
+  assert.equal(fs.existsSync(out), false);
+});
+
+test('a missing signing key fails before any card is written', t => {
+  const directory = sandbox(t);
+  const out = path.join(directory, 'card.json');
+  const result = issue(directory, [
+    '--agent-id', 'openhands', '--owner', 'actor:ali', '--capabilities', 'shell',
+    '--out', out, '--sign-key', path.join(directory, 'absent.pem'),
+  ]);
+  assert.equal(result.status, 1);
+  assert.equal(fs.existsSync(out), false);
+  assert.equal(fs.existsSync(`${out}.sig.json`), false);
+});
+
+test('the private key is written owner-only', t => {
+  const directory = sandbox(t);
+  const keys = path.join(directory, 'keys');
+  assert.equal(issue(directory, ['--generate-keypair', keys]).status, 0);
+  if (process.platform !== 'win32') {
+    const mode = fs.statSync(path.join(keys, 'identity-card-private.pem')).mode & 0o777;
+    assert.equal(mode, 0o600);
+    assert.equal(fs.statSync(keys).mode & 0o777, 0o700);
+  }
+});
+
 test('the capability-card example in docs/external-action-guard.md is valid', () => {
   const doc = fs.readFileSync(path.join(root, 'docs', 'external-action-guard.md'), 'utf8');
   const blocks = [...doc.matchAll(/```json\r?\n([\s\S]*?)```/g)].map(match => match[1]);

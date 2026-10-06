@@ -3,16 +3,16 @@
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
     "files": 60,
-    "sites": 132,
+    "sites": 133,
     "byCapability": {
       "process": 18,
       "egress": 4,
-      "fs_write": 110
+      "fs_write": 111
     },
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
-      "operator_tool": 35,
+      "operator_tool": 36,
       "persistence": 37,
       "evidence": 14,
       "egress_operator_gated": 2,
@@ -619,12 +619,17 @@
       ],
       "sites": [
         {
-          "line": 94,
+          "line": 110,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 103,
+          "line": 125,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 142,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         }
