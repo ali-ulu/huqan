@@ -3530,6 +3530,30 @@
    "kind": "infra",
    "evidence": "#3474 I6 local SSM candidate implementation"
   },
+  "lib/cognitive-model-local-primitives.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 shared seeded PRNG, activation and closed-form ridge solve for the local model family"
+  },
+  "lib/cognitive-model-local-family.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 shared factory enforcing the candidate-only port boundary for every local model family"
+  },
+  "lib/cognitive-model-local-rwkv.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 local RWKV linear-attention candidate"
+  },
+  "lib/cognitive-model-local-mamba.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 local Mamba selective state-space candidate"
+  },
+  "lib/cognitive-model-local-transformer.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 local small-Transformer candidate"
+  },
+  "lib/cognitive-lab-model-comparison.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 B7 model-family comparison over the frozen design and inputs"
+  },
   "lib/cognitive-lab-neural-world.js": {
    "kind": "infra",
    "evidence": "#3474 I6 B7 bounded accumulation environment law"

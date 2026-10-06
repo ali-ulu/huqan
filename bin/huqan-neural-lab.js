@@ -18,24 +18,53 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createLocalNeuralModel } = require('../lib/cognitive-model-local-ssm');
+const { createLocalRwkvModel } = require('../lib/cognitive-model-local-rwkv');
+const { createLocalMambaModel } = require('../lib/cognitive-model-local-mamba');
+const { createLocalTransformerModel } = require('../lib/cognitive-model-local-transformer');
 const { runNeuralCognitionExperiment } = require('../lib/cognitive-lab-neural-experiment');
+const { compareModelFamilies } = require('../lib/cognitive-lab-model-comparison');
 const { DESIGN, FROZEN } = require('../lib/cognitive-lab-neural-design');
 const { contentHash } = require('../lib/content-hash');
 
-const USAGE = 'huqan-neural-lab [--benchmark B7] --source-commit <40-character Git SHA> --source-dirty <true|false>';
+// The local families the port exposes, by the port's MODEL_KINDS name (#3561).
+const FAMILIES = Object.freeze({
+  SSM: createLocalNeuralModel,
+  RWKV: createLocalRwkvModel,
+  MAMBA: createLocalMambaModel,
+  TRANSFORMER: createLocalTransformerModel,
+});
+
+const USAGE = 'huqan-neural-lab [--benchmark B7] [--model-kind <RWKV|MAMBA|SSM|TRANSFORMER> | --compare] --source-commit <40-character Git SHA> --source-dirty <true|false>';
 
 const FILES = Object.freeze([
   'lib/cognitive-model-port.js',
+  'lib/cognitive-model-local-primitives.js',
+  'lib/cognitive-model-local-family.js',
   'lib/cognitive-model-local-ssm.js',
+  'lib/cognitive-model-local-rwkv.js',
+  'lib/cognitive-model-local-mamba.js',
+  'lib/cognitive-model-local-transformer.js',
   'lib/cognitive-lab-neural-world.js',
   'lib/cognitive-lab-neural-design.js',
   'lib/cognitive-lab-neural-experiment.js',
+  'lib/cognitive-lab-model-comparison.js',
   'bin/huqan-neural-lab.js',
 ]);
 
+const MODEL_KINDS = Object.freeze(Object.keys(FAMILIES));
+
 function parseArgs(args) {
-  const selected = args[0] === '--benchmark' && args[1] === 'B7' ? 'B7' : null;
-  const rest = selected ? args.slice(2) : args;
+  let rest = args[0] === '--benchmark' && args[1] === 'B7' ? args.slice(2) : args;
+  let modelKind = 'SSM';
+  let compare = false;
+  if (rest[0] === '--model-kind') {
+    if (!MODEL_KINDS.includes(rest[1])) throw new TypeError(`--model-kind must be one of ${MODEL_KINDS.join('|')}`);
+    modelKind = rest[1];
+    rest = rest.slice(2);
+  } else if (rest[0] === '--compare') {
+    compare = true;
+    rest = rest.slice(1);
+  }
   if (
     rest.length !== 4
     || rest[0] !== '--source-commit'
@@ -45,25 +74,23 @@ function parseArgs(args) {
   ) {
     throw new TypeError(`explicit ${USAGE.replace('huqan-neural-lab ', '')} required`);
   }
-  return { sourceCommit: rest[1], sourceDirty: rest[3] === 'true' };
+  return { sourceCommit: rest[1], sourceDirty: rest[3] === 'true', modelKind, compare };
 }
 
 function main(args) {
   if (args.length === 1 && args[0] === '--help') {
-    return { usage: USAGE, scope: DESIGN.scope, benchmarks: { B7: DESIGN.scope } };
+    return { usage: USAGE, scope: DESIGN.scope, benchmarks: { B7: DESIGN.scope }, modelKinds: [...MODEL_KINDS] };
   }
-  const { sourceCommit, sourceDirty } = parseArgs(args);
+  const { sourceCommit, sourceDirty, modelKind, compare } = parseArgs(args);
 
   // Git converts line endings on Windows; the frozen law hashes normalized
   // UTF-8 source, while sourceFileHashes below report actual installed bytes.
   const worldSource = fs.readFileSync(path.join(__dirname, '..', 'lib/cognitive-lab-neural-world.js'), 'utf8').replace(/\r\n/g, '\n');
   if (contentHash(worldSource) !== FROZEN.worldDigest) throw new Error('frozen environment law digest mismatch');
 
-  const result = runNeuralCognitionExperiment({
-    createModel: (options) => createLocalNeuralModel(options),
-    sourceCommit,
-    sourceDirty,
-  });
+  const result = compare
+    ? compareModelFamilies({ models: FAMILIES, sourceCommit, sourceDirty })
+    : runNeuralCognitionExperiment({ createModel: FAMILIES[modelKind], sourceCommit, sourceDirty });
   return {
     ...result,
     sourceEvidence: 'CALLER_DECLARED_GIT_SHA_WITH_MEASURED_FILE_HASHES',
