@@ -1012,6 +1012,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-knowledge-object.js": {
+   "context": "Memory",
+   "evidence": "#3470 K0 KnowledgeObject schema built on memory-schema-checks/-types"
+  },
   "lib/memory-schema-validate.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
