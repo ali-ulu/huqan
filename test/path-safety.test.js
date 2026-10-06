@@ -106,6 +106,14 @@ test('path-safety: resolvePathWithinRoot fails closed on control characters and 
       () => resolvePathWithinRoot('x'.repeat(1025), path.join(rootDir, 'memory.json'), { allowMissing: true }),
       (error) => error.code === 'ROOT_PATH_MALFORMED',
     );
+    // An empty, blank or non-string candidate is malformed, not resolved
+    // against the working directory.
+    for (const candidate of ['', '   ', '	', 42, null, undefined]) {
+      assert.throws(
+        () => resolvePathWithinRoot(rootDir, candidate, { allowMissing: true }),
+        (error) => error.code === 'PATH_MALFORMED',
+      );
+    }
     // A boundary-length, control-free path is still admitted.
     const boundary = path.join(rootDir, 'a'.repeat(1024 - rootDir.length - 1));
     assert.equal(boundary.length, 1024);
