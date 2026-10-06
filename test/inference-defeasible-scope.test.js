@@ -22,6 +22,7 @@ const {
   INTAKE_REASON,
   normalizeScope,
   classifyProof,
+  describeClaim,
   deriveScopedIntake,
   applySemanticDominance,
 } = require('../lib/inference-defeasible-scope');
@@ -85,6 +86,32 @@ test('a defeater from one scope is not a defeater in another', () => {
   assert.equal(closed.defeater.scopeId, 'closed');
   assert.equal(open.defeater, null);
   assert.notEqual(closed.intake.signal, open.intake.signal);
+});
+
+test('a defeater names the claim it is over, so two absences stay distinguishable', () => {
+  const scope = { scopeId: 'kb-1', closedWorld: true };
+  const first = deriveScopedIntake({ status: 'not_proven', claim: fact('edge', 'a', 'z'), scope });
+  const second = deriveScopedIntake({ status: 'not_proven', claim: fact('edge', 'b', 'z'), scope });
+  assert.equal(first.claim, 'edge(a, z)');
+  assert.equal(first.defeater.claim, 'edge(a, z)');
+  assert.notEqual(first.defeater.claim, second.defeater.claim, 'same scope and reason, different claims');
+  assert.equal(first.defeater.scopeId, second.defeater.scopeId);
+  assert.equal(first.defeater.reason, second.defeater.reason);
+});
+
+test('describeClaim renders the rule-IR atom and refuses a non-atom', () => {
+  assert.equal(describeClaim(fact('edge', 'a', 'c')), 'edge(a, c)');
+  assert.equal(describeClaim('edge(a, c)'), 'edge(a, c)');
+  assert.equal(describeClaim({ predicate: 'p', args: [variable('X')] }), 'p(X)');
+  assert.equal(describeClaim({ predicate: 'p', args: [] }), 'p', 'an atom with no args is just its predicate');
+  assert.equal(describeClaim({ predicate: 'p', args: ['a', 7, true] }), 'p(a, 7, true)', 'raw scalars render directly');
+  assert.equal(describeClaim({ predicate: 'p', args: [null, { kind: 'unknown' }] }), 'p(_, _)', 'unreadable terms degrade to a placeholder');
+  assert.equal(describeClaim({ predicate: 'p', args: [undefined] }), 'p(_)');
+  assert.equal(describeClaim({ predicate: 'p', args: 'x' }), 'p', 'a non-array args field is treated as empty');
+  assert.equal(describeClaim(null), null);
+  assert.equal(describeClaim(undefined), null);
+  assert.throws(() => describeClaim(42), /claim must be an atom/);
+  assert.throws(() => describeClaim({}), /claim\.predicate must be a non-empty string/);
 });
 
 test('unknown and stopped proofs are never read as false', () => {
