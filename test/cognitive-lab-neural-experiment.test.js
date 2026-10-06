@@ -113,6 +113,17 @@ test('the runner refuses missing provenance, a foreign design and overlapping sp
 test('the installed CLI exposes B7 and validates its arguments without opening memory', () => {
   assert.match(main(['--help']).usage, /--benchmark B7/);
   assert.equal(main(['--help']).benchmarks.B7, DESIGN.scope);
+  assert.deepEqual(main(['--help']).modelKinds, ['SSM', 'RWKV', 'MAMBA', 'TRANSFORMER']);
   assert.throws(() => main(['--benchmark', 'B7']), /explicit/);
   assert.throws(() => main(['--benchmark', 'B7', '--source-commit', 'x', '--source-dirty', 'false']), /explicit/);
+});
+
+test('the CLI selects a model family and compares all four without opening memory', () => {
+  const rwkv = main(['--benchmark', 'B7', '--model-kind', 'RWKV', '--source-commit', SHA, '--source-dirty', 'false']);
+  assert.equal(rwkv.model.kind, 'RWKV');
+  assert.equal(rwkv.status, 'KEEP');
+  const comparison = main(['--compare', '--source-commit', SHA, '--source-dirty', 'false']);
+  assert.deepEqual(comparison.families.map((family) => family.kind).sort(), ['MAMBA', 'RWKV', 'SSM', 'TRANSFORMER']);
+  assert.equal(comparison.automaticPromotion, false);
+  assert.throws(() => main(['--model-kind', 'LSTM', '--source-commit', SHA, '--source-dirty', 'false']), /--model-kind/);
 });
