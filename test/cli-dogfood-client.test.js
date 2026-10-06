@@ -22,6 +22,24 @@ function runCli(args, envOverrides = {}) {
   };
 }
 
+function hasScriptPty() {
+  if (process.platform !== 'linux') return false;
+  return cp.spawnSync('script', ['--version'], { encoding: 'utf8' }).status === 0;
+}
+
+const posixQuote = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
+
+// Runs `approve` inside a pty and types the approval id back, as the operator would.
+function approveAtTerminal(approvalId, envOverrides) {
+  const command = [process.execPath, CLI_PATH, 'approve', approvalId, 'approved'].map(posixQuote).join(' ');
+  const result = cp.spawnSync('script', ['-qec', command, '/dev/null'], {
+    env: { ...process.env, ...envOverrides },
+    encoding: 'utf8',
+    input: `${approvalId}\n`,
+  });
+  return { stdout: result.stdout || '', stderr: result.stderr || '', status: result.status };
+}
+
 test('cli.js dogfood client runs a real out-of-process ask and gets a graph-backed answer', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-dogfood-'));
   const env = {
@@ -64,8 +82,18 @@ test('cli.js dogfood client routes öğret through the review gate as a real chi
     assert.equal(askAfter.status, 0);
     assert.doesNotMatch(askAfter.stdout, /dogfood-sentinel/);
 
-    const approved = runCli(['approve', approvalId, 'approved'], env);
-    assert.equal(approved.status, 0);
+    // #3560: a child process has no terminal, so deciding the approval is
+    // refused (exit 4) and the fact stays out of canonical state.
+    const refused = runCli(['approve', approvalId, 'approved'], env);
+    assert.equal(refused.status, 4);
+    assert.match(`${refused.stdout}${refused.stderr}`, /operator_terminal_required/);
+    const stillUnverified = runCli(['verify:', 'kopek dogfood-sentinel hayvandir'], env);
+    assert.doesNotMatch(stillUnverified.stdout, /Verify: verified/);
+
+    // The operator at a terminal: a pty where util-linux `script` exists.
+    if (!hasScriptPty()) return;
+    const approved = approveAtTerminal(approvalId, env);
+    assert.equal(approved.status, 0, approved.stdout + approved.stderr);
     assert.match(approved.stdout, /written to canonical state/);
 
     const verified = runCli(['verify:', 'kopek dogfood-sentinel hayvandir'], env);
