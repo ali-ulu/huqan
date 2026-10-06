@@ -90,12 +90,12 @@ kaliteye göre deterministiktir (eşitlikte aile adı). Hiçbir satır yetki ta�
 her öneri `CANDIDATE_ONLY`, `canonical: false`. "En iyi" yalnız deneysel bir
 sıralamadır; kurulacak model, terfi edilecek kural değildir.
 
-| Aile | holdout | transfer | Parametre | Öngörü başına işlem | Durum |
-|---|---|---|---|---|---|
-| TRANSFORMER | 1.000 | 1.000 | 1753 | 23592960 | KEEP |
-| SSM | 0.887 | 0.931 | 649 | 2949120 | KEEP |
-| RWKV | 0.863 | 0.828 | 121 | 122880 | KEEP |
-| MAMBA | 0.841 | 0.806 | 121 | 122880 | KEEP |
+| Aile | holdout | transfer | Parametre | Öngörü başına işlem | Toplam işlem (640 öngörü) | Durum |
+|---|---|---|---|---|---|---|
+| TRANSFORMER | 1.000 | 1.000 | 1753 | 36864 | 23592960 | KEEP |
+| SSM | 0.887 | 0.931 | 649 | 4608 | 2949120 | KEEP |
+| RWKV | 0.863 | 0.828 | 121 | 192 | 122880 | KEEP |
+| MAMBA | 0.841 | 0.806 | 121 | 192 | 122880 | KEEP |
 
 Karşılaştırma özet digest'i: `610eb408cad310c826ab731fc7a613b4a0310fc04417f1124052e0e69f6a4ebf`.
 
