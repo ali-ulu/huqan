@@ -115,6 +115,20 @@ declare const huqan: typeof KernelV2 & {
     handoffReason: string; closedBy: string;
   }) => Readonly<{ handoffReason: string; closedBy: string; terminationReason: string }>;
 
+  buildExchangeErrorRecord: (record: {
+    errorType: string; errorMessage: string; traceback?: string | null;
+  }) => Readonly<{
+    schemaVersion: string; error_type: string; error_message: string; traceback_hash: string | null;
+  }>;
+  classifyExchangeErrorType: (errorType: unknown) => boolean;
+  isRetryableErrorRecord: (record: unknown) => boolean;
+  EXCHANGE_ERROR_TYPES: readonly string[];
+  evaluateDelegationDepth: (delegation: {
+    chain: string[];
+  }) => Readonly<{ depth: number; visitedAgentIds: readonly string[]; withinBounds: boolean }>;
+  withinDelegationDepth: (delegation: unknown) => boolean;
+  MAX_DELEGATION_DEPTH: number;
+
   HumanOversightApprovalRuntime: Record<string, any>;
   createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;
   HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
