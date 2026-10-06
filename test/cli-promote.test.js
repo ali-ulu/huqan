@@ -80,6 +80,8 @@ test('#3550 the operator command drives propose, canary, approval, promote and o
     assert.equal(byStep.observed.ok, true);
     assert.equal(byStep.observed.driftDetected, false);
     assert.ok(!byStep.rolled_back, 'no drift means no rollback move');
+    assert.equal(result.ok, true);
+    assert.equal(result.moved, true);
   } finally {
     closeCli(cli);
   }
@@ -109,6 +111,8 @@ test('#3550 a learner approver is refused by the loop even through the real call
     assert.equal(byStep.canary.state, 'canary_passed');
     assert.equal(byStep.promoted.ok, false);
     assert.equal(byStep.promoted.code, 'self_authorization_refused');
+    assert.equal(result.ok, false, 'a refused promotion is not reported as success');
+    assert.equal(result.moved, false);
   } finally {
     closeCli(cli);
   }
@@ -151,6 +155,48 @@ test('#3550 missing flags and unreadable files fail with usage, not a silent ref
   try {
     assert.throws(() => cli.execute('terfi', parseCommand('terfi --capability cap', cli.kernel).args), /Usage: terfi/);
     assert.throws(() => cli.execute('terfi', parseCommand(`terfi --aday ${path.join(dir, 'missing.json')} --bagli x --deneme x --gozlem x --onaylayan op --karar approved --capability cap`, cli.kernel).args), /cannot read aday file/);
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3550 a refused promotion is never committed as a mutation', () => withTempDir((dir) => {
+  const cli = makeCli();
+  const committed = [];
+  cli._commitCliMutation = (...callArgs) => { committed.push(callArgs); return ''; };
+  try {
+    const files = writeFiles(dir);
+    JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --ogreniciler ${OPERATOR} --karar approved`));
+    assert.equal(committed.length, 0);
+    JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
+    assert.equal(committed.length, 1, 'a real promotion is committed exactly once');
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3550 null or empty run files are input errors before the loop starts', () => withTempDir((dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    fs.writeFileSync(files.trial, 'null');
+    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`), /deneme file must be a JSON object/);
+    const fresh = writeFiles(dir);
+    fs.writeFileSync(fresh.observed, JSON.stringify({ currentEvents: [] }));
+    assert.throws(() => terfi(cli, dir, fresh, `--onaylayan ${OPERATOR} --karar approved`), /gozlem currentEvents must be a non-empty array/);
+    fs.writeFileSync(fresh.observed, JSON.stringify({ currentEvents: [null] }));
+    assert.throws(() => terfi(cli, dir, fresh, `--onaylayan ${OPERATOR} --karar approved`), /gozlem currentEvents/);
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3550 a flag whose operand is another flag is rejected, not consumed', () => withTempDir((dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved --workspace --json`), /--workspace needs a value/);
+    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar`), /--karar needs a value/);
   } finally {
     closeCli(cli);
   }
