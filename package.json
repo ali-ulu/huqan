@@ -374,6 +374,7 @@
     "lib/cli-experience-reconcile.js",
     "lib/cli-memory-lifecycle.js",
     "lib/cli-plugin-status.js",
+    "lib/cli-promote.js",
     "lib/cli-helpers.js",
     "lib/cli-company-ingest.js",
     "lib/cli-doctor.js",
