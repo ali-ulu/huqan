@@ -787,6 +787,7 @@
     "lib/inference-backward.js",
     "lib/inference-belief-revision-values.js",
     "lib/inference-belief-revision.js",
+    "lib/inference-defeasible-scope.js",
     "lib/inference-derived-admission.js",
     "lib/inference-derived-dependency.js",
     "lib/inference-derived-record.js",
