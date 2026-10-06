@@ -269,6 +269,41 @@ test('#3560 feeding the REPL through a pipe, a redirect or a heredoc is refused'
   assert.equal(findOperatorDecisionCommand('huqan ask soru 2>&1 && echo done'), null);
 });
 
+test('#3560 quoted text stays one word, but a script a shell is told to run is read', () => {
+  // Quoted separators are text, not a pipeline or a list.
+  for (const command of [
+    "echo 'example | huqan'",
+    'echo "a; huqan onayla apr_1"',
+    'git commit -m "docs: run huqan terfi | huqan"',
+    'printf "%s\\n" "x | huqan"',
+    // An escaped quote does not close the string around it.
+    'echo "say \\" | huqan"',
+    // The script's own escaped quotes are undone before it is read.
+    'bash -c "echo \\"a ; huqan onayla apr_1\\""',
+  ]) {
+    assert.equal(findOperatorDecisionCommand(command), null, command);
+  }
+  // A shell, cmd, PowerShell or eval running a script runs its commands.
+  const scripts = [
+    ['bash -c "cd repo; huqan terfi --aday a"', 'terfi'],
+    ["sh -c 'echo onayla apr_1 | huqan'", 'repl-stdin'],
+    ['bash -lc "huqan onayla apr_1"', 'onayla'],
+    ['cmd /c "huqan onayla apr_1"', 'onayla'],
+    ['powershell -Command "huqan onayla apr_1"', 'onayla'],
+    ['eval "huqan onayla apr_1"', 'onayla'],
+    ['bash -c "sh -c \\"huqan terfi\\""', 'terfi'],
+  ];
+  for (const [command, verb] of scripts) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, verb, command);
+  }
+});
+
+test('#3560 a stdin taken from another file descriptor still feeds the REPL', () => {
+  for (const command of ['huqan <&3', 'huqan 0<&3', 'huqan <>commands.txt']) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, 'repl-stdin', command);
+  }
+});
+
 test('#3560 a subcommand the shell would still expand is a decision: fail-closed', () => {
   for (const command of ['huqan $(echo terfi)', 'huqan $VERB --aday a', 'huqan `printf onayla` apr_1']) {
     assert.equal(findOperatorDecisionCommand(command)?.command, 'unresolved', command);
