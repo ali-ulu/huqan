@@ -859,6 +859,7 @@
     "lib/mcp/response-builders.js",
     "lib/mcp/server-lifecycle.js",
     "lib/mcp/tool-surface.js",
+    "lib/mcp/tool-surface-filter-audit.js",
     "lib/mcp/operator-authorization.js",
     "lib/mcp/operator-tool-schemas.js",
     "lib/mcp/transient-agent.js",
