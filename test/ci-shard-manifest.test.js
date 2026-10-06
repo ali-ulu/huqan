@@ -26,6 +26,29 @@ test('CI shard manifest follows Node test discovery without including helper scr
   assert.equal(isTestFile('artifacts/test-impact-plan.json'), false);
 });
 
+test('a test- prefixed build script or module outside test/ is not a shard test file', () => {
+  // scripts/test-consumer-compile.js packs the tarball and runs tsc twice: on
+  // Windows it took 44-92s and hit the 90s per-file kill on main (33c6c9f6).
+  // Its own Consumer compile job already runs on every PR and main push.
+  const files = discoverTestFiles();
+  for (const file of ['scripts/test-consumer-compile.js', 'scripts/test-state-sandbox.js', 'lib/pilot/test-database-boundary.js']) {
+    assert.equal(isTestFile(file), false, file);
+    assert.equal(files.includes(file), false, file);
+  }
+  assert.equal(isTestFile('test/test-helper.js'), true);
+  assert.equal(isTestFile('lib/foo-test.js'), true);
+});
+
+test('shard discovery and test selection agree on every tracked file', () => {
+  const { isTestFile: isSelectedTestFile } = require('../scripts/ci-test-selection');
+  const tracked = require('node:child_process').execFileSync('git', ['ls-files'], { encoding: 'utf8' })
+    .split('\n').filter(Boolean);
+  // A selected file the shard runner does not know aborts the shard
+  // ("selection manifest references unknown test files").
+  const disagreements = tracked.filter((file) => isTestFile(file) !== isSelectedTestFile(file));
+  assert.deepEqual(disagreements, []);
+});
+
 test('weighted shard assignment covers each file exactly once', () => {
   const files = ['fast.test.js', 'medium.test.js', 'slow.test.js', 'tiny.test.js'];
   const weights = { 'fast.test.js': 1, 'medium.test.js': 4, 'slow.test.js': 8, 'tiny.test.js': 1 };
