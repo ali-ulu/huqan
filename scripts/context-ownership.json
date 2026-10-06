@@ -1028,6 +1028,10 @@
    "context": "Memory",
    "evidence": "#3471 K1 CognitiveMessage envelope and reference frames built on memory-schema-checks"
   },
+  "lib/grounded-transfer-check.js": {
+   "context": "Memory",
+   "evidence": "#3475 I7 candidate-only grounded transfer check over K1 reference frames"
+  },
   "lib/memory-schema-validate.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
