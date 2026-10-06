@@ -156,6 +156,8 @@ describe('Staged promotion gate: staged trial must pass first (#3466)', () => {
     assert.equal(evaluateStagedPromotion({ trial: null }).ok, false);
     assert.equal(evaluateStagedPromotion({ trial: null }).code, STAGED_CODES.INVALID_TRIAL);
     assert.equal(evaluateStagedPromotion().ok, false);
+    assert.equal(evaluateStagedPromotion(null).ok, false);
+    assert.equal(stagedPromotionEvidence(null).ok, false);
     const badContract = evaluateStagedPromotion({
       trial: passingTrial(), activeScore: CLEARING_ACTIVE, candidateScore: CLEARING_CANDIDATE,
       contract: { direction: 'higher-is-better', confidenceLevel: 0.95, minSamples: 10 },
@@ -190,6 +192,16 @@ describe('Staged promotion gate: fail-closed hand-off (#3466)', () => {
     assert.equal(guardStagedPromotion({
       stagedEvidence: { trial: inTrial(), activeScore: CLEARING_ACTIVE, candidateScore: CLEARING_CANDIDATE, contract: CONTRACT },
     }).ok, false);
+  });
+
+  it('guardStagedPromotion refuses a null or non-object stagedEvidence instead of throwing', () => {
+    for (const bad of [null, 42, 'x', []]) {
+      const result = guardStagedPromotion({ stagedEvidence: bad });
+      assert.equal(result.ok, false);
+      assert.equal(result.code, STAGED_CODES.INVALID_EVIDENCE);
+      assert.equal(result.field, 'stagedEvidence');
+    }
+    assert.equal(guardStagedPromotion(null).ok, false);
   });
 });
 
