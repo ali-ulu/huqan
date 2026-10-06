@@ -19,6 +19,8 @@ const { parseCommand } = require('../lib/command-parser');
 
 const T0 = Date.now() - 60 * 60 * 1000;
 const MIN = 60 * 1000;
+// #3552: the command vouches only for the OS session user as approver.
+const OPERATOR = os.userInfo().username;
 const SCOPE = Object.freeze({ tools: Object.freeze(['read']) });
 const WIDER_SCOPE = Object.freeze({ tools: Object.freeze(['read', 'write']) });
 
@@ -70,7 +72,7 @@ test('#3550 the operator command drives propose, canary, approval, promote and o
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
-    const result = JSON.parse(terfi(cli, dir, files, '--onaylayan operator-admin --karar approved'));
+    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.proposed.ok, true);
     assert.equal(byStep.canary.state, 'canary_passed');
@@ -87,7 +89,7 @@ test('#3550 drift observed through the caller rolls back on the operator rollbac
   const cli = makeCli();
   try {
     const files = writeFiles(dir, { negatives: 6 });
-    const result = JSON.parse(terfi(cli, dir, files, '--onaylayan operator-admin --karar approved --geri-alma approved'));
+    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved --geri-alma approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.promoted.ok, true);
     assert.equal(byStep.observed.driftDetected, true);
@@ -101,7 +103,7 @@ test('#3550 a learner approver is refused by the loop even through the real call
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
-    const result = JSON.parse(terfi(cli, dir, files, '--onaylayan learner-agent --karar approved'));
+    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --ogreniciler ${OPERATOR} --karar approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.proposed.ok, true);
     assert.equal(byStep.canary.state, 'canary_passed');
@@ -112,11 +114,29 @@ test('#3550 a learner approver is refused by the loop even through the real call
   }
 }));
 
+test('#3552 an approver other than the session user is refused before any record exists', () => withTempDir((dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR}-impostor --karar approved`), /unverified_approver/);
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3552 the session resolver vouches for nobody when the session user is unknown', () => {
+  const { sessionPrincipalResolver } = require('../lib/cli-promote');
+  assert.equal(sessionPrincipalResolver('')('').ok, false);
+  assert.equal(sessionPrincipalResolver('')('anyone').ok, false);
+  assert.equal(sessionPrincipalResolver('op')('op').ok, true);
+  assert.equal(sessionPrincipalResolver('op')('OP').ok, false);
+});
+
 test('#3550 an undeclared widening is refused through the caller before any canary', () => withTempDir((dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir, { candidateScope: WIDER_SCOPE });
-    const result = JSON.parse(terfi(cli, dir, files, '--onaylayan operator-admin --karar approved'));
+    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.proposed.ok, false);
     assert.equal(byStep.proposed.code, 'authority_declaration_mismatch');

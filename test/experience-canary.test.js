@@ -26,6 +26,8 @@ const {
 
 const T0 = Date.parse('2026-01-01T00:00:00.000Z');
 const MIN = 60 * 1000;
+// #3552: authority identities are verified through the host's resolver.
+const VERIFIED = (reference) => ({ ok: true, principal: { id: reference } });
 
 function run(i, { negative = false, executionCost = 1, verificationCost = 1, canaryOverheadCost = 0 } = {}) {
   return {
@@ -132,7 +134,7 @@ describe('Canary: acceptance test 5 — canary pass alone does not promote witho
   it('refuses promotion when canary passed but no explicit approval and no toggle exist', () => {
     const registry = createCapabilityTrustRegistry();
     registry.createCapability({ workspaceId: 'ws-a', capabilityId: 'cap-5', boundProcedureVersion: 'v1' });
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     const admission = admissionRegistry.resolveAdmission({
       workspaceId: 'ws-a', capabilityId: 'cap-5', promotionId: 'promo-1',
     });
@@ -151,7 +153,7 @@ describe('Canary: acceptance test 5 — canary pass alone does not promote witho
   it('refuses promotion when admitted but canary did not pass', () => {
     const registry = createCapabilityTrustRegistry();
     registry.createCapability({ workspaceId: 'ws-a', capabilityId: 'cap-5b', boundProcedureVersion: 'v1' });
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-5b', promotionId: 'promo-2', approverId: 'human-1',
     });
@@ -172,7 +174,7 @@ describe('Canary: acceptance test 5 — canary pass alone does not promote witho
   it('promotes only when BOTH canary passed AND admission (explicit approval) exist', () => {
     const registry = createCapabilityTrustRegistry();
     registry.createCapability({ workspaceId: 'ws-a', capabilityId: 'cap-5c', boundProcedureVersion: 'v1' });
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-5c', promotionId: 'promo-3', approverId: 'human-1',
     });
@@ -189,7 +191,7 @@ describe('Canary: acceptance test 5 — canary pass alone does not promote witho
   });
 
   it('a standing, receipted auto-promote toggle also produces an admission record — and a fresh receipt per promotion', () => {
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     const toggle = admissionRegistry.setAutoPromoteToggle({
       workspaceId: 'ws-a', capabilityId: 'cap-5d', adminId: 'admin-1', enabled: true,
     });
@@ -219,7 +221,7 @@ describe('Canary: acceptance test 6 — promotion lands in probationary, must re
     }
     assert.equal(registry.get('ws-a', 'cap-6').trustState, TRUST_STATES.TRUSTED);
 
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-6', promotionId: 'promo-6', approverId: 'human-1',
     });
@@ -262,7 +264,7 @@ describe('Canary: acceptance test 7 — rollback without destroying newer eviden
         eventId: `v1e${i}`, runId: `v1r${i}`, learningEligibility: 'positive_procedure', occurredAt: T0 + i * MIN,
       });
     }
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-7', promotionId: 'promo-7', approverId: 'human-1',
     });
@@ -280,7 +282,7 @@ describe('Canary: acceptance test 7 — rollback without destroying newer eviden
     }
     assert.equal(registry.get('ws-a', 'cap-7').boundProcedureVersion, 'v2');
 
-    const rollbackAdmissionRegistry = createPromotionAdmissionRegistry();
+    const rollbackAdmissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     rollbackAdmissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-7', promotionId: 'rollback-1', approverId: 'human-2',
     });
@@ -368,7 +370,7 @@ describe('Canary: acceptance test 9 — every promotion/demotion/canary-fail/rol
     assert.ok(Object.isFrozen(beforeHistory));
     for (const entry of beforeHistory) assert.ok(Object.isFrozen(entry));
 
-    const admissionRegistry = createPromotionAdmissionRegistry();
+    const admissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-9', promotionId: 'promo-9', approverId: 'human-1',
     });
@@ -406,7 +408,7 @@ describe('Canary: acceptance test 9 — every promotion/demotion/canary-fail/rol
 
     // Rollback appends a second, distinct promotionReceipts entry rather
     // than rewriting the first.
-    const rollbackAdmissionRegistry = createPromotionAdmissionRegistry();
+    const rollbackAdmissionRegistry = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     rollbackAdmissionRegistry.recordExplicitApproval({
       workspaceId: 'ws-a', capabilityId: 'cap-9', promotionId: 'rollback-9', approverId: 'human-2',
     });

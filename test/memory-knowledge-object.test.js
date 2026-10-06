@@ -140,12 +140,21 @@ test('field-level shape errors are reported per field', () => {
     [{ receipt: 'rcpt-1' }, 'VALIDATION_ERROR:receipt'],
     [{ receipt: {} }, 'VALIDATION_ERROR:receipt.receiptId'],
     [{ supersedes: { knowledgeId: 'ko-1', version: '1.0.0' } }, 'VALIDATION_ERROR:supersedes.version'],
+    [{ version: '2.0.0', supersedes: { knowledgeId: 'ko-2', version: '1.0.0' } }, 'VALIDATION_ERROR:supersedes.knowledgeId'],
   ];
   for (const [overrides, expected] of cases) {
     assert.deepEqual(codes(validateKnowledgeObject(knowledge(overrides))), [expected], JSON.stringify(overrides));
   }
   assert.deepEqual(codes(validateKnowledgeObject(null)), ['INVALID_KNOWLEDGE_OBJECT:']);
-  assert.deepEqual(codes(validateKnowledgeObject(knowledge({ content: { n: 10n } }))), ['VALIDATION_ERROR:content']);
+  // content must survive JSON unchanged, not merely stringify without throwing.
+  for (const content of [{ n: 10n }, () => 1, { f: () => 1 }, { n: Infinity }, [Number.NaN], { u: undefined }, new Date(NOW),
+    new Array(1), Object.assign(new Array(3), { 0: 1, 2: 3 }), { [Symbol('s')]: 1 }, Object.defineProperty({}, 'hidden', { value: 1 }),
+    Object.defineProperty({}, 'g', { get: () => 1, enumerable: true })]) {
+    assert.deepEqual(codes(validateKnowledgeObject(knowledge({ content }))), ['VALIDATION_ERROR:content'], String(content));
+  }
+  for (const content of ['text', 0, false, [1, 'a', null], { nested: { list: [1.5, true] } }]) {
+    assert.equal(validateKnowledgeObject(knowledge({ content })).ok, true, JSON.stringify(content));
+  }
 });
 
 test('a dependency on another object validates', () => {
