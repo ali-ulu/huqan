@@ -139,11 +139,36 @@ test('payload content must survive JSON unchanged', () => {
   }
 });
 
+test('a cyclic payload is refused rather than overflowing the stack', () => {
+  const cycle = { a: 1 };
+  cycle.self = cycle;
+  assert.deepEqual(codes(validateCognitiveMessage(message({ observation: cycle }))), ['VALIDATION_ERROR:observation']);
+  // A shared, non-cyclic reference is not a cycle and stays valid.
+  const shared = { x: 1 };
+  assert.equal(validateCognitiveMessage(message({ observation: { p: shared, q: shared } })).ok, true);
+});
+
+test('an array that could serialize differently is refused', () => {
+  const withToJson = [1];
+  withToJson.toJSON = () => [2];
+  assert.deepEqual(codes(validateCognitiveMessage(message({ observation: withToJson }))), ['VALIDATION_ERROR:observation']);
+  const withAccessor = [1];
+  Object.defineProperty(withAccessor, '0', { get: () => 1, enumerable: true });
+  assert.deepEqual(codes(validateCognitiveMessage(message({ observation: withAccessor }))), ['VALIDATION_ERROR:observation']);
+  // A plain, dense array of lossless values stays valid.
+  assert.equal(validateCognitiveMessage(message({ observation: [1, 2, 3] })).ok, true);
+});
+
 test('evidenceRefs are non-empty strings and cannot repeat', () => {
   assert.deepEqual(codes(validateCognitiveMessage(message({ evidenceRefs: ['ref-1', ''] }))), ['VALIDATION_ERROR:evidenceRefs[1]']);
   assert.deepEqual(codes(validateCognitiveMessage(message({ evidenceRefs: ['ref-1', 'ref-1'] }))),
     [`${COGNITIVE_MESSAGE_ERROR_CODES.DUPLICATE_EVIDENCE_REF}:evidenceRefs[1]`]);
   assert.deepEqual(codes(validateCognitiveMessage(message({ evidenceRefs: 'ref-1' }))), ['VALIDATION_ERROR:evidenceRefs']);
+  // A sparse array is refused: forEach would skip the hole, but JSON serializes
+  // it as null, so an unchecked hole is a silently admitted non-reference.
+  const sparse = new Array(2);
+  sparse[1] = 'ref-1';
+  assert.deepEqual(codes(validateCognitiveMessage(message({ evidenceRefs: sparse }))), ['VALIDATION_ERROR:evidenceRefs[0]']);
 });
 
 test('a non-object message is refused', () => {
@@ -204,6 +229,14 @@ test('a field missing on either side is unknown, never assumed equal', () => {
   assert.equal(mixed.status, FRAME_COMPARISON_STATUS.MISMATCH);
   assert.deepEqual(mixed.mismatched, ['branch']);
   assert.deepEqual(mixed.unresolved, ['actor']);
+});
+
+test('an invalid time is unresolved, never a match', () => {
+  const outcome = compareReferenceFrames(frame({ time: 'not-a-time' }), frame({ time: 'not-a-time' }));
+  assert.equal(outcome.status, FRAME_COMPARISON_STATUS.UNKNOWN);
+  assert.equal(outcome.mergeAllowed, false);
+  assert.deepEqual(outcome.unresolved, ['time']);
+  assert.deepEqual(outcome.mismatched, []);
 });
 
 test('an invalid frame yields an undecidable comparison, not a false match', () => {
