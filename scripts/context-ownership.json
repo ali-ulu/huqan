@@ -2596,6 +2596,14 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
   },
+  "lib/experience/canary-admission.js": {
+   "context": "Trust",
+   "evidence": "#3469 admission registry moved out of canary.js with the self-authorization boundary"
+  },
+  "lib/experience/reflective-promotion.js": {
+   "context": "Trust",
+   "evidence": "#3469 I5 canary/promote/rollback loop over the capability trust ladder"
+  },
   "lib/experience/capability-trust.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"

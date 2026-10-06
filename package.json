@@ -554,6 +554,7 @@
     "lib/error-taxonomy.js",
     "lib/errors/provenance-error.js",
     "lib/experience/canary.js",
+    "lib/experience/canary-admission.js",
     "lib/experience/budgeted-journal.js",
     "lib/experience/coder-routing-runtime.js",
     "lib/experience/coder-canary-runtime.js",
