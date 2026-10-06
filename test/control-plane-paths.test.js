@@ -262,6 +262,8 @@ test('#3560 feeding the REPL through a pipe, a redirect or a heredoc is refused'
   assert.equal(findOperatorDecisionCommand('huqan &>log.txt onayla apr_1')?.command, 'onayla');
   assert.equal(findOperatorDecisionCommand('huqan 2>&1 < commands.txt')?.command, 'repl-stdin');
   assert.equal(findOperatorDecisionCommand('echo "onayla x" |& huqan')?.command, 'repl-stdin');
+  assert.equal(findOperatorDecisionCommand('cd repo; huqan onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('echo start\nhuqan terfi --aday a')?.command, 'terfi');
   // Real list separators still split: a background job, then another command.
   assert.equal(findOperatorDecisionCommand('sleep 1 & huqan onayla apr_1')?.command, 'onayla');
   assert.equal(findOperatorDecisionCommand('huqan ask soru 2>&1 && echo done'), null);
