@@ -147,7 +147,9 @@ test('field-level shape errors are reported per field', () => {
   }
   assert.deepEqual(codes(validateKnowledgeObject(null)), ['INVALID_KNOWLEDGE_OBJECT:']);
   // content must survive JSON unchanged, not merely stringify without throwing.
-  for (const content of [{ n: 10n }, () => 1, { f: () => 1 }, { n: Infinity }, [Number.NaN], { u: undefined }, new Date(NOW)]) {
+  for (const content of [{ n: 10n }, () => 1, { f: () => 1 }, { n: Infinity }, [Number.NaN], { u: undefined }, new Date(NOW),
+    new Array(1), Object.assign(new Array(3), { 0: 1, 2: 3 }), { [Symbol('s')]: 1 }, Object.defineProperty({}, 'hidden', { value: 1 }),
+    Object.defineProperty({}, 'g', { get: () => 1, enumerable: true })]) {
     assert.deepEqual(codes(validateKnowledgeObject(knowledge({ content }))), ['VALIDATION_ERROR:content'], String(content));
   }
   for (const content of ['text', 0, false, [1, 'a', null], { nested: { list: [1.5, true] } }]) {
