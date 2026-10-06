@@ -51,6 +51,11 @@ test('the canonical checkpoint payload covers durable content, not the storage c
   assert.equal(payload.updated_at, undefined, 'the clock is not content');
 });
 
+test('the canonical checkpoint payload fails closed on a non-row input', () => {
+  assert.throws(() => checkpointCanonicalPayload(null), /requires a checkpoint row/);
+  assert.throws(() => checkpointCanonicalPayload('cp-1'), /requires a checkpoint row/);
+});
+
 test('appending a checkpoint links it to the previous hash and does not mutate the input', () => {
   const row = { id: 'cp-1', goal_key: 'g', goal: 'G', workspace_id: 'w', status: 'running' };
   const first = appendCheckpointToChain(row, undefined);
