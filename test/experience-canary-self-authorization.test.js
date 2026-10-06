@@ -17,7 +17,8 @@ function setup(capabilityId = 'cap-i5') {
   // Rollback only restores a version with recorded evidence.
   trust.recordRun({ workspaceId: 'ws', capabilityId, procedureVersion: 'v1', eventId: `${capabilityId}-e1`,
     runId: `${capabilityId}-r1`, learningEligibility: 'positive_procedure', occurredAt: Date.parse('2026-01-01T00:00:00Z') });
-  return { trust, admissions: createPromotionAdmissionRegistry() };
+  // #3552: every authority identity passes through the host's verification.
+  return { trust, admissions: createPromotionAdmissionRegistry({ resolvePrincipal: (reference) => ({ ok: true, principal: { id: reference } }) }) };
 }
 function approve(admissions, { approverId, promotionId = 'p1', capabilityId = 'cap-i5', proposerIds } = {}) {
   admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId, promotionId, approverId });

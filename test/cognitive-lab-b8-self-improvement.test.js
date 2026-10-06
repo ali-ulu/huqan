@@ -54,7 +54,7 @@ function population(split, { perClass, learnerPrincipals }) {
 
 function world(cases) {
   const trust = createCapabilityTrustRegistry();
-  const admissions = createPromotionAdmissionRegistry();
+  const admissions = createPromotionAdmissionRegistry({ resolvePrincipal: (reference) => ({ ok: true, principal: { id: reference } }) });
   for (const c of cases) {
     trust.createCapability({ workspaceId: 'ws', capabilityId: c.capabilityId, boundProcedureVersion: 'v1' });
     trust.recordRun({ workspaceId: 'ws', capabilityId: c.capabilityId, procedureVersion: 'v1', eventId: `${c.capabilityId}-v1`,

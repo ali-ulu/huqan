@@ -8,6 +8,8 @@ const { createReflectivePromotion, STATES } = require('../lib/experience/reflect
 
 const T0 = Date.parse('2026-01-01T00:00:00Z');
 const MIN = 60 * 1000;
+// #3552: authority identities are verified through the host's resolver.
+const VERIFIED = (reference) => ({ ok: true, principal: { id: reference } });
 function runs(count, { cost = 10, negatives = 0, from = 0 } = {}) {
   return Array.from({ length: count }, (_, i) => ({ occurredAt: T0 + (from + i) * MIN,
     learningEligibility: i < negatives ? 'negative_example' : 'positive_procedure',
@@ -18,7 +20,7 @@ function setup({ learnerPrincipals = ['learner-agent'] } = {}) {
   trust.createCapability({ workspaceId: 'ws', capabilityId: 'cap', boundProcedureVersion: 'v1' });
   trust.recordRun({ workspaceId: 'ws', capabilityId: 'cap', procedureVersion: 'v1', eventId: 'v1e', runId: 'v1r',
     learningEligibility: 'positive_procedure', occurredAt: T0 });
-  const admissions = createPromotionAdmissionRegistry();
+  const admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
   const loop = createReflectivePromotion({ trust, admissions, learnerPrincipals });
   return { trust, admissions, loop };
 }
