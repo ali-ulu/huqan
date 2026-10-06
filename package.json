@@ -572,6 +572,7 @@
     "lib/experience/learning-intake.js",
     "lib/experience/optimization-hypothesis.js",
     "lib/experience/promotion-ci-gate.js",
+    "lib/experience/promotion-staged-eval.js",
     "lib/experience/capability-trust-fallback-extension.js",
     "lib/experience/personal-execution-model.js",
     "lib/experience/procedure-registry.js",
