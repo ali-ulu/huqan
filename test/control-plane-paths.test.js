@@ -16,6 +16,8 @@ test('recognizes the guard control plane of every shipped adapter profile', () =
     ['.claude/settings.local.json', 'claude-code'],
     ['.claude/hooks/huqan-gate.sh', 'claude-code'],
     ['.codex/hooks.json', 'codex'],
+    ['.openhands/hooks.json', 'openhands'],
+    ['.openhands/hooks/huqan-gate.sh', 'openhands'],
     ['.opencode/plugin/huqan.mjs', 'opencode'],
     ['.pi/extensions/huqan.js', 'pi'],
     ['.hermes/plugins/huqan-external-action-guard/plugin.json', 'hermes'],

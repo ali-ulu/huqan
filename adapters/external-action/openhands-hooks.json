@@ -1,0 +1,18 @@
+{
+  "description": "Fail-closed HUQAN admission guard for local OpenHands tool calls",
+  "hooks": {
+    "pre_tool_use": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "huqan-gate --profile openhands",
+            "commandWindows": "huqan-gate.cmd --profile openhands",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

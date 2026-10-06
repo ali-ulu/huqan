@@ -52,6 +52,17 @@ test('the agent directory in the project is a detection signal', (t) => {
   assert.deepEqual(claude.signals, ['project']);
 });
 
+test('the OpenHands project directory is a detection signal', (t) => {
+  // OpenHands keeps its hooks in the repository (`.openhands/hooks.json`), so a
+  // project that has ever run an OpenHands session carries the marker.
+  const place = scratch(t);
+  fs.mkdirSync(path.join(place.root, '.openhands'), { recursive: true });
+
+  const openhands = byProfile(detectAgents(place), 'openhands');
+  assert.equal(openhands.detected, true);
+  assert.deepEqual(openhands.signals, ['project']);
+});
+
 // The point of the whole surface: a first-time user has the agent installed but
 // has never written a config for it. Waiting for `.claude/settings.json` to
 // exist would refuse exactly that user -- install is what creates it.
