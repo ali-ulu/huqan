@@ -48,6 +48,25 @@ function runCorpus() {
   return TASKS.map((task) => runTask(task));
 }
 
+function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+// Every corpus run drives the real AgentV3 loop over a fresh SQLite store per
+// task arm. Running it once per test (eight times) pushed this file past the
+// 90s per-file shard deadline on a slow Windows runner, so the read-only tests
+// share one frozen run; a test that mutates a record throws instead of leaking
+// into the next one. Determinism is still checked against a second, fresh run.
+let sharedCorpus = null;
+function observedCorpus() {
+  if (!sharedCorpus) sharedCorpus = deepFreeze(runCorpus());
+  return sharedCorpus;
+}
+
 /**
  * A scorable synthetic record for guard-reachability tests. `solved` agrees
  * with the executed step ids so `observationError` accepts it; the goal is to
@@ -77,7 +96,7 @@ test('the frozen corpus is discriminative and the strengthened scheduler never h
   assert.equal(typeof CORPUS_DIGEST, 'string');
   assert.ok(CORPUS_DIGEST.length > 0, 'the corpus must carry a digest that names what ran');
 
-  const records = runCorpus();
+  const records = observedCorpus();
   const helped = records.filter((record) => record.solvedCandidate > record.solvedBaseline).length;
   const hurt = records.filter((record) => record.solvedCandidate < record.solvedBaseline).length;
   const baselineSolved = records.reduce((sum, record) => sum + record.solvedBaseline, 0);
@@ -93,7 +112,7 @@ test('the frozen corpus is discriminative and the strengthened scheduler never h
 });
 
 test('the strengthened scheduler stops as INSUFFICIENT when the corpus has no anti-case', () => {
-  const records = runCorpus();
+  const records = observedCorpus();
   const report = evaluate(records, CONTRACT);
   // §4/§10: the fix removes the anti-case, so the preregistered stop criterion
   // fires. The gain is not claimed; the result is INSUFFICIENT.
@@ -106,7 +125,7 @@ test('the strengthened scheduler stops as INSUFFICIENT when the corpus has no an
 });
 
 test('B6 v2: the anti-case stop criterion blocks the gain claim on the observed corpus', () => {
-  const records = runCorpus();
+  const records = observedCorpus();
   const baseSteps = records.reduce((sum, record) => sum + record.baseline.steps, 0);
   const candSteps = records.reduce((sum, record) => sum + record.candidate.steps, 0);
   const report = evaluate(records, CONTRACT, { budgetEqual: baseSteps === candSteps });
@@ -122,11 +141,11 @@ test('B6 v2: the anti-case stop criterion blocks the gain claim on the observed 
 });
 
 test('the ablation is deterministic across reruns', () => {
-  assert.equal(digest(runCorpus()), digest(runCorpus()), 'identical arms and budgets must reproduce the same orders');
+  assert.equal(digest(runCorpus()), digest(observedCorpus()), 'identical arms and budgets must reproduce the same orders');
 });
 
 test('mutation: a duplicated observation is rejected', () => {
-  const records = runCorpus();
+  const records = observedCorpus();
   const report = evaluate([...records, records[0]], CONTRACT);
   assert.equal(report.status, 'REJECT');
   assert.equal(report.reason, 'duplicated_observation');
@@ -134,7 +153,7 @@ test('mutation: a duplicated observation is rejected', () => {
 });
 
 test('mutation: an outcome inconsistent with the executed steps is rejected', () => {
-  const records = runCorpus();
+  const records = observedCorpus();
   const flipped = records.map((record, index) => (index === 0
     ? { ...record, solvedCandidate: record.solvedCandidate === 1 ? 0 : 1 }
     : record));
@@ -165,7 +184,7 @@ test('mutation: a missing outcome cannot be counted as a success', () => {
 });
 
 test('mutation: an ignored budget blocks the gain claim', () => {
-  const records = runCorpus();
+  const records = observedCorpus();
   const report = evaluate(records, CONTRACT, { budgetEqual: false });
   assert.equal(report.assertsGain, false);
 });
