@@ -13,6 +13,10 @@ const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 const { snapshotAgentIdentityAuthority } = require('../lib/agent-identity-runtime');
 
+// #3560: deciding an approval needs the operator at a terminal typing the
+// approval id back; these tests stand in for that operator.
+const operatorAt = (approvalId) => ({ operatorInput: { isTTY: true }, operatorAsk: () => approvalId });
+
 function identityRecord(ownerActorId = 'cli-receiver-owner') {
   return {
     agent_id: 'agent-cli-001',
@@ -136,7 +140,7 @@ test('CLI opt-in Agent Identity and Human Oversight allow a receiver-bound appro
     assert.equal(queued.approval.context.oversightRequired, true);
 
     const output = [];
-    const firstResult = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
+    const firstResult = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], { ...operatorAt(queued.approval.id),
       cli: fixture.cli,
       stdout: value => output.push(value),
     });
@@ -184,7 +188,7 @@ test('CLI receiver identity mismatch fails closed before approval claim and exec
     assert.equal(queued.approval.context.oversightRequired, true);
 
     const output = [];
-    const result = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
+    const result = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], { ...operatorAt(queued.approval.id),
       cli: fixture.cli,
       stdout: value => output.push(value),
     });

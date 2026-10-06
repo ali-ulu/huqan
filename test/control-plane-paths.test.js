@@ -231,6 +231,84 @@ test('#3560 reads the verb the shell would run, after its quotes and escapes are
   }
 });
 
+test('#3560 feeding the REPL through a pipe, a redirect or a heredoc is refused', () => {
+  const fed = [
+    'echo "onayla apr_1" | huqan',
+    'printf "terfi\\n" | npx huqan --json',
+    'huqan < commands.txt',
+    'huqan<commands.txt',
+    'huqan 0< commands.txt',
+    'huqan <<EOF',
+    'huqan <<< "onayla apr_1"',
+  ];
+  for (const command of fed) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, 'repl-stdin', command);
+  }
+  const ordinary = [
+    'cat question.txt | huqan ask soru',
+    'huqan ask soru > out.txt 2>&1',
+    'huqan onaylar > list.txt',
+    'huqan || echo failed',
+    'echo huqan | grep huq',
+  ];
+  for (const command of ordinary) {
+    assert.equal(findOperatorDecisionCommand(command), null, command);
+  }
+  assert.equal(findOperatorDecisionCommand('huqan onayla apr_1 > out.txt')?.command, 'onayla');
+  // A redirect before the subcommand is not argv: the shell still runs `onayla`.
+  assert.equal(findOperatorDecisionCommand('huqan > out.txt onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan 2>err.log terfi --aday a')?.command, 'terfi');
+  // The `&` of an fd duplication is part of the redirect, not a separator.
+  assert.equal(findOperatorDecisionCommand('huqan 2>&1 onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan >&2 terfi --aday a')?.command, 'terfi');
+  assert.equal(findOperatorDecisionCommand('huqan &>log.txt onayla apr_1')?.command, 'onayla');
+  // A spaced `>&` takes the next word as its target, not as the subcommand.
+  assert.equal(findOperatorDecisionCommand('huqan >& log.txt onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan 2>& 1 terfi --aday a')?.command, 'terfi');
+  assert.equal(findOperatorDecisionCommand('huqan 2>&1 < commands.txt')?.command, 'repl-stdin');
+  assert.equal(findOperatorDecisionCommand('echo "onayla x" |& huqan')?.command, 'repl-stdin');
+  assert.equal(findOperatorDecisionCommand('cd repo; huqan onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('echo start\nhuqan terfi --aday a')?.command, 'terfi');
+  // Real list separators still split: a background job, then another command.
+  assert.equal(findOperatorDecisionCommand('sleep 1 & huqan onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan ask soru 2>&1 && echo done'), null);
+});
+
+test('#3560 quoted text stays one word, but a script a shell is told to run is read', () => {
+  // Quoted separators are text, not a pipeline or a list.
+  for (const command of [
+    "echo 'example | huqan'",
+    'echo "a; huqan onayla apr_1"',
+    'git commit -m "docs: run huqan terfi | huqan"',
+    'printf "%s\\n" "x | huqan"',
+    // An escaped quote does not close the string around it.
+    'echo "say \\" | huqan"',
+    // The script's own escaped quotes are undone before it is read.
+    'bash -c "echo \\"a ; huqan onayla apr_1\\""',
+  ]) {
+    assert.equal(findOperatorDecisionCommand(command), null, command);
+  }
+  // A shell, cmd, PowerShell or eval running a script runs its commands.
+  const scripts = [
+    ['bash -c "cd repo; huqan terfi --aday a"', 'terfi'],
+    ["sh -c 'echo onayla apr_1 | huqan'", 'repl-stdin'],
+    ['bash -lc "huqan onayla apr_1"', 'onayla'],
+    ['cmd /c "huqan onayla apr_1"', 'onayla'],
+    ['powershell -Command "huqan onayla apr_1"', 'onayla'],
+    ['eval "huqan onayla apr_1"', 'onayla'],
+    ['bash -c "sh -c \\"huqan terfi\\""', 'terfi'],
+  ];
+  for (const [command, verb] of scripts) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, verb, command);
+  }
+});
+
+test('#3560 a stdin taken from another file descriptor still feeds the REPL', () => {
+  for (const command of ['huqan <&3', 'huqan 0<&3', 'huqan <>commands.txt']) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, 'repl-stdin', command);
+  }
+});
+
 test('#3560 a subcommand the shell would still expand is a decision: fail-closed', () => {
   for (const command of ['huqan $(echo terfi)', 'huqan $VERB --aday a', 'huqan `printf onayla` apr_1']) {
     assert.equal(findOperatorDecisionCommand(command)?.command, 'unresolved', command);
@@ -238,7 +316,7 @@ test('#3560 a subcommand the shell would still expand is a decision: fail-closed
 });
 
 test('#3560 an agent shell running an operator decision is blocked, and no deployment option lifts it', () => {
-  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1', 'huqan on""ayla apr_1 approved']) {
+  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1', 'huqan on""ayla apr_1 approved', 'echo "onayla apr_1" | huqan']) {
     const result = evaluate({ toolName: 'Bash', args: { command } });
     assert.equal(result.decision, 'block', command);
     assert.equal(result.reason, 'external_action_operator_decision_blocked', command);

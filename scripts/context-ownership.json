@@ -3934,6 +3934,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/cli-operator-presence.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
   "lib/cli-repl.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
