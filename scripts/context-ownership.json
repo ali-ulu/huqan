@@ -604,6 +604,10 @@
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
   },
+  "lib/inference-defeasible-scope.js": {
+   "context": "Knowledge",
+   "evidence": "ownership-map-2446.md#R-LEARN-K; scoped defeasible intake projection separating proof production from learning intake (#3497, R42)"
+  },
   "lib/inference-derived-admission.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-LEARN-T"
