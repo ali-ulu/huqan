@@ -83,3 +83,34 @@ test('path-safety: a root reached through a link accepts candidates spelled thro
     fs.rmSync(outsideDir, { recursive: true, force: true });
   }
 });
+
+test('path-safety: resolvePathWithinRoot fails closed on control characters and overlong paths', () => {
+  const rootDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-malformed-root-')));
+  try {
+    for (const candidate of [
+      path.join(rootDir, 'memory\u0000.json'),
+      path.join(rootDir, 'memory\u001f.json'),
+      path.join(rootDir, 'memory\u007f.json'),
+      path.join(rootDir, 'x'.repeat(1025)),
+    ]) {
+      assert.throws(
+        () => resolvePathWithinRoot(rootDir, candidate, { allowMissing: true }),
+        (error) => error.code === 'PATH_MALFORMED',
+      );
+    }
+    assert.throws(
+      () => resolvePathWithinRoot(`${rootDir}\u0000`, path.join(rootDir, 'memory.json'), { allowMissing: true }),
+      (error) => error.code === 'ROOT_PATH_MALFORMED',
+    );
+    assert.throws(
+      () => resolvePathWithinRoot('x'.repeat(1025), path.join(rootDir, 'memory.json'), { allowMissing: true }),
+      (error) => error.code === 'ROOT_PATH_MALFORMED',
+    );
+    // A boundary-length, control-free path is still admitted.
+    const boundary = path.join(rootDir, 'a'.repeat(1024 - rootDir.length - 1));
+    assert.equal(boundary.length, 1024);
+    assert.equal(resolvePathWithinRoot(rootDir, boundary, { allowMissing: true }), boundary);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
