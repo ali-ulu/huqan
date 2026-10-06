@@ -16,6 +16,7 @@ const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
 const { parseCommand } = require('../lib/command-parser');
+const { CLI_EXIT_CODES } = require('../lib/cli-workflow-adapter');
 
 const T0 = Date.now() - 60 * 60 * 1000;
 const MIN = 60 * 1000;
@@ -54,25 +55,30 @@ function closeCli(cli) {
   try { cli?.kernel?.memory?.close?.(); } catch (_) {}
 }
 
-function terfi(cli, dir, files, extra = '') {
+// #3560: an approval needs the operator at a terminal typing the candidate
+// version back. These tests stand in for that operator; the presence tests
+// below drive the refusals.
+const AT_TERMINAL = Object.freeze({ operatorInput: { isTTY: true }, operatorAsk: () => 'v2' });
+
+async function terfi(cli, dir, files, extra = '', presence = AT_TERMINAL) {
   const parsed = parseCommand(`terfi --aday ${files.candidate} --bagli ${files.bound} --deneme ${files.trial} --gozlem ${files.observed} --capability cap ${extra}`, cli.kernel);
-  return cli.execute('terfi', parsed.args, { json: true });
+  return cli.execute('terfi', parsed.args, { json: true, ...presence });
 }
 
-function withTempDir(fn) {
+async function withTempDir(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-terfi-'));
   try {
-    return fn(dir);
+    return await fn(dir);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
 
-test('#3550 the operator command drives propose, canary, approval, promote and observe end to end', () => withTempDir((dir) => {
+test('#3550 the operator command drives propose, canary, approval, promote and observe end to end', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
-    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
+    const result = JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.proposed.ok, true);
     assert.equal(byStep.canary.state, 'canary_passed');
@@ -87,11 +93,11 @@ test('#3550 the operator command drives propose, canary, approval, promote and o
   }
 }));
 
-test('#3550 drift observed through the caller rolls back on the operator rollback decision', () => withTempDir((dir) => {
+test('#3550 drift observed through the caller rolls back on the operator rollback decision', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir, { negatives: 6 });
-    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved --geri-alma approved`));
+    const result = JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved --geri-alma approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.promoted.ok, true);
     assert.equal(byStep.observed.driftDetected, true);
@@ -101,11 +107,11 @@ test('#3550 drift observed through the caller rolls back on the operator rollbac
   }
 }));
 
-test('#3550 a learner approver is refused by the loop even through the real caller', () => withTempDir((dir) => {
+test('#3550 a learner approver is refused by the loop even through the real caller', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
-    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --ogreniciler ${OPERATOR} --karar approved`));
+    const result = JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --ogreniciler ${OPERATOR} --karar approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.proposed.ok, true);
     assert.equal(byStep.canary.state, 'canary_passed');
@@ -118,11 +124,11 @@ test('#3550 a learner approver is refused by the loop even through the real call
   }
 }));
 
-test('#3552 an approver other than the session user is refused before any record exists', () => withTempDir((dir) => {
+test('#3552 an approver other than the session user is refused before any record exists', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
-    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR}-impostor --karar approved`), /unverified_approver/);
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR}-impostor --karar approved`), /unverified_approver/);
   } finally {
     closeCli(cli);
   }
@@ -136,11 +142,11 @@ test('#3552 the session resolver vouches for nobody when the session user is unk
   assert.equal(sessionPrincipalResolver('op')('OP').ok, false);
 });
 
-test('#3550 an undeclared widening is refused through the caller before any canary', () => withTempDir((dir) => {
+test('#3550 an undeclared widening is refused through the caller before any canary', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir, { candidateScope: WIDER_SCOPE });
-    const result = JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
+    const result = JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
     const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
     assert.equal(byStep.proposed.ok, false);
     assert.equal(byStep.proposed.code, 'authority_declaration_mismatch');
@@ -150,7 +156,7 @@ test('#3550 an undeclared widening is refused through the caller before any cana
   }
 }));
 
-test('#3550 missing flags and unreadable files fail with usage, not a silent refusal', () => withTempDir((dir) => {
+test('#3550 missing flags and unreadable files fail with usage, not a silent refusal', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     assert.throws(() => cli.execute('terfi', parseCommand('terfi --capability cap', cli.kernel).args), /Usage: terfi/);
@@ -160,43 +166,113 @@ test('#3550 missing flags and unreadable files fail with usage, not a silent ref
   }
 }));
 
-test('#3550 a refused promotion is never committed as a mutation', () => withTempDir((dir) => {
+test('#3550 a refused promotion is never committed as a mutation', () => withTempDir(async (dir) => {
   const cli = makeCli();
   const committed = [];
   cli._commitCliMutation = (...callArgs) => { committed.push(callArgs); return ''; };
   try {
     const files = writeFiles(dir);
-    JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --ogreniciler ${OPERATOR} --karar approved`));
+    JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --ogreniciler ${OPERATOR} --karar approved`));
     assert.equal(committed.length, 0);
-    JSON.parse(terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
+    JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`));
     assert.equal(committed.length, 1, 'a real promotion is committed exactly once');
   } finally {
     closeCli(cli);
   }
 }));
 
-test('#3550 null or empty run files are input errors before the loop starts', () => withTempDir((dir) => {
+test('#3550 null or empty run files are input errors before the loop starts', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
     fs.writeFileSync(files.trial, 'null');
-    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`), /deneme file must be a JSON object/);
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`), /deneme file must be a JSON object/);
     const fresh = writeFiles(dir);
     fs.writeFileSync(fresh.observed, JSON.stringify({ currentEvents: [] }));
-    assert.throws(() => terfi(cli, dir, fresh, `--onaylayan ${OPERATOR} --karar approved`), /gozlem currentEvents must be a non-empty array/);
+    await assert.rejects(() => terfi(cli, dir, fresh, `--onaylayan ${OPERATOR} --karar approved`), /gozlem currentEvents must be a non-empty array/);
     fs.writeFileSync(fresh.observed, JSON.stringify({ currentEvents: [null] }));
-    assert.throws(() => terfi(cli, dir, fresh, `--onaylayan ${OPERATOR} --karar approved`), /gozlem currentEvents/);
+    await assert.rejects(() => terfi(cli, dir, fresh, `--onaylayan ${OPERATOR} --karar approved`), /gozlem currentEvents/);
   } finally {
     closeCli(cli);
   }
 }));
 
-test('#3550 a flag whose operand is another flag is rejected, not consumed', () => withTempDir((dir) => {
+test('#3550 a flag whose operand is another flag is rejected, not consumed', () => withTempDir(async (dir) => {
   const cli = makeCli();
   try {
     const files = writeFiles(dir);
-    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved --workspace --json`), /--workspace needs a value/);
-    assert.throws(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar`), /--karar needs a value/);
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved --workspace --json`), /--workspace needs a value/);
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar`), /--karar needs a value/);
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3560 the proposer cannot approve even when --ogreniciler leaves it out', () => withTempDir(async (dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    const result = JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --onerici ${OPERATOR} --ogreniciler someone-else --karar approved`));
+    const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
+    assert.equal(byStep.promoted.ok, false);
+    assert.equal(byStep.promoted.code, 'self_authorization_refused');
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3560 an approval without an interactive terminal is refused before anything runs', () => withTempDir(async (dir) => {
+  const cli = makeCli();
+  const committed = [];
+  cli._commitCliMutation = (...callArgs) => { committed.push(callArgs); return ''; };
+  try {
+    const files = writeFiles(dir);
+    // No presence override: the test runner's own stdin is not a terminal.
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`, {}),
+      (error) => error.code === 'OPERATOR_AUTH_REQUIRED' && /operator_terminal_required/.test(error.message));
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar rejected --geri-alma approved`, { operatorInput: { isTTY: false } }),
+      /operator_terminal_required/);
+    assert.equal(committed.length, 0);
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3560 the operator must type the candidate version back', () => withTempDir(async (dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    const asked = [];
+    const wrong = { operatorInput: { isTTY: true }, operatorAsk: (question) => { asked.push(question); return 'y'; } };
+    await assert.rejects(() => terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar approved`, wrong), /operator_confirmation_mismatch/);
+    assert.match(asked[0], /\(v2\)/);
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3560 declining needs no terminal: nothing is approved', () => withTempDir(async (dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    const result = JSON.parse(await terfi(cli, dir, files, `--onaylayan ${OPERATOR} --karar rejected`, {}));
+    const byStep = Object.fromEntries(result.steps.map((s) => [s.step, s]));
+    assert.equal(byStep.promoted.code, 'promotion_declined_by_operator');
+  } finally {
+    closeCli(cli);
+  }
+}));
+
+test('#3560 the real argv entry maps a terminal-less approval to the unauthorized exit', () => withTempDir(async (dir) => {
+  const cli = makeCli();
+  try {
+    const files = writeFiles(dir);
+    const out = [];
+    const argv = ['terfi', '--aday', files.candidate, '--bagli', files.bound, '--deneme', files.trial, '--gozlem', files.observed,
+      '--capability', 'cap', '--onaylayan', OPERATOR, '--karar', 'approved'];
+    const result = await CLI.runCliArgv(argv, { cli, stdout: (line) => out.push(line), stderr: (line) => out.push(line) });
+    assert.equal(result.exitCode, CLI_EXIT_CODES.unauthorized);
+    assert.match(out.join('\n'), /operator_terminal_required/);
   } finally {
     closeCli(cli);
   }

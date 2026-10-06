@@ -7,6 +7,7 @@ const {
   CONTROL_PLANE_PATH_RULES,
   isControlPlanePath,
   findControlPlaneCommandTarget,
+  findOperatorDecisionCommand,
 } = require('../lib/control-plane-paths');
 
 test('recognizes the guard control plane of every shipped adapter profile', () => {
@@ -168,4 +169,50 @@ test('allowControlPlane comes from deployment options, never from the payload', 
   // The deployment that installed the hook can still do maintenance.
   const maintenance = evaluate({ toolName: 'Write', args }, { allowControlPlane: true });
   assert.notEqual(maintenance.reason, 'external_action_control_plane_blocked');
+});
+
+test('#3560 recognizes HUQAN CLI invocations that record an operator decision', () => {
+  const decisions = [
+    ['huqan terfi --aday a.json --karar approved', 'terfi'],
+    ['npx huqan --json onayla apr_1 approved', 'onayla'],
+    ['node cli.js approve apr_1', 'approve'],
+    ['node ./cli.js terfi --aday a', 'terfi'],
+    ['C:\\tools\\huqan.cmd terfi', 'terfi'],
+    ['cd repo && huqan TERFI --aday a', 'terfi'],
+    ['"huqan" "onayla" apr_1', 'onayla'],
+  ];
+  for (const [command, verb] of decisions) {
+    const match = findOperatorDecisionCommand(command);
+    assert.ok(match, `expected ${command} to be an operator decision`);
+    assert.equal(match.command, verb, command);
+  }
+});
+
+test('#3560 leaves reads and non-decision HUQAN commands alone', () => {
+  const benign = [
+    'huqan onaylar',
+    'huqan ask terfi nedir',
+    'huqan',
+    'grep -rn terfi lib/cli-promote.js',
+    'cat cli.js',
+    'huqanx terfi',
+    'echo huqan',
+    '',
+  ];
+  for (const command of benign) {
+    assert.equal(findOperatorDecisionCommand(command), null, `expected ${command} to be ordinary`);
+  }
+});
+
+test('#3560 an agent shell running an operator decision is blocked, and no deployment option lifts it', () => {
+  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1']) {
+    const result = evaluate({ toolName: 'Bash', args: { command } });
+    assert.equal(result.decision, 'block', command);
+    assert.equal(result.reason, 'external_action_operator_decision_blocked', command);
+    assert.equal(result.canExecute, false);
+    const maintenance = evaluate({ toolName: 'Bash', args: { command } }, { allowControlPlane: true });
+    assert.equal(maintenance.reason, 'external_action_operator_decision_blocked', `${command} under allowControlPlane`);
+  }
+  const listing = evaluate({ toolName: 'Bash', args: { command: 'huqan onaylar' } });
+  assert.notEqual(listing.reason, 'external_action_operator_decision_blocked');
 });
