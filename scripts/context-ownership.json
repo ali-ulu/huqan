@@ -708,6 +708,10 @@
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
   },
+  "lib/memory-hypothesis-cognition.js": {
+   "context": "Knowledge",
+   "evidence": "ownership-map-2446.md#R-LEARN-K"
+  },
   "lib/hypothesis-fitness.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
@@ -5340,6 +5344,27 @@
     "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/memory-cognitive-message.js": {
+   "owner": "Memory",
+   "consumers": [
+    "Knowledge"
+   ],
+   "evidence": "#3568 (R49) hypothesis producer validates its CognitiveMessage through the K1 schema"
+  },
+  "lib/memory-knowledge-object.js": {
+   "owner": "Memory",
+   "consumers": [
+    "Knowledge"
+   ],
+   "evidence": "#3568 (R49) hypothesis producer validates a learned hypothesis KnowledgeObject through the K0 schema"
+  },
+  "lib/memory-hypothesis-cognition.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3568 (R49) cli.js injects the K0/K1 cognition consumer into the hypotheses producer"
   },
   "lib/memory-blast-radius.js": {
    "owner": "Knowledge",
