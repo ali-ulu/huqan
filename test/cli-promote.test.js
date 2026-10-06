@@ -298,6 +298,13 @@ test('#3560 stdin closing before an answer declines the approval instead of hang
   assert.equal(await reply, 'v2');
   assert.equal(answered.listenerCount('close'), 0, 'an answered question leaves no close listener behind');
 
+  // Closed before the question was asked: no close event will come and a real
+  // interface would throw, so it answers empty at once.
+  const alreadyClosed = fakeReadline();
+  alreadyClosed.closed = true;
+  alreadyClosed.question = () => { throw new Error('ERR_USE_AFTER_CLOSE'); };
+  assert.equal(await askOnce(alreadyClosed, 'version? '), '');
+
   // The empty answer EOF yields is a declined approval, never a pass.
   const atEof = await confirmOperatorPresence('v2', { input: { isTTY: true }, ask: () => '' });
   assert.equal(atEof.ok, false);
