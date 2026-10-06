@@ -37,15 +37,16 @@ function loopWith({ createReflectivePromotion }, admissions = createPromotionAdm
 test('not passing the proposers to the admission registry breaks the self-approval refusal', () => {
   const assertion = (moduleExports) => {
     const { trust, admissions, loop } = loopWith(moduleExports);
-    const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner' });
+    const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner', authorityDelta: {} });
     loop.evaluateCanary({ candidateId, candidateRuns: runs(12, 5), baselineWindowRuns: runs(12, 10), startAt: T0 });
-    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'learner' });
+    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'learner',
+      subject: { kind: 'promotion', candidateVersion: 'v2' } });
     loop.promote({ candidateId, promotionId: 'p' });
     assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v1');
   };
   assertion(require('../lib/experience/reflective-promotion'));
   const broken = mutant('lib/experience/reflective-promotion.js',
-    'promotionId, proposerIds: [candidate.proposedBy, ...learnerPrincipals] });', 'promotionId });');
+    'proposerIds: [candidate.proposedBy, ...learnerPrincipals],', 'proposerIds: [],');
   assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
 });
 
@@ -58,7 +59,7 @@ test('dropping the authority-expansion refusal lets a policy-widening candidate 
   };
   assertion(require('../lib/experience/reflective-promotion'));
   const broken = mutant('lib/experience/reflective-promotion.js',
-    "if (widened.length) return fail('authority_expansion', { candidateId: candidate.candidateId, widened });", '');
+    "if (refusal) return fail(refusal.code, { candidateId: candidate.candidateId, widened: refusal.widened || [] });", '');
   assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
 });
 
@@ -90,5 +91,46 @@ test('accepting any admitted:true object again lets a forged admission promote',
   assertion({ createCanaryExtension });
   const broken = mutant('lib/experience/capability-trust-canary-extension.js',
     'if (!isIssuedAdmission(admission)) return notAdmittedCode;', 'if (admission?.admitted !== true) return notAdmittedCode;');
+  assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
+});
+
+test('ignoring the admission subject in the ladder lets an approval for another version promote this one', () => {
+  const assertion = ({ createCanaryExtension: create }) => {
+    const admissions = createPromotionAdmissionRegistry();
+    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'human',
+      subject: { kind: 'promotion', candidateVersion: 'v9' } });
+    const admission = admissions.resolveAdmission({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p',
+      subject: { kind: 'promotion', candidateVersion: 'v9' } });
+    const record = { boundProcedureVersion: 'v1', promotionReceipts: [], history: [], events: [] };
+    const ext = create({ records: new Map([['ws::cap', record]]), compositeKey: (w, c) => `${w}::${c}`,
+      nonEmptyString: (v) => typeof v === 'string' && v.length > 0,
+      rebindProcedure: ({ newProcedureVersion }) => { record.boundProcedureVersion = newProcedureVersion; return { ok: true }; },
+      toPublicEntry: (r) => ({ ...r }) });
+    ext.promoteCanaryCandidate({ workspaceId: 'ws', capabilityId: 'cap', candidateProcedureVersion: 'v2', canaryResult: { status: 'passed' }, admission });
+    assert.equal(record.boundProcedureVersion, 'v1');
+  };
+  assertion({ createCanaryExtension });
+  const broken = mutant('lib/experience/capability-trust-canary-extension.js',
+    '|| (receipt.subject && (receipt.subject.kind !== move.kind || receipt.subject.candidateVersion !== move.candidateVersion))', '');
+  assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
+});
+
+test('dropping the stale-prior check lets a second candidate overwrite a promotion its canary never compared against', () => {
+  const assertion = (moduleExports) => {
+    const { trust, admissions, loop } = loopWith(moduleExports);
+    const ids = ['v2', 'v3'].map((candidateVersion) => {
+      const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion, proposedBy: 'learner', authorityDelta: {} });
+      loop.evaluateCanary({ candidateId, candidateRuns: runs(12, 5), baselineWindowRuns: runs(12, 10), startAt: T0 });
+      admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: candidateVersion, approverId: 'human',
+        subject: { kind: 'promotion', candidateVersion } });
+      return candidateId;
+    });
+    loop.promote({ candidateId: ids[0], promotionId: 'v2' });
+    loop.promote({ candidateId: ids[1], promotionId: 'v3' });
+    assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v2');
+  };
+  assertion(require('../lib/experience/reflective-promotion'));
+  const broken = mutant('lib/experience/reflective-promotion.js',
+    "if (boundVersion(candidate) !== candidate.priorVersion) return fail('stale_prior_version');", '');
   assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
 });

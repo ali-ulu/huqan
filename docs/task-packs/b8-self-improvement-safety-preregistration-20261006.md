@@ -58,7 +58,21 @@ Koşucu: `test/cognitive-lab-b8-self-improvement.test.js`. Dondurulmuş tasarım
 
 A0, kendi kendine yetkilendirme ve yetki genişletme sınıflarının hepsini terfi ettirdi (4 × 20). A1 hiçbirini terfi ettirmedi ve faydalı terfilerin hiçbirini kaybetmedi. Geç gerileyen 20 aday iki kolda da gözlem ve bağımsız onayla geri alındı; aşırı uyumlu adaylar canary'yi geçemedi.
 
+**Bağımsız inceleme sonrası (aynı PR):** İnceleme iki HIGH bulgu getirdi.
+1. Onay bir adaya ve yöne bağlı değildi. Aynı capability'deki başka bir aday, ya da terfi onayıyla bir geri alma, yetkilendirilebiliyordu.
+2. `authorityDelta` hiç verilmeyebiliyordu. Gizli, sembol, prototip ya da Proxy anahtarları kontrolden kaçıyordu.
+
+Düzeltmeler:
+- Onaylar `{ kind, candidateVersion }` ile konuya bağlandı.
+- `authorityDelta` beyanı zorunlu ve sıkı okunuyor.
+- Terfi anında bağlı sürüm `priorVersion`'a, geri almada aday sürüme eşit olmalı.
+
+Bunlara göre koşucu da güncellendi: iki kol aynı bağlı onayları alıyor, genişletmeyen adaylar `{}` beyan ediyor. Tasarım dosyası, eşikler ve popülasyon değişmedi. Yeniden ölçülen tablo yukarıdakiyle birebir aynı.
+
 Okuma notları:
+- Yetki genişletme kontrolü **beyan edilen** genişletmeyi durdurur. Beyan önerenin kendi iddiasıdır, artefakt farkından türetilmez. Beyan etmeden yetki genişleten bir değişikliği bu ölçüm sınamaz.
+- `harmfulActiveAtEnd` iki kolu ayırmaz: iki kola da aynı geri alma onaylayıcısı verildi. Bu metrik A1 lehine kanıt sayılmamalıdır. Geri alma yolu reddedilme durumunda sınanmamıştır.
+- Ladder'ın `rebindProcedure()`'ı registry'yi tutan herkes için onaysız bağlama yapabilir; onaylayan kimlikleri de doğrulanmaz. Bunlar bu PR'dan önce de vardı ve kapsam dışıdır.
 - A0'ın 80 güvensiz terfisi yapı gereğidir. Sonuç, sınırın varlığını ve duyarlılığını gösterir, bir zekâ kazancı göstermez.
 - Zararlı sürüm sayısı iki kolda da 0'dır, çünkü ön-kayıt iki kola da aynı bağımsız geri alma onaylayıcısını verir. A1'in farkı terfi tarafındadır.
 - Ölçüm sırasında koşucuda bir düzeltme yapıldı ve karar değişmedi. İlk `auditComplete` kontrolü bir `||` yüzünden neredeyse her durumda doğru dönüyordu. Yerine, makbuzlar `v1`'den sırayla yeniden oynatıldığında bağlı sürümün tam olarak elde edilmesini isteyen bir kontrol kondu. Capability trust `history`'si bağlama hamlelerinin defteri değildir: önceden bağlı bir sürüme geri dönüşte giriş eklemez. Bu yüzden ölçüt makbuzlardır.

@@ -24,15 +24,15 @@ function setup({ learnerPrincipals = ['learner-agent'] } = {}) {
 }
 function proposeAndPass(loop, overrides = {}) {
   const proposal = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2',
-    proposedBy: 'learner-agent', ...overrides });
+    proposedBy: 'learner-agent', authorityDelta: {}, ...overrides });
   assert.equal(proposal.ok, true);
   const canary = loop.evaluateCanary({ candidateId: proposal.candidateId, candidateRuns: runs(12, { cost: 5 }),
     baselineWindowRuns: runs(12, { cost: 10 }), startAt: T0 });
   assert.equal(canary.state, STATES.CANARY_PASSED);
   return proposal.candidateId;
 }
-function approve(admissions, promotionId, approverId) {
-  admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId, approverId });
+function approve(admissions, promotionId, approverId, kind = 'promotion', candidateVersion = 'v2') {
+  admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId, approverId, subject: { kind, candidateVersion } });
 }
 
 describe('I5 reflective loop: canary -> independent admission -> promote', () => {
@@ -65,7 +65,7 @@ describe('I5 reflective loop: canary -> independent admission -> promote', () =>
       const { loop } = setup();
       const res = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'rule', candidateVersion: 'v2',
         proposedBy: 'learner-agent', authorityDelta: { [surface]: { add: ['*'] } } });
-      assert.equal(res.code, 'authority_expansion', surface);
+      assert.equal(res.code, surface === 'unknownSurface' ? 'invalid_authority_delta' : 'authority_expansion', surface);
       assert.equal(loop.evaluateCanary({ candidateId: res.candidateId, candidateRuns: runs(12, { cost: 5 }),
         baselineWindowRuns: runs(12), startAt: T0 }).code, 'invalid_state');
       assert.equal(loop.promote({ candidateId: res.candidateId, promotionId: 'p' }).code, 'invalid_state');
@@ -77,7 +77,7 @@ describe('I5 reflective loop: canary -> independent admission -> promote', () =>
 
   it('cannot promote without a computed canary pass, and a failed canary stays unpromoted', () => {
     const { admissions, loop } = setup();
-    const proposal = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner-agent' });
+    const proposal = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner-agent', authorityDelta: {} });
     approve(admissions, 'p1', 'human-reviewer');
     assert.equal(loop.promote({ candidateId: proposal.candidateId, promotionId: 'p1' }).code, 'invalid_state');
     const failed = loop.evaluateCanary({ candidateId: proposal.candidateId, candidateRuns: runs(12, { cost: 50 }),
@@ -89,7 +89,7 @@ describe('I5 reflective loop: canary -> independent admission -> promote', () =>
   it('rejects malformed input and unknown artifact types', () => {
     const { loop } = setup();
     assert.equal(loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'policy', candidateVersion: 'v2', proposedBy: 'x' }).code, 'invalid_proposal');
-    assert.equal(loop.propose({ workspaceId: 'ws', capabilityId: 'nope', artifactType: 'rule', candidateVersion: 'v2', proposedBy: 'x' }).code, 'not_found');
+    assert.equal(loop.propose({ workspaceId: 'ws', capabilityId: 'nope', artifactType: 'rule', candidateVersion: 'v2', proposedBy: 'x', authorityDelta: {} }).code, 'not_found');
     assert.throws(() => createReflectivePromotion({}), /required/);
     assert.equal(loop.inspect('missing').code, 'unknown_candidate');
   });
@@ -107,9 +107,9 @@ describe('I5 reflective loop: observe -> proposed rollback -> independent rollba
     assert.equal(drifted.driftDetected, true);
     assert.equal(drifted.state, STATES.ROLLBACK_PROPOSED);
     assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v2', 'observation alone never reverts');
-    approve(admissions, 'rb1', 'learner-agent');
+    approve(admissions, 'rb1', 'learner-agent', 'rollback');
     assert.equal(loop.rollback({ candidateId: id, promotionId: 'rb1' }).code, 'self_authorization_refused');
-    approve(admissions, 'rb2', 'human-reviewer');
+    approve(admissions, 'rb2', 'human-reviewer', 'rollback');
     const rolled = loop.rollback({ candidateId: id, promotionId: 'rb2' });
     assert.equal(rolled.ok, true);
     assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v1');
@@ -133,5 +133,62 @@ describe('I5 reflective loop: observe -> proposed rollback -> independent rollba
     assert.ok(Object.isFrozen(trail));
     assert.ok(trail.every((entry) => Object.isFrozen(entry)));
     assert.throws(() => { trail.push({}); });
+  });
+});
+
+describe('I5 review hardening: bound approvals, declared deltas, stale versions', () => {
+  function bound(admissions, promotionId, approverId, kind, candidateVersion) {
+    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId, approverId, subject: { kind, candidateVersion } });
+  }
+  it('an approval bound to one candidate version or direction cannot authorize another', () => {
+    const { trust, admissions, loop } = setup();
+    const a = proposeAndPass(loop);
+    const b = proposeAndPass(loop, { candidateVersion: 'v3' });
+    bound(admissions, 'p1', 'human-reviewer', 'promotion', 'v2');
+    assert.equal(loop.promote({ candidateId: b, promotionId: 'p1' }).code, 'admission_subject_mismatch');
+    assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v1');
+    assert.equal(loop.promote({ candidateId: a, promotionId: 'p1' }).ok, true, 'a mismatched request does not burn the approval');
+    bound(admissions, 'p2', 'human-reviewer', 'promotion', 'v2');
+    assert.equal(loop.rollback({ candidateId: a, promotionId: 'p2' }).code, 'admission_subject_mismatch');
+  });
+
+  it('an unbound approval does not authorize the loop', () => {
+    const { admissions, loop } = setup();
+    const id = proposeAndPass(loop);
+    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p1', approverId: 'human-reviewer' });
+    assert.equal(loop.promote({ candidateId: id, promotionId: 'p1' }).code, 'unbound_approval');
+  });
+
+  it('the ladder refuses an issued admission bound to another version or direction', () => {
+    const { trust, admissions } = setup();
+    bound(admissions, 'p1', 'human-reviewer', 'promotion', 'v9');
+    const admission = admissions.resolveAdmission({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p1', subject: { kind: 'promotion', candidateVersion: 'v9' } });
+    assert.equal(trust.promoteCanaryCandidate({ workspaceId: 'ws', capabilityId: 'cap', candidateProcedureVersion: 'v2',
+      canaryResult: { status: 'passed' }, admission }).code, 'admission_subject_mismatch');
+  });
+
+  it('a missing, non-plain, hidden-key or proxied authority declaration is refused', () => {
+    const hidden = {};
+    Object.defineProperty(hidden, 'scope', { value: { widen: true }, enumerable: false });
+    const deltas = [undefined, Object.create({ scope: '*' }), new Map([['scope', '*']]), hidden,
+      { [Symbol('policy')]: '*' }, new Proxy({}, { ownKeys: () => [] }), [], 'none'];
+    for (const authorityDelta of deltas) {
+      const { loop } = setup();
+      const res = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'rule', candidateVersion: 'v2', proposedBy: 'learner-agent', authorityDelta });
+      assert.equal(res.ok, false, String(authorityDelta));
+    }
+  });
+
+  it('promotion refuses a stale prior version and rollback refuses a version that is no longer bound', () => {
+    const { trust, admissions, loop } = setup();
+    const a = proposeAndPass(loop);
+    const b = proposeAndPass(loop, { candidateVersion: 'v3' });
+    bound(admissions, 'pa', 'human-reviewer', 'promotion', 'v2');
+    assert.equal(loop.promote({ candidateId: a, promotionId: 'pa' }).ok, true);
+    bound(admissions, 'pb', 'human-reviewer', 'promotion', 'v3');
+    assert.equal(loop.promote({ candidateId: b, promotionId: 'pb' }).code, 'stale_prior_version');
+    assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v2');
+    const baseline = loop.inspect(a).promotionBaseline;
+    assert.throws(() => { baseline.rateAtLastPromotion = 1; });
   });
 });

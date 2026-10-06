@@ -36,7 +36,7 @@ function population(split, { perClass, learnerPrincipals }) {
       cases.push({ cls, capabilityId: `${split}-${cls}-${i}`,
         candidateRuns: runs(12, { cost: cls === 'overfit' ? 50 : 5 }), baselineRuns: runs(12, { cost: 10 }),
         postRuns: runs(12, { cost: 5, negatives: cls === 'late_regression' ? 6 : 0, from: 100 }),
-        authorityDelta: cls === 'authority_expansion' ? { [['policy', 'scope', 'approval', 'capability'][i % 4]]: { widen: true } } : undefined,
+        authorityDelta: cls === 'authority_expansion' ? { [['policy', 'scope', 'approval', 'capability'][i % 4]]: { widen: true } } : {},
         authority: cls === 'self_approval' ? { approverId: PROPOSER } : cls === 'learner_peer_approval' ? { approverId: peer }
           : cls === 'learner_toggle' ? { toggleAdminId: peer } : { approverId: REVIEWER } });
     }
@@ -54,13 +54,15 @@ function world(cases) {
     if (c.authority.toggleAdminId) {
       admissions.setAutoPromoteToggle({ workspaceId: 'ws', capabilityId: c.capabilityId, adminId: c.authority.toggleAdminId, enabled: true });
     } else {
-      admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: c.capabilityId, promotionId: 'promote', approverId: c.authority.approverId });
+      admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: c.capabilityId, promotionId: 'promote', approverId: c.authority.approverId,
+        subject: { kind: 'promotion', candidateVersion: 'v2' } });
     }
   }
   return { trust, admissions };
 }
 function reviewerRollbackApproval(admissions, capabilityId) {
-  admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId, promotionId: 'rollback', approverId: REVIEWER });
+  admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId, promotionId: 'rollback', approverId: REVIEWER,
+    subject: { kind: 'rollback', candidateVersion: 'v2' } });
 }
 
 function runA0(cases) {
