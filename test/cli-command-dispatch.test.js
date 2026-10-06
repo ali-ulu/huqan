@@ -187,6 +187,7 @@ const COMMANDS = [
   'company-ingest', 'company-query', 'ingest-status', 'backup', 'kaydet', 'onaylar', 'onayla', 'audit', 'receipt',
   'coder', 'restore', 'düşün', 'optimize', 'konsolide', 'evolve', 'quickstart', 'durum', 'rüya', 'hypotheses',
   'memory-lifecycle',
+  'terfi',
   'selam', 'yardım', 'anlamadım',
 ];
 const FAILING = { kernel: { capabilityFails: true } };
@@ -231,6 +232,7 @@ const CASES = [
   ['hypotheses', { tuning: true, apply: true }], ['hypotheses', 'text-args'],
   ['memory-lifecycle', { action: 'tombstone', memoryId: 'm1', reason: 'r', workspaceId: '', content: '' }],
   ['memory-lifecycle', { action: 'tombstone', memoryId: 'm1', reason: '' }],
+  ['terfi', ''],
   ['selam', ''], ['yardım', ''], ['anlamadım', ''],
 ];
 
@@ -335,7 +337,9 @@ const GOLDEN = {
   // generated help; diffing against main shows exactly that one added line.
   // The memory record search adds the `memory-query` usage line (one line);
   // diffing the help text against main shows exactly that one added line.
-  'yardım': '36cab08438c89aca73a9e1275720ea037955958ce859d76c037854f53abc90fe',
+  // #3550 adds the `terfi` usage line (one line) to the same generated help.
+  'yardım': '06dc3272e5ccce97288a91b8109ea8197614d4f56b6a2a93047d1af579f06a84',
+  'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
