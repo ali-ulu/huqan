@@ -26,6 +26,19 @@ function identifierFor(file, index) {
   return `PublicDecl_${index}_${stem || 'root'}`;
 }
 
+// Compile-only TypeScript fixtures that pin declaration shapes against the
+// repository sources. They live outside test/, where node --test would execute
+// them (#3546), and are type-checked here with the same pinned compiler.
+const TYPE_FIXTURES_DIR = path.join(ROOT, 'fixtures', 'types');
+
+function typeFixtures(directory = TYPE_FIXTURES_DIR) {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory)
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.d.ts'))
+    .sort()
+    .map((file) => path.join(directory, file));
+}
+
 function generateConsumerSources(packageJson, rootDir = ROOT) {
   const declarations = publishedDeclarations(packageJson);
   const esm = [];
@@ -117,9 +130,14 @@ function main() {
 
     const tsc = path.join(consumerDir, 'node_modules', 'typescript', 'bin', 'tsc');
     run(process.execPath, [tsc, '--project', 'tsconfig.json', '--noEmit', '--strict'], { cwd: consumerDir });
+    const fixtures = typeFixtures();
+    if (fixtures.length > 0) {
+      run(process.execPath, [tsc, '--noEmit', '--strict', '--target', 'ES2022', '--module', 'CommonJS',
+        '--moduleResolution', 'node', ...fixtures], { cwd: ROOT });
+    }
     console.log(
       `Consumer compile passed for ${generated.declarations.length} published declaration surface(s) `
-      + `with TypeScript ${TYPESCRIPT_VERSION}.`,
+      + `and ${fixtures.length} type fixture(s) with TypeScript ${TYPESCRIPT_VERSION}.`,
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -135,4 +153,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { generateConsumerSources, publishedDeclarations };
+module.exports = { generateConsumerSources, publishedDeclarations, typeFixtures };
