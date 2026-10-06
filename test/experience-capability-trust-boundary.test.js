@@ -27,7 +27,11 @@ const {
 
 function mutant(relative, original, replacement) {
   const file = path.resolve(__dirname, '..', relative);
-  const source = fs.readFileSync(file, 'utf8');
+  // Normalize line endings so a mutation target written in the test matches
+  // on both CRLF (Windows checkout) and LF (CI) sources.
+  const source = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  original = original.replace(/\r\n/g, '\n');
+  replacement = replacement.replace(/\r\n/g, '\n');
   assert.equal(source.split(original).length - 1, 1, 'mutation must have exactly one target');
   const compiledFile = file.replace(/\.js$/, '.mutant.cjs');
   const compiled = new Module(compiledFile, module);
