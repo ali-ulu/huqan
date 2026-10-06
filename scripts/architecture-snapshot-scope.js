@@ -182,9 +182,9 @@ const FAN_OUT_SIGNAL = 20;
 const FANOUT_ALLOWED = Object.freeze([
   {
     file: 'index.js',
-    ceiling: 24,
+    ceiling: 26,
     why: 'The package-root facade exposes the transport-independent A2A dispatcher (#3477), the durable '
-      + 'handoff cursor with its termination allowlist (#3478) plus '
+      + 'handoff cursor with its termination allowlist (#3478, two more requires) plus '
       + 'CausalRuntime and LearnedCausalEngine (#3467) and the local neural cognition candidate (#3474). These requires expose reviewed public constructors/functions; '
       + 'signing, admission, dispatch, episode learning and execution remain in their owning modules. '
       + 'docs/a2a-pre-dispatch-intervention.md, docs/a2a-handoff-cursor.md, docs/causal-learning-r12.md and docs/neural-cognition-r19.md pin the public callers. '
