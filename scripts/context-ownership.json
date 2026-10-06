@@ -980,6 +980,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-recency-decay.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
   "lib/memory-query-bm25.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
@@ -1077,6 +1081,10 @@
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
   "lib/memory-store-sqlite-links.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
+  "lib/memory-store-sqlite-schema.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
