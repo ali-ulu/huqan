@@ -1432,6 +1432,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
   },
+  "lib/external-action-identity-issue.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-EXTACTION-A"
+  },
   "lib/external-action-identity-log.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXTACTION-T"
@@ -5729,6 +5733,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/external-action-identity-issue.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#2505 capability-card issuance invoked by the huqan-gate CLI entry point"
   },
   "lib/browser-session-observer.js": {
    "owner": "AgentAction",
