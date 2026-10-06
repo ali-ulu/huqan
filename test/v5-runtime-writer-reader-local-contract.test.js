@@ -103,6 +103,76 @@ test('reader fails closed for invalid local candidates in the handoff path', () 
   assert.equal(claimResult.reason_category, 'runtime_reader_claim');
 });
 
+test('#3479 handoff binds to declared participants; an injected target fails closed on both sides', () => {
+  const bound = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.001',
+      decisionPath: ['kernel', 'review_gate'],
+      participants: ['agent.local.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract', reason: 'peer_handoff' }
+    }
+  });
+  const accepted = writeRuntimePackage(bound);
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.verdict, 'ACCEPT');
+  const readerAccepted = readRuntimePackage(accepted.package);
+  assert.equal(readerAccepted.ok, true);
+  assert.equal(readerAccepted.reason_category, 'valid_route_receipt_metadata');
+  // The decision rationale travels with the bound handoff, unchanged.
+  assert.equal(readerAccepted.package.routeReceipt.handoff.reason, 'peer_handoff');
+
+  const injected = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.002',
+      decisionPath: ['kernel', 'review_gate'],
+      participants: ['agent.local.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.injected.attacker' }
+    }
+  });
+  const blocked = writeRuntimePackage(injected);
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.verdict, 'BLOCK');
+  assert.equal(blocked.reason_category, 'malformed_route_receipt_metadata');
+
+  // The reader refuses the same injected target independently of the writer.
+  const forgedPackage = { ...accepted.package, routeReceipt: injected.routeReceipt };
+  const readerBlocked = readRuntimePackage(forgedPackage);
+  assert.equal(readerBlocked.ok, false);
+  assert.equal(readerBlocked.reason_category, 'malformed_route_receipt_metadata');
+
+  // A handoff without a declared participant set cannot be bound: fail closed.
+  const unbound = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.003',
+      decisionPath: ['kernel'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract' }
+    }
+  });
+  assert.equal(writeRuntimePackage(unbound).reason_category, 'malformed_route_receipt_metadata');
+
+  // A participant set that omits the handoff source also fails closed.
+  const wrongSource = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.004',
+      decisionPath: ['kernel'],
+      participants: ['agent.other.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract' }
+    }
+  });
+  assert.equal(writeRuntimePackage(wrongSource).reason_category, 'malformed_route_receipt_metadata');
+
+  // A blank decision rationale is refused rather than silently accepted.
+  const blankReason = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.005',
+      decisionPath: ['kernel'],
+      participants: ['agent.local.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract', reason: '   ' }
+    }
+  });
+  assert.equal(writeRuntimePackage(blankReason).reason_category, 'malformed_route_receipt_metadata');
+});
+
 test('writer carries a valid source snapshot exactly as supplied and the reader accepts it', () => {
   // Convergence: written package with source snapshot passes the
   // writer-to-reader local handoff unchanged. Carried or rejected, never

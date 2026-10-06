@@ -1,38 +1,33 @@
 {
-  "fixtureType": "valid_reader_candidate",
+  "fixtureType": "invalid_reader_candidate",
   "expected": {
-    "status": "readable",
-    "reasonCategory": "valid_route_receipt_metadata"
+    "status": "malformed",
+    "reasonCategory": "malformed_route_receipt_metadata"
   },
   "candidate": {
     "schemaVersion": "v5.shared_trust_package.writer_input.v1",
-    "packageId": "reader_fixture_route_receipt_001",
+    "packageId": "reader_fixture_invalid_handoff_001",
     "issuer": {
       "agentId": "agent.reader.fixture",
       "workspaceId": "workspace.reader.fixture"
     },
     "subject": {
       "type": "agent_action",
-      "id": "action.reader.fixture.002"
+      "id": "action.reader.invalid.007"
     },
     "verdict": {
       "status": "review",
-      "reason": "route_receipt_fixture"
+      "reason": "injected_handoff_target"
     },
     "routeReceipt": {
-      "routeId": "route.reader.fixture.001",
+      "routeId": "route.reader.fixture.002",
       "decisionPath": ["kernel", "review_gate"],
       "participants": ["agent.reader.fixture", "human.review.fixture"],
       "handoff": {
         "from": "agent.reader.fixture",
-        "to": "human.review.fixture",
-        "reason": "human_review_requested"
+        "to": "agent.injected.attacker"
       }
     },
-    "nonClaims": [
-      "route_receipt_metadata_only",
-      "no_runtime_exchange",
-      "no_transport"
-    ]
+    "nonClaims": ["invalid_fixture"]
   }
 }

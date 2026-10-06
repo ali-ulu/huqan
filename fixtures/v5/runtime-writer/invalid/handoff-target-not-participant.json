@@ -1,0 +1,34 @@
+{
+  "caseId": "v5-runtime-writer-invalid-handoff-target-not-participant",
+  "description": "A handoff naming a target that is not a declared participant must fail closed.",
+  "writerInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "stp-fixture-invalid-handoff-001",
+    "issuer": {
+      "agentId": "agent-fixture-writer-001",
+      "workspaceId": "workspace-fixture-001"
+    },
+    "subject": {
+      "type": "route_receipt",
+      "id": "route-receipt-fixture-002"
+    },
+    "verdict": {
+      "status": "review",
+      "reason": "injected_handoff_target"
+    },
+    "routeReceipt": {
+      "routeId": "route-fixture-002",
+      "decisionPath": ["risk_classification", "tool_gate"],
+      "participants": ["local_writer_fixture", "shared_trust_package_candidate"],
+      "handoff": {
+        "from": "local_writer_fixture",
+        "to": "agent.injected.attacker"
+      }
+    },
+    "nonClaims": ["invalid_fixture"]
+  },
+  "expected": {
+    "verdict": "BLOCK",
+    "reason_category": "malformed_route_receipt_metadata"
+  }
+}

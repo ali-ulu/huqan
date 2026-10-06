@@ -23,9 +23,14 @@
         "tool_gate",
         "verdict_reconciliation"
       ],
+      "participants": [
+        "local_writer_fixture",
+        "shared_trust_package_candidate"
+      ],
       "handoff": {
         "from": "local_writer_fixture",
-        "to": "shared_trust_package_candidate"
+        "to": "shared_trust_package_candidate",
+        "reason": "route_receipt_handoff"
       }
     },
     "nonClaims": [
