@@ -27,6 +27,7 @@
       "bin/huqan-cognitive-lab.js": "UI",
       "bin/huqan-gate-hook.js": "UI",
       "bin/huqan-mcp.js": "UI",
+      "bin/huqan-neural-lab.js": "UI",
       "causalSimulator.js": "Core",
       "cli.js": "UI",
       "dream.js": "Application",
@@ -200,6 +201,7 @@
       "lib/cli-mutation-audit.js": "Core",
       "lib/cli-mutation-gate.js": "Core",
       "lib/cli-plugin-status.js": "Core",
+      "lib/cli-promote.js": "Core",
       "lib/cli-repl.js": "Core",
       "lib/cli-runtime-methods.js": "Core",
       "lib/cli-status-command.js": "Core",
@@ -231,11 +233,22 @@
       "lib/cognitive-lab-comparison.js": "Core",
       "lib/cognitive-lab-evaluator.js": "Core",
       "lib/cognitive-lab-manifest.js": "Core",
+      "lib/cognitive-lab-model-comparison.js": "Application",
+      "lib/cognitive-lab-neural-design.js": "Application",
+      "lib/cognitive-lab-neural-experiment.js": "Application",
+      "lib/cognitive-lab-neural-world.js": "Application",
       "lib/cognitive-lab-paired-delta.js": "Core",
       "lib/cognitive-lab-probability-calibration.js": "Core",
       "lib/cognitive-lab-world-model-design.js": "Application",
       "lib/cognitive-lab-world-model-experiment.js": "Application",
       "lib/cognitive-lab-world-model-world.js": "Application",
+      "lib/cognitive-model-local-family.js": "Application",
+      "lib/cognitive-model-local-mamba.js": "Application",
+      "lib/cognitive-model-local-primitives.js": "Core",
+      "lib/cognitive-model-local-rwkv.js": "Application",
+      "lib/cognitive-model-local-ssm.js": "Application",
+      "lib/cognitive-model-local-transformer.js": "Application",
+      "lib/cognitive-model-port.js": "Core",
       "lib/cognitive-scheduler.js": "Core",
       "lib/collector-seal-config.js": "Core",
       "lib/command-allowlist-miner.js": "Core",
@@ -605,6 +618,7 @@
       "lib/inference-backward.js": "Core",
       "lib/inference-belief-revision-values.js": "Core",
       "lib/inference-belief-revision.js": "Core",
+      "lib/inference-defeasible-scope.js": "Core",
       "lib/inference-derived-admission.js": "Core",
       "lib/inference-derived-dependency.js": "Core",
       "lib/inference-derived-record.js": "Core",
@@ -1410,6 +1424,16 @@
       "bin/huqan-mcp.js": [
         "mcpServer.js"
       ],
+      "bin/huqan-neural-lab.js": [
+        "lib/cognitive-lab-model-comparison.js",
+        "lib/cognitive-lab-neural-design.js",
+        "lib/cognitive-lab-neural-experiment.js",
+        "lib/cognitive-model-local-mamba.js",
+        "lib/cognitive-model-local-rwkv.js",
+        "lib/cognitive-model-local-ssm.js",
+        "lib/cognitive-model-local-transformer.js",
+        "lib/content-hash.js"
+      ],
       "causalSimulator.js": [
         "graph.js",
         "lib/causal-simulator-chains.js",
@@ -1487,6 +1511,8 @@
         "lib/agent-identity-runtime.js",
         "lib/causal/causal-runtime.js",
         "lib/causal/learned-causal-engine.js",
+        "lib/cognitive-model-local-ssm.js",
+        "lib/cognitive-model-port.js",
         "lib/error-prevention/index.js",
         "lib/external-action-adapter.js",
         "lib/external-action-guard.js",
@@ -2042,6 +2068,7 @@
         "lib/cli-knowledge-commands.js",
         "lib/cli-memory-lifecycle.js",
         "lib/cli-memory-query.js",
+        "lib/cli-promote.js",
         "lib/cli-status-command.js"
       ],
       "lib/cli-company-ingest.js": [
@@ -2125,6 +2152,12 @@
       ],
       "lib/cli-mutation-gate.js": [
         "lib/command-parser.js"
+      ],
+      "lib/cli-promote.js": [
+        "lib/cli-helpers.js",
+        "lib/experience/canary.js",
+        "lib/experience/capability-trust.js",
+        "lib/experience/reflective-promotion.js"
       ],
       "lib/cli-repl.js": [
         "lib/cli-mutation-gate.js"
@@ -2277,6 +2310,24 @@
         "lib/content-hash.js",
         "lib/is-plain-object.js"
       ],
+      "lib/cognitive-lab-model-comparison.js": [
+        "lib/causal/causal-episode-contract.js",
+        "lib/cognitive-lab-neural-experiment.js",
+        "lib/cognitive-model-port.js"
+      ],
+      "lib/cognitive-lab-neural-design.js": [
+        "lib/cognitive-lab-neural-world.js"
+      ],
+      "lib/cognitive-lab-neural-experiment.js": [
+        "lib/causal/causal-episode-contract.js",
+        "lib/cognitive-lab-budget-envelope.js",
+        "lib/cognitive-lab-manifest.js",
+        "lib/cognitive-lab-neural-design.js",
+        "lib/cognitive-lab-neural-world.js",
+        "lib/cognitive-model-local-ssm.js",
+        "lib/cognitive-model-port.js",
+        "lib/content-hash.js"
+      ],
       "lib/cognitive-lab-paired-delta.js": [
         "lib/cognitive-lab-budget-envelope.js",
         "lib/cognitive-lab-probability-calibration.js",
@@ -2297,6 +2348,31 @@
       ],
       "lib/cognitive-lab-world-model-world.js": [
         "lib/causal/causal-episode-contract.js"
+      ],
+      "lib/cognitive-model-local-family.js": [
+        "lib/causal/causal-episode-contract.js",
+        "lib/cognitive-model-local-primitives.js",
+        "lib/cognitive-model-port.js"
+      ],
+      "lib/cognitive-model-local-mamba.js": [
+        "lib/cognitive-model-local-family.js",
+        "lib/cognitive-model-local-primitives.js"
+      ],
+      "lib/cognitive-model-local-rwkv.js": [
+        "lib/cognitive-model-local-family.js",
+        "lib/cognitive-model-local-primitives.js"
+      ],
+      "lib/cognitive-model-local-ssm.js": [
+        "lib/causal/causal-episode-contract.js",
+        "lib/cognitive-model-local-primitives.js",
+        "lib/cognitive-model-port.js"
+      ],
+      "lib/cognitive-model-local-transformer.js": [
+        "lib/cognitive-model-local-family.js",
+        "lib/cognitive-model-local-primitives.js"
+      ],
+      "lib/cognitive-model-port.js": [
+        "lib/is-plain-object.js"
       ],
       "lib/collector-seal-config.js": [
         "lib/environment-compat.js"
@@ -6280,6 +6356,24 @@
       {
         "from": "lib/cli-experience-read.js",
         "to": "lib/experience/read-model.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-promote.js",
+        "to": "lib/experience/canary.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-promote.js",
+        "to": "lib/experience/capability-trust.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-promote.js",
+        "to": "lib/experience/reflective-promotion.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
