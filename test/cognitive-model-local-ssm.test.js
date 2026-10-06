@@ -30,6 +30,14 @@ test('a different seed produces a different model', () => {
   assert.notEqual(a.weightsDigest, b.weightsDigest);
 });
 
+test('a seed outside the unsigned 32-bit range is rejected at construction', () => {
+  for (const seed of [3474.9, 2 ** 32 + 3474, -1, 'abc', NaN]) {
+    assert.throws(() => createLocalNeuralModel({ seed, reservoir: 8 }), /seed must be an integer in 0-4294967295/);
+  }
+  assert.equal(createLocalNeuralModel({ seed: 0, reservoir: 8 }).describe().seed, 0);
+  assert.equal(createLocalNeuralModel({ seed: 0xffffffff, reservoir: 8 }).describe().seed, 0xffffffff);
+});
+
 test('predict returns a CANDIDATE_ONLY proposal and never a verdict', () => {
   const model = createLocalNeuralModel({ reservoir: 8 });
   model.train([{ sequence: sequence(8), label: 1 }, { sequence: Array(8).fill(0), label: -1 }]);
