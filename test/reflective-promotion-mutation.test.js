@@ -24,11 +24,13 @@ function mutant(relative, original, replacement) {
   return compiled.exports;
 }
 const T0 = Date.parse('2026-01-01T00:00:00Z');
+// #3552: authority identities are verified through the host's resolver.
+const VERIFIED = (reference) => ({ ok: true, principal: { id: reference } });
 function runs(count, cost) {
   return Array.from({ length: count }, (_, i) => ({ occurredAt: T0 + i * 60000, learningEligibility: 'positive_procedure',
     executionCost: cost, verificationCost: 1, canaryOverheadCost: 0 }));
 }
-function loopWith({ createReflectivePromotion }, admissions = createPromotionAdmissionRegistry()) {
+function loopWith({ createReflectivePromotion }, admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED })) {
   const trust = createCapabilityTrustRegistry();
   trust.createCapability({ workspaceId: 'ws', capabilityId: 'cap', boundProcedureVersion: 'v1' });
   return { trust, admissions, loop: createReflectivePromotion({ trust, admissions, learnerPrincipals: ['learner'] }) };
@@ -65,7 +67,7 @@ test('dropping the authority-expansion refusal lets a policy-widening candidate 
 
 test('skipping the proposer check in the admission registry breaks the self-approval refusal', () => {
   const assertion = ({ createPromotionAdmissionRegistry: create }) => {
-    const admissions = create();
+    const admissions = create({ resolvePrincipal: VERIFIED });
     admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'learner' });
     assert.equal(admissions.resolveAdmission({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', proposerIds: ['learner'] }).admitted, false);
   };
@@ -96,7 +98,7 @@ test('accepting any admitted:true object again lets a forged admission promote',
 
 test('ignoring the admission subject in the ladder lets an approval for another version promote this one', () => {
   const assertion = ({ createCanaryExtension: create }) => {
-    const admissions = createPromotionAdmissionRegistry();
+    const admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'human',
       subject: { kind: 'promotion', candidateVersion: 'v9' } });
     const admission = admissions.resolveAdmission({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p',
