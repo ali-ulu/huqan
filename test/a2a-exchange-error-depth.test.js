@@ -113,6 +113,11 @@ test('forged records are unsafe rather than trusted', () => {
   for (const forged of [null, undefined, 'x', 42, [], {}]) {
     assert.equal(isRetryableErrorRecord(forged), false);
   }
+  // Right keys and version are not enough: the values must be record-shaped.
+  assert.equal(isRetryableErrorRecord({ ...valid, error_message: null }), false);
+  assert.equal(isRetryableErrorRecord({ ...valid, error_message: '' }), false);
+  assert.equal(isRetryableErrorRecord({ ...valid, traceback_hash: 'raw trace' }), false);
+  assert.equal(isRetryableErrorRecord({ ...valid, traceback_hash: 'a'.repeat(64) }), true);
 });
 
 test('delegation depth counts the chain and names the visited agents', () => {
@@ -141,6 +146,17 @@ test('over-max, repeat-visit and empty chains are out of bounds', () => {
   assert.equal(withinDelegationDepth({ chain: 'not-an-array' }), false);
   assert.throws(() => evaluateDelegationDepth(null), /chain of bounded agent ids/);
   assert.throws(() => evaluateDelegationDepth({ chain: ['ok', 42] }), /chain of bounded agent ids/);
+  // A hole is a missing agent, not a skipped one.
+  // eslint-disable-next-line no-sparse-arrays
+  assert.throws(() => evaluateDelegationDepth({ chain: [, 'agent-b'] }), /chain of bounded agent ids/);
+  // eslint-disable-next-line no-sparse-arrays
+  assert.equal(withinDelegationDepth({ chain: [, 'agent-b'] }), false);
+});
+
+test('agent ids keep the bound the validator already enforced', () => {
+  const kib = 'a'.repeat(1024);
+  assert.equal(withinDelegationDepth({ chain: [kib, 'agent-b'] }), true);
+  assert.equal(withinDelegationDepth({ chain: [`${kib}a`, 'agent-b'] }), false);
 });
 
 test('the validator blocks an over-max chain with the stable reason', () => {
