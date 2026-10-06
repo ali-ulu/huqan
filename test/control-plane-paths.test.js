@@ -260,6 +260,9 @@ test('#3560 feeding the REPL through a pipe, a redirect or a heredoc is refused'
   assert.equal(findOperatorDecisionCommand('huqan 2>&1 onayla apr_1')?.command, 'onayla');
   assert.equal(findOperatorDecisionCommand('huqan >&2 terfi --aday a')?.command, 'terfi');
   assert.equal(findOperatorDecisionCommand('huqan &>log.txt onayla apr_1')?.command, 'onayla');
+  // A spaced `>&` takes the next word as its target, not as the subcommand.
+  assert.equal(findOperatorDecisionCommand('huqan >& log.txt onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan 2>& 1 terfi --aday a')?.command, 'terfi');
   assert.equal(findOperatorDecisionCommand('huqan 2>&1 < commands.txt')?.command, 'repl-stdin');
   assert.equal(findOperatorDecisionCommand('echo "onayla x" |& huqan')?.command, 'repl-stdin');
   assert.equal(findOperatorDecisionCommand('cd repo; huqan onayla apr_1')?.command, 'onayla');
