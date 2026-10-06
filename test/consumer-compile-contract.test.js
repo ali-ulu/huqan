@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { generateConsumerSources, publishedDeclarations } = require('../scripts/test-consumer-compile');
+const { generateConsumerSources, publishedDeclarations, typeFixtures } = require('../scripts/test-consumer-compile');
 
 const ROOT = path.resolve(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -47,4 +47,28 @@ test('consumer compile branch coverage is independent of the published manifest 
   assert.match(generated.esm, /import \* as PublicDecl_1_namespace from 'fixture-package\/namespace';/);
   assert.match(generated.cjs, /require\('fixture-package\/classic'\)/);
   assert.match(generated.cjs, /require\('fixture-package\/namespace'\)/);
+});
+
+test('no TypeScript source lives under test/, where node --test would execute it (#3546)', () => {
+  // Node 22+ strips types and runs test/**/*.ts as a test file; a compile-only
+  // fixture with extensionless imports then fails with ERR_MODULE_NOT_FOUND.
+  const tracked = require('node:child_process').execFileSync('git', ['ls-files', 'test'], { cwd: ROOT, encoding: 'utf8' })
+    .split('\n').filter((file) => /\.(c|m)?ts$/.test(file) && !file.endsWith('.d.ts'));
+  assert.deepEqual(tracked, []);
+});
+
+test('compile-only type fixtures are found for the consumer compile step (#3546)', () => {
+  const fixtures = typeFixtures();
+  assert.deepEqual(fixtures.map((file) => path.relative(ROOT, file).split(path.sep).join('/')), [
+    'fixtures/types/causal-runtime-consumer.ts',
+    'fixtures/types/symbolic-world-model-consumer.ts',
+  ]);
+});
+
+test('type fixture discovery is empty for a missing directory and skips declaration files', t => {
+  assert.deepEqual(typeFixtures(path.join(os.tmpdir(), 'huqan-no-such-type-fixtures-3546')), []);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-type-fixtures-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const file of ['b.ts', 'a.ts', 'shape.d.ts', 'note.md']) fs.writeFileSync(path.join(root, file), '');
+  assert.deepEqual(typeFixtures(root).map((file) => path.basename(file)), ['a.ts', 'b.ts']);
 });
