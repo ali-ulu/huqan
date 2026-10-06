@@ -171,7 +171,7 @@ describe('memory query surfaces', () => {
     assert.equal(cliHandlers['memory-query'](cliContext, parseCommand('memory-query x --workspace ws-a --limit many').args),
       'memory-query: invalid_request (limit must be an integer from 1 to 100)');
     const refusedJson = JSON.parse(cliHandlers['memory-query'](cliContext, parseCommand('memory-query x --workspace ws-a --mode vector --json').args));
-    assert.deepEqual(refusedJson, { ok: false, code: 'invalid_request', message: 'retrievalMode must be one of: bm25, substring' });
+    assert.deepEqual(refusedJson, { ok: false, code: 'invalid_request', message: 'retrievalMode must be one of: bm25, substring, recency' });
   });
 
   test('the CLI keeps quoted text out of flag parsing', () => {
@@ -239,6 +239,9 @@ describe('memory query surfaces', () => {
     const tool = TOOL_SCHEMAS.find((schema) => schema.name === 'huqan.memory_query');
     assert.ok(tool);
     assert.equal(tool.annotations.readOnlyHint, true);
-    assert.deepEqual(tool.inputSchema.required, ['text', 'workspaceId']);
+    // `text` stays optional in the schema because recency mode is a pure
+    // time ordering that needs no query; every other mode still refuses an
+    // empty text at the projection, so nothing is silently searched.
+    assert.deepEqual(tool.inputSchema.required, ['workspaceId']);
   });
 });

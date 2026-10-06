@@ -133,6 +133,15 @@ describe('memory-schema', () => {
     assert.ok(invalid.errors.some((error) => error.field === 'relation'));
   });
 
+  it('#3492: the supersede link carries the old/new content hash when present', () => {
+    const valid = validateMemoryLink(baseLink({ supersedesHash: 'a'.repeat(64), newContentHash: 'b'.repeat(64) }));
+    assert.ok(valid.ok, JSON.stringify(valid.errors, null, 2));
+
+    const invalid = validateMemoryLink(baseLink({ supersedesHash: 42 }));
+    assert.strictEqual(invalid.ok, false);
+    assert.ok(invalid.errors.some((error) => error.field === 'supersedesHash'));
+  });
+
   it('keeps content immutable and requires supersedes links for new versions', () => {
     const previous = baseRecord({ memoryId: 'mem-1', content: { text: 'Kedi hayvandir' } });
     const same = baseRecord({ memoryId: 'mem-1', content: { text: 'Kedi hayvandir' } });
