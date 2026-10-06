@@ -1020,6 +1020,10 @@
    "context": "Memory",
    "evidence": "#3470 K0 KnowledgeObject schema built on memory-schema-checks/-types"
   },
+  "lib/memory-cognitive-message.js": {
+   "context": "Memory",
+   "evidence": "#3471 K1 CognitiveMessage envelope and reference frames built on memory-schema-checks"
+  },
   "lib/memory-schema-validate.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
