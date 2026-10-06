@@ -198,7 +198,7 @@ test('matching frames with measured P0/P1 clear the gate but claim no gain', () 
   assert.equal(verdict.status, TRANSFER_STATUS.MATCH_MEASURED);
   assert.equal(verdict.reason, TRANSFER_REASONS.AGREEMENT_MEASURED);
   assert.equal(verdict.requiresReview, false);
-  assert.equal(verdict.mergeAllowed, true);
+  assert.equal(verdict.mergeAllowed, false);
   assert.equal(verdict.transferGain, null);
   assert.equal(verdict.promotion, 'NONE_CANDIDATE_ONLY');
 });
@@ -224,6 +224,26 @@ test('the transfer check fails closed on bad input', () => {
     () => checkGroundedTransfer({ candidate: observation(), targetFrame: { repo: 'x' } }),
     error => error.code === GROUNDING_CONTRACT_VIOLATION && error.field === 'targetFrame',
   );
+});
+
+test('world-states and latents are not routable as transfer candidates', () => {
+  const state = projectWorldState({ observations: [observation()] });
+  assert.throws(
+    () => checkGroundedTransfer({ candidate: state, targetFrame: frame(), p0p1Measured: true }),
+    error => error.code === GROUNDING_CONTRACT_VIOLATION && error.field === 'candidate',
+  );
+  const latent = projectStructuralLatent({ worldState: state });
+  assert.throws(
+    () => checkGroundedTransfer({ candidate: latent, targetFrame: frame(), p0p1Measured: true }),
+    error => error.code === GROUNDING_CONTRACT_VIOLATION && error.field === 'candidate',
+  );
+});
+
+test('extra frame properties neither persist nor skew the digest', () => {
+  const plain = observation();
+  const extra = observation({ frame: frame({ sessionWidget: { mutable: true } }) });
+  assert.deepEqual(Object.keys(extra.frame).sort(), Object.keys(frame()).sort());
+  assert.equal(extra.frameDigest, plain.frameDigest);
 });
 
 test('freshness reports fresh, stale, and indeterminate honestly', () => {
