@@ -3144,6 +3144,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-STORAGE-A"
   },
+  "lib/storage/checkpoint-lineage.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-STORAGE-A"
+  },
   "lib/storage/db-path.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-STORAGE-A"
@@ -3969,6 +3973,10 @@
   "lib/content-hash.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/hash-chain.js": {
+   "kind": "infra",
+   "evidence": "#3491 generic hash-chain primitive shared by the receipt chain and the checkpoint lineage"
   },
   "lib/cognitive-lab-b1-replay.js": {
    "kind": "infra",

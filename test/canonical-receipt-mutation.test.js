@@ -136,3 +136,14 @@ test('canonical receipt hash is exactly sha256 of stable bytes', () => {
   const payload = buildCanonicalReceiptPayload(receipt(), { verdict: 'allow' });
   assert.equal(hashCanonicalReceiptPayload(payload), sha256Hex(stableStringify(payload)));
 });
+
+test('a falsy-but-present required field exercises the projection fallback', () => {
+  // The required-field guard rejects null/undefined/blank, but `0` is a
+  // present, non-blank value, so it reaches the projection. This pins that the
+  // `|| fallback` on every required field is live code, and that the documented
+  // fallbacks apply: '' everywhere, 'default' for workspace.
+  for (const field of REQUIRED_RECEIPT_FIELDS) {
+    const payload = buildCanonicalReceiptPayload(receipt({ [field]: 0 }), { verdict: 'allow' });
+    assert.equal(payload[field], field === 'workspaceId' ? 'default' : '', field);
+  }
+});

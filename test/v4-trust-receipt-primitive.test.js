@@ -170,6 +170,12 @@ describe('V4-PR2.5: receipt chain — linking and genesis', () => {
     const result = validateReceiptChain(chain);
     assert.deepStrictEqual(result, { valid: true, brokenAt: null, reason: null });
   });
+
+  it('fails closed on a malformed append or validate input instead of chaining garbage', () => {
+    assert.throws(() => appendReceiptToChain(null), /requires a canonical receipt payload/);
+    assert.throws(() => appendReceiptToChain('not-a-payload'), /requires a canonical receipt payload/);
+    assert.throws(() => validateReceiptChain('not-an-array'), /requires an array of chained receipts/);
+  });
 });
 
 describe('V4-PR2.5: tamper detection', () => {
