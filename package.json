@@ -202,6 +202,8 @@
     "lib/a2a/bounded-exchange-values.js",
     "lib/a2a/capability-negotiation.js",
     "lib/a2a/delegation-audit-log.js",
+    "lib/a2a/delegation-depth.js",
+    "lib/a2a/exchange-error-record.js",
     "lib/a2a/exchange-route.js",
     "lib/a2a/exchange-route-authority.js",
     "lib/a2a/exchange-route-contract.js",

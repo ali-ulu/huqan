@@ -2720,6 +2720,14 @@
    "context": "AgentAction",
    "evidence": "docs/a2a-handoff-cursor.md: handoff-cursor.js resolves the human/target close through this termination allowlist"
   },
+  "lib/a2a/exchange-error-record.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-exchange-error-depth.md: typed exchange error triple reusing the evaluator reason set; test/a2a-exchange-error-depth.test.js proves unknown types stay unretryable"
+  },
+  "lib/a2a/delegation-depth.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-exchange-error-depth.md: named depth bound and visited set behind validateDelegation; test/a2a-exchange-error-depth.test.js proves the 16/17 boundary"
+  },
   "lib/a2a/pre-dispatch-intervention.js": {
    "context": "AgentAction",
    "evidence": "docs/a2a-pre-dispatch-intervention.md: handoff-dispatch.js validates allow/drop/modify and narrows action scope before admission"
@@ -5553,6 +5561,20 @@
     "Platform"
    ],
    "evidence": "index.js public resolveHandoffTermination export; docs/a2a-handoff-cursor.md and test/a2a-handoff-cursor.test.js prove the SDK caller"
+  },
+  "lib/a2a/exchange-error-record.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public buildExchangeErrorRecord export; docs/a2a-exchange-error-depth.md and test/a2a-exchange-error-depth.test.js prove the SDK caller"
+  },
+  "lib/a2a/delegation-depth.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public evaluateDelegationDepth export; docs/a2a-exchange-error-depth.md and test/a2a-exchange-error-depth.test.js prove the SDK caller"
   },
   "rustGraph.js": {
    "owner": "Knowledge",
