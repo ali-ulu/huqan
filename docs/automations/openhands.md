@@ -119,6 +119,13 @@ yalnız biri verilirse kurulum nedenini söyleyerek durur. Kartı değiştirmek 
 eklemeden yerinde güncellenir. Yerel olarak elle düzenlenmiş bir komut yine de
 geri alınmaz; kurulum üzerine yazmayı reddeder.
 
+Kimlik yolları kaydedilen komuta **tırnaksız** gömülür (tırnaklama, host'un
+çalıştırabileceği kabuklar arasında taşınabilir değildir). Bu yüzden boşluk,
+glob, kabuk operatörü ya da Windows `%`/`^` içeren bir yol okunmadan veya
+sınanmadan önce reddedilir; aksi halde yol token'lara bölünür ya da probe
+sırasında kabuk sözdizimi çalışabilirdi. Kart ve anahtar dosyalarını boşluksuz,
+metakaraktersiz bir dizinde tut.
+
 Kartı hook'a bağlamadan yalnız denemek istersen kimlik zorunluluğunu geçici
 olarak gevşetebilirsin:
 

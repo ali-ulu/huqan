@@ -499,6 +499,21 @@ test('a card without a trusted key is refused rather than armed unverifiable', t
   assert.throws(() => manageGate('install', partial), /needs --trusted-identity-keys/);
 });
 
+test('an identity path with whitespace or shell metacharacters is refused before it is read', t => {
+  // The recorded command is unquoted, so such a path would split into tokens
+  // or run shell syntax during the install probe (#2505).
+  const paths = sandbox(t);
+  const card = mintCard(paths);
+  const unsafe = path.join(paths.root, 'my keys', 'card.json');
+  assert.throws(() => manageGate('install', {
+    ...options(paths, 'openhands'),
+    identityCard: unsafe,
+    identityCardSignature: card.signaturePath,
+    trustedIdentityKeys: card.keysPath,
+  }), /cannot be used in an unquoted hook command/);
+  assert.equal(fs.existsSync(path.join(paths.root, '.openhands', 'hooks.json')), false);
+});
+
 test('rebinding an owned entry to a different card updates it in place', t => {
   const paths = sandbox(t);
   const first = mintCard(paths);

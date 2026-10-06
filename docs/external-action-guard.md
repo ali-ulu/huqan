@@ -165,7 +165,9 @@ huqan-gate install --profile openhands \
 ettiğini çalıştırarak kanıtlar; süresi geçmiş, yanlış ajan adına düzenlenmiş,
 güvenilmeyen anahtarla imzalanmış veya gerekli capability'yi vermeyen bir kart
 kurulumu reddettirir. Bu adım olmadan `rm -rf /` sentinel'i kart ölü olsa bile
-denylist üzerinden bloklar ve kurulum yanlışlıkla yeşil görünürdü. Kartı
+denylist üzerinden bloklar ve kurulum yanlışlıkla yeşil görünürdü. Kimlik yolları
+kaydedilen komuta tırnaksız gömüldüğü için boşluk, glob, kabuk operatörü veya
+Windows `%`/`^` içeren bir yol okunmadan önce reddedilir. Kartı
 değiştirmek için yeni kartla yeniden `install` çalıştır: sahiplenilen girdi
 ikinci kopya eklemeden yerinde güncellenir. Bu seçenekler yalnız JSON hook
 profillerinde (Claude Code, Codex, OpenHands) kullanılabilir; OpenCode, Pi ve
