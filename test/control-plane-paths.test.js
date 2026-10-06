@@ -256,6 +256,15 @@ test('#3560 feeding the REPL through a pipe, a redirect or a heredoc is refused'
   // A redirect before the subcommand is not argv: the shell still runs `onayla`.
   assert.equal(findOperatorDecisionCommand('huqan > out.txt onayla apr_1')?.command, 'onayla');
   assert.equal(findOperatorDecisionCommand('huqan 2>err.log terfi --aday a')?.command, 'terfi');
+  // The `&` of an fd duplication is part of the redirect, not a separator.
+  assert.equal(findOperatorDecisionCommand('huqan 2>&1 onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan >&2 terfi --aday a')?.command, 'terfi');
+  assert.equal(findOperatorDecisionCommand('huqan &>log.txt onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan 2>&1 < commands.txt')?.command, 'repl-stdin');
+  assert.equal(findOperatorDecisionCommand('echo "onayla x" |& huqan')?.command, 'repl-stdin');
+  // Real list separators still split: a background job, then another command.
+  assert.equal(findOperatorDecisionCommand('sleep 1 & huqan onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan ask soru 2>&1 && echo done'), null);
 });
 
 test('#3560 a subcommand the shell would still expand is a decision: fail-closed', () => {
