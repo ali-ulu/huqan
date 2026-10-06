@@ -61,6 +61,7 @@ test('compile-only type fixtures are found for the consumer compile step (#3546)
   const fixtures = typeFixtures();
   assert.deepEqual(fixtures.map((file) => path.relative(ROOT, file).split(path.sep).join('/')), [
     'fixtures/types/causal-runtime-consumer.ts',
+    'fixtures/types/cognitive-model-consumer.ts',
     'fixtures/types/symbolic-world-model-consumer.ts',
   ]);
 });

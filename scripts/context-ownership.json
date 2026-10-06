@@ -3514,6 +3514,30 @@
   }
  },
  "platform": {
+  "bin/huqan-neural-lab.js": {
+   "kind": "entry",
+   "evidence": "#3474 I6 bounded B7 experiment composition root"
+  },
+  "lib/cognitive-model-port.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 model-agnostic cognitive model port contract"
+  },
+  "lib/cognitive-model-local-ssm.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 local SSM candidate implementation"
+  },
+  "lib/cognitive-lab-neural-world.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 B7 bounded accumulation environment law"
+  },
+  "lib/cognitive-lab-neural-design.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 B7 preregistered design and input generator"
+  },
+  "lib/cognitive-lab-neural-experiment.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 B7 measurement orchestration"
+  },
   "fixtures/cognitive-lab/causal-confirmatory-generator.js": {
    "kind": "infra",
    "evidence": "#3467 preregistered synthetic experiment input generator; never imported by learner"

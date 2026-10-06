@@ -9,7 +9,8 @@
     "huqan-mcp": "./bin/huqan-mcp.js",
     "huqan-gate": "./bin/huqan-gate-hook.js",
     "huqan-cognitive-lab": "./bin/huqan-cognitive-lab.js",
-    "huqan-causal-lab": "./bin/huqan-causal-lab.js"
+    "huqan-causal-lab": "./bin/huqan-causal-lab.js",
+    "huqan-neural-lab": "./bin/huqan-neural-lab.js"
   },
   "scripts": {
     "prepublishOnly": "npm run check:package-closure",
@@ -1331,7 +1332,15 @@
     "lib/cognitive-lab-world-model-world.js",
     "lib/cognitive-lab-world-model-design.js",
     "lib/cognitive-lab-world-model-experiment.js",
-    "bin/huqan-causal-lab.js"
+    "bin/huqan-causal-lab.js",
+    "bin/huqan-neural-lab.js",
+    "lib/cognitive-model-port.js",
+    "lib/cognitive-model-local-ssm.js",
+    "lib/cognitive-lab-neural-world.js",
+    "lib/cognitive-lab-neural-design.js",
+    "lib/cognitive-lab-neural-experiment.js",
+    "lib/cognitive-model-port.d.ts",
+    "lib/cognitive-model-local-ssm.d.ts"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",

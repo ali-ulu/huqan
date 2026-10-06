@@ -30,7 +30,7 @@ No install: the same flow runs in the browser at [huqan.com](https://huqan.com) 
 npm install -g huqan     # Node.js 22.13.0 or newer
 ```
 
-Five binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for other agents), and two bounded experiment CLIs, `huqan-cognitive-lab` and `huqan-causal-lab`. `huqan doctor` reports what is configured.
+Six binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for other agents), and three bounded experiment CLIs, `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`. `huqan doctor` reports what is configured.
 
 ## How it works
 
