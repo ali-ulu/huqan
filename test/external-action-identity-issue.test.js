@@ -108,7 +108,7 @@ test('issuing over an existing card fails rather than overwriting it', t => {
 
 test('the capability-card example in docs/external-action-guard.md is valid', () => {
   const doc = fs.readFileSync(path.join(root, 'docs', 'external-action-guard.md'), 'utf8');
-  const blocks = [...doc.matchAll(/```json\n([\s\S]*?)```/g)].map(match => match[1]);
+  const blocks = [...doc.matchAll(/```json\r?\n([\s\S]*?)```/g)].map(match => match[1]);
   const example = blocks.map(block => JSON.parse(block))
     .find(parsed => parsed.schemaVersion === 'huqan.agent-identity-card.v1');
   assert.ok(example, 'the guard doc still shows a capability card example');
