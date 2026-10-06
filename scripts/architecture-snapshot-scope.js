@@ -200,11 +200,12 @@ const FANOUT_ALLOWED = Object.freeze([
   },
   {
     file: 'cli.js',
-    ceiling: 20,
-    why: 'Two of the requires wire the MemoryLifecycle the `memory-lifecycle` command drives (#3461): the Adapters '
-      + 'lifecycle may not require its Application receipt collaborators itself, and cli.js is the only ring allowed '
-      + 'to supply them. The wiring cannot move to a lib/ helper -- a lib/memory-* module is still Adapters, and a '
-      + 'lib/cli-* handler is still Core, so either would re-open the same upward edge.',
+    ceiling: 21,
+    why: 'Three of the requires wire collaborators the inner rings may not require themselves: the Adapters '
+      + 'MemoryLifecycle and its Application receipt chain (#3461), and the Adapters K0/K1 cognition consumer '
+      + 'lib/memory-hypothesis-cognition.js that lib/cli-hypotheses.js (Core) must not require (#3568). cli.js is '
+      + 'the only ring allowed to supply them, and the wiring cannot move to a lib/ helper -- a lib/memory-* module '
+      + 'is still Adapters, and a lib/cli-* handler is still Core, so either would re-open the same upward edge.',
     review_by: '2027-03-31',
   },
 ]);

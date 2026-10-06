@@ -318,7 +318,7 @@ const GOLDEN = {
   'quickstart': '097ac73961abd50b23c861e196ec87e88016692bcb4984d0b230bb889ee57049',
   'durum': '4699d07bb29fd69ac446d5339b9665308cdc30b81f9a7419855a390ea45a2db8',
   'rüya': 'a7b117822bec78d6c0a8e8604c91248c0c2a1ebf0e5f864e37cc9692a153aa59',
-  'hypotheses': '2844268257d59b93991d762615e197e28b0a9731f3a15bb596fff44b89d71ddf',
+  'hypotheses': 'c9b6106c303ee8294b5d1310a20ed1abba61092784444d1f41680a51fdcc3bfd',
   'selam': 'e0066643c5faa671ed4f704d0448575b6ba38cc0d38f06ac69054af8e1bbf311',
   // #2505 F re-recorded `yardım`: the help text is generated from the workflow
   // contract, which gained the `stop` and `lift` commands. Diffing the help

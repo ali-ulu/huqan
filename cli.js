@@ -26,9 +26,22 @@ const { installCliRuntimeMethods } = require('./lib/cli-runtime-methods');
 const { evaluateCliGate } = require('./lib/cli-gate-evaluation');
 const { createCliCommandHandlers } = require('./lib/cli-command-handlers');
 const { MemoryLifecycle } = require('./lib/memory-lifecycle');
+const {
+  compareHypothesisFrames, consumeHypothesisCognition,
+} = require('./lib/memory-hypothesis-cognition');
 const { GENESIS_PREVIOUS_HASH, appendReceiptToChain, validateReceiptChain } = require('./lib/receipt/receipt-chain');
 
-const CLI_COMMAND_HANDLERS = createCliCommandHandlers({ callMcpTool, createApprovalStoreFromKernel });
+// #3568 (R49): the K0/K1 cognition consumer, wired here for the same layer
+// reason as the receipt collaborators above -- lib/memory-hypothesis-cognition.js
+// is Adapters while lib/graph-hypotheses.js is Core, so the CLI entrypoint
+// passes it in rather than letting Core require it.
+const HYPOTHESIS_COGNITION = Object.freeze({ consumeHypothesisCognition, compareHypothesisFrames });
+
+const CLI_COMMAND_HANDLERS = createCliCommandHandlers({
+  callMcpTool,
+  createApprovalStoreFromKernel,
+  hypothesisCognition: HYPOTHESIS_COGNITION,
+});
 
 // The receipt collaborators `MemoryLifecycle` cannot require itself: it lives
 // in the Adapters ring while lib/receipt/* is Application, so the layer policy
