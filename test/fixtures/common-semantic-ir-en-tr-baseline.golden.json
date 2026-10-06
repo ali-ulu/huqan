@@ -1,0 +1,1937 @@
+{
+  "description": "EN/TR Common Semantic IR records produced by the L1 baseline (#3312) before the L2 language adapters (#3476). The adapters must leave every one of these byte-identical. Regenerate only from the pre-adapter module, never from the current one.",
+  "source": "lib/common-semantic-ir.js @ origin/main 5bff2104",
+  "cases": [
+    {
+      "text": "Deployment requires approval",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "Deployment",
+              "object": "approval",
+              "relation": "DEPENDS_ON",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "Deployment requires approval",
+              "subject": "Deployment",
+              "predicate": "requires approval",
+              "object": "requires approval"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "Deployment",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "approval",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "onayla ap-1",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "unknown",
+          "value": null,
+          "reason": "language_not_identified_from_baseline_markers"
+        },
+        "intent": {
+          "status": "present",
+          "value": {
+            "name": "onayla",
+            "args": {
+              "approvalId": "ap-1",
+              "decision": "approved",
+              "invalidDecision": false
+            },
+            "workflowId": "approval-decision",
+            "source": "command-parser"
+          },
+          "reason": "command-parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "onayla",
+              "object": "ap-1",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "onayla ap-1",
+              "subject": "onayla",
+              "predicate": "ap-1",
+              "object": "ap-1"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "onayla",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "ap-1",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The service is available",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The service",
+              "object": "is available",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The service is available",
+              "subject": "The service",
+              "predicate": "is available",
+              "object": "is available"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The service",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "is available",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The service may be available",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The",
+              "object": "service may be available",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The service may be available",
+              "subject": "The",
+              "predicate": "service may be available",
+              "object": "service may be available"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "service may be available",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The service was available yesterday",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The service",
+              "object": "was available yesterday",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The service was available yesterday",
+              "subject": "The service",
+              "predicate": "was available yesterday",
+              "object": "was available yesterday"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The service",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "was available yesterday",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "Deployment veritabanı zaman aşımı nedeniyle başarısız olur",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "Deployment",
+              "object": "veritabanı zaman aşımı nedeniyle başarısız olur",
+              "relation": "yapabilir",
+              "polarity": "affirmative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "Deployment veritabanı zaman aşımı nedeniyle başarısız olur",
+              "subject": "Deployment",
+              "predicate": "veritabanı zaman aşımı nedeniyle başarısız olur",
+              "object": "veritabanı zaman aşımı nedeniyle başarısız olur"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "Deployment",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "veritabanı zaman aşımı nedeniyle başarısız olur",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The deployment causes the incident",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The",
+              "object": "deployment causes the incident",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The deployment causes the incident",
+              "subject": "The",
+              "predicate": "deployment causes the incident",
+              "object": "deployment causes the incident"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "deployment causes the incident",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "AI causes delay",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "AI",
+              "object": "delay",
+              "relation": "CAUSES",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "AI causes delay",
+              "subject": "AI",
+              "predicate": "causes delay",
+              "object": "causes delay"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "AI",
+              "status": "ambiguous",
+              "reason": "ambiguous_alias_requires_domain",
+              "candidates": [
+                "air_india",
+                "artificial_intelligence",
+                "adobe_illustrator"
+              ]
+            },
+            {
+              "text": "delay",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "AI gecikmeye neden olur",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "AI",
+              "object": "gecikme",
+              "relation": "CAUSES",
+              "polarity": "affirmative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "AI gecikmeye neden olur",
+              "subject": "AI",
+              "predicate": "gecikmeye neden olur",
+              "object": "gecikmeye neden olur"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "AI",
+              "status": "ambiguous",
+              "reason": "ambiguous_alias_requires_domain",
+              "candidates": [
+                "air_india",
+                "artificial_intelligence",
+                "adobe_illustrator"
+              ]
+            },
+            {
+              "text": "gecikme",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "sistem çalışır",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "sistem",
+              "object": "çalışır",
+              "relation": "yapabilir",
+              "polarity": "affirmative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "sistem çalışır",
+              "subject": "sistem",
+              "predicate": "çalışır",
+              "object": "çalışır"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "sistem",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "çalışır",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "sistem çalışmaz",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "sistem",
+              "object": "çalışmaz",
+              "relation": "değil",
+              "polarity": "negative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "sistem çalışmaz",
+              "subject": "sistem",
+              "predicate": "çalışmaz",
+              "object": "çalışmaz"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "sistem",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "çalışmaz",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The deployment does not require approval",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The deployment",
+              "object": "does not require approval",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The deployment does not require approval",
+              "subject": "The deployment",
+              "predicate": "does not require approval",
+              "object": "does not require approval"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The deployment",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "does not require approval",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "AI helps",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "unknown",
+          "value": null,
+          "reason": "language_not_identified_from_baseline_markers"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "AI",
+              "object": "helps",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "AI helps",
+              "subject": "AI",
+              "predicate": "helps",
+              "object": "helps"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "AI",
+              "status": "ambiguous",
+              "reason": "ambiguous_alias_requires_domain",
+              "candidates": [
+                "air_india",
+                "artificial_intelligence",
+                "adobe_illustrator"
+              ]
+            },
+            {
+              "text": "helps",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "neden hava sıcak",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "present",
+          "value": {
+            "name": "neden",
+            "args": "hava sıcak",
+            "workflowId": "reason",
+            "source": "command-parser"
+          },
+          "reason": "command-parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "neden",
+              "object": "hava sıcak",
+              "relation": "özellik",
+              "polarity": "affirmative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "neden hava sıcak",
+              "subject": "neden",
+              "predicate": "hava sıcak",
+              "object": "hava sıcak"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "neden",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "hava sıcak",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "read README",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "unknown",
+          "value": null,
+          "reason": "language_not_identified_from_baseline_markers"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_relation_from_baseline_predicate_parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "read README",
+              "subject": "read README",
+              "predicate": "",
+              "object": "read README"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "read README",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "göz üzüm",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "göz",
+              "object": "üzüm",
+              "relation": "özellik",
+              "polarity": "affirmative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "göz üzüm",
+              "subject": "göz",
+              "predicate": "üzüm",
+              "object": "üzüm"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "göz",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "üzüm",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "Kedi hayvandır",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "tr",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "Kedi",
+              "object": "hayvan",
+              "relation": "tür",
+              "polarity": "affirmative",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "Kedi hayvandır",
+              "subject": "Kedi",
+              "predicate": "hayvandır",
+              "object": "hayvandır"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "Kedi",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "hayvan",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "Cats are animals",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "Cats",
+              "object": "are animals",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "Cats are animals",
+              "subject": "Cats",
+              "predicate": "are animals",
+              "object": "are animals"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "Cats",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "are animals",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The war is over",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The war",
+              "object": "is over",
+              "relation": "yapabilir",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The war is over",
+              "subject": "The war",
+              "predicate": "is over",
+              "object": "is over"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The war",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "is over",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "The die is cast",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "The die",
+              "object": "is cast",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "The die is cast",
+              "subject": "The die",
+              "predicate": "is cast",
+              "object": "is cast"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "The die",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "is cast",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "Straße is closed",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "present",
+          "value": "en",
+          "reason": "baseline_marker_detection"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "Straße",
+              "object": "is closed",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "Straße is closed",
+              "subject": "Straße",
+              "predicate": "is closed",
+              "object": "is closed"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "Straße",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "is closed",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "hello world",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "unknown",
+          "value": null,
+          "reason": "language_not_identified_from_baseline_markers"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_entity_resolved_by_baseline_registry"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "hello",
+              "object": "world",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "hello world",
+              "subject": "hello",
+              "predicate": "world",
+              "object": "world"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "hello",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            },
+            {
+              "text": "world",
+              "status": "unresolved",
+              "reason": "unknown_alias"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    },
+    {
+      "text": "AI helps",
+      "domain": "tech",
+      "ir": {
+        "version": "1.0.0",
+        "language": {
+          "status": "unknown",
+          "value": null,
+          "reason": "language_not_identified_from_baseline_markers"
+        },
+        "intent": {
+          "status": "unknown",
+          "value": null,
+          "reason": "command_not_recognized_by_baseline_parser"
+        },
+        "entities": {
+          "status": "present",
+          "value": [
+            {
+              "text": "AI",
+              "canonical": "artificial_intelligence",
+              "domain": "tech",
+              "aliases": [
+                "ai",
+                "artificial intelligence"
+              ]
+            }
+          ],
+          "reason": "entity-resolution"
+        },
+        "relations": {
+          "status": "present",
+          "value": [
+            {
+              "subject": "AI",
+              "object": "helps",
+              "relation": "özellik",
+              "polarity": "unknown",
+              "restriction": false
+            }
+          ],
+          "reason": "predicate-parser"
+        },
+        "claims": {
+          "status": "present",
+          "value": [
+            {
+              "id": "claim_1",
+              "text": "AI helps",
+              "subject": "AI",
+              "predicate": "helps",
+              "object": "helps"
+            }
+          ],
+          "reason": "claim-decomposition:compound=false;warnings=none"
+        },
+        "constraints": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_constraint_parser_in_baseline"
+        },
+        "temporal": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_temporal_parser_in_baseline"
+        },
+        "modality": {
+          "status": "unknown",
+          "value": null,
+          "reason": "no_modality_parser_in_baseline"
+        },
+        "references": {
+          "status": "present",
+          "value": [
+            {
+              "text": "helps",
+              "status": "unresolved",
+              "reason": "unknown_alias_in_domain"
+            }
+          ],
+          "reason": "entity-resolution:unresolved-or-ambiguous-candidates"
+        },
+        "confidence": {
+          "status": "unknown",
+          "value": null,
+          "reason": "baseline_confidence_is_not_calibrated"
+        }
+      }
+    }
+  ]
+}
