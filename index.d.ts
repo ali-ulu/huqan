@@ -2,6 +2,8 @@ import Kernel = require('./kernel');
 import KernelV2 = require('./kernel.v2');
 import { CausalRuntime } from './lib/causal/causal-runtime';
 import { LearnedCausalEngine } from './lib/causal/learned-causal-engine';
+import { createLocalNeuralModel } from './lib/cognitive-model-local-ssm';
+import { validateProposal as validateCognitiveModelProposal } from './lib/cognitive-model-port';
 
 type A2aStageContext = Readonly<{
   workspaceId: string;
@@ -29,6 +31,8 @@ declare const huqan: typeof KernelV2 & {
   KernelV2: typeof KernelV2;
   CausalRuntime: typeof CausalRuntime;
   LearnedCausalEngine: typeof LearnedCausalEngine;
+  createLocalNeuralModel: typeof createLocalNeuralModel;
+  validateCognitiveModelProposal: typeof validateCognitiveModelProposal;
 
   /** @deprecated Use KernelV2 / require('huqan'). Removed in the next major. */
   KernelV1: typeof Kernel;

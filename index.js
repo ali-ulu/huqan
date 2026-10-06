@@ -177,3 +177,8 @@ module.exports.toOtlpHttpPayload = trustInteropOtel.toOtlpHttpPayload;
 // Opt-in bounded causal learning over verified ExperienceJournal outcomes.
 module.exports.CausalRuntime = require('./lib/causal/causal-runtime').CausalRuntime;
 module.exports.LearnedCausalEngine = require('./lib/causal/learned-causal-engine').LearnedCausalEngine;
+
+// Opt-in local neural cognition candidate (#3474 I6). It is a CANDIDATE_ONLY
+// proposal through the model-agnostic port; it is never authority.
+module.exports.createLocalNeuralModel = require('./lib/cognitive-model-local-ssm').createLocalNeuralModel;
+module.exports.validateCognitiveModelProposal = require('./lib/cognitive-model-port').validateProposal;
