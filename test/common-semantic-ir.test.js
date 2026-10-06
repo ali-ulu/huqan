@@ -218,6 +218,8 @@ test('EN/TR records are byte-identical to the pre-adapter baseline', () => {
   for (const entry of BASELINE_GOLDEN.cases) {
     const ir = buildCommonSemanticIR(entry.text, { domain: entry.domain, normalizeWord: NORMALIZE });
     assert.deepEqual(ir, entry.ir, entry.text);
+    // deepEqual ignores key order; the invariant is the serialized record.
+    assert.equal(JSON.stringify(ir), JSON.stringify(entry.ir), entry.text);
   }
 });
 
@@ -227,6 +229,17 @@ test('German and Arabic are identified; unmarked text still stays unknown', () =
   assert.equal(detectLanguage('القط هو حيوان'), 'ar');
   assert.equal(detectLanguage('hello world'), 'unknown');
   assert.equal(detectLanguage('Bereitstellung Genehmigung'), 'unknown');
+  // Words German shares with English are not German evidence on their own.
+  assert.equal(detectLanguage('war ended'), 'unknown');
+  assert.equal(detectLanguage('die hard'), 'unknown');
+});
+
+test('mixed script follows the dominant script, not the first marker word', () => {
+  // Arabic-led text with an English marker is Arabic and reaches the Arabic
+  // pack; English-led text quoting an Arabic word stays English.
+  assert.equal(detectLanguage('اقرأ the الملف'), 'ar');
+  assert.equal(buildCommonSemanticIR('اقرأ the الملف').claims.reason, 'nlp-pack:arabic');
+  assert.equal(detectLanguage('The word كتاب is a noun'), 'en');
 });
 
 test('shared ö/ü decides nothing alone: German evidence makes it German, otherwise Turkish', () => {

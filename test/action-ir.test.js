@@ -225,7 +225,7 @@ test('a plan in a new language leaves policy unchanged and is never authorized (
   assert.equal(baseline.execution.value.authorized, true);
 
   for (const [language, text] of [
-    ['de', 'Lies die Datei README'],
+    ['de', 'Lies die Datei README und den Bericht'],
     ['ar', 'اقرأ هو الملف'],
   ]) {
     const ir = buildActionIR({ text, action: action() }, OPTS);
