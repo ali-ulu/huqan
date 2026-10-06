@@ -277,3 +277,36 @@ test('#3560 the real argv entry maps a terminal-less approval to the unauthorize
     closeCli(cli);
   }
 }));
+
+function fakeReadline() {
+  const { EventEmitter } = require('node:events');
+  const rl = new EventEmitter();
+  rl.question = (prompt, callback) => { rl.pending = callback; };
+  return rl;
+}
+
+test('#3560 stdin closing before an answer declines the approval instead of hanging', async () => {
+  const { askOnce, confirmOperatorPresence } = require('../lib/cli-promote');
+  const closed = fakeReadline();
+  const asked = askOnce(closed, 'version? ');
+  closed.emit('close');
+  assert.equal(await asked, '');
+
+  const answered = fakeReadline();
+  const reply = askOnce(answered, 'version? ');
+  answered.pending('v2');
+  assert.equal(await reply, 'v2');
+  assert.equal(answered.listenerCount('close'), 0, 'an answered question leaves no close listener behind');
+
+  // Closed before the question was asked: no close event will come and a real
+  // interface would throw, so it answers empty at once.
+  const alreadyClosed = fakeReadline();
+  alreadyClosed.closed = true;
+  alreadyClosed.question = () => { throw new Error('ERR_USE_AFTER_CLOSE'); };
+  assert.equal(await askOnce(alreadyClosed, 'version? '), '');
+
+  // The empty answer EOF yields is a declined approval, never a pass.
+  const atEof = await confirmOperatorPresence('v2', { input: { isTTY: true }, ask: () => '' });
+  assert.equal(atEof.ok, false);
+  assert.equal(atEof.code, 'operator_confirmation_mismatch');
+});

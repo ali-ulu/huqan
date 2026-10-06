@@ -180,6 +180,14 @@ test('#3560 recognizes HUQAN CLI invocations that record an operator decision', 
     ['C:\\tools\\huqan.cmd terfi', 'terfi'],
     ['cd repo && huqan TERFI --aday a', 'terfi'],
     ['"huqan" "onayla" apr_1', 'onayla'],
+    ['bash -c "huqan terfi --karar approved"', 'terfi'],
+    ['cmd /c huqan onayla apr_1', 'onayla'],
+    ['env A=1 huqan terfi', 'terfi'],
+    ['npm exec -- huqan onayla apr_1', 'onayla'],
+    ['npm x huqan onayla apr_1', 'onayla'],
+    ['pnpm dlx huqan terfi', 'terfi'],
+    ['echo $(huqan terfi)', 'terfi'],
+    ['echo `huqan onayla apr_1`', 'onayla'],
   ];
   for (const [command, verb] of decisions) {
     const match = findOperatorDecisionCommand(command);
@@ -197,6 +205,11 @@ test('#3560 leaves reads and non-decision HUQAN commands alone', () => {
     'cat cli.js',
     'huqanx terfi',
     'echo huqan',
+    'echo huqan terfi',
+    'git commit -m "huqan terfi"',
+    'node script.js huqan terfi',
+    'npm run huqan terfi',
+    'huqan ask "$(cat question.txt)"',
     '',
   ];
   for (const command of benign) {
@@ -204,8 +217,26 @@ test('#3560 leaves reads and non-decision HUQAN commands alone', () => {
   }
 });
 
+test('#3560 reads the verb the shell would run, after its quotes and escapes are removed', () => {
+  const obfuscated = [
+    ['huqan on""ayla apr_1 approved', 'onayla'],
+    ["huqan 'te'rfi --karar approved", 'terfi'],
+    ['huqan te\\rfi', 'terfi'],
+    ['hu""qan onayla apr_1', 'onayla'],
+  ];
+  for (const [command, verb] of obfuscated) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, verb, command);
+  }
+});
+
+test('#3560 a subcommand the shell would still expand is a decision: fail-closed', () => {
+  for (const command of ['huqan $(echo terfi)', 'huqan $VERB --aday a', 'huqan `printf onayla` apr_1']) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, 'unresolved', command);
+  }
+});
+
 test('#3560 an agent shell running an operator decision is blocked, and no deployment option lifts it', () => {
-  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1']) {
+  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1', 'huqan on""ayla apr_1 approved']) {
     const result = evaluate({ toolName: 'Bash', args: { command } });
     assert.equal(result.decision, 'block', command);
     assert.equal(result.reason, 'external_action_operator_decision_blocked', command);
@@ -213,6 +244,8 @@ test('#3560 an agent shell running an operator decision is blocked, and no deplo
     const maintenance = evaluate({ toolName: 'Bash', args: { command } }, { allowControlPlane: true });
     assert.equal(maintenance.reason, 'external_action_operator_decision_blocked', `${command} under allowControlPlane`);
   }
-  const listing = evaluate({ toolName: 'Bash', args: { command: 'huqan onaylar' } });
-  assert.notEqual(listing.reason, 'external_action_operator_decision_blocked');
+  for (const command of ['huqan onaylar', 'echo huqan terfi']) {
+    const result = evaluate({ toolName: 'Bash', args: { command } });
+    assert.notEqual(result.reason, 'external_action_operator_decision_blocked', command);
+  }
 });
