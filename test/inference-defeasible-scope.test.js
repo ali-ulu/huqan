@@ -92,17 +92,19 @@ test('a defeater names the claim it is over, so two absences stay distinguishabl
   const scope = { scopeId: 'kb-1', closedWorld: true };
   const first = deriveScopedIntake({ status: 'not_proven', claim: fact('edge', 'a', 'z'), scope });
   const second = deriveScopedIntake({ status: 'not_proven', claim: fact('edge', 'b', 'z'), scope });
-  assert.equal(first.claim, 'edge(a, z)');
-  assert.equal(first.defeater.claim, 'edge(a, z)');
+  assert.equal(first.claim, 'edge("a", "z")');
+  assert.equal(first.defeater.claim, 'edge("a", "z")');
   assert.notEqual(first.defeater.claim, second.defeater.claim, 'same scope and reason, different claims');
   assert.equal(first.defeater.scopeId, second.defeater.scopeId);
   assert.equal(first.defeater.reason, second.defeater.reason);
 });
 
 test('describeClaim renders the rule-IR atom and refuses a non-atom', () => {
-  assert.equal(describeClaim(fact('edge', 'a', 'c')), 'edge(a, c)');
+  assert.equal(describeClaim(fact('edge', 'a', 'c')), 'edge("a", "c")');
   assert.equal(describeClaim('edge(a, c)'), 'edge(a, c)');
   assert.equal(describeClaim({ predicate: 'p', args: [variable('X')] }), 'p(X)');
+  assert.equal(describeClaim({ predicate: 'p', args: [constant('X')] }), 'p("X")', 'a constant X must not read as a variable X');
+  assert.equal(describeClaim({ predicate: 'p', args: [variable('X'), constant('X')] }), 'p(X, "X")');
   assert.equal(describeClaim({ predicate: 'p', args: [] }), 'p', 'an atom with no args is just its predicate');
   assert.equal(describeClaim({ predicate: 'p', args: ['a', 7, true] }), 'p(a, 7, true)', 'raw scalars render directly');
   assert.equal(describeClaim({ predicate: 'p', args: [null, { kind: 'unknown' }] }), 'p(_, _)', 'unreadable terms degrade to a placeholder');
