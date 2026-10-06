@@ -85,3 +85,58 @@ test('#2129: writer round-trips every mutation through SQLite', () => {
   fresh.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('#3492: persistSupersede stores the hash, and null when a record carries none', () => {
+  const MemoryStore = require('../lib/memory-store');
+  const { persistSupersede } = require('../lib/memory-store-sqlite-writer');
+  const { getContentHash } = require('../lib/memory-store-utils');
+  const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-3492-'));
+  const store = new MemoryStore({ useSQLite: true, dbPath: path.join(dir, 's.db') });
+
+  const base = {
+    workspaceId: 'ws-3492',
+    kind: 'memory-record',
+    status: 'active',
+    metadata: {},
+    provenance: { provenanceId: 'p', sourceRef: 'r', sourceTitle: 'T', sourceType: 'api', actor: 'a', timestamp: '2026-06-03T00:00:00.000Z', workspaceId: 'ws-3492', trustPolicyVersion: '1.0.0', confidence: 1 },
+    trustPolicyVersion: '1.0.0',
+    createdAt: '2026-06-03T00:00:00.000Z',
+  };
+  const oldRecord = { ...base, memoryId: 'mem-old', content: { text: 'old' } };
+  // No supersedesMemoryId/supersedesHash: the writer's `|| null` fallback must
+  // store NULL rather than the string 'undefined'.
+  const bareRecord = { ...base, memoryId: 'mem-bare', content: { text: 'bare' } };
+  const hashedRecord = { ...base, memoryId: 'mem-hashed', content: { text: 'new' }, supersedesMemoryId: 'mem-old', supersedesHash: 'deadbeef' };
+
+  const event = (memoryId, suffix = '') => ({
+    workspaceId: 'ws-3492', eventId: `evt-${memoryId}${suffix}`, eventType: 'CREATED', memoryId, actor: 'a',
+    details: {}, provenance: base.provenance, trustPolicyVersion: '1.0.0', createdAt: base.createdAt,
+  });
+  const link = (fromMemoryId) => ({
+    workspaceId: 'ws-3492', linkId: `link-${fromMemoryId}`, relation: 'supersedes', fromMemoryId, toMemoryId: 'mem-old',
+    strength: 1, provenance: base.provenance, trustPolicyVersion: '1.0.0', createdAt: base.createdAt, metadata: {},
+    supersedesHash: 'deadbeef', newContentHash: 'cafef00d',
+  });
+  
+
+  persistSupersede(store, {
+    newRecord: bareRecord, oldRecord, link: link('mem-bare'), event: event('mem-bare'), oldMemoryUpdateEvent: event('mem-old', '-a'), getContentHash,
+  });
+  persistSupersede(store, {
+    newRecord: hashedRecord, oldRecord, link: link('mem-hashed'), event: event('mem-hashed'), oldMemoryUpdateEvent: event('mem-old', '-b'), getContentHash,
+  });
+
+  const fresh = new MemoryStore({ useSQLite: true, dbPath: path.join(dir, 's.db') });
+  const bare = fresh.get('mem-bare', { workspaceId: 'ws-3492' });
+  assert.equal(bare.ok, true);
+  assert.equal(bare.memory.supersedesMemoryId, undefined, 'an absent supersede id reads back as absent, not a string');
+  assert.equal(bare.memory.supersedesHash, undefined);
+  const hashed = fresh.get('mem-hashed', { workspaceId: 'ws-3492' });
+  assert.equal(hashed.memory.supersedesMemoryId, 'mem-old');
+  assert.equal(hashed.memory.supersedesHash, 'deadbeef');
+
+  store.close();
+  fresh.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
