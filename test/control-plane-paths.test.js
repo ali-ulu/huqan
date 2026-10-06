@@ -229,6 +229,35 @@ test('#3560 reads the verb the shell would run, after its quotes and escapes are
   }
 });
 
+test('#3560 feeding the REPL through a pipe, a redirect or a heredoc is refused', () => {
+  const fed = [
+    'echo "onayla apr_1" | huqan',
+    'printf "terfi\\n" | npx huqan --json',
+    'huqan < commands.txt',
+    'huqan<commands.txt',
+    'huqan 0< commands.txt',
+    'huqan <<EOF',
+    'huqan <<< "onayla apr_1"',
+  ];
+  for (const command of fed) {
+    assert.equal(findOperatorDecisionCommand(command)?.command, 'repl-stdin', command);
+  }
+  const ordinary = [
+    'cat question.txt | huqan ask soru',
+    'huqan ask soru > out.txt 2>&1',
+    'huqan onaylar > list.txt',
+    'huqan || echo failed',
+    'echo huqan | grep huq',
+  ];
+  for (const command of ordinary) {
+    assert.equal(findOperatorDecisionCommand(command), null, command);
+  }
+  assert.equal(findOperatorDecisionCommand('huqan onayla apr_1 > out.txt')?.command, 'onayla');
+  // A redirect before the subcommand is not argv: the shell still runs `onayla`.
+  assert.equal(findOperatorDecisionCommand('huqan > out.txt onayla apr_1')?.command, 'onayla');
+  assert.equal(findOperatorDecisionCommand('huqan 2>err.log terfi --aday a')?.command, 'terfi');
+});
+
 test('#3560 a subcommand the shell would still expand is a decision: fail-closed', () => {
   for (const command of ['huqan $(echo terfi)', 'huqan $VERB --aday a', 'huqan `printf onayla` apr_1']) {
     assert.equal(findOperatorDecisionCommand(command)?.command, 'unresolved', command);
@@ -236,7 +265,7 @@ test('#3560 a subcommand the shell would still expand is a decision: fail-closed
 });
 
 test('#3560 an agent shell running an operator decision is blocked, and no deployment option lifts it', () => {
-  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1', 'huqan on""ayla apr_1 approved']) {
+  for (const command of ['huqan terfi --aday a.json --karar approved', 'npx huqan onayla apr_1', 'huqan on""ayla apr_1 approved', 'echo "onayla apr_1" | huqan']) {
     const result = evaluate({ toolName: 'Bash', args: { command } });
     assert.equal(result.decision, 'block', command);
     assert.equal(result.reason, 'external_action_operator_decision_blocked', command);

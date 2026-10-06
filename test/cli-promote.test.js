@@ -286,7 +286,7 @@ function fakeReadline() {
 }
 
 test('#3560 stdin closing before an answer declines the approval instead of hanging', async () => {
-  const { askOnce, confirmOperatorPresence } = require('../lib/cli-promote');
+  const { askOnce, confirmOperatorPresence } = require('../lib/cli-operator-presence');
   const closed = fakeReadline();
   const asked = askOnce(closed, 'version? ');
   closed.emit('close');
@@ -306,7 +306,7 @@ test('#3560 stdin closing before an answer declines the approval instead of hang
   assert.equal(await askOnce(alreadyClosed, 'version? '), '');
 
   // The empty answer EOF yields is a declined approval, never a pass.
-  const atEof = await confirmOperatorPresence('v2', { input: { isTTY: true }, ask: () => '' });
+  const atEof = await confirmOperatorPresence({ command: 'terfi', subject: 'candidate version', expected: 'v2' }, { input: { isTTY: true }, ask: () => '' });
   assert.equal(atEof.ok, false);
   assert.equal(atEof.code, 'operator_confirmation_mismatch');
 });

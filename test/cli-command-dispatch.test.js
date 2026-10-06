@@ -117,6 +117,10 @@ stubExports('../lib/sqlite-restore', {
 const CLI = require('../cli');
 const { mapCliCommandToMcpTool } = require('../lib/cli-helpers');
 
+// #3560: deciding an approval needs the operator at a terminal typing the
+// approval id back; these tests stand in for that operator.
+const operatorAt = (approvalId) => ({ operatorInput: { isTTY: true }, operatorAsk: () => approvalId });
+
 const CAPABILITY_RESULT = Object.freeze({
   ok: true, added: 2, files: 3, urls: 1, commits: 4, decisionId: 'd1',
   answer: 'Answer', source: 'Source', sourceRefs: ['r1'], totalNodes: 9,
@@ -216,11 +220,11 @@ const CASES = [
   ['backup', ''], ['backup', '', {}, { kernel: { auditBroken: true } }],
   ['kaydet', ''], ['kaydet', '', {}, { kernel: { auditBroken: true } }],
   ['onaylar', ''], ['onaylar', { workspaceId: 'w1' }, { json: true }], ['onaylar', { workspaceId: 'broken' }],
-  ['onayla', 'a1 approved'], ['onayla', { approvalId: 'a1', decision: 'rejected', workspaceId: 'w2' }, { json: true }],
+  ['onayla', 'a1 approved', operatorAt('a1')], ['onayla', { approvalId: 'a1', decision: 'rejected', workspaceId: 'w2' }, { json: true, ...operatorAt('a1') }],
   ['onayla', ''], ['onayla', 'a1 maybe'],
-  ['onayla', { approvalId: 'async-fail', decision: 'approved' }],
-  ['onayla', { approvalId: 'async-fail', decision: 'approved' }, { throwOnError: true }],
-  ['onayla', { approvalId: 'no-code', decision: 'approved' }, { throwOnError: true }],
+  ['onayla', { approvalId: 'async-fail', decision: 'approved' }, operatorAt('async-fail')],
+  ['onayla', { approvalId: 'async-fail', decision: 'approved' }, { throwOnError: true, ...operatorAt('async-fail') }],
+  ['onayla', { approvalId: 'no-code', decision: 'approved' }, { throwOnError: true, ...operatorAt('no-code') }],
   ['audit', { limit: 5 }], ['receipt', 'show r1'], ['coder', 'spec'],
   ['restore', ''], ['restore', 'dry'], ['restore', { backupDir: 'backups/b1' }, { json: true }], ['restore', 'broken'],
   ['restore', '', {}, { storage: { open: true } }],
