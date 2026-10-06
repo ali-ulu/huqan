@@ -182,3 +182,16 @@ Kapı §17.1'deki kuralla, kural ve külliye değiştirilmeden uygulandı (`lib/
 - **Doğrulayıcı verdict: `REJECT` (`candidate_wrong_write`), `intelligenceGain = NOT_MEASURED`.** Kapı alıntı satırı ve kod bloğu vakalarını durdurdu. Düz anlatımdaki geçmiş kaydı göremedi ve yazdı. Ayrıca kod bloğundaki **güncel** kullanım örneğini de reddetti, yani doğru bir değişikliği kaçırdı. Guard olmasa da primer aralık sıfırı geçmiyor.
 - **v1 tanısal sonucu, §17'nin neden gerekli olduğunu gösteriyor:** v1'de evaluator `MEASURED / paired_gain_measured` verir. Kapı bu üç vakaya bakılarak tasarlandığı için bu bir holdout uyumudur ve kazanç kanıtı sayılmaz.
 - **Karar:** sözdizimsel bir bağlam kapısı yanlış yazmaları 3'ten 1'e indirdi ama sıfırlamadı, ve bir doğru değişikliğin bedeline mal oldu. Kalan hata anlamsaldır (tırnaksız geçmiş anlatım). Sözdizimiyle çözülemez. B4 gain kabulü **karşılanmadı**. Ölçüm tarafında kalan seçenekler ürün kararıdır: `medium` risk politikası (3 doğru değişiklik kaçırılıyor), anlamsal bağlam sinyali, yol genellemesi.
+
+## 19. Manifest bağlama (#3562, I6c)
+
+§15 `mechanisms.B4 = 'ENABLED'` ve manifest alanlarını zaten kilitliyordu; ancak ölçüm yalnız test dosyasında yaşıyordu ve `lib/` içinde bir koşucu yoktu (§11 wiring ertelenmişti). Bu dilim, ölçümü üretim yüzeyine bağlar:
+
+- `lib/cognitive-lab-b4-evaluator.js` — donmuş `CONTRACT` (metric/direction/seed/resamples/confidence/meaningfulEffect/wrongWriteTolerance/minimumSamples/minimumTransfer) ve saf, fail-closed `evaluate`. Test dosyasındaki kopya buraya taşındı; `test/cognitive-lab-b4-transfer.test.js` aynı sözleşmeyi bu modülden okur, böylece iki taraf kayamaz.
+- `lib/cognitive-lab-b4-experiment.js` — `runB4Experiment` kayıtlardan split türetir, `mechanisms.B4='ENABLED'` (diğerleri `NOT_MEASURED`) manifesti üretir ve değerlendirme raporunu manifest ile birlikte döner. Manifest şekli #3456'nın mühürlediği şekildir (train = mühürlü `source-*` id'leri, fixture/split identity = külliye digest'i). Çıktı **candidate-only**: `authority='MODEL_AUTHORITY'`, `canonical=false`, `automaticPromotion=false`; hiçbir kod yolu terfi ettirmez.
+- `lib/cognitive-lab-cli.js` — opt-in `b4 --b4-records FILE` alt yolu runner'ı çağırır; store açmaz, kanonik belleğe dokunmaz (B1 `replay` ve B6 `b6` deseniyle aynı). `trainIds` yoksa manifest `INSUFFICIENT` olur (fail-closed).
+
+Külliye ve kollar hâlâ test harness'ında kalır (gerçek coder runtime'ını sürer); runner `records` üzerinde saf bir fonksiyondur. Ölçüm sonucu değişmez: **v2 doğrulayıcı verdict `REJECT` (`candidate_wrong_write`), `assertsGain=false`, `intelligenceGain=NOT_MEASURED`** — yani manifest yayımlanır ama **gain iddia edilmez**. Doğrulama cümlesi: "Procedure transfer yok; output candidate only."
+
+§11'in **üretim wiring'i** (eksik tanımlı dispatch, `intentOnly`), bu dilimin dışındadır ve ayrı bir runtime değişikliği olarak ele alınmalıdır.
+

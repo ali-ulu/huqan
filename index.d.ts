@@ -96,6 +96,25 @@ declare const huqan: typeof KernelV2 & {
     previousOutcome?: string;
   }>> };
 
+  createA2aHandoffCursor: (directory: string) => {
+    recordCursor: (cursor: {
+      from_agent_id: string; to_agent_id: string;
+      route_receipt_id: string; timestamp: string;
+    }) => Readonly<{ recorded: boolean; duplicate?: boolean; reason?: string }>;
+    readCursor: (routeReceiptId: string) => Readonly<{
+      found: boolean; active?: boolean; corrupt?: boolean;
+      cursor?: unknown; termination?: unknown;
+    }>;
+    closeCursor: (routeReceiptId: string, closure: {
+      handoffReason: string; closedBy: string; timestamp: string;
+    }) => Readonly<{ closed: boolean; reason?: string; termination?: unknown }>;
+  };
+  CURSOR_SCHEMA_VERSION: string;
+  HANDOFF_TERMINATION_REASONS: Record<string, string>;
+  resolveHandoffTermination: (request: {
+    handoffReason: string; closedBy: string;
+  }) => Readonly<{ handoffReason: string; closedBy: string; terminationReason: string }>;
+
   HumanOversightApprovalRuntime: Record<string, any>;
   createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;
   HUMAN_OVERSIGHT_RUNTIME_VERSION: string;
