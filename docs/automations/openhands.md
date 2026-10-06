@@ -83,35 +83,89 @@ HUQAN girdisini sessizce geri almaz; üzerine yazmayı reddeder.
 Kurulum bir şey yazdığı için OpenHands'un hook'a yeniden güvenmesi
 gerekebilir; `install` çıktısı bunu söyler.
 
-### Uçtan uca doğrulama
+### Kimlik kartını hook'a bağlama
 
-Hook komutu doğrudan çalıştırılarak ölçülebilir. Girdi stdin'den gelir,
-çıktı stdout'tadır:
+Varsayılan dağıtımda **kimlik kartı zorunludur** (bkz. `docs/external-action-guard.md`
+§ Agent identity), bu yüzden kartsız bir kurulumda zararsız bir komut bile
+`agent_identity_card_required` ile bloklanır — bu OpenHands'a özel değil, tüm
+profillerin ortak fail-closed davranışıdır. Kartı bir kez üret ve `install`'a
+ver; gate kartı kaydedilen hook komutuna ekler, böylece ajan her çağrıda kartı
+taşır:
 
 ```bash
-echo '{"event_type":"PreToolUse","tool_name":"terminal","tool_input":{"command":"rm -rf /"},"session_id":"manual-check","working_dir":"'"$PWD"'"}' \
-  | node bin/huqan-gate-hook.js --profile openhands
+# 1) İmza anahtar çifti ve kart (agent-id hook'un raporladığı agentName olmalı: openhands)
+npx huqan-gate identity issue --generate-keypair ./keys
+npx huqan-gate identity issue \
+  --agent-id openhands --owner actor:ali \
+  --capabilities shell,file_read,file_write \
+  --out card.json \
+  --sign-key ./keys/identity-card-private.pem
+
+# 2) Kartı hook komutuna bağlayarak kur
+npx huqan-gate install --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
 ```
 
-Beklenen: stdout'ta `{"decision":"deny","reason":"... DENYLISTED_COMMAND_BLOCKED ..."}`.
-`session_id` zorunludur; eksik bir payload (`missing_session_id`) fail-closed
-engellenir.
+Kurulum kartı **silmez**: `--identity-card` verildiğinde `install`, komutu
+kaydetmeden önce kartın zararsız bir eylemi gerçekten kabul ettiğini çalıştırarak
+kanıtlar. Süresi geçmiş, yanlış ajan adına düzenlenmiş, güvenilmeyen anahtarla
+imzalanmış veya gerekli capability'yi vermeyen bir kart kurulumu **reddettirir**
+ve hiçbir şey yazılmaz; aksi halde hook kurulur ve her çağrı sessizce fail-closed
+bloklanırdı. `--identity-card` ile `--trusted-identity-keys` birlikte verilmelidir;
+yalnız biri verilirse kurulum nedenini söyleyerek durur. Kartı değiştirmek için
+`install`'ı yeni kartla yeniden çalıştır: sahiplenilen girdi ikinci bir kopya
+eklemeden yerinde güncellenir. Yerel olarak elle düzenlenmiş bir komut yine de
+geri alınmaz; kurulum üzerine yazmayı reddeder.
 
-Dikkat: varsayılan dağıtımda **kimlik kartı zorunludur**, bu yüzden zararsız
-bir komut bile kart yoksa `agent_identity_card_required` ile bloklanır — bu
-OpenHands'a özel değil, tüm profillerin ortak fail-closed davranışıdır. Bir
-kimlik kartı olmadan gate'i denemek için kimlik zorunluluğunu geçici olarak
-gevşet:
+Kimlik yolları kaydedilen komuta **tırnaksız** gömülür (tırnaklama, host'un
+çalıştırabileceği kabuklar arasında taşınabilir değildir). Bu yüzden boşluk,
+glob, kabuk operatörü ya da Windows `%`/`^` içeren bir yol okunmadan veya
+sınanmadan önce reddedilir; aksi halde yol token'lara bölünür ya da probe
+sırasında kabuk sözdizimi çalışabilirdi. Kart ve anahtar dosyalarını boşluksuz,
+metakaraktersiz bir dizinde tut.
+
+Kartı hook'a bağlamadan yalnız denemek istersen kimlik zorunluluğunu geçici
+olarak gevşetebilirsin:
 
 ```bash
 echo '{"event_type":"PreToolUse","tool_name":"terminal","tool_input":{"command":"git status"},"session_id":"manual-check","working_dir":"'"$PWD"'"}' \
   | HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow node bin/huqan-gate-hook.js --profile openhands
 ```
 
-Bu, `{}` döndürür ve geçer. Üretimde kimlik kartı kullan; kartı
-`huqan-gate identity issue` ile üret (bkz. `docs/external-action-guard.md`),
-gate'e `--identity-card` ile ver. Kalıcı gevşetme yerine kartı bir kez üretip
-hook komutuna eklemek tercih edilir.
+Bu, `{}` döndürür ve geçer. Kalıcı gevşetme yerine kartı bir kez üretip hook
+komutuna bağlamak tercih edilir.
+
+### Uçtan uca doğrulama
+
+Kartı hook'a bağladıktan sonra, kaydedilen komutu doğrudan çalıştırarak gate'in
+gerçekten çalıştığını ölçebilirsin. Girdi stdin'den gelir, çıktı stdout'tadır:
+
+```bash
+# Zararsız eylem: bağlı kart onu kabul eder -> {}
+echo '{"event_type":"PreToolUse","tool_name":"terminal","tool_input":{"command":"git status"},"session_id":"manual-check","working_dir":"'"$PWD"'"}' \
+  | node bin/huqan-gate-hook.js --profile openhands \
+      --identity-card card.json \
+      --identity-card-signature card.json.sig.json \
+      --trusted-identity-keys ./keys/identity-card-public.pem
+
+# Denylist'teki eylem: kart ne olursa olsun engellenir
+echo '{"event_type":"PreToolUse","tool_name":"terminal","tool_input":{"command":"rm -rf /"},"session_id":"manual-check","working_dir":"'"$PWD"'"}' \
+  | node bin/huqan-gate-hook.js --profile openhands \
+      --identity-card card.json \
+      --identity-card-signature card.json.sig.json \
+      --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+Beklenen: ilki `{}`, ikincisi `{"decision":"deny","reason":"... DENYLISTED_COMMAND_BLOCKED ..."}`.
+`session_id` zorunludur; eksik bir payload (`missing_session_id`) fail-closed
+engellenir. `install` çıktısındaki `sentinel.command` alanı kaydedilen komutun
+tam metnini verir; yukarıdaki elle çağrı yerine onu da kullanabilirsin.
+
+Kartı hook'a bağlamadıysan zararsız bir komut bile `agent_identity_card_required`
+ile bloklanır; bu beklenen fail-closed davranıştır ve çözümü yukarıdaki
+§ Kimlik kartını hook'a bağlama adımıdır.
 
 ### Platform farkları
 
