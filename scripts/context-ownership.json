@@ -980,6 +980,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-recency-decay.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
   "lib/memory-query-bm25.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
@@ -1028,6 +1032,10 @@
    "context": "Memory",
    "evidence": "#3471 K1 CognitiveMessage envelope and reference frames built on memory-schema-checks"
   },
+  "lib/memory-grounded-transfer.js": {
+   "context": "Memory",
+   "evidence": "#3475 I7 candidate-only grounded transfer check over K1 reference frames"
+  },
   "lib/memory-schema-validate.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
@@ -1073,6 +1081,10 @@
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
   "lib/memory-store-sqlite-links.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
+  "lib/memory-store-sqlite-schema.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
