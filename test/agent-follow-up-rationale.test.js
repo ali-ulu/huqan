@@ -43,6 +43,11 @@ test('V1 reports its own follow-up rationale', (t) => {
 test('V3 reports its own follow-up rationale', async (t) => {
   const { dir, kernel } = setup(t);
   const agent = new AgentV3({ kernel, memoryPath: path.join(dir, 'v3.memory.json') });
+  // AgentV3 opens a default SQLite store. Left open, the native handle was
+  // only torn down at process exit, after the isolated root holding it was
+  // removed; the Windows runner exited 0xC0000005 there once both tests had
+  // passed (main c832968a). Close it while the test still owns it.
+  t.after(() => agent.storage.close());
   const seen = rationales(await agent.run(GOAL, { dreamExperimentLoop: false }));
   assert.ok(seen.includes(V3_FOLLOW_UP), JSON.stringify(seen));
   assert.ok(!seen.includes(V1_FOLLOW_UP), JSON.stringify(seen));
