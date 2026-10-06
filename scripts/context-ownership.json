@@ -3890,6 +3890,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/cli-promote.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
   "lib/cli-repl.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
@@ -5029,9 +5033,24 @@
   "lib/experience/capability-trust.js": {
    "owner": "Trust",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; #3550 terfi operator command drives the loop"
+  },
+  "lib/experience/canary.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3550 terfi operator command drives propose/canary/promote/observe/rollback through the loop"
+  },
+  "lib/experience/reflective-promotion.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3550 terfi operator command is the loop's first production caller"
   },
   "lib/agent-step-executor.js": {
    "owner": "AgentAction",
