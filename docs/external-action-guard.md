@@ -53,9 +53,14 @@ kimlik, hangi yetkiyle, kimin adına yaptı" demez. Faz C (#1769) bunun için
   "capabilities": ["file_read", "shell"],
   "delegationChain": ["orchestrator", "future-agent-2035"],
   "issuedAt": "2026-01-01T00:00:00.000Z",
-  "expiresAt": null
+  "expiresAt": "2026-01-01T12:00:00.000Z"
 }
 ```
+
+`expiresAt` zorunludur ve kartın ömrü en fazla 24 saattir
+(`identity_card_expires_at_missing` / `identity_card_lifetime_exceeded`).
+`issuedAt` ile `expiresAt` arasındaki pencere gerçek saate göre değerlendirilir;
+süresi geçmiş bir kart `block` olur.
 
 `capabilities` zarfın `kind` sözlüğünden değer alır; `*` hepsini kapsar.
 `delegationChain` verilirse son eleman `agentId` olmak zorundadır. Kart
@@ -70,11 +75,18 @@ kararın içine, kimlik de `metadata.identity` olarak receipt'e yazılır — ya
 canonical receipt hash'inin kapsamındadır.
 
 Kart **verilmediğinde** eylem yine attribute edilir (`attested: false`,
-`ownerActorId: "unattested"`) ama karar değişmez. Kartı zorunlu kılmak bir
-deployment kararıdır: `--require-identity`, library'de
-`requireIdentityCard: true | 'review'`, ya da
-`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=1|review`. Böylece kimlik açmak, kartı
-henüz taşımayan mevcut uyarlayıcıları sessizce kırmaz.
+`ownerActorId: "unattested"`) ama karar **varsayılan olarak `block`**'tur:
+`#2505 C` sahibi kararı, imzasız kimliği üretimde kabul etmemektir. Yani kart
+taşımayan bir ajanın zararsız bir komutu bile `agent_identity_card_required` ile
+bloklanır — bu, OpenHands'a özel değil, bütün profillerin ortak fail-closed
+davranışıdır.
+
+Kimlik zorunluluğunu gevşetmek **açık bir deployment kararıdır**:
+`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow` (library'de
+`requireIdentityCard: false`). Aynı değişken `review` değeriyle `allow` yerine
+inceleme ister. `NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu
+bir bayrakla gevşetilemez. Kart vermenin kolay yolu `huqan-gate identity issue`
+(bkz. aşağıda).
 
 ### Kart imzası (ed25519)
 
@@ -102,6 +114,36 @@ true` hâlâ yalnız "geçerli biçimli kart sunuldu" demektir —
 `signatureVerified: true` olmadan makbuz kriptografik olarak doğrulanmış bir
 fleet kimliğine bağlanmış sayılmaz. Merkezi makbuz toplamanın (#1781)
 önkoşulu budur.
+
+### Kart verme (`huqan-gate identity issue`)
+
+Kartı elle JSON yazmak yerine operatör üretir; üretilen kart guard'ın kabul
+ettiği biçimdedir ve var olan bir dosyanın üzerine yazılmaz.
+
+```bash
+# 1) İmza anahtar çifti (kartı imzalayacaksanız bir kez)
+huqan-gate identity issue --generate-keypair ./keys
+
+# 2) Kart: agent-id hook profilinin agentName'iyle eşleşmeli (ör. openhands)
+huqan-gate identity issue \
+  --agent-id openhands --owner actor:ali \
+  --capabilities shell,file_read \
+  --out card.json \
+  --sign-key ./keys/identity-card-private.pem
+
+# 3) Kartı gate çağrısına ver (CLI bayrakları)
+... | huqan-gate --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+`--capabilities` zarfın `kind` sözlüğünden virgülle ayrılır (`*` hepsi).
+`--lifetime-hours` verilmezse ömür 12 saat; şema tavanı 24 saat. `--issued-at`
+ve `--expires-at` sabit değerler için, `--agent-name`/`--on-behalf-of`
+`--agent-id`/`--owner`'dan farklı olması gerektiğinde kullanılır. Çıktı
+`ok`, `cardPath`, `identityRef` ve (imzalandıysa) `signaturePath` alanlarını
+içerir; bir hata durumunda `ok: false` ve `errors` döner, exit kodu 1'dir.
 
 ### Üretimde insan sponsor zorunluluğu (#1889)
 

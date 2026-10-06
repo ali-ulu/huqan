@@ -108,9 +108,10 @@ echo '{"event_type":"PreToolUse","tool_name":"terminal","tool_input":{"command":
   | HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow node bin/huqan-gate-hook.js --profile openhands
 ```
 
-Bu, `{}` döndürür ve geçer. Üretimde kimlik kartını (`--identity-card` /
-`--require-identity`) kullan; kimlik ayrıntısı `docs/external-action-guard.md`
-içindedir.
+Bu, `{}` döndürür ve geçer. Üretimde kimlik kartı kullan; kartı
+`huqan-gate identity issue` ile üret (bkz. `docs/external-action-guard.md`),
+gate'e `--identity-card` ile ver. Kalıcı gevşetme yerine kartı bir kez üretip
+hook komutuna eklemek tercih edilir.
 
 ### Platform farkları
 
