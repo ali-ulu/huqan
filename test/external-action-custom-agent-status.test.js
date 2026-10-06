@@ -18,7 +18,7 @@ const {
 } = require('../lib/external-action-custom-agent-status');
 const { manageGate } = require('../lib/external-action-gate-install');
 
-const KNOWN_PROFILES = ['claude-code', 'codex', 'opencode', 'pi', 'hermes'];
+const KNOWN_PROFILES = ['claude-code', 'codex', 'openhands', 'opencode', 'pi', 'hermes'];
 
 function receiptLine(overrides = {}) {
   const agentName = overrides.agentName || 'my-agent';

@@ -68,7 +68,7 @@ A passing verification is a result inside one configured boundary, not a certifi
 
 `--package=huqan` is required because the binary name differs from the package name. The operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and need `HUQAN_MCP_OPERATOR_TOKEN`: an agent cannot approve its own proposal.
 
-**Other agents**: `huqan-gate` ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
+**Other agents**: `huqan-gate` ships with Claude Code, Codex, OpenHands, OpenCode, Pi and Hermes projections. It enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
 
 ## Use it directly
 

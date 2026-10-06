@@ -534,22 +534,22 @@
       ],
       "sites": [
         {
-          "line": 50,
+          "line": 53,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 75,
+          "line": 78,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 128,
+          "line": 136,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 158,
+          "line": 166,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         }

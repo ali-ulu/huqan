@@ -342,6 +342,26 @@ Ayrı bir `PermissionRequest` olayı da var; çıktısı `behavior: allow | deny
 oraya iliştirmek mümkün — henüz bağlanmadı, çünkü PreToolUse zaten reddettiği
 bir çağrı için onay istemi hiç oluşmuyor.
 
+### OpenHands hook sözleşmesi
+
+OpenHands hook'ları depo içinde `.openhands/hooks.json` dosyasından okur ve
+Claude Code biçimiyle uyumludur; olay anahtarları snake_case'tir (`pre_tool_use`)
+ve `{"hooks": {...}}` sarmalayıcısı da kabul edilir. `PreToolUse` **girdisi**
+stdin'den flat bir JSON olarak gelir: `event_type`, `tool_name`, `tool_input`,
+`session_id`, `working_dir` (ek alanlar olay tipine göre değişir; ortam
+değişkenleri `OPENHANDS_EVENT_TYPE`, `OPENHANDS_TOOL_NAME`,
+`OPENHANDS_PROJECT_DIR`, `OPENHANDS_SESSION_ID` da set edilir).
+
+Çıktı sözleşmesi exit kodu + stdout JSON'dur: `0` geçirir, `2` engeller, diğer
+kodlar hatadır (işlem devam eder, hata loglanır). stdout'taki
+`{"decision": "allow" | "deny", "reason": ..., "additionalContext": ...}`
+exit kodunu geçersiz kılar. Şema yalnız `allow`/`deny` tanır — `ask` yok — bu
+yüzden `review` de `deny` olarak uygulanır ve farkı `reason` taşır ("human
+decision pending, not a denylist block", ayrıca makbuz kimliği); gerekçe
+`receiptId`'yi içerdiğinden makbuzla eşleştirilebilir. Girdi `working_dir`
+alanını taşıdığı için adaptör `cwd`'yi oradan çözer, workspace kökü de aynı
+değerdir.
+
 ### Shell komutları hangi kategoriye düşer
 
 Sırayla: deployment (`git push`, `npm publish`, …) → izin değişikliği (`chmod`,
@@ -433,6 +453,7 @@ Bu yollara yazma, silme veya yeniden yazma `block`'tur — profilden bağımsız
 |---|---|
 | Claude Code | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks.json`, `.claude/hooks/**` |
 | Codex | `.codex/hooks.json`, `.codex/hooks/**` |
+| OpenHands | `.openhands/hooks.json`, `.openhands/hooks/**` |
 | OpenCode | `.opencode/plugin/**` |
 | Pi | `.pi/extensions/**` |
 | Hermes | `.hermes/plugins/**` |
@@ -505,6 +526,7 @@ recordExternalActionOutcome(invocation, admission.receipt, {
 |---|---|---|---|
 | Claude Code | `PreToolUse` command hook, `--profile claude-code` | `ask` | Hook'a gelen araç çağrıları |
 | Codex | `PreToolUse` command hook, `--profile codex` | Güvenli varsayımla `deny` | Hook'a gelen araç çağrıları; devam eden bir `write_stdin` aynı tool call için yeniden hook üretmez |
+| OpenHands | `pre_tool_use` command hook, `--profile openhands` | Güvenli varsayımla `deny` | Hook'a gelen araç çağrıları; hook yalnız `allow`/`deny` bilir, `ask` yok |
 | OpenCode | `createOpenCodeGuardPlugin()` | exception ile durdurur | `tool.execute.before` event'leri |
 | Pi | `registerPiGuard(pi)` | `{ block: true }` | `tool_call` event'leri |
 | Hermes | `--profile hermes` | `{ action: "block" }` | `pre_tool_call` hook event'leri |

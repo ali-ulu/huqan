@@ -75,7 +75,7 @@ test('every supported profile installs idempotently, reports a blocked sentinel,
     assert.equal(first.sentinel.decision, 'block', profile);
     // The sentinel says which surface it actually exercised: installed
     // artifacts for file/Hermes profiles and the recorded command for JSON.
-    const expectedVia = { opencode: 'artifact', pi: 'artifact', hermes: 'artifact', 'claude-code': 'command', codex: 'command' };
+    const expectedVia = { opencode: 'artifact', pi: 'artifact', hermes: 'artifact', 'claude-code': 'command', codex: 'command', openhands: 'command' };
     assert.equal(first.sentinel.via, expectedVia[profile], profile);
     assert.equal(first.sentinel.receiptWritten, true, profile);
     // The denylist is what the sentinel is written to prove. Pi used to block
