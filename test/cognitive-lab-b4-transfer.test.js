@@ -19,7 +19,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { createPairedSampler } = require('../lib/cognitive-lab-paired-delta');
 const {
   MANIFEST_SCHEMA_VERSION,
   validateManifest,
@@ -28,10 +27,11 @@ const {
 const {
   TASKS, SOURCE_OPERATIONS, CORPUS_DIGEST, FAMILIES, runCorpus, trainTree, TASKS_V2, CORPUS_DIGEST_V2,
 } = require('./helpers/cognitive-lab-b4-transfer');
+const {
+  CONTRACT, lockContract, ARMS, B4_MANIFEST_SEED, MECHANISM_IDS, evaluate: evaluateCorpus,
+} = require('../lib/cognitive-lab-b4-evaluator');
 
-const B4_MANIFEST_SEED = 33100;
 const B4_MANIFEST_COMMIT = 'a8228ce1a1c43048a3b7cf2bf5440de41c1f8fcc';
-const MECHANISM_IDS = Object.freeze(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8']);
 
 // §15 expects the run to emit a Cognitive Lab manifest with B4 ENABLED and every
 // other mechanism NOT_MEASURED. The manifest is data over the frozen corpus:
@@ -54,117 +54,8 @@ function b4Manifest({ tasks = TASKS, digest = CORPUS_DIGEST } = {}) {
   };
 }
 
-function mechanismsReport() {
-  return Object.freeze(Object.fromEntries(MECHANISM_IDS.map(id => [id, id === 'B4' ? 'ENABLED' : 'NOT_MEASURED'])));
-}
-
-const ARMS = Object.freeze(['A0', 'A1', 'A2']);
-// Approved 4 Oct 2026 (§7). Every field is required; nothing is chosen at scoring time.
-const CONTRACT = Object.freeze({
-  metric: 'correct-outcome-rate',
-  direction: 'higher-is-better',
-  seed: 3310,
-  resamples: 2000,
-  confidenceLevel: 0.95,
-  meaningfulEffect: 0,
-  wrongWriteTolerance: 0,
-  minimumSamples: 24,
-  minimumTransfer: 8,
-});
-const CONTRACT_SPEC = Object.freeze({
-  metric: value => value === 'correct-outcome-rate',
-  direction: value => value === 'higher-is-better',
-  seed: value => Number.isInteger(value) && value >= 0,
-  resamples: value => Number.isInteger(value) && value >= 100,
-  confidenceLevel: value => typeof value === 'number' && value > 0 && value < 1,
-  meaningfulEffect: value => typeof value === 'number' && Number.isFinite(value) && value >= 0,
-  wrongWriteTolerance: value => Number.isInteger(value) && value >= 0,
-  minimumSamples: value => Number.isInteger(value) && value >= 1,
-  minimumTransfer: value => Number.isInteger(value) && value >= 1,
-});
-
-function lockContract(raw) {
-  if (!raw || typeof raw !== 'object') throw new Error('contract is required');
-  for (const field of Object.keys(raw)) {
-    if (!Object.hasOwn(CONTRACT_SPEC, field)) throw new Error(`unknown contract field ${field}`);
-  }
-  for (const [field, valid] of Object.entries(CONTRACT_SPEC)) {
-    if (!Object.hasOwn(raw, field)) throw new Error(`missing contract field ${field}`);
-    if (!valid(raw[field])) throw new Error(`invalid contract field ${field}`);
-  }
-  return Object.freeze({ ...raw });
-}
-
-function bootstrapInterval(deltas, contract) {
-  const random = createPairedSampler(contract.seed);
-  const means = [];
-  for (let i = 0; i < contract.resamples; i += 1) {
-    let sum = 0;
-    for (let j = 0; j < deltas.length; j += 1) sum += deltas[Math.floor(random() * deltas.length)];
-    means.push(sum / deltas.length);
-  }
-  means.sort((a, b) => a - b);
-  const alpha = 1 - contract.confidenceLevel;
-  const at = fraction => means[Math.min(means.length - 1, Math.max(0, Math.floor(fraction * means.length)))];
-  return { lower: at(alpha / 2), upper: at(1 - alpha / 2) };
-}
-
-function observationError(record) {
-  for (const arm of [...ARMS, 'O']) {
-    const run = record[arm];
-    if (!run || !Array.isArray(run.changed)) return `missing_${arm}`;
-    if (![0, 1].includes(run.correct) || ![0, 1].includes(run.wrongWrite)) return `invalid_${arm}_outcome`;
-    if (run.correct && run.wrongWrite) return `inconsistent_${arm}_outcome`;
-    if (run.wrongWrite && run.changed.length === 0) return `inconsistent_${arm}_outcome`;
-    if (record.expected === 'refuse' && run.correct !== (run.changed.length === 0 ? 1 : 0)) return `inconsistent_${arm}_outcome`;
-    if (record.expected === 'change' && !run.correct && run.changed.length > 0 && !run.wrongWrite) return `inconsistent_${arm}_outcome`;
-  }
-  return null;
-}
-
-const sum = (records, arm, field = 'correct') => records.reduce((total, record) => total + record[arm][field], 0);
-const mean = values => values.reduce((total, value) => total + value, 0) / values.length;
-
-function evaluate(records, rawContract, { tasks = TASKS, trainContents = trainTargetContents() } = {}) {
-  const contract = lockContract(rawContract);
-  const ids = records.map(record => record.taskId);
-  if (new Set(ids).size !== ids.length) return { status: 'REJECT', reason: 'duplicated_observation', assertsGain: false };
-  for (const record of records) {
-    const error = observationError(record);
-    if (error) return { status: 'REJECT', reason: error, assertsGain: false };
-    if (ARMS.some(arm => record[arm].dispatches !== 1)) return { status: 'REJECT', reason: 'budget_mismatch', assertsGain: false };
-  }
-  if (tasks.some(task => task.split !== 'train' && trainContents.has(task.tree[task.targetPath]))) {
-    return { status: 'REJECT', reason: 'split_leakage', assertsGain: false };
-  }
-  const holdout = records.filter(record => record.split === 'holdout');
-  const transfer = records.filter(record => record.split === 'transfer');
-  if (holdout.length < contract.minimumSamples || transfer.length < contract.minimumTransfer) {
-    return { status: 'INSUFFICIENT', reason: 'sample_below_minimum', assertsGain: false };
-  }
-  if (!holdout.some(record => record.class === 'iii')) return { status: 'INSUFFICIENT', reason: 'missing_counter_cases', assertsGain: false };
-  if (holdout.every(record => record.A1.correct === record.A2.correct)) {
-    return { status: 'INSUFFICIENT', reason: 'gates_inert', assertsGain: false };
-  }
-  const primary = holdout.map(record => record.A2.correct - record.A1.correct);
-  const secondary = holdout.map(record => record.A2.correct - record.A0.correct);
-  const report = {
-    holdoutSize: holdout.length,
-    correct: Object.fromEntries([...ARMS, 'O'].map(arm => [arm, sum(holdout, arm)])),
-    transferCorrect: Object.fromEntries([...ARMS, 'O'].map(arm => [arm, sum(transfer, arm)])),
-    wrongWrites: Object.fromEntries(ARMS.map(arm => [arm, sum(records, arm, 'wrongWrite')])),
-    primary: { mean: mean(primary), interval: bootstrapInterval(primary, contract) },
-    secondary: { mean: mean(secondary), interval: bootstrapInterval(secondary, contract) },
-    oracleRecovery: sum(holdout, 'A2') / sum(holdout, 'O'),
-    mechanisms: mechanismsReport(),
-    intelligenceGain: 'NOT_MEASURED',
-  };
-  report.clearsEffect = report.primary.interval.lower > contract.meaningfulEffect;
-  if (report.wrongWrites.A2 > contract.wrongWriteTolerance) {
-    return { status: 'REJECT', reason: 'candidate_wrong_write', assertsGain: false, ...report };
-  }
-  return { status: 'MEASURED', reason: report.clearsEffect ? 'paired_gain_measured' : 'interval_below_meaningful_effect',
-    assertsGain: report.clearsEffect, ...report };
+function evaluate(records, rawContract, options = {}) {
+  return evaluateCorpus(records, rawContract, { tasks: TASKS, trainContents: trainTargetContents(), ...options });
 }
 
 function trainTargetContents() {

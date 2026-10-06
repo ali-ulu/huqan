@@ -429,6 +429,8 @@
     "lib/code-change-decision-summary.js",
     "lib/code-change-path-classification.js",
     "lib/cognitive-lab-b1-replay.js",
+    "lib/cognitive-lab-b4-evaluator.js",
+    "lib/cognitive-lab-b4-experiment.js",
     "lib/cognitive-lab-b6-evaluator.js",
     "lib/cognitive-lab-b6-experiment.js",
     "lib/cognitive-lab-manifest.js",
