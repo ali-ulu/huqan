@@ -147,6 +147,31 @@ ve `--expires-at` sabit değerler için, `--agent-name`/`--on-behalf-of`
 `ok`, `cardPath`, `identityRef` ve (imzalandıysa) `signaturePath` alanlarını
 içerir; bir hata durumunda `ok: false` ve `errors` döner, exit kodu 1'dir.
 
+### Kartı kurulu hook komutuna bağlama (`install`)
+
+Bir dağıtımda gate zaten kuruluysa, ajanın her çağrıda kartı elle taşımasını
+beklemek yerine kartı kaydedilen hook komutuna bağlayabilirsin. `install`
+`--identity-card`, `--identity-card-signature` ve `--trusted-identity-keys`
+seçeneklerini alır ve bunları hook komutuna ekler:
+
+```bash
+huqan-gate install --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+`install`, komutu kaydetmeden önce kartın zararsız bir eylemi gerçekten kabul
+ettiğini çalıştırarak kanıtlar; süresi geçmiş, yanlış ajan adına düzenlenmiş,
+güvenilmeyen anahtarla imzalanmış veya gerekli capability'yi vermeyen bir kart
+kurulumu reddettirir. Bu adım olmadan `rm -rf /` sentinel'i kart ölü olsa bile
+denylist üzerinden bloklar ve kurulum yanlışlıkla yeşil görünürdü. Kartı
+değiştirmek için yeni kartla yeniden `install` çalıştır: sahiplenilen girdi
+ikinci kopya eklemeden yerinde güncellenir. Bu seçenekler yalnız JSON hook
+profillerinde (Claude Code, Codex, OpenHands) kullanılabilir; OpenCode, Pi ve
+Hermes artifact'ları kendi config'inden okur. OpenHands için tam senaryo:
+`docs/automations/openhands.md` § Kimlik kartını hook'a bağlama.
+
 ### Üretimde insan sponsor zorunluluğu (#1889)
 
 `NODE_ENV=production` olduğunda guard kartsız veya imzasız eylemi engeller.

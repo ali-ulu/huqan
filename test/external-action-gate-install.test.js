@@ -400,3 +400,132 @@ test('trust state is readable without reinstalling, and only claimed for hosts t
   // No claim is made about hosts whose trust behaviour has not been measured.
   assert.equal(manageGate('status', options(paths, 'opencode')).clients[0].hostTrust, null);
 });
+
+// #2505: an operator binds a capability card to the recorded hook command, so
+// a fresh install arms the gate instead of denying every call with
+// `agent_identity_card_required`. The install has to prove the card it binds
+// actually admits this agent -- the `rm -rf /` sentinel blocks whatever the
+// card says, so it cannot tell a live card from a dead one.
+function mintCard(paths, { agentId = 'openhands', capabilities = 'shell,file_read', issuedAt, expiresAt } = {}) {
+  const keys = path.join(paths.root, 'keys');
+  const hook = path.join(REPO_ROOT, 'bin', 'huqan-gate-hook.js');
+  const keypair = spawnSync(process.execPath, [hook, 'identity', 'issue', '--generate-keypair', keys], { encoding: 'utf8' });
+  assert.equal(keypair.status, 0, keypair.stderr);
+  const cardPath = path.join(paths.root, 'card.json');
+  const args = [
+    'identity', 'issue', '--agent-id', agentId, '--owner', 'actor:ali', '--capabilities', capabilities,
+    '--out', cardPath, '--sign-key', path.join(keys, 'identity-card-private.pem'),
+  ];
+  if (issuedAt) args.push('--issued-at', issuedAt);
+  if (expiresAt) args.push('--expires-at', expiresAt);
+  const signed = spawnSync(process.execPath, [hook, ...args], { encoding: 'utf8' });
+  assert.equal(signed.status, 0, signed.stderr);
+  return {
+    cardPath,
+    signaturePath: JSON.parse(signed.stdout).signaturePath,
+    keysPath: path.join(keys, 'identity-card-public.pem'),
+  };
+}
+
+function identityOptions(paths, card) {
+  return {
+    ...options(paths, 'openhands'),
+    identityCard: card.cardPath,
+    identityCardSignature: card.signaturePath,
+    trustedIdentityKeys: card.keysPath,
+  };
+}
+
+test('binding a capability card records it on the hook command and admits a benign action', t => {
+  const paths = sandbox(t);
+  const card = mintCard(paths);
+  const install = manageGate('install', identityOptions(paths, card));
+  assert.equal(install.installed, true);
+  assert.equal(install.sentinel.decision, 'block');
+  assert.equal(install.sentinel.reason, 'DENYLISTED_COMMAND_BLOCKED');
+  // The install reports the material it bound, not the "issue a card" notice.
+  assert.equal(install.identity.required, undefined);
+  assert.deepEqual(install.identity.bound.slice(0, 2), ['--identity-card', card.cardPath]);
+
+  // The recorded command carries the flags, and running it the way the host
+  // runs it: the sentinel is denied, a benign action is allowed.
+  const config = JSON.parse(fs.readFileSync(install.target, 'utf8'));
+  const command = config.hooks.pre_tool_use[0].hooks[0].command;
+  assert.ok(command.includes(`--identity-card ${card.cardPath}`));
+  assert.ok(command.includes(`--trusted-identity-keys ${card.keysPath}`));
+  const run = payload => {
+    const shell = process.platform === 'win32'
+      ? { file: 'powershell.exe', argv: ['-NoProfile', '-NonInteractive', '-Command', command] }
+      : { file: '/bin/sh', argv: ['-c', command] };
+    return spawnSync(shell.file, shell.argv, { input: JSON.stringify(payload), cwd: paths.root, encoding: 'utf8' });
+  };
+  const benign = run({ event_type: 'PreToolUse', tool_name: 'terminal', tool_input: { command: 'git status' }, session_id: 's', working_dir: paths.root });
+  assert.equal(benign.stdout.trim(), '{}', benign.stdout);
+  const denied = run({ event_type: 'PreToolUse', tool_name: 'terminal', tool_input: { command: 'rm -rf /' }, session_id: 's', working_dir: paths.root });
+  assert.match(denied.stdout, /DENYLISTED_COMMAND_BLOCKED/);
+
+  // The bound entry is still recognised as ours on the way out.
+  assert.equal(manageGate('uninstall', options(paths, 'openhands')).removed, true);
+  assert.equal(JSON.parse(fs.readFileSync(install.target, 'utf8')).hooks.pre_tool_use.length, 0);
+});
+
+test('a fresh install with no card bound still says how to issue one', t => {
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'openhands'));
+  assert.equal(install.identity.required, true);
+  assert.match(install.identity.issue, /identity issue/);
+});
+
+test('an expired card is refused before anything is written', t => {
+  // The sentinel alone would pass here: `rm -rf /` blocks on the denylist
+  // whatever the card says, so a dead card would install green and deny every
+  // call. The benign probe is what catches it.
+  const paths = sandbox(t);
+  const card = mintCard(paths, { issuedAt: '2020-01-01T00:00:00Z', expiresAt: '2020-01-02T00:00:00Z' });
+  assert.throws(() => manageGate('install', identityOptions(paths, card)), /does not admit a benign action/);
+  assert.equal(fs.existsSync(path.join(paths.root, '.openhands', 'hooks.json')), false);
+});
+
+test('a card bound to another agent is refused', t => {
+  const paths = sandbox(t);
+  const card = mintCard(paths, { agentId: 'someone-else' });
+  assert.throws(() => manageGate('install', identityOptions(paths, card)), /does not admit a benign action/);
+});
+
+test('a card without a trusted key is refused rather than armed unverifiable', t => {
+  const paths = sandbox(t);
+  const card = mintCard(paths);
+  const partial = { ...options(paths, 'openhands'), identityCard: card.cardPath };
+  assert.throws(() => manageGate('install', partial), /needs --trusted-identity-keys/);
+});
+
+test('rebinding an owned entry to a different card updates it in place', t => {
+  const paths = sandbox(t);
+  const first = mintCard(paths);
+  const install = manageGate('install', identityOptions(paths, first));
+  const before = JSON.parse(fs.readFileSync(install.target, 'utf8'));
+  assert.equal(before.hooks.pre_tool_use.length, 1);
+
+  const secondCard = path.join(paths.root, 'card2.json');
+  fs.copyFileSync(first.cardPath, secondCard);
+  const rebound = manageGate('install', {
+    ...options(paths, 'openhands'),
+    identityCard: secondCard,
+    identityCardSignature: first.signaturePath,
+    trustedIdentityKeys: first.keysPath,
+  });
+  const after = JSON.parse(fs.readFileSync(rebound.target, 'utf8'));
+  assert.equal(after.hooks.pre_tool_use.length, 1, 'rebinding must not add a second entry');
+  assert.ok(after.hooks.pre_tool_use[0].hooks[0].command.includes(`--identity-card ${secondCard}`));
+});
+
+test('a locally edited command is still refused even when a card is bound', t => {
+  const paths = sandbox(t);
+  const card = mintCard(paths);
+  const install = manageGate('install', identityOptions(paths, card));
+  const config = JSON.parse(fs.readFileSync(install.target, 'utf8'));
+  config.hooks.pre_tool_use[0].hooks[0].command += ' --require-identity';
+  fs.writeFileSync(install.target, JSON.stringify(config, null, 2));
+  assert.throws(() => manageGate('install', identityOptions(paths, card)), /refusing to overwrite modified HUQAN hook/);
+});
+
