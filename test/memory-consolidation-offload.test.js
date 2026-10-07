@@ -42,6 +42,17 @@ function seed(store, content, workspaceId = 'default') {
   return result.memory.memoryId;
 }
 
+// Windows keeps a SQLite handle for a moment after close, so a plain rmSync
+// races it and fails EPERM. Retry, then swallow: cleanup must never turn an
+// already-passed assertion into a failure.
+function cleanup(root) {
+  try {
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  } catch {
+    /* best-effort temp cleanup */
+  }
+}
+
 const BACKENDS = [['JSON', false], ['SQLite', true]];
 
 for (const [name, useSQLite] of BACKENDS) {
@@ -74,7 +85,7 @@ for (const [name, useSQLite] of BACKENDS) {
     assert.equal(store.list({ workspaceId: 'default' }).total, 1);
 
     kernel.close?.();
-    fs.rmSync(root, { recursive: true, force: true });
+    cleanup(root);
   });
 
   test(`[${name}] archive is fail-closed: only active/superseded in, only archived out`, () => {
@@ -105,7 +116,7 @@ for (const [name, useSQLite] of BACKENDS) {
     assert.equal(store.archive('nope', { workspaceId: 'default' }).error.code, 'NOT_FOUND');
 
     kernel.close?.();
-    fs.rmSync(root, { recursive: true, force: true });
+    cleanup(root);
   });
 
   test(`[${name}] archived status survives a reload`, () => {
@@ -121,7 +132,7 @@ for (const [name, useSQLite] of BACKENDS) {
     assert.equal(reopened.list({ workspaceId: 'default', includeArchived: true }).total, 1);
     reopened.close?.();
 
-    fs.rmSync(root, { recursive: true, force: true });
+    cleanup(root);
   });
 }
 
@@ -134,7 +145,7 @@ test('the archived event ordering is pinned so event reads stay deterministic', 
   const types = events.map((event) => event.eventType);
   assert.deepEqual(types, ['CREATED', 'ARCHIVE', 'RESTORE']);
   kernel.close?.();
-  fs.rmSync(root, { recursive: true, force: true });
+  cleanup(root);
 });
 
 test('MemoryLifecycle.archive binds the offload to a chained receipt; consolidate is dry-run by default', () => {
@@ -172,7 +183,7 @@ test('MemoryLifecycle.archive binds the offload to a chained receipt; consolidat
   assert.equal(refuse.receipt, undefined);
 
   kernel.close?.();
-  fs.rmSync(root, { recursive: true, force: true });
+  cleanup(root);
 });
 
 test('the consolidation selector is bounded and deterministic', () => {
@@ -203,7 +214,7 @@ test('the consolidation selector is bounded and deterministic', () => {
   assert.equal(selectConsolidationCandidates({ list: listed }, { workspaceId: 'default', limit: -1 }).ok, false);
 
   kernel.close?.();
-  fs.rmSync(root, { recursive: true, force: true });
+  cleanup(root);
 });
 
 test('the CLI archive/restore/consolidate actions drive the lifecycle end-to-end', () => {
