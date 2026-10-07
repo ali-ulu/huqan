@@ -1640,6 +1640,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/mcp-approval-expiry.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/mcp-approval-store.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"

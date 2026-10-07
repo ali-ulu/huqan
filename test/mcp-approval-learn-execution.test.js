@@ -19,6 +19,9 @@ function pendingLearn() {
     input: JSON.stringify({ text: 'cats are animals' }),
     workspace_id: 'w',
     status: 'pending',
+    // A real pending row always carries created_at; without it #3486 now reads
+    // the row as an expired legacy row and refuses the approval first.
+    created_at: Date.now(),
     context: { workspaceId: 'w', args: { text: 'cats are animals' } },
   };
 }

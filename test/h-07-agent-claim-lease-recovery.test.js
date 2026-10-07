@@ -63,6 +63,10 @@ function pendingAgentApproval(id, workspaceId = 'default') {
     status: 'pending',
     decision: 'review',
     reason: 'h07_probe',
+    // Real wall-clock instant: the store's _now is a small fake clock here, so
+    // a bare created_at of `now` would read as an ancient (expired) row under
+    // #3486's createdAt + TTL fallback.
+    createdAt: Date.now(),
   };
 }
 
