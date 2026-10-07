@@ -337,7 +337,8 @@ test('FAZ2-5: non-ok execution results persist the current failed state', async 
 test('FAZ2-5: createServer can use an injected shared kernel instance', () => {
   const injectedKernel = {
     learn() { return { ok: true, type: 'learn', data: {}, evidence: [], error: null, meta: {} }; },
-    ask() { return { ok: true, type: 'ask', data: { answer: 'injected' }, evidence: [], error: null, meta: {} }; },
+    // Kernel-shaped ask data: MCP withholds results that miss their declared schema (#3483).
+    ask() { return { ok: true, type: 'ask', data: { answer: 'injected', subject: 'shared', unknown: false, alternatives: 0 }, evidence: [], error: null, meta: {} }; },
     verify() { return { ok: true, type: 'verify', data: { status: 'bilinmiyor', confidence: 0 }, evidence: [], error: null, meta: {} }; },
   };
 

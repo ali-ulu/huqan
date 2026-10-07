@@ -88,7 +88,8 @@ test('a successful save still reports the approval id and the queued state', () 
   assert.match(result.approval.id, /\S/);
   assert.equal(result.approval.status, 'pending');
   assert.equal(result.status, 'review_required');
-  assert.equal(result.error, undefined);
+  // A hold is not an error; the completed envelope says so with null (#3483).
+  assert.equal(result.error, null);
   assert.deepEqual(kernel.learned, []);
 });
 
