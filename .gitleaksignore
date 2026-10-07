@@ -21,3 +21,11 @@ d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.tes
 # silence the already-superseded historical commit.
 84364e5f99db9765590e0d5abae56af65f5fe075:test/secret-scrub-gate.test.js:jwt:44
 84364e5f99db9765590e0d5abae56af65f5fe075:test/company-ingest-gate.test.js:jwt:6
+
+# Same situation as above, for the R35 logMask tests: a synthetic,
+# non-functional vendor-prefixed test value (no real credential) was briefly
+# committed as a single literal string in 23004e6c. A later commit in the same
+# PR rewrote the fixture as segments joined at runtime, so no new literal
+# finding is introduced going forward; this entry only silences the
+# already-superseded historical commit.
+23004e6cfe9762fcbdf031390e5bd6cdfb3d60b4:test/logmask-erased-trace.test.js:generic-api-key:14

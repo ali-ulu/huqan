@@ -3016,11 +3016,15 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
   },
-  "lib/receipt/issuer-seal.js": {
-   "context": "Trust",
-   "evidence": "ownership-map-2446.md#R-RECEIPT-T"
-  },
-  "lib/receipt/public-trust-receipt-contract.js": {
+   "lib/receipt/issuer-seal.js": {
+    "context": "Trust",
+    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
+   },
+   "lib/receipt/policy-seal.js": {
+    "context": "Trust",
+    "evidence": "#3490: R35 sealed-policy builder/verifier; Trust-owned receipt primitive requiring only Trust-owned modules (issuer-seal, canonical-receipt)"
+   },
+   "lib/receipt/public-trust-receipt-contract.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
   },
@@ -5350,13 +5354,13 @@
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
-  "lib/graph-mutation-receipt-write.js": {
-   "owner": "Trust",
-   "consumers": [
-    "Knowledge"
-   ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
-  },
+   "lib/graph-mutation-receipt-write.js": {
+    "owner": "Trust",
+    "consumers": [
+     "Knowledge"
+    ],
+    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   },
   "lib/audit-query.js": {
    "owner": "Trust",
    "consumers": [
