@@ -3252,6 +3252,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-V5X-T"
   },
+  "lib/v5/route-receipt-participants.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-V5X-T"
+  },
   "lib/v5/runtime-reader.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-V5X-T"
