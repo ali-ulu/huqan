@@ -132,6 +132,14 @@ test('a refused name is recorded for incident review, escaped and bounded', () =
   assert.ok(rejectedName.startsWith('"huqan.ask\\u0000y'), 'the control character is escaped');
   assert.ok(!rejectedName.includes('\u0000'), 'no raw control character is recorded');
   assert.ok(rejectedName.length <= 161, 'the name is bounded');
+
+  // A short name is kept whole; a non-string is named by its type only.
+  decisions.length = 0;
+  for (const name of ['bad name', ['huqan.ask'], 7]) callTool(kernel, { name, arguments: {} });
+  assert.deepEqual(
+    decisions.filter(event => event.reason === 'invalid_tool_name').map(event => event.payload.metadata.rejectedName),
+    ['"bad name"', '<array>', '<number>'],
+  );
 });
 
 test('arguments with no canonical JSON form are blocked, not thrown', () => {
@@ -198,6 +206,8 @@ test('an approval whose arguments drifted from the reviewed ones is not executed
     'context.args only': approvalRow({ args: drifted, input: JSON.stringify(REVIEWED), reviewedBinding: LEARN_BINDING }),
     'input only': approvalRow({ args: REVIEWED, input: JSON.stringify(drifted), reviewedBinding: LEARN_BINDING }),
     'input unreadable': approvalRow({ args: REVIEWED, input: 'not json', reviewedBinding: LEARN_BINDING }),
+    'context.args missing': { ...approvalRow({ reviewedBinding: LEARN_BINDING }), context: { source: 'mcp', workspaceId: 'default' } },
+    'no context at all': { ...approvalRow({ reviewedBinding: LEARN_BINDING }), context: undefined },
   };
   for (const [label, row] of Object.entries(rows)) {
     const { result, touched } = decide(row);
