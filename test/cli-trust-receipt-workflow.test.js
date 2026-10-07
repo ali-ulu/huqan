@@ -9,6 +9,10 @@ const CLI = require('../cli');
 const { callTool } = require('../mcpServer');
 const { listMaterializedReceiptEntries } = require('../lib/receipt/receipt-read-index');
 
+// #3560: deciding an approval needs the operator at a terminal typing the
+// approval id back; these tests stand in for that operator.
+const operatorAt = (approvalId) => ({ operatorInput: { isTTY: true }, operatorAsk: () => approvalId });
+
 async function withCli(fn) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-receipt-'));
   const saved = { AXIOM_MEMORY_PATH: process.env.AXIOM_MEMORY_PATH, AXIOM_DB_PATH: process.env.AXIOM_DB_PATH };
@@ -73,7 +77,7 @@ test('CLI executes learn -> review -> approve -> verify -> original receipt with
     assert.equal(queued.approval.status, 'pending');
 
     const approvedOutput = [];
-    const approved = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
+    const approved = await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], { ...operatorAt(queued.approval.id),
       cli, stdout: value => approvedOutput.push(value),
     });
     const decision = JSON.parse(approvedOutput[0]);
@@ -95,7 +99,7 @@ test('CLI executes learn -> review -> approve -> verify -> original receipt with
     assert.deepEqual(JSON.parse(receiptOutput[0]).data.receipt, receipt);
 
     const repeatOutput = [];
-    await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], {
+    await CLI.runCliArgv(['onayla', queued.approval.id, '--json'], { ...operatorAt(queued.approval.id),
       cli, stdout: value => repeatOutput.push(value),
     });
     const repeat = JSON.parse(repeatOutput[0]);

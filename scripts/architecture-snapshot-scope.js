@@ -126,6 +126,11 @@ const OCP_ALLOWED = Object.freeze([
     why: 'switch (kind) validates node kinds from the MANIFEST_SPEC contract grammar (#3374), not a feature set. Stays a switch.',
     review_by: '2026-12-31',
   },
+  {
+    file: 'lib/cognitive-model-port.js',
+    why: 'switch (spec.kind) validates scalar kinds from the huqan-cognitive-model-v1 field grammar (#3474), not a feature set; no later PR can add a case without editing the port contract itself. Stays a switch.',
+    review_by: '2027-03-31',
+  },
 ]);
 
 const isOcpAllowed = (file) => OCP_ALLOWED.some((entry) => entry.file === file);
@@ -177,11 +182,13 @@ const FAN_OUT_SIGNAL = 20;
 const FANOUT_ALLOWED = Object.freeze([
   {
     file: 'index.js',
-    ceiling: 22,
-    why: 'The package-root facade exposes the transport-independent A2A dispatcher (#3477) plus '
-      + 'CausalRuntime and LearnedCausalEngine (#3467). These requires expose reviewed public constructors/functions; '
+    ceiling: 28,
+    why: 'The package-root facade exposes the transport-independent A2A dispatcher (#3477), the durable '
+      + 'handoff cursor with its termination allowlist (#3478, two more requires), the typed error record '
+      + 'with the depth bound (#3480, two more requires) plus '
+      + 'CausalRuntime and LearnedCausalEngine (#3467) and the local neural cognition candidate (#3474). These requires expose reviewed public constructors/functions; '
       + 'signing, admission, dispatch, episode learning and execution remain in their owning modules. '
-      + 'docs/a2a-pre-dispatch-intervention.md and docs/causal-learning-r12.md pin the public callers. '
+      + 'docs/a2a-pre-dispatch-intervention.md, docs/a2a-handoff-cursor.md, docs/causal-learning-r12.md and docs/neural-cognition-r19.md pin the public callers. '
       + 'No domain decisions live in this entrypoint.',
     review_by: '2026-12-31',
   },
@@ -195,11 +202,12 @@ const FANOUT_ALLOWED = Object.freeze([
   },
   {
     file: 'cli.js',
-    ceiling: 20,
-    why: 'Two of the requires wire the MemoryLifecycle the `memory-lifecycle` command drives (#3461): the Adapters '
-      + 'lifecycle may not require its Application receipt collaborators itself, and cli.js is the only ring allowed '
-      + 'to supply them. The wiring cannot move to a lib/ helper -- a lib/memory-* module is still Adapters, and a '
-      + 'lib/cli-* handler is still Core, so either would re-open the same upward edge.',
+    ceiling: 21,
+    why: 'Three of the requires wire collaborators the inner rings may not require themselves: the Adapters '
+      + 'MemoryLifecycle and its Application receipt chain (#3461), and the Adapters K0/K1 cognition consumer '
+      + 'lib/memory-hypothesis-cognition.js that lib/cli-hypotheses.js (Core) must not require (#3568). cli.js is '
+      + 'the only ring allowed to supply them, and the wiring cannot move to a lib/ helper -- a lib/memory-* module '
+      + 'is still Adapters, and a lib/cli-* handler is still Core, so either would re-open the same upward edge.',
     review_by: '2027-03-31',
   },
 ]);

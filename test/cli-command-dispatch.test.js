@@ -117,6 +117,10 @@ stubExports('../lib/sqlite-restore', {
 const CLI = require('../cli');
 const { mapCliCommandToMcpTool } = require('../lib/cli-helpers');
 
+// #3560: deciding an approval needs the operator at a terminal typing the
+// approval id back; these tests stand in for that operator.
+const operatorAt = (approvalId) => ({ operatorInput: { isTTY: true }, operatorAsk: () => approvalId });
+
 const CAPABILITY_RESULT = Object.freeze({
   ok: true, added: 2, files: 3, urls: 1, commits: 4, decisionId: 'd1',
   answer: 'Answer', source: 'Source', sourceRefs: ['r1'], totalNodes: 9,
@@ -187,6 +191,7 @@ const COMMANDS = [
   'company-ingest', 'company-query', 'ingest-status', 'backup', 'kaydet', 'onaylar', 'onayla', 'audit', 'receipt',
   'coder', 'restore', 'düşün', 'optimize', 'konsolide', 'evolve', 'quickstart', 'durum', 'rüya', 'hypotheses',
   'memory-lifecycle',
+  'terfi',
   'selam', 'yardım', 'anlamadım',
 ];
 const FAILING = { kernel: { capabilityFails: true } };
@@ -215,11 +220,11 @@ const CASES = [
   ['backup', ''], ['backup', '', {}, { kernel: { auditBroken: true } }],
   ['kaydet', ''], ['kaydet', '', {}, { kernel: { auditBroken: true } }],
   ['onaylar', ''], ['onaylar', { workspaceId: 'w1' }, { json: true }], ['onaylar', { workspaceId: 'broken' }],
-  ['onayla', 'a1 approved'], ['onayla', { approvalId: 'a1', decision: 'rejected', workspaceId: 'w2' }, { json: true }],
+  ['onayla', 'a1 approved', operatorAt('a1')], ['onayla', { approvalId: 'a1', decision: 'rejected', workspaceId: 'w2' }, { json: true, ...operatorAt('a1') }],
   ['onayla', ''], ['onayla', 'a1 maybe'],
-  ['onayla', { approvalId: 'async-fail', decision: 'approved' }],
-  ['onayla', { approvalId: 'async-fail', decision: 'approved' }, { throwOnError: true }],
-  ['onayla', { approvalId: 'no-code', decision: 'approved' }, { throwOnError: true }],
+  ['onayla', { approvalId: 'async-fail', decision: 'approved' }, operatorAt('async-fail')],
+  ['onayla', { approvalId: 'async-fail', decision: 'approved' }, { throwOnError: true, ...operatorAt('async-fail') }],
+  ['onayla', { approvalId: 'no-code', decision: 'approved' }, { throwOnError: true, ...operatorAt('no-code') }],
   ['audit', { limit: 5 }], ['receipt', 'show r1'], ['coder', 'spec'],
   ['restore', ''], ['restore', 'dry'], ['restore', { backupDir: 'backups/b1' }, { json: true }], ['restore', 'broken'],
   ['restore', '', {}, { storage: { open: true } }],
@@ -231,6 +236,7 @@ const CASES = [
   ['hypotheses', { tuning: true, apply: true }], ['hypotheses', 'text-args'],
   ['memory-lifecycle', { action: 'tombstone', memoryId: 'm1', reason: 'r', workspaceId: '', content: '' }],
   ['memory-lifecycle', { action: 'tombstone', memoryId: 'm1', reason: '' }],
+  ['terfi', ''],
   ['selam', ''], ['yardım', ''], ['anlamadım', ''],
 ];
 
@@ -316,7 +322,7 @@ const GOLDEN = {
   'quickstart': '097ac73961abd50b23c861e196ec87e88016692bcb4984d0b230bb889ee57049',
   'durum': '4699d07bb29fd69ac446d5339b9665308cdc30b81f9a7419855a390ea45a2db8',
   'rüya': 'a7b117822bec78d6c0a8e8604c91248c0c2a1ebf0e5f864e37cc9692a153aa59',
-  'hypotheses': '2844268257d59b93991d762615e197e28b0a9731f3a15bb596fff44b89d71ddf',
+  'hypotheses': 'c9b6106c303ee8294b5d1310a20ed1abba61092784444d1f41680a51fdcc3bfd',
   'selam': 'e0066643c5faa671ed4f704d0448575b6ba38cc0d38f06ac69054af8e1bbf311',
   // #2505 F re-recorded `yardım`: the help text is generated from the workflow
   // contract, which gained the `stop` and `lift` commands. Diffing the help
@@ -335,7 +341,9 @@ const GOLDEN = {
   // generated help; diffing against main shows exactly that one added line.
   // The memory record search adds the `memory-query` usage line (one line);
   // diffing the help text against main shows exactly that one added line.
-  'yardım': '36cab08438c89aca73a9e1275720ea037955958ce859d76c037854f53abc90fe',
+  // #3550 adds the `terfi` usage line (one line) to the same generated help.
+  'yardım': '06dc3272e5ccce97288a91b8109ea8197614d4f56b6a2a93047d1af579f06a84',
+  'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',

@@ -111,6 +111,7 @@ function verifyExternalAdapters(label, consumer) {
   const required = [
     'claude-code-hooks.json',
     'codex-hooks.json',
+    'openhands-hooks.json',
     'opencode-plugin.mjs',
     'pi-extension.js',
     path.join('hermes', 'plugin.yaml'),

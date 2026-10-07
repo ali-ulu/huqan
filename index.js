@@ -36,6 +36,10 @@ const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-ru
 const prGuardian = require('./lib/pr-guardian');
 const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
 const { createA2aHandoffDispatcher } = require('./lib/a2a/handoff-dispatch');
+const { createA2aHandoffCursor, CURSOR_SCHEMA_VERSION } = require('./lib/a2a/handoff-cursor');
+const handoffTermination = require('./lib/a2a/handoff-termination');
+const exchangeErrorRecord = require('./lib/a2a/exchange-error-record');
+const delegationDepth = require('./lib/a2a/delegation-depth');
 const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
 const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
 const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
@@ -128,6 +132,25 @@ module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;
 // Outbound host SDK seam; signing, admission and transport remain host-owned.
 module.exports.createA2aHandoffDispatcher = createA2aHandoffDispatcher;
 
+// Durable active-delegator cursor and its typed termination reasons (R23).
+// The host owns the directory (shared with the replay/task stores); this pair
+// owns the record shape, the exclusive-create durability and the allowlist.
+module.exports.createA2aHandoffCursor = createA2aHandoffCursor;
+module.exports.CURSOR_SCHEMA_VERSION = CURSOR_SCHEMA_VERSION;
+module.exports.HANDOFF_TERMINATION_REASONS = handoffTermination.HANDOFF_TERMINATION_REASONS;
+module.exports.resolveHandoffTermination = handoffTermination.resolveHandoffTermination;
+
+// Typed exchange error records and the delegation depth bound (R25). Pure
+// constructors and predicates for hosts and auditors; the exchange keeps
+// returning its existing reason strings.
+module.exports.buildExchangeErrorRecord = exchangeErrorRecord.buildExchangeErrorRecord;
+module.exports.classifyExchangeErrorType = exchangeErrorRecord.classifyExchangeErrorType;
+module.exports.isRetryableErrorRecord = exchangeErrorRecord.isRetryableErrorRecord;
+module.exports.EXCHANGE_ERROR_TYPES = exchangeErrorRecord.EXCHANGE_ERROR_TYPES;
+module.exports.evaluateDelegationDepth = delegationDepth.evaluateDelegationDepth;
+module.exports.withinDelegationDepth = delegationDepth.withinDelegationDepth;
+module.exports.MAX_DELEGATION_DEPTH = delegationDepth.MAX_DELEGATION_DEPTH;
+
 // Bounded Trust Receipt pilot surface for one real issuer-to-receiver event.
 module.exports.TrustReceiptPilot = trustReceiptPilot;
 module.exports.buildPilotTrustReceipt = trustReceiptPilot.buildPilotTrustReceipt;
@@ -177,3 +200,8 @@ module.exports.toOtlpHttpPayload = trustInteropOtel.toOtlpHttpPayload;
 // Opt-in bounded causal learning over verified ExperienceJournal outcomes.
 module.exports.CausalRuntime = require('./lib/causal/causal-runtime').CausalRuntime;
 module.exports.LearnedCausalEngine = require('./lib/causal/learned-causal-engine').LearnedCausalEngine;
+
+// Opt-in local neural cognition candidate (#3474 I6). It is a CANDIDATE_ONLY
+// proposal through the model-agnostic port; it is never authority.
+module.exports.createLocalNeuralModel = require('./lib/cognitive-model-local-ssm').createLocalNeuralModel;
+module.exports.validateCognitiveModelProposal = require('./lib/cognitive-model-port').validateProposal;

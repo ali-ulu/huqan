@@ -8,6 +8,8 @@ const { createReflectivePromotion, STATES } = require('../lib/experience/reflect
 
 const T0 = Date.parse('2026-01-01T00:00:00Z');
 const MIN = 60 * 1000;
+// #3552: authority identities are verified through the host's resolver.
+const VERIFIED = (reference) => ({ ok: true, principal: { id: reference } });
 function runs(count, { cost = 10, negatives = 0, from = 0 } = {}) {
   return Array.from({ length: count }, (_, i) => ({ occurredAt: T0 + (from + i) * MIN,
     learningEligibility: i < negatives ? 'negative_example' : 'positive_procedure',
@@ -18,13 +20,13 @@ function setup({ learnerPrincipals = ['learner-agent'] } = {}) {
   trust.createCapability({ workspaceId: 'ws', capabilityId: 'cap', boundProcedureVersion: 'v1' });
   trust.recordRun({ workspaceId: 'ws', capabilityId: 'cap', procedureVersion: 'v1', eventId: 'v1e', runId: 'v1r',
     learningEligibility: 'positive_procedure', occurredAt: T0 });
-  const admissions = createPromotionAdmissionRegistry();
+  const admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
   const loop = createReflectivePromotion({ trust, admissions, learnerPrincipals });
   return { trust, admissions, loop };
 }
 function proposeAndPass(loop, overrides = {}) {
   const proposal = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2',
-    proposedBy: 'learner-agent', authorityDelta: {}, ...overrides });
+    proposedBy: 'learner-agent', authorityDelta: {}, ...artifacts(), ...overrides });
   assert.equal(proposal.ok, true);
   const canary = loop.evaluateCanary({ candidateId: proposal.candidateId, candidateRuns: runs(12, { cost: 5 }),
     baselineWindowRuns: runs(12, { cost: 10 }), startAt: T0 });
@@ -33,6 +35,13 @@ function proposeAndPass(loop, overrides = {}) {
 }
 function approve(admissions, promotionId, approverId, kind = 'promotion', candidateVersion = 'v2') {
   admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId, approverId, subject: { kind, candidateVersion } });
+}
+// #3551: artifacts the derivation reads. Same scope both sides means the
+// diff derives no widening; anything else exercises mismatch or underivable.
+const SCOPE = Object.freeze({ tools: Object.freeze(['read']) });
+const WIDER_SCOPE = Object.freeze({ tools: Object.freeze(['read', 'write']) });
+function artifacts(scope = SCOPE) {
+  return { candidateArtifact: { scope }, boundArtifact: { scope: SCOPE } };
 }
 
 describe('I5 reflective loop: canary -> independent admission -> promote', () => {
@@ -72,12 +81,12 @@ describe('I5 reflective loop: canary -> independent admission -> promote', () =>
     }
     const { loop } = setup();
     assert.equal(loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'model', candidateVersion: 'v2',
-      proposedBy: 'learner-agent', authorityDelta: { scope: null, policy: null } }).ok, true);
+      proposedBy: 'learner-agent', authorityDelta: { scope: null, policy: null }, ...artifacts() }).ok, true);
   });
 
   it('cannot promote without a computed canary pass, and a failed canary stays unpromoted', () => {
     const { admissions, loop } = setup();
-    const proposal = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner-agent', authorityDelta: {} });
+    const proposal = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner-agent', authorityDelta: {}, ...artifacts() });
     approve(admissions, 'p1', 'human-reviewer');
     assert.equal(loop.promote({ candidateId: proposal.candidateId, promotionId: 'p1' }).code, 'invalid_state');
     const failed = loop.evaluateCanary({ candidateId: proposal.candidateId, candidateRuns: runs(12, { cost: 50 }),
@@ -190,5 +199,69 @@ describe('I5 review hardening: bound approvals, declared deltas, stale versions'
     assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v2');
     const baseline = loop.inspect(a).promotionBaseline;
     assert.throws(() => { baseline.rateAtLastPromotion = 1; });
+  });
+});
+
+describe('#3551 derived authority impact: mismatch refusal and fail-closed underivable', () => {
+  function base(overrides = {}) {
+    return { workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2',
+      proposedBy: 'learner-agent', authorityDelta: {}, ...overrides };
+  }
+  it('a scope the declaration stays silent about is refused as a declaration mismatch', () => {
+    const { loop } = setup();
+    const res = loop.propose(base( { candidateArtifact: { scope: WIDER_SCOPE }, boundArtifact: { scope: SCOPE } }));
+    assert.equal(res.code, 'authority_declaration_mismatch');
+    assert.deepEqual(res.widened, ['scope']);
+    assert.equal(loop.evaluateCanary({ candidateId: res.candidateId, candidateRuns: runs(12, { cost: 5 }),
+      baselineWindowRuns: runs(12), startAt: T0 }).code, 'invalid_state');
+    assert.equal(loop.promote({ candidateId: res.candidateId, promotionId: 'p' }).code, 'invalid_state');
+  });
+
+  it('a narrowed scope is also a mismatch: narrowing through learning is refused too', () => {
+    const { loop } = setup();
+    const res = loop.propose(base( { candidateArtifact: { scope: SCOPE }, boundArtifact: { scope: WIDER_SCOPE } }));
+    assert.equal(res.code, 'authority_declaration_mismatch');
+  });
+
+  it('a declared widening still refuses as authority_expansion before any artifact is read', () => {
+    const { loop } = setup();
+    const res = loop.propose(base( { authorityDelta: { scope: { widen: true } } }));
+    assert.equal(res.code, 'authority_expansion');
+  });
+
+  it('missing, non-record, proxied or scopeless artifacts fail closed as underivable', () => {
+    const cases = [
+      {},
+      { candidateArtifact: { scope: SCOPE } },
+      { candidateArtifact: { scope: SCOPE }, boundArtifact: null },
+      { candidateArtifact: new Proxy({ scope: SCOPE }, {}), boundArtifact: { scope: SCOPE } },
+      { candidateArtifact: { scope: SCOPE }, boundArtifact: { scope: [SCOPE] } },
+    ];
+    for (const extra of cases) {
+      const { loop } = setup();
+      const res = loop.propose(base( extra));
+      assert.equal(res.code, 'authority_impact_underivable', JSON.stringify(Object.keys(extra)));
+      assert.equal(loop.promote({ candidateId: res.candidateId, promotionId: 'p' }).code, 'invalid_state');
+    }
+  });
+
+  it('hidden scope keys cannot smuggle a widening past the derivation', () => {
+    const sneaky = { scope: { ...SCOPE } };
+    Object.defineProperty(sneaky.scope, 'extra', { value: ['admin'], enumerable: false });
+    const { loop } = setup();
+    const res = loop.propose(base({ candidateArtifact: sneaky, boundArtifact: { scope: SCOPE } }));
+    assert.equal(res.code, 'authority_declaration_mismatch');
+  });
+
+  it('rule and model types derive from scope-carrying artifacts the same way', () => {
+    for (const artifactType of ['rule', 'model']) {
+      const { loop } = setup();
+      const same = loop.propose(base({ artifactType, ...artifacts() }));
+      assert.equal(same.ok, true, artifactType);
+      const { loop: loop2 } = setup();
+      const diff = loop2.propose(base({ artifactType,
+        candidateArtifact: { scope: WIDER_SCOPE }, boundArtifact: { scope: SCOPE } }));
+      assert.equal(diff.code, 'authority_declaration_mismatch', artifactType);
+    }
   });
 });

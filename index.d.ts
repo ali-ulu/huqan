@@ -2,6 +2,8 @@ import Kernel = require('./kernel');
 import KernelV2 = require('./kernel.v2');
 import { CausalRuntime } from './lib/causal/causal-runtime';
 import { LearnedCausalEngine } from './lib/causal/learned-causal-engine';
+import { createLocalNeuralModel } from './lib/cognitive-model-local-ssm';
+import { validateProposal as validateCognitiveModelProposal } from './lib/cognitive-model-port';
 
 type A2aStageContext = Readonly<{
   workspaceId: string;
@@ -29,6 +31,8 @@ declare const huqan: typeof KernelV2 & {
   KernelV2: typeof KernelV2;
   CausalRuntime: typeof CausalRuntime;
   LearnedCausalEngine: typeof LearnedCausalEngine;
+  createLocalNeuralModel: typeof createLocalNeuralModel;
+  validateCognitiveModelProposal: typeof validateCognitiveModelProposal;
 
   /** @deprecated Use KernelV2 / require('huqan'). Removed in the next major. */
   KernelV1: typeof Kernel;
@@ -91,6 +95,39 @@ declare const huqan: typeof KernelV2 & {
     deliveryRecorded?: boolean;
     previousOutcome?: string;
   }>> };
+
+  createA2aHandoffCursor: (directory: string) => {
+    recordCursor: (cursor: {
+      from_agent_id: string; to_agent_id: string;
+      route_receipt_id: string; timestamp: string;
+    }) => Readonly<{ recorded: boolean; duplicate?: boolean; reason?: string }>;
+    readCursor: (routeReceiptId: string) => Readonly<{
+      found: boolean; active?: boolean; corrupt?: boolean;
+      cursor?: unknown; termination?: unknown;
+    }>;
+    closeCursor: (routeReceiptId: string, closure: {
+      handoffReason: string; closedBy: string; timestamp: string;
+    }) => Readonly<{ closed: boolean; reason?: string; termination?: unknown }>;
+  };
+  CURSOR_SCHEMA_VERSION: string;
+  HANDOFF_TERMINATION_REASONS: Record<string, string>;
+  resolveHandoffTermination: (request: {
+    handoffReason: string; closedBy: string;
+  }) => Readonly<{ handoffReason: string; closedBy: string; terminationReason: string }>;
+
+  buildExchangeErrorRecord: (record: {
+    errorType: string; errorMessage: string; traceback?: string | null;
+  }) => Readonly<{
+    schemaVersion: string; error_type: string; error_message: string; traceback_hash: string | null;
+  }>;
+  classifyExchangeErrorType: (errorType: unknown) => boolean;
+  isRetryableErrorRecord: (record: unknown) => boolean;
+  EXCHANGE_ERROR_TYPES: readonly string[];
+  evaluateDelegationDepth: (delegation: {
+    chain: string[];
+  }) => Readonly<{ depth: number; visitedAgentIds: readonly string[]; withinBounds: boolean }>;
+  withinDelegationDepth: (delegation: unknown) => boolean;
+  MAX_DELEGATION_DEPTH: number;
 
   HumanOversightApprovalRuntime: Record<string, any>;
   createHumanOversightApprovalRuntime: (options: Record<string, unknown>) => Record<string, any>;

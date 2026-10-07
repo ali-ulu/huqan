@@ -2,18 +2,18 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 59,
-    "sites": 130,
+    "files": 61,
+    "sites": 134,
     "byCapability": {
       "process": 18,
       "egress": 4,
-      "fs_write": 108
+      "fs_write": 112
     },
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
-      "operator_tool": 33,
-      "persistence": 37,
+      "operator_tool": 36,
+      "persistence": 38,
       "evidence": 14,
       "egress_operator_gated": 2,
       "unguarded": 3
@@ -163,6 +163,21 @@
       "sites": [
         {
           "line": 178,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/a2a/handoff-cursor.js",
+      "role": "persistence",
+      "why": "the A2A active-delegator cursor beside the replay/task stores, under the host-configured directory; one exclusive-create file per route receipt id, file name is the receipt hash so a cursor cannot escape that directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 109,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
@@ -332,22 +347,22 @@
       ],
       "sites": [
         {
-          "line": 94,
+          "line": 108,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 96,
+          "line": 110,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 149,
+          "line": 163,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 160,
+          "line": 174,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -478,7 +493,7 @@
       ],
       "sites": [
         {
-          "line": 39,
+          "line": 40,
           "capability": "process",
           "call": "spawnSync"
         }
@@ -534,22 +549,22 @@
       ],
       "sites": [
         {
-          "line": 50,
+          "line": 64,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 75,
+          "line": 89,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 128,
+          "line": 147,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 158,
+          "line": 188,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         }
@@ -584,12 +599,12 @@
       ],
       "sites": [
         {
-          "line": 47,
+          "line": 48,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 80,
+          "line": 81,
           "capability": "process",
           "call": "spawnSync"
         }
@@ -604,9 +619,34 @@
       ],
       "sites": [
         {
-          "line": 148,
+          "line": 219,
           "capability": "fs_write",
           "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-identity-issue.js",
+      "role": "operator_tool",
+      "why": "mints the capability card an operator hands to the gate (#2505); the write is refused if the target exists, and there is no agent in the loop -- an agent that could mint its own authority would defeat the card",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 112,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 127,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 175,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
         }
       ]
     },

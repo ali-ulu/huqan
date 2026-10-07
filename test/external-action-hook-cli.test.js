@@ -149,12 +149,54 @@ test('Codex and Claude projections fail closed before destructive execution', t 
   assert.equal(JSON.parse(claude.process.stdout).hookSpecificOutput.permissionDecision, 'deny');
 });
 
+test('OpenHands projection blocks a destructive call with a top-level deny decision', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  // OpenHands' PreToolUse hook payload is flat snake_case with the project
+  // directory as working_dir; the decision is a top-level {decision, reason}
+  // (OpenHands' contract has no "ask"), not a nested hookSpecificOutput.
+  const payload = {
+    event_type: 'PreToolUse',
+    session_id: 'openhands-session',
+    tool_use_id: 'openhands-call',
+    tool_name: 'terminal',
+    tool_input: { command: 'rm -rf /' },
+    working_dir: root,
+  };
+  const run = runHook('openhands', payload, directory);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.decision, 'deny');
+  assert.match(output.reason, /DENYLISTED_COMMAND_BLOCKED/);
+  assert.equal(output.hookSpecificOutput, undefined);
+});
+
+test('OpenHands projection allows a bounded read and persists its receipt', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHook('openhands', {
+    event_type: 'PreToolUse',
+    session_id: 'openhands-session',
+    tool_use_id: 'openhands-read',
+    tool_name: 'terminal',
+    tool_input: { command: 'git status' },
+    working_dir: root,
+  }, directory);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  assert.deepEqual(JSON.parse(run.process.stdout), {});
+  assert.equal(fs.readFileSync(run.receiptLog, 'utf8').trim().split(/\r?\n/).length, 1);
+});
+
 test('shipped adapter templates bind every supported host to HUQAN before execution', () => {
   const claude = JSON.parse(fs.readFileSync(path.join(adapterRoot, 'claude-code-hooks.json'), 'utf8'));
   const codex = JSON.parse(fs.readFileSync(path.join(adapterRoot, 'codex-hooks.json'), 'utf8'));
   assert.match(claude.hooks.PreToolUse[0].hooks[0].command, /huqan-gate --profile claude-code/);
   assert.match(codex.hooks.PreToolUse[0].hooks[0].command, /huqan-gate --profile codex/);
   assert.match(codex.hooks.PreToolUse[0].hooks[0].commandWindows, /huqan-gate\.cmd --profile codex/);
+
+  const openhands = JSON.parse(fs.readFileSync(path.join(adapterRoot, 'openhands-hooks.json'), 'utf8'));
+  assert.match(openhands.hooks.pre_tool_use[0].hooks[0].command, /huqan-gate --profile openhands/);
+  assert.match(openhands.hooks.pre_tool_use[0].hooks[0].commandWindows, /huqan-gate\.cmd --profile openhands/);
 
   const openCode = fs.readFileSync(path.join(adapterRoot, 'opencode-plugin.mjs'), 'utf8');
   const pi = fs.readFileSync(path.join(adapterRoot, 'pi-extension.js'), 'utf8');

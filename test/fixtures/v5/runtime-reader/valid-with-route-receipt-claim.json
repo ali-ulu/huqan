@@ -22,9 +22,11 @@
     "routeReceipt": {
       "routeId": "route.reader.fixture.001",
       "decisionPath": ["kernel", "review_gate"],
+      "participants": ["agent.reader.fixture", "human.review.fixture"],
       "handoff": {
         "from": "agent.reader.fixture",
-        "to": "human.review.fixture"
+        "to": "human.review.fixture",
+        "reason": "human_review_requested"
       }
     },
     "nonClaims": [

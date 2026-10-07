@@ -52,10 +52,17 @@ kimlik, hangi yetkiyle, kimin adına yaptı" demez. Faz C (#1769) bunun için
   "workspaceId": "default",
   "capabilities": ["file_read", "shell"],
   "delegationChain": ["orchestrator", "future-agent-2035"],
-  "issuedAt": "2026-01-01T00:00:00.000Z",
-  "expiresAt": null
+  "issuedAt": "2026-10-06T09:00:00.000Z",
+  "expiresAt": "2026-10-06T21:00:00.000Z"
 }
 ```
+
+`expiresAt` zorunludur ve kartın ömrü en fazla 24 saattir
+(`identity_card_expires_at_missing` / `identity_card_lifetime_exceeded`).
+`issuedAt` ile `expiresAt` arasındaki pencere gerçek saate göre değerlendirilir;
+süresi geçmiş bir kart `block` olur. Örnekteki tarihler yalnız biçimi gösterir;
+kendi kartınızı `huqan-gate identity issue` ile üretin (aşağıda), çünkü sabit
+tarihli bir kart kısa süre sonra süresi geçmiş olur.
 
 `capabilities` zarfın `kind` sözlüğünden değer alır; `*` hepsini kapsar.
 `delegationChain` verilirse son eleman `agentId` olmak zorundadır. Kart
@@ -70,11 +77,18 @@ kararın içine, kimlik de `metadata.identity` olarak receipt'e yazılır — ya
 canonical receipt hash'inin kapsamındadır.
 
 Kart **verilmediğinde** eylem yine attribute edilir (`attested: false`,
-`ownerActorId: "unattested"`) ama karar değişmez. Kartı zorunlu kılmak bir
-deployment kararıdır: `--require-identity`, library'de
-`requireIdentityCard: true | 'review'`, ya da
-`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=1|review`. Böylece kimlik açmak, kartı
-henüz taşımayan mevcut uyarlayıcıları sessizce kırmaz.
+`ownerActorId: "unattested"`) ama karar **varsayılan olarak `block`**'tur:
+`#2505 C` sahibi kararı, imzasız kimliği üretimde kabul etmemektir. Yani kart
+taşımayan bir ajanın zararsız bir komutu bile `agent_identity_card_required` ile
+bloklanır — bu, OpenHands'a özel değil, bütün profillerin ortak fail-closed
+davranışıdır.
+
+Kimlik zorunluluğunu gevşetmek **açık bir deployment kararıdır**:
+`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow` (library'de
+`requireIdentityCard: false`). Aynı değişken `review` değeriyle `allow` yerine
+inceleme ister. `NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu
+bir bayrakla gevşetilemez. Kart vermenin kolay yolu `huqan-gate identity issue`
+(bkz. aşağıda).
 
 ### Kart imzası (ed25519)
 
@@ -102,6 +116,63 @@ true` hâlâ yalnız "geçerli biçimli kart sunuldu" demektir —
 `signatureVerified: true` olmadan makbuz kriptografik olarak doğrulanmış bir
 fleet kimliğine bağlanmış sayılmaz. Merkezi makbuz toplamanın (#1781)
 önkoşulu budur.
+
+### Kart verme (`huqan-gate identity issue`)
+
+Kartı elle JSON yazmak yerine operatör üretir; üretilen kart guard'ın kabul
+ettiği biçimdedir ve var olan bir dosyanın üzerine yazılmaz.
+
+```bash
+# 1) İmza anahtar çifti (kartı imzalayacaksanız bir kez)
+huqan-gate identity issue --generate-keypair ./keys
+
+# 2) Kart: agent-id hook profilinin agentName'iyle eşleşmeli (ör. openhands)
+huqan-gate identity issue \
+  --agent-id openhands --owner actor:ali \
+  --capabilities shell,file_read \
+  --out card.json \
+  --sign-key ./keys/identity-card-private.pem
+
+# 3) Kartı gate çağrısına ver (CLI bayrakları)
+... | huqan-gate --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+`--capabilities` zarfın `kind` sözlüğünden virgülle ayrılır (`*` hepsi).
+`--lifetime-hours` verilmezse ömür 12 saat; şema tavanı 24 saat. `--issued-at`
+ve `--expires-at` sabit değerler için, `--agent-name`/`--on-behalf-of`
+`--agent-id`/`--owner`'dan farklı olması gerektiğinde kullanılır. Çıktı
+`ok`, `cardPath`, `identityRef` ve (imzalandıysa) `signaturePath` alanlarını
+içerir; bir hata durumunda `ok: false` ve `errors` döner, exit kodu 1'dir.
+
+### Kartı kurulu hook komutuna bağlama (`install`)
+
+Bir dağıtımda gate zaten kuruluysa, ajanın her çağrıda kartı elle taşımasını
+beklemek yerine kartı kaydedilen hook komutuna bağlayabilirsin. `install`
+`--identity-card`, `--identity-card-signature` ve `--trusted-identity-keys`
+seçeneklerini alır ve bunları hook komutuna ekler:
+
+```bash
+huqan-gate install --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+`install`, komutu kaydetmeden önce kartın zararsız bir eylemi gerçekten kabul
+ettiğini çalıştırarak kanıtlar; süresi geçmiş, yanlış ajan adına düzenlenmiş,
+güvenilmeyen anahtarla imzalanmış veya gerekli capability'yi vermeyen bir kart
+kurulumu reddettirir. Bu adım olmadan `rm -rf /` sentinel'i kart ölü olsa bile
+denylist üzerinden bloklar ve kurulum yanlışlıkla yeşil görünürdü. Kimlik yolları
+kaydedilen komuta tırnaksız gömüldüğü için boşluk, glob, kabuk operatörü veya
+Windows `%`/`^` içeren bir yol okunmadan önce reddedilir. Kartı
+değiştirmek için yeni kartla yeniden `install` çalıştır: sahiplenilen girdi
+ikinci kopya eklemeden yerinde güncellenir. Bu seçenekler yalnız JSON hook
+profillerinde (Claude Code, Codex, OpenHands) kullanılabilir; OpenCode, Pi ve
+Hermes artifact'ları kendi config'inden okur. OpenHands için tam senaryo:
+`docs/automations/openhands.md` § Kimlik kartını hook'a bağlama.
 
 ### Üretimde insan sponsor zorunluluğu (#1889)
 
@@ -342,6 +413,26 @@ Ayrı bir `PermissionRequest` olayı da var; çıktısı `behavior: allow | deny
 oraya iliştirmek mümkün — henüz bağlanmadı, çünkü PreToolUse zaten reddettiği
 bir çağrı için onay istemi hiç oluşmuyor.
 
+### OpenHands hook sözleşmesi
+
+OpenHands hook'ları depo içinde `.openhands/hooks.json` dosyasından okur ve
+Claude Code biçimiyle uyumludur; olay anahtarları snake_case'tir (`pre_tool_use`)
+ve `{"hooks": {...}}` sarmalayıcısı da kabul edilir. `PreToolUse` **girdisi**
+stdin'den flat bir JSON olarak gelir: `event_type`, `tool_name`, `tool_input`,
+`session_id`, `working_dir` (ek alanlar olay tipine göre değişir; ortam
+değişkenleri `OPENHANDS_EVENT_TYPE`, `OPENHANDS_TOOL_NAME`,
+`OPENHANDS_PROJECT_DIR`, `OPENHANDS_SESSION_ID` da set edilir).
+
+Çıktı sözleşmesi exit kodu + stdout JSON'dur: `0` geçirir, `2` engeller, diğer
+kodlar hatadır (işlem devam eder, hata loglanır). stdout'taki
+`{"decision": "allow" | "deny", "reason": ..., "additionalContext": ...}`
+exit kodunu geçersiz kılar. Şema yalnız `allow`/`deny` tanır — `ask` yok — bu
+yüzden `review` de `deny` olarak uygulanır ve farkı `reason` taşır ("human
+decision pending, not a denylist block", ayrıca makbuz kimliği); gerekçe
+`receiptId`'yi içerdiğinden makbuzla eşleştirilebilir. Girdi `working_dir`
+alanını taşıdığı için adaptör `cwd`'yi oradan çözer, workspace kökü de aynı
+değerdir.
+
 ### Shell komutları hangi kategoriye düşer
 
 Sırayla: deployment (`git push`, `npm publish`, …) → izin değişikliği (`chmod`,
@@ -433,6 +524,7 @@ Bu yollara yazma, silme veya yeniden yazma `block`'tur — profilden bağımsız
 |---|---|
 | Claude Code | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks.json`, `.claude/hooks/**` |
 | Codex | `.codex/hooks.json`, `.codex/hooks/**` |
+| OpenHands | `.openhands/hooks.json`, `.openhands/hooks/**` |
 | OpenCode | `.opencode/plugin/**` |
 | Pi | `.pi/extensions/**` |
 | Hermes | `.hermes/plugins/**` |
@@ -505,6 +597,7 @@ recordExternalActionOutcome(invocation, admission.receipt, {
 |---|---|---|---|
 | Claude Code | `PreToolUse` command hook, `--profile claude-code` | `ask` | Hook'a gelen araç çağrıları |
 | Codex | `PreToolUse` command hook, `--profile codex` | Güvenli varsayımla `deny` | Hook'a gelen araç çağrıları; devam eden bir `write_stdin` aynı tool call için yeniden hook üretmez |
+| OpenHands | `pre_tool_use` command hook, `--profile openhands` | Güvenli varsayımla `deny` | Hook'a gelen araç çağrıları; hook yalnız `allow`/`deny` bilir, `ask` yok |
 | OpenCode | `createOpenCodeGuardPlugin()` | exception ile durdurur | `tool.execute.before` event'leri |
 | Pi | `registerPiGuard(pi)` | `{ block: true }` | `tool_call` event'leri |
 | Hermes | `--profile hermes` | `{ action: "block" }` | `pre_tool_call` hook event'leri |

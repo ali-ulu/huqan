@@ -107,6 +107,7 @@ const EVIDENCE = Object.freeze({
   'experience-learn': { none: 'deriving a learning proposal is read-only and writes no usage row' },
   'experience-reconcile': { table: 'experience_operations', where: "outcome_body LIKE '%\"resolvedBy\"%'", label: 'operator-resolved operations' },
   'memory-lifecycle': { table: 'audit_log', where: "target_type = 'cli_mutation' AND target_id = 'memory-lifecycle'", label: 'memory-lifecycle audit events' },
+  'reflective-promotion': { table: 'audit_log', where: "target_type = 'cli_mutation' AND target_id = 'terfi'", label: 'terfi audit events' },
   'quickstart': { none: 'quickstart writes ordinary state; nothing marks it as its origin' },
   'recommendation': { none: 'the LLM recommendation path stores no marker of its own' },
   'auto-think': { none: 'no marker distinguishes auto-think output from ordinary graph writes' },

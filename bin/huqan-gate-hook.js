@@ -2,6 +2,7 @@
 'use strict';
 
 const { queryIdentityLog } = require('../lib/gate-hook-identity');
+const { issueIdentityCard } = require('../lib/external-action-identity-issue');
 const {
   runSealsCommand,
   runFleetCommand,
@@ -101,6 +102,12 @@ async function main() {
       return;
     }
     if (argumentValue('--identity-log')) return queryIdentityLog();
+    // `identity issue` mints the capability card a gate call needs; without it
+    // the only issuance path was hand-written JSON (#2505).
+    if (command === 'identity') {
+      issueIdentityCard();
+      return;
+    }
     await runHookEvaluation(command);
   } catch (error) {
     process.stderr.write(`HUQAN external action guard failed closed: ${error?.message || error}\n`);

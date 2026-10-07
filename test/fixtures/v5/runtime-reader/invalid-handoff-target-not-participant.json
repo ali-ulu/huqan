@@ -1,0 +1,33 @@
+{
+  "fixtureType": "invalid_reader_candidate",
+  "expected": {
+    "status": "malformed",
+    "reasonCategory": "malformed_route_receipt_metadata"
+  },
+  "candidate": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "reader_fixture_invalid_handoff_001",
+    "issuer": {
+      "agentId": "agent.reader.fixture",
+      "workspaceId": "workspace.reader.fixture"
+    },
+    "subject": {
+      "type": "agent_action",
+      "id": "action.reader.invalid.007"
+    },
+    "verdict": {
+      "status": "review",
+      "reason": "injected_handoff_target"
+    },
+    "routeReceipt": {
+      "routeId": "route.reader.fixture.002",
+      "decisionPath": ["kernel", "review_gate"],
+      "participants": ["agent.reader.fixture", "human.review.fixture"],
+      "handoff": {
+        "from": "agent.reader.fixture",
+        "to": "agent.injected.attacker"
+      }
+    },
+    "nonClaims": ["invalid_fixture"]
+  }
+}

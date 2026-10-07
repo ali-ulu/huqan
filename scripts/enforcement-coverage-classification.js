@@ -98,6 +98,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'proves a gate command by running it against a denylisted envelope and writes the adapter that will call it; the spawns are the gate proving itself and the write is the integration it just proved, refused entirely if the sentinel does not block',
   }),
+  'lib/external-action-identity-issue.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'mints the capability card an operator hands to the gate (#2505); the write is refused if the target exists, and there is no agent in the loop -- an agent that could mint its own authority would defeat the card',
+  }),
   'adapters/external-action/generic-adapter.js': Object.freeze({
     role: 'enforcement',
     why: 'the generated custom-agent adapter: its one spawn is the call to the gate itself, made before the agent acts, so gating it would be circular -- it fails closed on a gate it cannot start, parse or recognise',
@@ -148,6 +152,7 @@ const CLASSIFIED = Object.freeze({
   'lib/secure-file-write.js': Object.freeze({ role: 'persistence', why: 'central private staging and atomic-replacement primitive for product persistence; callers select the target while this module performs exclusive bounded filesystem writes' }),
   'lib/a2a/replay-store.js': Object.freeze({ role: 'persistence', why: 'the A2A replay reservation store; its durability is what makes at-most-once delivery hold across a restart' }),
   'lib/a2a/task-store.js': Object.freeze({ role: 'persistence', why: 'the A2A task store backing at-most-once delivery, under the configured replay directory' }),
+  'lib/a2a/handoff-cursor.js': Object.freeze({ role: 'persistence', why: 'the A2A active-delegator cursor beside the replay/task stores, under the host-configured directory; one exclusive-create file per route receipt id, file name is the receipt hash so a cursor cannot escape that directory' }),
   'lib/a2a/delegation-audit-log.js': Object.freeze({ role: 'persistence', why: 'the A2A delegation audit trail, under the same configured replay directory; one exclusive-create file per exchange, and every write failure is swallowed so recording can never refuse a delegation' }),
   'lib/registry/registry-record-store.js': Object.freeze({ role: 'persistence', why: 'the trust registry record store, under the resolved registry directory' }),
   'lib/github-app-beta-store.js': Object.freeze({ role: 'persistence', why: 'the GitHub App beta store, at HUQAN_GITHUB_APP_STORE_PATH; written only on the deployment-gated beta path' }),

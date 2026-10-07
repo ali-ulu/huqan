@@ -16,6 +16,9 @@ const {
   DEMOTION_NEGATIVE_THRESHOLD,
   createCapabilityTrustRegistry,
 } = require('../lib/experience/capability-trust');
+const { createPromotionAdmissionRegistry } = require('../lib/experience/canary-admission');
+// #3552: authority identities are verified through the host's resolver.
+const VERIFIED = (reference) => ({ ok: true, principal: { id: reference } });
 
 const T0 = Date.parse('2026-01-01T00:00:00.000Z');
 const MIN = 60 * 1000;
@@ -94,16 +97,27 @@ describe('Capability Trust: acceptance tests (#2383)', () => {
     assert.equal(res.entry.trustState, TRUST_STATES.DEMOTED);
   });
 
-  it('5. procedure rebind while trusted -> probationary, old evidence retained and version-labeled', () => {
+  it('5. admission-gated promotion while trusted -> probationary, old evidence retained and version-labeled', () => {
+    // #3552: rebindProcedure is no longer on the public surface, so the
+    // acceptance exercise runs through the admission-gated canary path
+    // (the only remaining way to move a bound version).
     const registry = createCapabilityTrustRegistry();
+    const admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     recordN(registry, {
       workspaceId: 'ws-a', capabilityId: 'cap-5', procedureVersion: 'v1',
       count: MIN_TRUSTED_EXECUTIONS, eligibility: 'positive_procedure',
     });
     assert.equal(registry.get('ws-a', 'cap-5').trustState, TRUST_STATES.TRUSTED);
-    const res = registry.rebindProcedure({
-      workspaceId: 'ws-a', capabilityId: 'cap-5', newProcedureVersion: 'v2', atEventId: 'rebind-1',
+    admissions.recordExplicitApproval({ workspaceId: 'ws-a', capabilityId: 'cap-5', promotionId: 'p-5',
+      approverId: 'human-1', subject: { kind: 'promotion', candidateVersion: 'v2' } });
+    const admission = admissions.resolveAdmission({ workspaceId: 'ws-a', capabilityId: 'cap-5', promotionId: 'p-5',
+      proposerIds: ['learner'], subject: { kind: 'promotion', candidateVersion: 'v2' } });
+    assert.equal(admission.admitted, true);
+    const res = registry.promoteCanaryCandidate({
+      workspaceId: 'ws-a', capabilityId: 'cap-5', candidateProcedureVersion: 'v2',
+      canaryResult: { status: 'passed', reason: 'canary_clean' }, admission, atEventId: 'rebind-1',
     });
+    assert.equal(res.ok, true, res.code);
     assert.equal(res.entry.trustState, TRUST_STATES.PROBATIONARY);
     assert.equal(res.entry.boundProcedureVersion, 'v2');
     // Old evidence stays in history as a transition record; the window is
@@ -111,7 +125,7 @@ describe('Capability Trust: acceptance tests (#2383)', () => {
     // insufficient-data because the rebind floor overrides that reading.
     assert.equal(res.entry.evidenceWindow.procedureVersion, 'v2');
     assert.equal(res.entry.evidenceWindow.totalCount, 0);
-    const rebindEntry = res.entry.history.find((h) => h.reason === 'procedure_rebind');
+    const rebindEntry = res.entry.history.find((h) => h.reason === 'canary_promotion:explicit_approval');
     assert.ok(rebindEntry);
     assert.equal(rebindEntry.fromState, TRUST_STATES.TRUSTED);
     assert.equal(rebindEntry.toState, TRUST_STATES.PROBATIONARY);

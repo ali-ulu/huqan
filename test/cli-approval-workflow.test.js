@@ -10,6 +10,10 @@ const { callTool } = require('../mcpServer');
 const { runCliArgv } = CLI;
 const { projectApprovalRecord } = require('../lib/mcp-approval-views');
 
+// #3560: deciding an approval needs the operator at a terminal typing the
+// approval id back; these tests stand in for that operator.
+const operatorAt = (approvalId) => ({ operatorInput: { isTTY: true }, operatorAsk: () => approvalId });
+
 function withTempAxiomEnv(fn) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-approval-'));
   const saved = {
@@ -143,13 +147,13 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       assert.equal(JSON.parse(detailOutput[0]).data.approval.id, queued.approval.id);
 
       const approvedOutput = [];
-      const approved = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => approvedOutput.push(value) });
+      const approved = await runCliArgv(['onayla', queued.approval.id], { ...operatorAt(queued.approval.id), cli, stdout: value => approvedOutput.push(value) });
       assert.equal(approved.exitCode, 0);
       assert.match(approvedOutput.join('\n'), /The learned fact was written to canonical state/);
       assert.equal(cli.kernel.verify(text).data.status, 'verified');
 
       const decisionJsonOutput = [];
-      await runCliArgv(['--json', 'onayla', queued.approval.id], { cli, stdout: value => decisionJsonOutput.push(value) });
+      await runCliArgv(['--json', 'onayla', queued.approval.id], { ...operatorAt(queued.approval.id), cli, stdout: value => decisionJsonOutput.push(value) });
       const decisionJson = JSON.parse(decisionJsonOutput[0]);
       assert.equal(decisionJson.data.idempotent, true);
       assert.equal(decisionJson.data.executed, false);
@@ -157,7 +161,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       assert.ok(Object.hasOwn(decisionJson.data, 'receipt'));
 
       const invalidOutput = [];
-      const invalid = await runCliArgv(['onayla', queued.approval.id, 'maybe'], {
+      const invalid = await runCliArgv(['onayla', queued.approval.id, 'maybe'], { ...operatorAt(queued.approval.id),
         cli,
         stderr: value => invalidOutput.push(value),
       });
@@ -165,7 +169,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       assert.match(invalidOutput.join('\n'), /Usage: onayla/);
 
       const duplicateOutput = [];
-      const duplicate = await runCliArgv(['onayla', queued.approval.id], { cli, stdout: value => duplicateOutput.push(value) });
+      const duplicate = await runCliArgv(['onayla', queued.approval.id], { ...operatorAt(queued.approval.id), cli, stdout: value => duplicateOutput.push(value) });
       assert.equal(duplicate.exitCode, 0);
       assert.match(duplicateOutput.join('\n'), /already approved/);
 
@@ -176,7 +180,7 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
         cli._approvalRuntime()
       );
       const rejectedOutput = [];
-      const rejected = await runCliArgv(['onayla', rejectedQueued.approval.id, 'rejected'], {
+      const rejected = await runCliArgv(['onayla', rejectedQueued.approval.id, 'rejected'], { ...operatorAt(rejectedQueued.approval.id),
         cli,
         stdout: value => rejectedOutput.push(value),
       });
@@ -193,10 +197,50 @@ test('CLI approval errors are non-successful in one-shot mode', async () => {
   const cli = new CLI({ kernel: { noLoad: true, loadPlugins: false } });
   try {
     await assert.rejects(
-      async () => cli.execute('onayla', { approvalId: 'missing', decision: 'approved' }, { throwOnError: true }),
+      async () => cli.execute('onayla', { approvalId: 'missing', decision: 'approved' }, { throwOnError: true, ...operatorAt('missing') }),
       /APPROVAL_NOT_FOUND/
     );
   } finally {
     closeCli(cli);
   }
+});
+
+test('#3560 deciding an approval without the operator at a terminal is refused and decides nothing', async () => {
+  await withTempAxiomEnvAsync(async () => {
+    const cli = new CLI({
+      kernel: { memoryPath: process.env.AXIOM_MEMORY_PATH, dbPath: process.env.AXIOM_DB_PATH, loadPlugins: false },
+    });
+    try {
+      const text = 'cli operator presence sentinel hayvandir';
+      const queued = callTool(cli.kernel, { name: 'huqan.learn', arguments: { text } }, cli._approvalRuntime());
+      const id = queued.approval.id;
+
+      // A pipe, an agent's shell or a heredoc: no terminal, so exit 4 before anything runs.
+      const noTerminal = [];
+      const refused = await runCliArgv(['onayla', id], { cli, stdout: v => noTerminal.push(v), stderr: v => noTerminal.push(v) });
+      assert.equal(refused.exitCode, 4);
+      assert.match(noTerminal.join('\n'), /operator_terminal_required/);
+
+      // At a terminal, but the operator typed something else.
+      const mismatch = [];
+      const wrong = await runCliArgv(['onayla', id], {
+        cli, operatorInput: { isTTY: true }, operatorAsk: () => 'not-the-id',
+        stdout: v => mismatch.push(v), stderr: v => mismatch.push(v),
+      });
+      assert.equal(wrong.exitCode, 4);
+      assert.match(mismatch.join('\n'), /operator_confirmation_mismatch/);
+
+      // The REPL path (no throwOnError) reports the refusal as text.
+      const replOutput = await cli.execute('onayla', { approvalId: id, decision: 'rejected' }, { operatorInput: { isTTY: false } });
+      assert.match(String(replOutput), /operator_terminal_required/);
+
+      assert.notEqual(cli.kernel.verify(text).data.status, 'verified', 'no refusal decided the approval');
+
+      const approved = await runCliArgv(['onayla', id], { ...operatorAt(id), cli, stdout: () => {} });
+      assert.equal(approved.exitCode, 0);
+      assert.equal(cli.kernel.verify(text).data.status, 'verified');
+    } finally {
+      closeCli(cli);
+    }
+  });
 });

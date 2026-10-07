@@ -24,11 +24,20 @@ function mutant(relative, original, replacement) {
   return compiled.exports;
 }
 const T0 = Date.parse('2026-01-01T00:00:00Z');
+// #3552: authority identities are verified through the host's resolver.
+const VERIFIED = (reference) => ({ ok: true, principal: { id: reference } });
+// #3551: derivation inputs. Same scope both sides so the diff derives no
+// widening and the pre-existing assertions keep testing what they tested.
+const SCOPE = Object.freeze({ tools: Object.freeze(['read']) });
+const WIDER_SCOPE = Object.freeze({ tools: Object.freeze(['read', 'write']) });
+function artifacts(scope = SCOPE) {
+  return { candidateArtifact: { scope }, boundArtifact: { scope: SCOPE } };
+}
 function runs(count, cost) {
   return Array.from({ length: count }, (_, i) => ({ occurredAt: T0 + i * 60000, learningEligibility: 'positive_procedure',
     executionCost: cost, verificationCost: 1, canaryOverheadCost: 0 }));
 }
-function loopWith({ createReflectivePromotion }, admissions = createPromotionAdmissionRegistry()) {
+function loopWith({ createReflectivePromotion }, admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED })) {
   const trust = createCapabilityTrustRegistry();
   trust.createCapability({ workspaceId: 'ws', capabilityId: 'cap', boundProcedureVersion: 'v1' });
   return { trust, admissions, loop: createReflectivePromotion({ trust, admissions, learnerPrincipals: ['learner'] }) };
@@ -37,7 +46,7 @@ function loopWith({ createReflectivePromotion }, admissions = createPromotionAdm
 test('not passing the proposers to the admission registry breaks the self-approval refusal', () => {
   const assertion = (moduleExports) => {
     const { trust, admissions, loop } = loopWith(moduleExports);
-    const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner', authorityDelta: {} });
+    const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2', proposedBy: 'learner', authorityDelta: {}, ...artifacts() });
     loop.evaluateCanary({ candidateId, candidateRuns: runs(12, 5), baselineWindowRuns: runs(12, 10), startAt: T0 });
     admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'learner',
       subject: { kind: 'promotion', candidateVersion: 'v2' } });
@@ -54,18 +63,19 @@ test('dropping the authority-expansion refusal lets a policy-widening candidate 
   const assertion = (moduleExports) => {
     const { loop } = loopWith(moduleExports);
     const res = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'rule', candidateVersion: 'v2',
-      proposedBy: 'learner', authorityDelta: { policy: { allow: ['force_push'] } } });
+      proposedBy: 'learner', authorityDelta: { policy: { allow: ['force_push'] } }, ...artifacts() });
     assert.equal(res.code, 'authority_expansion');
   };
   assertion(require('../lib/experience/reflective-promotion'));
   const broken = mutant('lib/experience/reflective-promotion.js',
-    "if (refusal) return fail(refusal.code, { candidateId: candidate.candidateId, widened: refusal.widened || [] });", '');
+    'if (refusal) outcome = { code: refusal.code, widened: refusal.widened || [] };',
+    'if (false) outcome = { code: refusal.code, widened: refusal.widened || [] };');
   assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
 });
 
 test('skipping the proposer check in the admission registry breaks the self-approval refusal', () => {
   const assertion = ({ createPromotionAdmissionRegistry: create }) => {
-    const admissions = create();
+    const admissions = create({ resolvePrincipal: VERIFIED });
     admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'learner' });
     assert.equal(admissions.resolveAdmission({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', proposerIds: ['learner'] }).admitted, false);
   };
@@ -96,7 +106,7 @@ test('accepting any admitted:true object again lets a forged admission promote',
 
 test('ignoring the admission subject in the ladder lets an approval for another version promote this one', () => {
   const assertion = ({ createCanaryExtension: create }) => {
-    const admissions = createPromotionAdmissionRegistry();
+    const admissions = createPromotionAdmissionRegistry({ resolvePrincipal: VERIFIED });
     admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'human',
       subject: { kind: 'promotion', candidateVersion: 'v9' } });
     const admission = admissions.resolveAdmission({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p',
@@ -119,7 +129,7 @@ test('dropping the stale-prior check lets a second candidate overwrite a promoti
   const assertion = (moduleExports) => {
     const { trust, admissions, loop } = loopWith(moduleExports);
     const ids = ['v2', 'v3'].map((candidateVersion) => {
-      const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion, proposedBy: 'learner', authorityDelta: {} });
+      const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion, proposedBy: 'learner', authorityDelta: {}, ...artifacts() });
       loop.evaluateCanary({ candidateId, candidateRuns: runs(12, 5), baselineWindowRuns: runs(12, 10), startAt: T0 });
       admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: candidateVersion, approverId: 'human',
         subject: { kind: 'promotion', candidateVersion } });
@@ -132,5 +142,40 @@ test('dropping the stale-prior check lets a second candidate overwrite a promoti
   assertion(require('../lib/experience/reflective-promotion'));
   const broken = mutant('lib/experience/reflective-promotion.js',
     "if (boundVersion(candidate) !== candidate.priorVersion) return fail('stale_prior_version');", '');
+  assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
+});
+
+test('dropping the declaration-mismatch refusal lets a silently widening candidate promote', () => {
+  const assertion = (moduleExports) => {
+    const { trust, admissions, loop } = loopWith(moduleExports);
+    const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2',
+      proposedBy: 'learner', authorityDelta: {},
+      candidateArtifact: { scope: WIDER_SCOPE }, boundArtifact: { scope: SCOPE } });
+    loop.evaluateCanary({ candidateId, candidateRuns: runs(12, 5), baselineWindowRuns: runs(12, 10), startAt: T0 });
+    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'human',
+      subject: { kind: 'promotion', candidateVersion: 'v2' } });
+    loop.promote({ candidateId, promotionId: 'p' });
+    assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v1');
+  };
+  assertion(require('../lib/experience/reflective-promotion'));
+  const broken = mutant('lib/experience/reflective-promotion.js',
+    'else if ((impact.widened || []).length > 0) outcome = { code:', 'else if (false) outcome = { code:');
+  assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
+});
+
+test('dropping the underivable refusal lets an artifact-free proposal promote', () => {
+  const assertion = (moduleExports) => {
+    const { trust, admissions, loop } = loopWith(moduleExports);
+    const { candidateId } = loop.propose({ workspaceId: 'ws', capabilityId: 'cap', artifactType: 'procedure', candidateVersion: 'v2',
+      proposedBy: 'learner', authorityDelta: {} });
+    loop.evaluateCanary({ candidateId, candidateRuns: runs(12, 5), baselineWindowRuns: runs(12, 10), startAt: T0 });
+    admissions.recordExplicitApproval({ workspaceId: 'ws', capabilityId: 'cap', promotionId: 'p', approverId: 'human',
+      subject: { kind: 'promotion', candidateVersion: 'v2' } });
+    loop.promote({ candidateId, promotionId: 'p' });
+    assert.equal(trust.get('ws', 'cap').boundProcedureVersion, 'v1');
+  };
+  assertion(require('../lib/experience/reflective-promotion'));
+  const broken = mutant('lib/experience/reflective-promotion.js',
+    'else if (impact.underivable) outcome = { code:', 'else if (false) outcome = { code:');
   assert.throws(() => assertion(broken), { code: 'ERR_ASSERTION' });
 });

@@ -30,7 +30,7 @@ No install: the same flow runs in the browser at [huqan.com](https://huqan.com) 
 npm install -g huqan     # Node.js 22.13.0 or newer
 ```
 
-Five binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for other agents), and two bounded experiment CLIs, `huqan-cognitive-lab` and `huqan-causal-lab`. `huqan doctor` reports what is configured.
+Six binaries: `huqan` (CLI), `huqan-mcp` (MCP server over stdio), `huqan-gate` (pre-execution guard for other agents), and three bounded experiment CLIs, `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`. `huqan doctor` reports what is configured.
 
 ## How it works
 
@@ -68,7 +68,7 @@ A passing verification is a result inside one configured boundary, not a certifi
 
 `--package=huqan` is required because the binary name differs from the package name. The operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and need `HUQAN_MCP_OPERATOR_TOKEN`: an agent cannot approve its own proposal.
 
-**Other agents**: `huqan-gate` ships with Claude Code, Codex, OpenCode, Pi and Hermes projections. It enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
+**Other agents**: `huqan-gate` ships with Claude Code, Codex, OpenHands, OpenCode, Pi and Hermes projections. It enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
 
 ## Use it directly
 

@@ -615,6 +615,7 @@ describe('memory-store-sqlite', () => {
           updated_at: null,
           deleted_at: null,
           supersedes_memory_id: null,
+          supersedes_hash: null,
         });
 
         store1._stmts.upsertMemory.run({
@@ -631,6 +632,7 @@ describe('memory-store-sqlite', () => {
           updated_at: null,
           deleted_at: null,
           supersedes_memory_id: null,
+          supersedes_hash: null,
         });
       })();
 

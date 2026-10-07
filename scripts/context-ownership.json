@@ -604,6 +604,10 @@
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
   },
+  "lib/inference-defeasible-scope.js": {
+   "context": "Knowledge",
+   "evidence": "ownership-map-2446.md#R-LEARN-K; scoped defeasible intake projection separating proof production from learning intake (#3497, R42)"
+  },
   "lib/inference-derived-admission.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-LEARN-T"
@@ -701,6 +705,10 @@
    "evidence": "ownership-map-2446.md#R-LEARN-K"
   },
   "lib/hypothesis-feedback.js": {
+   "context": "Knowledge",
+   "evidence": "ownership-map-2446.md#R-LEARN-K"
+  },
+  "lib/memory-hypothesis-cognition.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
   },
@@ -972,6 +980,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-recency-decay.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
   "lib/memory-query-bm25.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
@@ -1011,6 +1023,18 @@
   "lib/memory-schema-types.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
+  "lib/memory-knowledge-object.js": {
+   "context": "Memory",
+   "evidence": "#3470 K0 KnowledgeObject schema built on memory-schema-checks/-types"
+  },
+  "lib/memory-cognitive-message.js": {
+   "context": "Memory",
+   "evidence": "#3471 K1 CognitiveMessage envelope and reference frames built on memory-schema-checks"
+  },
+  "lib/memory-grounded-transfer.js": {
+   "context": "Memory",
+   "evidence": "#3475 I7 candidate-only grounded transfer check over K1 reference frames"
   },
   "lib/memory-schema-validate.js": {
    "context": "Memory",
@@ -1057,6 +1081,10 @@
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
   "lib/memory-store-sqlite-links.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
+  "lib/memory-store-sqlite-schema.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
@@ -1248,6 +1276,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/agent-exit-reasons.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/agent-v3-storage-factory.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -1417,6 +1449,10 @@
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
   },
   "lib/external-action-identity-card.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-EXTACTION-A"
+  },
+  "lib/external-action-identity-issue.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
   },
@@ -2692,6 +2728,22 @@
    "context": "AgentAction",
    "evidence": "docs/a2a-pre-dispatch-intervention.md: public index.js dispatcher orders intervention, admission and transport; test/a2a-pre-dispatch-intervention.test.js proves signed receiver and durable decisions"
   },
+  "lib/a2a/handoff-cursor.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-handoff-cursor.md: durable active-delegator cursor beside the replay/task stores; test/a2a-handoff-cursor.test.js proves restart resume and termination closure"
+  },
+  "lib/a2a/handoff-termination.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-handoff-cursor.md: handoff-cursor.js resolves the human/target close through this termination allowlist"
+  },
+  "lib/a2a/exchange-error-record.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-exchange-error-depth.md: typed exchange error triple reusing the evaluator reason set; test/a2a-exchange-error-depth.test.js proves unknown types stay unretryable"
+  },
+  "lib/a2a/delegation-depth.js": {
+   "context": "AgentAction",
+   "evidence": "docs/a2a-exchange-error-depth.md: named depth bound and visited set behind validateDelegation; test/a2a-exchange-error-depth.test.js proves the 16/17 boundary"
+  },
   "lib/a2a/pre-dispatch-intervention.js": {
    "context": "AgentAction",
    "evidence": "docs/a2a-pre-dispatch-intervention.md: handoff-dispatch.js validates allow/drop/modify and narrows action scope before admission"
@@ -3204,6 +3256,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-V5X-T"
   },
+  "lib/v5/route-receipt-participants.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-V5X-T"
+  },
   "lib/v5/runtime-reader.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-V5X-T"
@@ -3510,6 +3566,70 @@
   }
  },
  "platform": {
+  "bin/huqan-neural-lab.js": {
+   "kind": "entry",
+   "evidence": "#3474 I6 bounded B7 experiment composition root"
+  },
+  "lib/cognitive-model-port.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 model-agnostic cognitive model port contract"
+  },
+  "lib/cognitive-model-local-ssm.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 local SSM candidate implementation"
+  },
+  "lib/cognitive-model-local-primitives.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 shared seeded PRNG, activation and closed-form ridge solve for the local model family"
+  },
+  "lib/cognitive-model-local-family.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 shared factory enforcing the candidate-only port boundary for every local model family"
+  },
+  "lib/cognitive-model-local-rwkv.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 local RWKV linear-attention candidate"
+  },
+  "lib/cognitive-model-local-mamba.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 local Mamba selective state-space candidate"
+  },
+  "lib/cognitive-model-local-transformer.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 local small-Transformer candidate"
+  },
+  "lib/cognitive-lab-model-comparison.js": {
+   "kind": "infra",
+   "evidence": "#3561 I6 B7 model-family comparison over the frozen design and inputs"
+  },
+  "lib/cognitive-lab-neural-world.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 B7 bounded accumulation environment law"
+  },
+  "lib/cognitive-lab-neural-design.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 B7 preregistered design and input generator"
+  },
+  "lib/cognitive-lab-neural-experiment.js": {
+   "kind": "infra",
+   "evidence": "#3474 I6 B7 measurement orchestration"
+  },
+  "lib/cognitive-lab-b4-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B4 procedure-transfer evaluator and frozen contract"
+  },
+  "lib/cognitive-lab-b4-experiment.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B4 manifest-emitting measurement runner"
+  },
+  "lib/cognitive-lab-b6-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B6 equal-budget ablation evaluator and frozen contract"
+  },
+  "lib/cognitive-lab-b6-experiment.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B6 manifest-emitting measurement runner"
+  },
   "fixtures/cognitive-lab/causal-confirmatory-generator.js": {
    "kind": "infra",
    "evidence": "#3467 preregistered synthetic experiment input generator; never imported by learner"
@@ -3722,6 +3842,10 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-MCPFLAT-P"
   },
+  "lib/mcp-call-binding.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-MCPFLAT-P"
+  },
   "lib/cli-agent-commands.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
@@ -3855,6 +3979,14 @@
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
   "lib/cli-plugin-status.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-promote.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-operator-presence.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
@@ -4362,6 +4494,14 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
+  "lib/mcp/output-conformance-gate.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
+  "lib/mcp/output-schema-conformance.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
   "lib/mcp/read-workflow-tools.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
@@ -4371,6 +4511,10 @@
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
   "lib/mcp/self-evolve-tool.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
+  "lib/mcp/session-protocol.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
@@ -4997,9 +5141,24 @@
   "lib/experience/capability-trust.js": {
    "owner": "Trust",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; #3550 terfi operator command drives the loop"
+  },
+  "lib/experience/canary.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3550 terfi operator command drives propose/canary/promote/observe/rollback through the loop"
+  },
+  "lib/experience/reflective-promotion.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3550 terfi operator command is the loop's first production caller"
   },
   "lib/agent-step-executor.js": {
    "owner": "AgentAction",
@@ -5254,6 +5413,27 @@
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
+  "lib/memory-cognitive-message.js": {
+   "owner": "Memory",
+   "consumers": [
+    "Knowledge"
+   ],
+   "evidence": "#3568 (R49) hypothesis producer validates its CognitiveMessage through the K1 schema"
+  },
+  "lib/memory-knowledge-object.js": {
+   "owner": "Memory",
+   "consumers": [
+    "Knowledge"
+   ],
+   "evidence": "#3568 (R49) hypothesis producer validates a learned hypothesis KnowledgeObject through the K0 schema"
+  },
+  "lib/memory-hypothesis-cognition.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3568 (R49) cli.js injects the K0/K1 cognition consumer into the hypotheses producer"
+  },
   "lib/memory-blast-radius.js": {
    "owner": "Knowledge",
    "consumers": [
@@ -5403,6 +5583,34 @@
     "Platform"
    ],
    "evidence": "index.js public createA2aHandoffDispatcher export; docs/a2a-pre-dispatch-intervention.md and test/a2a-pre-dispatch-intervention.test.js prove the SDK caller"
+  },
+  "lib/a2a/handoff-cursor.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public createA2aHandoffCursor export; docs/a2a-handoff-cursor.md and test/a2a-handoff-cursor.test.js prove the SDK caller"
+  },
+  "lib/a2a/handoff-termination.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public resolveHandoffTermination export; docs/a2a-handoff-cursor.md and test/a2a-handoff-cursor.test.js prove the SDK caller"
+  },
+  "lib/a2a/exchange-error-record.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public buildExchangeErrorRecord export; docs/a2a-exchange-error-depth.md and test/a2a-exchange-error-depth.test.js prove the SDK caller"
+  },
+  "lib/a2a/delegation-depth.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "index.js public evaluateDelegationDepth export; docs/a2a-exchange-error-depth.md and test/a2a-exchange-error-depth.test.js prove the SDK caller"
   },
   "rustGraph.js": {
    "owner": "Knowledge",
@@ -5650,6 +5858,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/external-action-identity-issue.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#2505 capability-card issuance invoked by the huqan-gate CLI entry point"
   },
   "lib/browser-session-observer.js": {
    "owner": "AgentAction",
@@ -6429,6 +6644,15 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/agent-exit-reasons.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Knowledge",
+    "Platform",
+    "Trust"
+   ],
+   "evidence": "#3498: the single pause/stop reason vocabulary; lib/fractal-learn.js (Knowledge), lib/experience/run-repair.js (Trust) and the MCP fractal-learn schema (Platform) read it; test/agent-exit-reasons-and-schema-divergence.test.js pins it"
   },
   "lib/fractal-learn.js": {
    "owner": "Knowledge",

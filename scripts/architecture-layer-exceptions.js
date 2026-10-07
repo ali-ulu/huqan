@@ -56,6 +56,32 @@ const LAYER_EXCEPTIONS = Object.freeze([
     review_by: '2026-12-31',
   },
   {
+    from: 'lib/cli-promote.js',
+    to: 'lib/experience/reflective-promotion.js',
+    why: 'The terfi command builds the reflective loop it drives; the command lives'
+      + ' beside the other CLI handlers (Core) while the loop lives with the experience'
+      + ' pipeline (Application) -- the same shape as the cli-experience-learn edge above.'
+      + ' The follow-up fix is the same: construct the loop behind the cli.js entrypoint'
+      + ' and pass it in.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-promote.js',
+    to: 'lib/experience/capability-trust.js',
+    why: 'The terfi command seeds the trust ladder the loop promotes through; the ladder'
+      + ' lives with the experience pipeline (Application) while the command lives beside'
+      + ' the other CLI handlers (Core). Same follow-up as the loop edge above.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-promote.js',
+    to: 'lib/experience/canary.js',
+    why: 'The terfi command holds the admission registry the loop resolves approvals'
+      + ' through; the registry lives with the experience pipeline (Application) while the'
+      + ' command lives beside the other CLI handlers (Core). Same follow-up as above.',
+    review_by: '2026-12-31',
+  },
+  {
     from: 'lib/external-action-receipt-batch.js',
     to: 'lib/receipt/signed-receipt-batch.js',
     why: 'The batch envelope signs itself with the receipt signing primitive; the envelope builder'
