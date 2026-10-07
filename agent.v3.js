@@ -15,8 +15,8 @@ const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
 const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
-const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps } = require('./lib/agent-step-progression');
-const { AGENT_PAUSE_REASONS } = require('./lib/agent-exit-reasons');
+const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps, shouldStopStalled } = require('./lib/agent-step-progression');
+const { AGENT_PAUSE_REASONS, AGENT_TERMINATION_REASONS } = require('./lib/agent-exit-reasons');
 
 const UNCERTAIN_PAUSE = AGENT_PAUSE_REASONS.EXPERIENCE_EFFECT_UNCERTAIN;
 const V3_RATIONALES = Object.freeze({
@@ -85,7 +85,7 @@ class AgentV3 {
 
   run(goal, opts = {}) {
     const scopeResult = createExecutionScope(goal, opts);
-    if (!scopeResult.ok) return this.fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt });
+    if (!scopeResult.ok) return this.fail('agent', scopeResult.reason, 'Untrusted content cannot define an execution goal.', [], { goalBinding: scopeResult.receipt, terminationReason: AGENT_TERMINATION_REASONS.INVALID_REQUEST });
     const planResult = this.plan(goal, opts);
     if (!planResult || planResult.ok === false) return planResult;
     const activePlan = planResult.data;
@@ -93,18 +93,20 @@ class AgentV3 {
     // workspace-scoped, and looking one up by goal alone would let a run in
     // one workspace hydrate another workspace's paused state.
     const workspace = normalizeAgentV3WorkspaceId(opts.workspaceId);
-    if (!workspace.ok) return this.fail('agent', 'AGENT_WORKSPACE_ID_INVALID', workspace.message, [], { workspaceId: opts.workspaceId });
+    if (!workspace.ok) return this.fail('agent', 'AGENT_WORKSPACE_ID_INVALID', workspace.message, [], { workspaceId: opts.workspaceId, terminationReason: AGENT_TERMINATION_REASONS.INVALID_REQUEST });
     const workspaceId = workspace.workspaceId;
     const requestedCheckpointId = normalizeGoal(opts.checkpointId);
     const requestedResumeToken = normalizeGoal(opts.resumeToken);
     if (requestedCheckpointId || requestedResumeToken) {
       if (!requestedCheckpointId || !requestedResumeToken) {
         return this.fail('agent', 'AGENT_CONTINUATION_FIELDS_REQUIRED',
-          'checkpointId and resumeToken must be supplied together.');
+          'checkpointId and resumeToken must be supplied together.', [],
+          { terminationReason: AGENT_TERMINATION_REASONS.INVALID_REQUEST });
       }
       if (opts.resume === false) {
         return this.fail('agent', 'AGENT_CONTINUATION_REQUIRES_RESUME',
-          'Explicit checkpoint continuation requires resume=true.');
+          'Explicit checkpoint continuation requires resume=true.', [],
+          { terminationReason: AGENT_TERMINATION_REASONS.INVALID_REQUEST });
       }
     }
 
@@ -133,13 +135,19 @@ class AgentV3 {
           'The supplied checkpoint and resume token do not match a workspace-scoped checkpoint.', [], {
             checkpointId: requestedCheckpointId,
             workspaceId,
+            terminationReason: AGENT_TERMINATION_REASONS.INVALID_REQUEST,
           });
       }
     }
     const state = this._hydrateState(activePlan, resumeRecord);
-    // The uncertainty that paused the previous call is the step's to report
-    // again if it still holds; a resume starts without it.
-    if (state.pauseReason === UNCERTAIN_PAUSE || state.pauseReason === REPAIR_PAUSE) {
+    // Whatever paused the previous call is that call's reason; a resume
+    // starts without it and reports its own (#3494: a stale pause reason
+    // used to survive into the next stop). A resume after a stall also
+    // starts a fresh stall count, so its history alone cannot stop it again.
+    if (state.pauseReason === AGENT_PAUSE_REASONS.STALLED && state.progress) {
+      state.progress = { ...state.progress, stalledCount: 0 };
+    }
+    if (state.pauseReason) {
       delete state.pauseReason;
       delete state.uncertainOperation;
     }
@@ -215,14 +223,14 @@ class AgentV3 {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
       return this.fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
         `Agent loop budget could not be evaluated for workspace "${workspaceId}": ${budgetCheck.detail}. Refusing the run rather than proceeding unbudgeted.`,
-        [], { gate: 'AB10', budget: budgetCheck });
+        [], { gate: 'AB10', budget: budgetCheck, terminationReason: AGENT_TERMINATION_REASONS.BUDGET_UNAVAILABLE });
     }
 
     if (budgetCheck.decision !== 'allow') {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
       return this.fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
         `Agent loop budget ${budgetCheck.decision} for workspace "${workspaceId}": ${budgetCheck.reason} (${budgetCheck.iterationsUsed}/${budgetCheck.maxIterationsPerWindow} iterations used this window).`,
-        [], { gate: 'AB10', budget: budgetCheck });
+        [], { gate: 'AB10', budget: budgetCheck, terminationReason: AGENT_TERMINATION_REASONS.BUDGET_BLOCKED });
     }
 
     try {
@@ -323,9 +331,17 @@ class AgentV3 {
       } catch (err) {
         return this._storageFailure('saveCheckpoint', err, state);
       }
+      // #3494: progress has not moved for STALLS_BEFORE_STOP steps, two past
+      // the Dream recovery point. Stop with that reason, the follow-up
+      // already queued and checkpointed for a resume.
+      if (shouldStopStalled(state, queued)) {
+        state.status = 'paused';
+        state.pauseReason = AGENT_PAUSE_REASONS.STALLED;
+        break;
+      }
     }
 
-    const runFinal = this._finalizeRunState(state, { goal, workspaceId, activePlan, dreamLoopActive, queued });
+    const runFinal = this._finalizeRunState(state, { goal, workspaceId, activePlan, dreamLoopActive, queued, maxIterations });
     if (runFinal.failed) return runFinal.result;
 
 
@@ -343,6 +359,7 @@ class AgentV3 {
         report: state.report,
         checkpointId: state.checkpointId,
         resumeToken: state.resumeToken,
+        terminationReason: state.terminationReason,
       }, state);
     }
 
@@ -353,6 +370,7 @@ class AgentV3 {
       checkpointId: state.checkpointId,
       resumeToken: state.resumeToken,
       paused: state.status === 'paused',
+      terminationReason: state.terminationReason,
     });
   }
 

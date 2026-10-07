@@ -23,6 +23,8 @@ const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 test('the vocabularies keep their published values', () => {
   assert.deepEqual(Object.values(AGENT_PAUSE_REASONS), [
     'time_budget_exceeded', 'budget_or_iteration_limit', 'repair_pending_approval', 'experience_effect_uncertain',
+    // #3494: a run that repeats itself without progress.
+    'stalled_without_progress',
   ]);
   assert.deepEqual(Object.values(FRACTAL_LEARN_STOP_REASONS), ['exhausted', 'saturated', 'maxRounds']);
   assert.ok(Object.isFrozen(AGENT_PAUSE_REASONS) && Object.isFrozen(FRACTAL_LEARN_STOP_REASONS));
