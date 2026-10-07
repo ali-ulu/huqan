@@ -24,6 +24,14 @@ place a breaking API change is expected.
 - The `api-contract` comparison now treats a committed, strictly higher `X.0.0`
   major as the acknowledged home for a breaking diff, matching the rule the
   publish-time semver gate already applied (#3590).
+- **One source per workflow input field (#3593).** Where an HTTP workflow and
+  its MCP tool both declare a field, the HTTP request schema is now canonical
+  and the MCP input schema matches it: `question`, `statement`, `goal`,
+  `workspaceId` and `claim`/`query` bounds are identical on both surfaces, the
+  web-research `maxSnippet`/`summarize` fields are declared on the MCP tool,
+  and HTTP `verify` names `statement` canonically (`claim` stays an accepted
+  alias). The remaining differences are surface-specific and pinned with their
+  reasons in `test/agent-exit-reasons-and-schema-divergence.test.js`.
 
 ## v0.13.2
 

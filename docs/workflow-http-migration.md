@@ -36,3 +36,36 @@ Cross-origin responses are emitted only for loopback HTTP(S) origins. Preflight
 permits `GET`, `POST`, and `OPTIONS` with a ten-minute maximum age. Operation
 failures use `WorkflowEnvelope`; authentication, rate-limit, and other middleware
 failures retain the compatible `ApiError` shape during the 2.x migration.
+
+## HTTP and MCP input schemas: one source per field (#3593)
+
+A workflow that serves both surfaces has an HTTP request schema
+(`lib/workflow-contract.js`) and an MCP input schema
+(`lib/mcp-tool-catalog-*.js`). #3593 decided the single source: the HTTP
+request schema is canonical for a field both surfaces share, and the MCP input
+schema is derived to match it. Fields only one surface has stay on that
+surface.
+
+The 1.0.0 major release removed the unintended drift:
+- shared bounds now match on both surfaces: `question` 1..4000, `statement`
+  1..4000, `goal` 1..500, `workspaceId` 1..128, `claim`/`query` 1.. bounded;
+- `maxSnippet` and `summarize` (web-research) are now declared on the MCP tool
+  as they already were on HTTP;
+- HTTP `verify` names `statement` canonically (MCP parity); `claim` stays an
+  accepted HTTP alias for callers written before the rename.
+
+`test/agent-exit-reasons-and-schema-divergence.test.js` pins the remaining
+differences as surface-specific, each with its reason:
+- the HTTP agent/ask/advocate routes are workspace-bound (`workspaceId`
+  required, `const "default"`), while the MCP tool answers in the session
+  workspace and carries no such argument;
+- `approval-decision` addresses the approval through the route
+  (`/api/v2/approvals/{id}/decision`), so the MCP tool carries
+  `approvalId`/`workspaceId` as arguments and the HTTP body carries only the
+  decision;
+- `ingest-execute` has no HTTP body schema of its own (open OBJECT_SCHEMA), so
+  the MCP tool's 11 execution fields are MCP-only;
+- `learn-review` keeps HTTP-only source fields and MCP-only ingestion controls
+  (`maxSentences`, `skipConflicts`); its HTTP body ceiling (1 MiB) differs from
+  the MCP sanitizer cap.
+
