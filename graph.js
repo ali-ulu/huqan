@@ -18,14 +18,14 @@ const { createLabelIndex, indexNode: indexLabelNode, deindexNode: deindexLabelNo
 const { createVectorIndex, indexNode: indexVectorNode, deindexNode: deindexVectorNode, rebuildVectorIndex } = require('./lib/graph-vector-index');
 const { appendReceiptToChain } = require('./lib/receipt/receipt-chain');
 const { assertDurableV4WriteAllowed, classifyReceiptFamily } = require('./lib/receipt/v4-receipt-family');
-const { readIssuerSealKey } = require('./lib/issuer-seal-config');
+const { readIssuerSealKey, verifyIssuerSeal } = require('./lib/issuer-seal-config');
 // Method groups that moved out of this file (#3101). Each is installed with
 // the descriptor it had as a class member; see lib/graph-method-install.js.
 const { install: installJournalMethods } = require('./lib/graph-journal-methods');
 const { install: installReadMethods } = require('./lib/graph-read-methods');
 const { install: installWriteMethods } = require('./lib/graph-write-methods');
 
-const mutationReceiptDeps = { appendReceiptToChain, assertDurableV4WriteAllowed, classifyReceiptFamily };
+const mutationReceiptDeps = { appendReceiptToChain, assertDurableV4WriteAllowed, classifyReceiptFamily, verifyIssuerSeal };
 
 class Graph {
   /**
