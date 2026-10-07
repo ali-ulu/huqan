@@ -28,4 +28,4 @@ d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.tes
 # PR rewrote the fixture as segments joined at runtime, so no new literal
 # finding is introduced going forward; this entry only silences the
 # already-superseded historical commit.
-23004e6cfe9762fc:test/logmask-erased-trace.test.js:generic-api-key:14
+23004e6cfe9762fcbdf031390e5bd6cdfb3d60b4:test/logmask-erased-trace.test.js:generic-api-key:14
