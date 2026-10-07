@@ -106,6 +106,20 @@ function schemaDivergence() {
     if (JSON.stringify(httpRequired) !== JSON.stringify(mcpRequired)) {
       drift.push(`required:${httpRequired.join('|')}!=${mcpRequired.join('|')}`);
     }
+    // Root keywords beyond properties/required (additionalProperties, type,
+    // ...) constrain the whole input and drift the same way.
+    const rootOf = schema => normalize(Object.fromEntries(
+      Object.entries(schema || {}).filter(([word]) => word !== 'properties' && word !== 'required'),
+    ));
+    const httpRoot = rootOf(http);
+    const mcpRoot = rootOf(mcp.inputSchema);
+    const rootWords = [...new Set([...Object.keys(httpRoot), ...Object.keys(mcpRoot)])]
+      .filter(word => JSON.stringify(httpRoot[word]) !== JSON.stringify(mcpRoot[word]))
+      .sort();
+    if (rootWords.length) {
+      const digest = crypto.createHash('sha256').update(JSON.stringify([httpRoot, mcpRoot])).digest('hex').slice(0, 8);
+      drift.push(`$root:differs(${rootWords.join(',')}):${digest}`);
+    }
     if (drift.length) result[workflow.workflowId] = drift;
   }
   return result;
@@ -139,6 +153,7 @@ const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
     'alternatives:mcp-only', 'author:mcp-only', 'date:mcp-only', 'decidedBy:mcp-only',
     'idempotencyKey:mcp-only', 'links:mcp-only', 'rationale:mcp-only', 'sourceType:mcp-only', 'text:mcp-only',
     'title:mcp-only', 'workspaceId:mcp-only', 'required:!=sourceType',
+    '$root:differs(additionalProperties):9e6cdc68',
   ],
   'agent-plan': [
     'goal:differs(maxLength,minLength):04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal',
