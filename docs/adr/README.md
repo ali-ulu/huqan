@@ -17,3 +17,7 @@ pointing here; update any new links to use `docs/adr/ADR-0NN-*.md` directly.
 
 `ADR-006-self-healer-loop.md` is superseded by `ADR-007-self-healer-loop.md`
 (status stated in both documents).
+
+`ADR-015-signed-policy-and-transparency-log.md` records the signed-policy
+object, the transparency-log requirement and the trust/deployment boundary
+taken in #3490 (PR #3604).
