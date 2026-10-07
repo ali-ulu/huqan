@@ -23,8 +23,7 @@ test('SQLite query uses an indexed bounded page and preserves filters', () => {
       { workspaceId: 'ws-a', status: 'deleted', limit: 2 },
       { workspaceId: 'ws-a', limit: 1.5, offset: 2.5 },
     ]) {
-      assert.deepEqual(store.query(opts), runQuery({ memories: store._memories,
-        isActiveRecord: store._isActiveRecord.bind(store) }, opts));
+      assert.deepEqual(store.query(opts), runQuery({ memories: store._memories }, opts));
     }
     assert.equal(store.list({ workspaceId: 'ws-a', includeDeleted: true }).total, 12);
     const expected = store.query({ workspaceId: 'ws-a', limit: 3, offset: 4 });
@@ -69,8 +68,7 @@ test('SQLite page ordering matches the existing locale ordering for imported ids
         metadata: {}, provenance: {} });
     }
     const opts = { workspaceId: 'ws', limit: 1, offset: 1 };
-    assert.deepEqual(store.query(opts), runQuery({ memories: store._memories,
-      isActiveRecord: store._isActiveRecord.bind(store) }, opts));
+    assert.deepEqual(store.query(opts), runQuery({ memories: store._memories }, opts));
   } finally {
     store.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) { /* Windows file lock */ }
@@ -93,12 +91,10 @@ test('SQLite query retains imported non-default kinds', () => {
       status: 'active', createdAt, metadata: {}, provenance: {},
     });
     const opts = { workspaceId: 'ws', kind: 'imported-kind', limit: 1 };
-    assert.deepEqual(store.query(opts), runQuery({ memories: store._memories,
-      isActiveRecord: store._isActiveRecord.bind(store) }, opts));
+    assert.deepEqual(store.query(opts), runQuery({ memories: store._memories }, opts));
     // An explicit default kind also falls back so counting matches the engine.
     const defaultOpts = { workspaceId: 'ws', kind: 'memory-record', limit: 1 };
-    assert.deepEqual(store.query(defaultOpts), runQuery({ memories: store._memories,
-      isActiveRecord: store._isActiveRecord.bind(store) }, defaultOpts));
+    assert.deepEqual(store.query(defaultOpts), runQuery({ memories: store._memories }, defaultOpts));
     assert.equal(store.query(defaultOpts).total, 0);
   } finally {
     store.close();

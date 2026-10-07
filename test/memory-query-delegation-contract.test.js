@@ -84,7 +84,7 @@ test('MS: pinned call sites — query delegation (post-MS count)', () => {
   assert.ok(betweenMatch, 'memoriesBetween method still exists');
   assert.match(
     betweenMatch[0],
-    /return runMemoriesBetween\(\{ memories: this\._memories, isActiveRecord: this\._isActiveRecord\.bind\(this\) \}, start, end, opts\);/,
+    /return runMemoriesBetween\(\{ memories: this\._memories \}, start, end, opts\);/,
     'memoriesBetween is a one-line delegation to runMemoriesBetween',
   );
   assert.equal((storeSource.match(/runMemoriesBetween\(/g) || []).length, 1, 'runMemoriesBetween has one call site');

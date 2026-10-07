@@ -614,6 +614,7 @@ describe('memory-store-sqlite', () => {
           created_at: recordA.createdAt,
           updated_at: null,
           deleted_at: null,
+          archived_at: null,
           supersedes_memory_id: null,
           supersedes_hash: null,
         });
@@ -631,6 +632,7 @@ describe('memory-store-sqlite', () => {
           created_at: recordB.createdAt,
           updated_at: null,
           deleted_at: null,
+          archived_at: null,
           supersedes_memory_id: null,
           supersedes_hash: null,
         });

@@ -780,8 +780,10 @@
       "lib/memory-admission-gate-receipt.js": "Adapters",
       "lib/memory-admission-gate-request.js": "Adapters",
       "lib/memory-admission-gate.js": "Adapters",
+      "lib/memory-archive.js": "Adapters",
       "lib/memory-blast-radius.js": "Adapters",
       "lib/memory-cognitive-message.js": "Adapters",
+      "lib/memory-consolidation.js": "Adapters",
       "lib/memory-decontamination.js": "Adapters",
       "lib/memory-event-read.js": "Adapters",
       "lib/memory-event-source.js": "Adapters",
@@ -812,6 +814,7 @@
       "lib/memory-recency-decay.js": "Adapters",
       "lib/memory-record-read.js": "Adapters",
       "lib/memory-record-utils.js": "Adapters",
+      "lib/memory-record-visibility.js": "Adapters",
       "lib/memory-schema-checks.js": "Adapters",
       "lib/memory-schema-normalize.js": "Adapters",
       "lib/memory-schema-package.js": "Adapters",
@@ -4477,6 +4480,12 @@
         "lib/memory-admission-gate-request.js",
         "lib/risk-scale.js"
       ],
+      "lib/memory-archive.js": [
+        "lib/memory-record-utils.js",
+        "lib/memory-record-visibility.js",
+        "lib/memory-schema.js",
+        "lib/memory-store-utils.js"
+      ],
       "lib/memory-blast-radius.js": [
         "causalSimulator.js",
         "lib/blast-radius.js",
@@ -4487,6 +4496,9 @@
       "lib/memory-cognitive-message.js": [
         "lib/is-plain-object.js",
         "lib/memory-schema-checks.js"
+      ],
+      "lib/memory-consolidation.js": [
+        "lib/memory-store-utils.js"
       ],
       "lib/memory-decontamination.js": [
         "lib/fuzzy-normalization.js"
@@ -4515,12 +4527,14 @@
         "lib/admission-horizon.js",
         "lib/is-plain-object.js",
         "lib/memory-admission-gate.js",
+        "lib/memory-consolidation.js",
         "lib/memory-recall-gate.js",
         "lib/trust-score-aggregator.js"
       ],
       "lib/memory-link-read.js": [
         "lib/memory-link-source.js",
         "lib/memory-record-utils.js",
+        "lib/memory-record-visibility.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-link-write.js": [
@@ -4565,6 +4579,7 @@
         "lib/memory-event-source.js",
         "lib/memory-link-source.js",
         "lib/memory-record-utils.js",
+        "lib/memory-record-visibility.js",
         "lib/memory-schema.js",
         "lib/memory-store-utils.js"
       ],
@@ -4597,6 +4612,7 @@
         "lib/memory-recall-gate.js",
         "lib/memory-recency-decay.js",
         "lib/memory-record-utils.js",
+        "lib/memory-record-visibility.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-query-sqlite.js": [
@@ -4609,6 +4625,7 @@
       ],
       "lib/memory-record-read.js": [
         "lib/memory-record-utils.js",
+        "lib/memory-record-visibility.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-record-utils.js": [
@@ -4704,6 +4721,7 @@
         "lib/workspace-id.js"
       ],
       "lib/memory-store-write-methods.js": [
+        "lib/memory-archive.js",
         "lib/memory-link-source.js",
         "lib/memory-link-write.js",
         "lib/memory-package-import-runner.js",
@@ -4737,6 +4755,7 @@
       ],
       "lib/memory-temporal.js": [
         "lib/memory-record-utils.js",
+        "lib/memory-record-visibility.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-tombstone.js": [
