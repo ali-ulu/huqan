@@ -15,7 +15,7 @@ const { AgentV3StatusMethods } = require('./lib/agent-v3-status-methods');
 const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
-const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps, stalledBeyondRecovery } = require('./lib/agent-step-progression');
+const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps, shouldStopStalled } = require('./lib/agent-step-progression');
 const { AGENT_PAUSE_REASONS, AGENT_TERMINATION_REASONS } = require('./lib/agent-exit-reasons');
 
 const UNCERTAIN_PAUSE = AGENT_PAUSE_REASONS.EXPERIENCE_EFFECT_UNCERTAIN;
@@ -334,7 +334,7 @@ class AgentV3 {
       // #3494: progress has not moved for STALLS_BEFORE_STOP steps, two past
       // the Dream recovery point. Stop with that reason, the follow-up
       // already queued and checkpointed for a resume.
-      if (stalledBeyondRecovery(state)) {
+      if (shouldStopStalled(state, queued)) {
         state.status = 'paused';
         state.pauseReason = AGENT_PAUSE_REASONS.STALLED;
         break;

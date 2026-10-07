@@ -15,7 +15,7 @@ const {
   AGENT_TERMINATION_REASONS: R,
   terminationReasonFor,
 } = require('../lib/agent-exit-reasons');
-const { STALLS_BEFORE_DREAM, STALLS_BEFORE_STOP, stalledBeyondRecovery } = require('../lib/agent-step-progression');
+const { STALLS_BEFORE_DREAM, STALLS_BEFORE_STOP, stalledBeyondRecovery, shouldStopStalled } = require('../lib/agent-step-progression');
 const KernelV2 = require('../kernel.v2');
 const AgentV3 = require('../agent.v3');
 
@@ -83,6 +83,11 @@ test('the stop threshold sits after the existing Dream recovery', () => {
   assert.equal(stalledBeyondRecovery({ progress: { stalledCount: STALLS_BEFORE_STOP - 1 } }), false);
   assert.equal(stalledBeyondRecovery({ progress: { stalledCount: STALLS_BEFORE_STOP } }), true);
   assert.equal(stalledBeyondRecovery({}), false);
+  // With nothing queued the loop ends on its own; a stall does not override it.
+  const stalled = { progress: { stalledCount: STALLS_BEFORE_STOP } };
+  assert.equal(shouldStopStalled(stalled, [{ tool: 'ask' }]), true);
+  assert.equal(shouldStopStalled(stalled, []), false);
+  assert.equal(shouldStopStalled({ progress: { stalledCount: 0 } }, [{ tool: 'ask' }]), false);
 });
 
 test('a real run reports which ceiling it reached', async (t) => {
