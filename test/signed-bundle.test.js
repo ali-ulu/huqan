@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { signReceiptBundle, verifyReceiptBundleSignature } = require('../lib/receipt/signed-bundle');
+const { signReceiptBundle, verifyReceiptBundleSignature, canonicalBundleSignaturePayloadV2 } = require('../lib/receipt/signed-bundle');
 const { exportReceiptBundle, verifyExportedBundle } = require('../lib/receipt/receipt-export');
 test('signs the immutable bundle binding with ed25519', () => {
   const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519'); const bundle = { sealVersion: 'huqan-bundle-seal-v2', schemaVersion: 'v4-receipt-bundle-v1', exportedAt: '2026-01-01T00:00:00.000Z', bundleHash: 'a'.repeat(64), workspaceId: 'default', receiptCount: 1 };
@@ -28,6 +28,23 @@ test('distinguishes valid unsigned bundles from valid signed bundles and rejects
   assert.equal(result.valid, true);
   assert.equal(result.signatureStatus, 'signed');
   assert.equal(verifyExportedBundle(bundle, { resolveBundleSigningKey: () => crypto.generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' }).toString() }).valid, false);
+});
+
+test('unknown envelope versions and malformed inputs are refused', () => {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
+  const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+  const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  const bundle = exportReceiptBundle([], { exportedAt: '2026-01-01T00:00:00.000Z', signing: { keyReference: 'registry:issuer-1', privateKeyPem } });
+  assert.equal(verifyReceiptBundleSignature(bundle, { ...bundle.bundleSignature, schemaVersion: 'huqan.receipt-bundle-signature.v9' }, publicKeyPem), false);
+  assert.equal(verifyReceiptBundleSignature(bundle, { ...bundle.bundleSignature, algorithm: 'rsa' }, publicKeyPem), false);
+  assert.equal(verifyReceiptBundleSignature(bundle, { ...bundle.bundleSignature, signature: 42 }, publicKeyPem), false);
+  assert.equal(verifyReceiptBundleSignature(null, bundle.bundleSignature, publicKeyPem), false);
+  assert.equal(verifyReceiptBundleSignature(bundle, null, publicKeyPem), false);
+  assert.equal(verifyReceiptBundleSignature(bundle, bundle.bundleSignature, 'not-a-key'), false);
+  const noExportedAt = structuredClone(bundle);
+  delete noExportedAt.exportedAt;
+  assert.equal(verifyReceiptBundleSignature(noExportedAt, noExportedAt.bundleSignature, publicKeyPem), false);
+  assert.equal(canonicalBundleSignaturePayloadV2(null), null);
 });
 
 test('v2 envelope binds bundleDigest/exportedAt/schemaVersion and refuses a missing digest', () => {
