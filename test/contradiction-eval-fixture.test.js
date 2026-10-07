@@ -177,6 +177,42 @@ test('a changed source snapshot is refused instead of silently re-frozen', () =>
   assert.notEqual(builder.buildContradictionEvalFixture({ sourceSnapshot: mutated, sourceLabels: SOURCE_LABELS }).digests.corpus, MANIFEST.digests.corpus);
 });
 
+test('a freeze input outside the candidate set is refused too, not only the snapshot digest', () => {
+  assert.deepEqual(builder.assertFrozenManifest(MANIFEST, build().manifest), { action: 'verify' });
+
+  // A relabelled holdout pair leaves the candidate digest where it was.
+  const holdoutPair = CORPUS.records.find((record) => record.split === 'holdout');
+  const relabelled = clone(SOURCE_LABELS);
+  const entry = relabelled.labels[holdoutPair.source.candidateId];
+  entry.label = entry.label === 'CONTRADICTION' ? 'NOT_CONTRADICTION' : 'CONTRADICTION';
+  const relabelledManifest = build({ sourceLabels: relabelled }).manifest;
+  assert.equal(relabelledManifest.source.snapshotDigest, MANIFEST.source.snapshotDigest);
+  throwsCode(() => builder.assertFrozenManifest(MANIFEST, relabelledManifest), 'frozen_manifest_mismatch');
+
+  const renamed = clone(SOURCE_SNAPSHOT);
+  renamed.snapshotId = `${renamed.snapshotId}-edited`;
+  throwsCode(() => builder.assertFrozenManifest(MANIFEST, build({ sourceSnapshot: renamed }).manifest), 'frozen_manifest_mismatch');
+
+  assert.deepEqual(builder.assertFrozenManifest(MANIFEST, relabelledManifest, { refreeze: true }), { action: 'refreeze' });
+  assert.deepEqual(builder.assertFrozenManifest(null, relabelledManifest), { action: 'initial-freeze' });
+});
+
+test('content duplicates whose labels disagree are refused, not silently resolved', () => {
+  const firstByDigest = new Map();
+  let duplicate = null;
+  for (const candidate of SOURCE_SNAPSHOT.candidates) {
+    const digest = builder.pairDigestOf(candidate);
+    if (firstByDigest.has(digest)) { duplicate = [firstByDigest.get(digest), candidate]; break; }
+    firstByDigest.set(digest, candidate);
+  }
+  assert.ok(duplicate, 'the committed snapshot carries authored duplicates');
+
+  const conflicting = clone(SOURCE_LABELS);
+  const kept = conflicting.labels[duplicate[0].candidateId].label;
+  conflicting.labels[duplicate[1].candidateId].label = builder.LABEL_VALUES.find((value) => value !== kept);
+  throwsCode(() => build({ sourceLabels: conflicting }), 'duplicate_label_conflict');
+});
+
 test('a snapshot outside the frozen schema or shape is rejected', () => {
   const wrongSchema = { ...clone(SOURCE_SNAPSHOT), schemaVersion: 'something-else' };
   throwsCode(() => builder.buildContradictionEvalFixture({ sourceSnapshot: wrongSchema, sourceLabels: SOURCE_LABELS }), 'source_snapshot_schema_mismatch');

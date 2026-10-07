@@ -56,6 +56,33 @@ function dedupeByPairDigest(candidates) {
   return [...byDigest.values()];
 }
 
+/**
+ * Dedup keeps one candidate per content pair, and the label join reads only
+ * that candidate's label. Two candidates with the same claims but different
+ * labels are a ground-truth inconsistency; refuse it instead of letting the
+ * candidateId order silently pick a winner.
+ */
+function assertDuplicateLabelsAgree(candidates, labelsByCandidate) {
+  const labelByDigest = new Map();
+  for (const candidate of candidates) {
+    const entry = labelsByCandidate[candidate.candidateId];
+    if (!entry) continue;
+    const digest = pairDigestOf(candidate);
+    const seen = labelByDigest.get(digest);
+    if (!seen) {
+      labelByDigest.set(digest, { candidateId: candidate.candidateId, label: entry.label });
+    } else if (seen.label !== entry.label) {
+      fail('duplicate_label_conflict', 'two candidates with the same content pair carry different labels', {
+        pairDigest: digest,
+        candidates: [
+          { candidateId: seen.candidateId, label: seen.label },
+          { candidateId: candidate.candidateId, label: entry.label },
+        ],
+      });
+    }
+  }
+}
+
 function selectByStratum(deduped, targets) {
   const selected = [];
   for (const stratum of STRATA) {
@@ -134,6 +161,7 @@ function buildContradictionEvalFixture({ sourceSnapshot, sourceLabels, seed = FR
   const snapshot = validateSourceSnapshot(sourceSnapshot);
   const knownCandidateIds = new Set(snapshot.candidates.map((candidate) => candidate.candidateId));
   const labelsByCandidate = validateSourceLabels(sourceLabels, knownCandidateIds);
+  assertDuplicateLabelsAgree(snapshot.candidates, labelsByCandidate);
 
   const snapshotDigest = sourceSnapshotDigest(snapshot.candidates);
   const deduped = dedupeByPairDigest(snapshot.candidates);
@@ -249,6 +277,7 @@ function buildContradictionEvalFixture({ sourceSnapshot, sourceLabels, seed = FR
 
 module.exports = {
   dedupeByPairDigest,
+  assertDuplicateLabelsAgree,
   selectByStratum,
   buildCorpusRecord,
   assertNoLeakage,

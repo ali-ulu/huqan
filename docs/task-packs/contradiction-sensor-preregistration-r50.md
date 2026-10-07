@@ -114,7 +114,7 @@ split           sha256-group-bucket-v1  (<60 train, <80 calibration, >=80 holdou
 candidates      118   (110 benzersiz pair; 8 authored duplicate dedup ile düştü)
 selected        108
 splits          train 73 (63 skorlanabilir: 22 C / 41 NC), calibration 20 (16: 5/11), holdout 15 (13: 5/8)
-excluded        16 (UNCERTAIN 12, INVALID_PAIR 6 sınıfından gelen kayıtlar)
+excluded        16 (corpus'ta UNCERTAIN 10, INVALID_PAIR 6; snapshot'taki 12 UNCERTAIN adayın 2'si dedup ile düştü)
 floors          train 20, calibration 10, holdout 10  -> ADEQUATE
 digests         corpus b61c4500... labels adc95e19... split b2b27527... protocol b051b5e6...
                 sourceSnapshot 25e7d939... holdout seal 060c9ff4...
@@ -130,7 +130,8 @@ digests         corpus b61c4500... labels adc95e19... split b2b27527... protocol
 - [x] Holdout bağımsız inceleme/adjudication sözleşmesi (durum `PENDING_INDEPENDENT_HOLDOUT_REVIEW`).
 - [x] Corpus/label/split/protokol digest testleri.
 - [x] Production davranışı değişmedi (`productionBehaviorChanged: false`; fixture yolu hiçbir runtime modülü çağırmaz).
-- [x] Kaynak snapshot değişirse fail-closed (`source_snapshot_mismatch`).
+- [x] Kaynak snapshot değişirse fail-closed (`source_snapshot_mismatch`); hedefler, etiketler veya snapshot kimliği değişip donmuş manifest'i oynatırsa da `--refreeze` olmadan yazılmaz (`frozen_manifest_mismatch`).
+- [x] İçeriği aynı olup etiketi farklı duplicate adaylar reddedilir (`duplicate_label_conflict`).
 - [x] Sample adequacy kapısı (`sample_insufficient`; donmuş corpus `ADEQUATE`).
 
 ## 10. Sınırlar (bu PR'ın iddia etmedikleri)
@@ -138,7 +139,7 @@ digests         corpus b61c4500... labels adc95e19... split b2b27527... protocol
 - **Sentetik ve katmanlı (stratified):** kaynak snapshot, `levh`'in canlı bir örnekleminden değil, etiketlenebilir sınıfları kapsayacak şekilde **elle yazılmış** 110 benzersiz pair'den oluşur. Doğal/representative bir örneklem değildir; `representative` stratum'ı pozitif ve negatif karışımı taşır ve lexical/scope/uncertain/malformed stratum'ları bilerek yanlıdır. Bu, A/B/C karşılaştırmasını geçerli kılar ama mutlak precision/recall değerlerini doğal dağılıma genelleştirmez.
 - **Etiketleyici bu PR'ı yazan ajandır** (`agent:codebuff-r50-pr1`). Blinding **yapısaldır** (hiçbir detector bu pair'ler üzerinde çalıştırılmadan etiket yazıldı; test bunu mekanik olarak doğrular), epistemik değildir: etiketleyici detector ailelerinin adlarını bilmektedir. Holdout'un bağımsız adjudication'ı bu yüzden açık bir gereklilik olarak kayıtlıdır.
 - PR1 hiçbir ölçüm sonucu üretmez; Brier/ECE, coverage veya kazanç iddiası bu PR'da yoktur.
-- `UNCERTAIN` oranının yüksekliği (12 kayıt) örneklemin bir parçasıdır ve ölçümde exclusion olarak görünür; bu bir hata değildir.
+- `UNCERTAIN` oranının yüksekliği (corpus'ta 10 kayıt; snapshot'ta 12 aday, 2'si duplicate) örneklemin bir parçasıdır ve ölçümde exclusion olarak görünür; bu bir hata değildir.
 - `scripts/build-contradiction-eval-fixture.js` yeni bir shipped paket yüzeyi açmaz: dev-only bir freeze aracıdır.
 
 ## 11. Sonuç

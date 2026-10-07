@@ -78,6 +78,22 @@ function assertFrozenSource(committedManifest, snapshotDigest, { refreeze = fals
   return { action: 'verify' };
 }
 
+/**
+ * The snapshot digest covers the candidate set only. Selection targets, the
+ * labels (holdout included), the snapshot id and the source system are other
+ * inputs to the freeze; each of them lands in the manifest, so the write path
+ * refuses any manifest change without `--refreeze`, not only a candidate one.
+ */
+function assertFrozenManifest(committedManifest, builtManifest, { refreeze = false } = {}) {
+  if (!committedManifest || refreeze) return { action: committedManifest ? 'refreeze' : 'initial-freeze' };
+  const frozen = digestOf(committedManifest);
+  const observed = digestOf(builtManifest);
+  if (frozen !== observed) {
+    fail('frozen_manifest_mismatch', 'the freeze inputs changed under a frozen manifest; freeze a new dataset version or pass --refreeze explicitly', { frozen, observed });
+  }
+  return { action: 'verify' };
+}
+
 function readCommittedManifest() {
   try {
     return JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
@@ -126,7 +142,9 @@ function main(argv = process.argv.slice(2)) {
     return 0;
   }
 
-  assertFrozenSource(readCommittedManifest(), built.snapshotDigest, { refreeze });
+  const committedManifest = readCommittedManifest();
+  assertFrozenSource(committedManifest, built.snapshotDigest, { refreeze });
+  assertFrozenManifest(committedManifest, built.manifest, { refreeze });
   fs.writeFileSync(CORPUS_PATH, serialize(built.corpus), 'utf8');
   fs.writeFileSync(LABELS_PATH, serialize(built.labelsDocument), 'utf8');
   fs.writeFileSync(MANIFEST_PATH, serialize(built.manifest), 'utf8');
@@ -174,5 +192,6 @@ module.exports = {
   serialize,
   readJson,
   assertFrozenSource,
+  assertFrozenManifest,
   main,
 };
