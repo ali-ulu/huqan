@@ -1317,6 +1317,7 @@
     "workflow-runtime.js",
     "workflow-tools.js",
     "lib/fitness-history.js",
+    "lib/agent-exit-reasons.js",
     "lib/fractal-learn.js",
     "lib/fractal-learn-autotune.js",
     "lib/mcp/fractal-learn-tool.js",

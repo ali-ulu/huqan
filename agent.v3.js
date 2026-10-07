@@ -16,8 +16,9 @@ const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
 const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps } = require('./lib/agent-step-progression');
+const { AGENT_PAUSE_REASONS } = require('./lib/agent-exit-reasons');
 
-const UNCERTAIN_PAUSE = 'experience_effect_uncertain';
+const UNCERTAIN_PAUSE = AGENT_PAUSE_REASONS.EXPERIENCE_EFFECT_UNCERTAIN;
 const V3_RATIONALES = Object.freeze({
   fallback: 'Previous failure repeated; safe fallback selected.',
   followUp: 'Previous step produced a follow-up need.',
@@ -233,7 +234,7 @@ class AgentV3 {
     while (queued.length > 0 && state.steps.length < activePlan.maxSteps && state.iteration < maxIterations) {
       if (Date.now() >= deadline) {
         state.status = 'paused';
-        state.pauseReason = 'time_budget_exceeded';
+        state.pauseReason = AGENT_PAUSE_REASONS.TIME_BUDGET_EXCEEDED;
         break;
       }
 

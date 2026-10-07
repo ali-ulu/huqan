@@ -1276,6 +1276,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/agent-exit-reasons.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/agent-v3-storage-factory.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -6632,6 +6636,15 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/agent-exit-reasons.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Knowledge",
+    "Platform",
+    "Trust"
+   ],
+   "evidence": "#3498: the single pause/stop reason vocabulary; lib/fractal-learn.js (Knowledge), lib/experience/run-repair.js (Trust) and the MCP fractal-learn schema (Platform) read it; test/agent-exit-reasons-and-schema-divergence.test.js pins it"
   },
   "lib/fractal-learn.js": {
    "owner": "Knowledge",
