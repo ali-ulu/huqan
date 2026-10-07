@@ -127,41 +127,68 @@ function schemaDivergence() {
   return result;
 }
 
-// Recorded on main at #3498. Aligning any of these narrows or renames a
-// published input on one surface, which the API Contract gate treats as
-// breaking (major release); the decision is tracked separately. A workflow
-// with no HTTP schema of its own derives it from the MCP input schema and
-// cannot drift.
+// Recorded on main at #3498. #3593 removed the unintended drift: the shared
+// field bounds now match on both surfaces (question 1..4000, statement
+// 1..4000, goal 1..500, workspaceId 1..128 except verify's 1..256, claim/query
+// 1..), the two web-research HTTP-only fields (maxSnippet, summarize) are
+// declared on the MCP tool as well, and HTTP `verify` now names `statement`
+// canonically. What remains here is surface-specific by design, each with its
+// reason. A workflow with no HTTP schema of its own derives it from the MCP
+// input schema and cannot drift.
 const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
-  'web-research': ['maxSnippet:http-only', 'summarize:http-only'],
+  // The HTTP route is workspace-bound (workspaceId required, const 'default');
+  // the MCP tool answers in the session workspace and has no such argument, so
+  // workspaceId is HTTP-only here.
   ask: [
-    'question:differs(maxLength,minLength):998fdd8d', 'workspaceId:http-only',
+    'workspaceId:http-only',
     'required:question|workspaceId!=question',
   ],
+  // `claim` is the pre-#3593 HTTP field name, kept as an accepted alias on the
+  // route for callers written before the rename. MCP declares only the
+  // canonical `statement`. The HTTP body requires only workspaceId (the route
+  // handler accepts statement/claim/text), so `statement` is required on MCP
+  // but not on HTTP. `workspaceId` stays MCP 1..256 against HTTP 1..128: the
+  // narrower MCP bound would have been breaking once main reached 1.0.0 (#3593).
   verify: [
-    'claim:http-only', 'statement:mcp-only', 'workspaceId:differs(maxLength):cdd11fe9',
-    'required:claim|workspaceId!=statement',
+    'claim:http-only',
+    'workspaceId:differs(maxLength):cdd11fe9',
+    'required:workspaceId!=statement',
   ],
-  advocate: ['claim:differs(minLength):a4b8a8d8', 'workspaceId:differs(const,maxLength,type):38c4c0d4'],
+  // The HTTP route is workspace-bound (const 'default'); the MCP tool carries
+  // an arbitrary workspaceId string.
+  advocate: [
+    'workspaceId:differs(const,maxLength,minLength,type):5c2e5c2b',
+  ],
+  // The HTTP learn route accepts the MCP-only ingestion controls
+  // (maxSentences, skipConflicts) and folds provenance into sources
+  // (sourceType/sourceRef/sourceTitle) with an open provenance object; MCP
+  // takes a closed provenance object and the ingestion controls directly. The
+  // text bound (HTTP 1 MiB) is the HTTP body ceiling; MCP caps at 2000 bytes
+  // in the sanitizer. The HTTP route is workspace-bound.
   'learn-review': [
     'maxSentences:mcp-only', 'provenance:differs(additionalProperties,properties):23ee9dd2',
     'skipConflicts:mcp-only', 'sourceRef:http-only', 'sourceTitle:http-only', 'sourceType:http-only',
     'text:differs(maxLength,minLength):cd313fbd', 'workspaceId:differs(maxLength,minLength):9caf1aef',
     'required:text|workspaceId!=text',
   ],
+  // The approval is addressed by the route (/api/v2/approvals/{id}/decision),
+  // so the MCP tool carries approvalId/workspaceId as arguments and the HTTP
+  // body carries only the decision.
   'approval-decision': ['approvalId:mcp-only', 'workspaceId:mcp-only', 'required:decision!=approvalId|workspaceId'],
-  'memory-search': ['query:differs(minLength):1239a2d1', 'workspaceId:differs(minLength):b18eb2c6'],
+  // ingest-execute has no HTTP body schema of its own; the MCP tool declares
+  // the 11 execution fields and the open HTTP OBJECT_SCHEMA accepts any body.
   'ingest-execute': [
     'alternatives:mcp-only', 'author:mcp-only', 'date:mcp-only', 'decidedBy:mcp-only',
     'idempotencyKey:mcp-only', 'links:mcp-only', 'rationale:mcp-only', 'sourceType:mcp-only', 'text:mcp-only',
     'title:mcp-only', 'workspaceId:mcp-only', 'required:!=sourceType',
     '$root:differs(additionalProperties):9e6cdc68',
   ],
+  // Same as ask/advocate: the HTTP agent routes are workspace-bound.
   'agent-plan': [
-    'goal:differs(maxLength,minLength):04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal',
+    'workspaceId:http-only', 'required:goal|workspaceId!=goal',
   ],
   'agent-run': [
-    'goal:differs(maxLength,minLength):04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal',
+    'workspaceId:http-only', 'required:goal|workspaceId!=goal',
   ],
 });
 
