@@ -1008,6 +1008,10 @@
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
   },
+  "lib/memory-record-visibility.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M; default-read hidden-status predicates folded into the read surfaces (#3493)"
+  },
   "lib/memory-schema-checks.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
@@ -1119,6 +1123,14 @@
   "lib/memory-supersede.js": {
    "context": "Memory",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-M"
+  },
+  "lib/memory-archive.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M; reversible archive/restore pair delegated from the store like tombstone/supersede (#3493)"
+  },
+  "lib/memory-consolidation.js": {
+   "context": "Memory",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-M; bounded offload selector called by the memory-lifecycle CLI (#3493)"
   },
   "lib/memory-temporal.js": {
    "context": "Memory",
@@ -6039,6 +6051,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/memory-consolidation.js": {
+   "owner": "Memory",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "bounded consolidation selector imported by lib/memory-lifecycle.js (Platform composer); the memory-lifecycle CLI drives the offload (#3493)"
   },
   "lib/kernel-capability-methods.js": {
    "owner": "AgentAction",
