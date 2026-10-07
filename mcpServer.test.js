@@ -186,8 +186,9 @@ describe('MCP Server', () => {
     assert.ok(learnTool.outputSchema.properties.data.anyOf[1].properties.learned);
     assert.ok(learnTool.outputSchema.properties.data.anyOf[1].properties.conflicts);
     assert.ok(learnTool.outputSchema.properties.data.anyOf[1].properties.alternatives);
-    assert.ok(askTool.outputSchema.properties.data.anyOf[1].properties.answer);
-    assert.ok(askTool.outputSchema.properties.data.anyOf[1].properties.alternatives);
+    // data is null, ask data, or reason data for a "neden ..." question (#3483).
+    assert.ok(askTool.outputSchema.properties.data.anyOf[1].anyOf[0].properties.answer);
+    assert.ok(askTool.outputSchema.properties.data.anyOf[1].anyOf[0].properties.alternatives);
     assert.ok(reasonTool.outputSchema.properties.data.anyOf[1].properties.forward);
     assert.ok(reasonTool.outputSchema.properties.data.anyOf[1].properties.backward);
     assert.ok(compareTool.outputSchema.properties.data.anyOf[1].properties.common);
@@ -196,8 +197,9 @@ describe('MCP Server', () => {
     assert.ok(dreamTool.outputSchema.properties.data.anyOf[1].properties.hypotheses);
     assert.ok(dreamTool.outputSchema.properties.data.anyOf[1].properties.cycle);
     assert.ok(verifyTool.outputSchema.properties.data.anyOf[1].properties.risk);
-    assert.ok(planTool.outputSchema.properties.data.anyOf[1].properties.steps);
-    assert.ok(planTool.outputSchema.properties.data.anyOf[1].properties.selectedTools);
+    // data is null, a plan, or the goal-integrity refusal (#3483).
+    assert.ok(planTool.outputSchema.properties.data.anyOf[1].anyOf[0].properties.steps);
+    assert.ok(planTool.outputSchema.properties.data.anyOf[1].anyOf[0].properties.selectedTools);
     assert.ok(agentTool.outputSchema.properties.data.anyOf[1].properties.report);
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.action);
     assert.ok(policyTool.outputSchema.properties.data.anyOf[1].properties.category);

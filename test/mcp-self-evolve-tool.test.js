@@ -94,7 +94,8 @@ test('a mutating call is held for review instead of executing', () => {
   assert.equal(envelope.gate.canExecute, false);
   assert.equal(envelope.approval.tool, 'huqan.self-evolve');
   assert.equal(envelope.approval.status, 'pending');
-  assert.equal(envelope.data, undefined, 'a held call must not leak a result');
+  // The envelope is completed to its schema (#3483), so "no result" is null.
+  assert.equal(envelope.data, null, 'a held call must not leak a result');
 });
 
 test('the legacy alias resolves to the same handler', () => {
