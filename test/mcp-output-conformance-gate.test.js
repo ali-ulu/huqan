@@ -125,8 +125,8 @@ test('envelope completion fills only absent fields, from their true sources', ()
 });
 
 test('a result that breaks its declared schema is withheld fail-closed', () => {
-  const drifted = { ok: true, workflowId: 'ask', data: { answer: 'secret-answer' } };
-  const refused = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.ask', drifted));
+  const drifted = { ok: true, workflowId: 'system-status', data: { answer: 'secret-answer' } };
+  const refused = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.status', drifted));
   assert.equal(refused.ok, false);
   assert.equal(refused.error.code, OUTPUT_SCHEMA_VIOLATION);
   assert.match(refused.error.message, /\(ref: [0-9a-f]{8}\)/);
@@ -134,8 +134,18 @@ test('a result that breaks its declared schema is withheld fail-closed', () => {
   assert.deepEqual(refused.evidence, []);
   assert.ok(!JSON.stringify(refused).includes('secret-answer'), 'the withheld result is not echoed');
   // Same drift, same reference.
-  const again = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.ask', drifted));
+  const again = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.status', drifted));
   assert.equal(again.error.message, refused.error.message);
+});
+
+test('a declared-only tool is completed but not withheld', () => {
+  assert.ok(Object.hasOwn(DECLARED_ONLY_OUTPUT_TOOLS, 'huqan.search'));
+  const drifted = { ok: true, workflowId: 'memory-search', data: { items: [], returned: 0 } };
+  const passed = conformMcpToolOutput(KERNEL, 'huqan.search', drifted);
+  assert.notEqual(conformanceError(passed, schemaOf('huqan.search')), null, 'the drift is real');
+  assert.deepEqual(passed.data, drifted.data);
+  assert.equal(passed.error, null);
+  assert.equal(passed.meta.contractVersion, '9.9.9');
 });
 
 test('every refusal conforms to its tool schema and carries nothing from the withheld result', () => {
@@ -146,7 +156,7 @@ test('every refusal conforms to its tool schema and carries nothing from the wit
     ['LEAK-ARRAY'],
     { canonicalWrite: true, receiptId: 'rcpt-1', data: 'LEAK-DATA', evidence: 'nope' },
   ];
-  for (const tool of ADVERTISED) {
+  for (const tool of ADVERTISED.filter(entry => !Object.hasOwn(DECLARED_ONLY_OUTPUT_TOOLS, entry.name))) {
     for (const result of drifted) {
       const refused = quietly(() => conformMcpToolOutput(KERNEL, tool.name, result));
       assert.equal(refused.error.code, OUTPUT_SCHEMA_VIOLATION, tool.name);
@@ -221,6 +231,7 @@ test('real kernel results conform to their advertised schemas over JSON-RPC', as
     });
     const content = response.result.structuredContent;
     assert.notEqual(content.error?.code, OUTPUT_SCHEMA_VIOLATION, `${name} was withheld`);
+    if (Object.hasOwn(DECLARED_ONLY_OUTPUT_TOOLS, name)) continue;
     assert.equal(conformanceError(content, advertised.get(name)), null, name);
   }
 });
