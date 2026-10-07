@@ -134,6 +134,55 @@ for (const [name, useSQLite] of BACKENDS) {
 
     cleanup(root);
   });
+
+  test(`[${name}] restore returns a superseded record to superseded, not active`, () => {
+    const { kernel, store, root } = makeKernel(useSQLite, `inverse-${name}`);
+    const old = seed(store, { fact: 'v1' });
+    store.supersede(old, { fact: 'v2' }, { workspaceId: 'default', actor: 'op' });
+
+    // The ARCHIVE event records the status the record held before offload.
+    const archived = store.archive(old, { workspaceId: 'default', actor: 'op' });
+    assert.equal(archived.ok, true);
+    assert.equal(archived.event.details.priorStatus, 'superseded');
+
+    // Restoring to 'active' would resurrect the stale version beside its live
+    // successor; the inverse of archive must return it to 'superseded'.
+    const restored = store.restore(old, { workspaceId: 'default', actor: 'op' });
+    assert.equal(restored.ok, true);
+    assert.equal(restored.memory.status, 'superseded');
+    assert.equal(restored.event.details.restoredStatus, 'superseded');
+    // A superseded record stays hidden from the active-only default read set.
+    assert.equal(store.list({ workspaceId: 'default' }).total, 1, 'only the live successor remains');
+
+    // An active record still round-trips back to active.
+    const live = seed(store, { fact: 'fresh' });
+    store.archive(live, { workspaceId: 'default' });
+    assert.equal(store.restore(live, { workspaceId: 'default' }).memory.status, 'active');
+
+    kernel.close?.();
+    cleanup(root);
+  });
+
+  test(`[${name}] restore clears archivedAt so a later write cannot stamp an active record`, () => {
+    const { kernel, store, root } = makeKernel(useSQLite, `stamp-${name}`);
+    const id = seed(store, { fact: 'stamp' });
+    const archived = store.archive(id, { workspaceId: 'default' });
+    assert.ok(archived.memory.archivedAt, 'archive stamps archivedAt');
+
+    const restored = store.restore(id, { workspaceId: 'default' });
+    assert.equal(restored.memory.status, 'active');
+    assert.equal(restored.memory.archivedAt, undefined, 'restore clears the in-memory archive stamp');
+
+    // A subsequent mutation must not resurrect the stale stamp in the row.
+    store.patchMetadata(id, { note: 'touched' }, { workspaceId: 'default' });
+    const reread = store.findById(id, { workspaceId: 'default' });
+    assert.equal(reread.ok, true);
+    assert.equal(reread.memory.status, 'active');
+    assert.equal(reread.memory.archivedAt, undefined);
+
+    kernel.close?.();
+    cleanup(root);
+  });
 }
 
 test('the archived event ordering is pinned so event reads stay deterministic', () => {
@@ -168,6 +217,11 @@ test('MemoryLifecycle.archive binds the offload to a chained receipt; consolidat
   assert.equal(dry.ok, true);
   assert.equal(dry.dryRun, true);
   assert.equal(dry.total, 1);
+  // The dry run names the record it would offload, so an operator can see the
+  // selection before committing to --apply.
+  assert.equal(dry.candidates.length, 1);
+  assert.equal(dry.candidates[0].memoryId, old);
+  assert.equal(dry.candidates[0].status, 'superseded');
   assert.equal(store.findById(old, { workspaceId: 'default', includeTombstoned: true }).memory.status, 'superseded');
 
   // Apply offloads it with a receipt.
@@ -243,7 +297,10 @@ test('the CLI archive/restore/consolidate actions drive the lifecycle end-to-end
   const archived = store.list({ workspaceId: 'default', includeArchived: true }).memories.find((m) => m.status === 'archived');
   assert.ok(archived, 'the superseded record is archived');
   const restored = run(`memory-lifecycle restore ${archived.memoryId} --reason undo`);
-  assert.match(restored, /restored \(status active\)\. receipt mlr_restore_/);
+  // The record was superseded when archived, so restore returns it to
+  // 'superseded' -- restoring a stale version to 'active' would resurrect it
+  // beside its live successor and the consolidation would not be reversible.
+  assert.match(restored, /restored \(status superseded\)\. receipt mlr_restore_/);
   assert.equal(store.list({ workspaceId: 'default', includeTombstoned: true }).memories.filter((m) => m.status === 'archived').length, 0);
 
   kernel.close?.();
