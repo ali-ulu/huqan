@@ -175,9 +175,9 @@ async function digestsByTool() {
 // test/mcp-gate-risk-characterization.test.js and did not move; only the
 // added justification block moves these digests.
 //
-// #3488 re-recorded the tools whose output embeds the gate: the gate now
-// carries `binding` ({ tool, argsDigest }), the call it decided about. No
-// decision, reason or routing moved.
+// #3488 re-recorded the tools whose output embeds a queued approval: its
+// policy now carries `reviewedBinding` ({ tool, argsDigest, inputIsArgs }),
+// the arguments the reviewer is shown. No decision, reason or routing moved.
 //
 // Regenerate only on purpose: UPDATE_MCP_DISPATCH_GOLDEN=1 node --test <this file>
 const GOLDEN = {

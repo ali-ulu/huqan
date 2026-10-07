@@ -28,6 +28,7 @@ const {
   namesConform,
   bindCall,
   bindingHolds,
+  bindReviewedCall,
 } = require('../lib/mcp-call-binding');
 const { CANONICAL_MCP_TOOL_NAMES, LEGACY_MCP_TOOL_NAMES } = require('../lib/mcp-tool-names');
 const { WORKFLOW_TOOL_SCHEMAS } = require('../lib/mcp/tool-surface');
@@ -113,6 +114,34 @@ test('an interceptor that changes the arguments after the decision runs nothing'
   assert.deepEqual(kernel.calls, []);
 });
 
+test('legacy names still resolve, and a 128-character name is only unknown', () => {
+  const kernel = recordingKernel();
+  assert.equal(callTool(kernel, { name: 'axiom.ask', arguments: { question: 'kedi nedir' } }).ok, true);
+  assert.equal(kernel.calls.length, 1);
+  const long = callTool(recordingKernel(), { name: `huqan.${'x'.repeat(122)}`, arguments: {} });
+  assert.equal(long.gate.reason, 'unknown_tool_blocked');
+});
+
+test('a refused name is recorded for incident review, escaped and bounded', () => {
+  const decisions = [];
+  const kernel = { ...recordingKernel(), observability: { recordGateDecision: event => decisions.push(event) } };
+  callTool(kernel, { name: `huqan.ask\u0000${'y'.repeat(300)}`, arguments: {} });
+  const refused = decisions.filter(event => event.reason === 'invalid_tool_name');
+  assert.equal(refused.length, 1);
+  const { rejectedName } = refused[0].payload.metadata;
+  assert.ok(rejectedName.startsWith('"huqan.ask\\u0000y'), 'the control character is escaped');
+  assert.ok(!rejectedName.includes('\u0000'), 'no raw control character is recorded');
+  assert.ok(rejectedName.length <= 161, 'the name is bounded');
+});
+
+test('arguments with no canonical JSON form are blocked, not thrown', () => {
+  const kernel = recordingKernel();
+  const result = callTool(kernel, { name: 'huqan.ask', arguments: { question: 'kedi', n: 10n } });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'ARGS_NOT_CANONICAL');
+  assert.deepEqual(kernel.calls, []);
+});
+
 test('a queued approval stores the binding of the arguments its reviewer sees', () => {
   const saved = [];
   const approvalStore = {
@@ -125,33 +154,35 @@ test('a queued approval stores the binding of the arguments its reviewer sees', 
   const result = callTool({}, { name: 'huqan.learn', arguments: sent }, { approvalStore });
   assert.equal(result.ok, false);
   assert.equal(saved.length, 1);
-  const { binding } = saved[0].policy.gate;
-  assert.deepEqual(binding, bindCall('huqan.learn', saved[0].context.args));
-  assert.deepEqual(binding, bindCall('huqan.learn', JSON.parse(saved[0].input)));
-  assert.notDeepEqual(binding, bindCall('huqan.learn', sent));
+  const { reviewedBinding } = saved[0].policy;
+  assert.deepEqual(reviewedBinding, bindReviewedCall('huqan.learn', saved[0].context.args, { inputIsArgs: true }));
+  assert.ok(bindingHolds(reviewedBinding, 'huqan.learn', JSON.parse(saved[0].input)));
+  assert.equal(bindingHolds(reviewedBinding, 'huqan.learn', sent), false);
 });
 
-function approvalRecord({ args, bindingArgs }) {
+const REVIEWED = { text: 'kedi hayvandir', skipConflicts: true, workspaceId: 'default' };
+
+function approvalRow({ args = REVIEWED, input = JSON.stringify(args), reviewedBinding } = {}) {
   return {
     id: 'appr-1',
     tool: 'huqan.learn',
-    input: JSON.stringify(args),
+    input,
     status: 'pending',
     workspaceId: 'default',
-    policy: { gate: { decision: 'review', ...(bindingArgs ? { binding: bindCall('huqan.learn', bindingArgs) } : {}) } },
+    policy: { gate: { decision: 'review' }, ...(reviewedBinding ? { reviewedBinding } : {}) },
     context: { source: 'mcp', workspaceId: 'default', args },
   };
 }
 
-function decide(record) {
+const LEARN_BINDING = bindReviewedCall('huqan.learn', REVIEWED, { inputIsArgs: true });
+
+function decide(row) {
   const touched = [];
-  const approvalStore = new Proxy({
-    getToolApprovalById: () => record,
-  }, {
+  const approvalStore = new Proxy({ getToolApprovalById: () => row }, {
     get(target, key) {
       if (key in target) return target[key];
       if (key === 'then') return undefined;
-      return (...args) => { touched.push(String(key)); return null; };
+      return () => { touched.push(String(key)); return null; };
     },
   });
   const fail = (code, message, meta = {}) => ({ ok: false, error: { code, message }, meta });
@@ -160,18 +191,53 @@ function decide(record) {
   return { result, touched };
 }
 
-test('an approval whose stored arguments no longer match its binding is not executed', () => {
-  const reviewed = { text: 'kedi hayvandir', skipConflicts: true, workspaceId: 'default' };
-  const tampered = approvalRecord({ args: { ...reviewed, text: 'kedi zehirlidir' }, bindingArgs: reviewed });
-  const { result, touched } = decide(tampered);
-  assert.equal(result.error.code, 'APPROVAL_BINDING_MISMATCH');
-  assert.equal(result.meta.retrySafe, false);
-  assert.ok(!touched.some(name => /claim|approve|finaliz/i.test(name)), `nothing was claimed: ${touched}`);
-
-  // An intact binding, and a row written before bindings existed, both pass
-  // this check and continue into execution.
-  for (const record of [approvalRecord({ args: reviewed, bindingArgs: reviewed }), approvalRecord({ args: reviewed })]) {
-    const outcome = decide(record);
-    assert.notEqual(outcome.result?.error?.code, 'APPROVAL_BINDING_MISMATCH');
+test('an approval whose arguments drifted from the reviewed ones is not executed', () => {
+  const drifted = { ...REVIEWED, text: 'kedi zehirlidir' };
+  const rows = {
+    'both columns rewritten': approvalRow({ args: drifted, reviewedBinding: LEARN_BINDING }),
+    'context.args only': approvalRow({ args: drifted, input: JSON.stringify(REVIEWED), reviewedBinding: LEARN_BINDING }),
+    'input only': approvalRow({ args: REVIEWED, input: JSON.stringify(drifted), reviewedBinding: LEARN_BINDING }),
+    'input unreadable': approvalRow({ args: REVIEWED, input: 'not json', reviewedBinding: LEARN_BINDING }),
+  };
+  for (const [label, row] of Object.entries(rows)) {
+    const { result, touched } = decide(row);
+    assert.equal(result.error.code, 'APPROVAL_BINDING_MISMATCH', label);
+    assert.equal(result.meta.retrySafe, false, label);
+    // The stuck-claim sweep runs before every decision; it is not this row's execution.
+    assert.deepEqual(touched.filter(name => name !== 'recoverStuckLeaselessToolApprovals'), [], `${label}: no store write`);
   }
+});
+
+test('an intact row, a pre-binding row and a stripped binding pass this check', () => {
+  // The stripped case is the documented limit: the digest lives in the same
+  // row, so it is a consistency check, not a seal (lib/mcp-call-binding.js).
+  for (const row of [approvalRow({ reviewedBinding: LEARN_BINDING }), approvalRow()]) {
+    assert.notEqual(decide(row).result?.error?.code, 'APPROVAL_BINDING_MISMATCH');
+  }
+});
+
+test('a repair approval binds the arguments it will resume with', () => {
+  const repairArgs = { goal: 'kedi', workspaceId: 'default', checkpointId: 'ck-1', resumeToken: 'ck-1' };
+  const binding = bindReviewedCall('huqan.agent_repair', repairArgs);
+  assert.equal(binding.inputIsArgs, false, 'a repair row input is a label');
+  const row = {
+    id: 'appr-1', tool: 'huqan.agent_repair', input: 'kedi :: repair step-1', status: 'pending', workspaceId: 'default',
+    policy: { action: 'review', reviewedBinding: binding },
+    context: { workspaceId: 'default', args: { ...repairArgs, checkpointId: 'ck-other' } },
+  };
+  assert.equal(decide(row).result.error.code, 'APPROVAL_BINDING_MISMATCH');
+  assert.notEqual(decide({ ...row, context: { workspaceId: 'default', args: repairArgs } }).result?.error?.code, 'APPROVAL_BINDING_MISMATCH');
+});
+
+test('a proposed repair is queued with the binding of the arguments it will resume with', () => {
+  const { proposeRepair } = require('../lib/experience/run-repair');
+  const saved = [];
+  const agent = { storage: { saveToolApproval: (approval) => { saved.push(approval); return { id: 'appr-r1' }; } } };
+  const state = { goal: 'kedi hayvandir mi', workspaceId: 'w1', checkpointId: 'ck-7', runId: 'run-1' };
+  const report = { status: 'error', result: { error: { message: 'fetch failed: ETIMEDOUT' } } };
+  proposeRepair({ agent, state, step: { id: 'verify' }, report });
+  assert.equal(saved.length, 1);
+  const { reviewedBinding } = saved[0].policy;
+  assert.deepEqual(reviewedBinding, bindReviewedCall('huqan.agent_repair', saved[0].context.args));
+  assert.deepEqual(saved[0].context.args, { goal: 'kedi hayvandir mi', workspaceId: 'w1', checkpointId: 'ck-7', resumeToken: 'ck-7' });
 });
