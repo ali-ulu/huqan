@@ -76,6 +76,26 @@ describe('PR-S3 transaction safety & concurrency', () => {
       } finally { cleanupDb(dbPath); }
     });
 
+    test('archive: SQLite write failure returns PERSISTENCE_ERROR/archive and leaves the record active', () => {
+      const dbPath = getDbPath('err-archive-sql');
+      try {
+        const store = newStore('err-archive-sql', { dbPath });
+        const r1 = store.store({ content: { data: 'x' } });
+        const eventsBefore = store._events.length;
+        const restore = mockStatementThrow(store._stmts, 'upsertMemory', 'simulated archive failure');
+        const res = store.archive(r1.memory.memoryId);
+        restore();
+        const after = store.get(r1.memory.memoryId).memory;
+        const eventsAfter = store._events.length;
+        store.close();
+        assert.strictEqual(res.ok, false);
+        assert.strictEqual(res.error.code, 'PERSISTENCE_ERROR');
+        assert.strictEqual(res.error.operation, 'archive');
+        assert.strictEqual(after.status, 'active');
+        assert.strictEqual(eventsAfter, eventsBefore);
+      } finally { cleanupDb(dbPath); }
+    });
+
     test('supersede: SQLite write failure returns PERSISTENCE_ERROR/supersede (no throw)', () => {
       const dbPath = getDbPath('err-supersede-sql');
       try {

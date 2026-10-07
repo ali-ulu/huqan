@@ -46,7 +46,6 @@ function makeContext(records) {
   return {
     memories,
     findMemory: (memoryId, workspaceId) => memories.get(`${workspaceId}:${String(memoryId || '').trim()}`),
-    isActiveRecord: (record) => !!record && record.status === 'active',
   };
 }
 
@@ -111,7 +110,9 @@ test('MS: record read methods are delegated to lib/memory-record-read.js', () =>
   assert.ok(contextMatch, '_recordReadContext exists');
   assert.match(contextMatch[0], /memories: this\._memories/);
   assert.match(contextMatch[0], /findMemory:/);
-  assert.match(contextMatch[0], /isActiveRecord:/);
+  // #3493: visibility is decided by memory-record-visibility.js, not a
+  // store-owned predicate threaded through the context.
+  assert.doesNotMatch(contextMatch[0], /isActiveRecord/);
 });
 
 test('MS: pinned record-read call sites remain read-only and acyclic', () => {
