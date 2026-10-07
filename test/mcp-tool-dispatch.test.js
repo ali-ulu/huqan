@@ -205,7 +205,7 @@ const GOLDEN = {
   'huqan.self-evolve': '7eff6c279b148b7be6ec47538cdc9238b166f68344574dc1741b2d895c804ec3',
   'huqan.advocate': '5e8e8f59829bcee8a41e94d5872c9ff0392b6195599f2d6ec26f71e65b678aa4',
   'huqan.web_research': '9b7858a2d174dae17c21c2ddb55a5ae424208c98c595ac54169cf9ebc3274614',
-  'huqan.search': '0122b2b1f8efba1435d2de159de1a823b1f24d886a7f80ed89258ba4b0d381e7',
+  'huqan.search': '501db7b7e6e084d12735e40a2ae0f1951e2794a1af551961f9f68c80799d7f5c',
   'huqan.trust_receipt': '0624c05dc7c4bf466d36a2793f471a06da8c7cfb48a6632518958a3afcc26c2a',
   'huqan.trust_receipt_detail': 'f7c42e9d8ee75aa26d1cc5c5527e1aa8df4b9ab01c28fa2c5dd512626128377e',
   'huqan.experience_read': '9d6fe6ae5b5560388cdd5bc78474a40d23b0bc5a81b7e33ffc302a56a3c85e07',

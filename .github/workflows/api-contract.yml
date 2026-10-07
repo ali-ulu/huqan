@@ -47,9 +47,13 @@ jobs:
         run: |
           if git cat-file -e "${BASE_SHA}:api-snapshot-baseline.json" 2>/dev/null; then
             git show "${BASE_SHA}:api-snapshot-baseline.json" > /tmp/api-snapshot-base.json
+            # A breaking diff is expected when this branch is a major release
+            # and the base is a lower version; the same rule gates publish.
+            BASE_VERSION="$(git show "${BASE_SHA}:package.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')"
             node scripts/api-snapshot.js \
               --snapshot artifacts/api-snapshot.json \
               --compare /tmp/api-snapshot-base.json \
+              --accept-breaking-major-at "${BASE_VERSION}" \
               --report artifacts/api-contract-report.md
           else
             node scripts/api-snapshot.js \

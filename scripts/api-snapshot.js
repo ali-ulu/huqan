@@ -16,6 +16,25 @@ function readJson(file) {
   return parsed;
 }
 
+function parseStableSemver(value) {
+  const match = String(value || '').trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return null;
+  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
+}
+
+function packageJsonVersion() {
+  return JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8')).version;
+}
+
+// A breaking API diff is expected on the branch that bumps to a new major: the
+// base names the lower version it was cut from, and this package is now a
+// strictly higher X.0.0. scripts/api-semver-gate.js applies the same rule.
+function isAcknowledgedMajorBump(baseVersion, currentVersion) {
+  const base = parseStableSemver(baseVersion);
+  const current = parseStableSemver(currentVersion);
+  return Boolean(base && current && current.major > base.major && current.minor === 0 && current.patch === 0);
+}
+
 function writeBaseline(file, value) {
   // Keep the committed baseline compact while preserving deterministic snapshot bytes.
   const compact = stableStringify(value, 0);
@@ -55,6 +74,15 @@ function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const snapshot = args.snapshot ? readJson(args.snapshot) : buildSnapshot();
 
+  // Reject unknown flags so a mistyped option cannot silently pass the gate.
+  const KNOWN = new Set(['snapshot', 'write', 'write-baseline', 'check-baseline', 'compare', 'report', 'bootstrap-report', 'accept-breaking-major-at']);
+  for (const key of Object.keys(args)) {
+    if (!KNOWN.has(key)) {
+      console.error(`Unknown option --${key}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
   if (args.write) writeJson(args.write, snapshot);
   if (args['write-baseline']) writeBaseline(args['write-baseline'], snapshot);
 
@@ -70,10 +98,22 @@ function main(argv = process.argv.slice(2)) {
 
   if (args.compare) {
     const result = diffSnapshots(readJson(args.compare), snapshot);
-    const report = reportMarkdown(result);
+    let breaking = result.breaking.length > 0;
+    // A major release is the acknowledged home for a breaking change: when the
+    // caller names the base version and this package is now a strictly higher
+    // X.0.0, the diff is expected and the gate passes. scripts/api-semver-gate.js
+    // applies the same rule at publish time.
+    let acknowledgedMajor = null;
+    if (breaking && args['accept-breaking-major-at']) {
+      if (isAcknowledgedMajorBump(args['accept-breaking-major-at'], packageJsonVersion())) {
+        breaking = false;
+        acknowledgedMajor = `v${parseStableSemver(packageJsonVersion()).major}.0.0`;
+      }
+    }
+    const report = reportMarkdown(result, { acknowledgedMajor });
     if (args.report) fs.writeFileSync(path.resolve(args.report), report);
     process.stdout.write(report);
-    if (result.breaking.length > 0) process.exitCode = 1;
+    if (breaking) process.exitCode = 1;
   }
 
   if (args['bootstrap-report']) {
@@ -89,4 +129,4 @@ function main(argv = process.argv.slice(2)) {
 
 if (require.main === module) main();
 
-module.exports = { main, parseArgs, readJson, writeJson, writeBaseline };
+module.exports = { main, parseArgs, readJson, writeJson, writeBaseline, isAcknowledgedMajorBump, parseStableSemver };

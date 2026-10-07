@@ -242,6 +242,13 @@ test('accessor resolution reads only the descriptor top level', () => {
   assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { return flag ? A : B; } });"), 'defineProperty');
 });
 
+test('the contract report distinguishes an accepted major from a blocked break', () => {
+  const breaking = { breaking: [{ area: 'mcp', key: 'huqan.search', reason: 'property removed (total)' }], added: [] };
+  assert.match(reportMarkdown(breaking), /Major version bump required/);
+  assert.doesNotMatch(reportMarkdown(breaking, { acknowledgedMajor: 'v1.0.0' }), /Major version bump required/);
+  assert.match(reportMarkdown(breaking, { acknowledgedMajor: 'v1.0.0' }), /accepted by the major release v1\.0\.0/);
+});
+
 test('optional interface methods are additive; nested getter returns stay unresolved', () => {
   assert.deepEqual(typeBreaking('interface',
     'export interface X { a: string; }',
@@ -251,4 +258,14 @@ test('optional interface methods are additive; nested getter returns stay unreso
     'export interface X { a: string; b(): void; }').length, 1);
   const at = (src) => definePropertyTarget(src, src.indexOf("'X'") + 3);
   assert.equal(at("Object.defineProperty(module.exports, 'X', { get() { if (legacy) { return Old; } return Kernel; } });"), 'defineProperty');
+});
+
+test('a breaking diff is accepted only by a strictly higher X.0.0 major', () => {
+  const { isAcknowledgedMajorBump } = require('../scripts/api-snapshot');
+  assert.equal(isAcknowledgedMajorBump('0.13.2', '1.0.0'), true);
+  assert.equal(isAcknowledgedMajorBump('0.13.2', '1.1.0'), false, 'a minor release cannot absorb a break');
+  assert.equal(isAcknowledgedMajorBump('0.13.2', '0.14.0'), false);
+  assert.equal(isAcknowledgedMajorBump('0.13.2', '1.0.1'), false);
+  assert.equal(isAcknowledgedMajorBump('1.0.0', '1.0.0'), false);
+  assert.equal(isAcknowledgedMajorBump('garbage', '1.0.0'), false);
 });
