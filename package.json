@@ -882,6 +882,7 @@
     "lib/mcp/transient-agent.js",
     "lib/mcp/tool-handlers.js",
     "lib/mcp/gate-refusal.js",
+    "lib/mcp-call-binding.js",
     "lib/mcp/tool-dispatch.js",
     "lib/mcp/json-rpc-handler.js",
     "lib/mcp/stdio-transport.js",

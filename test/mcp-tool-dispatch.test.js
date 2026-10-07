@@ -175,36 +175,40 @@ async function digestsByTool() {
 // test/mcp-gate-risk-characterization.test.js and did not move; only the
 // added justification block moves these digests.
 //
+// #3488 re-recorded the tools whose output embeds the gate: the gate now
+// carries `binding` ({ tool, argsDigest }), the call it decided about. No
+// decision, reason or routing moved.
+//
 // Regenerate only on purpose: UPDATE_MCP_DISPATCH_GOLDEN=1 node --test <this file>
 const GOLDEN = {
   'huqan.learn': 'e0edb52a102cb075b64861d689bd7ffa09f64325846033e3bad379cda46eff7f',
   'huqan.ask': 'ad49c39a897ce936e3558e2cb3ee7d1af721dd380bbd92da3c913e11fa5df795',
-  'huqan.verify': '7dda822caa950b13331909b07e7b26429ea8b0a95cbac0f36715afc72dbd212d',
+  'huqan.verify': '484accad2fcd1106a3090fc666da3a70e4ebad96a8d9f8862064a64fc24ec757',
   'huqan.plan': '318e9c5e41e5502e0c4d57cbe0e6ea959df862e44e4db143f5abefeda499bfd5',
   'huqan.agent': '8872f29b4272a8c0441668a788d88e04ebadf19afb0f3f0006dd07e0e268e280',
   'huqan.policy': '8a0f76759a9014b814077ea1bb109dc893d6b2be1c1196c8d174fef4b11a7f33',
-  'huqan.approval_detail': 'dc906393ef1c7ce7e213f5d4e85a0f044b785876ea962cdb807256844e9189b5',
+  'huqan.approval_detail': '1ce1b685c78069c79f61608525f75161730c5ed40c8de31cb38d7d75cb3d205e',
   'huqan.approvals': 'f31a675da052e5edf832f0a712974737f3e9ba68776c86b8a942e30c19ad3860',
   'huqan.reason': 'a3cfb1b72319c626258724fe87e1af8dd968614d9123835d2bf8041b896695b3',
   'huqan.derive': 'e29cc04fa5401ba14e2514d582e85e78679af0df0e38f018c1c27ad1a84e0f7c',
   'huqan.prove': '4a94acdea1121cde545efe719488fa22dc7fb5fea162861c7f7d1675eb7d9ce3',
   'huqan.compare': '93e037979e4fd8e61ed75fd4e01242081501b8f3fc4445c47005e5d2a72be761',
   'huqan.dream': '432937e74cf96220e0dac5caba33dac1991a943731740adefa621dc5fe45c48e',
-  'huqan.fractal-learn': '4e6688a86934e7ce282c9fdd2937fdda68f590d2e34b287b6519c4485c5867f4',
-  'huqan.self-evolve': '0b65d54a9dfb43c5dfc685399a8e21e66e230f3295ac6aa77cebd269e433090d',
-  'huqan.advocate': 'aef0acf08df752d40c675646c9f2cb36bc40e94a4cbc949baedfbb7bceac7019',
-  'huqan.web_research': '79af213587410e4b0a37b21734ef445177ee3c03f5a8f6fd4ad0b7921a3aa41c',
-  'huqan.search': '926ca1f8f09e765e67c47f38f3617a40acb20eb51c0a44d4f3536fc5d55885b7',
-  'huqan.trust_receipt': '66e019f308aecf021d7e7f3ec800b3a0c8c5ce9550ac273145cad180772e5d01',
-  'huqan.trust_receipt_detail': '18f203a2cb598e106d30e89ad16a0d7b0bd0c8b33a34c94abb9d8172cda9e48e',
-  'huqan.experience_read': 'cab05737574172114c850dcb28a4c35f8ff5c8501745da34f06e4aa66e88fb23',
-  'huqan.experience_learn': '2014d73050b91093d523a24647223608832b4d72a24b030815cca6ddd334bd1d',
-  'huqan.memory_query': '4c60d14f55ace11971903e5d5ca5f624c7012526a82c47df9b692a95222c1f24',
-  'huqan.status': 'b309ccdcf8283be9ea88d858c4158d93933817c9ebd948006bbb9a3b59ac223a',
-  'huqan.audit': '632975316f346e33239e2d02bebf60a5fc53753211030af3828af83ef7143d4d',
+  'huqan.fractal-learn': '5ff5d0d6c399742e862b766799ca3dabfb0101b5177764674bf4c1f7a306011d',
+  'huqan.self-evolve': '39d5d3b122cb20258cf173986fe76a6c2dd809e76fb4609296fca7e100daca25',
+  'huqan.advocate': '841bab034317bfa72741f58b63f7ca41709c7ffbb6a62e031f1c80743e3daa2f',
+  'huqan.web_research': '252ea84a371ad64c427ba856fdbf9b79327a3e9bb2b2e0362483b5ae8be15f3f',
+  'huqan.search': '24b698f7d4e3cf36fc3858d1d921634ea54ab15dcab0fd5d341cb1a32019d1ac',
+  'huqan.trust_receipt': 'c5a6635284b4abc4c746fd4c4b1aefd40110312cddfc9fd96c494b5c8fa6fcf1',
+  'huqan.trust_receipt_detail': 'eb9731b7f740fdd41711eef8931d97390e152c0706f7f043eeb82528b21034f3',
+  'huqan.experience_read': '482e5526d502cfb8096f1a13f76b92bc285a251cba2b9267fee1a46f45dbb66a',
+  'huqan.experience_learn': 'b87d084e995d213107a2782fac9ee800dd19ab0a03ca59570ab24fb44158ee10',
+  'huqan.memory_query': '6e7c187a1f0089d2807aff04f5bee754890bd08a88f97e8e5ec5cb444b8904f8',
+  'huqan.status': '267885d283c065eed63ac3e2c2b75e77059cf6698f44020c67175ca6417752a9',
+  'huqan.audit': '53398b050bb0371e90209647dd8f394b047beae7b438000410cad80561098297',
   'huqan.ingest_preview': 'c865da9cf3eaed67fa72e57f4f2ec765889a0e4a23c014f56c3f2a16241ed719',
   'huqan.ingest_status': '5eb079bc6a66e3237af883639d70d66c32a05c9458a1dae99636aee0f32dc2d3',
-  'huqan.ingest_execute': 'e9cf3f549fc0f97eac1b4d6e1f49630f64fcdd135e5361ccd5a33d75a0fd046e',
+  'huqan.ingest_execute': 'bfa9c496d55255e2acce019b3c420f8cfebb15b65f0561fa02ce776018f599f3',
   'huqan.emergency_stop': '7d5114510b49e68654c189636d00cfbdcf605a30063abff2d272c6b150f1fc9c',
 };
 

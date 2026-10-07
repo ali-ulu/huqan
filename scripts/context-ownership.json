@@ -3838,6 +3838,10 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-MCPFLAT-P"
   },
+  "lib/mcp-call-binding.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-MCPFLAT-P"
+  },
   "lib/cli-agent-commands.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
