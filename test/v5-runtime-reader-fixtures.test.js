@@ -14,6 +14,7 @@ const validFixtures = [
 ];
 
 const invalidFixtures = [
+  'invalid-handoff-target-not-participant.json',
   'invalid-malformed-provenance-metadata.json',
   'invalid-malformed-reasoning-metadata.json',
   'invalid-missing-issuer.json',
@@ -34,6 +35,7 @@ const expectedReasonCategories = {
   'valid-with-route-receipt-claim.json': 'valid_route_receipt_metadata',
   'invalid-malformed-provenance-metadata.json': 'malformed_provenance_metadata',
   'invalid-malformed-reasoning-metadata.json': 'malformed_reasoning_metadata',
+  'invalid-handoff-target-not-participant.json': 'malformed_route_receipt_metadata',
   'invalid-missing-issuer.json': 'missing_issuer_identity',
   'invalid-missing-package-identity.json': 'missing_trust_package_identity',
   'invalid-missing-route-receipt-when-claimed.json': 'missing_route_receipt_metadata',
@@ -120,7 +122,7 @@ function assertReadableCandidateShape(fixture, relativePath) {
   assert.equal(Array.isArray(fixture.candidate.nonClaims), true, `${relativePath} should define nonClaims array`);
 }
 
-test('V5 runtime reader fixtures expose exactly the expected 15 JSON files', () => {
+test('V5 runtime reader fixtures expose exactly the expected 16 JSON files', () => {
   assert.deepEqual(listFixtureFiles(), [...allFixtures].sort());
 });
 

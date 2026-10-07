@@ -20,6 +20,7 @@ const invalidFixtures = [
   'invalid/missing-workspace-identity.json',
   'invalid/missing-trust-package-identity.json',
   'invalid/malformed-route-receipt-metadata.json',
+  'invalid/handoff-target-not-participant.json',
   'invalid/malformed-reasoning-metadata.json',
   'invalid/unsigned-but-claimed-signed.json',
   'invalid/runtime-reader-claim.json',
@@ -80,7 +81,7 @@ function assertWriterResultMatchesFixture(fixture, relativePath) {
   assert.equal(Object.hasOwn(firstResult, 'package'), false, `${relativePath} blocked writer output must not emit package`);
 }
 
-test('V5 runtime writer fixtures expose exactly the expected 16 JSON files', () => {
+test('V5 runtime writer fixtures expose exactly the expected 17 JSON files', () => {
   assert.deepEqual(listFixtureFiles(), [...allFixtures].sort());
 });
 
