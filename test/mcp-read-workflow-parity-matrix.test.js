@@ -44,6 +44,12 @@ function createReadFixture() {
       return [];
     },
   };
+  // Kernel-shaped evidence and ask data: MCP now refuses results that do not
+  // match their declared output schema (#3483), and a real kernel never
+  // returned the old `{ sourceRef }` evidence or an ask without its subject.
+  const evidence = [{
+    kind: 'direct_edge', text: 'alpha documented', confidence: 0.72, nodes: ['alpha'], edges: [],
+  }];
   const kernel = {
     graph,
     ask(question) {
@@ -51,8 +57,8 @@ function createReadFixture() {
       return {
         ok: true,
         type: 'ask',
-        data: { answer: 'Alpha is a documented fixture.', confidence: 0.72 },
-        evidence: [{ sourceRef: 'doc:alpha' }],
+        data: { answer: 'Alpha is a documented fixture.', subject: 'alpha', unknown: false, alternatives: 0, confidence: 0.72 },
+        evidence,
         error: null,
         meta: {},
       };
@@ -64,7 +70,7 @@ function createReadFixture() {
         ok: true,
         type: 'verify',
         data: { status: 'verified', confidence: 0.91, workspaceId: 'team-a' },
-        evidence: [{ sourceRef: 'doc:alpha' }],
+        evidence,
         error: null,
         meta: {},
       };
@@ -76,7 +82,7 @@ function createReadFixture() {
         ok: true,
         type: 'advocate',
         data: { mode: 'counter', counterArguments: ['Check the source.'], confidence: 0.61 },
-        evidence: [{ sourceRef: 'doc:alpha' }],
+        evidence,
         error: null,
         meta: {},
       };

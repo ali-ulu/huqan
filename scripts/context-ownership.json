@@ -4486,6 +4486,14 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
+  "lib/mcp/output-conformance-gate.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
+  "lib/mcp/output-schema-conformance.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
   "lib/mcp/read-workflow-tools.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"

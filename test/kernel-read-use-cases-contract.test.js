@@ -354,6 +354,9 @@ test('read use cases preserve ask observable results', () => {
       answer: 'Bilmiyorum',
       subject: 'huqan',
       unknown: true,
+      // The unanswered return reports the zero alternatives its afterAsk
+      // event already announced, as ASK_DATA_SCHEMA requires (#3483).
+      alternatives: 0,
     });
 
     const why = kernel.ask('neden dog');

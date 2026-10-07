@@ -89,7 +89,9 @@ function recordingKernel(calls) {
   return {
     learn: record('kernel.learn', { ok: true, via: 'learn' }),
     ask: record('kernel.ask', question => ({ ok: true, via: 'ask', question })),
-    verify: record('kernel.verify', { ok: true, via: 'verify', data: { status: 'verified' } }),
+    // A kernel verify always carries its confidence (kernel-envelope
+    // validateResult); without it the MCP output gate withholds the result (#3483).
+    verify: record('kernel.verify', { ok: true, via: 'verify', data: { status: 'verified', confidence: 0.9 } }),
     reason: record('kernel.reason', { ok: true, via: 'reason' }),
     compare: record('kernel.compare', { ok: true, via: 'compare' }),
     dream: record('kernel.dream', { ok: true, via: 'dream' }),
