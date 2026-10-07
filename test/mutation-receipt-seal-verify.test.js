@@ -134,3 +134,57 @@ test('a missing receipt fails closed with receipt_not_found', () => {
     assert.equal(result.reason, 'receipt_not_found');
   } finally { cleanup(dir, graph); }
 });
+
+function stubStore({ receipt = null, seal = null, sealKey = null, throwOnReceipt = false } = {}) {
+  return {
+    hasSqlite: () => false,
+    readJsonJournal: () => {
+      if (throwOnReceipt) throw new Error('journal unavailable');
+      return { receipts: receipt ? { 'op:stub': receipt } : {}, receiptsById: {}, chainTips: {}, seals: seal ? { [sealKey || seal.receiptHash]: seal } : {} };
+    },
+  };
+}
+
+function stubReceipt(hash) {
+  return { operationId: 'op:stub', receiptId: 'r-stub', workspaceId: 'w', canonicalPayload: {}, previousReceiptHash: '0'.repeat(64), receiptHash: hash, committedAt: '2026-08-19T10:00:00.000Z' };
+}
+
+function stubSeal(hash) {
+  return { schemaVersion: 'huqan.issuer-seal.v1', issuedBy: 'huqan', productVersion: '', receiptHash: hash, receiptId: 'r-stub', workspaceId: 'w', issuedAt: '2026-08-19T10:00:00.000Z', keyId: 'ed25519:ab', algorithm: 'ed25519', sealHash: 'sha256:cd', signature: 'eA==' };
+}
+
+test('every refusal path is typed and fail-closed', () => {
+  const { verifyMutationReceiptSeal } = require('../lib/graph-mutation-receipt-read');
+  const verifySeal = () => ({ ok: true, reason: '', keyId: 'ed25519:ab' });
+  assert.equal(verifyMutationReceiptSeal(stubStore(), '', { verifySeal }).reason, 'operation_id_required');
+  assert.equal(verifyMutationReceiptSeal(stubStore({ throwOnReceipt: true }), 'op:stub', { verifySeal }).reason, 'receipt_not_found');
+  assert.equal(verifyMutationReceiptSeal(stubStore(), 'op:stub', { verifySeal }).reason, 'receipt_not_found');
+  const noSeal = verifyMutationReceiptSeal(stubStore({ receipt: stubReceipt('h1') }), 'op:stub', { verifySeal });
+  assert.equal(noSeal.reason, 'seal_absent');
+  assert.equal(noSeal.receiptId, 'r-stub');
+  assert.equal(verifyMutationReceiptSeal(stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h2') }), 'op:stub', { verifySeal }).reason, 'seal_absent');
+  const mismatch = verifyMutationReceiptSeal(stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h2'), sealKey: 'h1' }), 'op:stub', { verifySeal });
+  assert.equal(mismatch.reason, 'seal_receipt_mismatch');
+  assert.equal(verifyMutationReceiptSeal(stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub', { verifySeal: null }).reason, 'seal_verifier_unavailable');
+  const denied = verifyMutationReceiptSeal(stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub', { verifySeal: () => ({ ok: false, reason: 'signature_invalid' }) });
+  assert.equal(denied.reason, 'signature_invalid');
+  const silent = verifyMutationReceiptSeal(stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub', { verifySeal: () => null });
+  assert.equal(silent.reason, 'signature_invalid');
+  const badIssued = verifyMutationReceiptSeal(
+    stubStore({ receipt: stubReceipt('h1'), seal: { ...stubSeal('h1'), issuedAt: 'not-a-time' } }), 'op:stub', { verifySeal });
+  assert.equal(badIssued.reason, 'seal_issued_at_invalid');
+  const badEvidence = verifyMutationReceiptSeal(
+    stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub', { verifySeal, evidenceAt: 'not-a-time' });
+  assert.equal(badEvidence.reason, 'evidence_at_invalid');
+  const future = verifyMutationReceiptSeal(
+    stubStore({ receipt: stubReceipt('h1'), seal: { ...stubSeal('h1'), issuedAt: '2099-01-01T00:00:00.000Z' } }), 'op:stub', { verifySeal, evidenceAt: '2099-01-02T00:00:00.000Z' });
+  assert.equal(future.reason, 'seal_issued_in_future');
+  const negativeTolerance = verifyMutationReceiptSeal(
+    stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub',
+    { verifySeal, evidenceAt: '2026-08-19T10:00:01.000Z', toleranceMs: -5 });
+  assert.equal(negativeTolerance.ok, true);
+  const noEvidenceAt = verifyMutationReceiptSeal(
+    stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub', { verifySeal });
+  assert.equal(noEvidenceAt.ok, true);
+  assert.ok(noEvidenceAt.evidenceAt);
+});

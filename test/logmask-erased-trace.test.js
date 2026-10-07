@@ -35,6 +35,27 @@ test('redactSecretValuesWithTrace names secret key paths', () => {
   assert.ok(!joined.includes('supersecretvalue'));
 });
 
+test('redactSecretValuesWithTrace covers arrays, nesting, cycles and scalars', () => {
+  const nested = { list: [{ token: 'abc' }, 'plain'], count: 3, missing: null, flag: true };
+  const { redacted, erased } = redactSecretValuesWithTrace(nested);
+  assert.equal(redacted.list[1], 'plain');
+  assert.equal(redacted.count, 3);
+  assert.equal(redacted.missing, null);
+  assert.deepEqual(erased, [{ path: 'list.0.token', rule: 'secret_key_name' }]);
+  const cyclic = { name: 'x' };
+  cyclic.self = cyclic;
+  const circled = redactSecretValuesWithTrace(cyclic);
+  assert.equal(circled.redacted.self, '[CIRCULAR]');
+  assert.deepEqual(circled.erased, [{ path: 'self', rule: 'circular' }]);
+  assert.deepEqual(redactSecretValuesWithTrace(42), { redacted: 42, erased: [] });
+  const jwt = ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0In0', 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c'].join('.');
+  const embedded = redactSecretValuesWithTrace({ note: `call with ${jwt} inside` });
+  assert.ok(!embedded.redacted.note.includes(jwt));
+  assert.equal(embedded.erased.length, 1);
+  assert.equal(embedded.erased[0].rule, 'embedded_secret');
+  assert.deepEqual(embedded.erased[0].types, [{ type: 'jwt', count: 1 }]);
+});
+
 test('the approval view carries the masking trace', () => {
   const fakePassword = ['hunter2', 'hunter'].join('');
   const view = projectApprovalRecord({
