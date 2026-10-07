@@ -24,9 +24,12 @@ const { readGraphSurfaceSource, graphMethodHolders } = require('./helpers/graph-
 // #3017 follow-up added the public nearestSimilarNode reader (exact top-1
 // cosine with an early stop). #3188 added the two public seal readers
 // getMutationReceiptSealByHash and getMutationReceiptSealByOperation (via
-// lib/graph-journal-methods.js). The public method names above are unchanged.
+// lib/graph-journal-methods.js). R35 adds the public seal verifier
+// verifyMutationReceiptSealByOperation (via lib/graph-journal-methods.js,
+// seal primitive injected through mutationReceiptDeps). The public method
+// names above are unchanged.
 
-const MAIN_SURFACE = { count: 94, sha256: '197e7c02a5c3c0b1be0d81e5a669f6010d5b1bf42febca86ea425597ad5abd75' };
+const MAIN_SURFACE = { count: 95, sha256: 'db7061d0201446297635a1cbf60b505f5873bea95f50d41554e40dbcd54c8073' };
 
 test('Graph.prototype keeps the exact surface it had on main', () => {
   const proto = require('../graph').prototype;
