@@ -17,6 +17,7 @@ const {
   LATEST_PROTOCOL_VERSION,
   IMPLEMENTED_SURFACE,
   negotiateInitialize,
+  createCancellationTracker,
 } = require('../lib/mcp/session-protocol');
 
 function deferred() {
@@ -137,7 +138,8 @@ test('a cancelled call that fails is receipted as failed', async () => {
   assert.equal(await quietly(() => pending), null);
   assert.equal(receipts[0].outcome, 'failed');
   assert.equal(receipts[0].errorCode, 'AGENT_FAILED');
-  assert.equal(receipts[0].canonicalWrite, false);
+  // A call that threw may have written first: the receipt does not claim it did not.
+  assert.equal(receipts[0].canonicalWrite, 'unknown');
   assert.equal(receipts[0].reason, null);
 });
 
@@ -225,4 +227,94 @@ test('stdio writes nothing for a call that settles without a response', () => {
   const child = spawnSync(process.execPath, ['-e', script], { input, encoding: 'utf8', timeout: 30000 });
   assert.equal(child.status, 0, child.stderr);
   assert.deepEqual(child.stdout.trim().split('\n'), ['{"jsonrpc":"2.0","id":"answered","result":{}}']);
+});
+
+test('a cancelled call that outlives the deadline is receipted as unsettled, then settled', async () => {
+  const receipts = [];
+  const tracker = createCancellationTracker({
+    sessionId: 'session-x',
+    writeReceipt: (operationId, receipt) => receipts.push({ operationId, receipt }),
+    settleDeadlineMs: 5,
+  });
+  const work = deferred();
+  const answered = tracker.track('hung', 'huqan.agent', work.promise, () => 'response', () => 'failure');
+  tracker.cancel({ requestId: 'hung', reason: 'gave up' });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(tracker.inFlightCount(), 0, 'a hung call does not keep its entry');
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].operationId, 'mcp:cancellation:session-x:s:hung');
+  assert.equal(receipts[0].receipt.outcome, 'unsettled');
+  assert.equal(receipts[0].receipt.canonicalWrite, 'unknown');
+
+  work.resolve({ ok: true, canonicalWrite: true, receiptId: 'late-1' });
+  assert.equal(await answered, null, 'still not answered');
+  assert.equal(receipts.length, 2);
+  assert.equal(receipts[1].operationId, 'mcp:cancellation:session-x:s:hung:settled');
+  assert.equal(receipts[1].receipt.outcome, 'completed');
+  assert.equal(receipts[1].receipt.canonicalWrite, true);
+  assert.equal(receipts[1].receipt.receiptId, 'late-1');
+});
+
+test('a completed result that does not state its write is receipted as unknown', async () => {
+  const receipts = [];
+  const tracker = createCancellationTracker({
+    sessionId: 's', writeReceipt: (id, receipt) => receipts.push(receipt), settleDeadlineMs: 5,
+  });
+  const work = deferred();
+  const answered = tracker.track(1, 'huqan.search', work.promise, () => 'response', () => 'failure');
+  tracker.cancel({ requestId: 1 });
+  work.resolve({ ok: true });
+  assert.equal(await answered, null);
+  assert.equal(receipts[0].canonicalWrite, 'unknown');
+  assert.equal(tracker.inFlightCount(), 0);
+  // The deadline of a call that settled in time never fires a second receipt.
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(receipts.length, 1);
+});
+
+test('a duplicate in-flight id is answered but only the first call is cancellable', async () => {
+  const receipts = [];
+  const first = deferred();
+  const second = deferred();
+  let call = 0;
+  const handle = createJsonRpcHandler({
+    callTool: () => (call++ === 0 ? first.promise : second.promise),
+    recordCancellation: (operationId, receipt) => receipts.push(receipt),
+  });
+  const a = handle({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'one' } });
+  const b = handle({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'two' } });
+  handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 5 } });
+  first.resolve({ ok: true });
+  second.resolve({ ok: true });
+  assert.equal(await a, null);
+  assert.equal((await b).result.isError, false);
+  assert.deepEqual(receipts.map(receipt => receipt.tool), ['one']);
+});
+
+test('initialize is answered at once and cannot be cancelled', () => {
+  const handle = createJsonRpcHandler({ callTool: () => ({}) });
+  const init = handle({ jsonrpc: '2.0', id: 'init', method: 'initialize', params: {} });
+  assert.equal(typeof init.then, 'undefined');
+  assert.equal(handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 'init' } }), null);
+});
+
+test('a receipt sink that rejects asynchronously is reported, not left unhandled', async () => {
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args);
+  const work = deferred();
+  try {
+    const handle = createJsonRpcHandler({
+      callTool: () => work.promise,
+      recordCancellation: () => Promise.reject(new Error('journal offline')),
+    });
+    const pending = handle({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'huqan.dream' } });
+    handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 9 } });
+    work.resolve({ ok: true });
+    assert.equal(await pending, null);
+    await new Promise(resolve => setImmediate(resolve));
+  } finally {
+    console.error = original;
+  }
+  assert.ok(logged.some(args => args.some(arg => arg && /journal offline/.test(arg.message) && arg.receipt)));
 });
