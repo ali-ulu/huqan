@@ -318,3 +318,70 @@ test('a receipt sink that rejects asynchronously is reported, not left unhandled
   }
   assert.ok(logged.some(args => args.some(arg => arg && /journal offline/.test(arg.message) && arg.receipt)));
 });
+
+async function cancelOnce(handlerOptions, settleWith) {
+  const logged = [];
+  const original = console.error;
+  console.error = (...args) => logged.push(args);
+  const work = deferred();
+  try {
+    const handle = createJsonRpcHandler({ callTool: () => work.promise, ...handlerOptions });
+    const pending = handle({ jsonrpc: '2.0', id: 'x', method: 'tools/call', params: { name: 'huqan.dream' } });
+    handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 'x' } });
+    settleWith(work);
+    assert.equal(await pending, null);
+    await new Promise(resolve => setImmediate(resolve));
+  } finally {
+    console.error = original;
+  }
+  return logged.flat().filter(arg => arg && arg.receipt);
+}
+
+test('without a receipt sink, or with one that rejects without a reason, the receipt reaches stderr', async () => {
+  const noSink = await cancelOnce({}, work => work.resolve({ ok: true }));
+  assert.equal(noSink.length, 1);
+  assert.match(noSink[0].message, /no cancellation receipt sink/);
+  const bare = await cancelOnce({ recordCancellation: () => Promise.reject() }, work => work.resolve({ ok: true }));
+  assert.equal(bare.length, 1);
+  assert.match(bare[0].message, /receipt not written: undefined/);
+});
+
+test('the receipt names the error code a call ended with', async () => {
+  const receipts = [];
+  const sink = { recordCancellation: (operationId, receipt) => receipts.push(receipt) };
+  await cancelOnce(sink, work => work.reject(new Error('no code')));
+  await cancelOnce(sink, work => work.resolve({ ok: false, error: { code: 'DREAM_FAILED', message: 'm' } }));
+  assert.equal(receipts[0].errorCode, 'INTERNAL_ERROR', 'a failure without a code');
+  assert.equal(receipts[1].errorCode, 'DREAM_FAILED', 'a completed refusal keeps its code');
+  assert.equal(receipts[1].outcome, 'completed');
+});
+
+test('createServer without a kernel mutation journal still withholds a cancelled call', async () => {
+  const kernels = {
+    'no graph': {
+      runCapability: async () => ({ ok: true, type: 'advocate', data: { mode: 'counter', counterArguments: [] }, evidence: [], error: null, meta: {} }),
+    },
+    'a graph with no journal': {
+      graph: { getNodes: () => ({}) },
+      runCapability: async () => ({ ok: true, type: 'advocate', data: { mode: 'counter', counterArguments: [] }, evidence: [], error: null, meta: {} }),
+    },
+  };
+  const { createServer } = require('../mcpServer');
+  for (const [label, kernel] of Object.entries(kernels)) {
+    const logged = [];
+    const original = console.error;
+    console.error = (...args) => logged.push(args);
+    try {
+      const server = createServer({ kernel, approvalStore: null });
+      const pending = server.handleRequest({
+        jsonrpc: '2.0', id: 'adv', method: 'tools/call', params: { name: 'huqan.advocate', arguments: { workspaceId: 'default', claim: 'x' } },
+      });
+      assert.equal(typeof pending.then, 'function', label);
+      server.handleRequest({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 'adv' } });
+      assert.equal(await pending, null, label);
+    } finally {
+      console.error = original;
+    }
+    assert.ok(logged.flat().some(arg => arg && /no mutation journal/.test(arg.message) && arg.receipt), label);
+  }
+});
