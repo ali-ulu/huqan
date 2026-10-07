@@ -141,10 +141,22 @@ test('null params do not crash and fail closed with verdict metadata', () => {
   assertToolVerdict(result, { verdict: 'block', tool: 'unknown', ok: false });
 });
 
-test('malformed arguments do not crash and still expose verdict metadata', () => {
+test('a non-JSON arguments string fails closed as a parse error, not an empty call', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.ask',
     arguments: 'not-json',
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'ARGUMENTS_PARSE_ERROR');
+  assert.equal(result.policy.reason, 'arguments_parse_error');
+  assertToolVerdict(result, { verdict: 'block', tool: 'huqan.ask', ok: false });
+});
+
+test('a JSON arguments string still parses and runs', () => {
+  const result = callTool(mockKernel(), {
+    name: 'axiom.ask',
+    arguments: JSON.stringify({ question: 'test?', workspaceId: 'dogfood-workspace' }),
   });
 
   assert.equal(result.ok, true);
