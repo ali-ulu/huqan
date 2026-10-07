@@ -5,6 +5,7 @@
 // schema and its MCP input schema.
 
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -34,23 +35,34 @@ test('the fractal-learn schema declares the producer vocabulary, not a copy', ()
   assert.match(read('lib/mcp-tool-data-schemas-knowledge.js'), /enum: Object\.values\(FRACTAL_LEARN_STOP_REASONS\)/);
 });
 
-test('no producer assigns a pause or stop reason as a bare string', () => {
-  // Every place that sets one of these reasons, read as source: a quoted
-  // literal on the right-hand side is a second definition.
-  const producers = {
-    'agent.v3.js': /pauseReason\s*=\s*[^;]*/g,
-    'lib/agent-v3-status-methods.js': /pauseReason\s*=\s*[^;]*/g,
-    'lib/fractal-learn.js': /stopReason\s*=\s*[^;]*/g,
-  };
-  for (const [file, pattern] of Object.entries(producers)) {
-    const assignments = read(file).match(pattern) || [];
-    assert.ok(assignments.length > 0, `${file} still sets a reason`);
-    for (const assignment of assignments) {
-      assert.ok(!/['"`]/.test(assignment), `${file}: ${assignment.trim()} restates a reason`);
-    }
+test('no production source sets a pause reason or fractal stop reason as a string literal', () => {
+  // Every tracked production source, not a fixed file list: a quoted value
+  // assigned (`=`, not `===`) or given as an object key is a second
+  // definition. lib/causal has its own traversal stopReason vocabulary.
+  const literal = /\b(pauseReason|stopReason)\s*(?:=(?!=)|:)\s*(?:[^;,\n]*\|\|\s*)?['"`]/;
+  const sources = execFileSync('git', ['ls-files', '*.js'], { cwd: ROOT, encoding: 'utf8' })
+    .split('\n')
+    .filter(file => file && !/(^|\/)test\/|\.test\.js$|^lib\/causal\/|^scripts\/|^benchmarks\//.test(file));
+  assert.ok(sources.includes('agent.v3.js') && sources.includes('lib/fractal-learn.js'));
+  const offenders = [];
+  for (const file of sources) {
+    read(file).split('\n').forEach((line, index) => {
+      if (literal.test(line)) offenders.push(`${file}:${index + 1}: ${line.trim()}`);
+    });
   }
-  assert.match(read('lib/experience/run-repair.js'), /REPAIR_PAUSE = AGENT_PAUSE_REASONS\.REPAIR_PENDING_APPROVAL;/);
-  assert.match(read('agent.v3.js'), /UNCERTAIN_PAUSE = AGENT_PAUSE_REASONS\.EXPERIENCE_EFFECT_UNCERTAIN;/);
+  assert.deepEqual(offenders, []);
+  assert.match(read('lib/experience/run-repair.js'), /REPAIR_PAUSE\s*=\s*AGENT_PAUSE_REASONS\.REPAIR_PENDING_APPROVAL/);
+  assert.match(read('agent.v3.js'), /UNCERTAIN_PAUSE\s*=\s*AGENT_PAUSE_REASONS\.EXPERIENCE_EFFECT_UNCERTAIN/);
+});
+
+test('the literal check catches assignments and keys, not comparisons', () => {
+  const literal = /\b(pauseReason|stopReason)\s*(?:=(?!=)|:)\s*(?:[^;,\n]*\|\|\s*)?['"`]/;
+  assert.ok(literal.test("state.pauseReason = 'x';"));
+  assert.ok(literal.test("state.pauseReason = state.pauseReason || 'x';"));
+  assert.ok(literal.test("return { stopReason: 'x' };"));
+  assert.equal(literal.test("if (state.pauseReason === 'x') {"), false);
+  assert.equal(literal.test('state.pauseReason = AGENT_PAUSE_REASONS.X;'), false);
+  assert.equal(literal.test("pauseReason: { anyOf: [{ type: 'string' }] },"), false);
 });
 
 // A description, or `type: 'string'` beside a string enum, does not change
@@ -78,10 +90,15 @@ function schemaDivergence() {
       if (!(key in mcpProps)) drift.push(`${key}:http-only`);
       else if (!(key in httpProps)) drift.push(`${key}:mcp-only`);
       else if (JSON.stringify(normalize(httpProps[key])) !== JSON.stringify(normalize(mcpProps[key]))) {
-        // The pair's digest pins what differs, so a change inside a field
-        // that already drifts is caught too.
-        const pair = JSON.stringify([normalize(httpProps[key]), normalize(mcpProps[key])]);
-        drift.push(`${key}:differs:${crypto.createHash('sha256').update(pair).digest('hex').slice(0, 8)}`);
+        // Which keywords differ, for the reader; the pair's digest pins the
+        // values, so a change inside a field that already drifts is caught too.
+        const httpField = normalize(httpProps[key]);
+        const mcpField = normalize(mcpProps[key]);
+        const keywords = [...new Set([...Object.keys(httpField), ...Object.keys(mcpField)])]
+          .filter(word => JSON.stringify(httpField[word]) !== JSON.stringify(mcpField[word]))
+          .sort();
+        const digest = crypto.createHash('sha256').update(JSON.stringify([httpField, mcpField])).digest('hex').slice(0, 8);
+        drift.push(`${key}:differs(${keywords.join(',')}):${digest}`);
       }
     }
     const httpRequired = [...(http.required || [])].sort();
@@ -101,26 +118,34 @@ function schemaDivergence() {
 // cannot drift.
 const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
   'web-research': ['maxSnippet:http-only', 'summarize:http-only'],
-  ask: ['question:differs:998fdd8d', 'workspaceId:http-only', 'required:question|workspaceId!=question'],
+  ask: [
+    'question:differs(maxLength,minLength):998fdd8d', 'workspaceId:http-only',
+    'required:question|workspaceId!=question',
+  ],
   verify: [
-    'claim:http-only', 'statement:mcp-only', 'workspaceId:differs:cdd11fe9',
+    'claim:http-only', 'statement:mcp-only', 'workspaceId:differs(maxLength):cdd11fe9',
     'required:claim|workspaceId!=statement',
   ],
-  advocate: ['claim:differs:a4b8a8d8', 'workspaceId:differs:38c4c0d4'],
+  advocate: ['claim:differs(minLength):a4b8a8d8', 'workspaceId:differs(const,maxLength,type):38c4c0d4'],
   'learn-review': [
-    'maxSentences:mcp-only', 'provenance:differs:23ee9dd2', 'skipConflicts:mcp-only', 'sourceRef:http-only',
-    'sourceTitle:http-only', 'sourceType:http-only', 'text:differs:cd313fbd', 'workspaceId:differs:9caf1aef',
+    'maxSentences:mcp-only', 'provenance:differs(additionalProperties,properties):23ee9dd2',
+    'skipConflicts:mcp-only', 'sourceRef:http-only', 'sourceTitle:http-only', 'sourceType:http-only',
+    'text:differs(maxLength,minLength):cd313fbd', 'workspaceId:differs(maxLength,minLength):9caf1aef',
     'required:text|workspaceId!=text',
   ],
   'approval-decision': ['approvalId:mcp-only', 'workspaceId:mcp-only', 'required:decision!=approvalId|workspaceId'],
-  'memory-search': ['query:differs:1239a2d1', 'workspaceId:differs:b18eb2c6'],
+  'memory-search': ['query:differs(minLength):1239a2d1', 'workspaceId:differs(minLength):b18eb2c6'],
   'ingest-execute': [
     'alternatives:mcp-only', 'author:mcp-only', 'date:mcp-only', 'decidedBy:mcp-only',
     'idempotencyKey:mcp-only', 'links:mcp-only', 'rationale:mcp-only', 'sourceType:mcp-only', 'text:mcp-only',
     'title:mcp-only', 'workspaceId:mcp-only', 'required:!=sourceType',
   ],
-  'agent-plan': ['goal:differs:04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal'],
-  'agent-run': ['goal:differs:04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal'],
+  'agent-plan': [
+    'goal:differs(maxLength,minLength):04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal',
+  ],
+  'agent-run': [
+    'goal:differs(maxLength,minLength):04bf5d9f', 'workspaceId:http-only', 'required:goal|workspaceId!=goal',
+  ],
 });
 
 test('HTTP and MCP input schemas drift only where already recorded', () => {
@@ -135,7 +160,7 @@ test('HTTP and MCP input schemas drift only where already recorded', () => {
   }
 });
 
-test('the drift normalizer ignores descriptions and keeps every constraint', () => {
+test('the drift normalizer ignores descriptions and keeps constraint keywords', () => {
   const http = { type: 'object', required: ['q'], properties: { q: { type: 'string', maxLength: 10 }, h: { type: 'string' } } };
   const mcp = { type: 'object', required: ['q'], properties: { q: { type: 'string', maxLength: 20, description: 'x' }, m: { type: 'boolean' } } };
   assert.notDeepEqual(normalize(http.properties.q), normalize(mcp.properties.q));
