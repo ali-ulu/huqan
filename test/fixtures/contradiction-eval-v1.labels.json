@@ -1,0 +1,465 @@
+{
+  "schemaVersion": "huqan-contradiction-eval-labels-v1",
+  "datasetVersion": "contradiction-eval-v1",
+  "labelValues": [
+    "CONTRADICTION",
+    "NOT_CONTRADICTION",
+    "UNCERTAIN",
+    "INVALID_PAIR"
+  ],
+  "scorableLabelValues": [
+    "CONTRADICTION",
+    "NOT_CONTRADICTION"
+  ],
+  "provenance": {
+    "labelerId": "agent:codebuff-r50-pr1",
+    "authoredFrom": "claim_text_only",
+    "blindedTo": [
+      "detector_output",
+      "detector_confidence",
+      "fusion_score",
+      "arm_output",
+      "policy_band",
+      "split_assignment"
+    ],
+    "adjudication": {
+      "status": "PENDING_INDEPENDENT_HOLDOUT_REVIEW",
+      "reviewerId": null,
+      "contract": "docs/task-packs/contradiction-sensor-preregistration-r50.md"
+    }
+  },
+  "labels": {
+    "pair:00c4b1726ecd61ba": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "pair:02663e44c15fe6a4": {
+      "label": "NOT_CONTRADICTION",
+      "note": "version-scoped default"
+    },
+    "pair:03b9a2fecb2f7bed": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a shared-ownership reading is possible and the claims do not exclude each other"
+    },
+    "pair:05b4ac72cb11a2cc": {
+      "label": "CONTRADICTION",
+      "note": "predicate drift"
+    },
+    "pair:07e167535b313d49": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a quota change over time, explicitly time-scoped"
+    },
+    "pair:09698179908cf66a": {
+      "label": "UNCERTAIN",
+      "note": "no unit and no window, so the pair cannot be decided"
+    },
+    "pair:0971131c102b837c": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a bare number"
+    },
+    "pair:0cb6175906177836": {
+      "label": "NOT_CONTRADICTION",
+      "note": "frame-scoped behaviour"
+    },
+    "pair:0e114a3776749a1b": {
+      "label": "CONTRADICTION",
+      "note": "cause versus prevent"
+    },
+    "pair:0e12cdc35aa48bac": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a log line, not a claim"
+    },
+    "pair:17adb5848ae939ca": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; version scoping"
+    },
+    "pair:17bc90147a7aac02": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different caches"
+    },
+    "pair:19cdf857233b86a4": {
+      "label": "CONTRADICTION",
+      "note": "negation conflict"
+    },
+    "pair:1af2da2b132dd7b3": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different artifacts carry different licenses"
+    },
+    "pair:1bd8d2390e120a1e": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a question, not a claim"
+    },
+    "pair:1c72b126e2c74777": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "pair:1f41a96b7cd89919": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict"
+    },
+    "pair:1fb1b4f40d4a9f44": {
+      "label": "UNCERTAIN",
+      "note": "the frames are not identified, so no single frame can be compared"
+    },
+    "pair:20ff43f2adfe4ab4": {
+      "label": "UNCERTAIN",
+      "note": "no metric identity and no scale"
+    },
+    "pair:259857f9cae049ee": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different stores"
+    },
+    "pair:25c29bd7bdd2554d": {
+      "label": "NOT_CONTRADICTION",
+      "note": "frame-scoped visibility"
+    },
+    "pair:2b18718f26416a7b": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "pair:2f09afa2877a40c4": {
+      "label": "NOT_CONTRADICTION",
+      "note": "two separate runs"
+    },
+    "pair:30eec1c9ded9ffc5": {
+      "label": "UNCERTAIN",
+      "note": "no subject for the access and no actor"
+    },
+    "pair:322351cd0b79fac6": {
+      "label": "NOT_CONTRADICTION",
+      "note": "equivalent quantities in different units"
+    },
+    "pair:3287f14c80f8195c": {
+      "label": "CONTRADICTION",
+      "note": "cause versus prevent"
+    },
+    "pair:34934be9ce460025": {
+      "label": "CONTRADICTION",
+      "note": "negation conflict"
+    },
+    "pair:351e3587f0e17b31": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "pair:3724dcfb4c968859": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a fragment, not a claim"
+    },
+    "pair:39e898a383561d58": {
+      "label": "CONTRADICTION",
+      "note": "semantic opposition"
+    },
+    "pair:3cd83ca5cce65785": {
+      "label": "UNCERTAIN",
+      "note": "no metric and no frame"
+    },
+    "pair:3ec627d1c22c3c27": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same number, different budget"
+    },
+    "pair:4272581a8d4230cd": {
+      "label": "CONTRADICTION",
+      "note": "predicate drift"
+    },
+    "pair:43013c508fac712f": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "pair:44e611684688531a": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-tenant sizing"
+    },
+    "pair:4533f82bb426b331": {
+      "label": "NOT_CONTRADICTION",
+      "note": "version-scoped change of state"
+    },
+    "pair:46c5aaaaa0a87949": {
+      "label": "NOT_CONTRADICTION",
+      "note": "two stages of one pipeline"
+    },
+    "pair:4b0840e06f13d0f7": {
+      "label": "CONTRADICTION",
+      "note": "cause versus prevent"
+    },
+    "pair:4cd90be2ce91fcd0": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict"
+    },
+    "pair:4d2c4b5cde30e151": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; one claim is about the value, the other about its documentation"
+    },
+    "pair:5b6e28e79a5911a1": {
+      "label": "UNCERTAIN",
+      "note": "no artifact and no time anchor"
+    },
+    "pair:5f5018d8f3669e97": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "pair:6117681e296bd0cb": {
+      "label": "CONTRADICTION",
+      "note": "value conflict on a pinning method"
+    },
+    "pair:654ce85d355fb786": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-workspace configuration"
+    },
+    "pair:69cb89ddadaa7588": {
+      "label": "NOT_CONTRADICTION",
+      "note": "version-scoped visibility"
+    },
+    "pair:69d821fde0828ffb": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different components"
+    },
+    "pair:71d2b43a634382d6": {
+      "label": "UNCERTAIN",
+      "note": "no slot, no unit, no frame, so the pair cannot be decided"
+    },
+    "pair:73aec75a19c2db85": {
+      "label": "UNCERTAIN",
+      "note": "the entity is a pronoun and the slot is unnamed"
+    },
+    "pair:74f043e11ecaa7dc": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; profile scoping"
+    },
+    "pair:776538d4931761ce": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed verdicts on different writes"
+    },
+    "pair:7a0b2cbfdf738c94": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different operations under different rules"
+    },
+    "pair:7d75ad9f6d97e73a": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed predicates on different pipelines"
+    },
+    "pair:801d16c71d4f60eb": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same value, different slot"
+    },
+    "pair:84187bd071d239ec": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed visibility on different endpoints"
+    },
+    "pair:85ca3bee0b8542e8": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "pair:8fab67c8e3b6a24e": {
+      "label": "CONTRADICTION",
+      "note": "semantic opposition"
+    },
+    "pair:9161fb7f346a8d22": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed wording across frames"
+    },
+    "pair:92011a6cc56e1d79": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different slots"
+    },
+    "pair:953f3a16b4f69ed0": {
+      "label": "UNCERTAIN",
+      "note": "no time anchor and no slot"
+    },
+    "pair:9ba5eb1e20a0562f": {
+      "label": "CONTRADICTION",
+      "note": "relation inversion"
+    },
+    "pair:9d11cad7bc33b9d6": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "pair:9e484bb01a59f105": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; an added capability, not a conflict"
+    },
+    "pair:9e55e428e52d3af6": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different version lines"
+    },
+    "pair:a148389a80cca920": {
+      "label": "UNCERTAIN",
+      "note": "the subject is not established, so the pair is not comparable"
+    },
+    "pair:a165d5f0fe898981": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different affected operations"
+    },
+    "pair:a26c47b0d9de756b": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; a default plus its override"
+    },
+    "pair:a29dae2cb01cc60c": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different lifetimes for different artifacts"
+    },
+    "pair:a3de337119578792": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "pair:a60ab8cba8a9bba5": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict on the same slot"
+    },
+    "pair:a6ef9bf4e0e37d5d": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same value, different configuration slot"
+    },
+    "pair:a7592cdaa37df7e0": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-tenant pinning"
+    },
+    "pair:aad5b1bf4ebc526f": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; determinism and boundedness are independent"
+    },
+    "pair:ad436eda197d8983": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; a default plus its configurability"
+    },
+    "pair:af43c0e9206f72d8": {
+      "label": "NOT_CONTRADICTION",
+      "note": "rollout-stage behaviour"
+    },
+    "pair:b3fd225b7ce24338": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a chain, not an inversion"
+    },
+    "pair:b430df258a89c02f": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different jobs"
+    },
+    "pair:b4a2ef8a6cff7b7a": {
+      "label": "CONTRADICTION",
+      "note": "semantic opposition"
+    },
+    "pair:b6899037d5de1463": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; a value and where it is recorded"
+    },
+    "pair:b782224c0798bfb6": {
+      "label": "NOT_CONTRADICTION",
+      "note": "rollout-stage configuration"
+    },
+    "pair:b7dcaf66d4b20ece": {
+      "label": "CONTRADICTION",
+      "note": "algorithm conflict"
+    },
+    "pair:c065cc640ac1146b": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a policy change over time, explicitly time-scoped"
+    },
+    "pair:c0f15a90392373b4": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed words on different subjects"
+    },
+    "pair:c4ba914f0b369aca": {
+      "label": "CONTRADICTION",
+      "note": "temporal value conflict"
+    },
+    "pair:c89ee2493e707cb4": {
+      "label": "CONTRADICTION",
+      "note": "relation inversion"
+    },
+    "pair:cb980a1f20783e4a": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict"
+    },
+    "pair:cfc168fe8f055ecf": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different actors and different verbs"
+    },
+    "pair:d1cdbb81cfccd5ec": {
+      "label": "INVALID_PAIR",
+      "note": "not comparable: unrelated claim in another language"
+    },
+    "pair:d3be52ee49757d57": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the second claim narrows the host"
+    },
+    "pair:da6638955fa82e7a": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; visibility plus a control"
+    },
+    "pair:dbbb6229bf8f8a9c": {
+      "label": "CONTRADICTION",
+      "note": "order inversion"
+    },
+    "pair:dd9f384931c623e9": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the same algorithm in another artifact"
+    },
+    "pair:de62af3e979a5fbf": {
+      "label": "CONTRADICTION",
+      "note": "value against a non-quantity"
+    },
+    "pair:e00993501633eb0b": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict on the window"
+    },
+    "pair:e2a548a3761c74bb": {
+      "label": "INVALID_PAIR",
+      "note": "a claim wrongly paired with itself"
+    },
+    "pair:e3215addf8018fdb": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different subjects, so opposed technology names do not collide"
+    },
+    "pair:e50679a7ca79e6ea": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the second claim bounds the first"
+    },
+    "pair:e520ad3d3b2add65": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different pinned objects"
+    },
+    "pair:e819bad18a9c367d": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-environment version"
+    },
+    "pair:e98ca15030129b09": {
+      "label": "NOT_CONTRADICTION",
+      "note": "licensing differs per edition"
+    },
+    "pair:ec77c9dfc67b04bb": {
+      "label": "NOT_CONTRADICTION",
+      "note": "region-scoped quota"
+    },
+    "pair:eccb28052302dfa4": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the second claim names the default"
+    },
+    "pair:ee97c0fe1ab1af68": {
+      "label": "NOT_CONTRADICTION",
+      "note": "equal values under different frames"
+    },
+    "pair:f0f1d6823053bdc3": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; reporting and repairing coexist"
+    },
+    "pair:f3dda64f092a4966": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same count, different object"
+    },
+    "pair:f4ac6de3169f3c07": {
+      "label": "NOT_CONTRADICTION",
+      "note": "residency-scoped retention"
+    },
+    "pair:f5c7c59b485a3043": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different lifetimes for different artifacts"
+    },
+    "pair:f60696bb95242bc9": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different pools"
+    },
+    "pair:fd816322f04dd6ed": {
+      "label": "CONTRADICTION",
+      "note": "negation conflict"
+    }
+  }
+}

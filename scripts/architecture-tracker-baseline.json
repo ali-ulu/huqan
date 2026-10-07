@@ -84,6 +84,7 @@
       "lib/agent-action-signals.js": "Core",
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
+      "lib/agent-exit-reasons.js": "Core",
       "lib/agent-failure-signature.js": "Core",
       "lib/agent-identity-runtime-resolve.js": "Core",
       "lib/agent-identity-runtime-shape.js": "Core",
@@ -228,6 +229,7 @@
       "lib/coder/observed-verification.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
+      "lib/cognitive-lab-b1-manifest.js": "Core",
       "lib/cognitive-lab-b1-replay.js": "Core",
       "lib/cognitive-lab-b4-evaluator.js": "Core",
       "lib/cognitive-lab-b4-experiment.js": "Core",
@@ -710,10 +712,12 @@
       "lib/mcp-agent-repair-execution.js": "Core",
       "lib/mcp-approval-admission.js": "Core",
       "lib/mcp-approval-decision-handler.js": "Core",
+      "lib/mcp-approval-expiry.js": "Core",
       "lib/mcp-approval-learn-execution.js": "Core",
       "lib/mcp-approval-store-factory.js": "Core",
       "lib/mcp-approval-store.js": "Core",
       "lib/mcp-approval-views.js": "Core",
+      "lib/mcp-call-binding.js": "Core",
       "lib/mcp-capability-nonce-store.js": "Core",
       "lib/mcp-configuration-errors.js": "Core",
       "lib/mcp-envelope-format.js": "Core",
@@ -756,10 +760,13 @@
       "lib/mcp/memory-query-tool.js": "UI",
       "lib/mcp/operator-authorization.js": "UI",
       "lib/mcp/operator-tool-schemas.js": "UI",
+      "lib/mcp/output-conformance-gate.js": "UI",
+      "lib/mcp/output-schema-conformance.js": "UI",
       "lib/mcp/read-workflow-tools.js": "UI",
       "lib/mcp/response-builders.js": "UI",
       "lib/mcp/self-evolve-tool.js": "UI",
       "lib/mcp/server-lifecycle.js": "UI",
+      "lib/mcp/session-protocol.js": "UI",
       "lib/mcp/stdio-transport.js": "UI",
       "lib/mcp/system-status-tool.js": "UI",
       "lib/mcp/tool-dispatch.js": "UI",
@@ -912,6 +919,7 @@
       "lib/receipt/cryptographic-profile-contract.js": "Application",
       "lib/receipt/cryptographic-verification-adapter.js": "Application",
       "lib/receipt/issuer-seal.js": "Application",
+      "lib/receipt/policy-seal.js": "Application",
       "lib/receipt/public-trust-receipt-contract.js": "Application",
       "lib/receipt/public-trust-receipt-export.js": "Application",
       "lib/receipt/public-trust-receipt-import.js": "Application",
@@ -1044,6 +1052,7 @@
       "lib/v5/cryptographic-profile-contract.js": "Application",
       "lib/v5/cryptographic-verification-adapter.js": "Application",
       "lib/v5/public-trust-receipt.js": "Application",
+      "lib/v5/route-receipt-participants.js": "Application",
       "lib/v5/runtime-reader.js": "Application",
       "lib/v5/runtime-writer-guards.js": "Application",
       "lib/v5/runtime-writer-sections.js": "Application",
@@ -1208,6 +1217,7 @@
       "scripts/backup.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
+      "scripts/build-contradiction-eval-fixture.js": "UI",
       "scripts/capability-usage.js": "UI",
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
@@ -1244,6 +1254,8 @@
       "scripts/ci-test-selection.js": "UI",
       "scripts/comment-pr-guardian-block.js": "UI",
       "scripts/container-server.js": "UI",
+      "scripts/contradiction-eval-freeze-contract.js": "UI",
+      "scripts/contradiction-eval-freeze.js": "UI",
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
@@ -1382,6 +1394,7 @@
         "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
+        "lib/agent-exit-reasons.js",
         "lib/agent-step-progression.js",
         "lib/agent-v3-approval-methods.js",
         "lib/agent-v3-budget-methods.js",
@@ -1831,10 +1844,14 @@
         "lib/agent-v3-run-state.js",
         "lib/agent-v3-workspace.js"
       ],
+      "lib/agent-v3-result-methods.js": [
+        "lib/agent-exit-reasons.js"
+      ],
       "lib/agent-v3-run-state.js": [
         "lib/agent-v3-dream-loop-adapter.js"
       ],
       "lib/agent-v3-status-methods.js": [
+        "lib/agent-exit-reasons.js",
         "lib/agent-memory-persistence.js",
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
@@ -2289,6 +2306,11 @@
         "lib/deterministic-task-runner.js",
         "lib/path-safety.js",
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/cognitive-lab-b1-manifest.js": [
+        "lib/cognitive-lab-manifest.js",
+        "lib/content-hash.js",
+        "lib/is-plain-object.js"
       ],
       "lib/cognitive-lab-b1-replay.js": [
         "lib/cognitive-lab-manifest.js",
@@ -2762,9 +2784,11 @@
         "lib/experience/optimization-hypothesis.js"
       ],
       "lib/experience/run-repair.js": [
+        "lib/agent-exit-reasons.js",
         "lib/agent-step-executor.js",
         "lib/experience/contract.js",
-        "lib/experience/repair.js"
+        "lib/experience/repair.js",
+        "lib/mcp-call-binding.js"
       ],
       "lib/experience/runtime-seam.js": [
         "lib/experience/contract.js"
@@ -3094,6 +3118,7 @@
         "lib/memory-store-utils.js"
       ],
       "lib/fractal-learn.js": [
+        "lib/agent-exit-reasons.js",
         "lib/fractal-learn-autotune.js",
         "lib/hypothesis-feedback.js",
         "lib/hypothesis-tuning.js"
@@ -3838,6 +3863,9 @@
         "lib/inference-derived-record.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/inference-defeasible-scope.js": [
+        "lib/hash-chain.js"
+      ],
       "lib/inference-derived-admission.js": [
         "lib/inference-belief-revision.js",
         "lib/inference-derived-record.js"
@@ -3970,6 +3998,7 @@
       ],
       "lib/kernel-inference-methods.js": [
         "lib/inference-belief-revision.js",
+        "lib/inference-defeasible-scope.js",
         "lib/inference-runtime-store.js",
         "lib/inference-runtime.js",
         "lib/kernel-method-install.js"
@@ -4085,16 +4114,23 @@
       ],
       "lib/mcp-approval-decision-handler.js": [
         "lib/approval-execution-evidence.js",
+        "lib/approval-receipts.js",
         "lib/json-object.js",
         "lib/mcp-agent-approval-execution.js",
         "lib/mcp-agent-repair-execution.js",
+        "lib/mcp-approval-expiry.js",
         "lib/mcp-approval-learn-execution.js",
         "lib/mcp-approval-store.js",
         "lib/mcp-approval-views.js",
+        "lib/mcp-call-binding.js",
         "lib/mcp-human-oversight-adapter.js",
         "lib/mcp-ingest-execute-tool.js",
         "lib/mcp-input-sanitizers.js",
         "lib/mcp-tool-names.js"
+      ],
+      "lib/mcp-approval-expiry.js": [
+        "lib/environment-compat.js",
+        "lib/human-oversight-approval-runtime-primitives-values.js"
       ],
       "lib/mcp-approval-learn-execution.js": [
         "lib/approval-execution-evidence.js",
@@ -4109,8 +4145,10 @@
       "lib/mcp-approval-store.js": [
         "lib/conflict-detector.js",
         "lib/kernel-factory.js",
+        "lib/mcp-approval-expiry.js",
         "lib/mcp-approval-store-factory.js",
         "lib/mcp-approval-views.js",
+        "lib/mcp-call-binding.js",
         "lib/mcp-ingest-execute-tool.js",
         "lib/mcp-input-sanitizers.js",
         "lib/mcp-tool-names.js"
@@ -4118,6 +4156,9 @@
       "lib/mcp-approval-views.js": [
         "lib/json-object.js",
         "lib/tool-call-gate.js"
+      ],
+      "lib/mcp-call-binding.js": [
+        "lib/hash-chain.js"
       ],
       "lib/mcp-capability-nonce-store.js": [
         "lib/environment-compat.js"
@@ -4247,6 +4288,7 @@
         "lib/mcp-envelope-schema.js"
       ],
       "lib/mcp-tool-data-schemas-knowledge.js": [
+        "lib/agent-exit-reasons.js",
         "lib/mcp-envelope-schema.js"
       ],
       "lib/mcp-tool-data-schemas-trust.js": [
@@ -4300,6 +4342,8 @@
       "lib/mcp/json-rpc-handler.js": [
         "lib/mcp-configuration-errors.js",
         "lib/mcp-envelope-format.js",
+        "lib/mcp/output-conformance-gate.js",
+        "lib/mcp/session-protocol.js",
         "lib/mcp/tool-surface-filter-audit.js",
         "lib/mcp/tool-surface.js"
       ],
@@ -4314,6 +4358,16 @@
       "lib/mcp/operator-tool-schemas.js": [
         "lib/mcp-envelope-schema.js",
         "lib/mcp-tool-data-schemas.js"
+      ],
+      "lib/mcp/output-conformance-gate.js": [
+        "lib/is-plain-object.js",
+        "lib/kernel-contract.js",
+        "lib/mcp/output-schema-conformance.js",
+        "lib/mcp/tool-surface.js",
+        "lib/workflow-contract.js"
+      ],
+      "lib/mcp/output-schema-conformance.js": [
+        "lib/is-plain-object.js"
       ],
       "lib/mcp/read-workflow-tools.js": [
         "lib/http-trust-query.js",
@@ -4342,6 +4396,9 @@
         "lib/mcp/response-builders.js",
         "lib/self-evolve-adapter.js"
       ],
+      "lib/mcp/session-protocol.js": [
+        "lib/is-plain-object.js"
+      ],
       "lib/mcp/stdio-transport.js": [
         "lib/mcp-envelope-format.js"
       ],
@@ -4356,11 +4413,12 @@
         "lib/json-object.js",
         "lib/mcp-agent-continuation.js",
         "lib/mcp-approval-decision-handler.js",
+        "lib/mcp-call-binding.js",
         "lib/mcp-gate-adapter.js",
-        "lib/mcp-input-sanitizers.js",
         "lib/mcp-tool-names.js",
         "lib/mcp/gate-refusal.js",
         "lib/mcp/operator-authorization.js",
+        "lib/mcp/output-conformance-gate.js",
         "lib/mcp/response-builders.js",
         "lib/mcp/tool-handlers.js",
         "lib/mcp/tool-surface.js"
@@ -4384,7 +4442,9 @@
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/mcp/tool-surface.js": [
+        "lib/mcp-call-binding.js",
         "lib/mcp-tool-catalog.js",
+        "lib/mcp-tool-names.js",
         "lib/workflow-contract.js"
       ],
       "lib/mcp/transient-agent.js": [
@@ -4932,6 +4992,10 @@
       "lib/receipt/issuer-seal.js": [
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/receipt/policy-seal.js": [
+        "lib/receipt/canonical-receipt.js",
+        "lib/receipt/issuer-seal.js"
+      ],
       "lib/receipt/public-trust-receipt-export.js": [
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/cryptographic-profile-contract.js",
@@ -5403,14 +5467,20 @@
       "lib/v5/public-trust-receipt.js": [
         "lib/receipt/public-trust-receipt.js"
       ],
+      "lib/v5/route-receipt-participants.js": [
+        "lib/is-plain-object.js",
+        "lib/v5/runtime-writer-guards.js"
+      ],
       "lib/v5/runtime-reader.js": [
-        "lib/is-plain-object.js"
+        "lib/is-plain-object.js",
+        "lib/v5/route-receipt-participants.js"
       ],
       "lib/v5/runtime-writer-guards.js": [
         "lib/is-plain-object.js"
       ],
       "lib/v5/runtime-writer-sections.js": [
         "lib/is-plain-object.js",
+        "lib/v5/route-receipt-participants.js",
         "lib/v5/runtime-writer-guards.js"
       ],
       "lib/v5/runtime-writer.js": [
@@ -5900,6 +5970,10 @@
       "scripts/benign-false-block-rate.js": [
         "lib/external-action-guard.js"
       ],
+      "scripts/build-contradiction-eval-fixture.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/contradiction-eval-freeze.js"
+      ],
       "scripts/capability-usage.js": [
         "lib/default-persistence-path.js",
         "lib/environment-compat.js",
@@ -5971,6 +6045,12 @@
         "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "server.js"
+      ],
+      "scripts/contradiction-eval-freeze-contract.js": [
+        "lib/content-hash.js"
+      ],
+      "scripts/contradiction-eval-freeze.js": [
+        "scripts/contradiction-eval-freeze-contract.js"
       ],
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "huqan-contradiction-eval-manifest-v1",
+  "datasetVersion": "contradiction-eval-v1",
+  "source": {
+    "system": "levh",
+    "snapshotId": "levh-contradiction-candidates-2026-10-07",
+    "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+    "candidateCount": 118,
+    "uniquePairCount": 110,
+    "selectedCount": 108
+  },
+  "sampling": {
+    "seed": 3582,
+    "selectionRule": "sha256-keyed-selection-v1",
+    "splitRule": "sha256-group-bucket-v1",
+    "bucketEdges": {
+      "train": 60,
+      "calibration": 80
+    },
+    "targets": {
+      "representative": 46,
+      "lexical_opposition_only": 22,
+      "scope_shift": 24,
+      "measurement_uncertain": 10,
+      "malformed_pair": 6
+    }
+  },
+  "sampleAdequacy": {
+    "status": "ADEQUATE",
+    "floor": {
+      "train": 20,
+      "calibration": 10,
+      "holdout": 10
+    },
+    "observed": [
+      {
+        "split": "train",
+        "total": 73,
+        "scorable": 63,
+        "contradiction": 22,
+        "notContradiction": 41,
+        "excluded": 10
+      },
+      {
+        "split": "calibration",
+        "total": 20,
+        "scorable": 16,
+        "contradiction": 5,
+        "notContradiction": 11,
+        "excluded": 4
+      },
+      {
+        "split": "holdout",
+        "total": 15,
+        "scorable": 13,
+        "contradiction": 5,
+        "notContradiction": 8,
+        "excluded": 2
+      }
+    ]
+  },
+  "digests": {
+    "sourceSnapshot": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+    "corpus": "b61c4500008d8550758f595b9bd5ef6837681b5f2962367a93e6f1323d964923",
+    "labels": "adc95e193f9e82662167ca951a105f464ea72200b6337c443120b4b3916e7a06",
+    "split": "b2b2752778ec87b64dabf33435b75bd33fbfaaa34b52b919560d82593a21ede2",
+    "protocol": "b051b5e6864df740204c74f28c47e68efcb171e81dfa327b0de008f8f7374d2f"
+  },
+  "holdout": {
+    "pairIds": [
+      "pair:07e167535b313d49",
+      "pair:0971131c102b837c",
+      "pair:39e898a383561d58",
+      "pair:3cd83ca5cce65785",
+      "pair:4cd90be2ce91fcd0",
+      "pair:4d2c4b5cde30e151",
+      "pair:6117681e296bd0cb",
+      "pair:654ce85d355fb786",
+      "pair:a29dae2cb01cc60c",
+      "pair:b782224c0798bfb6",
+      "pair:c4ba914f0b369aca",
+      "pair:e50679a7ca79e6ea",
+      "pair:e98ca15030129b09",
+      "pair:f4ac6de3169f3c07",
+      "pair:fd816322f04dd6ed"
+    ],
+    "sealDigest": "060c9ff402290356ea665d9ebc2b65c38636a2ee035513cd4ad8c20daa770552",
+    "readerPolicy": "train_and_calibration_only_until_final_evaluation",
+    "independentAdjudication": "PENDING"
+  },
+  "leakageControls": {
+    "groupsSpanningSplits": 0,
+    "corpusCarriesLabels": false,
+    "corpusCarriesDetectorOutput": false,
+    "glue": "record_shape_is_a_strict_allowlist"
+  },
+  "authority": {
+    "kind": "DETERMINISTIC",
+    "locality": "LOCAL",
+    "authority": "CANDIDATE_ONLY",
+    "canonical": false,
+    "modelCalls": 0,
+    "tokens": 0,
+    "externalCalls": 0
+  },
+  "productionBehaviorChanged": false
+}
