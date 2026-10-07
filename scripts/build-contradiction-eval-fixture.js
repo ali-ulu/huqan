@@ -94,11 +94,25 @@ function assertFrozenManifest(committedManifest, builtManifest, { refreeze = fal
   return { action: 'verify' };
 }
 
-function readCommittedManifest() {
+/**
+ * `null` means "no frozen dataset yet"; it is reserved for a genuinely missing
+ * manifest. An existing manifest that cannot be read or parsed is a hard
+ * failure: swallowing it would let the guards mistake a corrupt frozen dataset
+ * for an initial freeze and overwrite it.
+ */
+function readCommittedManifest(manifestPath = MANIFEST_PATH) {
+  const relative = path.relative(process.cwd(), manifestPath);
+  let raw;
   try {
-    return JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
-  } catch (_) {
-    return null;
+    raw = fs.readFileSync(manifestPath, 'utf8');
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    fail('committed_manifest_unreadable', `cannot read ${relative}: ${error.message}`, { filePath: manifestPath });
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    fail('committed_manifest_unreadable', `cannot parse ${relative}: ${error.message}`, { filePath: manifestPath });
   }
 }
 
@@ -191,6 +205,7 @@ module.exports = {
   MANIFEST_PATH,
   serialize,
   readJson,
+  readCommittedManifest,
   assertFrozenSource,
   assertFrozenManifest,
   main,

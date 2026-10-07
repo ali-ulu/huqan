@@ -213,6 +213,21 @@ test('content duplicates whose labels disagree are refused, not silently resolve
   throwsCode(() => build({ sourceLabels: conflicting }), 'duplicate_label_conflict');
 });
 
+test('an unreadable committed manifest is refused, not treated as an initial freeze', () => {
+  const os = require('node:os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'r50-manifest-'));
+  try {
+    // A missing manifest really is "no frozen dataset yet".
+    assert.equal(builder.readCommittedManifest(path.join(tmp, 'absent.json')), null);
+    // An existing manifest that cannot be parsed must not read as one.
+    const corrupt = path.join(tmp, 'broken.json');
+    fs.writeFileSync(corrupt, '{ not json', 'utf8');
+    throwsCode(() => builder.readCommittedManifest(corrupt), 'committed_manifest_unreadable');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('a snapshot outside the frozen schema or shape is rejected', () => {
   const wrongSchema = { ...clone(SOURCE_SNAPSHOT), schemaVersion: 'something-else' };
   throwsCode(() => builder.buildContradictionEvalFixture({ sourceSnapshot: wrongSchema, sourceLabels: SOURCE_LABELS }), 'source_snapshot_schema_mismatch');
