@@ -56,6 +56,17 @@ test('redactSecretValuesWithTrace covers arrays, nesting, cycles and scalars', (
   assert.deepEqual(embedded.erased[0].types, [{ type: 'jwt', count: 1 }]);
 });
 
+test('whole secret-looking values are wiped with a whole_value trace', () => {
+  const jwt = ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0In0', 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJVadQssw5c'].join('.');
+  const asWhole = redactSecretValuesWithTrace({ note: jwt });
+  assert.equal(asWhole.redacted.note, '[REDACTED]');
+  assert.deepEqual(asWhole.erased, [{ path: 'note', rule: 'whole_value' }]);
+  const bearer = redactSecretValuesWithTrace({ note: 'Bearer abcdefghij1234567890' });
+  assert.equal(bearer.redacted.note, '[REDACTED]');
+  assert.deepEqual(bearer.erased, [{ path: 'note', rule: 'whole_value' }]);
+  assert.ok(!JSON.stringify(bearer).includes('abcdefghij'));
+});
+
 test('the approval view carries the masking trace', () => {
   const fakePassword = ['hunter2', 'hunter'].join('');
   const view = projectApprovalRecord({

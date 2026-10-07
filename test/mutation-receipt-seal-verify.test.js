@@ -187,4 +187,16 @@ test('every refusal path is typed and fail-closed', () => {
     stubStore({ receipt: stubReceipt('h1'), seal: stubSeal('h1') }), 'op:stub', { verifySeal });
   assert.equal(noEvidenceAt.ok, true);
   assert.ok(noEvidenceAt.evidenceAt);
+  let reads = 0;
+  const flakyJournal = {
+    hasSqlite: () => false,
+    readJsonJournal: () => {
+      reads += 1;
+      if (reads === 1) return { receipts: { 'op:stub': stubReceipt('h1') }, receiptsById: {}, chainTips: {}, seals: {} };
+      throw new Error('seal read unavailable');
+    },
+  };
+  const sealReadFailed = verifyMutationReceiptSeal(flakyJournal, 'op:stub', { verifySeal });
+  assert.equal(sealReadFailed.reason, 'seal_absent');
+  assert.equal(sealReadFailed.receiptId, 'r-stub');
 });
