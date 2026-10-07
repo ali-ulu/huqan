@@ -4,7 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  CAPTURED_OUTCOME_STATUS,
   OUTCOME_RECEIPT_KIND,
+  isCapturedOutcomeStatus,
   verdictForOutcomeStatus,
   outcomeStatusByAdmission,
 } = require('../lib/gate-outcome-history');
@@ -42,6 +44,28 @@ test('executed approves, blocked refuses, anything else is no verdict', () => {
   for (const status of [undefined, null, '', 'pending', 'failed', 'EXECUTED']) {
     assert.equal(verdictForOutcomeStatus(status), null, String(status));
   }
+});
+
+test('a captured outcome is a gate fault, not a refusal (#3500)', () => {
+  assert.equal(CAPTURED_OUTCOME_STATUS, 'captured');
+  assert.equal(isCapturedOutcomeStatus('captured'), true);
+  for (const status of [undefined, null, '', 'blocked', 'executed', 'failed']) {
+    assert.equal(isCapturedOutcomeStatus(status), false, String(status));
+  }
+  // The whole point: a fail-closed gate fault carries no verdict, so it can
+  // never be learned as a person's refusal.
+  assert.equal(verdictForOutcomeStatus(CAPTURED_OUTCOME_STATUS), null);
+});
+
+test('a captured outcome does not become a refusal when a real one is present', () => {
+  const statuses = outcomeStatusByAdmission([
+    outcome('a1', CAPTURED_OUTCOME_STATUS),
+    outcome('a1', 'blocked'),
+    outcome('a2', CAPTURED_OUTCOME_STATUS),
+  ]);
+  assert.equal(statuses.get('a1'), 'blocked');
+  assert.equal(statuses.get('a2'), CAPTURED_OUTCOME_STATUS);
+  assert.equal(verdictForOutcomeStatus(statuses.get('a2')), null);
 });
 
 test('both miners and the projection read the same outcome kind', () => {
