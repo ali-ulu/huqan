@@ -90,9 +90,11 @@ test('the same decisions are reached with a working audit sink', async () => {
 
   assert.notEqual(refused.statusCode, 200);
   assert.equal(admitted.statusCode, 200);
+  // Rows written in the same millisecond have no defined relative order, so
+  // the outcomes are compared as a set rather than as a sequence.
   assert.deepEqual(
-    audit.read().entries.map((entry) => entry.outcome),
-    [DELEGATION_OUTCOMES.REFUSED, DELEGATION_OUTCOMES.ADMITTED],
+    audit.read().entries.map((entry) => entry.outcome).sort(),
+    [DELEGATION_OUTCOMES.ADMITTED, DELEGATION_OUTCOMES.REFUSED].sort(),
   );
 });
 
@@ -107,6 +109,10 @@ test('retrying a refused exchange gets the same refusal every time', async () =>
   for (const response of [first, second, third]) {
     assert.notEqual(response.statusCode, 200);
     assert.notEqual(response.body.decision, 'allow');
+  }
+  for (const response of [second, third]) {
+    assert.equal(response.statusCode, first.statusCode);
+    assert.equal(response.body.decision, first.body.decision);
   }
   assert.deepEqual(second.body.reason, first.body.reason);
   assert.deepEqual(third.body.reason, first.body.reason);
@@ -124,4 +130,5 @@ test('a refusal does not consume the reservation of the genuine exchange, and a 
   assert.equal(admitted.statusCode, 200);
   assert.notEqual(replayed.statusCode, 200);
   assert.notEqual(replayed.body.decision, 'allow');
+  assert.equal(replayed.body.reason, 'replay_detected');
 });
