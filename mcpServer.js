@@ -76,6 +76,14 @@ function createServer(kernelOrOptions = {}) {
     ownsKernel: !options.kernel, ownsApprovalStore: !Object.hasOwn(options, 'approvalStore'),
     ownsOperatorCapabilityNonces: !Object.hasOwn(options, 'operatorCapabilityNonces') });
   const handleRequest = createJsonRpcHandler({
+    // A cancelled tools/call leaves its receipt in the kernel's mutation
+    // journal: idempotent per operation id, readable by prefix (#3484).
+    recordCancellation: (operationId, receipt) => {
+      if (!kernel.graph || typeof kernel.graph.runMutationOnce !== 'function') {
+        throw new Error('kernel graph has no mutation journal');
+      }
+      kernel.graph.runMutationOnce(operationId, () => receipt);
+    },
     callTool: params => callTool(kernel, params, {
       approvalStore,
       operatorSecret: operatorToken,
