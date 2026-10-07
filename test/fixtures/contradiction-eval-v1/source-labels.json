@@ -1,0 +1,495 @@
+{
+  "schemaVersion": "huqan-contradiction-eval-source-labels-v1",
+  "datasetVersion": "contradiction-eval-v1",
+  "provenance": {
+    "labelerId": "agent:codebuff-r50-pr1",
+    "authoredFrom": "claim_text_only",
+    "blindedTo": [
+      "detector_output",
+      "detector_confidence",
+      "fusion_score",
+      "arm_output",
+      "policy_band",
+      "split_assignment"
+    ],
+    "adjudication": {
+      "status": "PENDING_INDEPENDENT_HOLDOUT_REVIEW",
+      "reviewerId": null,
+      "contract": "docs/task-packs/contradiction-sensor-preregistration-r50.md"
+    }
+  },
+  "labels": {
+    "cand-001": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict on the same slot"
+    },
+    "cand-002": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict"
+    },
+    "cand-003": {
+      "label": "CONTRADICTION",
+      "note": "temporal value conflict"
+    },
+    "cand-004": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "cand-005": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "cand-006": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "cand-007": {
+      "label": "CONTRADICTION",
+      "note": "value against a non-quantity"
+    },
+    "cand-008": {
+      "label": "CONTRADICTION",
+      "note": "negation conflict"
+    },
+    "cand-009": {
+      "label": "CONTRADICTION",
+      "note": "negation conflict"
+    },
+    "cand-010": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "cand-011": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "cand-012": {
+      "label": "CONTRADICTION",
+      "note": "cause versus prevent"
+    },
+    "cand-013": {
+      "label": "CONTRADICTION",
+      "note": "cause versus prevent"
+    },
+    "cand-014": {
+      "label": "CONTRADICTION",
+      "note": "semantic opposition"
+    },
+    "cand-015": {
+      "label": "CONTRADICTION",
+      "note": "semantic opposition"
+    },
+    "cand-016": {
+      "label": "CONTRADICTION",
+      "note": "relation inversion"
+    },
+    "cand-017": {
+      "label": "CONTRADICTION",
+      "note": "relation inversion"
+    },
+    "cand-018": {
+      "label": "CONTRADICTION",
+      "note": "predicate drift"
+    },
+    "cand-019": {
+      "label": "CONTRADICTION",
+      "note": "predicate drift"
+    },
+    "cand-020": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict"
+    },
+    "cand-021": {
+      "label": "CONTRADICTION",
+      "note": "value conflict on a pinning method"
+    },
+    "cand-022": {
+      "label": "CONTRADICTION",
+      "note": "value conflict on failure mode"
+    },
+    "cand-023": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "cand-024": {
+      "label": "CONTRADICTION",
+      "note": "cause versus prevent"
+    },
+    "cand-025": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the second claim narrows the host"
+    },
+    "cand-026": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; version scoping"
+    },
+    "cand-027": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; an added capability, not a conflict"
+    },
+    "cand-028": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; reporting and repairing coexist"
+    },
+    "cand-029": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; a default plus its configurability"
+    },
+    "cand-030": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; determinism and boundedness are independent"
+    },
+    "cand-031": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; one claim is about the value, the other about its documentation"
+    },
+    "cand-032": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; profile scoping"
+    },
+    "cand-033": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different subjects, so opposed technology names do not collide"
+    },
+    "cand-034": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed words on different subjects"
+    },
+    "cand-035": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same value, different slot"
+    },
+    "cand-036": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different artifacts carry different licenses"
+    },
+    "cand-037": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed verdicts on different writes"
+    },
+    "cand-038": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a chain, not an inversion"
+    },
+    "cand-039": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a shared-ownership reading is possible and the claims do not exclude each other"
+    },
+    "cand-040": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different pinned objects"
+    },
+    "cand-041": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same value, different configuration slot"
+    },
+    "cand-042": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different lifetimes for different artifacts"
+    },
+    "cand-043": {
+      "label": "NOT_CONTRADICTION",
+      "note": "two stages of one pipeline"
+    },
+    "cand-044": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different affected operations"
+    },
+    "cand-045": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed predicates on different pipelines"
+    },
+    "cand-046": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different jobs"
+    },
+    "cand-047": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed wording across frames"
+    },
+    "cand-048": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same count, different object"
+    },
+    "cand-049": {
+      "label": "NOT_CONTRADICTION",
+      "note": "equal values under different frames"
+    },
+    "cand-050": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a policy change over time, explicitly time-scoped"
+    },
+    "cand-051": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-workspace configuration"
+    },
+    "cand-052": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different slots"
+    },
+    "cand-053": {
+      "label": "NOT_CONTRADICTION",
+      "note": "licensing differs per edition"
+    },
+    "cand-054": {
+      "label": "NOT_CONTRADICTION",
+      "note": "version-scoped change of state"
+    },
+    "cand-055": {
+      "label": "NOT_CONTRADICTION",
+      "note": "frame-scoped behaviour"
+    },
+    "cand-056": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different caches"
+    },
+    "cand-057": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different operations under different rules"
+    },
+    "cand-058": {
+      "label": "NOT_CONTRADICTION",
+      "note": "two separate runs"
+    },
+    "cand-059": {
+      "label": "NOT_CONTRADICTION",
+      "note": "equivalent quantities in different units"
+    },
+    "cand-060": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different actors and different verbs"
+    },
+    "cand-061": {
+      "label": "NOT_CONTRADICTION",
+      "note": "residency-scoped retention"
+    },
+    "cand-062": {
+      "label": "NOT_CONTRADICTION",
+      "note": "version-scoped default"
+    },
+    "cand-063": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-tenant pinning"
+    },
+    "cand-064": {
+      "label": "NOT_CONTRADICTION",
+      "note": "rollout-stage behaviour"
+    },
+    "cand-065": {
+      "label": "UNCERTAIN",
+      "note": "no slot, no unit, no frame, so the pair cannot be decided"
+    },
+    "cand-066": {
+      "label": "UNCERTAIN",
+      "note": "the subject is not established, so the pair is not comparable"
+    },
+    "cand-067": {
+      "label": "UNCERTAIN",
+      "note": "no time anchor and no slot"
+    },
+    "cand-068": {
+      "label": "UNCERTAIN",
+      "note": "the entity is a pronoun and the slot is unnamed"
+    },
+    "cand-069": {
+      "label": "UNCERTAIN",
+      "note": "the frames are not identified, so no single frame can be compared"
+    },
+    "cand-070": {
+      "label": "UNCERTAIN",
+      "note": "no metric identity and no scale"
+    },
+    "cand-071": {
+      "label": "INVALID_PAIR",
+      "note": "a claim wrongly paired with itself"
+    },
+    "cand-072": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a question, not a claim"
+    },
+    "cand-073": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a log line, not a claim"
+    },
+    "cand-074": {
+      "label": "INVALID_PAIR",
+      "note": "not comparable: unrelated claim in another language"
+    },
+    "cand-079": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict"
+    },
+    "cand-080": {
+      "label": "CONTRADICTION",
+      "note": "order inversion"
+    },
+    "cand-081": {
+      "label": "CONTRADICTION",
+      "note": "algorithm conflict"
+    },
+    "cand-082": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "cand-083": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict"
+    },
+    "cand-084": {
+      "label": "CONTRADICTION",
+      "note": "version conflict"
+    },
+    "cand-085": {
+      "label": "CONTRADICTION",
+      "note": "unit conflict on the window"
+    },
+    "cand-086": {
+      "label": "CONTRADICTION",
+      "note": "value conflict"
+    },
+    "cand-087": {
+      "label": "CONTRADICTION",
+      "note": "semantic opposition"
+    },
+    "cand-088": {
+      "label": "CONTRADICTION",
+      "note": "negation conflict"
+    },
+    "cand-089": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the second claim bounds the first"
+    },
+    "cand-090": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the second claim names the default"
+    },
+    "cand-091": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; a default plus its override"
+    },
+    "cand-092": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; a value and where it is recorded"
+    },
+    "cand-093": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; the same algorithm in another artifact"
+    },
+    "cand-094": {
+      "label": "NOT_CONTRADICTION",
+      "note": "compatible; visibility plus a control"
+    },
+    "cand-095": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different pools"
+    },
+    "cand-096": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different components"
+    },
+    "cand-097": {
+      "label": "NOT_CONTRADICTION",
+      "note": "opposed visibility on different endpoints"
+    },
+    "cand-098": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different version lines"
+    },
+    "cand-099": {
+      "label": "NOT_CONTRADICTION",
+      "note": "same number, different budget"
+    },
+    "cand-100": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different lifetimes for different artifacts"
+    },
+    "cand-101": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-tenant sizing"
+    },
+    "cand-102": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-environment version"
+    },
+    "cand-103": {
+      "label": "NOT_CONTRADICTION",
+      "note": "a quota change over time, explicitly time-scoped"
+    },
+    "cand-104": {
+      "label": "NOT_CONTRADICTION",
+      "note": "frame-scoped visibility"
+    },
+    "cand-105": {
+      "label": "NOT_CONTRADICTION",
+      "note": "rollout-stage configuration"
+    },
+    "cand-106": {
+      "label": "NOT_CONTRADICTION",
+      "note": "region-scoped quota"
+    },
+    "cand-107": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different stores"
+    },
+    "cand-108": {
+      "label": "NOT_CONTRADICTION",
+      "note": "version-scoped visibility"
+    },
+    "cand-109": {
+      "label": "UNCERTAIN",
+      "note": "no unit and no window, so the pair cannot be decided"
+    },
+    "cand-110": {
+      "label": "UNCERTAIN",
+      "note": "no metric and no frame"
+    },
+    "cand-111": {
+      "label": "UNCERTAIN",
+      "note": "no artifact and no time anchor"
+    },
+    "cand-112": {
+      "label": "UNCERTAIN",
+      "note": "no subject for the access and no actor"
+    },
+    "cand-113": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a fragment, not a claim"
+    },
+    "cand-114": {
+      "label": "INVALID_PAIR",
+      "note": "the incoming record is a bare number"
+    },
+    "dup-cand-001-01": {
+      "label": "CONTRADICTION",
+      "note": "numeric conflict on the same slot"
+    },
+    "dup-cand-033-02": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different subjects, so opposed technology names do not collide"
+    },
+    "dup-cand-049-03": {
+      "label": "NOT_CONTRADICTION",
+      "note": "equal values under different frames"
+    },
+    "dup-cand-065-04": {
+      "label": "UNCERTAIN",
+      "note": "no slot, no unit, no frame, so the pair cannot be decided"
+    },
+    "dup-cand-080-05": {
+      "label": "CONTRADICTION",
+      "note": "order inversion"
+    },
+    "dup-cand-095-06": {
+      "label": "NOT_CONTRADICTION",
+      "note": "different pools"
+    },
+    "dup-cand-101-07": {
+      "label": "NOT_CONTRADICTION",
+      "note": "per-tenant sizing"
+    },
+    "dup-cand-109-08": {
+      "label": "UNCERTAIN",
+      "note": "no unit and no window, so the pair cannot be decided"
+    }
+  }
+}

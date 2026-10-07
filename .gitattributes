@@ -12,3 +12,10 @@ plugins/**/*.json text eol=lf
 # extracted function bodies, where bash treats them as part of the command.
 # Force LF for the same reason as the signed plugin files above.
 .github/workflows/*.yml text eol=lf
+
+# The R50 contradiction eval freeze (#3582) is checked byte for byte by
+# `scripts/build-contradiction-eval-fixture.js --check`, which compares the
+# committed file text against its own LF serialization. A CRLF checkout would
+# fail that check on Windows without any content change, so pin LF.
+test/fixtures/contradiction-eval-v1.*.json text eol=lf
+test/fixtures/contradiction-eval-v1/*.json text eol=lf

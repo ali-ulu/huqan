@@ -1221,6 +1221,7 @@
       "scripts/backup.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
+      "scripts/build-contradiction-eval-fixture.js": "UI",
       "scripts/capability-usage.js": "UI",
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
@@ -1257,6 +1258,8 @@
       "scripts/ci-test-selection.js": "UI",
       "scripts/comment-pr-guardian-block.js": "UI",
       "scripts/container-server.js": "UI",
+      "scripts/contradiction-eval-freeze-contract.js": "UI",
+      "scripts/contradiction-eval-freeze.js": "UI",
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
@@ -5992,6 +5995,10 @@
       "scripts/benign-false-block-rate.js": [
         "lib/external-action-guard.js"
       ],
+      "scripts/build-contradiction-eval-fixture.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/contradiction-eval-freeze.js"
+      ],
       "scripts/capability-usage.js": [
         "lib/default-persistence-path.js",
         "lib/environment-compat.js",
@@ -6063,6 +6070,12 @@
         "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
         "server.js"
+      ],
+      "scripts/contradiction-eval-freeze-contract.js": [
+        "lib/content-hash.js"
+      ],
+      "scripts/contradiction-eval-freeze.js": [
+        "scripts/contradiction-eval-freeze-contract.js"
       ],
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",
