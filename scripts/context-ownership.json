@@ -2632,6 +2632,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
   },
+  "lib/experience/bounded-reask.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-EXP-T-T"
+  },
   "lib/experience/optimization-hypothesis.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
@@ -5314,9 +5318,10 @@
   "lib/gate-outcome-history.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Knowledge"
+    "Knowledge",
+    "Trust"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; Trust added by #3500 (R45) -- the outcome receipt reads the captured/gate-fault status vocabulary so a fail-closed gate fault is not recorded as a refusal"
   },
   "lib/evidence-ladder.js": {
    "owner": "Trust",
