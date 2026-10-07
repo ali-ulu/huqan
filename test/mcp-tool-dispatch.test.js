@@ -175,41 +175,48 @@ async function digestsByTool() {
 // test/mcp-gate-risk-characterization.test.js and did not move; only the
 // added justification block moves these digests.
 //
+// #3483 re-recorded every tool: results now pass the output schema gate, which
+// completes the envelope (type, data, evidence, error, meta.contractVersion,
+// meta.backend, meta.paranoidMode) and withholds a result that still does not
+// match its declared schema. The stubbed delegates below return bare
+// `{ ok, via }` objects, so verify, fractal-learn and approval_detail are now
+// recorded as OUTPUT_SCHEMA_VIOLATION; routing stays pinned by `calls`.
+//
 // #3488 re-recorded the tools whose output embeds a queued approval: its
 // policy now carries `reviewedBinding` ({ tool, argsDigest, inputIsArgs }),
 // the arguments the reviewer is shown. No decision, reason or routing moved.
 //
 // Regenerate only on purpose: UPDATE_MCP_DISPATCH_GOLDEN=1 node --test <this file>
 const GOLDEN = {
-  'huqan.learn': 'e0edb52a102cb075b64861d689bd7ffa09f64325846033e3bad379cda46eff7f',
-  'huqan.ask': 'ad49c39a897ce936e3558e2cb3ee7d1af721dd380bbd92da3c913e11fa5df795',
-  'huqan.verify': '484accad2fcd1106a3090fc666da3a70e4ebad96a8d9f8862064a64fc24ec757',
-  'huqan.plan': '318e9c5e41e5502e0c4d57cbe0e6ea959df862e44e4db143f5abefeda499bfd5',
-  'huqan.agent': '8872f29b4272a8c0441668a788d88e04ebadf19afb0f3f0006dd07e0e268e280',
-  'huqan.policy': '8a0f76759a9014b814077ea1bb109dc893d6b2be1c1196c8d174fef4b11a7f33',
-  'huqan.approval_detail': '1ce1b685c78069c79f61608525f75161730c5ed40c8de31cb38d7d75cb3d205e',
-  'huqan.approvals': 'f31a675da052e5edf832f0a712974737f3e9ba68776c86b8a942e30c19ad3860',
-  'huqan.reason': 'a3cfb1b72319c626258724fe87e1af8dd968614d9123835d2bf8041b896695b3',
-  'huqan.derive': 'e29cc04fa5401ba14e2514d582e85e78679af0df0e38f018c1c27ad1a84e0f7c',
-  'huqan.prove': '4a94acdea1121cde545efe719488fa22dc7fb5fea162861c7f7d1675eb7d9ce3',
-  'huqan.compare': '93e037979e4fd8e61ed75fd4e01242081501b8f3fc4445c47005e5d2a72be761',
-  'huqan.dream': '432937e74cf96220e0dac5caba33dac1991a943731740adefa621dc5fe45c48e',
-  'huqan.fractal-learn': '5ff5d0d6c399742e862b766799ca3dabfb0101b5177764674bf4c1f7a306011d',
-  'huqan.self-evolve': '39d5d3b122cb20258cf173986fe76a6c2dd809e76fb4609296fca7e100daca25',
-  'huqan.advocate': '841bab034317bfa72741f58b63f7ca41709c7ffbb6a62e031f1c80743e3daa2f',
-  'huqan.web_research': '252ea84a371ad64c427ba856fdbf9b79327a3e9bb2b2e0362483b5ae8be15f3f',
-  'huqan.search': '24b698f7d4e3cf36fc3858d1d921634ea54ab15dcab0fd5d341cb1a32019d1ac',
-  'huqan.trust_receipt': 'c5a6635284b4abc4c746fd4c4b1aefd40110312cddfc9fd96c494b5c8fa6fcf1',
-  'huqan.trust_receipt_detail': 'eb9731b7f740fdd41711eef8931d97390e152c0706f7f043eeb82528b21034f3',
-  'huqan.experience_read': '482e5526d502cfb8096f1a13f76b92bc285a251cba2b9267fee1a46f45dbb66a',
-  'huqan.experience_learn': 'b87d084e995d213107a2782fac9ee800dd19ab0a03ca59570ab24fb44158ee10',
-  'huqan.memory_query': '6e7c187a1f0089d2807aff04f5bee754890bd08a88f97e8e5ec5cb444b8904f8',
-  'huqan.status': '267885d283c065eed63ac3e2c2b75e77059cf6698f44020c67175ca6417752a9',
-  'huqan.audit': '53398b050bb0371e90209647dd8f394b047beae7b438000410cad80561098297',
-  'huqan.ingest_preview': 'c865da9cf3eaed67fa72e57f4f2ec765889a0e4a23c014f56c3f2a16241ed719',
-  'huqan.ingest_status': '5eb079bc6a66e3237af883639d70d66c32a05c9458a1dae99636aee0f32dc2d3',
-  'huqan.ingest_execute': 'bfa9c496d55255e2acce019b3c420f8cfebb15b65f0561fa02ce776018f599f3',
-  'huqan.emergency_stop': '7d5114510b49e68654c189636d00cfbdcf605a30063abff2d272c6b150f1fc9c',
+  'huqan.learn': 'e95aaa4ab178294d720a24fd1e734ee341749daf126b6105189d7fa3be7dc84d',
+  'huqan.ask': '51e5ccef1883799552b93b1a794bc585ee6c8c19bb97dca2da1cb0174f4f9334',
+  'huqan.verify': 'da1ec74b9761a09d89ba57214ff68fd2ad5f94cd3295c4e1423d4719b490cea1',
+  'huqan.plan': '62eaa5392e9bc38e3957433baad76cfa214ef599cc0a6f4d2025a10bb6a63e2f',
+  'huqan.agent': 'a6436b8dba85f4bf798987f66de329edafffe37bef382ad6ed17ab8b8cc8d1ea',
+  'huqan.policy': '94be10e6cc93f4362598bbb1b103c0d88f0c957cc4453e324a8d8b856a4501b8',
+  'huqan.approval_detail': '8e24ada584883b98f50bb87b98296eb09320522452f1f92a8bd31c459a971b17',
+  'huqan.approvals': '36246f2e3f4bab4a5550d0860aa24f79713c2205af67929f34d9a6560743669e',
+  'huqan.reason': '6b29ea944cc7f6fa3a416a85be31bab70ee15aa2f7a841b426935b6d51b86e73',
+  'huqan.derive': '8da20077038bae54399650bb11b8587c5f5509be5f12fcf4f462d0afb8f6e8c4',
+  'huqan.prove': '574fcd4f98459354e0ee2f16f9195ca2212cfc396ea4133fdb75e665271fb6e0',
+  'huqan.compare': '84916ed87bb4e370153871c0016a92d334002ae06d32985dddb105798fbf14e2',
+  'huqan.dream': 'ea7675960a6ed2f7b4d3ec4780797021dae11b6188db747c390359306ddbe78d',
+  'huqan.fractal-learn': '90d97f25bf59de6a264fed29cb625df4aa61934cc1e1f4533bbaafc066878bce',
+  'huqan.self-evolve': '7eff6c279b148b7be6ec47538cdc9238b166f68344574dc1741b2d895c804ec3',
+  'huqan.advocate': '5e8e8f59829bcee8a41e94d5872c9ff0392b6195599f2d6ec26f71e65b678aa4',
+  'huqan.web_research': '9b7858a2d174dae17c21c2ddb55a5ae424208c98c595ac54169cf9ebc3274614',
+  'huqan.search': '0122b2b1f8efba1435d2de159de1a823b1f24d886a7f80ed89258ba4b0d381e7',
+  'huqan.trust_receipt': '0624c05dc7c4bf466d36a2793f471a06da8c7cfb48a6632518958a3afcc26c2a',
+  'huqan.trust_receipt_detail': 'f7c42e9d8ee75aa26d1cc5c5527e1aa8df4b9ab01c28fa2c5dd512626128377e',
+  'huqan.experience_read': '9d6fe6ae5b5560388cdd5bc78474a40d23b0bc5a81b7e33ffc302a56a3c85e07',
+  'huqan.experience_learn': '93fe6f78a808d11f8fbc05fd9780dd96e3277fd817f470523475bf50b0522dcb',
+  'huqan.memory_query': 'a5b756cdc2b78450b588d70cb7555d75489c727030e43fbfe1717f8eaf1a0c5c',
+  'huqan.status': 'e7b68a4b5a8a6f1ad137352c84beb1a357b213bcb2f7d545e288f4d068159108',
+  'huqan.audit': '81eca97f9fd515b6f1da9edde4656cd8dad150afac954ebea9ab752e2beab8c5',
+  'huqan.ingest_preview': '51627bc3ff13aa8876786098efbf937e72611d6a4d6c3ad02aa347214a1b48b4',
+  'huqan.ingest_status': '79067c2c2a2088abd00c76af3203c6838a2d1c36ee46cdc7c5fd888318f39a10',
+  'huqan.ingest_execute': '1df131d6c3af07871fb9fa68576a7bb0a3b5840ad7ef1e9cf9fc1473b29ead2c',
+  'huqan.emergency_stop': 'c4bc4671419250903d9a4f197b782d8775a81cfa1669448e98486cd2e12dd892',
 };
 
 describe('MCP tool dispatch (unchanged)', () => {

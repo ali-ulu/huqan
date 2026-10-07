@@ -423,7 +423,9 @@ describe('Benchmark: Determinism (same input → same output, always)', () => {
   it('MCP gate decisions are deterministic', () => {
     const mockKernel = {
       learn() { return { ok: true, data: { learned: 1 }, type: 'learn', evidence: [], error: null, meta: {} }; },
-      ask() { return { ok: true, data: { answer: 'mock' }, type: 'ask', evidence: [], error: null, meta: {} }; },
+      // Kernel-shaped: a result missing its declared fields is withheld by the
+      // MCP output gate (#3483), which would make this loop measure the refusal.
+      ask() { return { ok: true, data: { answer: 'mock', subject: 'x', unknown: false, alternatives: 0 }, type: 'ask', evidence: [], error: null, meta: {} }; },
       verify() { return { ok: true, data: { status: 'verified', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: {} }; },
       reason() { return { ok: true, data: { forward: [] }, type: 'reason', evidence: [], error: null, meta: {} }; },
       compare() { return { ok: true, data: {}, type: 'compare', evidence: [], error: null, meta: {} }; },
@@ -436,6 +438,7 @@ describe('Benchmark: Determinism (same input → same output, always)', () => {
       decisions.add(result.ok);
     }
     assert.strictEqual(decisions.size, 1, 'gate decisions should be deterministic');
+    assert.deepEqual([...decisions], [true], 'the read-only ask is allowed every time');
   });
 });
 
