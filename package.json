@@ -885,6 +885,7 @@
     "lib/mcp/tool-handlers.js",
     "lib/mcp/gate-refusal.js",
     "lib/mcp/tool-dispatch.js",
+    "lib/mcp/session-protocol.js",
     "lib/mcp/json-rpc-handler.js",
     "lib/mcp/stdio-transport.js",
     "lib/pr-guardian/derivation-check.js",

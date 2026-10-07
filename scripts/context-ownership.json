@@ -4506,6 +4506,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
   },
+  "lib/mcp/session-protocol.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MCPDIR-P"
+  },
   "lib/mcp/server-lifecycle.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MCPDIR-P"
