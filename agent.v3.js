@@ -16,7 +16,7 @@ const { AgentV3PlanMethods } = require('./lib/agent-v3-plan-methods');
 const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
 const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps } = require('./lib/agent-step-progression');
-const { AGENT_PAUSE_REASONS } = require('./lib/agent-exit-reasons');
+const { AGENT_PAUSE_REASONS, AGENT_TERMINATION_REASONS, isStalled } = require('./lib/agent-exit-reasons');
 
 const UNCERTAIN_PAUSE = AGENT_PAUSE_REASONS.EXPERIENCE_EFFECT_UNCERTAIN;
 const V3_RATIONALES = Object.freeze({
@@ -215,14 +215,14 @@ class AgentV3 {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
       return this.fail('agent', 'AGENT_LOOP_BUDGET_UNAVAILABLE',
         `Agent loop budget could not be evaluated for workspace "${workspaceId}": ${budgetCheck.detail}. Refusing the run rather than proceeding unbudgeted.`,
-        [], { gate: 'AB10', budget: budgetCheck });
+        [], { gate: 'AB10', budget: budgetCheck, terminationReason: AGENT_TERMINATION_REASONS.BUDGET_UNAVAILABLE });
     }
 
     if (budgetCheck.decision !== 'allow') {
       this._recordBudgetAuditEvent(goal, workspaceId, budgetCheck);
       return this.fail('agent', 'AGENT_LOOP_BUDGET_EXCEEDED',
         `Agent loop budget ${budgetCheck.decision} for workspace "${workspaceId}": ${budgetCheck.reason} (${budgetCheck.iterationsUsed}/${budgetCheck.maxIterationsPerWindow} iterations used this window).`,
-        [], { gate: 'AB10', budget: budgetCheck });
+        [], { gate: 'AB10', budget: budgetCheck, terminationReason: AGENT_TERMINATION_REASONS.BUDGET_BLOCKED });
     }
 
     try {
@@ -269,6 +269,15 @@ class AgentV3 {
       recordStepReport(this._runtime(), state, report);
       state.iteration += 1;
       state.lastAction = report.action;
+      // #3494: the same step, same input, same outcome, three times running
+      // is no progress; stop with that reason instead of spending the step
+      // and iteration ceilings on it. The queue is kept for a resume.
+      if (isStalled(state.steps)) {
+        state.status = 'paused';
+        state.pauseReason = AGENT_PAUSE_REASONS.STALLED;
+        state.queuedSteps = [...queued];
+        break;
+      }
 
       const summary = advanceProgress(this._runtime(), state, report);
       const followUp = this._runtime().chooseFollowUp(step, summary, state);
@@ -325,7 +334,7 @@ class AgentV3 {
       }
     }
 
-    const runFinal = this._finalizeRunState(state, { goal, workspaceId, activePlan, dreamLoopActive, queued });
+    const runFinal = this._finalizeRunState(state, { goal, workspaceId, activePlan, dreamLoopActive, queued, maxIterations });
     if (runFinal.failed) return runFinal.result;
 
 
@@ -343,6 +352,7 @@ class AgentV3 {
         report: state.report,
         checkpointId: state.checkpointId,
         resumeToken: state.resumeToken,
+        terminationReason: state.terminationReason,
       }, state);
     }
 
@@ -353,6 +363,7 @@ class AgentV3 {
       checkpointId: state.checkpointId,
       resumeToken: state.resumeToken,
       paused: state.status === 'paused',
+      terminationReason: state.terminationReason,
     });
   }
 
