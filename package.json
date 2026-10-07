@@ -827,6 +827,7 @@
     "lib/mcp-agent-repair-execution.js",
     "lib/mcp-approval-admission.js",
     "lib/mcp-approval-decision-handler.js",
+    "lib/mcp-approval-expiry.js",
     "lib/mcp-approval-learn-execution.js",
     "lib/mcp-capability-nonce-store.js",
     "lib/mcp-human-oversight-adapter.js",

@@ -187,6 +187,9 @@ function approvalRow({ args = REVIEWED, input = JSON.stringify(args), reviewedBi
     input,
     status: 'pending',
     workspaceId: 'default',
+    // A real pending row always carries created_at; without it #3486 now reads
+    // the row as an expired legacy row and refuses the approval first.
+    created_at: Date.now(),
     policy: { gate: { decision: 'review' }, ...(reviewedBinding ? { reviewedBinding } : {}) },
     context: { source: 'mcp', workspaceId: 'default', args },
   };
@@ -242,6 +245,7 @@ test('a repair approval binds the arguments it will resume with', () => {
   assert.equal(binding.inputIsArgs, false, 'a repair row input is a label');
   const row = {
     id: 'appr-1', tool: 'huqan.agent_repair', input: 'kedi :: repair step-1', status: 'pending', workspaceId: 'default',
+    created_at: Date.now(),
     policy: { action: 'review', reviewedBinding: binding },
     context: { workspaceId: 'default', args: { ...repairArgs, checkpointId: 'ck-other' } },
   };
