@@ -30,3 +30,20 @@ ayrımı, çakışma, kapanmışı yeniden açmama ve bozuk kaydı kapsar.
 `node scripts/a2a-handoff-cursor-mutation.js` sonlandırma eşlemesi devreden
 çıkarıldığında ayrım testinin kırıldığını doğrular; kaynak dosyasını
 değiştirmez. Harici A2A uygulamalarıyla uyumluluk ayrıca ölçülmelidir.
+
+## Handoff bağlamı ve devam kararı (#3489)
+
+`recordCursor` isteğe bağlı serbest metin `handoff_context` alır. Kayda metin
+değil yalnız SHA-256'sı yazılır (`handoff_context_hash`, şema
+`v5-a2a-handoff-cursor-v2`); bağlamsız kayıt eski v1 biçiminde kalır.
+
+`resumeCursor(routeReceiptId, { handoffContext })` devam kararını kanıta bağlar:
+bağlamla kaydedilmiş bir cursor yalnız aynı metin sunulunca devam eder; eksik
+metin `handoff_context_required`, farklı metin `handoff_context_mismatch` ile
+reddedilir. v1 cursor bağlamsız devam eder, ama sunulan bir bağlamı
+doğrulayamayacağı için `handoff_context_unrecorded` ile reddeder. Bulunamayan,
+kapanmış veya bozuk cursor hiçbir koşulda devam etmez.
+
+Tip bildirimi (`index.d.ts`) bu PR'da değişmedi: mevcut bir bildirimi
+genişletmek API sözleşme kapısında major sürüm sayılıyor. Doğrulama:
+`test/a2a-handoff-context.test.js`.
