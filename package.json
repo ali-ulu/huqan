@@ -291,6 +291,7 @@
     "lib/agent-run-finalization.js",
     "lib/agent-step-executor.js",
     "lib/agent-step-progression.js",
+    "lib/bounded-step-history.js",
     "lib/agent-memory-runtime.js",
     "lib/agent-plan-runtime.js",
     "lib/agent-memory-state.js",
