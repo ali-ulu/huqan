@@ -17,6 +17,8 @@ const {
   createHumanOversightApprovalRuntime,
   RUNTIME_REASONS,
 } = require('../lib/human-oversight-approval-runtime');
+const { buildMcpOversightInput } = require('../lib/mcp-oversight-input');
+const { buildHttpIngestOversightInput } = require('../lib/http-human-oversight-adapter-input');
 
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-3486-'));
@@ -249,4 +251,39 @@ test('a reconciled replay after an unknown outcome is refused with a receipt', a
     assert.equal(replay.receipt.receiptKind, 'blocked_action_receipt');
     assert.equal(executions, 1);
   } finally { cleanup(dir); }
+});
+
+test('oversight adapters carry the reviewed argument summary on the action', () => {
+  const mcp = buildMcpOversightInput({
+    approval: { id: 'a1', approvalKey: 'k1', tool: 'huqan.learn', context: { workspaceId: 'w', args: { text: 'x' } } },
+    toolName: 'huqan.learn',
+    storedArgs: { text: 'x' },
+    gate: {},
+    runtime: {},
+  });
+  assert.match(mcp.action.argsDigest, /^[0-9a-f]{64}$/);
+  const mcpSame = buildMcpOversightInput({
+    approval: { id: 'a1', approvalKey: 'k1', tool: 'huqan.learn', context: { workspaceId: 'w', args: { text: 'x' } } },
+    toolName: 'huqan.learn',
+    storedArgs: { text: 'x' },
+    gate: {},
+    runtime: {},
+  });
+  assert.equal(mcpSame.action.argsDigest, mcp.action.argsDigest);
+  const mcpDrifted = buildMcpOversightInput({
+    approval: { id: 'a1', approvalKey: 'k1', tool: 'huqan.learn', context: { workspaceId: 'w', args: { text: 'x' } } },
+    toolName: 'huqan.learn',
+    storedArgs: { text: 'y' },
+    gate: {},
+    runtime: {},
+  });
+  assert.notEqual(mcpDrifted.action.argsDigest, mcp.action.argsDigest);
+  const prefixed = buildHttpIngestOversightInput({
+    approval: { id: 'h1', context: { snapshot: { workspaceId: 'w', sourceType: 'manual', sourceRef: 's', snapshotHash: 'sha256:' + 'b'.repeat(64) } } },
+  });
+  assert.equal(prefixed.action.argsDigest, 'b'.repeat(64));
+  const bare = buildHttpIngestOversightInput({
+    approval: { id: 'h2', context: { snapshot: { workspaceId: 'w', sourceType: 'manual', sourceRef: 's', idempotencyKey: 'k' } } },
+  });
+  assert.match(bare.action.argsDigest, /^[0-9a-f]{64}$/);
 });
