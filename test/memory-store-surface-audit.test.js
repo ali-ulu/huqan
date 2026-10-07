@@ -56,6 +56,10 @@ const PRODUCTION_SURFACE = Object.freeze({
   // archive/restore/consolidate actions.
   archive: 'lib/memory-lifecycle.js (CLI memory-lifecycle archive/consolidate)',
   restore: 'lib/memory-lifecycle.js (CLI memory-lifecycle restore)',
+  // First non-test caller for getEvents: the archive delegate reads the ARCHIVE
+  // event's recorded prior status to make restore the true inverse of archive
+  // (#3493). Reclassified from test-only when that caller appeared.
+  getEvents: 'lib/memory-store-write-methods.js (_archiveStoreApi prior-status read)',
   queryLinks: 'server.js (kernel.memory.queryLinks)',
   close: 'kernel.js',
   reopen: 'lib/sqlite-restore.js (kernel.memory.reopen), for cli.js restore (#1848)',
@@ -92,7 +96,7 @@ const TEST_ONLY_SURFACE = Object.freeze([
   'before', 'between', 'contradict', 'eventsForMemory', 'exportPackage',
   'findByContentHash', 'findById', 'findByKind', 'findBySourceRef',
   'findByStatus', 'findLinkedMemories', 'findLinks', 'getBacklinks',
-  'getEvents', 'getLinks', 'importPackage', 'link', 'linkMemories',
+  'getLinks', 'importPackage', 'link', 'linkMemories',
   'linksForMemory', 'load', 'memoriesBetween', 'patchMetadata',
   'save', 'since', 'traverseLinks',
 ]);
