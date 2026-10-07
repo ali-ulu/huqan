@@ -169,6 +169,16 @@ test('every refusal conforms to its tool schema and carries nothing from the wit
   const wrote = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.learn', drifted[4]));
   assert.equal(wrote.canonicalWrite, true);
   assert.equal(wrote.receiptId, 'rcpt-1');
+  // dream commits hypotheses without setting canonicalWrite; its learned list
+  // still marks the write, as does learn's count.
+  const dreamed = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.dream', {
+    data: { learned: [{ from: 'a', to: 'b' }], hypotheses: 'LEAK-DREAM' },
+  }));
+  assert.equal(dreamed.canonicalWrite, true);
+  assert.ok(!JSON.stringify(dreamed).includes('LEAK-DREAM'));
+  assert.equal(quietly(() => conformMcpToolOutput(KERNEL, 'huqan.learn', { data: { learned: 2 } })).canonicalWrite, true);
+  assert.equal(quietly(() => conformMcpToolOutput(KERNEL, 'huqan.learn', { data: { learned: 0 } })).canonicalWrite, false);
+  assert.equal(quietly(() => conformMcpToolOutput(KERNEL, 'huqan.dream', { data: { learned: [] } })).canonicalWrite, false);
   const didNot = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.learn', drifted[0]));
   assert.equal(didNot.canonicalWrite, false);
   assert.equal(didNot.receiptId, null);
