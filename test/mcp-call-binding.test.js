@@ -144,10 +144,17 @@ test('a refused name is recorded for incident review, escaped and bounded', () =
 
 test('arguments with no canonical JSON form are blocked, not thrown', () => {
   const kernel = recordingKernel();
-  const result = callTool(kernel, { name: 'huqan.ask', arguments: { question: 'kedi', n: 10n } });
-  assert.equal(result.ok, false);
-  assert.equal(result.error.code, 'ARGS_NOT_CANONICAL');
+  const cycle = { name: 'loop' };
+  cycle.self = cycle;
+  for (const extra of [10n, Infinity, -Infinity, Number.NaN, { nested: [1, Number.NaN] }, cycle]) {
+    const result = callTool(kernel, { name: 'huqan.ask', arguments: { question: 'kedi', extra } });
+    assert.equal(result.ok, false, String(extra));
+    assert.equal(result.error.code, 'ARGS_NOT_CANONICAL', String(extra));
+  }
   assert.deepEqual(kernel.calls, []);
+  // Serialized as null, a non-finite number would otherwise share null's digest.
+  assert.throws(() => bindCall('huqan.ask', { x: Infinity }), /non-finite/);
+  assert.equal(bindingHolds(bindCall('huqan.ask', { x: null }), 'huqan.ask', { x: Infinity }), false);
 });
 
 test('a queued approval stores the binding of the arguments its reviewer sees', () => {
