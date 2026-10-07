@@ -79,36 +79,54 @@ test('#3481 cross-process: real child processes racing one key produce a single 
   const { replayDirectory } = makeSandbox(t, 'xproc');
   const replayKey = 'b'.repeat(64);
   const parallel = 6;
-  // Every child busy-waits to the same wall-clock instant, so the exclusive
-  // creates genuinely overlap instead of being serialized by process startup.
-  const startAt = Date.now() + 3000;
+  // A readiness barrier rather than a shared start timestamp: every child
+  // reports READY once it is loaded and about to reserve, and the parent
+  // releases all of them only after the last one is ready. That makes the
+  // exclusive creates genuinely contend instead of being serialized by process
+  // startup -- a child that starts late can no longer skip the race.
   const childScript = `
     const path = require('path');
     const { createA2aReplayStore } = require(path.join(${JSON.stringify(repoRoot)}, 'lib', 'a2a', 'replay-store.js'));
-    const [directory, key, at] = process.argv.slice(1);
-    while (Date.now() < Number(at)) {}
+    const [directory, key] = process.argv.slice(1);
     const store = createA2aReplayStore(directory);
-    process.stdout.write('RESULT:' + JSON.stringify(store.reserve({ replayKey: key })) + '\\n');
+    process.stdout.write('READY\\n');
+    process.stdin.once('data', () => {
+      process.stdout.write('RESULT:' + JSON.stringify(store.reserve({ replayKey: key })) + '\\n');
+    });
   `;
 
-  const children = Array.from({ length: parallel }, () => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['-e', childScript, replayDirectory, replayKey, String(startAt)], {
-      stdio: ['ignore', 'pipe', 'pipe'],
+  const children = Array.from({ length: parallel }, () => {
+    const child = spawn(process.execPath, ['-e', childScript, replayDirectory, replayKey], {
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     let out = '';
     let err = '';
-    child.stdout.on('data', (chunk) => { out += chunk; });
-    child.stderr.on('data', (chunk) => { err += chunk; });
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code !== 0) return reject(new Error(`child exited ${code}: ${err}`));
-      const line = out.split('\n').find((entry) => entry.startsWith('RESULT:'));
-      if (!line) return reject(new Error(`child produced no result: ${out}`));
-      resolve(JSON.parse(line.slice('RESULT:'.length)));
+    const ready = new Promise((resolve) => {
+      child.stdout.on('data', (chunk) => {
+        out += chunk;
+        if (out.includes('READY\n')) resolve();
+      });
     });
-  }));
+    const done = new Promise((resolve, reject) => {
+      child.stderr.on('data', (chunk) => { err += chunk; });
+      child.on('error', reject);
+      child.on('close', (code) => {
+        if (code !== 0) return reject(new Error(`child exited ${code}: ${err}`));
+        const line = out.split('\n').find((entry) => entry.startsWith('RESULT:'));
+        if (!line) return reject(new Error(`child produced no result: ${out}`));
+        resolve(JSON.parse(line.slice('RESULT:'.length)));
+      });
+    });
+    return { child, ready, done };
+  });
 
-  const results = await Promise.all(children);
+  // Wait for every child to be ready, then release them together. `end` (not
+  // `write`) closes the child's stdin after the release byte, so the child's
+  // event loop drains and it exits once the result is flushed.
+  await Promise.all(children.map((entry) => entry.ready));
+  for (const entry of children) entry.child.stdin.end('GO\n');
+
+  const results = await Promise.all(children.map((entry) => entry.done));
   assert.equal(results.filter((result) => result.reserved === true).length, 1,
     'across processes, exactly one reservation must win');
   assert.equal(results.filter((result) => result.reserved === false).length, parallel - 1);
