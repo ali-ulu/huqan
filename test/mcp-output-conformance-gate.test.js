@@ -138,6 +138,32 @@ test('a result that breaks its declared schema is withheld fail-closed', () => {
   assert.equal(again.error.message, refused.error.message);
 });
 
+test('every refusal conforms to its tool schema and carries nothing from the withheld result', () => {
+  const drifted = [
+    { ok: false, secretTop: 'LEAK-TOP', meta: { x: 'LEAK-META', paranoidMode: 'yes' }, error: { code: 'X', message: 'LEAK-MSG' } },
+    { workflowId: 42, trace: { step: 'LEAK-TRACE' }, provenance: { sourceRef: 'LEAK-PROV' } },
+    'LEAK-STRING',
+    ['LEAK-ARRAY'],
+    { canonicalWrite: true, receiptId: 'rcpt-1', data: 'LEAK-DATA', evidence: 'nope' },
+  ];
+  for (const tool of ADVERTISED) {
+    for (const result of drifted) {
+      const refused = quietly(() => conformMcpToolOutput(KERNEL, tool.name, result));
+      assert.equal(refused.error.code, OUTPUT_SCHEMA_VIOLATION, tool.name);
+      assert.equal(conformanceError(refused, tool.outputSchema), null, `${tool.name} refusal conforms`);
+      assert.ok(!JSON.stringify(refused).includes('LEAK'), `${tool.name} refusal leaks nothing`);
+      assert.deepEqual(refused.meta, { contractVersion: '9.9.9', backend: 'json', paranoidMode: true });
+    }
+  }
+  // What already happened is not hidden by the refusal.
+  const wrote = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.learn', drifted[4]));
+  assert.equal(wrote.canonicalWrite, true);
+  assert.equal(wrote.receiptId, 'rcpt-1');
+  const didNot = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.learn', drifted[0]));
+  assert.equal(didNot.canonicalWrite, false);
+  assert.equal(didNot.receiptId, null);
+});
+
 test('conforming results pass and unknown tools are only completed', () => {
   const ok = conformMcpToolOutput(KERNEL, 'huqan.ask', {
     ok: true, workflowId: 'ask', version: '2.0.0', status: 'done', type: 'ask',
