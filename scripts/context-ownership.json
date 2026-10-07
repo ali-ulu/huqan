@@ -3020,15 +3020,15 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
   },
-   "lib/receipt/issuer-seal.js": {
-    "context": "Trust",
-    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
-   },
-   "lib/receipt/policy-seal.js": {
-    "context": "Trust",
-    "evidence": "#3490: R35 sealed-policy builder/verifier; Trust-owned receipt primitive requiring only Trust-owned modules (issuer-seal, canonical-receipt)"
-   },
-   "lib/receipt/public-trust-receipt-contract.js": {
+  "lib/receipt/issuer-seal.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T"
+  },
+  "lib/receipt/policy-seal.js": {
+   "context": "Trust",
+   "evidence": "#3490: R35 sealed-policy builder/verifier; Trust-owned receipt primitive requiring only Trust-owned modules (issuer-seal, canonical-receipt)"
+  },
+  "lib/receipt/public-trust-receipt-contract.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
   },
@@ -3571,6 +3571,10 @@
   "lib/action-ir.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
+  },
+  "lib/receipt/transparency-log-client.js": {
+   "context": "Trust",
+   "evidence": "#3608: R35 follow-up Rekor-style inclusion-proof client; Trust-owned verifier with injected fetch, no I/O policy, called from policy-seal verifyInclusion hook"
   }
  },
  "platform": {
@@ -4118,14 +4122,14 @@
    "kind": "infra",
    "evidence": "#3491 generic hash-chain primitive shared by the receipt chain and the checkpoint lineage"
   },
-   "lib/cognitive-lab-b1-replay.js": {
-    "kind": "infra",
-    "evidence": "ownership-map-2446.md#R-SHARED-P"
-   },
-   "lib/cognitive-lab-b1-manifest.js": {
-    "kind": "infra",
-    "evidence": "#3562 I6c B1 manifest builder; pure candidate-measurement contract adopted by no surface yet"
-   },
+  "lib/cognitive-lab-b1-replay.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-b1-manifest.js": {
+   "kind": "infra",
+   "evidence": "#3562 I6c B1 manifest builder; pure candidate-measurement contract adopted by no surface yet"
+  },
   "lib/cognitive-lab-evaluator.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
@@ -5362,13 +5366,13 @@
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
-   "lib/graph-mutation-receipt-write.js": {
-    "owner": "Trust",
-    "consumers": [
-     "Knowledge"
-    ],
-    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
-   },
+  "lib/graph-mutation-receipt-write.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Knowledge"
+   ],
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
   "lib/audit-query.js": {
    "owner": "Trust",
    "consumers": [
