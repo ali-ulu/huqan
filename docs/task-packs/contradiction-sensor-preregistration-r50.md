@@ -152,3 +152,70 @@ node --test test/contradiction-eval-fixture.test.js        # 15/15 pass
 ```
 
 A/B/C ölçümleri ve sonuç bölümü PR2 (A/B), PR3 (C) ve PR4 (karşılaştırma + politika simülasyonu) ile bu dosyaya eklenecektir; bu bölümün üstündeki hiçbir satır ölçümden sonra değiştirilemez.
+
+---
+
+## 12. PR2 ölçümü — A/B kolları
+
+**Status:** ölçüldü. PR2 hiçbir kolu üretim yoluna bağlamaz; yalnız A ve B'yi aynı donmuş holdout üzerinde ölçer. Yukarıdaki §1-§11 satırları PR1'de dondu ve değiştirilmedi.
+
+**Kapsam:** PR2 — kural baseline'ı. `lib/cognitive-lab-contradiction-calibrator.js` (score→P(contradiction) fitter), `lib/cognitive-lab-contradiction-evaluator.js` (kol değerlendirici + corpus/label join + A/B runner), `lib/cognitive-lab-cli.js` store-free `contradiction --contradiction-records FILE` yolu.
+
+### Yöntem
+
+- Detector coverage'ı ve raw rule score'u iki kol için de aynıdır: `runContradictionRules` sırası ve `score = max(declared confidence)`. A bu score'u **beyan edilmiş heuristic confidence** olarak okur (`probabilityKind = DECLARED_HEURISTIC`); B aynı score'u calibration split'te fit edilmiş donmuş eşlemeden geçirir (`probabilityKind = CALIBRATED`).
+- Kalibrasyon fitter'ı yalnız `calibration` split'ini okur; `train`/`holdout` kaydı verilirse `calibrator_fit_split_not_calibration` ile reddedilir. Fit deterministiktir: aynı score grubu içinde pool-adjacent-violators (isotonic) + Laplace smoothing (`alpha = 0.5`), ardından kanonik digest.
+- Karar eşiği iki kolda da `0.5`; `UNCERTAIN`/`INVALID_PAIR` binary skorlamaya çevrilmez, exclusion sayılır.
+- Risk kuralları hiç çağrılmaz; ölçüm contradiction-only sinyal alt kümesinde yapılır.
+
+### Kalibrasyon artifact'ı (calibration split, n=16 skorlanabilir)
+
+```text
+score -> probability   (support)
+0.00  -> 0.3214        (13)
+0.90  -> 0.3750        (1)
+0.95  -> 0.3750        (2)
+artifact digest  ae922532c617d70f65593331b7e129745e992969fd62eee7e289dcb2e03d9f37
+```
+
+Score 0 ile 0.90/0.95 arasındaki fark kalibrasyonda neredeyse kaybolur: calibration split'te yüksek skor düşük pozitif oran taşır, bu yüzden isotonic bu grupları yukarı taşımaz.
+
+### Holdout sonucu (n=13 skorlanabilir; 5 CONTRADICTION / 8 NOT_CONTRADICTION; 2 exclusion)
+
+| Metrik | A (declared heuristic) | B (calibrated) |
+|---|---|---|
+| threshold | 0.50 | 0.50 |
+| predicted positive | 6 | 0 |
+| TP / FP / TN / FN | 2 / 4 / 4 / 3 | 0 / 0 / 8 / 5 |
+| precision | 0.333 | n/a (0 predicted) |
+| recall | 0.400 | 0.000 |
+| false-positive rate | 0.500 | 0.000 |
+| coverage | 0.462 | 0.000 |
+| Brier | raporlanmaz (declared heuristic) | 0.2414 |
+| ECE | raporlanmaz | 0.0385 |
+
+**Okuma.** A, eşik 0.5'te 6 pair'de "contradiction" der; bunların 4'ü yanlıştır (FPR 0.50): beyan edilmiş `0.90/0.95` güven, gerçek pozitif oranı (~0.38) olduğundan fazla gösterir. B aynı eşikte hiç pozitif demez, çünkü kalibre edilmiş en yüksek olasılık 0.375'tir; B'nin Brier/ECE'si iyidir ama recall'ı sıfırdır. Bu, "yüksek beyan edilmiş güven kalibre olasılık değildir" invariantının doğrudan ölçümüdür. B'nin karar eşiği altında kalması bir hata değil, kalibrasyonun ölçtüğü şeydir; C kolunun bu iki uç arasında (özellikle orta band) sinyal üretip üretmediği PR3/PR4'ün sorusudur. Bu bölüm kazanç iddia etmez (`assertsGain: false`).
+
+### PR2 kabul durumu
+
+- [x] A'nın heuristic confidence'ı `DECLARED_HEURISTIC` olarak ayrılıyor; Brier/ECE yalnız B için hesaplanıyor.
+- [x] B calibrator'ı yalnız calibration split'te fit oluyor; train/holdout fit girdisi reddediliyor.
+- [x] Holdout fit sırasında okunmuyor (fitter split guard'ı + runner yalnız calibration kayıtlarını fit ediyor).
+- [x] Existing Cognitive Lab Brier/ECE machinery (`lib/cognitive-lab-probability-calibration.js`) reuse ediliyor.
+- [x] Detector/kollar confusion, precision, recall, FPR, coverage raporlanıyor.
+- [x] `UNCERTAIN`/`INVALID_PAIR` binary failure'a çevrilmiyor.
+- [x] CLI path store-free (`contradiction --contradiction-records FILE`), kanonik belleğe dokunmuyor.
+- [x] External model/network dependency yok.
+
+Doğrulama:
+
+```bash
+node --test test/cognitive-lab-contradiction-calibrator.test.js test/cognitive-lab-contradiction-evaluator.test.js
+node --test test/cognitive-lab-contradiction-cli-wiring.test.js
+```
+
+### Sınırlar (bu PR'ın iddia etmedikleri)
+
+- PR2 A ve B'yi ölçer; C kolunu (füzyon) veya abstention politikasını içermez (PR3/PR4).
+- Hiçbir kazanç, promotion veya üretim davranışı iddiası yoktur; `assertsGain: false`, `productionBehaviorChanged: false`.
+- B'nin holdout'ta hiç pozitif dememesi, tek bir karar eşiğinin (0.5) sonucudur; eşik taraması PR4'ün politika simülasyonuna aittir.

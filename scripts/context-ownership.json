@@ -4162,6 +4162,14 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-contradiction-calibrator.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-contradiction-evaluator.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cognitive-lab-budget-envelope.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
