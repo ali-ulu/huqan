@@ -143,6 +143,23 @@ test('a cancelled call that fails is receipted as failed', async () => {
   assert.equal(receipts[0].reason, null);
 });
 
+test('only a well-formed notification cancels', async () => {
+  const receipts = [];
+  const work = deferred();
+  const handle = createJsonRpcHandler({
+    callTool: () => work.promise,
+    recordCancellation: (operationId, receipt) => receipts.push(receipt),
+  });
+  const pending = handle({ jsonrpc: '2.0', id: 'call-2', method: 'tools/call', params: { name: 'huqan.agent' } });
+  const asRequest = handle({ jsonrpc: '2.0', id: 99, method: 'notifications/cancelled', params: { requestId: 'call-2' } });
+  assert.equal(asRequest.error.code, -32600, 'a cancellation with an id is a malformed request');
+  assert.equal(handle({ jsonrpc: '1.0', method: 'notifications/cancelled', params: { requestId: 'call-2' } }), null);
+  assert.equal(handle({ method: 'notifications/cancelled', params: { requestId: 'call-2' } }), null);
+  work.resolve({ ok: true });
+  assert.equal((await pending).result.isError, false, 'the call was not cancelled');
+  assert.equal(receipts.length, 0);
+});
+
 test('unknown, finished and synchronous calls ignore cancellation', async () => {
   const receipts = [];
   const work = deferred();
