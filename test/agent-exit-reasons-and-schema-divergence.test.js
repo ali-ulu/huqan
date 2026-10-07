@@ -129,12 +129,12 @@ function schemaDivergence() {
 
 // Recorded on main at #3498. #3593 removed the unintended drift: the shared
 // field bounds now match on both surfaces (question 1..4000, statement
-// 1..4000, goal 1..500, workspaceId 1..128, claim/query 1..), the two
-// web-research HTTP-only fields (maxSnippet, summarize) are declared on the
-// MCP tool as well, and HTTP `verify` now names `statement` canonically.
-// What remains here is surface-specific by design, each with its reason. A
-// workflow with no HTTP schema of its own derives it from the MCP input
-// schema and cannot drift.
+// 1..4000, goal 1..500, workspaceId 1..128 except verify's 1..256, claim/query
+// 1..), the two web-research HTTP-only fields (maxSnippet, summarize) are
+// declared on the MCP tool as well, and HTTP `verify` now names `statement`
+// canonically. What remains here is surface-specific by design, each with its
+// reason. A workflow with no HTTP schema of its own derives it from the MCP
+// input schema and cannot drift.
 const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
   // The HTTP route is workspace-bound (workspaceId required, const 'default');
   // the MCP tool answers in the session workspace and has no such argument, so
@@ -147,9 +147,11 @@ const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
   // route for callers written before the rename. MCP declares only the
   // canonical `statement`. The HTTP body requires only workspaceId (the route
   // handler accepts statement/claim/text), so `statement` is required on MCP
-  // but not on HTTP.
+  // but not on HTTP. `workspaceId` stays MCP 1..256 against HTTP 1..128: the
+  // narrower MCP bound would have been breaking once main reached 1.0.0 (#3593).
   verify: [
     'claim:http-only',
+    'workspaceId:differs(maxLength):cdd11fe9',
     'required:workspaceId!=statement',
   ],
   // The HTTP route is workspace-bound (const 'default'); the MCP tool carries

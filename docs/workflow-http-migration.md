@@ -48,7 +48,9 @@ surface.
 
 The 1.0.0 major release removed the unintended drift:
 - shared bounds now match on both surfaces: `question` 1..4000, `statement`
-  1..4000, `goal` 1..500, `workspaceId` 1..128, `claim`/`query` 1.. bounded;
+  1..4000, `goal` 1..500, `claim`/`query` 1.. bounded, `workspaceId` 1..128
+  (except `huqan.verify`, whose MCP `workspaceId` stays 1..256 — narrowing it
+  to 128 would have been a breaking change once main reached 1.0.0);
 - `maxSnippet` and `summarize` (web-research) are now declared on the MCP tool
   as they already were on HTTP;
 - HTTP `verify` names `statement` canonically (MCP parity); `claim` stays an

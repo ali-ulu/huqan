@@ -26,12 +26,14 @@ place a breaking API change is expected.
   publish-time semver gate already applied (#3590).
 - **One source per workflow input field (#3593).** Where an HTTP workflow and
   its MCP tool both declare a field, the HTTP request schema is now canonical
-  and the MCP input schema matches it: `question`, `statement`, `goal`,
-  `workspaceId` and `claim`/`query` bounds are identical on both surfaces, the
-  web-research `maxSnippet`/`summarize` fields are declared on the MCP tool,
-  and HTTP `verify` names `statement` canonically (`claim` stays an accepted
-  alias). The remaining differences are surface-specific and pinned with their
-  reasons in `test/agent-exit-reasons-and-schema-divergence.test.js`.
+  and the MCP input schema matches it: `question`, `statement`, `goal` and
+  `claim`/`query` bounds are identical on both surfaces, the web-research
+  `maxSnippet`/`summarize` fields are declared on the MCP tool, and HTTP
+  `verify` names `statement` canonically (`claim` stays an accepted alias).
+  `huqan.verify`'s MCP `workspaceId` stays 1..256 against HTTP 1..128, because
+  narrowing it after main reached 1.0.0 would itself be a breaking change. The
+  remaining differences are surface-specific and pinned with their reasons in
+  `test/agent-exit-reasons-and-schema-divergence.test.js`.
 
 ## v0.13.2
 
