@@ -61,7 +61,21 @@ test('the derived scope id is deterministic for the same rules and facts', () =>
   const c = kernel.prove({ ...input, facts: FACTS.slice(0, 1) }).data.intake.scope.scopeId;
   assert.equal(a, b);
   assert.notEqual(a, c, 'different facts are a different scope');
+  // Same rule id, different body: a different scope. Order does not matter.
+  const X = variable('X'); const Z = variable('Z');
+  const otherBody = { ...affectsRule(), body: [atom('CAUSES', [X, Z])] };
+  const d = kernel.prove({ ...input, rules: [otherBody] }).data.intake.scope.scopeId;
+  assert.notEqual(a, d, 'a different rule body is a different scope');
+  const reordered = kernel.prove({ ...input, facts: [...FACTS].reverse() }).data.intake.scope.scopeId;
+  assert.equal(a, reordered, 'fact order does not change the scope');
 }));
+
+test('the call workspace is authoritative over the scope workspace', () => {
+  const result = { status: 'proven' };
+  assert.equal(intakeForProve({ workspaceId: 'w-call', scope: { workspaceId: 'w-scope' } }, result).scope.workspaceId, 'w-call');
+  assert.equal(intakeForProve({ scope: { workspaceId: 'w-scope' } }, result).scope.workspaceId, 'w-scope');
+  assert.equal(intakeForProve({}, result).scope.workspaceId, null);
+});
 
 test('only a declared boolean closes the world, and a malformed input yields no intake', () => {
   // A non-boolean closedWorld is not a declaration: the world stays open.
