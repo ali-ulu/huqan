@@ -89,6 +89,20 @@ test('transparency evidence is required unless explicitly allowed missing', () =
   assert.equal(allowed.transparencyWitnessed, false);
 });
 
+test('an inclusion proof check joins the shape check when supplied', () => {
+  const { privateKeyPem, publicKeyPem } = keys();
+  const sealed = sealPolicy(policy(), { privateKeyPem, issuedAt: ISSUED_AT, transparency: transparency() });
+  const proved = verifySealedPolicy(sealed, policy(), { publicKeyPem, evidenceAt: EVIDENCE_AT, verifyInclusion: () => ({ ok: true }) });
+  assert.equal(proved.ok, true);
+  assert.equal(proved.transparencyProofChecked, true);
+  const unproved = verifySealedPolicy(sealed, policy(), { publicKeyPem, evidenceAt: EVIDENCE_AT, verifyInclusion: () => ({ ok: false, reason: 'inclusion_proof_missing' }) });
+  assert.equal(unproved.ok, false);
+  assert.equal(unproved.reason, 'missing_transparency_proof');
+  const shapeOnly = verifySealedPolicy(sealed, policy(), { publicKeyPem, evidenceAt: EVIDENCE_AT });
+  assert.equal(shapeOnly.ok, true);
+  assert.equal(shapeOnly.transparencyProofChecked, false);
+});
+
 test('non-policy kinds and malformed versions never seal', () => {
   const { privateKeyPem } = keys();
   assert.equal(sealPolicy(policy({ kind: 'procedure' }), { privateKeyPem, issuedAt: ISSUED_AT }), null);

@@ -115,6 +115,7 @@ def sha256_hex(text):
 
 SEAL_VERSION = "huqan-bundle-seal-v2"
 SIGNATURE_SCHEMA_VERSION = "huqan.receipt-bundle-signature.v1"
+SIGNATURE_SCHEMA_VERSION_V2 = "huqan.receipt-bundle-signature.v2"
 
 # RFC 8032 Ed25519 verification.  It is included (rather than imported) so
 # this clean-room verifier keeps its stdlib-only contract.
@@ -165,13 +166,21 @@ def _spki_ed25519(pem):
     prefix = bytes.fromhex('302a300506032b6570032100')
     return der[len(prefix):] if len(der) == len(prefix) + 32 and der.startswith(prefix) else None
 
-def _signature_payload(bundle):
+def _signature_payload(bundle, version):
+    if version == SIGNATURE_SCHEMA_VERSION_V2:
+        # v2 (#3608): bundleDigest/exportedAt/bundleSchemaVersion are bound
+        # into the signature. A v2 envelope without a digest is refused,
+        # never defaulted -- the caller sees signature_format_invalid.
+        if not bundle.get("bundleHash") or not bundle.get("exportedAt") or not bundle.get("schemaVersion"):
+            return None
+        return {"schemaVersion": SIGNATURE_SCHEMA_VERSION_V2, "sealVersion": bundle.get("sealVersion"), "bundleDigest": bundle.get("bundleHash"), "bundleSchemaVersion": bundle.get("schemaVersion"), "exportedAt": bundle.get("exportedAt"), "workspaceId": bundle.get("workspaceId"), "receiptCount": bundle.get("receiptCount")}
     return {"schemaVersion": SIGNATURE_SCHEMA_VERSION, "sealVersion": bundle.get("sealVersion"), "bundleHash": bundle.get("bundleHash"), "workspaceId": bundle.get("workspaceId"), "receiptCount": bundle.get("receiptCount")}
 
 def verify_signature(bundle, public_key_pem):
     envelope = bundle.get("bundleSignature")
     if not isinstance(envelope, dict): return (False, "signature_missing")
-    if envelope.get("schemaVersion") != SIGNATURE_SCHEMA_VERSION or envelope.get("algorithm") != "ed25519": return (False, "signature_format_invalid")
+    version = envelope.get("schemaVersion")
+    if version not in (SIGNATURE_SCHEMA_VERSION, SIGNATURE_SCHEMA_VERSION_V2) or envelope.get("algorithm") != "ed25519": return (False, "signature_format_invalid")
     raw_key = _spki_ed25519(public_key_pem or '')
     if raw_key is None: return (False, "signing_key_unavailable")
     try: signature = base64.b64decode(envelope.get("signature", ''), validate=True)
@@ -179,7 +188,9 @@ def verify_signature(bundle, public_key_pem):
     if len(signature) != 64: return (False, "signature_format_invalid")
     r, s, a = _decode_point(signature[:32]), int.from_bytes(signature[32:], 'little'), _decode_point(raw_key)
     if r is None or a is None or s >= L: return (False, "signature_invalid")
-    message = canonical_json(_signature_payload(bundle)).encode('utf-8')
+    message_payload = _signature_payload(bundle, version)
+    if message_payload is None: return (False, "signature_format_invalid")
+    message = canonical_json(message_payload).encode('utf-8')
     h = int.from_bytes(hashlib.sha512(signature[:32] + raw_key + message).digest(), 'little') % L
     return (_scalar_mult(B, s) == _add(r, _scalar_mult(a, h)), "signature_invalid")
 
@@ -220,10 +231,13 @@ def canonical_seal_payload(bundle):
 
 
 def check_bundle_seal(bundle):
-    if bundle.get("sealVersion") == SEAL_VERSION:
-        return sha256_hex(canonical_json(canonical_seal_payload(bundle))) == bundle["bundleHash"]
-    # Legacy bundles predate the envelope seal and committed to receipts only.
-    return sha256_hex(canonical_json(bundle["receipts"])) == bundle["bundleHash"]
+    try:
+        if bundle.get("sealVersion") == SEAL_VERSION:
+            return sha256_hex(canonical_json(canonical_seal_payload(bundle))) == bundle.get("bundleHash")
+        # Legacy bundles predate the envelope seal and committed to receipts only.
+        return sha256_hex(canonical_json(bundle["receipts"])) == bundle.get("bundleHash")
+    except (KeyError, TypeError):
+        return False
 
 
 def expected_envelope_version(receipts):
@@ -300,16 +314,24 @@ def main(argv):
         public_keys[reference] = key
     failed = False
     for path in paths:
-        with open(path, encoding="utf-8") as handle:
-            bundle = json.load(handle)
-        ok, findings, signature_status = verify(bundle, public_keys=public_keys, require_signature=require_signature)
-        print("%-46s %s (%s)%s" % (
-            path.split("/")[-1],
-            "VALID" if ok else "INVALID",
-            signature_status,
-            "" if ok else "  " + ", ".join(findings),
-        ))
-        failed = failed or not ok
+        try:
+            with open(path, encoding="utf-8") as handle:
+                bundle = json.load(handle)
+            if not isinstance(bundle, dict) or not isinstance(bundle.get("receipts"), list):
+                print("%-46s INVALID (invalid  bundle_malformed)" % (path.split("/")[-1],))
+                failed = True
+                continue
+            ok, findings, signature_status = verify(bundle, public_keys=public_keys, require_signature=require_signature)
+            print("%-46s %s (%s)%s" % (
+                path.split("/")[-1],
+                "VALID" if ok else "INVALID",
+                signature_status,
+                "" if ok else "  " + ", ".join(findings),
+            ))
+            failed = failed or not ok
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print("%-46s INVALID (invalid  bundle_malformed)" % (path.split("/")[-1],))
+            failed = True
     return 1 if failed else 0
 
 

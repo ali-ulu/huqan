@@ -340,6 +340,7 @@
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
       "lib/experience/adapter-scope.js": "Application",
+      "lib/experience/bounded-reask.js": "Application",
       "lib/experience/budgeted-journal.js": "Application",
       "lib/experience/canary-admission.js": "Application",
       "lib/experience/canary.js": "Application",
@@ -2703,6 +2704,9 @@
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/experience/bounded-reask.js": [
+        "lib/experience/repair.js"
+      ],
       "lib/experience/budgeted-journal.js": [
         "lib/experience/write-cost-budget.js"
       ],
@@ -2786,6 +2790,7 @@
       "lib/experience/run-repair.js": [
         "lib/agent-exit-reasons.js",
         "lib/agent-step-executor.js",
+        "lib/experience/bounded-reask.js",
         "lib/experience/contract.js",
         "lib/experience/repair.js",
         "lib/mcp-call-binding.js"
@@ -2978,7 +2983,8 @@
       ],
       "lib/external-action-receipt-outcome.js": [
         "lib/external-action-receipt-admission.js",
-        "lib/file-effect-sensor.js"
+        "lib/file-effect-sensor.js",
+        "lib/gate-outcome-history.js"
       ],
       "lib/external-action-receipt-reader.js": [
         "lib/external-action-receipt.js",
