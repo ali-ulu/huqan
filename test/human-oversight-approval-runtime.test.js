@@ -176,6 +176,7 @@ test('approval requires a distinct authenticated approver and binds the immutabl
     assert.deepEqual(evidence.verified, {
       workspaceId: 'workspace-a',
       actionFingerprint: 'action:send-email:001',
+      argsDigest: '',
       connectorRef: 'connector:mcp-mail',
       resourceRef: 'resource:mailbox-a',
       policyVersion: 'policy-v1',
