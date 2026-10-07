@@ -138,14 +138,28 @@ test('a result that breaks its declared schema is withheld fail-closed', () => {
   assert.equal(again.error.message, refused.error.message);
 });
 
-test('a declared-only tool is completed but not withheld', () => {
-  assert.ok(Object.hasOwn(DECLARED_ONLY_OUTPUT_TOOLS, 'huqan.search'));
-  const drifted = { ok: true, workflowId: 'memory-search', data: { items: [], returned: 0 } };
-  const passed = conformMcpToolOutput(KERNEL, 'huqan.search', drifted);
-  assert.notEqual(conformanceError(passed, schemaOf('huqan.search')), null, 'the drift is real');
-  assert.deepEqual(passed.data, drifted.data);
+test('every advisory tool is enforced now that the declared-only list is empty', () => {
+  // #3590: the four drifted schemas were aligned to their producers, so the
+  // declared-only list is empty and every advertised tool is enforced.
+  assert.deepEqual(Object.keys(DECLARED_ONLY_OUTPUT_TOOLS), []);
+  // A huqan.search result in the producer's real shape now conforms and
+  // passes; the old total-only shape is withheld.
+  const envelope = data => ({
+    ok: true, workflowId: 'memory-search', version: '2.0.0', status: 'completed', type: 'memory-search',
+    data, evidence: [], confidence: null, policy: null, approval: null, canonicalWrite: false,
+    candidateId: null, provenance: null, audit: null, receipt: null, trace: null, receiptId: null, error: null,
+  });
+  const conforming = envelope({ items: [], returned: 0, truncated: false, limit: 50, workspaceId: 'default' });
+  const passed = conformMcpToolOutput(KERNEL, 'huqan.search', conforming);
+  assert.equal(conformanceError(passed, schemaOf('huqan.search')), null, 'the aligned result conforms');
+  assert.deepEqual(passed.data, conforming.data);
   assert.equal(passed.error, null);
   assert.equal(passed.meta.contractVersion, '9.9.9');
+  // The old schema drift is now withheld, because huqan.search is enforced.
+  const stale = envelope({ items: [], total: 0, workspaceId: 'default' });
+  const refused = quietly(() => conformMcpToolOutput(KERNEL, 'huqan.search', stale));
+  assert.equal(refused.error.code, OUTPUT_SCHEMA_VIOLATION);
+  assert.equal(refused.data, null);
 });
 
 test('every refusal conforms to its tool schema and carries nothing from the withheld result', () => {

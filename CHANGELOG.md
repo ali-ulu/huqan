@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## v1.0.0
+
+Released 2026-10-07. The first major release. It marks the point where the MCP
+tool output schemas are enforced rather than merely declared, and it is the only
+place a breaking API change is expected.
+
+### Changed (breaking)
+- **MCP output schemas are now the contract clients can rely on.** Four tools had
+  drifted from what they actually return, so the contract described shapes the
+  server never produced. `huqan.search` no longer promises a `total` on the
+  per-tool envelope; `huqan.ask`, `huqan.plan` and `huqan.approve` now accept the
+  payloads they really emit (an unknown-path answer for `ask`, a refusal for
+  `plan`, and the `error` branch for `approve`). Any client that pinned the old
+  schemas must re-read them.
+- **The output-conformance gate enforces every advertised tool.** The
+  declared-only allowlist is empty; a tool whose result does not match its
+  declared schema is withheld and reported as `OUTPUT_SCHEMA_VIOLATION` instead of
+  being passed through. This is why the release is a major: it narrows what the
+  server accepts, which `scripts/api-semver-gate.js` classifies as breaking.
+- The `api-contract` comparison now treats a committed, strictly higher `X.0.0`
+  major as the acknowledged home for a breaking diff, matching the rule the
+  publish-time semver gate already applied (#3590).
+
 ## v0.13.2
 
 Released 2026-10-02. A patch release for npm 12. The `v0.13.0` and `v0.13.1` publish runs both ended red; this release is meant to run the whole pipeline green, including the post-publish checklist.

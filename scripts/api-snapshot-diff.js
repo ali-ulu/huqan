@@ -284,7 +284,10 @@ function reportMarkdown(result, options = {}) {
     lines.push('', 'Baseline bootstrap: the base branch does not contain `api-snapshot-baseline.json` yet.');
   }
   if (result.breaking.length === 0) lines.push('', '✅ No breaking API changes detected.');
-  else {
+  else if (options.acknowledgedMajor) {
+    lines.push('', `⚠️ ${result.breaking.length} breaking API change(s), accepted by the major release ${options.acknowledgedMajor}:`, '');
+    for (const item of result.breaking) lines.push(`- **${item.area}** \`${item.key}\`: ${item.reason}`);
+  } else {
     lines.push('', '⚠️ Breaking change detected. Major version bump required.', '', `❌ ${result.breaking.length} breaking API change(s) detected:`, '');
     for (const item of result.breaking) lines.push(`- **${item.area}** \`${item.key}\`: ${item.reason}`);
   }

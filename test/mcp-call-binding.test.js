@@ -45,9 +45,12 @@ const INVALID_NAMES = [
 function recordingKernel() {
   const calls = [];
   const envelope = type => ({ ok: true, type, data: { status: 'verified', confidence: 0.9 }, evidence: [], error: null, meta: {} });
+  // huqan.ask is enforced since #3590, so its stub data must match the declared
+  // ask shape; the others keep the generic shape they already conform to.
+  const askEnvelope = () => ({ ok: true, type: 'ask', data: { answer: 'kedi bir hayvandır', subject: 'kedi', unknown: false, alternatives: 0 }, evidence: [], error: null, meta: {} });
   return {
     calls,
-    ask: (...args) => { calls.push(['ask', ...args]); return envelope('ask'); },
+    ask: (...args) => { calls.push(['ask', ...args]); return askEnvelope(); },
     verify: (...args) => { calls.push(['verify', ...args]); return envelope('verify'); },
     reason: (...args) => { calls.push(['reason', ...args]); return envelope('reason'); },
   };
