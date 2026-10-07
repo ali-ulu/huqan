@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Changed (breaking)
+- **An MCP `tools/call` with a non-JSON `arguments` string is now a parse
+  error, not an empty call (#3499).** A string `arguments` value that is not
+  JSON used to be parsed with `parseJsonObject(value, {})`, so the call ran as
+  if the model had supplied no arguments -- indistinguishable from a deliberate
+  empty call. It now fails closed with code `ARGUMENTS_PARSE_ERROR` and gate
+  reason `arguments_parse_error`, kept distinct from the schema's
+  `INVALID_INPUT` / `malformed_input_blocked`. An object value, a missing value
+  and a JSON string that parses to a non-object are unchanged.
+
 ## v1.0.0
 
 Released 2026-10-07. The first major release. It marks the point where the MCP

@@ -147,9 +147,10 @@ test('null and malformed params do not crash or mutate memory', () => {
     arguments: 'not-json',
   });
   assert.equal(malformedResult.ok, false);
-  assert.equal(malformedResult.verdict, 'review');
+  assert.equal(malformedResult.error.code, 'ARGUMENTS_PARSE_ERROR');
+  assert.equal(malformedResult.verdict, 'block');
   assertMemoryAdmissionShape(malformedResult);
-  assert.equal(malformedResult.memoryAdmission.status, 'review_required');
+  assert.equal(malformedResult.memoryAdmission.status, 'blocked');
   assert.equal(malformedResult.memoryAdmission.contextIntegrity.canonicalMutation, false);
 });
 
