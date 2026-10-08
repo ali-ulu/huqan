@@ -50,8 +50,17 @@ candidate overhead. Changing a trial binding or missing measurements refuses
 dispatch. Passing a trial does not automatically promote a candidate.
 
 Journal writes measure actual commit time, serialized bytes and event count.
-The median write time and maximum event size feed the existing budget evaluator.
-An exceeded budget refuses the disk effect but retains the refusal audit events.
+The measured timing feeds the existing budget evaluator as an observability and
+diagnostic signal only: append latency is a property of the host, so a slow disk
+does not refuse a run. The execution gate is the deterministic guard, which
+reads only what the run itself controls — bytes per event (at most 4096) and
+events per run (at most 2000). A live agent run that crosses either ceiling
+stops fail-closed at the step that first exceeds it: the step reports
+`WRITE_COST_BUDGET_EXCEEDED`, the run status becomes `blocked`, the remaining
+queue is not run, and `queuedSteps`, `completedSteps` and `remainingSteps` are
+synchronized so a resume does not re-run the step that already ran. The guard is
+attached only to a journal wrapped by `budgetExperienceJournal`; an unwrapped
+journal or a fresh run with no run identity leaves `writeCostStop` a no-op.
 Timing samples are process-local; restart does not invent historical write latency.
 
 ## Runtime ownership
