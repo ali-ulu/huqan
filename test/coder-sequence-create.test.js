@@ -152,6 +152,69 @@ describe('sequence', () => {
   });
 });
 
+describe('a transform the verifier does not know', () => {
+  const { buildDerivationRecord } = require('../lib/coder/derivation-record');
+  const { VERIFY_REASONS } = require('../lib/coder/verify-derivation');
+  const { DERIVATION_STATUS, summarizeDerivations } = require('../lib/pr-guardian/derivation-check');
+
+  // PR Guardian runs the BASE tree's verifier, so the PR that introduces a
+  // transform is always checked by code that has never heard of it. That is
+  // "could not check", not "does not match" -- the same distinction a newer
+  // record schema already gets.
+  function recordWith(operation) {
+    return buildDerivationRecord({
+      operationType: operation.type,
+      operation,
+      allowedPaths: ['docs/n.md'],
+      inputFiles: { 'docs/n.md': 'v1\n' },
+      patch: [{ path: 'docs/n.md', before: 'v1\n', after: 'v2\n' }],
+      runnerStatus: STATUS.COMPLETED,
+      runnerReason: null,
+      outcome: 'applied',
+      createdAt: '2026-10-08T00:00:00.000Z',
+    });
+  }
+
+  const readBase = (p) => (p === 'docs/n.md' ? 'v1\n' : null);
+  const readHead = (p) => (p === 'docs/n.md' ? 'v2\n' : null);
+
+  it('reports an unknown top-level transform as unverifiable', () => {
+    const record = recordWith({ type: 'future_transform', path: 'docs/n.md' });
+
+    const verdict = verifyDerivation({ record, readBase, readHead });
+
+    assert.equal(verdict.ok, false);
+    assert.equal(verdict.reason, VERIFY_REASONS.TRANSFORM_UNKNOWN_TO_VERIFIER);
+  });
+
+  it('reports an unknown sequence step as unverifiable', () => {
+    const record = recordWith({ type: 'sequence', steps: [{ type: 'future_transform', path: 'docs/n.md' }] });
+
+    const verdict = verifyDerivation({ record, readBase, readHead });
+
+    assert.equal(verdict.reason, VERIFY_REASONS.TRANSFORM_UNKNOWN_TO_VERIFIER);
+  });
+
+  it('lands in Guardian as unknown, not failed', () => {
+    const summary = summarizeDerivations({
+      records: [{ path: '.huqan/derivations/x.json', record: recordWith({ type: 'future_transform', path: 'docs/n.md' }) }],
+      readBase,
+      readHead,
+    });
+
+    assert.equal(summary.status, DERIVATION_STATUS.UNKNOWN);
+    assert.equal(summary.failures.length, 0);
+  });
+
+  it('still fails a known transform that does not reproduce', () => {
+    const record = recordWith({ type: 'replace_text', path: 'docs/n.md', find: 'absent', replace: 'v2' });
+
+    const verdict = verifyDerivation({ record, readBase, readHead });
+
+    assert.equal(verdict.reason, VERIFY_REASONS.RERUN_FAILED);
+  });
+});
+
 describe('sequence through the coder pipeline', () => {
   it('applies a multi-file fix in one run and its record re-derives from the base tree', () => {
     const head = makeRoot();
