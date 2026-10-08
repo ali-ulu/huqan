@@ -1,7 +1,7 @@
 'use strict';
 
 const { pairDigestOf, digestOf, requireExactFields } = require('./contradiction-eval-freeze-contract');
-const { consensus, textPairKey, validateTeacherOutput, assertNoHoldoutLeakage } = require('./semantic-teacher-contract');
+const { labelPair, textPairKey, validateTeacherOutput, assertNoHoldoutLeakage } = require('./semantic-teacher-contract');
 const LICENSES = Object.freeze(['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'MIT', 'Apache-2.0']);
 
 function buildTrainingDataset({ records, teachers, sources, frozenCorpus, sourceCommit }) {
@@ -42,7 +42,7 @@ function buildTrainingDataset({ records, teachers, sources, frozenCorpus, source
     pair.outputs.push(output);
   }
   const labeled = [...pairs.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, pair]) => {
-    const label = consensus(pair.outputs);
+    const label = labelPair(pair.outputs);
     return { ...pair.record, ...label };
   });
   const orderedSources = [...sources].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
