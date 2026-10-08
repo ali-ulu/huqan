@@ -3638,6 +3638,14 @@
    "kind": "infra",
    "evidence": "#3583 R51 calibration-split temperature scaling and ABSTAIN band for own-weight predictions"
   },
+  "lib/semantic-model-port.js": {
+   "kind": "infra",
+   "evidence": "#3583 R51 PR3 Core seam: off|shadow|on mode, fail-closed typed model signal beside the verify rules"
+  },
+  "lib/semantic-model-provider.js": {
+   "kind": "infra",
+   "evidence": "#3583 R51 PR3 packaged own-weight artifact provider registered by the runtime entrypoints"
+  },
   "lib/cognitive-model-local-rwkv.js": {
    "kind": "infra",
    "evidence": "#3561 I6 local RWKV linear-attention candidate"

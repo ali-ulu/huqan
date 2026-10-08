@@ -75,7 +75,7 @@ const RULES = [
       'lib/cognitive-lab-model-comparison.js',
       'lib/cognitive-model-local-ssm.js', 'lib/cognitive-model-local-family.js',
       'lib/cognitive-model-local-rwkv.js', 'lib/cognitive-model-local-mamba.js', 'lib/cognitive-model-local-transformer.js',
-      'lib/semantic-model-inference.js',
+      'lib/semantic-model-inference.js', 'lib/semantic-model-provider.js',
       'fixtures/cognitive-lab/causal-confirmatory-generator.js',
     ],
     dirs: [

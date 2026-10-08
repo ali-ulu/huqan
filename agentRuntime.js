@@ -7,6 +7,11 @@ const { budgetExperienceJournal } = require('./lib/experience/budgeted-journal')
 const { openJournalConnection } = require('./lib/experience/journal-connection');
 const { createOperationLedger } = require('./lib/experience/reconciliation');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { installSemanticModelProvider } = require('./lib/semantic-model-provider');
+
+// R51 (#3583): server, MCP and CLI all load this runtime, so the own-weight
+// semantic model is wired into the Core verify path once, here.
+installSemanticModelProvider();
 
 /**
  * #329 (arch-4), criterion 2: createAgent() used to hand callers either Agent

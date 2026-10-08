@@ -1013,8 +1013,9 @@
       "lib/self-healer/source-dogfood-simulator.js": "Application",
       "lib/self-test-oracle.js": "Core",
       "lib/semantic-model-artifact.js": "Core",
-      "lib/semantic-model-calibration.js": "Core",
       "lib/semantic-model-inference.js": "Application",
+      "lib/semantic-model-port.js": "Core",
+      "lib/semantic-model-provider.js": "Application",
       "lib/semantic-model-text-features.js": "Core",
       "lib/semantic-score.js": "Core",
       "lib/semantic-signals.js": "Core",
@@ -1240,7 +1241,6 @@
       "scripts/binding-site-scan.js": "UI",
       "scripts/build-contradiction-eval-fixture.js": "UI",
       "scripts/build-semantic-training-dataset.js": "UI",
-      "scripts/calibrate-semantic-model.js": "UI",
       "scripts/capability-usage.js": "UI",
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
@@ -1446,6 +1446,7 @@
         "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
         "lib/experience/reconciliation.js",
+        "lib/semantic-model-provider.js",
         "storage.js",
         "workflow-runtime.js"
       ],
@@ -5425,18 +5426,17 @@
         "lib/is-plain-object.js",
         "lib/semantic-model-text-features.js"
       ],
-      "lib/semantic-model-calibration.js": [
-        "lib/cognitive-lab-probability-calibration.js",
-        "lib/hash-chain.js",
-        "lib/is-plain-object.js",
-        "lib/semantic-model-artifact.js"
-      ],
       "lib/semantic-model-inference.js": [
         "lib/cognitive-model-local-mamba.js",
         "lib/cognitive-model-local-rwkv.js",
         "lib/cognitive-model-local-ssm.js",
         "lib/cognitive-model-local-transformer.js",
         "lib/semantic-model-artifact.js",
+        "lib/semantic-model-text-features.js"
+      ],
+      "lib/semantic-model-provider.js": [
+        "lib/semantic-model-inference.js",
+        "lib/semantic-model-port.js",
         "lib/semantic-model-text-features.js"
       ],
       "lib/semantic-model-text-features.js": [
@@ -5450,6 +5450,7 @@
       "lib/semantic-signals.js": [
         "lib/contradiction-rules.js",
         "lib/risk-rules.js",
+        "lib/semantic-model-port.js",
         "lib/text-utils.js"
       ],
       "lib/server-response-helpers.js": [
@@ -5678,6 +5679,7 @@
         "lib/fuzzy-normalization.js",
         "lib/reasoning-trace.js",
         "lib/risk-rules.js",
+        "lib/semantic-model-port.js",
         "lib/semantic-score.js",
         "lib/semantic-signals.js",
         "lib/type-lattice.js",
@@ -5690,6 +5692,7 @@
         "lib/claim-decomposition.js",
         "lib/entity-resolution.js",
         "lib/reasoning-trace.js",
+        "lib/semantic-model-port.js",
         "lib/trust-signals/verify-wiring.js",
         "lib/verify-contradiction-evidence.js",
         "lib/verify-native.js",
@@ -6117,14 +6120,6 @@
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/semantic-nli-adapter.js",
         "scripts/semantic-training-dataset.js"
-      ],
-      "scripts/calibrate-semantic-model.js": [
-        "lib/semantic-model-artifact.js",
-        "lib/semantic-model-calibration.js",
-        "lib/semantic-model-inference.js",
-        "scripts/contradiction-eval-freeze-contract.js",
-        "scripts/semantic-teacher-contract.js",
-        "scripts/train-semantic-model.js"
       ],
       "scripts/capability-usage.js": [
         "lib/default-persistence-path.js",
