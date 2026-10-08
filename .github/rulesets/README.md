@@ -6,8 +6,11 @@ Settings -> Rules -> Rulesets -> New ruleset -> Import a ruleset
 
 ## Files
 
-- `main-branch.json` protects `main`.
-- `release-tags.json` protects release tags matching `v*`.
+- `main-branch.json` and `huqan-main-ruleset.json` both protect `main`. They are
+  the same ruleset under two names and are kept byte-identical:
+  `test/github-main-ruleset.test.js` fails if they diverge.
+- `release-tags.json` and `huqan-release-tags-ruleset.json` both protect release
+  tags matching `v*`, again as a kept-in-sync pair.
 
 ## Why the main ruleset uses 0 required approvals
 
@@ -18,7 +21,7 @@ would block normal self-maintained work.
 The ruleset still requires:
 
 - pull requests;
-- all 12 current required GitHub Actions checks;
+- all 13 current required GitHub Actions checks;
 - review-thread resolution;
 - an up-to-date branch before merge;
 - no force-push;
@@ -34,13 +37,25 @@ The check names and GitHub Actions integration id were copied from the live
 import, select the current equivalent check in the review screen rather than
 guessing a renamed context.
 
+## Architecture checks are consolidated
+
+`.github/workflows/architecture.yml` runs the architecture gates as two jobs,
+`Architecture static gates` and `Architecture source gates`, instead of one job
+per check. This recipe already lists those two consolidated contexts in place of
+the seven legacy per-check names.
+
+The live `main` ruleset and classic branch protection still require the seven
+legacy names. Seven compatibility jobs in `architecture.yml` keep producing them
+so the required contexts stay real during the migration. Remove those compat jobs
+only after both live layers drop the legacy names -- otherwise merges stall.
+
 ## Migration safety
 
-Classic branch protection and Rulesets layer together. The main recipe starts in
-`evaluate` mode so Rule Insights can show what it would block without changing
-merge behavior. After one representative test PR behaves as expected, switch the
-Ruleset to `active`. Only remove classic branch protection after the active
-Ruleset proves equivalent or stronger enforcement.
+Classic branch protection and Rulesets layer together and the main Ruleset is
+`active`. Import in `evaluate` mode first so Rule Insights can show what it would
+block without changing merge behavior; after one representative test PR behaves
+as expected, switch it to `active`. Only remove classic branch protection after
+the active Ruleset proves equivalent or stronger enforcement.
 
 ## Release tags
 

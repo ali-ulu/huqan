@@ -32,14 +32,14 @@ Repository-native collaboration metadata also includes:
 ## Verified main-branch protection
 
 Live repository inspection on 2026-09-28 (second pass, after the #3068
-live-settings update) reports `main` as protected by **both** a classic branch
-protection and an active repository Ruleset:
+live-settings update), re-verified on 2026-10-09, reports `main` as protected by
+**both** a classic branch protection and an active repository Ruleset:
 
 - Ruleset `HUQAN main protection` (id 23629799, `enforcement: active`, target
   `branch`) carries `deletion`, `non_fast_forward`, `required_signatures`,
-  `pull_request` and `required_status_checks` rules;
-- classic branch protection on `main` additionally lists the same required
-  checks and reports `enforce_admins: false`.
+  `pull_request`, `required_linear_history` and `required_status_checks` rules;
+- classic branch protection on `main` additionally lists required checks and
+  reports `enforce_admins: false`.
 
 The #3068 review gap is now **closed** at the Ruleset level: the `pull_request`
 rule requires `required_approving_review_count: 1` with `require_code_owner_review: true`
@@ -53,37 +53,48 @@ merged with zero reviews on 2026-09-28, before this change) is kept in
 #3068. The classic-protection mirror of the review requirement remains a
 live-settings audit item.
 
-The checks currently required by the Ruleset are:
+The 17 checks currently required by the Ruleset are:
 
 - `npm test gate`
 - `Conformance Gate`
 - `Validate BDD/Gherkin contracts`
 - `Security Checks`
 - `Workflow governance`
-- `Forbid raw control characters in tracked sources`
-- `Require living documentation to agree with the source`
-- `Require graph is acyclic`
-- `Require every V5 document to declare its status`
-- `Enforce the large-file threshold`
-- `Enforce a lint-clean tree`
-- `Require architecture tracker snapshot to be current`
-- `Coverage gate`
 - `Benchmark gate`
 - `Docker build gate`
 - `Rust accelerator gate`
 - `Package Smoke`
 - `CodeQL`
+- the seven architecture checks: `Forbid raw control characters in tracked
+  sources`, `Require living documentation to agree with the source`, `Require
+  graph is acyclic`, `Require every V5 document to declare its status`, `Enforce
+  the large-file threshold`, `Enforce a lint-clean tree`, `Require architecture
+  tracker snapshot to be current`.
 
 `Coverage gate` is the numeric coverage ratchet from issue #3077. The
 `coverage` job in `benchmark.yml` measures the suite under `c8` and
 `scripts/check-coverage.js` fails when a global or per-file line/branch ratio
 drops below the floor in `config/coverage-baseline.json`. `--update` may only
-lower a floor: a regression keeps its old floor, so it cannot be spent.
+lower a floor: a regression keeps its old floor, so it cannot be spent. The
+committed main recipes require it; the live Ruleset does not yet.
 
-The Ruleset and the classic protection currently agree on the check list; when
-they drift, the stricter of the two is the effective control. Live settings
+The two live layers do **not** currently agree: the Ruleset's 17 contexts are a
+superset of the classic layer's 12, which omit `Benchmark gate`, `Docker build
+gate`, `Rust accelerator gate`, `Package Smoke` and `CodeQL`. `Coverage gate` is
+in neither live layer yet, even though the committed recipes require it.
+When they drift, the stricter of the two is the effective control. Live settings
 drift — re-inspect before making any claim about them (see the audit rule at
 the end of this document).
+
+## Architecture check consolidation
+
+`.github/workflows/architecture.yml` now runs the architecture gates as two
+jobs, `Architecture static gates` and `Architecture source gates`, instead of
+one job per check. The committed recipes in `.github/rulesets/` list those two
+consolidated contexts; the live Ruleset and classic layer still require the
+seven per-check names above, which seven compatibility jobs in
+`architecture.yml` keep real so merges do not stall. Drop those compat jobs only
+after both live layers require the consolidated names.
 
 ## Main branch target
 
