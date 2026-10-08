@@ -56,6 +56,9 @@ Firewall ham agent input’unu audit metadata’sına yazmaz. Metadata yalnızca
 - `actionId`: yüzey, araç, action, workspace ve target’ın tek yönlü SHA-256 parmak izi
 - `firewallVersion`, `policyVersion`
 - AB5 kararı, sebebi, risk kategorileri ve findings
+- `fieldEvidence`: bir alan `MAX_OPERATION_FIELD_CHARS` (=512) sınırında kırpıldığında eklenen bounded liste. Her satır `{propertyPath, valueBefore, valueAfter}` taşır ve `valueBefore`/`valueAfter` alanın **değeri değil, uzunluğudur** (`valueBefore` = gerçek uzunluk, `valueAfter` = 512). Böylece okuyucu kararın tam alanı mı yoksa kırpılmış bir kopyayı mı ölçtüğünü ayırt eder.
+
+`fieldEvidence` yalnızca gerçekten kırpma olduğunda eklenir; aksi halde metadata’nın şekli değişmez. Liste, AB5 projeksiyonunda kırpılan structured alanlarla (`CLIPPED_OPERATION_KEYS`) sınırlıdır ve `STRUCTURED_ACTION_KEYS` içindeki kırpılmayan alanları (ör. `operation`, `deploy`) kapsamaz. Değer içermediği için “ham input yazılmaz” güvencesini bozmaz.
 
 Secret veya PII içeren çağrılar AB5’te engellendiğinde findings ham eşleşen değeri echo etmez. Bu özellik, enforcement kanıtı üretirken token, URL credential veya kişisel veriyi log’a taşımama hedefiyle tasarlanmıştır.
 
