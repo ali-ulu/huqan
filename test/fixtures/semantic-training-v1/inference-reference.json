@@ -1,0 +1,1791 @@
+{
+  "node": "v22.22.0",
+  "platform": "win32",
+  "tolerance": 0.000001,
+  "rows": [
+    {
+      "family": "SSM",
+      "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+      "predictions": [
+        {
+          "pairDigest": "sha256:07d9f863a8eb6cac13f1666be9e7617b4efd61922e28f8a0ef6f8b1728dc7b56",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3070302034004104,
+            "ENTAILMENT": 0.37752438844313035,
+            "NEUTRAL": 0.3054454081381565,
+            "ABSTAIN": 0.010000000018302676
+          },
+          "rawScores": [
+            0.30632652641554364,
+            0.3766591471071603,
+            0.3047453633169643,
+            0.00997708119864385
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:0b2b6bf02168310cc5df4f3b5be3db2b5490418d1ed59c6285167265ba6b6fe0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34707210891296947,
+            "ENTAILMENT": 0.24747311516944379,
+            "NEUTRAL": 0.3954547759266126,
+            "ABSTAIN": 0.009999999990974182
+          },
+          "rawScores": [
+            0.34422444715507405,
+            0.24544264453213888,
+            0.39221014343248817,
+            0.009917951860853785
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:1917cb0d79c598fb623b895c5f95b1a309f79e4d25abbe35d371b3796a4b9aea",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3135053622170023,
+            "ENTAILMENT": 0.2491633463714534,
+            "NEUTRAL": 0.42733129141550946,
+            "ABSTAIN": 0.009999999996034884
+          },
+          "rawScores": [
+            0.31120242932471504,
+            0.2473330540222144,
+            0.42419222138511176,
+            0.009926542468065073
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:2415b90f2530f60722ce7ff4745d67ca0b10b0fb3d8634fc2c0cb8f3fbaac7a8",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3312396722185459,
+            "ENTAILMENT": 0.2776049745351703,
+            "NEUTRAL": 0.3811553532577486,
+            "ABSTAIN": 0.009999999988535143
+          },
+          "rawScores": [
+            0.3282360353529921,
+            0.27508768990561416,
+            0.37769908769970034,
+            0.009909321331537548
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:441db6fd1a4203f77f16df21e891f9b6d4d4d9fa0f4cdd305d8660969b144eb1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3426810847365086,
+            "ENTAILMENT": 0.2749989006659132,
+            "NEUTRAL": 0.37232001460808656,
+            "ABSTAIN": 0.009999999989491599
+          },
+          "rawScores": [
+            0.3393692242554175,
+            0.2723411584326083,
+            0.368721707034011,
+            0.009903354431124774
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:47dfd06ac10e7400fd11b4cd939a9775618e8db326e8290f50b1649a47bbff50",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.29817374991698053,
+            "ENTAILMENT": 0.32933282743057823,
+            "NEUTRAL": 0.36249342261706,
+            "ABSTAIN": 0.010000000035381281
+          },
+          "rawScores": [
+            0.2974606075720644,
+            0.3285451619004063,
+            0.36162644687055717,
+            0.009976083029017108
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:5256e16b1f23ab18956008f47ec7bbcd7cbfdde95bd2d768304df7ba75c78753",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3197784449991568,
+            "ENTAILMENT": 0.2943188482602999,
+            "NEUTRAL": 0.37590270675732707,
+            "ABSTAIN": 0.00999999998321615
+          },
+          "rawScores": [
+            0.31711738192185207,
+            0.2918696493467759,
+            0.3727746009413973,
+            0.009916784146925324
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:544f0d00f7a63649f1cc6d1c101cd448fe33f06b8c3766f5150b4dd04b52362c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.32647012605898557,
+            "ENTAILMENT": 0.2740408130210666,
+            "NEUTRAL": 0.3894890609381557,
+            "ABSTAIN": 0.009999999981792164
+          },
+          "rawScores": [
+            0.32366670779162154,
+            0.27168760836341366,
+            0.38614449535246653,
+            0.009914129390932861
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6d54d47f8de9a0a595acd38a11ccec7ebac8725ebae900900cb1fffb93d6aca0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.33750639233294505,
+            "ENTAILMENT": 0.26881592413185973,
+            "NEUTRAL": 0.3836776835446964,
+            "ABSTAIN": 0.009999999990498722
+          },
+          "rawScores": [
+            0.3345604778079695,
+            0.26646957231917,
+            0.3803287642751962,
+            0.00991271528747981
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6e079cfcd6ff3983e9c1066f91becfc6e74614a459902fc88f79ded94b3394fb",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3376689491813731,
+            "ENTAILMENT": 0.2668758366382703,
+            "NEUTRAL": 0.38545521419838735,
+            "ABSTAIN": 0.009999999981969333
+          },
+          "rawScores": [
+            0.3346023698060233,
+            0.2644521730517954,
+            0.38195465836449305,
+            0.009909183832683029
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:765cc20afa17c13dc9470346d3c6fc8fc430b2902878ec26ad4d3af900979144",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3271038696750644,
+            "ENTAILMENT": 0.3514551209667279,
+            "NEUTRAL": 0.3114410093346332,
+            "ABSTAIN": 0.010000000023574578
+          },
+          "rawScores": [
+            0.3262386472048233,
+            0.35052548699986663,
+            0.3106172166974548,
+            0.00997354902276128
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:7ab81c2b4178229fd004f815c533e8f16acb58d00cc0d94d1b19a4eef441edb2",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3227495249947241,
+            "ENTAILMENT": 0.284322729186977,
+            "NEUTRAL": 0.3829277458207141,
+            "ABSTAIN": 0.009999999997584793
+          },
+          "rawScores": [
+            0.3198774703432442,
+            0.28179262347451695,
+            0.379520182591665,
+            0.009911012890606613
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:869b3abeb0d2e7a53ce3969d812cd0248fb26860b3b9bfb8b20cbfe4e53040b1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3220457175530722,
+            "ENTAILMENT": 0.30701319279201195,
+            "NEUTRAL": 0.36094108961164306,
+            "ABSTAIN": 0.010000000043272806
+          },
+          "rawScores": [
+            0.321580249404546,
+            0.30656945187377266,
+            0.360419404113121,
+            0.00998554656275218
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:90ba974b01a9eab1a18647b678ba7322c739c98c80bcee3d81b44c8d7315e789",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3099744092069943,
+            "ENTAILMENT": 0.3476206898747785,
+            "NEUTRAL": 0.332404900891308,
+            "ABSTAIN": 0.010000000026919103
+          },
+          "rawScores": [
+            0.30919128602529056,
+            0.34674245666392334,
+            0.33156510903795505,
+            0.009974735903154328
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:9ca48eb8f51927c1f28d50bbd3f59256e7d5fef03789d79fa2be75b982cafb1d",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.2995129215088983,
+            "ENTAILMENT": 0.36130326616493225,
+            "NEUTRAL": 0.3291838123008596,
+            "ABSTAIN": 0.010000000025309862
+          },
+          "rawScores": [
+            0.2989849272838312,
+            0.3606663452699274,
+            0.32860351295682855,
+            0.009982371596334461
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:ab382901d254e961552770fd45e71dec0b78cfa835f5c43e5cb0c3bd569ef75b",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34295292763623153,
+            "ENTAILMENT": 0.26009604054618224,
+            "NEUTRAL": 0.3869510318352931,
+            "ABSTAIN": 0.009999999982293124
+          },
+          "rawScores": [
+            0.3400632641641459,
+            0.2579045152170922,
+            0.3836906477648404,
+            0.009915741670609197
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:b8356728fce63b5476a7c2f2d8dbb045baa68c6f3eca3f78a61d03a95685b07c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.284089514804869,
+            "ENTAILMENT": 0.23822113957925084,
+            "NEUTRAL": 0.4676893456114437,
+            "ABSTAIN": 0.010000000004436483
+          },
+          "rawScores": [
+            0.28234958517478337,
+            0.23676213459080067,
+            0.4648249436969147,
+            0.009938754180842726
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:c4134c6f4ff0e0bf8401bdd6afa013070d2d0013db8f77601920c5d47abcf620",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.30974715531790314,
+            "ENTAILMENT": 0.33237548205277756,
+            "NEUTRAL": 0.3478773625951638,
+            "ABSTAIN": 0.010000000034155593
+          },
+          "rawScores": [
+            0.30896969813675124,
+            0.33154122836900907,
+            0.3470041996005522,
+            0.009974900298114129
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:cf7a8f019667c9e03c2d6d43018e9924cd289ea2cf05d52e14c2cf6613a96f62",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.29889586494704196,
+            "ENTAILMENT": 0.3608619248117294,
+            "NEUTRAL": 0.3302422102151762,
+            "ABSTAIN": 0.010000000026052471
+          },
+          "rawScores": [
+            0.2981541989794375,
+            0.35996649921363855,
+            0.3294227629189532,
+            0.009975186502129411
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:d9abf4847eb681ef946c9df8e1f7f97bf2d96bc571d5f8af1737c320d914c1d4",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34868482294031444,
+            "ENTAILMENT": 0.2387885772508531,
+            "NEUTRAL": 0.40252659980613487,
+            "ABSTAIN": 0.010000000002697608
+          },
+          "rawScores": [
+            0.34613593452231317,
+            0.23704303113337874,
+            0.3995841276344714,
+            0.00992689993492881
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:df3fb849140fce0b31e5b9e461d2a2062674265e6833b4dd8fe06e92208590c2",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.28284757358830837,
+            "ENTAILMENT": 0.3648282109218862,
+            "NEUTRAL": 0.3423242154670874,
+            "ABSTAIN": 0.01000000002271805
+          },
+          "rawScores": [
+            0.2822104883543198,
+            0.3640064726860861,
+            0.3415531651796692,
+            0.00997747604532084
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:f6cb1f1f51f5f226842c331afda7416405f182d020e3d93e4e693328f9bcdda3",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3447033636575913,
+            "ENTAILMENT": 0.2405228218622072,
+            "NEUTRAL": 0.40477381448945915,
+            "ABSTAIN": 0.009999999990742367
+          },
+          "rawScores": [
+            0.3418187808379749,
+            0.23851005357266256,
+            0.4013865438265981,
+            0.009916316942618377
+          ],
+          "artifactDigest": "sha256:dd2c1565bc7698c12b67f73ebd334361e278761a73d1595980d6f002c0760631",
+          "family": "SSM",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        }
+      ]
+    },
+    {
+      "family": "RWKV",
+      "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+      "predictions": [
+        {
+          "pairDigest": "sha256:07d9f863a8eb6cac13f1666be9e7617b4efd61922e28f8a0ef6f8b1728dc7b56",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3071225510890758,
+            "ENTAILMENT": 0.37716575045927553,
+            "NEUTRAL": 0.30571169878396576,
+            "ABSTAIN": 0.009999999667682878
+          },
+          "rawScores": [
+            0.3068994434647896,
+            0.37689176030697735,
+            0.3054896160662027,
+            0.009992735218488874
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:0b2b6bf02168310cc5df4f3b5be3db2b5490418d1ed59c6285167265ba6b6fe0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34706264579330676,
+            "ENTAILMENT": 0.2476734511643458,
+            "NEUTRAL": 0.3952639033859732,
+            "ABSTAIN": 0.009999999656374166
+          },
+          "rawScores": [
+            0.34241672588624217,
+            0.2443579949169999,
+            0.38997274209407606,
+            0.009866135646411374
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:1917cb0d79c598fb623b895c5f95b1a309f79e4d25abbe35d371b3796a4b9aea",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.31332735514728777,
+            "ENTAILMENT": 0.24936898649710187,
+            "NEUTRAL": 0.4273036586957594,
+            "ABSTAIN": 0.00999999965985086
+          },
+          "rawScores": [
+            0.309486651841291,
+            0.24631227192967362,
+            0.4220658569281932,
+            0.009877421687890827
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:2415b90f2530f60722ce7ff4745d67ca0b10b0fb3d8634fc2c0cb8f3fbaac7a8",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.33113839186417254,
+            "ENTAILMENT": 0.27799737580962813,
+            "NEUTRAL": 0.3808642326766098,
+            "ABSTAIN": 0.009999999649589471
+          },
+          "rawScores": [
+            0.326242790752841,
+            0.27388741968433805,
+            0.37523347705730103,
+            0.009852158110823026
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:441db6fd1a4203f77f16df21e891f9b6d4d4d9fa0f4cdd305d8660969b144eb1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3426429804782234,
+            "ENTAILMENT": 0.2754069695078288,
+            "NEUTRAL": 0.37195005035633094,
+            "ABSTAIN": 0.009999999657616887
+          },
+          "rawScores": [
+            0.3372253363094895,
+            0.2710524166718118,
+            0.36606902218362236,
+            0.009841886277454201
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:47dfd06ac10e7400fd11b4cd939a9775618e8db326e8290f50b1649a47bbff50",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.2982654184714842,
+            "ENTAILMENT": 0.3290857099016811,
+            "NEUTRAL": 0.3626488719735839,
+            "ABSTAIN": 0.00999999965325079
+          },
+          "rawScores": [
+            0.2979410766684782,
+            0.32872785328846726,
+            0.3622545178791778,
+            0.009989125385847562
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:5256e16b1f23ab18956008f47ec7bbcd7cbfdde95bd2d768304df7ba75c78753",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.31962605426000784,
+            "ENTAILMENT": 0.29476333389304843,
+            "NEUTRAL": 0.37561061219129727,
+            "ABSTAIN": 0.00999999965564657
+          },
+          "rawScores": [
+            0.31530378316376073,
+            0.2907772788723806,
+            0.370531267529371,
+            0.009864770662584193
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:544f0d00f7a63649f1cc6d1c101cd448fe33f06b8c3766f5150b4dd04b52362c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.32634539067517127,
+            "ENTAILMENT": 0.2744010694289689,
+            "NEUTRAL": 0.3892535402281157,
+            "ABSTAIN": 0.009999999667744133
+          },
+          "rawScores": [
+            0.3217506458363703,
+            0.2705376690760123,
+            0.383773086861675,
+            0.009859205747639061
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6d54d47f8de9a0a595acd38a11ccec7ebac8725ebae900900cb1fffb93d6aca0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3374429565896486,
+            "ENTAILMENT": 0.2691485593451886,
+            "NEUTRAL": 0.3834084844058166,
+            "ABSTAIN": 0.009999999659346087
+          },
+          "rawScores": [
+            0.33262950440859723,
+            0.26530929201212533,
+            0.37793935734461365,
+            0.009857354749352227
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6e079cfcd6ff3983e9c1066f91becfc6e74614a459902fc88f79ded94b3394fb",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3376039912003564,
+            "ENTAILMENT": 0.2672102937209172,
+            "NEUTRAL": 0.38518571541115326,
+            "ABSTAIN": 0.009999999667573159
+          },
+          "rawScores": [
+            0.3325941063512251,
+            0.2632450183185602,
+            0.3794697400967652,
+            0.00985160436380982
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:765cc20afa17c13dc9470346d3c6fc8fc430b2902878ec26ad4d3af900979144",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3271701260933831,
+            "ENTAILMENT": 0.35111167176633684,
+            "NEUTRAL": 0.3117182024865781,
+            "ABSTAIN": 0.009999999653701887
+          },
+          "rawScores": [
+            0.3268502123945806,
+            0.3507683475302621,
+            0.31141339799745105,
+            0.009990221447740852
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:7ab81c2b4178229fd004f815c533e8f16acb58d00cc0d94d1b19a4eef441edb2",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.32259853566819063,
+            "ENTAILMENT": 0.28475602020367047,
+            "NEUTRAL": 0.3826454444707956,
+            "ABSTAIN": 0.009999999657343366
+          },
+          "rawScores": [
+            0.3178883576467085,
+            0.2805983709909425,
+            0.3770585370199187,
+            0.009853992241335457
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:869b3abeb0d2e7a53ce3969d812cd0248fb26860b3b9bfb8b20cbfe4e53040b1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3221262984689656,
+            "ENTAILMENT": 0.3067221723368854,
+            "NEUTRAL": 0.36115152954639435,
+            "ABSTAIN": 0.009999999647754557
+          },
+          "rawScores": [
+            0.3223121322683335,
+            0.3068991195371191,
+            0.36135987689711396,
+            0.010005768620784863
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:90ba974b01a9eab1a18647b678ba7322c739c98c80bcee3d81b44c8d7315e789",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3100675984475983,
+            "ENTAILMENT": 0.34728951746207165,
+            "NEUTRAL": 0.33264288443799794,
+            "ABSTAIN": 0.009999999652332121
+          },
+          "rawScores": [
+            0.30979525531070917,
+            0.346984481021412,
+            0.33235071264363675,
+            0.009991216305449566
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:9ca48eb8f51927c1f28d50bbd3f59256e7d5fef03789d79fa2be75b982cafb1d",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.29963573495472234,
+            "ENTAILMENT": 0.360912292134973,
+            "NEUTRAL": 0.32945197325219583,
+            "ABSTAIN": 0.009999999658108829
+          },
+          "rawScores": [
+            0.29968784192936665,
+            0.36097505516842077,
+            0.32950926530255614,
+            0.01000173866874021
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:ab382901d254e961552770fd45e71dec0b78cfa835f5c43e5cb0c3bd569ef75b",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34291932765328126,
+            "ENTAILMENT": 0.2603798491591188,
+            "NEUTRAL": 0.3867008235364403,
+            "ABSTAIN": 0.009999999651159656
+          },
+          "rawScores": [
+            0.3381597169659559,
+            0.25676586005765023,
+            0.38133353967671435,
+            0.009861202851519852
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:b8356728fce63b5476a7c2f2d8dbb045baa68c6f3eca3f78a61d03a95685b07c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.2838304878121815,
+            "ENTAILMENT": 0.23833776778311166,
+            "NEUTRAL": 0.46783174476369094,
+            "ABSTAIN": 0.009999999641015878
+          },
+          "rawScores": [
+            0.28097026060053804,
+            0.23593598151191056,
+            0.46311729320086514,
+            0.009899227270471298
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:c4134c6f4ff0e0bf8401bdd6afa013070d2d0013db8f77601920c5d47abcf620",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3098231363305693,
+            "ENTAILMENT": 0.3321260688434496,
+            "NEUTRAL": 0.3480507951733853,
+            "ABSTAIN": 0.009999999652595825
+          },
+          "rawScores": [
+            0.309442389717691,
+            0.3317179137997094,
+            0.3476230699784842,
+            0.009987710492910709
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:cf7a8f019667c9e03c2d6d43018e9924cd289ea2cf05d52e14c2cf6613a96f62",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.299007205031021,
+            "ENTAILMENT": 0.36050937536289274,
+            "NEUTRAL": 0.3304834199541066,
+            "ABSTAIN": 0.009999999651979537
+          },
+          "rawScores": [
+            0.2987583108202776,
+            0.3602092866194217,
+            0.3302083248775023,
+            0.009991675631758835
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:d9abf4847eb681ef946c9df8e1f7f97bf2d96bc571d5f8af1737c320d914c1d4",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34868351172722756,
+            "ENTAILMENT": 0.2389299973700881,
+            "NEUTRAL": 0.4023864912507632,
+            "ABSTAIN": 0.00999999965192127
+          },
+          "rawScores": [
+            0.3444978490388082,
+            0.23606183658387214,
+            0.3975561678597625,
+            0.009879957768610202
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:df3fb849140fce0b31e5b9e461d2a2062674265e6833b4dd8fe06e92208590c2",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.2829830160178538,
+            "ENTAILMENT": 0.36447671431011025,
+            "NEUTRAL": 0.3425402700180643,
+            "ABSTAIN": 0.009999999653971522
+          },
+          "rawScores": [
+            0.282809302884341,
+            0.3642529751153478,
+            0.34232999682041265,
+            0.009993861012510052
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:f6cb1f1f51f5f226842c331afda7416405f182d020e3d93e4e693328f9bcdda3",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34468214810423026,
+            "ENTAILMENT": 0.24068503481172931,
+            "NEUTRAL": 0.4046328174385178,
+            "ABSTAIN": 0.009999999645522627
+          },
+          "rawScores": [
+            0.3399939095564334,
+            0.23741132636965195,
+            0.39912915215485695,
+            0.009863983364801536
+          ],
+          "artifactDigest": "sha256:44888f7996c67639e2d97e3d5eb1df6a15117220b588f537d607ba54131d086c",
+          "family": "RWKV",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        }
+      ]
+    },
+    {
+      "family": "MAMBA",
+      "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+      "predictions": [
+        {
+          "pairDigest": "sha256:07d9f863a8eb6cac13f1666be9e7617b4efd61922e28f8a0ef6f8b1728dc7b56",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3071126148531891,
+            "ENTAILMENT": 0.3772034220425339,
+            "NEUTRAL": 0.3056839630132007,
+            "ABSTAIN": 0.010000000091076424
+          },
+          "rawScores": [
+            0.3068376893857605,
+            0.37686575168285075,
+            0.30541031646677996,
+            0.009991048147827076
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:0b2b6bf02168310cc5df4f3b5be3db2b5490418d1ed59c6285167265ba6b6fe0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34707126806143107,
+            "ENTAILMENT": 0.24764800236911025,
+            "NEUTRAL": 0.3952807294657472,
+            "ABSTAIN": 0.010000000103711526
+          },
+          "rawScores": [
+            0.3423865572274862,
+            0.24430529040628063,
+            0.3899452952590468,
+            0.00986502174872705
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:1917cb0d79c598fb623b895c5f95b1a309f79e4d25abbe35d371b3796a4b9aea",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.31333268155860433,
+            "ENTAILMENT": 0.24934413158697755,
+            "NEUTRAL": 0.4273231867527714,
+            "ABSTAIN": 0.010000000101646676
+          },
+          "rawScores": [
+            0.3094650616917387,
+            0.2462663539602866,
+            0.42204852584463937,
+            0.009876565167028938
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:2415b90f2530f60722ce7ff4745d67ca0b10b0fb3d8634fc2c0cb8f3fbaac7a8",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3311460138483255,
+            "ENTAILMENT": 0.2779727496004899,
+            "NEUTRAL": 0.3808812364349177,
+            "ABSTAIN": 0.010000000116266868
+          },
+          "rawScores": [
+            0.32621015393665387,
+            0.27382945783820817,
+            0.3752040537197179,
+            0.009850946231797641
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:441db6fd1a4203f77f16df21e891f9b6d4d4d9fa0f4cdd305d8660969b144eb1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34265268009179695,
+            "ENTAILMENT": 0.2753801535317407,
+            "NEUTRAL": 0.37196716627201426,
+            "ABSTAIN": 0.010000000104447996
+          },
+          "rawScores": [
+            0.3371906539556993,
+            0.27099047942923554,
+            0.36603785504233516,
+            0.009840595946520961
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:47dfd06ac10e7400fd11b4cd939a9775618e8db326e8290f50b1649a47bbff50",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.2982545776146843,
+            "ENTAILMENT": 0.32911348565807674,
+            "NEUTRAL": 0.3626319366410557,
+            "ABSTAIN": 0.010000000086183267
+          },
+          "rawScores": [
+            0.29788112659733706,
+            0.3287013955335104,
+            0.3621778773379453,
+            0.009987478869457861
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:5256e16b1f23ab18956008f47ec7bbcd7cbfdde95bd2d768304df7ba75c78753",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3196315623938109,
+            "ENTAILMENT": 0.2947432191719675,
+            "NEUTRAL": 0.3756252183252881,
+            "ABSTAIN": 0.010000000108933498
+          },
+          "rawScores": [
+            0.3152728410064013,
+            0.29072389278386834,
+            0.3705029279591458,
+            0.00986363305549713
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:544f0d00f7a63649f1cc6d1c101cd448fe33f06b8c3766f5150b4dd04b52362c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3263523598396888,
+            "ENTAILMENT": 0.2743763729977114,
+            "NEUTRAL": 0.38927126705674187,
+            "ABSTAIN": 0.01000000010585789
+          },
+          "rawScores": [
+            0.3217220662198024,
+            0.27048351568862705,
+            0.38374827875923634,
+            0.009858119910133975
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6d54d47f8de9a0a595acd38a11ccec7ebac8725ebae900900cb1fffb93d6aca0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.33745108673010904,
+            "ENTAILMENT": 0.2691236242070037,
+            "NEUTRAL": 0.3834252889562387,
+            "ABSTAIN": 0.010000000106648678
+          },
+          "rawScores": [
+            0.3325985922181045,
+            0.26525366805374434,
+            0.37791169251637313,
+            0.009856201649492228
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6e079cfcd6ff3983e9c1066f91becfc6e74614a459902fc88f79ded94b3394fb",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.33761252075064296,
+            "ENTAILMENT": 0.26718391972806543,
+            "NEUTRAL": 0.3852035594157862,
+            "ABSTAIN": 0.010000000105505474
+          },
+          "rawScores": [
+            0.33256238269968474,
+            0.26318727980303297,
+            0.37944153628807464,
+            0.009850416254378996
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:765cc20afa17c13dc9470346d3c6fc8fc430b2902878ec26ad4d3af900979144",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3271628347968317,
+            "ENTAILMENT": 0.3511489355729336,
+            "NEUTRAL": 0.31168822954923747,
+            "ABSTAIN": 0.010000000080997221
+          },
+          "rawScores": [
+            0.3267803364383993,
+            0.3507383941631633,
+            0.31132382313302787,
+            0.009988308705301444
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:7ab81c2b4178229fd004f815c533e8f16acb58d00cc0d94d1b19a4eef441edb2",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3226052669009649,
+            "ENTAILMENT": 0.2847317892005992,
+            "NEUTRAL": 0.38266294379350363,
+            "ABSTAIN": 0.010000000104932164
+          },
+          "rawScores": [
+            0.31785805577813886,
+            0.2805418950624784,
+            0.3770319700635318,
+            0.009852847790332882
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:869b3abeb0d2e7a53ce3969d812cd0248fb26860b3b9bfb8b20cbfe4e53040b1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.32211838406383453,
+            "ENTAILMENT": 0.30674959373435723,
+            "NEUTRAL": 0.361132022110246,
+            "ABSTAIN": 0.010000000091562374
+          },
+          "rawScores": [
+            0.3222535075948348,
+            0.30687827030262804,
+            0.36128351124094743,
+            0.010004194932307964
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:90ba974b01a9eab1a18647b678ba7322c739c98c80bcee3d81b44c8d7315e789",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3100573444632731,
+            "ENTAILMENT": 0.34732496216659997,
+            "NEUTRAL": 0.33261769329012925,
+            "ABSTAIN": 0.01000000007999769
+          },
+          "rawScores": [
+            0.30972775208041314,
+            0.34695575413475865,
+            0.3322641191527301,
+            0.00998937003393098
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:9ca48eb8f51927c1f28d50bbd3f59256e7d5fef03789d79fa2be75b982cafb1d",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.29962409649139354,
+            "ENTAILMENT": 0.3609487504869411,
+            "NEUTRAL": 0.3294271529294146,
+            "ABSTAIN": 0.010000000092250919
+          },
+          "rawScores": [
+            0.29962688267463705,
+            0.360952106923797,
+            0.32943021624916824,
+            0.01000009308154323
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:ab382901d254e961552770fd45e71dec0b78cfa835f5c43e5cb0c3bd569ef75b",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3429280390214596,
+            "ENTAILMENT": 0.2603538183417559,
+            "NEUTRAL": 0.38671814252857384,
+            "ABSTAIN": 0.010000000108210666
+          },
+          "rawScores": [
+            0.3381318611085864,
+            0.25671252019469837,
+            0.3813095179699188,
+            0.009860140504474011
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:b8356728fce63b5476a7c2f2d8dbb045baa68c6f3eca3f78a61d03a95685b07c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.2838324837517545,
+            "ENTAILMENT": 0.23831694554973762,
+            "NEUTRAL": 0.4678505705992057,
+            "ABSTAIN": 0.010000000099302192
+          },
+          "rawScores": [
+            0.2809513930382471,
+            0.23589786817839867,
+            0.46310157247029027,
+            0.009898493368852089
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:c4134c6f4ff0e0bf8401bdd6afa013070d2d0013db8f77601920c5d47abcf620",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3098141210373445,
+            "ENTAILMENT": 0.3321545808647566,
+            "NEUTRAL": 0.3480312980070818,
+            "ABSTAIN": 0.010000000090817078
+          },
+          "rawScores": [
+            0.3093813401410251,
+            0.3316905924682886,
+            0.34754513134497356,
+            0.009986031040639482
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:cf7a8f019667c9e03c2d6d43018e9924cd289ea2cf05d52e14c2cf6613a96f62",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.29899497167973793,
+            "ENTAILMENT": 0.36054707445387346,
+            "NEUTRAL": 0.3304579537794466,
+            "ABSTAIN": 0.010000000086942008
+          },
+          "rawScores": [
+            0.2986913186600052,
+            0.36018091041004807,
+            0.33012234761524895,
+            0.009989844296673468
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:d9abf4847eb681ef946c9df8e1f7f97bf2d96bc571d5f8af1737c320d914c1d4",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3486914764659572,
+            "ENTAILMENT": 0.23890597486131812,
+            "NEUTRAL": 0.40240254856732394,
+            "ABSTAIN": 0.010000000105400699
+          },
+          "rawScores": [
+            0.3444719271231306,
+            0.23601495051096566,
+            0.397533036336718,
+            0.009878989135185229
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:df3fb849140fce0b31e5b9e461d2a2062674265e6833b4dd8fe06e92208590c2",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.2829685986673848,
+            "ENTAILMENT": 0.36451333976831424,
+            "NEUTRAL": 0.3425180614806288,
+            "ABSTAIN": 0.010000000083672213
+          },
+          "rawScores": [
+            0.2827460851223054,
+            0.36422670317385625,
+            0.3422487209655586,
+            0.00999213654164002
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:f6cb1f1f51f5f226842c331afda7416405f182d020e3d93e4e693328f9bcdda3",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.34469056468451653,
+            "ENTAILMENT": 0.2406586719386223,
+            "NEUTRAL": 0.4046507632744633,
+            "ABSTAIN": 0.010000000102397825
+          },
+          "rawScores": [
+            0.3399618400830377,
+            0.23735713514257753,
+            0.39909945953902604,
+            0.0098628125743833
+          ],
+          "artifactDigest": "sha256:6a66d874d97f1c162456f7ff7a27e4c02a97123371dc5673a5f49a7bfa8fbf17",
+          "family": "MAMBA",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        }
+      ]
+    },
+    {
+      "family": "TRANSFORMER",
+      "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+      "predictions": [
+        {
+          "pairDigest": "sha256:07d9f863a8eb6cac13f1666be9e7617b4efd61922e28f8a0ef6f8b1728dc7b56",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.30712506738668655,
+            "ENTAILMENT": 0.37716759439386316,
+            "NEUTRAL": 0.30570733831536373,
+            "ABSTAIN": 0.009999999904086574
+          },
+          "rawScores": [
+            0.30684917679856605,
+            0.37682878457178404,
+            0.30543272127391463,
+            0.009991016899611495
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:0b2b6bf02168310cc5df4f3b5be3db2b5490418d1ed59c6285167265ba6b6fe0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3470632068347334,
+            "ENTAILMENT": 0.24767000694054742,
+            "NEUTRAL": 0.3952667863247064,
+            "ABSTAIN": 0.00999999990001271
+          },
+          "rawScores": [
+            0.34237910716261966,
+            0.2443273564507908,
+            0.3899321124446755,
+            0.009865036022164684
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:1917cb0d79c598fb623b895c5f95b1a309f79e4d25abbe35d371b3796a4b9aea",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3133241042689091,
+            "ENTAILMENT": 0.24937016729372155,
+            "NEUTRAL": 0.42730572855466087,
+            "ABSTAIN": 0.009999999882708496
+          },
+          "rawScores": [
+            0.30945740053900284,
+            0.24629271317236728,
+            0.422032388163988,
+            0.009876590811019758
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:2415b90f2530f60722ce7ff4745d67ca0b10b0fb3d8634fc2c0cb8f3fbaac7a8",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.33113700122875206,
+            "ENTAILMENT": 0.27800013449277683,
+            "NEUTRAL": 0.3808628643895511,
+            "ABSTAIN": 0.009999999888920034
+          },
+          "rawScores": [
+            0.32620220440797393,
+            0.27385721426706894,
+            0.3751870237394038,
+            0.009850974055272604
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:441db6fd1a4203f77f16df21e891f9b6d4d4d9fa0f4cdd305d8660969b144eb1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3426429248246697,
+            "ENTAILMENT": 0.2754085671404963,
+            "NEUTRAL": 0.3719485081436928,
+            "ABSTAIN": 0.009999999891141259
+          },
+          "rawScores": [
+            0.337181921646248,
+            0.27101913735352956,
+            0.3660204359787086,
+            0.009840621053193029
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:47dfd06ac10e7400fd11b4cd939a9775618e8db326e8290f50b1649a47bbff50",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.2982662036723798,
+            "ENTAILMENT": 0.3290805591872156,
+            "NEUTRAL": 0.36265323724686255,
+            "ABSTAIN": 0.009999999893541984
+          },
+          "rawScores": [
+            0.29789196508251853,
+            0.32866765741388476,
+            0.3621982113859207,
+            0.009987452760099796
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:5256e16b1f23ab18956008f47ec7bbcd7cbfdde95bd2d768304df7ba75c78753",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.31962361096409597,
+            "ENTAILMENT": 0.2947668967766354,
+            "NEUTRAL": 0.3756094923653278,
+            "ABSTAIN": 0.009999999893940835
+          },
+          "rawScores": [
+            0.3152657208025108,
+            0.2907479140877496,
+            0.37048826585005407,
+            0.009863655457363674
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:544f0d00f7a63649f1cc6d1c101cd448fe33f06b8c3766f5150b4dd04b52362c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3263433789851239,
+            "ENTAILMENT": 0.27440192565276333,
+            "NEUTRAL": 0.3892546954636149,
+            "ABSTAIN": 0.00999999989849794
+          },
+          "rawScores": [
+            0.3217138804832281,
+            0.2705092672275262,
+            0.3837327386979872,
+            0.00985814016568208
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6d54d47f8de9a0a595acd38a11ccec7ebac8725ebae900900cb1fffb93d6aca0",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3374423308032016,
+            "ENTAILMENT": 0.26914675594893434,
+            "NEUTRAL": 0.3834109133481561,
+            "ABSTAIN": 0.009999999899707946
+          },
+          "rawScores": [
+            0.3325903825793181,
+            0.26527680246271323,
+            0.3778980012733457,
+            0.009856213903337147
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:6e079cfcd6ff3983e9c1066f91becfc6e74614a459902fc88f79ded94b3394fb",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3376033215995354,
+            "ENTAILMENT": 0.26720983677889787,
+            "NEUTRAL": 0.3851868417246439,
+            "ABSTAIN": 0.009999999896922863
+          },
+          "rawScores": [
+            0.3325539958984627,
+            0.2632133432312793,
+            0.3794258385140702,
+            0.009850436035255199
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:765cc20afa17c13dc9470346d3c6fc8fc430b2902878ec26ad4d3af900979144",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3271767882928837,
+            "ENTAILMENT": 0.35110899994969597,
+            "NEUTRAL": 0.31171421185484477,
+            "ABSTAIN": 0.00999999990257542
+          },
+          "rawScores": [
+            0.3267931539126443,
+            0.35069730361789014,
+            0.3113487082715964,
+            0.00998827430374845
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:7ab81c2b4178229fd004f815c533e8f16acb58d00cc0d94d1b19a4eef441edb2",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3225960217195129,
+            "ENTAILMENT": 0.2847582186564153,
+            "NEUTRAL": 0.38264575973695625,
+            "ABSTAIN": 0.00999999988711547
+          },
+          "rawScores": [
+            0.3178496425460471,
+            0.28056854988337887,
+            0.3770158643180673,
+            0.009852869147728567
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:869b3abeb0d2e7a53ce3969d812cd0248fb26860b3b9bfb8b20cbfe4e53040b1",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.32213153179013443,
+            "ENTAILMENT": 0.30671360668501557,
+            "NEUTRAL": 0.36115486164306854,
+            "ABSTAIN": 0.009999999881781437
+          },
+          "rawScores": [
+            0.3222658768515494,
+            0.3068415216956881,
+            0.36130548139704954,
+            0.010004170385025258
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:90ba974b01a9eab1a18647b678ba7322c739c98c80bcee3d81b44c8d7315e789",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.3100708426976741,
+            "ENTAILMENT": 0.3472858535603027,
+            "NEUTRAL": 0.3326433038405935,
+            "ABSTAIN": 0.009999999901429694
+          },
+          "rawScores": [
+            0.30974016443055896,
+            0.3469154869587552,
+            0.33228855293810794,
+            0.009989335297786905
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:9ca48eb8f51927c1f28d50bbd3f59256e7d5fef03789d79fa2be75b982cafb1d",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.29963729119240995,
+            "ENTAILMENT": 0.36091025832824175,
+            "NEUTRAL": 0.3294524505783827,
+            "ABSTAIN": 0.009999999900965508
+          },
+          "rawScores": [
+            0.2996390354828987,
+            0.3609123593094928,
+            0.32945436843304543,
+            0.010000058114362931
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:ab382901d254e961552770fd45e71dec0b78cfa835f5c43e5cb0c3bd569ef75b",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3429189854801785,
+            "ENTAILMENT": 0.26037905920752047,
+            "NEUTRAL": 0.3867019554175079,
+            "ABSTAIN": 0.009999999894793164
+          },
+          "rawScores": [
+            0.33812357090269457,
+            0.25673789150008985,
+            0.38129427525785153,
+            0.009860158861485602
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:b8356728fce63b5476a7c2f2d8dbb045baa68c6f3eca3f78a61d03a95685b07c",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.2838259330898301,
+            "ENTAILMENT": 0.23834295715435297,
+            "NEUTRAL": 0.46783110987027815,
+            "ABSTAIN": 0.00999999988553873
+          },
+          "rawScores": [
+            0.2809461552566207,
+            0.23592466240150015,
+            0.46308436370362754,
+            0.00989853707102785
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:c4134c6f4ff0e0bf8401bdd6afa013070d2d0013db8f77601920c5d47abcf620",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.30982586302505766,
+            "ENTAILMENT": 0.3321198424205244,
+            "NEUTRAL": 0.3480542946650453,
+            "ABSTAIN": 0.009999999889372708
+          },
+          "rawScores": [
+            0.30939204541733434,
+            0.3316548088235562,
+            0.34756694967713764,
+            0.009985997907785748
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:cf7a8f019667c9e03c2d6d43018e9924cd289ea2cf05d52e14c2cf6613a96f62",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.2990083787324379,
+            "ENTAILMENT": 0.3605070145585206,
+            "NEUTRAL": 0.3304846068089947,
+            "ABSTAIN": 0.009999999900046786
+          },
+          "rawScores": [
+            0.2987035340991965,
+            0.36013947091609844,
+            0.3301476715726588,
+            0.009989804713159826
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:d9abf4847eb681ef946c9df8e1f7f97bf2d96bc571d5f8af1737c320d914c1d4",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3486839313347141,
+            "ENTAILMENT": 0.23892875149130943,
+            "NEUTRAL": 0.40238731729230676,
+            "ABSTAIN": 0.009999999881669653
+          },
+          "rawScores": [
+            0.344465270957634,
+            0.2360379981003996,
+            0.3975189098919351,
+            0.009879011790506058
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:df3fb849140fce0b31e5b9e461d2a2062674265e6833b4dd8fe06e92208590c2",
+          "label": "ENTAILMENT",
+          "distribution": {
+            "CONTRADICTION": 0.28298135857809265,
+            "ENTAILMENT": 0.36447666379682275,
+            "NEUTRAL": 0.34254197772779243,
+            "ABSTAIN": 0.009999999897292241
+          },
+          "rawScores": [
+            0.28275796359162103,
+            0.3641889336799443,
+            0.34227156358862454,
+            0.009992105561591132
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        },
+        {
+          "pairDigest": "sha256:f6cb1f1f51f5f226842c331afda7416405f182d020e3d93e4e693328f9bcdda3",
+          "label": "NEUTRAL",
+          "distribution": {
+            "CONTRADICTION": 0.3446825886932868,
+            "ENTAILMENT": 0.2406827832170284,
+            "NEUTRAL": 0.4046346282003875,
+            "ABSTAIN": 0.00999999988929728
+          },
+          "rawScores": [
+            0.3399548074354076,
+            0.2373814979507738,
+            0.39908452478858747,
+            0.009862836558144853
+          ],
+          "artifactDigest": "sha256:5df3b897d74fca1932b2164df5c4ca2e6ba5cb4d1c2e8d6531db94a416cd80a0",
+          "family": "TRANSFORMER",
+          "calibrated": false,
+          "authority": "CANDIDATE_ONLY"
+        }
+      ]
+    }
+  ]
+}

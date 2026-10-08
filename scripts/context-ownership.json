@@ -3622,6 +3622,18 @@
    "kind": "infra",
    "evidence": "#3561 I6 shared factory enforcing the candidate-only port boundary for every local model family"
   },
+  "lib/semantic-model-text-features.js": {
+   "kind": "infra",
+   "evidence": "#3583 R51 bounded offline-trained semantic text and reused rule features"
+  },
+  "lib/semantic-model-artifact.js": {
+   "kind": "infra",
+   "evidence": "#3583 R51 immutable digest-verified own-weight model artifact contract"
+  },
+  "lib/semantic-model-inference.js": {
+   "kind": "infra",
+   "evidence": "#3583 R51 local candidate-only inference reusing four existing family encoders"
+  },
   "lib/cognitive-model-local-rwkv.js": {
    "kind": "infra",
    "evidence": "#3561 I6 local RWKV linear-attention candidate"

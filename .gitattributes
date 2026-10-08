@@ -19,3 +19,6 @@ plugins/**/*.json text eol=lf
 # fail that check on Windows without any content change, so pin LF.
 test/fixtures/contradiction-eval-v1.*.json text eol=lf
 test/fixtures/contradiction-eval-v1/*.json text eol=lf
+
+# R51 own-weight model artifacts replay byte for byte on every supported OS.
+lib/semantic-model-artifacts/*.json text eol=lf
