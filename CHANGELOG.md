@@ -55,6 +55,17 @@
   new store at an unnamed path". `quickstart` and `--help`, which read and
   write nothing, now boot against a throwaway store under the OS temp root; the
   local-first cwd default is unchanged for every command that keeps a store.
+- **`huqan upload:` / `yükle:` now reads the file it is given (#3644).** The
+  command mapped to the same gate path as `learn:` and the queued review
+  proposal carried the argument text -- the file *path* -- as the fact to
+  learn. The durable approval then replayed that path string through
+  `huqan.learn`, reported success, and wrote nothing, so the uploaded document
+  never reached the graph; a non-existent path "succeeded" the same way. The
+  review proposal now loads the file through the same confined read the other
+  CLI file commands use and proposes its content, with `cli:yükle:<path>` as
+  the provenance ref (instead of the misleading `cli:learn`). An unreadable
+  file is reported as `Could not read file: ...` and fails, instead of queueing
+  a path that names no fact.
 
 ## v1.0.0
 

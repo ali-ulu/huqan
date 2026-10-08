@@ -452,7 +452,9 @@ describe('CLI - Komut Çalıştırma', () => {
   it('execute: "yükle:" olmayan dosya için hata döndürür', () => {
     const cli = freshCLI();
     const result = cli.execute('yükle', 'yok.txt');
-    assert.ok(result.includes('requires review'));
+    // #3644: a path that names no readable file names no fact. It used to be
+    // queued as if the path text were the content and report "requires review".
+    assert.ok(result.includes('Could not read file'), result);
   });
 
   it('execute: company-ingest manual path works and returns status text', async () => {

@@ -11,7 +11,7 @@ const {
 const { writeStructuredLog } = require('./lib/http/structured-log');
 const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
 const { explainSqliteBindingsError } = require('./lib/sqlite-availability');
-const { parseCommand } = require('./lib/command-parser');
+const { parseCommand, normalizeCommandText } = require('./lib/command-parser');
 const Dream = require('./dream');
 const LLMAdapter = require('./llmAdapter');
 const { createAgent } = require('./agentRuntime');
@@ -88,7 +88,18 @@ class CLI {
       : this.evaluateCliGate(command, args);
     if (gateResult && !gateResult.canExecute) {
       if (mapCliCommandToMcpTool(command) === 'huqan.learn' && gateResult.decision === 'review') {
-        const proposal = this.queueLearnReview(args);
+        // #3644: upload:/yükle: names a file, so the durable proposal must
+        // carry the file's *content*, not the path text the old code replayed.
+        // Reading here (not in the queue helper) keeps `readFile` a plain
+        // boolean; the helper stays free of the command-parser dependency its
+        // module boundary forbids.
+        const isUpload = normalizeCommandText(command) === 'yukle';
+        let proposal;
+        try {
+          proposal = this.queueLearnReview(args, { readFile: isUpload });
+        } catch (error) {
+          return `Could not read file: ${error.message}`;
+        }
         if (opts.json) return proposal;
         const approvalId = proposal?.approval?.id || '';
         return approvalId ? `Learn requires review. Approval queued: ${approvalId}` : this._formatCliGateMessage(command, gateResult);
