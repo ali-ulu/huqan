@@ -14,12 +14,7 @@
     "Workflow governance": "workflow-governance.yml",
     "Package Smoke": "launch-smoke.yml",
     "CodeQL": "codeql.yml",
-    "Forbid raw control characters in tracked sources": "architecture.yml",
-    "Require living documentation to agree with the source": "architecture.yml",
-    "Require graph is acyclic": "architecture.yml",
-    "Require every V5 document to declare its status": "architecture.yml",
-    "Enforce the large-file threshold": "architecture.yml",
-    "Enforce a lint-clean tree": "architecture.yml",
-    "Require architecture tracker snapshot to be current": "architecture.yml"
+    "Architecture static gates": "architecture.yml",
+    "Architecture source gates": "architecture.yml"
   }
 }

@@ -29,13 +29,8 @@ const REQUIRED_CHECKS = [
   'Workflow governance',
   'Package Smoke',
   'CodeQL',
-  'Forbid raw control characters in tracked sources',
-  'Require living documentation to agree with the source',
-  'Require graph is acyclic',
-  'Require every V5 document to declare its status',
-  'Enforce the large-file threshold',
-  'Enforce a lint-clean tree',
-  'Require architecture tracker snapshot to be current',
+  'Architecture static gates',
+  'Architecture source gates',
   'Coverage gate',
 ];
 

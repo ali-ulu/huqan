@@ -84,31 +84,11 @@
             "integration_id": 15368
           },
           {
-            "context": "Forbid raw control characters in tracked sources",
+            "context": "Architecture static gates",
             "integration_id": 15368
           },
           {
-            "context": "Require living documentation to agree with the source",
-            "integration_id": 15368
-          },
-          {
-            "context": "Require graph is acyclic",
-            "integration_id": 15368
-          },
-          {
-            "context": "Require every V5 document to declare its status",
-            "integration_id": 15368
-          },
-          {
-            "context": "Enforce the large-file threshold",
-            "integration_id": 15368
-          },
-          {
-            "context": "Enforce a lint-clean tree",
-            "integration_id": 15368
-          },
-          {
-            "context": "Require architecture tracker snapshot to be current",
+            "context": "Architecture source gates",
             "integration_id": 15368
           },
           {
