@@ -113,6 +113,20 @@ test('an explicit unknown usage field stays null across an upsert, never a prior
   assert.equal(run.costMicros, 5, 'a field the run did measure still lands');
 });
 
+test('a snake_case null usage field is honored the same as its camelCase twin', t => {
+  const service = fixture(t);
+  // `upsertRun` is public and `extractUsage` reads snake_case aliases, so a
+  // direct caller passing `usage: { input_tokens: null }` must also keep the
+  // field unknown rather than restoring the prior row's number.
+  service.upsertRun({ workspaceId: 'ws-a', runId: 'run-snake', status: 'running', usage: { input_tokens: 9, output_tokens: 4, cost_micros: 3 } });
+  service.upsertRun({ workspaceId: 'ws-a', runId: 'run-snake', status: 'completed', usage: { input_tokens: null, output_tokens: null, cost_micros: null } });
+  const run = service.listRuns({ workspaceId: 'ws-a' }).items[0];
+  assert.equal(run.inputTokens, null, 'a snake_case null stays null');
+  assert.equal(run.outputTokens, null);
+  assert.equal(run.costMicros, null);
+  assert.equal(run.costKnown, false, 'an unknown cost is not reported as known');
+});
+
 test('a held step with no usage leaves the field unknown even when dropped steps measured it', t => {
   const service = fixture(t);
   // The Observability layer treats a held step with no usage object as making
