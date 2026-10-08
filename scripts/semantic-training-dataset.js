@@ -43,7 +43,7 @@ function buildTrainingDataset({ records, teachers, sources, frozenCorpus, source
   }
   const labeled = [...pairs.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, pair]) => {
     const label = consensus(pair.outputs);
-    return { ...pair.record, ...label, weight: label.needsReview ? 0 : label.weight };
+    return { ...pair.record, ...label };
   });
   const orderedSources = [...sources].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const artifact = { schemaVersion: 'huqan-semantic-training-v1', sourceCommit, sources: orderedSources,

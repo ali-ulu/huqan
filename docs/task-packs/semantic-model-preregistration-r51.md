@@ -63,7 +63,7 @@ claim metinlerini değerlendiren offline LLM öğretmenidir. Bu küçük İngili
 örneklem Türkçe performans veya model kazanımı kanıtı değildir.
 Gerçek export: 76 train / 24 calibration, 10 örnek inceleme bekler ve ağırlığı
 sıfırdır. `training-dataset.json` digest'i
-`sha256:943a44d8aec141c3cc019997eec874c725423aadd911f0e0b099c01f69512af6`.
+`sha256:70fc216858bd5005cc278992ffa04f1848e0f669a154d6054d0b8470ab7c5188`.
 Öğretmen sürümü annotation içeriğinin canonical digest'iyle sabittir;
 model kimliği açıklanmadığı için model sürümü doğrulanmış sayılmaz.
 Kaynak snapshot digest'i ve annotation yöntemi independent-teacher provenance

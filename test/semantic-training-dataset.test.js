@@ -36,6 +36,9 @@ test('teacher disagreement is excluded pending human adjudication', () => {
   const result = buildTrainingDataset(data);
   assert.equal(result.records[0].needsReview, true);
   assert.equal(result.records[0].weight, 0);
+  const { pairDigest, distribution, disagreement, weight, needsReview, teacherSet, digest } = result.records[0];
+  assert.equal(digest, `sha256:${require('../scripts/contradiction-eval-freeze-contract').digestOf({
+    pairDigest, distribution, disagreement, weight, needsReview, teacherSet })}`);
 });
 
 test('real CLI replays identical artifacts and refuses overwrites', () => {

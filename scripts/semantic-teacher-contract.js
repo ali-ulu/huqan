@@ -45,7 +45,7 @@ function consensus(outputs) {
   const disagreement = ordered.reduce((sum, output) => sum + LABELS.reduce((distance, label) =>
     distance + Math.abs(output.distribution[label] - distribution[label]), 0) / 2, 0) / ordered.length;
   const teacherSet = ordered.map(({ teacherId, teacherVersion }) => ({ teacherId, teacherVersion }));
-  const record = { pairDigest, distribution, disagreement, weight: 1 - disagreement,
+  const record = { pairDigest, distribution, disagreement, weight: disagreement > 0.25 ? 0 : 1 - disagreement,
     needsReview: disagreement > 0.25, teacherSet };
   return { ...record, digest: `sha256:${digestOf(record)}` };
 }

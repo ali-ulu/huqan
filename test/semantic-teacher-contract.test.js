@@ -16,7 +16,7 @@ test('consensus retains soft labels and is invariant to teacher order', () => {
 });
 test('disagreement lowers training weight and requires human review', () => {
   const result = consensus([teacher('a'), teacher('b', { CONTRADICTION: 0, ENTAILMENT: 0, NEUTRAL: 1, ABSTAIN: 0 })]);
-  assert.ok(result.weight < 1);
+  assert.equal(result.weight, 0);
   assert.equal(result.needsReview, true);
 });
 test('invalid distributions, identities and mismatched pairs fail closed', () => {
