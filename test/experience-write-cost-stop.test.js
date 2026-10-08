@@ -96,3 +96,32 @@ test('a normal run is not refused: the gate only fires past the ceiling', (t) =>
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.ok(!result.data.steps.some((step) => step.result?.error?.code === 'WRITE_COST_BUDGET_EXCEEDED'));
 });
+
+test('the V1 loop ends the run at the first write-cost refusal instead of draining the queue', (t) => {
+  const Agent = require('../agent');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-exp-cost-v1-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false, memoryPath: path.join(dir, 'graph-memory.json') });
+  // The V1 run state carries no run identity of its own; in production the
+  // kernel's observability service stamps `observabilityRunId` on
+  // beforeAgentRun (lib/observability/service-runs.js). Stamp it the same way.
+  kernel.observability = { recordLifecycle: (_event, data) => { const state = data.state || data; state.observabilityRunId = state.observabilityRunId || 'run-v1'; } };
+  let learnCalls = 0;
+  kernel.learn = () => { learnCalls += 1; return { ok: true, type: 'learn', data: { learned: 1 }, evidence: [] }; };
+  const steps = [
+    { id: 's1', action: 'learn', tool: 'learn', input: 'water is wet' },
+    { id: 's2', action: 'learn', tool: 'learn', input: 'fire is hot' },
+  ];
+  const agent = new Agent({ kernel, maxSteps: steps.length, memoryPath: path.join(dir, 'agent-memory.json') });
+  agent.experienceJournal = budgetExperienceJournal(createExperienceJournal(), { now: () => 0 });
+  agent.plan = (goal) => ({ ok: true, type: 'plan', data: { goal, objective: 'cost', selectedTools: ['learn'], steps, maxSteps: steps.length } });
+
+  const result = agent.run(OVERSIZED, { resume: false });
+
+  assert.equal(result.ok, false, JSON.stringify(result.error));
+  assert.equal(result.error.code, 'AGENT_BLOCKED');
+  assert.equal(result.data.status, 'blocked');
+  assert.equal(result.data.steps.length, 1, 'the second queued step must not run');
+  assert.equal(learnCalls, 1);
+  assert.equal(result.data.steps[0].result.error.code, 'WRITE_COST_BUDGET_EXCEEDED');
+});
