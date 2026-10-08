@@ -35,6 +35,13 @@ test('a longer English predicate keeps the noun phrase after the copula', () => 
   );
 });
 
+test('a location complement after the copula is not a type', () => {
+  // "is inside the box" / "is outside the building" name a place, not a kind.
+  // Recognizing only some prepositions let these slip into a `tür` edge.
+  assert.deepEqual(parsePredicate('is inside the box', NORMALIZE), { object: 'is inside the box', relation: 'özellik' });
+  assert.deepEqual(parsePredicate('is outside the building', NORMALIZE), { object: 'is outside the building', relation: 'özellik' });
+});
+
 test('a copula with no remainder is not treated as a type', () => {
   // "is" alone has nothing to name, so the copula rule must not fire; it
   // falls through to the generic predicate and never yields an empty object.
