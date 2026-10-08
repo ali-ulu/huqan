@@ -143,7 +143,15 @@ describe('sequence', () => {
       steps: [{ type: 'sequence', steps: [] }],
     }, ['docs/n.md'], {}));
 
-    assert.equal(result.reason, 'STEP_1_OPERATION_UNSUPPORTED');
+    assert.equal(result.reason, 'STEP_1_NESTED_SEQUENCE');
+  });
+
+  it('refuses a step that is not an object', () => {
+    for (const step of [null, 'replace_text', [{ type: 'replace_text' }]]) {
+      const result = runTask(task({ type: 'sequence', steps: [step] }, ['docs/n.md'], {}));
+
+      assert.equal(result.reason, 'STEP_1_OPERATION_INVALID', JSON.stringify(step));
+    }
   });
 
   it('refuses an empty or missing step list', () => {
@@ -204,6 +212,17 @@ describe('a transform the verifier does not know', () => {
 
     assert.equal(summary.status, DERIVATION_STATUS.UNKNOWN);
     assert.equal(summary.failures.length, 0);
+  });
+
+  it('fails, not unknown, a sequence whose steps are malformed', () => {
+    // Only an unregistered transform type is "could not check". A nested or
+    // malformed step is wrong in every verifier version, so a forged record
+    // must not escape into the unknown bucket through it.
+    for (const steps of [[{ type: 'sequence', steps: [] }], [null]]) {
+      const verdict = verifyDerivation({ record: recordWith({ type: 'sequence', steps }), readBase, readHead });
+
+      assert.equal(verdict.reason, VERIFY_REASONS.RERUN_FAILED, JSON.stringify(steps));
+    }
   });
 
   it('still fails a known transform that does not reproduce', () => {
