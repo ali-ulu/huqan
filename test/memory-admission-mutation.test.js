@@ -206,7 +206,7 @@ test('risk score normalization clamps external decision scores and preserves war
   assert.deepEqual(low.risk, { level: 'low', score: 0 });
 });
 
-test('receipt metadata carries only declared finite confidence, expiry, computed horizon and supported provenance source', () => {
+test('receipt metadata carries declared confidence, expiry, computed horizon, provenance source and its rule identity', () => {
   const normalized = normalizeMemoryAdmissionDecision({
     ...base,
     decision: 'allow',
@@ -230,6 +230,12 @@ test('receipt metadata carries only declared finite confidence, expiry, computed
     // here because a declared expiry always wins over the risk-computed one.
     reverificationHorizon: '2027-01-01T00:00:00.000Z',
     provenanceSource: 'deterministic',
+    // R54 (#3619): every receipt names the rule version that decided it.
+    ruleIdentity: {
+      policyVersion: MEMORY_ADMISSION_POLICY_VERSION,
+      ruleId: 'write memory',
+      instanceId: 'metadata-receipt',
+    },
   });
 
   const absent = buildMemoryAdmissionReceipt(normalizeMemoryAdmissionDecision({
@@ -240,7 +246,14 @@ test('receipt metadata carries only declared finite confidence, expiry, computed
     receiptId: 'metadata-absent',
     createdAt: '2026-06-11T12:30:00.000Z',
   });
-  assert.deepEqual(absent.metadata, {});
+  // No optional declarations survive, but the rule identity is always present.
+  assert.deepEqual(absent.metadata, {
+    ruleIdentity: {
+      policyVersion: MEMORY_ADMISSION_POLICY_VERSION,
+      ruleId: 'write memory',
+      instanceId: 'metadata-absent',
+    },
+  });
 });
 
 test('approval cancellation and expiry become quarantine at high risk', () => {
