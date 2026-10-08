@@ -174,6 +174,32 @@ describe('memory query surfaces', () => {
     assert.deepEqual(refusedJson, { ok: false, code: 'invalid_request', message: 'retrievalMode must be one of: bm25, substring, recency' });
   });
 
+  test('the CLI explains an empty record store without polluting the JSON projection', () => {
+    // The graph is the CLI's primary surface, so an operator who only ran
+    // `learn` sees 0 of 0 against a store `learn` never writes. The text
+    // surface names that split; `--json` stays pure data (#3640).
+    const empty = { kernel: { memory: new MemoryStore({ useSQLite: false }) } };
+    const text = cliHandlers['memory-query'](empty, parseCommand('memory-query cats --workspace ws-a').args);
+    assert.match(text, /^memory-query \[ws-a\] bm25: 0 of 0 for "cats"/);
+    assert.match(text, /no records in this store; `learn`\/`save` write the graph/);
+    assert.match(text, /huqan\.search/);
+
+    const json = JSON.parse(cliHandlers['memory-query'](empty, parseCommand('memory-query cats --workspace ws-a --json').args));
+    assert.equal(json.total, 0);
+    assert.equal(JSON.stringify(json).includes('no records in this store'), false);
+
+    // Records that exist but were all withheld by the recall gate already get
+    // the withheld line; the empty-store hint must not claim the store is empty.
+    const memory = new MemoryStore({ useSQLite: false });
+    memory._memories.set(memory.makeMemoryKey('ws-a', 'm-unprovenanced'), {
+      workspaceId: 'ws-a', memoryId: 'm-unprovenanced', kind: 'memory-record', status: 'active',
+      createdAt: PAST, metadata: {}, content: 'recall gate provenance unprovenanced', provenance: {},
+    });
+    const withheld = cliHandlers['memory-query']({ kernel: { memory } }, parseCommand('memory-query recall gate provenance --workspace ws-a').args);
+    assert.match(withheld, /1 record\(s\) withheld by the recall gate/);
+    assert.equal(withheld.includes('no records in this store'), false);
+  });
+
   test('the CLI keeps quoted text out of flag parsing', () => {
     const args = (input) => parseCommand(input).args;
     assert.deepEqual([args('memory-query "use --explain in docs" --workspace ws').text, args('memory-query "use --explain in docs" --workspace ws').explain],
