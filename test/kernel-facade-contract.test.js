@@ -633,8 +633,8 @@ test('4C1: installed tarball CLI JSON is non-TTY and stable across locale and te
   };
   assert.deepEqual(project(narrow.stdout), project(wide.stdout));
   assert.equal(project(narrow.stdout).workflowId, 'cli-version');
-  assert.doesNotMatch(narrow.stdout, /axiom> /);
-  assert.doesNotMatch(wide.stdout, /axiom> /);
+  assert.doesNotMatch(narrow.stdout, /huqan> /);
+  assert.doesNotMatch(wide.stdout, /huqan> /);
 });
 
 test('4C1: installed dependency resolution', () => {
