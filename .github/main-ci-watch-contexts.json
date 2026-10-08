@@ -1,0 +1,25 @@
+{
+  "$comment": "Every required status check in .github/rulesets/main-branch.json, split by whether a push to main produces it (#3662). postMerge contexts must each be observed and green on the latest main commit before Main CI Watch calls main green or closes an alert. prOnly contexts come from workflows with no push trigger: branch protection enforces them at merge, and they are reported as not observable after it. test/main-ci-watch-state.test.js keeps this file in step with the ruleset and with each workflow's triggers.",
+  "postMerge": {
+    "npm test gate": "benchmark.yml",
+    "Benchmark gate": "benchmark.yml",
+    "Docker build gate": "benchmark.yml",
+    "Coverage gate": "benchmark.yml"
+  },
+  "prOnly": {
+    "Rust accelerator gate": "rust-accelerator.yml",
+    "Conformance Gate": "conformance.yml",
+    "Validate BDD/Gherkin contracts": "workflow-bdd.yml",
+    "Security Checks": "security.yml",
+    "Workflow governance": "workflow-governance.yml",
+    "Package Smoke": "launch-smoke.yml",
+    "CodeQL": "codeql.yml",
+    "Forbid raw control characters in tracked sources": "architecture.yml",
+    "Require living documentation to agree with the source": "architecture.yml",
+    "Require graph is acyclic": "architecture.yml",
+    "Require every V5 document to declare its status": "architecture.yml",
+    "Enforce the large-file threshold": "architecture.yml",
+    "Enforce a lint-clean tree": "architecture.yml",
+    "Require architecture tracker snapshot to be current": "architecture.yml"
+  }
+}
