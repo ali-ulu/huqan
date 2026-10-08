@@ -256,6 +256,18 @@ test('receipt metadata carries declared confidence, expiry, computed horizon, pr
   });
 });
 
+test('receipt rule identity names the declared policy version and the default reason when none is given', () => {
+  const declared = buildMemoryAdmissionReceipt({
+    decision: 'allow',
+    metadata: { policyVersion: 'memory-admission-v9' },
+  }, { receiptId: 'declared-policy', createdAt: '2026-06-11T12:30:00.000Z' });
+  assert.deepEqual(declared.metadata.ruleIdentity, {
+    policyVersion: 'memory-admission-v9',
+    ruleId: 'Memory admission requires review',
+    instanceId: 'declared-policy',
+  });
+});
+
 test('approval cancellation and expiry become quarantine at high risk', () => {
   for (const approvalStatus of ['cancelled', 'expired']) {
     const result = evaluateMemoryAdmission({
