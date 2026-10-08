@@ -42,7 +42,9 @@ test('the contradiction lab require graph never reaches a model-calling module',
 test('no contradiction lab entry point requires a model package or a network primitive', () => {
   for (const entry of ENTRY_POINTS) {
     const source = fs.readFileSync(path.join(__dirname, '..', entry), 'utf8');
+    const allRequireCalls = [...source.matchAll(/\brequire\s*\(/g)].length;
     const requires = [...source.matchAll(/require\(\s*['"]([^'"]+)['"]\s*\)/g)].map((match) => match[1]);
+    assert.equal(requires.length, allRequireCalls, `${entry} must only use literal require calls`);
     for (const request of requires) {
       for (const forbidden of FORBIDDEN_REQUIRES) {
         assert.equal(request.includes(forbidden), false, `${entry} must not require ${forbidden}`);
