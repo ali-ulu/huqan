@@ -79,6 +79,14 @@ Binary skorlamaya **yalnız** adjudicated `CONTRADICTION` ve `NOT_CONTRADICTION`
 
 Bu kapsamda **PR2'nin holdout okuması meşrudur**: PR2 holdout'u yalnız A/B kollarını skorlamak için okur (§12), ondan hiçbir parametre öğrenmez. PR3 ve PR4 aynı mühürlü holdout'u salt-okuma olarak yeniden okur. Sızıntı yasağı korunur; yalnız "okuma = yasak" yanlış okuması düzeltilir.
 
+**Bağımsız inceleme sırası (reconciliation).** §3'ün bağımsız inceleme sözleşmesi holdout etiketlerinin hiçbir kol çalıştırılmadan denetlenmesini şart koşar; bu ölçümler ise `PENDING_INDEPENDENT_HOLDOUT_REVIEW` durumundayken çalıştı. Salt-okuma skorlama fit sızıntısı üretmez, ama bu okuma §3'ün **zamanlama** şartını karşılamaz. Bu yüzden kayıtlı ve kabul edilmiş bir **protokol sapmasıdır** (protocol deviation):
+
+- PR2/PR3/PR4 holdout sayıları **geçicidir** (provisional): promotion, tuning, eşik/parametre seçimi veya final evaluation için kullanılamaz.
+- Promotion gate'i, label dosyasının `provenance.adjudication` alanı `ADJUDICATED` olana kadar yeşil sayılmaz (§3, §12, §14).
+- Adjudication herhangi bir holdout etiketini değiştirirse ölçüm yeniden çalıştırılır ve §12–§14 sayıları geçersiz olur.
+
+Sapma protokolü değiştirmez: §1–§11 satırları ve §3'ün review-order şartı aynen yürürlüktedir; sapma yalnız "bu ölçüm review-order şartı yerine gelmeden yapıldı" gerçeğini görünür kılar.
+
 ## 4. Sample adequacy
 
 Target sayı, veri snapshot'ı görülerek ön-kayıt öncesi belirlendi ve outcome'a bakılarak değiştirilmez. Hard rule:
@@ -167,7 +175,7 @@ A/B/C ölçümleri ve sonuç bölümü PR2 (A/B), PR3 (C) ve PR4 (karşılaştı
 
 ## 12. PR2 ölçümü — A/B kolları
 
-**Status:** ölçüldü. PR2 hiçbir kolu üretim yoluna bağlamaz; yalnız A ve B'yi aynı donmuş holdout üzerinde ölçer. Yukarıdaki §1-§11 satırları PR1'de dondu ve değiştirilmedi.
+**Status:** ölçüldü, ancak **geçici** (provisional). PR2 hiçbir kolu üretim yoluna bağlamaz; yalnız A ve B'yi aynı donmuş holdout üzerinde ölçer. Yukarıdaki §1-§11 satırları PR1'de dondu ve değiştirilmedi. Holdout bağımsız incelemesi (`PENDING_INDEPENDENT_HOLDOUT_REVIEW`) tamamlanmadan yapıldığı için §3.1'de kayıtlı protokol sapması geçerlidir: aşağıdaki sayılar promotion/tuning için kullanılamaz.
 
 **Kapsam:** PR2 — kural baseline'ı. `lib/cognitive-lab-contradiction-calibrator.js` (score→P(contradiction) fitter), `lib/cognitive-lab-contradiction-evaluator.js` (kol değerlendirici + corpus/label join + A/B runner), `lib/cognitive-lab-cli.js` store-free `contradiction --contradiction-records FILE` yolu.
 
