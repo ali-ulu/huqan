@@ -98,6 +98,19 @@ describe('readRepoState with runtime artifacts', () => {
     assert.equal(state.dirty, false);
   });
 
+  it('drops a non-ASCII task file without quoting it', () => {
+    // core.quotePath would turn "görev.json" into a quoted, escaped form under
+    // the default porcelain output; the caller's own path must still match.
+    const root = makeGitRoot();
+    const taskFile = path.join(root, 'görev.json');
+    fs.writeFileSync(taskFile, JSON.stringify(docsTask()), 'utf8');
+
+    const state = readRepoState(root, { ignoredPaths: [taskFile] });
+    assert.equal(state.known, true);
+    assert.equal(state.hasUntracked, false);
+    assert.deepEqual(state.untrackedPaths, []);
+  });
+
   it('still reports a real untracked file, and names it', () => {
     const root = makeGitRoot();
     fs.writeFileSync(path.join(root, 'memory.db'), 'sqlite', 'utf8');
