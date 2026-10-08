@@ -647,6 +647,7 @@ describe('AB3 code change gate core decisions', () => {
       'risk',
       'requiredReview',
       'dryRunOnly',
+      'operatorAuthorized',
       'fileFindings',
       'warnings',
       'metadata',

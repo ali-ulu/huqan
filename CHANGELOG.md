@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **`huqan coder --authorize` lands a real source change (#3651).** A
+  `replace_text` task against an ordinary source file (`src/**`, `lib/**`) was
+  held at `review`/`SOURCE_CHANGE_REQUIRES_REVIEW` with no flag able to release
+  it, so the coder could only ever write docs. `--authorize` lets the operator
+  vouch for the exact task and root, turning that one reason into an `apply`
+  (`gate.reason = OPERATOR_AUTHORIZED_REVIEW`, recorded in the derivation
+  record). The waiver is narrow: a critical block (release, secret, auto-merge,
+  main-branch write), a `dry_run_only` runtime entrypoint, a package or CI
+  workflow change, a breadth/cross-cutting finding, and a dirty-repo hold all
+  keep their own decision and reason.
 - **Cognitive Lab `contradiction` measurement sub-path (R50, #3582).**
   `huqan-cognitive-lab contradiction --contradiction-records FILE` scores the
   frozen R50 contradiction corpus against arm A (the detectors' declared
