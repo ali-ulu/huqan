@@ -25,7 +25,7 @@ const {
   assertReceiptRuleIdentity,
   ruleIdentityFingerprint,
   validateRuleIdentityChain,
-} = require('../lib/receipt/receipt-rule-identity');
+} = require('../lib/receipt-rule-identity');
 const {
   GENESIS_PREVIOUS_HASH,
   appendReceiptToChain,

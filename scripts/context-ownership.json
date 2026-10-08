@@ -3076,13 +3076,9 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T"
   },
-  "lib/receipt/receipt-rule-identity.js": {
+  "lib/receipt-rule-identity.js": {
    "context": "Trust",
    "evidence": "#3619 (R54): rule identity (policyVersion/ruleId/instanceId) on gate receipts + chain rule-version binding"
-  },
-  "lib/memory-lifecycle-receipt-payload.js": {
-   "context": "Trust",
-   "evidence": "#3619 (R54): memory-lifecycle chain payloads that commit to the receipt rule identity"
   },
   "lib/receipt/receipt-export.js": {
    "context": "Trust",
@@ -3777,6 +3773,10 @@
   "lib/memory-lifecycle.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-MEMSTORE-P"
+  },
+  "lib/memory-lifecycle-receipt-payload.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-MEMSTORE-P (split from lib/memory-lifecycle.js, #3619)"
   },
   "lib/ingest-capability.js": {
    "kind": "infra",
@@ -4879,6 +4879,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/receipt-rule-identity.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3619 (R54): lib/memory-lifecycle-receipt-payload.js reads the rule identity it hashes into the lifecycle chain payload"
   },
   "lib/receipt/v4-receipt-family.js": {
    "owner": "Trust",
