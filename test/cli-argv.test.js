@@ -33,21 +33,21 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     const result = runCli([]);
     assert.strictEqual(result.status, 0);
     assert.match(result.stdout, /HUQAN - talk, teach and ask in natural language/);
-    assert.match(result.stdout, /axiom> /);
+    assert.match(result.stdout, /huqan> /);
   });
 
   it('prints help without opening the REPL', () => {
     const result = runCli(['--help']);
     assert.strictEqual(result.status, 0);
     assert.match(result.stdout, /HUQAN commands:/);
-    assert.doesNotMatch(result.stdout, /axiom> /);
+    assert.doesNotMatch(result.stdout, /huqan> /);
   });
 
   it('prints the package version without opening the REPL', () => {
     const result = runCli(['--version']);
     assert.strictEqual(result.status, 0);
     assert.strictEqual(result.stdout.trim(), require('../package.json').version);
-    assert.doesNotMatch(result.stdout, /axiom> /);
+    assert.doesNotMatch(result.stdout, /huqan> /);
   });
 
   it('executes a synchronous read command once', () => {
@@ -61,7 +61,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     const result = runCli(['verify:', 'kedi', 'bitkidir']);
     assert.strictEqual(result.status, 0);
     assert.match(result.stdout, /Verify:/);
-    assert.doesNotMatch(result.stdout, /axiom> /);
+    assert.doesNotMatch(result.stdout, /huqan> /);
   });
 
   it('uses exit 2 for an unknown command or option', () => {
