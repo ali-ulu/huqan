@@ -152,7 +152,9 @@ describe('memory query surfaces', () => {
 
     const parsed = parseCommand('memory-query recall gate provenance --workspace ws-a --limit 3 --json');
     assert.equal(parsed.command, 'memory-query');
-    assert.deepEqual(JSON.parse(cli.execute('memory-query', parsed.args)), direct);
+    // The CLI asks for `storeTotal` so the text surface can name an empty
+    // store (#3640); every other field still matches the shared projection.
+    assert.deepEqual(JSON.parse(cli.execute('memory-query', parsed.args)), buildMemoryQueryRead(kernel.memory, { ...input, storeTotal: true }));
   });
 
   test('the CLI renders ranked text, explanations and refusals', () => {
@@ -182,10 +184,17 @@ describe('memory query surfaces', () => {
     const text = cliHandlers['memory-query'](empty, parseCommand('memory-query cats --workspace ws-a').args);
     assert.match(text, /^memory-query \[ws-a\] bm25: 0 of 0 for "cats"/);
     assert.match(text, /no records in this store for this workspace; `learn`\/`save` write the graph/);
-    assert.match(text, /huqan\.search/);
+    // The hint points at the CLI command that reads the graph, not at the MCP
+    // tool name, which is not a CLI command (#3640).
+    assert.match(text, /ask it with `sor <soru>`/);
+    assert.match(text, /`huqan\.search` over MCP/);
 
     const json = JSON.parse(cliHandlers['memory-query'](empty, parseCommand('memory-query cats --workspace ws-a --json').args));
     assert.equal(json.total, 0);
+    // The machine-readable emptiness flag rides on the projection for callers
+    // that never see the text hint.
+    assert.equal(json.storeTotal, 0);
+    assert.equal(json.storeEmpty, true);
     assert.equal(JSON.stringify(json).includes('no records in this store'), false);
   });
 
@@ -215,21 +224,24 @@ describe('memory query surfaces', () => {
     assert.equal(withheld.includes('no records in this store'), false);
   });
 
-  test('a store that fails the emptiness read still answers the query', () => {
-    // The hint is a courtesy on top of a query that already succeeded. A store
-    // whose read throws must not take the answer down with it: the query text
-    // prints, the hint stays silent.
+  test('the emptiness answer rides on the query, so no second read can fail', () => {
+    // #3640: the CLI used to ask the store a second time (`list`) for the
+    // emptiness hint, so a store whose read threw took the whole command down
+    // after the query had already succeeded. The count now comes from the same
+    // `query` call, so a store that can answer the query can answer the hint.
     const memory = new MemoryStore({ useSQLite: false });
-    memory.list = () => { throw new Error('store read failed'); };
+    assert.equal(memory.store({ content: 'cats like warm laps', workspaceId: 'ws-a' }).ok, true);
     const kernel = { memory };
-    const args = parseCommand('memory-query cats --workspace ws-a').args;
-    const text = cliHandlers['memory-query']({ kernel }, args);
-    assert.match(text, /^memory-query \[ws-a\] bm25: 0 of 0 for "cats"/);
-    assert.equal(text.includes('no records in this store'), false);
+    const calls = [];
+    const original = memory.query.bind(memory);
+    memory.query = (opts) => { calls.push(opts); return original(opts); };
 
-    const json = JSON.parse(cliHandlers['memory-query']({ kernel }, parseCommand('memory-query cats --workspace ws-a --json').args));
-    assert.equal(json.ok, true);
-    assert.equal(json.total, 0);
+    const text = cliHandlers['memory-query']({ kernel }, parseCommand('memory-query cats --workspace ws-a').args);
+    assert.match(text, /^memory-query \[ws-a\] bm25: 1 of 1 for "cats"/);
+    assert.equal(text.includes('no records in this store'), false);
+    // One read, and it asked for the store count.
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].storeTotal, true);
   });
 
   test('the CLI keeps quoted text out of flag parsing', () => {
@@ -251,7 +263,7 @@ describe('memory query surfaces', () => {
     spying['memory-query']({ kernel: seededKernel() }, parseCommand('memory-query recall gate --workspace ws-a --limit 5 --offset 1 --explain').args);
     assert.deepEqual(sent, [{
       name: 'huqan.memory_query',
-      arguments: { text: 'recall gate', workspaceId: 'ws-a', limit: 5, offset: 1, explain: true },
+      arguments: { text: 'recall gate', workspaceId: 'ws-a', limit: 5, offset: 1, explain: true, storeTotal: true },
     }]);
     const schema = TOOL_SCHEMAS.find((tool) => tool.name === 'huqan.memory_query').inputSchema;
     for (const [key, value] of Object.entries(sent[0].arguments)) {

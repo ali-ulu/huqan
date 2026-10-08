@@ -62,7 +62,7 @@ Tombstoned (`type: "deleted"`) edilen bir hafıza `list()`, `query()` vb. genel 
 
 Ürün iki ayrı kalıcılık yüzeyi taşır ve bunlar kasten ayrıdır:
 
-* **Graf** (`nodes`/`edges`): birincil CLI kullanımı. `learn`/`öğret` ve `save`/`kaydet` buraya yazar; `huqan.search`, `reason`, `compare`, `ask` graf üzerinde okur.
+* **Graf** (`nodes`/`edges`): birincil CLI kullanımı. `learn`/`öğret` ve `save`/`kaydet` buraya yazar; CLI'da `sor`, `neden`, `karşılaştır` graf üzerinde okur. `huqan.search` aynı yüzeyin **MCP tool** adıdır; CLI komutu değildir.
 * **MemoryStore kayıt deposu** (`kernel.memory`): `memory-query <text>` komutu ve `huqan.memory_query` MCP tool'u bu depoyu sorgular (`lib/memory-query-read.js` → `MemoryStore.query`). `get`, `list`, `query`, `tombstone`, `supersede`, `linkMemories` metotları buradadır.
 
 **Önemli:** `learn`/`save` **kasten** MemoryStore'a yazmaz. Bu, kanonla sabitlenmiş bir sözleşmedir (bkz. `test/refactor-2e-learn-memory-admission-contract.test.js`, "learn never routes canonical writes through MemoryStore"): birincil `learn` yolu graf yazar, kayıt deposunu değil. Bu yüzden yalnızca CLI `learn`/`save` kullanan bir operatör `memory-query` çalıştırdığında doğal olarak `0 of 0` görür — graf doludur ama sorgulanan kayıt deposu boştur.
@@ -79,7 +79,16 @@ Depo şu yollarla dolabilir:
 
 ### Beklenen Kullanım
 
-* **Graf sorgusu için:** `learn`/`öğret` ile öğret, ardından `huqan.search <text>` / `reason` / `ask` kullan.
+* **Graf sorgusu için:** `learn`/`öğret` ile öğret, ardından CLI'da `sor <soru>` (veya `neden` / `karşılaştır`) kullan. MCP üzerinden aynı yüzey `huqan.search <text>`'tir.
 * **Kayıt deposu sorgusu için:** kayıtları SDK/`createErrorPrevention` yolundan ya da hazır bir `memory-store.json`/SQLite ile doldur, sonra `memory-query <text>` çalıştır.
 
 `memory-query`'nin grafı da taraması **kasıtlı olarak yapılmaz**: iki yüzeyin karıştırılması `memory-lifecycle` tombstone/supersede sözleşmesini ve grafın admission semantiğini bozar.
+
+### Boş Depo Nasıl Anlaşılır?
+
+`memory-query` çıktısındaki `total`, **metin filtresinden geçen** kayıt sayısıdır; hem gerçekten boş bir depoda hem de dolu bir depoda eşleşmeyen bir metinde `0` olur. İkisini ayırt etmek için sorguya `storeTotal: true` eklenir (CLI bunu kendisi gönderir): projeksiyon, **aynı okumada** deponun filtresiz kayıt sayısını `storeTotal` ve türetilmiş `storeEmpty` alanlarıyla döndürür. Böylece:
+
+* Metin yüzeyi, yalnızca `total === 0` **ve** `storeEmpty === true` iken "bu depo boş" açıklamasını basar; ipucu, grafı okumanın CLI yolunu (`sor <soru>`) gösterir.
+* `--json` çıktısı makine-okunur kalır: `storeEmpty` bayrağı otomasyonun "depo boş" ile "metin eşleşmedi" ayrımını yapmasını sağlar.
+
+`storeTotal` varsayılan olarak **kapalıdır**; istemeyen her çağıran için projeksiyonun şekli değişmez (bkz. `lib/memory-query-read.js`, `lib/memory-query-engine.js`, `lib/memory-query-sqlite.js`).
