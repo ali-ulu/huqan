@@ -32,10 +32,14 @@ const { environmentNamesStoreDirectory } = require('../lib/sqlite-persistence-va
 const CLI_PATH = path.join(__dirname, '..', 'cli.js');
 
 describe('a named store directory owns its defaulted companions (#3669)', { concurrency: false }, () => {
+  // path.resolve adds the current drive on Windows, so an expectation has to be
+  // built from the same root or it compares a drive-qualified path to a bare
+  // one. path.parse(process.cwd()).root is `D:\` there and `/` elsewhere.
+  const ROOT = path.parse(process.cwd()).root;
+
   it('environmentStoreDirectory resolves the directory the environment named', () => {
-    // Built with path.join so the expectation matches on every platform.
-    const named = path.join(path.sep, 'srv', 'huqan', 'named');
-    const other = path.join(path.sep, 'srv', 'other');
+    const named = path.join(ROOT, 'srv', 'huqan', 'named');
+    const other = path.join(ROOT, 'srv', 'other');
     assert.equal(
       environmentStoreDirectory({ HUQAN_DB_PATH: path.join(named, 'graph.db') }),
       named,
@@ -56,7 +60,7 @@ describe('a named store directory owns its defaulted companions (#3669)', { conc
   });
 
   it('a named directory wins over the test-runner redirect, an explicit choice', () => {
-    const named = path.join(path.sep, 'srv', 'huqan', 'named');
+    const named = path.join(ROOT, 'srv', 'huqan', 'named');
     assert.equal(
       resolveDefaultMemoryPath({ HUQAN_DB_PATH: path.join(named, 'graph.db') }),
       path.join(named, 'memory.json'),
@@ -64,8 +68,8 @@ describe('a named store directory owns its defaulted companions (#3669)', { conc
   });
 
   it('environmentNamesStoreDirectory only flags stores in the named directory', () => {
-    const named = path.join(path.sep, 'srv', 'huqan', 'named');
-    const elsewhere = path.join(path.sep, 'work', 'project');
+    const named = path.join(ROOT, 'srv', 'huqan', 'named');
+    const elsewhere = path.join(ROOT, 'work', 'project');
     const environment = { HUQAN_DB_PATH: path.join(named, 'graph.db') };
     // The graph's own file, and a companion defaulted beside it, are both named.
     assert.equal(environmentNamesStoreDirectory(path.join(named, 'graph.db'), environment), true);
