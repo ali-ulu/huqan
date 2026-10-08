@@ -30,13 +30,16 @@ const CLI_PATH = path.join(__dirname, '..', 'cli.js');
 
 describe('a named store directory owns its defaulted companions (#3669)', { concurrency: false }, () => {
   it('environmentStoreDirectory resolves the directory the environment named', () => {
+    // Built with path.join so the expectation matches on every platform.
+    const named = path.join(path.sep, 'srv', 'huqan', 'named');
+    const other = path.join(path.sep, 'srv', 'other');
     assert.equal(
-      environmentStoreDirectory({ HUQAN_DB_PATH: '/srv/huqan/named/graph.db' }),
-      '/srv/huqan/named',
+      environmentStoreDirectory({ HUQAN_DB_PATH: path.join(named, 'graph.db') }),
+      named,
     );
     assert.equal(
-      environmentStoreDirectory({ AXIOM_MEMORY_PATH: '/srv/other/memory.json' }),
-      '/srv/other',
+      environmentStoreDirectory({ AXIOM_MEMORY_PATH: path.join(other, 'memory.json') }),
+      other,
     );
   });
 
@@ -50,15 +53,17 @@ describe('a named store directory owns its defaulted companions (#3669)', { conc
   });
 
   it('environmentNamesStoreDirectory only flags stores in the named directory', () => {
-    const environment = { HUQAN_DB_PATH: '/srv/huqan/named/graph.db' };
+    const named = path.join(path.sep, 'srv', 'huqan', 'named');
+    const elsewhere = path.join(path.sep, 'work', 'project');
+    const environment = { HUQAN_DB_PATH: path.join(named, 'graph.db') };
     // The graph's own file, and a companion defaulted beside it, are both named.
-    assert.equal(environmentNamesStoreDirectory('/srv/huqan/named/graph.db', environment), true);
-    assert.equal(environmentNamesStoreDirectory('/srv/huqan/named/memory.db', environment), true);
+    assert.equal(environmentNamesStoreDirectory(path.join(named, 'graph.db'), environment), true);
+    assert.equal(environmentNamesStoreDirectory(path.join(named, 'memory.db'), environment), true);
     // A store in the working directory is not, so the guard still refuses it.
-    assert.equal(environmentNamesStoreDirectory('/work/project/memory.db', environment), false);
+    assert.equal(environmentNamesStoreDirectory(path.join(elsewhere, 'memory.db'), environment), false);
     // A JSON memory path names the SQLite store beside it.
     assert.equal(
-      environmentNamesStoreDirectory('/srv/huqan/named/memory.db', { HUQAN_MEMORY_PATH: '/srv/huqan/named/memory.json' }),
+      environmentNamesStoreDirectory(path.join(named, 'memory.db'), { HUQAN_MEMORY_PATH: path.join(named, 'memory.json') }),
       true,
     );
   });
