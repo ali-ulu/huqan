@@ -123,5 +123,11 @@ test('the V1 loop ends the run at the first write-cost refusal instead of draini
   assert.equal(result.data.status, 'blocked');
   assert.equal(result.data.steps.length, 1, 'the second queued step must not run');
   assert.equal(learnCalls, 1);
-  assert.equal(result.data.steps[0].result.error.code, 'WRITE_COST_BUDGET_EXCEEDED');
+  const refused = result.data.steps[0].result;
+  assert.equal(refused.error.code, 'WRITE_COST_BUDGET_EXCEEDED');
+  assert.deepEqual(refused.data, { learned: 1 }, 'the step ran, so its outcome stays on the report');
+  assert.equal(refused.meta.toolOk, true);
+  assert.equal(refused.meta.toolError, null);
+  assert.deepEqual(result.data.queuedSteps.map((step) => step.id), ['s2'], 'a resume must not re-run the step that already ran');
+  assert.equal(result.data.remainingSteps, 1);
 });
