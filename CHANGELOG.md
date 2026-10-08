@@ -66,6 +66,15 @@
   the provenance ref (instead of the misleading `cli:learn`). An unreadable
   file is reported as `Could not read file: ...` and fails, instead of queueing
   a path that names no fact.
+- **Naming a store directory names it for the memory and agent stores too
+  (#3669).** `HUQAN_DB_PATH` moved only the graph: the memory store and the
+  agent store kept deriving their defaults from the working directory, so one
+  variable produced stores in two directories that then drifted apart. The store
+  default now lands in the directory the environment named, so the graph, the
+  memory store and the agent store co-locate. The store-creation guard is also
+  tightened: it no longer treats "an operator named *some* store" as "this store
+  was named", so a working-directory `memory.db` is refused even when a variable
+  named a store somewhere else.
 
 ## v1.0.0
 
