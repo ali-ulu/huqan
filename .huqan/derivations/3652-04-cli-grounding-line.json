@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "huqan-derivation-v3",
+  "catalogVersion": "1.0.0",
+  "operationType": "insert_after",
+  "operation": {
+    "type": "insert_after",
+    "path": "lib/cli-knowledge-commands.js",
+    "anchor": "  if (evidence.length > 0 && evidence[0] && evidence[0].text) out += `\\nEvidence: ${evidence[0].text}`;",
+    "insert": "\r\n  if (data.grounding === 'taught_only') out += '\\nGrounding: taught only - asserted to HUQAN through learn, not checked against an independent source.';"
+  },
+  "allowedPaths": [
+    "lib/cli-knowledge-commands.js"
+  ],
+  "inputs": [
+    {
+      "path": "lib/cli-knowledge-commands.js",
+      "sha256": "90ad88e04f0b5da5fbeef31c4d1228e8e07a6214ebba25e86f6104dfb048c672"
+    }
+  ],
+  "patch": [
+    {
+      "path": "lib/cli-knowledge-commands.js",
+      "beforeSha256": "90ad88e04f0b5da5fbeef31c4d1228e8e07a6214ebba25e86f6104dfb048c672",
+      "afterSha256": "e5a762f7ffad8a46c40ff90c2901020531b578206b00d9bb339d7609bd6d7cb0"
+    }
+  ],
+  "runnerStatus": "COMPLETED",
+  "runnerReason": "",
+  "derivationHash": "754782d143477496ef7b1a5da4543d98c89a190e49fd1dcfcbb691ed8b75aa40",
+  "taskId": "3652-04-cli-grounding-line",
+  "workspaceId": "default",
+  "outcome": "applied",
+  "gate": {
+    "decision": "allow",
+    "reason": "OPERATOR_AUTHORIZED_REVIEW",
+    "riskLevel": "low",
+    "policyVersion": "AB3-v0.1.0",
+    "operatorAuthorized": true
+  },
+  "observedVerification": {
+    "ran": false,
+    "ok": null,
+    "command": null,
+    "evidenceRef": null
+  },
+  "createdAt": "2026-10-08T18:48:04.846Z",
+  "recordHash": "d83c8e919576ecc7e052758d0d1c0fa317ceb998be16ecf903c51aaafaee2579"
+}
