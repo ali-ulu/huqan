@@ -120,7 +120,7 @@ test('schema and migrations checks report a pending additive column', (t) => {
   assert.deepEqual(schema.pendingColumns, [name]);
   assert.match(schema.detail, new RegExp(`pending columns: ${name}`));
 
-  const migrations = checkMigrations({ rootDir: root });
+  const migrations = checkMigrations({ rootDir: root, packageRoot: root });
   assert.equal(migrations.ok, false);
   assert.deepEqual(migrations.pending, [name]);
   assert.equal(migrations.applied, ADDITIVE_COLUMNS.length - 1);
@@ -138,7 +138,7 @@ test('schema check passes on a fully migrated store', (t) => {
 test('migrations check fails when migrations/ has no SQL artifact', (t) => {
   const root = workspace(t);
   createStore(root);
-  const result = checkMigrations({ rootDir: root });
+  const result = checkMigrations({ rootDir: root, packageRoot: root });
   assert.equal(result.ok, false);
   assert.deepEqual(result.migrationFiles, []);
   assert.match(result.detail, /migrations\/ has no \.sql files/);
@@ -151,7 +151,7 @@ test('migrations check names an object a migration declares but the store lacks'
   createStore(root);
   writeMigration(root, '001-ghost.sql', 'CREATE TABLE IF NOT EXISTS ghost_table (id TEXT);\n'
     + 'CREATE INDEX IF NOT EXISTS idx_ghost ON ghost_table (id);\n');
-  const result = checkMigrations({ rootDir: root });
+  const result = checkMigrations({ rootDir: root, packageRoot: root });
   assert.equal(result.ok, false);
   assert.deepEqual(result.missingMigrationObjects, ['001-ghost.sql:ghost_table', '001-ghost.sql:idx_ghost']);
   assert.match(result.detail, /missing migration objects: 001-ghost\.sql:ghost_table/);
@@ -162,7 +162,7 @@ test('migrations check sees UNIQUE indexes and ignores a schema qualifier', (t) 
   createStore(root, (db) => db.exec('CREATE TABLE qualified_present (id TEXT)'));
   writeMigration(root, '002-forms.sql', 'CREATE TABLE IF NOT EXISTS main.qualified_present (id TEXT);\n'
     + 'CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_absent ON qualified_present (id);\n');
-  const result = checkMigrations({ rootDir: root });
+  const result = checkMigrations({ rootDir: root, packageRoot: root });
   assert.deepEqual(result.missingMigrationObjects, ['002-forms.sql:idx_unique_absent'],
     'the qualified table exists under its bare name; the missing UNIQUE index must be named');
 });
@@ -171,7 +171,7 @@ test('migrations check never counts an object in another schema as applied', (t)
   const root = workspace(t);
   createStore(root, (db) => db.exec('CREATE TABLE shadowed (id TEXT)'));
   writeMigration(root, '003-aux.sql', 'CREATE TABLE IF NOT EXISTS aux.shadowed (id TEXT);\n');
-  const result = checkMigrations({ rootDir: root });
+  const result = checkMigrations({ rootDir: root, packageRoot: root });
   assert.equal(result.ok, false, 'main.shadowed existing says nothing about aux.shadowed');
   assert.deepEqual(result.missingMigrationObjects, ['003-aux.sql:aux.shadowed']);
 });
@@ -180,7 +180,7 @@ test('migrations check passes against the migrations the package ships', (t) => 
   const root = workspace(t);
   createStore(root);
   fs.cpSync(path.join(REPO_ROOT, 'migrations'), path.join(root, 'migrations'), { recursive: true });
-  const result = checkMigrations({ rootDir: root });
+  const result = checkMigrations({ rootDir: root, packageRoot: root });
   assert.equal(result.ok, true, result.detail);
   assert.equal(result.applied, ADDITIVE_COLUMNS.length);
 });
@@ -242,6 +242,7 @@ test('rust check reports the crate version on a healthy stats answer', async (t)
   fs.writeFileSync(path.join(root, 'huqan-core', 'Cargo.toml'), '[package]\nversion = "9.8.7"\n');
   const result = await checkRust({
     rootDir: root,
+    packageRoot: root,
     environment: { HUQAN_RUST_BIN: process.execPath },
     spawnImpl: answering([{ _reqId: 1, ok: true, stats: { nodes: 0 } }]),
   });
@@ -252,12 +253,12 @@ test('rust check reports the crate version on a healthy stats answer', async (t)
 test('rust check falls back to the binary name without a crate, and fails on a bad answer', async (t) => {
   const root = workspace(t);
   const env = { HUQAN_RUST_BIN: process.execPath };
-  const unversioned = await checkRust({ rootDir: root, environment: env, spawnImpl: answering([{ ok: true, stats: {} }]) });
+  const unversioned = await checkRust({ rootDir: root, packageRoot: root, environment: env, spawnImpl: answering([{ ok: true, stats: {} }]) });
   assert.equal(unversioned.ok, true);
   assert.equal(unversioned.detail, path.basename(process.execPath));
   assert.equal(unversioned.version, null);
 
-  const failed = await checkRust({ rootDir: root, environment: env, spawnImpl: answering([{ _reqId: 1, ok: false }]) });
+  const failed = await checkRust({ rootDir: root, packageRoot: root, environment: env, spawnImpl: answering([{ _reqId: 1, ok: false }]) });
   assert.equal(failed.ok, false);
   assert.equal(failed.detail, 'stats health check failed');
 });
@@ -300,17 +301,45 @@ test('filesystem check names the receipts directory it cannot write', (t) => {
 });
 
 test('config check accepts the shipped trust policy and rejects a malformed one', (t) => {
-  const shipped = checkConfig({ rootDir: REPO_ROOT, environment: {} });
+  const shipped = checkConfig({ rootDir: REPO_ROOT, packageRoot: REPO_ROOT, environment: {} });
   assert.equal(shipped.ok, true);
   assert.match(shipped.detail, /^v/);
 
   const root = workspace(t);
   fs.mkdirSync(path.join(root, 'config'));
   fs.writeFileSync(path.join(root, 'config', 'trust-policy.default.json'), JSON.stringify({ defaults: {} }));
-  const malformed = checkConfig({ rootDir: root, environment: {} });
+  const malformed = checkConfig({ rootDir: root, packageRoot: root, environment: {} });
   assert.equal(malformed.ok, false);
   assert.equal(malformed.detail, 'invalid trust-policy.default.json shape');
   assert.equal(malformed.version, null);
+});
+
+// #3632: migrations/, config/ and bin/ ship beside the module, not in the
+// operator's workspace. A doctor run from a foreign cwd (the normal global
+// install path) must resolve them against the install root, or these three
+// checks fail with a path that has nothing to do with a broken install.
+test('shipped-resource checks resolve against the install root, not the operator cwd', async (t) => {
+  const foreignCwd = workspace(t);
+  createStore(foreignCwd); // the operator store exists; nothing else does
+
+  const migrations = checkMigrations({ rootDir: foreignCwd });
+  assert.equal(migrations.ok, true, migrations.detail);
+
+  const config = checkConfig({ rootDir: foreignCwd, environment: {} });
+  assert.equal(config.ok, true, config.detail);
+
+  const mcp = await checkMcp({
+    rootDir: foreignCwd,
+    spawnImpl: answering([{ id: 1, result: { serverInfo: { name: 'huqan', version: 'x' } } }, { id: 2, result: { tools: [{}] } }]),
+  });
+  assert.equal(mcp.ok, true, mcp.detail);
+
+  const rust = await checkRust({
+    rootDir: foreignCwd,
+    environment: { HUQAN_RUST_BIN: process.execPath },
+    spawnImpl: answering([{ _reqId: 1, ok: true, stats: {} }]),
+  });
+  assert.equal(rust.ok, true, rust.detail);
 });
 
 // ─── report shape ───────────────────────────────────────────────────────────
