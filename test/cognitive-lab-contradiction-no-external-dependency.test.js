@@ -17,8 +17,7 @@ const test = require('node:test');
 
 const { checkDeterministicPath, MODEL_CALLING_MODULES } = require('../scripts/check-deterministic-path.js');
 const { FUSION_STATUS, AUTHORITY, fitFusion } = require('../lib/cognitive-lab-contradiction-fusion.js');
-const { fitCalibration } = require('../lib/cognitive-lab-contradiction-calibrator.js');
-const { contradictionRuleScore, joinCorpusLabels } = require('../lib/cognitive-lab-contradiction-evaluator.js');
+const { joinCorpusLabels } = require('../lib/cognitive-lab-contradiction-evaluator.js');
 
 const ENTRY_POINTS = Object.freeze([
   'lib/cognitive-lab-contradiction-features.js',
@@ -57,15 +56,10 @@ test('the fusion authority stays candidate-only with zero model, token and exter
     JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/contradiction-eval-v1.corpus.json'), 'utf8')),
     JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/contradiction-eval-v1.labels.json'), 'utf8')),
   );
-  const artifact = fitCalibration({
-    records: records.filter((record) => record.split === 'calibration')
-      .map((record) => ({ decisionId: record.pairId, split: 'calibration', score: contradictionRuleScore(record).score, label: record.label })),
-    contract: { minimumSamples: 10, smoothingAlpha: 0.5 },
-  }).artifact;
   const fusion = fitFusion({
     trainRecords: records.filter((record) => record.split === 'train'),
     calibrationRecords: records.filter((record) => record.split === 'calibration'),
-    calibrationArtifact: artifact,
+    contract: { minimumSamples: 10, smoothingAlpha: 0.5 },
     sourceCommit: 'a'.repeat(40),
   });
   assert.equal(fusion.status, FUSION_STATUS.MEASURED);

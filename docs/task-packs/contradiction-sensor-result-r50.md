@@ -12,7 +12,7 @@ Aynı donmuş corpus (108 pair; `train 73 / calibration 20 / holdout 15`), aynı
 |---|---|---|
 | A | Bugünkü detector coverage + beyan edilmiş `0.90/0.95` heuristic confidence | `DECLARED_HEURISTIC` |
 | B | Aynı raw rule score, calibration split'te fit edilmiş donmuş score→P eşlemesi | `CALIBRATED` |
-| C | Donmuş deterministic feature vektörü + HUQAN'a ait yerel `ridgeFit` füzyonu + aynı kalibrasyon | `CALIBRATED` |
+| C | Donmuş deterministic feature vektörü + HUQAN'a ait yerel `ridgeFit` füzyonu + **kendi skor dağılımı üzerinde fit edilmiş** kalibrasyon | `CALIBRATED` |
 
 Birincil karşılaştırma **C vs B**'dir (eşlenmiş, seeded paired-bootstrap). A'yı geçmek tek başına yeterli değildir.
 
@@ -20,29 +20,31 @@ Birincil karşılaştırma **C vs B**'dir (eşlenmiş, seeded paired-bootstrap).
 
 | Metrik | A (declared) | B (calibrated rules) | C (local fusion) |
 |---|---|---|---|
-| predicted positive | 6 | 0 | 0 |
-| TP / FP / TN / FN | 2 / 4 / 4 / 3 | 0 / 0 / 8 / 5 | 0 / 0 / 8 / 5 |
-| precision | 0.333 | n/a | n/a |
-| recall | 0.400 | 0.000 | 0.000 |
+| predicted positive | 6 | 0 | 1 |
+| TP / FP / TN / FN | 2 / 4 / 4 / 3 | 0 / 0 / 8 / 5 | 1 / 0 / 8 / 4 |
+| precision | 0.333 | n/a (0 predicted) | 1.000 |
+| recall | 0.400 | 0.000 | 0.200 |
 | false-positive rate | 0.500 | 0.000 | 0.000 |
-| coverage | 0.462 | 0.000 | 0.000 |
-| Brier | raporlanmaz | 0.2414 | 0.2373 |
-| ECE | raporlanmaz | 0.0385 | 0.0434 |
+| coverage | 0.462 | 0.000 | 0.077 |
+| Brier | raporlanmaz | 0.2414 | 0.2048 |
+| ECE | raporlanmaz | 0.0385 | 0.0897 |
 
-A'nın Brier/ECE'si yoktur: beyan edilmiş heuristic confidence kalibre edilmiş bir outcome probability değildir, bu yüzden ölçüme sokulmaz. A'nın değeri yüksek FPR'dır (0.5): sabit `0.90/0.95` güveni holdout'un yarısında yanlış pozitif üretiyor.
+A'nın Brier/ECE'si yoktur: beyan edilmiş heuristic confidence kalibre edilmiş bir outcome probability değildir, bu yüzden ölçüme sokulmaz. A'nın değeri yüksek FPR'dır (0.5): sabit `0.90/0.95` güveni holdout'un yarısında yanlış pozitif üretiyor. C ise eşik 0.5'te yalnız 1 pozitif der ve o pozitif gerçektir (precision 1.000).
 
 ## 3. Eşlenmiş C vs B karşılaştırması
 
 ```text
 direction       lower-brier-is-better
 paired n        13
-Brier delta     mean +0.00416   %95 CI [-0.00928, +0.01749]
-ECE delta       +0.00494       non-inferiority margin 0.02  -> non-inferior
+Brier delta     mean +0.03659   %95 CI [-0.03806, +0.11124]
+ECE delta       +0.05128       non-inferiority margin 0.02  -> NOT non-inferior
 ```
 
 **Final durum:** `NO_MEANINGFUL_IMPROVEMENT` → `FUSION_REJECTED_BY_MEASUREMENT`.
 
-Gerekçe: C'nin Brier'ı B'den biraz iyidir (+0.00416) ama güven aralığının **alt sınırı** donmuş anlamlılık eşiğini (`meaningfulEffect = 0.02`) geçmez (üstelik negatiftir). Eşiği nokta tahmini değil aralık geçmelidir; bu yüzden kazanç iddia edilmez. ECE non-inferior'dur, ama bu tek başına yeterli değildir. C'nin kaybetmesi R50 için geçerli bir sonuçtur; issue yine başarıyla kapanır.
+Gerekçe: C'nin Brier'ı B'den iyidir (mean +0.03659) ama güven aralığının **alt sınırı** donmuş anlamlılık eşiğini (`meaningfulEffect = 0.02`) geçmez (negatiftir). Eşiği nokta tahmini değil aralık geçmelidir; bu yüzden kazanç iddia edilmez. ECE non-inferior değildir (delta 0.05128 > margin 0.02). C'nin kaybetmesi R50 için geçerli bir sonuçtur; issue yine başarıyla kapanır.
+
+Not: C'nin kalibrasyonu kendi skor dağılımı üzerinde fit edilmeseydi C hiç pozitif demez, Brier/ECE fit edilen eşleme tarafından desteklenmezdi; yukarıdaki sayılar ayrı artifact'ın sonucudur.
 
 ## 4. Destek-kapılı zayıflık profili
 
@@ -61,9 +63,9 @@ Holdout yalnız 13 skorlanabilir pair taşıdığı için tek bir detector dış
 Eşikler: `low = 0.35`, `high = 0.65`. Simülasyon, C'nin kalibre olasılığıyla holdout üzerinde:
 
 ```text
-NO_DETECTED_CONTRADICTION    14
-ABSTAIN                       1
-CONTRADICTION_REVIEW_CANDIDATE 0
+NO_DETECTED_CONTRADICTION     14
+ABSTAIN                        0
+CONTRADICTION_REVIEW_CANDIDATE 1
 ```
 
 `NO_DETECTED_CONTRADICTION` iki claim'in **uyumlu/doğru** olduğu anlamına gelmez; yalnız kalibre olasılığın düşük kaldığını söyler. Politika üretime **bağlanmadı** (`productionWiring: false`); auto-block/reject/promotion yoktur. Guard'lardan biri eksik/uyumsuzsa (kalibrasyon artifact'ı yok, digest uyuşmuyor, bilinmeyen feature spec, detector-source digest uyuşmuyor, yetersiz kalibrasyon desteği, non-finite skor) tüm kararlar `ABSTAIN` olur.
