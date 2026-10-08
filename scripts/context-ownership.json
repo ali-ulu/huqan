@@ -3626,6 +3626,10 @@
    "kind": "infra",
    "evidence": "#3583 R51 bounded offline-trained semantic text and reused rule features"
   },
+  "lib/semantic-model-text-features-v2.js": {
+   "kind": "infra",
+   "evidence": "#3717 R55 opt-in sparse cross-sentence semantic feature contract"
+  },
   "lib/semantic-model-artifact.js": {
    "kind": "infra",
    "evidence": "#3583 R51 immutable digest-verified own-weight model artifact contract"
@@ -4759,6 +4763,16 @@
   }
  ],
  "publishedPorts": {
+  "nlp/lang-tr.js": {
+   "owner": "Knowledge",
+   "consumers": ["Platform"],
+   "evidence": "#3717 R55 sparse semantic features reuse guarded Turkish case and plural normalization"
+  },
+  "lib/turkish-copula.js": {
+   "owner": "Knowledge",
+   "consumers": ["Platform"],
+   "evidence": "#3717 R55 sparse semantic features reuse guarded Turkish copula normalization"
+  },
   "lib/contradiction-rules.js": {
    "owner": "Knowledge",
    "consumers": [
