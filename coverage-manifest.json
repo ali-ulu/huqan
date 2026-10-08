@@ -3,16 +3,16 @@
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
     "files": 61,
-    "sites": 134,
+    "sites": 142,
     "byCapability": {
       "process": 18,
       "egress": 4,
-      "fs_write": 112
+      "fs_write": 120
     },
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
-      "operator_tool": 36,
+      "operator_tool": 44,
       "persistence": 38,
       "evidence": 14,
       "egress_operator_gated": 2,
@@ -352,6 +352,26 @@
           "call": "fs.chmodSync"
         },
         {
+          "line": 111,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 111,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 113,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 113,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
           "line": 113,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -360,6 +380,26 @@
           "line": 166,
           "capability": "fs_write",
           "call": "fs.chmodSync"
+        },
+        {
+          "line": 166,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 166,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 177,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 177,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
         },
         {
           "line": 177,
