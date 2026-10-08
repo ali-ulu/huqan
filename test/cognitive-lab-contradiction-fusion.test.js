@@ -115,6 +115,11 @@ test('a holdout or calibration record in trainRecords is refused, not fit', () =
     trainRecords: train,
     calibrationRecords: [...calibration, holdout[0]], contract: CONTRACT, sourceCommit: COMMIT,
   }), 'fusion_label_leakage');
+  // A record with no split at all cannot be shown to belong to the split.
+  throwsCode(() => fitFusion({
+    trainRecords: [{ ...train[0], split: undefined }],
+    calibrationRecords: calibration, contract: CONTRACT, sourceCommit: COMMIT,
+  }), 'fusion_label_leakage');
 });
 
 test('the same artifact and the same input produce the same output', () => {
