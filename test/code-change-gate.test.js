@@ -144,6 +144,23 @@ describe('AB3 code change gate core decisions', () => {
     }
   });
 
+  it('does not read a directory hint as a suffix of an unrelated segment', () => {
+    // `test/` is a path hint, but it must sit on a segment boundary: `src/latest/a.js`
+    // contains the `test/` suffix of `latest/` and was misread as tests-only and
+    // allowed, letting an ordinary source change bypass source review.
+    for (const path of ['src/latest/a.js', 'lib/protest/x.js', 'my-tests/x.js']) {
+      const finding = classifyChangedFile({ path, status: 'modified' });
+      assert.equal(finding.category, 'source', path);
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW, path);
+    }
+
+    for (const path of ['test/foo.test.js', 'tests/unit/a.js', 'src/foo.test.js', '__tests__/a.js']) {
+      const finding = classifyChangedFile({ path, status: 'modified' });
+      assert.equal(finding.category, 'tests', path);
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.ALLOW, path);
+    }
+  });
+
   it('policy override can raise a narrow helper change to review', () => {
     const result = evaluateCodeChange(makeInput({
       files: [

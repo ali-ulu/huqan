@@ -12,7 +12,11 @@
   record). The waiver is narrow: a critical block (release, secret, auto-merge,
   main-branch write), a `dry_run_only` runtime entrypoint, a package or CI
   workflow change, a breadth/cross-cutting finding, and a dirty-repo hold all
-  keep their own decision and reason.
+  keep their own decision and reason. The classifier's path hints keep matching
+  by substring (a `test/` directory segment cannot be a whole-term match), but a
+  hint that ends in `/` must now start the path or follow a `/`: without that
+  boundary `test/` fired on the `test/` suffix of `src/latest/`, so an ordinary
+  source change was misread as tests-only and allowed.
 - **Cognitive Lab `contradiction` measurement sub-path (R50, #3582).**
   `huqan-cognitive-lab contradiction --contradiction-records FILE` scores the
   frozen R50 contradiction corpus against arm A (the detectors' declared
