@@ -91,7 +91,7 @@ describe('verify semantic integration', () => {
     const kernel = makeKernel('weak-partial');
     seedFacts(kernel);
 
-    const raw = kernel.verify('B737 aircraft', { workspaceId: 'default' });
+    const raw = kernel.verify('B737 engines', { workspaceId: 'default' });
     const result = unwrap(raw);
     const semanticTrust = raw.meta.semanticTrust;
 
