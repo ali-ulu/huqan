@@ -181,21 +181,36 @@ describe('memory query surfaces', () => {
     const empty = { kernel: { memory: new MemoryStore({ useSQLite: false }) } };
     const text = cliHandlers['memory-query'](empty, parseCommand('memory-query cats --workspace ws-a').args);
     assert.match(text, /^memory-query \[ws-a\] bm25: 0 of 0 for "cats"/);
-    assert.match(text, /no records in this store; `learn`\/`save` write the graph/);
+    assert.match(text, /no records in this store for this workspace; `learn`\/`save` write the graph/);
     assert.match(text, /huqan\.search/);
 
     const json = JSON.parse(cliHandlers['memory-query'](empty, parseCommand('memory-query cats --workspace ws-a --json').args));
     assert.equal(json.total, 0);
     assert.equal(JSON.stringify(json).includes('no records in this store'), false);
+  });
+
+  test('the empty-store hint needs an empty store, not just an unmatched query', () => {
+    // `total` counts what survived filtering, so a populated store whose text
+    // matched nothing also reports 0 of 0. The hint must not call that store
+    // empty: the emptiness comes from the store's own unfiltered read.
+    const memory = new MemoryStore({ useSQLite: false });
+    assert.equal(memory.store({ content: 'the graph holds this, not the store', workspaceId: 'ws-a' }).ok, true);
+    const populated = { kernel: { memory } };
+
+    for (const command of ['memory-query no-such-word --workspace ws-a',
+      'memory-query no-such-word --workspace ws-a --mode substring']) {
+      const text = cliHandlers['memory-query'](populated, parseCommand(command).args);
+      assert.match(text, /: 0 of 0 for "no-such-word"/);
+      assert.equal(text.includes('no records in this store'), false, `${command} claimed a populated store was empty`);
+    }
 
     // Records that exist but were all withheld by the recall gate already get
     // the withheld line; the empty-store hint must not claim the store is empty.
-    const memory = new MemoryStore({ useSQLite: false });
     memory._memories.set(memory.makeMemoryKey('ws-a', 'm-unprovenanced'), {
       workspaceId: 'ws-a', memoryId: 'm-unprovenanced', kind: 'memory-record', status: 'active',
       createdAt: PAST, metadata: {}, content: 'recall gate provenance unprovenanced', provenance: {},
     });
-    const withheld = cliHandlers['memory-query']({ kernel: { memory } }, parseCommand('memory-query recall gate provenance --workspace ws-a').args);
+    const withheld = cliHandlers['memory-query'](populated, parseCommand('memory-query recall gate provenance --workspace ws-a').args);
     assert.match(withheld, /1 record\(s\) withheld by the recall gate/);
     assert.equal(withheld.includes('no records in this store'), false);
   });
