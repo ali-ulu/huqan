@@ -147,6 +147,7 @@ async function runCliArgv(argv = [], io = {}) {
   assertBootEnvironment();
   return runWorkflowCliArgv(argv, io, {
     createCli: options => new CLI(options),
+    parseCommand,
     version: require('./package.json').version,
   });
 }

@@ -373,6 +373,7 @@
     "lib/claim-read.js",
     "lib/cli-gate-message.js",
     "lib/cli-help.js",
+    "lib/cli-ephemeral-boot.js",
     "lib/cli-command-handlers.js",
     "lib/cli-experience-read.js",
     "lib/cli-memory-query.js",
