@@ -4699,6 +4699,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/contradiction-rules.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3582 R50 contradiction measurement reads the canonical detector set through its published entry point"
+  },
   "lib/causal/causal-episode-contract.js": {
    "owner": "Knowledge",
    "consumers": [
