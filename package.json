@@ -1347,6 +1347,8 @@
     "lib/cognitive-lab-comparison-store.js",
     "lib/cognitive-lab-probability-calibration.js",
     "lib/cognitive-lab-paired-delta.js",
+    "lib/cognitive-lab-contradiction-calibrator.js",
+    "lib/cognitive-lab-contradiction-evaluator.js",
     "lib/cognitive-lab-budget-envelope.js",
     "lib/causal/causal-episode-contract.js",
     "lib/causal/learned-causal-engine.js",

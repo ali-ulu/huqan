@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **Cognitive Lab `contradiction` measurement sub-path (R50, #3582).**
+  `huqan-cognitive-lab contradiction --contradiction-records FILE` scores the
+  frozen R50 contradiction corpus against arm A (the detectors' declared
+  `0.90/0.95` heuristic confidence, labelled `DECLARED_HEURISTIC`) and arm B
+  (the same raw rule score mapped through a frozen score→P(contradiction)
+  mapping fit only on the calibration split). The path is store-free, opens no
+  graph, leaves canonical memory untouched, and asserts no gain. It is a
+  measurement surface, not a production contradiction integration.
+
 ### Changed (breaking)
 - **An MCP `tools/call` with a non-JSON `arguments` string is now a parse
   error, not an empty call (#3499).** A string `arguments` value that is not

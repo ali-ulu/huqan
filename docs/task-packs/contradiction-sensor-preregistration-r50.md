@@ -63,11 +63,29 @@ Binary skorlamaya **yalnız** adjudicated `CONTRADICTION` ve `NOT_CONTRADICTION`
 - Split kuralı `sha256-group-bucket-v1`: `bucket = sha256("contradiction-eval-v1|split|<seed>|<pairGroupId>")` ilk 8 hex → uint32 → `% 100`. `bucket < 60` → `train`, `60..79` → `calibration`, `>= 80` → `holdout`. **Atama `pairGroupId` düzeyinde** yapılır, bu yüzden bir grup asla iki split'e düşemez (test bunu doğrular).
 - Split ataması **etiket görmeyen** bir fonksiyondur; test bunu bir özellik olarak kilitler: tüm skorlanabilir etiketler ters çevrildiğinde hiçbir pair'in split'i değişmez.
 - Seed `3582` olarak donmuştur ve builder'a dışarıdan geçilemez (`freeze_seed_locked`). Seed'i veya bucket sınırlarını değiştirmek ölçümü değiştirmektir.
-- Holdout mühürlenir: `holdout.pairIds` ve `sealDigest` manifestte yayınlanır. `readerPolicy = train_and_calibration_only_until_final_evaluation`. Holdout hiçbir training/calibration/tuning aşamasında okunamaz; PR4 final değerlendirmesinde okunur.
+- Holdout mühürlenir: `holdout.pairIds` ve `sealDigest` manifestte yayınlanır. `readerPolicy = train_and_calibration_only_until_final_evaluation`. Holdout hiçbir training/calibration/tuning aşamasında okunamaz; yalnız salt-okuma ölçümde okunur (§3.1).
 - Kaynak snapshot kimliği **içerik kümesidir**, dosya sırası değil: adaylar `candidateId`'ye göre sıralanıp digest'lenir. Dosya yeniden sıralanırsa digest değişmez.
 - Kaynak snapshot digest'i değişirse builder **sessizce yeni dataset üretmez**: `source_snapshot_mismatch` ile fail-closed olur. Yeni bir dataset ancak yeni bir `datasetVersion` (ve yeni bir ön-kayıt) ile doğar; `--refreeze` operatörün açık ve görünür kararıdır.
 - **Blinded labeling contract:** etiketleyici yalnız iddia metnini ve metadata'yı görür; detector adı, heuristic confidence, A/B/C çıktısı, policy band, split ataması ve diğer etiketleyicinin etiketi gösterilmez. Bu korpusta etiketler, hiçbir detector bu pair'ler üzerinde **çalıştırılmadan** yazılmıştır; test, fixture yolunun `contradiction-rules`/`semantic-signals` modüllerini yüklemediğini mekanik olarak doğrular.
 - **Holdout bağımsız inceleme sözleşmesi:** holdout etiketleri bağımsız bir gözden geçiren tarafından, split'ler donduktan sonra ve hiçbir kol çalıştırılmadan denetlenir; anlaşmazlık yalnız adjudication kaydıyla çözülür ve label dosyasının `provenance.adjudication` alanına işlenir. Bu PR'da durum `PENDING_INDEPENDENT_HOLDOUT_REVIEW`'dur ve öyle kalmalıdır: PR4 promotion gate'i bu alan `ADJUDICATED` olmadan yeşil sayılamaz.
+
+### 3.1 Holdout okuma politikasının tam tanımı (amendment, PR2)
+
+`train_and_calibration_only_until_final_evaluation` politikası "holdout hiç okunamaz" demek değildir; **holdout'un bir fit/tuning/model-seçimi girdisi olamayacağını** söyler. PR2 uygulaması bu okumayı netleştirir, §3'ün kuralını değiştirmez:
+
+- **Yasak:** holdout'u kalibrasyon fitter'ına vermek, isotonic eşik/smoothing seçmek, karar eşiğini holdout'ta taramak, feature/ridge parametresini holdout'a göre seçmek, bir kolun parametresini holdout skoruna bakarak değiştirmek.
+- **Serbest:** donmuş bir kolun holdout üzerinde salt-okuma skorlanması (confusion, Brier, ECE, paired delta). Bu okuma hiçbir şeyi geri beslemez; artifact'lar ve eşikler okumadan **önce** donar.
+- **Uygulama:** `lib/cognitive-lab-contradiction-calibrator.js` fitter'ı `calibration` dışındaki her split'i `calibrator_fit_split_not_calibration` ile reddeder; `lib/cognitive-lab-contradiction-fusion.js` yalnız `train` + `calibration` görür. Holdout'a dokunan tek yol `evaluateContradictionArm` (salt-okuma) ve PR4'ün paired karşılaştırmasıdır.
+
+Bu kapsamda **PR2'nin holdout okuması meşrudur**: PR2 holdout'u yalnız A/B kollarını skorlamak için okur (§12), ondan hiçbir parametre öğrenmez. PR3 ve PR4 aynı mühürlü holdout'u salt-okuma olarak yeniden okur. Sızıntı yasağı korunur; yalnız "okuma = yasak" yanlış okuması düzeltilir.
+
+**Bağımsız inceleme sırası (reconciliation).** §3'ün bağımsız inceleme sözleşmesi holdout etiketlerinin hiçbir kol çalıştırılmadan denetlenmesini şart koşar; bu ölçümler ise `PENDING_INDEPENDENT_HOLDOUT_REVIEW` durumundayken çalıştı. Salt-okuma skorlama fit sızıntısı üretmez, ama bu okuma §3'ün **zamanlama** şartını karşılamaz. Bu yüzden kayıtlı ve kabul edilmiş bir **protokol sapmasıdır** (protocol deviation):
+
+- PR2/PR3/PR4 holdout sayıları **geçicidir** (provisional): promotion, tuning, eşik/parametre seçimi veya final evaluation için kullanılamaz.
+- Promotion gate'i, label dosyasının `provenance.adjudication` alanı `ADJUDICATED` olana kadar yeşil sayılmaz (§3, §12, §14).
+- Adjudication herhangi bir holdout etiketini değiştirirse ölçüm yeniden çalıştırılır ve §12–§14 sayıları geçersiz olur.
+
+Sapma protokolü değiştirmez: §1–§11 satırları ve §3'ün review-order şartı aynen yürürlüktedir; sapma yalnız "bu ölçüm review-order şartı yerine gelmeden yapıldı" gerçeğini görünür kılar.
 
 ## 4. Sample adequacy
 
@@ -152,3 +170,70 @@ node --test test/contradiction-eval-fixture.test.js        # 15/15 pass
 ```
 
 A/B/C ölçümleri ve sonuç bölümü PR2 (A/B), PR3 (C) ve PR4 (karşılaştırma + politika simülasyonu) ile bu dosyaya eklenecektir; bu bölümün üstündeki hiçbir satır ölçümden sonra değiştirilemez.
+
+---
+
+## 12. PR2 ölçümü — A/B kolları
+
+**Status:** ölçüldü, ancak **geçici** (provisional). PR2 hiçbir kolu üretim yoluna bağlamaz; yalnız A ve B'yi aynı donmuş holdout üzerinde ölçer. Yukarıdaki §1-§11 satırları PR1'de dondu ve değiştirilmedi. Holdout bağımsız incelemesi (`PENDING_INDEPENDENT_HOLDOUT_REVIEW`) tamamlanmadan yapıldığı için §3.1'de kayıtlı protokol sapması geçerlidir: aşağıdaki sayılar promotion/tuning için kullanılamaz.
+
+**Kapsam:** PR2 — kural baseline'ı. `lib/cognitive-lab-contradiction-calibrator.js` (score→P(contradiction) fitter), `lib/cognitive-lab-contradiction-evaluator.js` (kol değerlendirici + corpus/label join + A/B runner), `lib/cognitive-lab-cli.js` store-free `contradiction --contradiction-records FILE` yolu.
+
+### Yöntem
+
+- Detector coverage'ı ve raw rule score'u iki kol için de aynıdır: `runContradictionRules` sırası ve `score = max(declared confidence)`. A bu score'u **beyan edilmiş heuristic confidence** olarak okur (`probabilityKind = DECLARED_HEURISTIC`); B aynı score'u calibration split'te fit edilmiş donmuş eşlemeden geçirir (`probabilityKind = CALIBRATED`).
+- Kalibrasyon fitter'ı yalnız `calibration` split'ini okur; `train`/`holdout` kaydı verilirse `calibrator_fit_split_not_calibration` ile reddedilir. Fit deterministiktir: aynı score grubu içinde pool-adjacent-violators (isotonic) + Laplace smoothing (`alpha = 0.5`), ardından kanonik digest.
+- Karar eşiği iki kolda da `0.5`; `UNCERTAIN`/`INVALID_PAIR` binary skorlamaya çevrilmez, exclusion sayılır.
+- Risk kuralları hiç çağrılmaz; ölçüm contradiction-only sinyal alt kümesinde yapılır.
+
+### Kalibrasyon artifact'ı (calibration split, n=16 skorlanabilir)
+
+```text
+score -> probability   (support)
+0.00  -> 0.3214        (13)
+0.90  -> 0.3750        (1)
+0.95  -> 0.3750        (2)
+artifact digest  ae922532c617d70f65593331b7e129745e992969fd62eee7e289dcb2e03d9f37
+```
+
+Score 0 ile 0.90/0.95 arasındaki fark kalibrasyonda neredeyse kaybolur: calibration split'te yüksek skor düşük pozitif oran taşır, bu yüzden isotonic bu grupları yukarı taşımaz.
+
+### Holdout sonucu (n=13 skorlanabilir; 5 CONTRADICTION / 8 NOT_CONTRADICTION; 2 exclusion)
+
+| Metrik | A (declared heuristic) | B (calibrated) |
+|---|---|---|
+| threshold | 0.50 | 0.50 |
+| predicted positive | 6 | 0 |
+| TP / FP / TN / FN | 2 / 4 / 4 / 3 | 0 / 0 / 8 / 5 |
+| precision | 0.333 | n/a (0 predicted) |
+| recall | 0.400 | 0.000 |
+| false-positive rate | 0.500 | 0.000 |
+| coverage | 0.462 | 0.000 |
+| Brier | raporlanmaz (declared heuristic) | 0.2414 |
+| ECE | raporlanmaz | 0.0385 |
+
+**Okuma.** A, eşik 0.5'te 6 pair'de "contradiction" der; bunların 4'ü yanlıştır (FPR 0.50): beyan edilmiş `0.90/0.95` güven, gerçek pozitif oranı (~0.38) olduğundan fazla gösterir. B aynı eşikte hiç pozitif demez, çünkü kalibre edilmiş en yüksek olasılık 0.375'tir; B'nin Brier/ECE'si iyidir ama recall'ı sıfırdır. Bu, "yüksek beyan edilmiş güven kalibre olasılık değildir" invariantının doğrudan ölçümüdür. B'nin karar eşiği altında kalması bir hata değil, kalibrasyonun ölçtüğü şeydir; C kolunun bu iki uç arasında (özellikle orta band) sinyal üretip üretmediği PR3/PR4'ün sorusudur. Bu bölüm kazanç iddia etmez (`assertsGain: false`).
+
+### PR2 kabul durumu
+
+- [x] A'nın heuristic confidence'ı `DECLARED_HEURISTIC` olarak ayrılıyor; Brier/ECE yalnız B için hesaplanıyor.
+- [x] B calibrator'ı yalnız calibration split'te fit oluyor; train/holdout fit girdisi reddediliyor.
+- [x] Holdout fit sırasında okunmuyor (fitter split guard'ı + runner yalnız calibration kayıtlarını fit ediyor).
+- [x] Existing Cognitive Lab Brier/ECE machinery (`lib/cognitive-lab-probability-calibration.js`) reuse ediliyor.
+- [x] Detector/kollar confusion, precision, recall, FPR, coverage raporlanıyor.
+- [x] `UNCERTAIN`/`INVALID_PAIR` binary failure'a çevrilmiyor.
+- [x] CLI path store-free (`contradiction --contradiction-records FILE`), kanonik belleğe dokunmuyor.
+- [x] External model/network dependency yok.
+
+Doğrulama:
+
+```bash
+node --test test/cognitive-lab-contradiction-calibrator.test.js test/cognitive-lab-contradiction-evaluator.test.js
+node --test test/cognitive-lab-contradiction-cli-wiring.test.js
+```
+
+### Sınırlar (bu PR'ın iddia etmedikleri)
+
+- PR2 A ve B'yi ölçer; C kolunu (füzyon) veya abstention politikasını içermez (PR3/PR4).
+- Hiçbir kazanç, promotion veya üretim davranışı iddiası yoktur; `assertsGain: false`, `productionBehaviorChanged: false`.
+- B'nin holdout'ta hiç pozitif dememesi, tek bir karar eşiğinin (0.5) sonucudur; eşik taraması PR4'ün politika simülasyonuna aittir.
