@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **`huqan coder` can create files and run a fix as one sequence (#3670).**
+  Two new transforms (catalog v1.3.0): `create_file` writes a file that does
+  not exist yet, and `sequence` applies several steps in order as one
+  all-or-nothing derivation. Before this a fix that added a test file was
+  impossible, and a fix that edited one file twice needed separate runs -- each
+  on a tree the previous run had dirtied, held at `DIRTY_REPO_REVIEW_REQUIRED`
+  -- and left records stacked on one file that PR Guardian reported as
+  `HEAD_MISMATCH` / `BASE_INPUT_MISMATCH` against the PR base (#3695: 2/6,
+  #3697: 1/3 reproduced). A record whose transform the verifier does not know
+  (the base-tree verifier on the PR that introduces it) is now
+  `TRANSFORM_UNKNOWN_TO_VERIFIER`, which PR Guardian reports as unknown rather
+  than failed.
 - **`huqan coder --authorize` lands a real source change (#3651).** A
   `replace_text` task against an ordinary source file (`src/**`, `lib/**`) was
   held at `review`/`SOURCE_CHANGE_REQUIRES_REVIEW` with no flag able to release
