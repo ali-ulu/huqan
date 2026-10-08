@@ -215,6 +215,23 @@ describe('memory query surfaces', () => {
     assert.equal(withheld.includes('no records in this store'), false);
   });
 
+  test('a store that fails the emptiness read still answers the query', () => {
+    // The hint is a courtesy on top of a query that already succeeded. A store
+    // whose read throws must not take the answer down with it: the query text
+    // prints, the hint stays silent.
+    const memory = new MemoryStore({ useSQLite: false });
+    memory.list = () => { throw new Error('store read failed'); };
+    const kernel = { memory };
+    const args = parseCommand('memory-query cats --workspace ws-a').args;
+    const text = cliHandlers['memory-query']({ kernel }, args);
+    assert.match(text, /^memory-query \[ws-a\] bm25: 0 of 0 for "cats"/);
+    assert.equal(text.includes('no records in this store'), false);
+
+    const json = JSON.parse(cliHandlers['memory-query']({ kernel }, parseCommand('memory-query cats --workspace ws-a --json').args));
+    assert.equal(json.ok, true);
+    assert.equal(json.total, 0);
+  });
+
   test('the CLI keeps quoted text out of flag parsing', () => {
     const args = (input) => parseCommand(input).args;
     assert.deepEqual([args('memory-query "use --explain in docs" --workspace ws').text, args('memory-query "use --explain in docs" --workspace ws').explain],
