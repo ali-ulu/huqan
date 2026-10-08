@@ -2,15 +2,24 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const packageManifest = require('../package.json');
 
 const { parseCommand } = require('../lib/command-parser');
 const { runCliArgv } = require('../lib/cli-workflow-adapter');
 const {
   CHECK_ORDER,
+  checkMigrations,
+  checkSchema,
+  checkSqlite,
   formatDoctorResult,
   runDoctorChecks,
 } = require('../lib/cli-doctor');
+const { resolvePersistencePaths } = require('../persistencePaths');
+const { applyStorageSchema } = require('../lib/storage/schema');
+const { loadSqliteDriver } = require('../lib/sqlite-availability');
 const {
   ADDITIVE_COLUMNS,
   STORAGE_SCHEMA_VERSION,
@@ -25,6 +34,46 @@ function passingCheckers(overrides = {}) {
 
 test('doctor migration artifacts are shipped in the npm package', () => {
   assert.equal(packageManifest.files.includes('migrations'), true);
+});
+
+// #3703: every other test here mocks the checkers or the CLI, so the real
+// fresh-store path was never exercised -- and it was broken. A first `doctor`
+// with `HUQAN_DB_PATH` naming a brand-new graph file reported Schema/Migrations
+// FAIL because the checks inspected that graph file (which the storage schema
+// does not touch on the CLI path) instead of the storage store beside it.
+// This drives the real checkers against a real store on the fresh-env path.
+test('doctor inspects the storage store, not the HUQAN_DB_PATH graph file (#3703)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-doctor-fresh-'));
+  const graphPath = path.join(dir, 'graph.db');
+  const previous = process.env.HUQAN_DB_PATH;
+  process.env.HUQAN_DB_PATH = graphPath;
+  try {
+    const { memoryPath } = resolvePersistencePaths({ rootDir: dir });
+    const storagePath = memoryPath.replace(/\.json$/i, '.db');
+    // What the CLI's own boot does before `doctor` runs: the storage schema is
+    // applied to the memory store's `.db` sibling, not to the graph file.
+    const { Database } = loadSqliteDriver();
+    const db = new Database(storagePath);
+    applyStorageSchema(db);
+    db.close();
+    assert.equal(fs.existsSync(graphPath), false, 'the graph file is not the storage store');
+
+    assert.equal(checkSqlite({ rootDir: dir }).detail, path.basename(storagePath));
+
+    const schema = checkSchema({ rootDir: dir });
+    assert.equal(schema.ok, true, `checkSchema reported: ${schema.detail}`);
+    assert.equal(schema.missingTables.length, 0);
+    assert.equal(schema.pendingColumns.length, 0);
+
+    const migrations = checkMigrations({ rootDir: dir });
+    assert.equal(migrations.ok, true, `checkMigrations reported: ${migrations.detail}`);
+    assert.equal(migrations.pending.length, 0);
+    assert.deepEqual(migrations.missingMigrationObjects, []);
+  } finally {
+    if (previous === undefined) delete process.env.HUQAN_DB_PATH;
+    else process.env.HUQAN_DB_PATH = previous;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('storage schema version tracks the additive migration registry', () => {
