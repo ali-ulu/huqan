@@ -1,0 +1,1912 @@
+{
+  "provenance": {
+    "method": "independent LLM annotation",
+    "timing": "not measured",
+    "blinding": "read only claim text; source labels excluded",
+    "annotationExport": "latencyMs=0 marks annotation export, not measured inference latency",
+    "sourceDigest": "10dc8938455531f74d6a7fc6efd64ac0d0039572ee9b07499528e852938b3e6c",
+    "annotationDigest": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c"
+  },
+  "outputs": [
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A person on a horse jumps over a broken down airplane."
+        },
+        "incoming": {
+          "text": "A person is training his horse for a competition."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A person on a horse jumps over a broken down airplane."
+        },
+        "incoming": {
+          "text": "A person is at a diner, ordering an omelette."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A person on a horse jumps over a broken down airplane."
+        },
+        "incoming": {
+          "text": "A person is outdoors, on a horse."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.06500000000000002,
+        "ENTAILMENT": 0.85,
+        "NEUTRAL": 0.06500000000000002,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Children smiling and waving at camera"
+        },
+        "incoming": {
+          "text": "They are smiling at their parents"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Children smiling and waving at camera"
+        },
+        "incoming": {
+          "text": "There are children present"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Children smiling and waving at camera"
+        },
+        "incoming": {
+          "text": "The kids are frowning"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A boy is jumping on skateboard in the middle of a red bridge."
+        },
+        "incoming": {
+          "text": "The boy skates down the sidewalk."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.8,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.08999999999999998,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A boy is jumping on skateboard in the middle of a red bridge."
+        },
+        "incoming": {
+          "text": "The boy does a skateboarding trick."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A boy is jumping on skateboard in the middle of a red bridge."
+        },
+        "incoming": {
+          "text": "The boy is wearing safety equipment."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "An older man sits with his orange juice at a small table in a coffee shop while employees in bright colored shirts smile in the background."
+        },
+        "incoming": {
+          "text": "An older man drinks his juice as he waits for his daughter to get off work."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "An older man sits with his orange juice at a small table in a coffee shop while employees in bright colored shirts smile in the background."
+        },
+        "incoming": {
+          "text": "A boy flips a burger."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.75,
+        "ENTAILMENT": 0.115,
+        "NEUTRAL": 0.115,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "An older man sits with his orange juice at a small table in a coffee shop while employees in bright colored shirts smile in the background."
+        },
+        "incoming": {
+          "text": "An elderly man sits in a small shop."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two blond women are hugging one another."
+        },
+        "incoming": {
+          "text": "Some women are hugging on vacation."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two blond women are hugging one another."
+        },
+        "incoming": {
+          "text": "The women are sleeping."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two blond women are hugging one another."
+        },
+        "incoming": {
+          "text": "There are women showing affection."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A few people in a restaurant setting, one of them is drinking orange juice."
+        },
+        "incoming": {
+          "text": "The people are eating omelettes."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A few people in a restaurant setting, one of them is drinking orange juice."
+        },
+        "incoming": {
+          "text": "The people are sitting at desks in school."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A few people in a restaurant setting, one of them is drinking orange juice."
+        },
+        "incoming": {
+          "text": "The diners are at a restaurant."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "An older man is drinking orange juice at a restaurant."
+        },
+        "incoming": {
+          "text": "A man is drinking juice."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "An older man is drinking orange juice at a restaurant."
+        },
+        "incoming": {
+          "text": "Two women are at a restaurant drinking wine."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.16499999999999998,
+        "ENTAILMENT": 0.16499999999999998,
+        "NEUTRAL": 0.65,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "An older man is drinking orange juice at a restaurant."
+        },
+        "incoming": {
+          "text": "A man in a restaurant is waiting for his meal to arrive."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man with blond-hair, and a brown shirt drinking out of a public water fountain."
+        },
+        "incoming": {
+          "text": "A blond man getting a drink of water from a fountain in the park."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man with blond-hair, and a brown shirt drinking out of a public water fountain."
+        },
+        "incoming": {
+          "text": "A blond man wearing a brown shirt is reading a book on a bench in the park"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man with blond-hair, and a brown shirt drinking out of a public water fountain."
+        },
+        "incoming": {
+          "text": "A blond man drinking water from a fountain."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two women who just had lunch hugging and saying goodbye."
+        },
+        "incoming": {
+          "text": "The friends scowl at each other over a full dinner table."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two women who just had lunch hugging and saying goodbye."
+        },
+        "incoming": {
+          "text": "There are two woman in this picture."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two women who just had lunch hugging and saying goodbye."
+        },
+        "incoming": {
+          "text": "The friends have just met for the first time in 20 years, and have had a great time catching up."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two women, holding food carryout containers, hug."
+        },
+        "incoming": {
+          "text": "The two sisters saw each other across the crowded diner and shared a hug, both clutching their doggie bags."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two women, holding food carryout containers, hug."
+        },
+        "incoming": {
+          "text": "Two groups of rival gang members flipped each other off."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two women, holding food carryout containers, hug."
+        },
+        "incoming": {
+          "text": "Two women hug each other."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A Little League team tries to catch a runner sliding into a base in an afternoon game."
+        },
+        "incoming": {
+          "text": "A team is trying to score the games winning out."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.115,
+        "ENTAILMENT": 0.115,
+        "NEUTRAL": 0.75,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A Little League team tries to catch a runner sliding into a base in an afternoon game."
+        },
+        "incoming": {
+          "text": "A team is trying to tag a runner out."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A Little League team tries to catch a runner sliding into a base in an afternoon game."
+        },
+        "incoming": {
+          "text": "A team is playing baseball on Saturn."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.9,
+        "ENTAILMENT": 0.03999999999999999,
+        "NEUTRAL": 0.03999999999999999,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "The school is having a special event in order to show the american culture on how other cultures are dealt with in parties."
+        },
+        "incoming": {
+          "text": "A school hosts a basketball game."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.14,
+        "ENTAILMENT": 0.14,
+        "NEUTRAL": 0.7,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "The school is having a special event in order to show the american culture on how other cultures are dealt with in parties."
+        },
+        "incoming": {
+          "text": "A high school is hosting an event."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.06500000000000002,
+        "ENTAILMENT": 0.06500000000000002,
+        "NEUTRAL": 0.85,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "The school is having a special event in order to show the american culture on how other cultures are dealt with in parties."
+        },
+        "incoming": {
+          "text": "A school is hosting an event."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "High fashion ladies wait outside a tram beside a crowd of people in the city."
+        },
+        "incoming": {
+          "text": "The women do not care what clothes they wear."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.115,
+        "ENTAILMENT": 0.115,
+        "NEUTRAL": 0.75,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "High fashion ladies wait outside a tram beside a crowd of people in the city."
+        },
+        "incoming": {
+          "text": "Women are waiting by a tram."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "High fashion ladies wait outside a tram beside a crowd of people in the city."
+        },
+        "incoming": {
+          "text": "The women enjoy having a good fashion sense."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man, woman, and child enjoying themselves on a beach."
+        },
+        "incoming": {
+          "text": "A child with mom and dad, on summer vacation at the beach."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man, woman, and child enjoying themselves on a beach."
+        },
+        "incoming": {
+          "text": "A family of three is at the beach."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.14,
+        "ENTAILMENT": 0.14,
+        "NEUTRAL": 0.7,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man, woman, and child enjoying themselves on a beach."
+        },
+        "incoming": {
+          "text": "A family of three is at the mall shopping."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "People waiting to get on a train or just getting off."
+        },
+        "incoming": {
+          "text": "The people waiting on the train are sitting."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "People waiting to get on a train or just getting off."
+        },
+        "incoming": {
+          "text": "There are people just getting on a train"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.16499999999999998,
+        "ENTAILMENT": 0.16499999999999998,
+        "NEUTRAL": 0.65,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "People waiting to get on a train or just getting off."
+        },
+        "incoming": {
+          "text": "There are people waiting on a train."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.16499999999999998,
+        "ENTAILMENT": 0.16499999999999998,
+        "NEUTRAL": 0.65,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A couple playing with a little boy on the beach."
+        },
+        "incoming": {
+          "text": "A couple are playing with a young child outside."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A couple playing with a little boy on the beach."
+        },
+        "incoming": {
+          "text": "A couple are playing frisbee with a young child at the beach."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A couple playing with a little boy on the beach."
+        },
+        "incoming": {
+          "text": "A couple watch a little girl play by herself on the beach."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A couple play in the tide with their young son."
+        },
+        "incoming": {
+          "text": "The family is sitting down for dinner."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A couple play in the tide with their young son."
+        },
+        "incoming": {
+          "text": "The family is outside."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A couple play in the tide with their young son."
+        },
+        "incoming": {
+          "text": "The family is on vacation."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man and a woman cross the street in front of a pizza and gyro restaurant."
+        },
+        "incoming": {
+          "text": "The people are standing still on the curb."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man and a woman cross the street in front of a pizza and gyro restaurant."
+        },
+        "incoming": {
+          "text": "Near a couple of restaurants, two people walk across the street."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.06500000000000002,
+        "ENTAILMENT": 0.85,
+        "NEUTRAL": 0.06500000000000002,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A man and a woman cross the street in front of a pizza and gyro restaurant."
+        },
+        "incoming": {
+          "text": "The couple are walking across the street together."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.16499999999999998,
+        "ENTAILMENT": 0.16499999999999998,
+        "NEUTRAL": 0.65,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman in a green jacket and hood over her head looking towards a valley."
+        },
+        "incoming": {
+          "text": "The woman is nake."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.8,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.08999999999999998,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman in a green jacket and hood over her head looking towards a valley."
+        },
+        "incoming": {
+          "text": "The woman is cold."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman in a green jacket and hood over her head looking towards a valley."
+        },
+        "incoming": {
+          "text": "The woman is wearing green."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "The man with the sign is caucasian."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.08999999999999998,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.8,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "They are protesting outside the capital."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.14,
+        "ENTAILMENT": 0.14,
+        "NEUTRAL": 0.7,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "A woman in white."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "A man is advertising for a restaurant."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.16499999999999998,
+        "ENTAILMENT": 0.16499999999999998,
+        "NEUTRAL": 0.65,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "The woman is wearing black."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.8,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.08999999999999998,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "A man and a woman walk down a crowded city street."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "The woman is wearing white."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "They are working for John's Pizza."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "Olympic swimming."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.85,
+        "ENTAILMENT": 0.06500000000000002,
+        "NEUTRAL": 0.06500000000000002,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "A man and a soman are eating together at John's Pizza and Gyro."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.8,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.08999999999999998,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "They are walking with a sign."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.19,
+        "ENTAILMENT": 0.19,
+        "NEUTRAL": 0.6,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "The woman is waiting for a friend."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.115,
+        "ENTAILMENT": 0.115,
+        "NEUTRAL": 0.75,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "The man is sitting down while he has a sign for John's Pizza and Gyro in his arms."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "The woman and man are outdoors."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.06500000000000002,
+        "ENTAILMENT": 0.85,
+        "NEUTRAL": 0.06500000000000002,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background."
+        },
+        "incoming": {
+          "text": "A woman ordering pizza."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.14,
+        "ENTAILMENT": 0.14,
+        "NEUTRAL": 0.7,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "The people are related."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults run across the street to get away from a red shirted person chasing them."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.85,
+        "ENTAILMENT": 0.06500000000000002,
+        "NEUTRAL": 0.06500000000000002,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "The adults are both male and female."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.03999999999999999,
+        "ENTAILMENT": 0.9,
+        "NEUTRAL": 0.03999999999999999,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two people walk home after a tasty steak dinner."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults swimming in water"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults walk across a street."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two people ride bicycles into a tunnel."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two people walk away from a restaurant across a street."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults walking across a road near the convicted prisoner dressed in red"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two friends cross a street."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.115,
+        "ENTAILMENT": 0.115,
+        "NEUTRAL": 0.75,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Some people board a train."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.8,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.08999999999999998,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults walk across the street."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults walking across a road"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "There are no women in the picture."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground."
+        },
+        "incoming": {
+          "text": "Two adults walk across the street to get away from a red shirted person who is chasing them."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.06500000000000002,
+        "ENTAILMENT": 0.06500000000000002,
+        "NEUTRAL": 0.85,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman wearing all white and eating, walks next to a man holding a briefcase."
+        },
+        "incoming": {
+          "text": "A married couple is sleeping."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman wearing all white and eating, walks next to a man holding a briefcase."
+        },
+        "incoming": {
+          "text": "A female is next to a man."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman wearing all white and eating, walks next to a man holding a briefcase."
+        },
+        "incoming": {
+          "text": "A married couple is walking next to each other."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "Nobody has food."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "A woman eats a banana and walks across a street, and there is a man trailing behind her."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "The woman and man are playing baseball together."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.95,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "two coworkers cross pathes on a street"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "A woman eats ice cream walking down the sidewalk, and there is another woman in front of her with a purse."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.85,
+        "ENTAILMENT": 0.06500000000000002,
+        "NEUTRAL": 0.06500000000000002,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "The mans briefcase is for work."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "A person eating."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "A person that is hungry."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.08999999999999998,
+        "ENTAILMENT": 0.08999999999999998,
+        "NEUTRAL": 0.8,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "An actress and her favorite assistant talk a walk in the city."
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.015000000000000022,
+        "NEUTRAL": 0.95,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    },
+    {
+      "teacherId": "offline-llm-review",
+      "teacherVersion": "sha256:d3525151af2f4e352e44efbd8f2d842e1f02d83e078bcf595f1e6d39f92ece8c",
+      "input": {
+        "stored": {
+          "text": "A woman is walking across the street eating a banana, while a man is following with his briefcase."
+        },
+        "incoming": {
+          "text": "a woman eating a banana crosses a street"
+        }
+      },
+      "distribution": {
+        "CONTRADICTION": 0.015000000000000022,
+        "ENTAILMENT": 0.95,
+        "NEUTRAL": 0.015000000000000022,
+        "ABSTAIN": 0.02
+      },
+      "latencyMs": 0
+    }
+  ]
+}
