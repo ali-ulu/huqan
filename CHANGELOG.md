@@ -58,6 +58,15 @@
   and a JSON string that parses to a non-object are unchanged.
 
 ### Fixed
+- **`learn:` reads an English `is`/`are` copula as a type statement
+  (#3643).** The predicate parser only knew the Turkish `-dır/-dir` copula, so
+  an English predicate arrived with the copula still attached: `cats are
+  animals` was stored as a node literally named `are animals` with an `özellik`
+  edge, fragmenting the graph. The parser now strips a leading `is`/`are` (and a
+  following `a`/`an`) and takes the remainder as the object of a `tür` relation,
+  matching what the Turkish copula already produced. The frozen EN/TR semantic
+  baseline is refreshed for the five copula cases; every other case, and the
+  whole Turkish contract, is byte-identical.
 - **The transform catalog version no longer disagrees with its release note
   (#3650).** `huqan coder` stamps every derivation record with
   `catalogVersion`, read from `TRANSFORM_CATALOG_VERSION` in
