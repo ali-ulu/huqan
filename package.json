@@ -936,6 +936,8 @@
     "lib/memory-recall-gate.js",
     "lib/memory-decontamination.js",
     "lib/memory-lifecycle.js",
+    "lib/memory-lifecycle-receipt-payload.js",
+    "lib/receipt-rule-identity.js",
     "lib/memory-hypothesis-cognition.js",
     "lib/memory-cognitive-message.js",
     "lib/memory-knowledge-object.js",

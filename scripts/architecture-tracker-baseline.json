@@ -146,6 +146,7 @@
       "lib/behavioral-stop-bridge.js": "Core",
       "lib/blast-radius.js": "Core",
       "lib/bounded-ingest-errors.js": "Core",
+      "lib/bounded-step-history.js": "Core",
       "lib/browser-hook-outcome.js": "Core",
       "lib/browser-session-observer.js": "Core",
       "lib/bypass-response.js": "Core",
@@ -242,6 +243,12 @@
       "lib/cognitive-lab-comparison-contract.js": "Core",
       "lib/cognitive-lab-comparison-store.js": "Core",
       "lib/cognitive-lab-comparison.js": "Core",
+      "lib/cognitive-lab-contradiction-calibrator.js": "Core",
+      "lib/cognitive-lab-contradiction-evaluator.js": "Core",
+      "lib/cognitive-lab-contradiction-features.js": "Core",
+      "lib/cognitive-lab-contradiction-fusion.js": "Core",
+      "lib/cognitive-lab-contradiction-policy.js": "Core",
+      "lib/cognitive-lab-contradiction-report.js": "Core",
       "lib/cognitive-lab-evaluator.js": "Core",
       "lib/cognitive-lab-manifest.js": "Core",
       "lib/cognitive-lab-model-comparison.js": "Application",
@@ -790,6 +797,7 @@
       "lib/memory-grounded-transfer.js": "Adapters",
       "lib/memory-hypothesis-cognition.js": "Adapters",
       "lib/memory-knowledge-object.js": "Adapters",
+      "lib/memory-lifecycle-receipt-payload.js": "Adapters",
       "lib/memory-lifecycle.js": "Adapters",
       "lib/memory-link-read.js": "Adapters",
       "lib/memory-link-source.js": "Adapters",
@@ -916,6 +924,7 @@
       "lib/quickstart.js": "Core",
       "lib/reason-sandbox.js": "Core",
       "lib/reasoning-trace.js": "Core",
+      "lib/receipt-rule-identity.js": "Core",
       "lib/receipt/bounded-receipt-export.js": "Application",
       "lib/receipt/canonical-receipt-v2.js": "Application",
       "lib/receipt/canonical-receipt.js": "Application",
@@ -941,6 +950,7 @@
       "lib/receipt/receipt-validation-cache.js": "Application",
       "lib/receipt/signed-bundle.js": "Application",
       "lib/receipt/signed-receipt-batch.js": "Application",
+      "lib/receipt/transparency-log-client.js": "Application",
       "lib/receipt/trusted-key-resolver-guards.js": "Application",
       "lib/receipt/trusted-key-resolver-snapshot.js": "Application",
       "lib/receipt/trusted-key-resolver.js": "Application",
@@ -1772,6 +1782,9 @@
       "lib/agent-behavioral-integrity.js": [
         "lib/self-healer/behavioral-containment.js"
       ],
+      "lib/agent-exit-reasons.js": [
+        "lib/bounded-step-history.js"
+      ],
       "lib/agent-failure-signature.js": [
         "lib/agent-memory-state.js"
       ],
@@ -1822,6 +1835,7 @@
         "lib/agent-run-guidance.js",
         "lib/agent-step-progression.js",
         "lib/behavioral-stop-bridge.js",
+        "lib/bounded-step-history.js",
         "lib/emergency-stop.js",
         "lib/gate-telemetry.js",
         "lib/goal-binding.js",
@@ -1829,6 +1843,7 @@
       ],
       "lib/agent-step-progression.js": [
         "lib/agent-memory-state.js",
+        "lib/bounded-step-history.js",
         "lib/cognitive-scheduler.js"
       ],
       "lib/agent-v3-budget-methods.js": [
@@ -1852,14 +1867,16 @@
         "lib/agent-exit-reasons.js"
       ],
       "lib/agent-v3-run-state.js": [
-        "lib/agent-v3-dream-loop-adapter.js"
+        "lib/agent-v3-dream-loop-adapter.js",
+        "lib/bounded-step-history.js"
       ],
       "lib/agent-v3-status-methods.js": [
         "lib/agent-exit-reasons.js",
         "lib/agent-memory-persistence.js",
         "lib/agent-run-finalization.js",
         "lib/agent-v3-dream-loop-adapter.js",
-        "lib/agent-v3-run-state.js"
+        "lib/agent-v3-run-state.js",
+        "lib/bounded-step-history.js"
       ],
       "lib/agent-v3-storage-factory.js": [
         "storage.js"
@@ -2355,7 +2372,9 @@
         "lib/cognitive-lab-b4-experiment.js",
         "lib/cognitive-lab-b6-experiment.js",
         "lib/cognitive-lab-comparison-contract.js",
-        "lib/cognitive-lab-comparison-store.js"
+        "lib/cognitive-lab-comparison-store.js",
+        "lib/cognitive-lab-contradiction-evaluator.js",
+        "lib/cognitive-lab-contradiction-report.js"
       ],
       "lib/cognitive-lab-comparison-contract.js": [
         "lib/cognitive-lab-budget-envelope.js",
@@ -2378,6 +2397,45 @@
         "lib/cognitive-lab-manifest.js",
         "lib/cognitive-lab-paired-delta.js",
         "lib/cognitive-lab-probability-calibration.js"
+      ],
+      "lib/cognitive-lab-contradiction-calibrator.js": [
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-contradiction-evaluator.js": [
+        "lib/cognitive-lab-contradiction-calibrator.js",
+        "lib/cognitive-lab-contradiction-fusion.js",
+        "lib/cognitive-lab-probability-calibration.js",
+        "lib/contradiction-rules.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-contradiction-features.js": [
+        "lib/contradiction-rules-text.js",
+        "lib/contradiction-rules.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-contradiction-fusion.js": [
+        "lib/cognitive-lab-contradiction-calibrator.js",
+        "lib/cognitive-lab-contradiction-features.js",
+        "lib/cognitive-model-local-primitives.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-contradiction-policy.js": [
+        "lib/cognitive-lab-contradiction-calibrator.js",
+        "lib/cognitive-lab-contradiction-features.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-contradiction-report.js": [
+        "lib/cognitive-lab-contradiction-calibrator.js",
+        "lib/cognitive-lab-contradiction-evaluator.js",
+        "lib/cognitive-lab-contradiction-fusion.js",
+        "lib/cognitive-lab-contradiction-policy.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/cognitive-lab-probability-calibration.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
       ],
       "lib/cognitive-lab-evaluator.js": [
         "lib/cognitive-lab-b1-replay.js",
@@ -2894,6 +2952,7 @@
       "lib/external-action-guard-gates.js": [
         "lib/action-risk-classifier.js",
         "lib/command-shape-log.js",
+        "lib/external-action-envelope.js",
         "lib/external-action-guard-rules.js",
         "lib/external-action-receipt.js",
         "lib/file-effect-sensor.js",
@@ -2961,6 +3020,7 @@
         "lib/blast-radius.js",
         "lib/external-action-envelope.js",
         "lib/external-action-identity-records.js",
+        "lib/receipt-rule-identity.js",
         "lib/receipt/canonical-receipt.js",
         "lib/verdict/action-verdict.js"
       ],
@@ -2987,7 +3047,8 @@
       "lib/external-action-receipt-outcome.js": [
         "lib/external-action-receipt-admission.js",
         "lib/file-effect-sensor.js",
-        "lib/gate-outcome-history.js"
+        "lib/gate-outcome-history.js",
+        "lib/receipt-rule-identity.js"
       ],
       "lib/external-action-receipt-reader.js": [
         "lib/external-action-receipt.js",
@@ -4471,7 +4532,8 @@
       ],
       "lib/memory-admission-gate-receipt.js": [
         "lib/admission-horizon.js",
-        "lib/memory-admission-gate-contract.js"
+        "lib/memory-admission-gate-contract.js",
+        "lib/receipt-rule-identity.js"
       ],
       "lib/memory-admission-gate-request.js": [
         "lib/approval-schema.js",
@@ -4501,6 +4563,7 @@
         "lib/memory-schema-checks.js"
       ],
       "lib/memory-consolidation.js": [
+        "lib/is-plain-object.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-decontamination.js": [
@@ -4526,11 +4589,15 @@
         "lib/memory-schema-checks.js",
         "lib/memory-schema-types.js"
       ],
+      "lib/memory-lifecycle-receipt-payload.js": [
+        "lib/receipt-rule-identity.js"
+      ],
       "lib/memory-lifecycle.js": [
         "lib/admission-horizon.js",
         "lib/is-plain-object.js",
         "lib/memory-admission-gate.js",
         "lib/memory-consolidation.js",
+        "lib/memory-lifecycle-receipt-payload.js",
         "lib/memory-recall-gate.js",
         "lib/trust-score-aggregator.js"
       ],
@@ -5060,7 +5127,8 @@
         "lib/receipt/public-trust-receipt-values.js"
       ],
       "lib/receipt/receipt-chain.js": [
-        "lib/hash-chain.js"
+        "lib/hash-chain.js",
+        "lib/receipt-rule-identity.js"
       ],
       "lib/receipt/receipt-export.js": [
         "lib/receipt/canonical-receipt.js",
