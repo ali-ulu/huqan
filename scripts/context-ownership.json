@@ -4170,6 +4170,14 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-contradiction-features.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-contradiction-fusion.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cognitive-lab-budget-envelope.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
@@ -4699,6 +4707,20 @@
   }
  ],
  "publishedPorts": {
+  "lib/contradiction-rules.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3582 R50 contradiction measurement reads the canonical detector set through its published entry point"
+  },
+  "lib/contradiction-rules-text.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3582 R50 feature extractor reuses the canonical sameSubject predicate instead of a private copy"
+  },
   "lib/causal/causal-episode-contract.js": {
    "owner": "Knowledge",
    "consumers": [

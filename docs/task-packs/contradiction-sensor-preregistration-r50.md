@@ -219,3 +219,67 @@ node --test test/cognitive-lab-contradiction-cli-wiring.test.js
 - PR2 A ve B'yi ölçer; C kolunu (füzyon) veya abstention politikasını içermez (PR3/PR4).
 - Hiçbir kazanç, promotion veya üretim davranışı iddiası yoktur; `assertsGain: false`, `productionBehaviorChanged: false`.
 - B'nin holdout'ta hiç pozitif dememesi, tek bir karar eşiğinin (0.5) sonucudur; eşik taraması PR4'ün politika simülasyonuna aittir.
+
+---
+
+## 13. PR3 ölçümü — C kolu (deterministik yerel füzyon)
+
+**Status:** ölçüldü. C kolu HUQAN'ın kendi deterministik okuma cihazıdır; hiçbir üretim yoluna bağlanmaz ve D kolunun (öğrenilmiş anlam modeli, #3583) yerini almaz.
+
+**Kapsam:** PR3 — deterministik füzyon. `lib/cognitive-lab-contradiction-features.js` (donmuş özellik çıkarıcı), `lib/cognitive-lab-contradiction-fusion.js` (kapalı-form ridge okuma + kalibre olasılık), `lib/cognitive-lab-contradiction-evaluator.js` içinde `sourceCommit` verilince eklenen C kolu.
+
+### Yöntem
+
+- Özellik vektörü §6'da dondu: 9 kural-fired bayrağı (`runContradictionRules` sırası) + `contradictionSignalCount`, `maxSeverity`, `maxDeclaredConfidence`, `evidenceCount`, `sameSubject`, `sourceTypeKnown`, `sameSourceType`, `frameKnown`, `sameFrame`. Genişlik 18; spec digest `6d508b4d…b71b5278`.
+- Yasaklı özellikler (ham metin token'ı, TF-IDF/embedding, opposition-pair kimliği, `candidateId`/path, insan etiketi, split/reviewer kimliği, dış model/Jev/NLI skoru) çıkarıcıya alınmadı; `maxDeclaredConfidence` yalnız girdi özelliğidir, olasılık olarak okunmaz.
+- Readout kapalı-formdur: `ridgeFit` (Gram matrisi + sabit terim, `ridge = 0.5`), yalnız train split'inde (n=63 skorlanabilir) fit edilir. Çıktı **skor**tur; olasılık yalnız PR2 calibration artifact'ından geçerek elde edilir. Holdout fit sırasında okunmaz.
+- Artifact deterministiktir: aynı train+calibration verisi bayt-bayt aynı artifact'ı üretir; okuma öncesi digest doğrulanır.
+- Yetki sınırı: `DETERMINISTIC / LOCAL / CANDIDATE_ONLY / canonical:false`, `modelCalls:0`, `tokens:0`, `externalCalls:0`. Semantik keşif veya kazanç iddiası yoktur.
+
+### Fusion artifact'ı
+
+```text
+featureSpecDigest  6d508b4d2808bd082fdc3d3e6a7bf5f564426683f0b86830a0a240b4b71b5278
+algorithm          ridgeFit   ridge 0.5   trainN 63
+readout (18 ağırlık + bias)
+  [-0.2679, 0, 0, -0.0479, 0, 0.3494, 0, 0, 0, 0.0336, 0.0327, 0.0343,
+    0.0672, 0.0555, 0.0555, 0.0555, 0.0555, 0.0555, 0.0555]
+artifact digest    8495705118df69a00d5fe5d0792f5e3242b7ca452bee9971a9fb6823ba1a667d
+```
+
+Negatif bias, "hiç sinyal yok" durumunu düşük olasılığa çeker; `CAUSE_PREVENT_OPPOSITION` en güçlü pozitif ağırlığı taşır.
+
+### Holdout sonucu (aynı donmuş holdout, eşik 0.5)
+
+| Metrik | A (declared) | B (calibrated rules) | C (local fusion) |
+|---|---|---|---|
+| predicted positive | 6 | 0 | 0 |
+| TP / FP / TN / FN | 2 / 4 / 4 / 3 | 0 / 0 / 8 / 5 | 0 / 0 / 8 / 5 |
+| precision | 0.333 | n/a | n/a |
+| recall | 0.400 | 0.000 | 0.000 |
+| false-positive rate | 0.500 | 0.000 | 0.000 |
+| coverage | 0.462 | 0.000 | 0.000 |
+| Brier | raporlanmaz | 0.2414 | 0.2373 |
+| ECE | raporlanmaz | 0.0385 | 0.0434 |
+
+**Okuma.** C, B ile aynı binary kararı verir (eşik 0.5'te hiç pozitif yok) ama Brier'ı biraz daha iyidir (0.2373 vs 0.2414): füzyon, kural skorunun tek boyutlu eşlemesine göre holdout olasılıklarını marjinal olarak daha iyi sıralar, ECE'si ise biraz daha kötüdür. Bu, C'nin A'nın aşırı-güven sorununu düzelttiğini ama B'ye karşı karar düzeyinde bir üstünlük kurmadığını gösterir; kesin karşılaştırma ve eşik taraması PR4'ün eşlenmiş raporuna aittir. Bu bölüm kazanç iddia etmez (`assertsGain: false`).
+
+### PR3 kabul durumu
+
+- [x] Deterministik özellik seti (9 kural bayrağı + sınırlı meta veri) dondu ve digest'lendi.
+- [x] Yasaklı özellikler (embedding, opposition-pair, path, insan etiketi, split) çıkarıcıda yok; test bunu doğruluyor.
+- [x] Readout kapalı-form, yalnız train split'inde fit; çıktı skor, olasılık yalnız kalibrasyondan.
+- [x] Artifact deterministik ve digest-bağlı; tampered artifact okuma öncesi reddediliyor.
+- [x] Dış model/Jev/NLI yok; yetki sınırı `DETERMINISTIC/LOCAL/CANDIDATE_ONLY`.
+- [x] `assertsGain: false`, `productionBehaviorChanged: false`.
+
+Doğrulama:
+
+```bash
+node --test test/cognitive-lab-contradiction-fusion.test.js
+```
+
+### Sınırlar
+
+- C, HUQAN'ın kendi özellikleri üzerinde yerel bir okumadır; D kolunun (öğrenilmiş anlam modeli) yerine geçmez.
+- Karar düzeyinde kazanç iddiası yoktur; üretim entegrasyonu (`off|shadow|on`) ve D kolu #3583'ün sahipliğindedir.
