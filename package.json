@@ -437,6 +437,8 @@
     "lib/cognitive-lab-b4-experiment.js",
     "lib/cognitive-lab-b6-evaluator.js",
     "lib/cognitive-lab-b6-experiment.js",
+    "lib/cognitive-lab-contradiction-calibrator.js",
+    "lib/cognitive-lab-contradiction-evaluator.js",
     "lib/cognitive-lab-manifest.js",
     "lib/cognitive-scheduler.js",
     "lib/command-exec-gate.js",

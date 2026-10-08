@@ -152,3 +152,60 @@ node --test test/contradiction-eval-fixture.test.js        # 15/15 pass
 ```
 
 A/B/C ölçümleri ve sonuç bölümü PR2 (A/B), PR3 (C) ve PR4 (karşılaştırma + politika simülasyonu) ile bu dosyaya eklenecektir; bu bölümün üstündeki hiçbir satır ölçümden sonra değiştirilemez.
+
+## 12. PR2 — A/B ölçümü (kural taban çizgisi)
+
+Bu bölüm PR2 ile eklenmiştir. Yukarıdaki sözleşme (bölüm 1-11) ölçümden önce kilitlendi ve değiştirilmemiştir; yalnız bu bölüm ölçüm sonucudur.
+
+**Ölçüm kaynağı:** donmuş `test/fixtures/contradiction-eval-v1.corpus.json` + `.labels.json`; CLI `contradiction --contradiction-records FILE` store açmaz, kanonik belleğe dokunmaz. Evaluator yalnız contradiction kural setini (`runContradictionRules`) çalıştırır; risk sinyalleri benchmark'a girmez.
+
+**Kalibratör:** `lib/cognitive-lab-contradiction-calibrator.js` yalnız **calibration split**'te (16 skorlanabilir pair) fit edilir; holdout fit sırasında okunmaz (test bunu mekanik olarak doğrular). Eşleme deterministik, monoton ve digest'e bağlıdır (`951b785b…`); örneklem tabanının (10) altında `INSUFFICIENT` döner.
+
+### Detector ve kollar (skorlanabilir 92 pair)
+
+| Metrik | Değer |
+|---|---|
+| TP / FP / TN / FN | 10 / 17 / 43 / 22 |
+| support n | 92 |
+| precision | 0.3704 |
+| recall | 0.3125 |
+| false-positive rate | 0.2833 |
+| coverage | 0.2935 |
+
+Split bazında detector (TP/FP/TN/FN):
+
+```text
+train        63 pair  7 / 11 / 30 / 15
+calibration  16 pair  1 /  2 /  9 /  4
+holdout      13 pair  2 /  4 /  4 /  3
+```
+
+### Kollar
+
+- **A — `DECLARED_HEURISTIC`:** bugünkü detector kararı + bugünkü beyan edilmiş confidence. Bu değer **forecast değildir**; Brier/ECE **hesaplanmaz** (`status = NOT_A_FORECAST`). Karar (predicted) kolonu B ile birebir aynıdır.
+- **B — `CALIBRATED`:** aynı detector kararı, fakat raw rule score calibration split'te fit edilmiş frozen eşlemeden geçer. Brier `0.3316`, ECE `0.3230` (yalnız skorlanabilir 92 pair üzerinde, örneklem tabanı üstünde olduğu için ölçülür).
+
+İki kol aynı kararı verdiği için confusion hücreleri birebir aynıdır; ayrışma yalnız taşıdıkları probability ve onun skorlanıp skorlanmamasındadır. Bu, A'nın ham confidence'ının bir olasılık olarak yorumlanmaması gerektiğini somut olarak gösterir.
+
+### Exclusions
+
+`UNCERTAIN` 10, `INVALID_PAIR` 6; binary skorlamaya girmez, yanlış prediction'a çevrilmez.
+
+### PR2 kabul durumu
+
+- [x] A heuristic confidence ile calibrated probability ayrılıyor (A `NOT_A_FORECAST`, B `CALIBRATED`).
+- [x] B calibrator yalnız calibration split'te fit oluyor (16 pair).
+- [x] holdout fit sırasında okunmuyor (holdout etiketi değiştirilince mapping digest sabit kalıyor).
+- [x] Existing Cognitive Lab Brier/ECE machinery reuse ediliyor (`calibrate()` arm B için).
+- [x] Detector-level confusion/precision/recall/FPR/coverage raporlanıyor.
+- [x] `UNCERTAIN`/`INVALID_PAIR` binary failure'a çevrilmiyor (exclusion counts).
+- [x] CLI path store-free (kanonik bellek dokunulmamış testi).
+- [x] External model/network dependency yok (`modelCalls = 0`, `tokens = 0`, `externalCalls = 0`).
+
+**Yorum:** Bu mutlak değerler (precision 0.37, recall 0.31) corpus'un bilerek yanlı (stratified) örnekleminin bir sonucudur ve doğal dağılıma genellenmez. PR2 yalnız **donmuş/reproducible measurement evidence** üretir; hiçbir kazanç iddia etmez (`assertsGain = false`). Birincil karşılaştırma PR3'teki `C vs B`'dir.
+
+Doğrulama:
+
+```bash
+node --test test/cognitive-lab-contradiction-calibrator.test.js test/cognitive-lab-contradiction-evaluator.test.js test/cognitive-lab-contradiction-cli-wiring.test.js
+```

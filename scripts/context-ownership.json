@@ -3658,6 +3658,14 @@
    "kind": "infra",
    "evidence": "#3562 I6c B6 manifest-emitting measurement runner"
   },
+  "lib/cognitive-lab-contradiction-calibrator.js": {
+   "kind": "infra",
+   "evidence": "#3582 R50 PR2 frozen score->P(contradiction) calibrator, fitted on the calibration split only"
+  },
+  "lib/cognitive-lab-contradiction-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#3582 R50 PR2 contradiction rule-baseline A/B evaluator; contradiction-only signals, candidate-only"
+  },
   "fixtures/cognitive-lab/causal-confirmatory-generator.js": {
    "kind": "infra",
    "evidence": "#3467 preregistered synthetic experiment input generator; never imported by learner"
