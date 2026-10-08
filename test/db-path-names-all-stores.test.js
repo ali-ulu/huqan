@@ -22,7 +22,10 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const {
+  DEFAULT_MEMORY_FILENAME,
   environmentStoreDirectory,
+  resolveDefaultMemoryPath,
+  testRunPersistenceRoot,
 } = require('../lib/default-persistence-path');
 const { environmentNamesStoreDirectory } = require('../lib/sqlite-persistence-validation');
 
@@ -46,10 +49,18 @@ describe('a named store directory owns its defaulted companions (#3669)', { conc
   it('an empty or absent variable names no directory, so cwd stays the default', () => {
     assert.equal(environmentStoreDirectory({}), null);
     assert.equal(environmentStoreDirectory({ HUQAN_DB_PATH: '   ' }), null);
-    // Under the test runner resolveDefaultMemoryPath keeps its per-run redirect,
-    // which is asserted by arch-default-persistence-isolation.contract.test.js;
-    // the env-directory branch is the non-runner behaviour, covered in the CLI
-    // cases below.
+    // No variable means the default is unchanged: the test runner's per-run
+    // redirect still applies (arch-default-persistence-isolation.contract.test.js
+    // asserts that directly), and a plain environment keeps cwd semantics.
+    assert.equal(resolveDefaultMemoryPath({}), path.join(testRunPersistenceRoot(), DEFAULT_MEMORY_FILENAME));
+  });
+
+  it('a named directory wins over the test-runner redirect, an explicit choice', () => {
+    const named = path.join(path.sep, 'srv', 'huqan', 'named');
+    assert.equal(
+      resolveDefaultMemoryPath({ HUQAN_DB_PATH: path.join(named, 'graph.db') }),
+      path.join(named, 'memory.json'),
+    );
   });
 
   it('environmentNamesStoreDirectory only flags stores in the named directory', () => {
