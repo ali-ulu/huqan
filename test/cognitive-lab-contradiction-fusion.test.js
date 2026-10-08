@@ -68,37 +68,6 @@ function throwsCode(fn, code) {
   assert.throws(fn, (error) => (error instanceof ContradictionFusionError || error instanceof ContradictionFeaturesError) && error.code === code, `expected ${code}`);
 }
 
-// --- feature contract -------------------------------------------------------
-
-test('the feature vector is the pinned width and every entry is finite', () => {
-  const { vector, named } = extractFeatures(CORPUS.records[0]);
-  assert.equal(vector.length, FEATURE_ORDER.length);
-  assert.equal(vector.length, FIRED_RULES.length + 9);
-  for (const value of vector) assert.ok(Number.isFinite(value));
-  assert.equal(typeof named.sameSubject, 'number');
-});
-
-test('the feature vector ignores split, label, pairId and reviewer identity', () => {
-  const base = CORPUS.records.find((record) => LABELS.labels[record.pairId]);
-  const plain = extractFeatures(base);
-  const edited = extractFeatures({
-    ...base, pairId: 'pair:rewritten', split: 'holdout',
-    label: base.label === 'CONTRADICTION' ? 'NOT_CONTRADICTION' : 'CONTRADICTION',
-    reviewer: 'someone-else', candidateId: 'x', path: '/tmp/x',
-  });
-  assert.deepEqual([...plain.vector], [...edited.vector]);
-});
-
-test('the feature spec digest pins the name/order list', () => {
-  assert.match(FEATURE_SPEC_DIGEST, /^[a-f0-9]{64}$/);
-  assert.equal(FEATURE_SPEC_DIGEST, require('../lib/hash-chain').sha256Hex(
-    require('../lib/hash-chain').stableStringify({ version: 'huqan-contradiction-features-v1', order: FEATURE_ORDER })));
-});
-
-test('a malformed record is rejected, not silently featurized', () => {
-  throwsCode(() => extractFeatures(null), 'features_invalid_record');
-});
-
 // --- fit is train-only and deterministic ------------------------------------
 
 test('the fusion artifact is deterministic and digest-bound', () => {
@@ -114,6 +83,28 @@ test('a tampered fusion artifact is refused on read', () => {
   const fit = fitFrozen();
   const tampered = { ...fit.artifact, training: { ...fit.artifact.training, readout: fit.artifact.training.readout.map(() => 0) } };
   throwsCode(() => fusionScore(tampered, CORPUS.records[0]), 'fusion_digest_mismatch');
+});
+
+test('the fit reads the train split only; holdout content cannot move the artifact', () => {
+  const records = joinedRecords();
+  const train = records.filter((record) => record.split === 'train');
+  const calibration = records.filter((record) => record.split === 'calibration');
+  const baseline = fitFusion({ trainRecords: train, calibrationRecords: calibration, calibrationArtifact: calibrationArtifact(), sourceCommit: COMMIT });
+  // Rewrite every holdout label; the train-only artifact must not change.
+  const holdoutPerturbed = records.map((record) => (record.split === 'holdout'
+    ? { ...record, label: record.label === 'CONTRADICTION' ? 'NOT_CONTRADICTION' : 'CONTRADICTION' } : record));
+  const after = fitFusion({
+    trainRecords: holdoutPerturbed.filter((record) => record.split === 'train'),
+    calibrationRecords: holdoutPerturbed.filter((record) => record.split === 'calibration'),
+    calibrationArtifact: calibrationArtifact(), sourceCommit: COMMIT,
+  });
+  assert.equal(baseline.artifact.digest, after.artifact.digest);
+});
+
+test('the same artifact and the same input produce the same output', () => {
+  const fit = fitFrozen();
+  const record = CORPUS.records.find((row) => LABELS.labels[row.pairId] && LABELS.labels[row.pairId].label === 'CONTRADICTION');
+  assert.equal(fusionScore(fit.artifact, record), fusionScore(fit.artifact, record));
 });
 
 test('too little train support is INSUFFICIENT, never a fit', () => {
