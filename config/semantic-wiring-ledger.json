@@ -1,0 +1,7 @@
+{
+  "lib/common-semantic-ir.js": "read-only versioned Common Semantic IR composing the existing EN/TR parsers and the de/ar nlp packs; pure contract, unit-tested, awaiting the intent/grounding phases that adopt it",
+  "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
+  "lib/semantic-model-text-features.js": "#3583 R51 PR2 text feature contract; live semantic integration follows in PR3",
+  "lib/semantic-model-artifact.js": "#3583 R51 PR2 own-weight artifact loader; live semantic integration follows in PR3",
+  "lib/semantic-model-inference.js": "#3583 R51 PR2 local candidate-only inference; live semantic integration follows in PR3"
+}

@@ -33,6 +33,7 @@ export interface LocalNeuralModel {
   readonly steps: number;
   readonly trained: boolean;
   readonly trainingSamples: number;
+  encode(sequence: readonly number[]): Float32Array;
   train(samples: readonly { sequence: readonly number[]; label: number }[]): LocalNeuralModel;
   predict(sequence: readonly number[]): CognitiveModelProposal;
   describe(): LocalNeuralModelDescription;
