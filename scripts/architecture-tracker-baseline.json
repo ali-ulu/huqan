@@ -187,6 +187,7 @@
       "lib/cli-conflicts-command.js": "Core",
       "lib/cli-conflicts.js": "Core",
       "lib/cli-doctor.js": "Core",
+      "lib/cli-ephemeral-boot.js": "Core",
       "lib/cli-experience-learn.js": "Core",
       "lib/cli-experience-read.js": "Core",
       "lib/cli-experience-reconcile.js": "Core",
@@ -961,6 +962,7 @@
       "lib/registry/registry-route.js": "Application",
       "lib/relation-drift.js": "Core",
       "lib/release-evaluation-record.js": "Core",
+      "lib/repo-artifacts.js": "Core",
       "lib/repo-file-pin.js": "Core",
       "lib/residency-rule-miner.js": "Core",
       "lib/risk-classify-normalize.js": "Core",
@@ -1010,6 +1012,11 @@
       "lib/self-healer/source-dependency-graph.js": "Application",
       "lib/self-healer/source-dogfood-simulator.js": "Application",
       "lib/self-test-oracle.js": "Core",
+      "lib/semantic-model-artifact.js": "Core",
+      "lib/semantic-model-inference.js": "Application",
+      "lib/semantic-model-port.js": "Core",
+      "lib/semantic-model-provider.js": "Application",
+      "lib/semantic-model-text-features.js": "Core",
       "lib/semantic-score.js": "Core",
       "lib/semantic-signals.js": "Core",
       "lib/server-graph-data.js": "Core",
@@ -1229,9 +1236,11 @@
       "scripts/architecture-snapshot.js": "UI",
       "scripts/audit-impact-replay-coverage.js": "UI",
       "scripts/backup.js": "UI",
+      "scripts/benchmark-semantic-model.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
       "scripts/build-contradiction-eval-fixture.js": "UI",
+      "scripts/build-semantic-training-dataset.js": "UI",
       "scripts/capability-usage.js": "UI",
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
@@ -1304,6 +1313,7 @@
       "scripts/launch-installed-package-smoke.js": "UI",
       "scripts/launch-smoke-receipts.js": "UI",
       "scripts/list-mutation-targets.js": "UI",
+      "scripts/main-ci-watch-state.js": "UI",
       "scripts/measure-journal-durability.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
@@ -1319,12 +1329,16 @@
       "scripts/run-trust-receipt-pilot.js": "UI",
       "scripts/security-release-evaluation.js": "UI",
       "scripts/seed-demo.js": "UI",
+      "scripts/semantic-nli-adapter.js": "UI",
+      "scripts/semantic-teacher-contract.js": "UI",
+      "scripts/semantic-training-dataset.js": "UI",
       "scripts/setup-sqlite.js": "UI",
       "scripts/shard-hang-diagnostics.js": "UI",
       "scripts/shipped-runtime-files.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
       "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
+      "scripts/train-semantic-model.js": "UI",
       "scripts/update-shard-weights.js": "UI",
       "scripts/verify-package-tarball.js": "UI",
       "scripts/verify-published-round-trip.js": "UI",
@@ -1432,6 +1446,7 @@
         "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
         "lib/experience/reconciliation.js",
+        "lib/semantic-model-provider.js",
         "storage.js",
         "workflow-runtime.js"
       ],
@@ -2124,7 +2139,8 @@
         "lib/coder/apply-derivation.js",
         "lib/coder/derivation-record.js",
         "lib/coder/journal-store.js",
-        "lib/coder/verify-ocr.js"
+        "lib/coder/verify-ocr.js",
+        "lib/repo-artifacts.js"
       ],
       "lib/cli-command-handlers.js": [
         "lib/cli-agent-commands.js",
@@ -2216,6 +2232,9 @@
       "lib/cli-knowledge-commands.js": [
         "lib/cli-helpers.js"
       ],
+      "lib/cli-learn-review.js": [
+        "lib/cli-helpers.js"
+      ],
       "lib/cli-mutation-audit-intent.js": [
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
@@ -2234,7 +2253,8 @@
         "lib/experience/reflective-promotion.js"
       ],
       "lib/cli-repl.js": [
-        "lib/cli-mutation-gate.js"
+        "lib/cli-mutation-gate.js",
+        "lib/cli-workflow-adapter.js"
       ],
       "lib/cli-runtime-methods.js": [
         "lib/cli-capabilities.js",
@@ -2252,6 +2272,7 @@
         "lib/receipt/receipt-read-index.js"
       ],
       "lib/cli-workflow-adapter.js": [
+        "lib/cli-ephemeral-boot.js",
         "lib/cli-gate-message.js",
         "lib/cli-ingest-batch.js",
         "lib/cli-ingest-preview.js",
@@ -5400,6 +5421,28 @@
       "lib/self-test-oracle.js": [
         "lib/text-utils.js"
       ],
+      "lib/semantic-model-artifact.js": [
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js",
+        "lib/semantic-model-text-features.js"
+      ],
+      "lib/semantic-model-inference.js": [
+        "lib/cognitive-model-local-mamba.js",
+        "lib/cognitive-model-local-rwkv.js",
+        "lib/cognitive-model-local-ssm.js",
+        "lib/cognitive-model-local-transformer.js",
+        "lib/semantic-model-artifact.js",
+        "lib/semantic-model-text-features.js"
+      ],
+      "lib/semantic-model-provider.js": [
+        "lib/semantic-model-inference.js",
+        "lib/semantic-model-port.js",
+        "lib/semantic-model-text-features.js"
+      ],
+      "lib/semantic-model-text-features.js": [
+        "lib/cognitive-lab-contradiction-features.js",
+        "lib/hash-chain.js"
+      ],
       "lib/semantic-score.js": [
         "lib/semantic-signals.js",
         "lib/text-utils.js"
@@ -5407,6 +5450,7 @@
       "lib/semantic-signals.js": [
         "lib/contradiction-rules.js",
         "lib/risk-rules.js",
+        "lib/semantic-model-port.js",
         "lib/text-utils.js"
       ],
       "lib/server-response-helpers.js": [
@@ -5635,6 +5679,7 @@
         "lib/fuzzy-normalization.js",
         "lib/reasoning-trace.js",
         "lib/risk-rules.js",
+        "lib/semantic-model-port.js",
         "lib/semantic-score.js",
         "lib/semantic-signals.js",
         "lib/type-lattice.js",
@@ -5647,6 +5692,7 @@
         "lib/claim-decomposition.js",
         "lib/entity-resolution.js",
         "lib/reasoning-trace.js",
+        "lib/semantic-model-port.js",
         "lib/trust-signals/verify-wiring.js",
         "lib/verify-contradiction-evidence.js",
         "lib/verify-native.js",
@@ -6060,12 +6106,20 @@
         "backupRestore.js",
         "lib/environment-compat.js"
       ],
+      "scripts/benchmark-semantic-model.js": [
+        "lib/semantic-model-inference.js"
+      ],
       "scripts/benign-false-block-rate.js": [
         "lib/external-action-guard.js"
       ],
       "scripts/build-contradiction-eval-fixture.js": [
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/contradiction-eval-freeze.js"
+      ],
+      "scripts/build-semantic-training-dataset.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-nli-adapter.js",
+        "scripts/semantic-training-dataset.js"
       ],
       "scripts/capability-usage.js": [
         "lib/default-persistence-path.js",
@@ -6281,11 +6335,30 @@
         "kernel.v2.js",
         "lib/environment-compat.js"
       ],
+      "scripts/semantic-nli-adapter.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js"
+      ],
+      "scripts/semantic-teacher-contract.js": [
+        "scripts/contradiction-eval-freeze-contract.js"
+      ],
+      "scripts/semantic-training-dataset.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js"
+      ],
       "scripts/setup-sqlite.js": [
         "lib/sqlite-availability.js"
       ],
       "scripts/test-consumer-compile.js": [
         "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/train-semantic-model.js": [
+        "lib/cognitive-model-local-primitives.js",
+        "lib/semantic-model-artifact.js",
+        "lib/semantic-model-inference.js",
+        "lib/semantic-model-text-features.js",
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js"
       ],
       "scripts/verify-package-tarball.js": [
         "scripts/verify-tarball-checks-core.js",
