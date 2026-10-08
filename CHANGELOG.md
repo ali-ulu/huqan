@@ -46,6 +46,14 @@
   and a JSON string that parses to a non-object are unchanged.
 
 ### Fixed
+- **The transform catalog version no longer disagrees with its release note
+  (#3650).** `huqan coder` stamps every derivation record with
+  `catalogVersion`, read from `TRANSFORM_CATALOG_VERSION` in
+  `lib/coder/derivation-record.js`, while `docs/coder-catalog-notes.md` states
+  the same catalog in prose. The note was advanced to v1.2.0 by a documentation
+  change but the constant stayed at 1.0.0, so every record understated the
+  catalog it was derived from. The constant now reads 1.2.0, and a test pins
+  the note's stated version to it so the two cannot drift apart again.
 - **`huqan quickstart` no longer leaves a `memory.db` in the working directory
   (#3649).** Booting the CLI built a kernel whose store defaults to the working
   directory, so the command that advertises a throwaway demo (and prints "your
