@@ -62,4 +62,24 @@ function assertNoHoldoutLeakage(records, frozenCorpus) {
   }
 }
 
-module.exports = { LABELS, textPairKey, validateTeacherOutput, consensus, assertNoHoldoutLeakage };
+/**
+ * Human review (R51 PR4b) is the single gold teacher for its pair: the label is
+ * the reviewer's distribution verbatim, with zero disagreement and full weight.
+ * Model teachers on that pair are validated but never averaged into the label.
+ */
+const HUMAN_REVIEW_TEACHER_ID = 'human-review';
+
+function labelPair(outputs) {
+  if (!Array.isArray(outputs)) throw new TypeError('teacher_quorum_missing');
+  const humans = outputs.filter(output => output && output.teacherId === HUMAN_REVIEW_TEACHER_ID);
+  if (humans.length === 0) return consensus(outputs);
+  if (humans.length !== 1) throw new TypeError('human_review_label_conflict');
+  const [human] = humans.map(validateTeacherOutput);
+  const pairDigest = pairDigestOf(human.input);
+  if (outputs.some(output => pairDigestOf(output.input) !== pairDigest)) throw new TypeError('teacher_pair_mismatch');
+  const record = { pairDigest, distribution: { ...human.distribution }, disagreement: 0, weight: 1, needsReview: false,
+    teacherSet: [{ teacherId: human.teacherId, teacherVersion: human.teacherVersion }] };
+  return { ...record, digest: `sha256:${digestOf(record)}` };
+}
+
+module.exports = { LABELS, HUMAN_REVIEW_TEACHER_ID, textPairKey, validateTeacherOutput, consensus, labelPair, assertNoHoldoutLeakage };
