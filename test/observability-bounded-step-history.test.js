@@ -92,6 +92,27 @@ test('a dropped usage total folds into the held usage of the same field', t => {
   assert.equal(run.stepCount, 3);
 });
 
+test('an explicit unknown usage field stays null across an upsert, never a prior run number', t => {
+  const service = fixture(t);
+  const resume = steps => service.recordLifecycle('afterAgentRun', {
+    state: {
+      workspaceId: 'ws-a', observabilityRunId: 'run-resumed', status: 'completed',
+      startedAt: new Date(NOW - 1000).toISOString(), steps,
+    },
+  });
+  // First finish measures tokens; the resumed finish measures cost but leaves
+  // the token fields explicitly null. The prior 7 must not resurface as a
+  // partial total.
+  resume([{ status: 'done', result: { usage: { tokens: 7 } } }]);
+  assert.equal(service.listRuns({ workspaceId: 'ws-a' }).items[0].tokens, 7);
+  resume([{ status: 'done', result: { usage: { tokens: null, inputTokens: null, outputTokens: null, costMicros: 5 } } }]);
+  const run = service.listRuns({ workspaceId: 'ws-a' }).items[0];
+  assert.equal(run.tokens, null, 'an explicitly unknown field stays null');
+  assert.equal(run.inputTokens, null);
+  assert.equal(run.outputTokens, null);
+  assert.equal(run.costMicros, 5, 'a field the run did measure still lands');
+});
+
 test('a held step with no usage leaves the field unknown even when dropped steps measured it', t => {
   const service = fixture(t);
   // The Observability layer treats a held step with no usage object as making

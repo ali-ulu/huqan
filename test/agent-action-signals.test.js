@@ -84,13 +84,21 @@ test('input field evidence is empty for a missing, non-object or array input', (
   }
 });
 
-test('input field evidence carries at most one row per structured key, so it is bounded by construction', () => {
+test('input field evidence names only the fields the projection actually clips', () => {
   const long = 'y'.repeat(600);
   const input = {};
   for (const key of ['action', 'operation', 'operationType', 'intent', 'command', 'cmd', 'shell', 'script', 'exec', 'target', 'deploy', 'release', 'merge', 'workflow', 'branch', 'baseBranch']) {
     input[key] = long;
   }
   const rows = inputFieldEvidence(input);
-  assert.equal(rows.length, 16, 'one row per structured key, never more');
-  assert.equal(rows[15].propertyPath, 'input.baseBranch');
+  const paths = rows.map(row => row.propertyPath);
+  assert.equal(rows.length, 11, 'one row per clipped key, never more');
+  assert.deepEqual(paths, [
+    'input.operationType', 'input.action', 'input.intent', 'input.target', 'input.branch', 'input.baseBranch',
+    'input.command', 'input.cmd', 'input.shell', 'input.script', 'input.exec',
+  ]);
+  // `operation` and `deploy` are structured keys the projection copies without
+  // clipping, so the evidence must not claim a clip for them.
+  assert.equal(paths.includes('input.operation'), false);
+  assert.equal(paths.includes('input.deploy'), false);
 });

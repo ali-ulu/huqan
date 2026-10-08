@@ -333,6 +333,18 @@ test('a clipped field is named as length before/after on the decision, never the
   assert.equal(JSON.stringify(decision.metadata.fieldEvidence).includes(long), false, 'the raw value never lands in the evidence');
 });
 
+test('a long field the projection copies without clipping is never named as a clip', () => {
+  // `operation` is a structured key but the firewall copies it verbatim into
+  // operationObject.action, so a 600-char value was measured whole. Claiming a
+  // 512 clip would be false evidence.
+  const decision = evaluateAgentActionFirewall({
+    surface: 'sdk',
+    tool: 'github',
+    input: { operation: 'z'.repeat(600) },
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(decision.metadata, 'fieldEvidence'), false);
+});
+
 test('a decision with no clipped field carries no fieldEvidence key at all', () => {
   const decision = evaluateAgentActionFirewall({
     surface: 'sdk',

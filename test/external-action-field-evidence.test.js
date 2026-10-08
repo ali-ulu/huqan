@@ -57,15 +57,25 @@ test('a resolved target names the relative path against the pinned absolute one'
   assert.notEqual(row.valueBefore, row.valueAfter, 'the resolved path differs from the relative one');
 });
 
-test('a shell command whose shape differs from the command names both', () => {
+test('a shell command whose shape differs names the command reduced to its shape', () => {
   const env = envelope({ action: { kind: 'shell', command: 'git status --short' }, args: { command: 'git status --short' } });
   const row = externalActionFieldEvidence(env).find(entry => entry.propertyPath === 'command');
-  assert.deepEqual(row, { propertyPath: 'command', valueBefore: 'git status', valueAfter: 'git status --short' });
+  assert.deepEqual(row, { propertyPath: 'command', valueBefore: 'git status --short', valueAfter: 'git status' });
 });
 
 test('a plain shell command with no shaping carries no rows', () => {
   const env = envelope({ action: { kind: 'shell', command: 'git status' }, args: { command: 'git status' } });
   assert.deepEqual(externalActionFieldEvidence(env), []);
+});
+
+test('the 200-byte cap counts UTF-8 bytes, not UTF-16 code units, and never splits a character', () => {
+  // 200 CJK characters are 600 UTF-8 bytes but only 200 code units; a
+  // code-unit check would let the row through at three times the budget.
+  const cjk = '好'.repeat(200);
+  const env = envelope({ metadata: { inputKeys: [cjk] } });
+  const [row] = externalActionFieldEvidence(env);
+  assert.ok(Buffer.byteLength(row.valueBefore, 'utf8') <= 200, 'the row stays within the byte budget');
+  assert.equal(row.valueBefore, '好'.repeat(66), '66 full characters, 198 bytes, cut on a boundary');
 });
 
 test('every row value is capped at 200 bytes, so a decision cannot carry an unbounded proof', () => {
