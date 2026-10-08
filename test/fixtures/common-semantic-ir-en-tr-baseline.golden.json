@@ -1536,8 +1536,8 @@
           "value": [
             {
               "subject": "The war",
-              "object": "over",
-              "relation": "tür",
+              "object": "is over",
+              "relation": "yapabilir",
               "polarity": "unknown",
               "restriction": false
             }
@@ -1581,7 +1581,7 @@
               "reason": "unknown_alias"
             },
             {
-              "text": "over",
+              "text": "is over",
               "status": "unresolved",
               "reason": "unknown_alias"
             }
