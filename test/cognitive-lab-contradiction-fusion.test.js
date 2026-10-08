@@ -47,7 +47,8 @@ function joinedRecords() {
   }));
 }
 
-function calibrationArtifact() {
+// The PR2 rule-score mapping. Arm C must NOT be scored through this artifact.
+function ruleCalibrationArtifact() {
   const records = joinedRecords()
     .filter((record) => record.split === 'calibration')
     .map((record) => ({ decisionId: record.pairId, split: 'calibration', score: contradictionRuleScore(record).score, label: record.label }));
@@ -59,7 +60,7 @@ function fitFrozen() {
   return fitFusion({
     trainRecords: records.filter((record) => record.split === 'train'),
     calibrationRecords: records.filter((record) => record.split === 'calibration'),
-    calibrationArtifact: calibrationArtifact(),
+    contract: CONTRACT,
     sourceCommit: COMMIT,
   });
 }
@@ -89,16 +90,31 @@ test('the fit reads the train split only; holdout content cannot move the artifa
   const records = joinedRecords();
   const train = records.filter((record) => record.split === 'train');
   const calibration = records.filter((record) => record.split === 'calibration');
-  const baseline = fitFusion({ trainRecords: train, calibrationRecords: calibration, calibrationArtifact: calibrationArtifact(), sourceCommit: COMMIT });
+  const baseline = fitFusion({ trainRecords: train, calibrationRecords: calibration, contract: CONTRACT, sourceCommit: COMMIT });
   // Rewrite every holdout label; the train-only artifact must not change.
   const holdoutPerturbed = records.map((record) => (record.split === 'holdout'
     ? { ...record, label: record.label === 'CONTRADICTION' ? 'NOT_CONTRADICTION' : 'CONTRADICTION' } : record));
   const after = fitFusion({
     trainRecords: holdoutPerturbed.filter((record) => record.split === 'train'),
     calibrationRecords: holdoutPerturbed.filter((record) => record.split === 'calibration'),
-    calibrationArtifact: calibrationArtifact(), sourceCommit: COMMIT,
+    contract: CONTRACT, sourceCommit: COMMIT,
   });
   assert.equal(baseline.artifact.digest, after.artifact.digest);
+});
+
+test('a holdout or calibration record in trainRecords is refused, not fit', () => {
+  const records = joinedRecords();
+  const train = records.filter((record) => record.split === 'train');
+  const calibration = records.filter((record) => record.split === 'calibration');
+  const holdout = records.filter((record) => record.split === 'holdout');
+  throwsCode(() => fitFusion({
+    trainRecords: [...train, holdout[0]],
+    calibrationRecords: calibration, contract: CONTRACT, sourceCommit: COMMIT,
+  }), 'fusion_label_leakage');
+  throwsCode(() => fitFusion({
+    trainRecords: train,
+    calibrationRecords: [...calibration, holdout[0]], contract: CONTRACT, sourceCommit: COMMIT,
+  }), 'fusion_label_leakage');
 });
 
 test('the same artifact and the same input produce the same output', () => {
@@ -112,10 +128,23 @@ test('too little train support is INSUFFICIENT, never a fit', () => {
   const result = fitFusion({
     trainRecords: records.filter((record) => record.split === 'train').slice(0, MIN_TRAIN_SAMPLES - 1),
     calibrationRecords: records.filter((record) => record.split === 'calibration'),
-    calibrationArtifact: calibrationArtifact(),
+    contract: CONTRACT,
     sourceCommit: COMMIT,
   });
   assert.equal(result.status, FUSION_STATUS.INSUFFICIENT);
+  assert.equal(result.artifact, null);
+});
+
+test('too little calibration support is INSUFFICIENT, never a fit', () => {
+  const records = joinedRecords();
+  const result = fitFusion({
+    trainRecords: records.filter((record) => record.split === 'train'),
+    calibrationRecords: records.filter((record) => record.split === 'calibration').slice(0, 2),
+    contract: CONTRACT,
+    sourceCommit: COMMIT,
+  });
+  assert.equal(result.status, FUSION_STATUS.INSUFFICIENT);
+  assert.equal(result.reason, 'calibration_insufficient');
   assert.equal(result.artifact, null);
 });
 
@@ -124,12 +153,12 @@ test('a missing source commit or a bad ridge is refused', () => {
   throwsCode(() => fitFusion({
     trainRecords: records.filter((record) => record.split === 'train'),
     calibrationRecords: records.filter((record) => record.split === 'calibration'),
-    calibrationArtifact: calibrationArtifact(),
+    contract: CONTRACT,
   }), 'fusion_invalid_input');
   throwsCode(() => fitFusion({
     trainRecords: records.filter((record) => record.split === 'train'),
     calibrationRecords: records.filter((record) => record.split === 'calibration'),
-    calibrationArtifact: calibrationArtifact(), sourceCommit: COMMIT, ridge: -1,
+    contract: CONTRACT, sourceCommit: COMMIT, ridge: -1,
   }), 'fusion_invalid_ridge');
 });
 
@@ -137,14 +166,23 @@ test('a missing source commit or a bad ridge is refused', () => {
 
 test('the raw fusion output is a score; probability only comes from calibration', () => {
   const fit = fitFrozen();
-  const artifact = calibrationArtifact();
   const record = CORPUS.records.find((row) => LABELS.labels[row.pairId] && LABELS.labels[row.pairId].label === 'CONTRADICTION');
   const score = fusionScore(fit.artifact, record);
-  const probability = fusionProbability(fit.artifact, record, artifact);
+  const probability = fusionProbability(fit.artifact, record, fit.calibration.artifact);
   assert.ok(Number.isFinite(score));
   assert.ok(probability >= 0 && probability <= 1);
   // The score itself is not clamped to [0,1]; only the calibrated readout is.
-  assert.equal(probability, require('../lib/cognitive-lab-contradiction-calibrator.js').applyCalibration(artifact, score));
+  assert.equal(probability, require('../lib/cognitive-lab-contradiction-calibrator.js').applyCalibration(fit.calibration.artifact, score));
+});
+
+test('arm C fits its own calibration mapping and refuses a foreign one', () => {
+  const fit = fitFrozen();
+  // The artifact records its own mapping, not the rule-score mapping.
+  assert.equal(fit.artifact.calibration.version, fit.calibration.artifact.digest);
+  assert.notEqual(fit.artifact.calibration.version, ruleCalibrationArtifact().digest);
+  // Scoring through the rule-score mapping is refused rather than silently clamped.
+  const record = CORPUS.records[0];
+  throwsCode(() => fusionProbability(fit.artifact, record, ruleCalibrationArtifact()), 'fusion_calibration_mismatch');
 });
 
 // --- authority boundary -----------------------------------------------------
