@@ -1389,6 +1389,8 @@
     "lib/semantic-model-text-features.js",
     "lib/semantic-model-artifact.js",
     "lib/semantic-model-inference.js",
+    "lib/semantic-model-port.js",
+    "lib/semantic-model-provider.js",
     "config/semantic-wiring-ledger.json",
     "lib/semantic-model-artifacts/ssm.json",
     "lib/semantic-model-artifacts/rwkv.json",

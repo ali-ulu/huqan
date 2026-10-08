@@ -1,7 +1,4 @@
 {
   "lib/common-semantic-ir.js": "read-only versioned Common Semantic IR composing the existing EN/TR parsers and the de/ar nlp packs; pure contract, unit-tested, awaiting the intent/grounding phases that adopt it",
-  "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
-  "lib/semantic-model-text-features.js": "docs/task-packs/semantic-model-pr2-r51.md: frozen text feature contract; product adoption must preserve rule confidence and separate uncalibrated candidate scores",
-  "lib/semantic-model-artifact.js": "docs/task-packs/semantic-model-pr2-r51.md: own-weight artifact admission contract; product adoption requires fail-closed receipt handling for missing or invalid artifacts",
-  "lib/semantic-model-inference.js": "docs/task-packs/semantic-model-pr2-r51.md: candidate-only inference boundary; product adoption requires explicit off/shadow/on mode and review authority, never automatic rejection"
+  "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it"
 }
