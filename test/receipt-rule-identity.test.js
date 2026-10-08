@@ -148,6 +148,20 @@ test('a chain is refused when a receipt cannot name its rule', () => {
   assert.equal(verdict.reason, RULE_IDENTITY_CHAIN_REASONS.MISSING_RULE_IDENTITY);
 });
 
+test('a chain is refused when the policy version changes under a different rule id', () => {
+  // ruleId is the decision reason on the external-action path, so a version
+  // change usually arrives with a new reason too; the chain must still catch it.
+  const records = [
+    { metadata: { ruleIdentity: { policyVersion: 'policy-1', ruleId: 'allowed', instanceId: 'r-1' } } },
+    { metadata: { ruleIdentity: { policyVersion: 'policy-1', ruleId: 'review_required', instanceId: 'r-2' } } },
+    { metadata: { ruleIdentity: { policyVersion: 'policy-2', ruleId: 'blocked', instanceId: 'r-3' } } },
+  ];
+  const verdict = validateRuleIdentityChain(records);
+  assert.equal(verdict.valid, false);
+  assert.equal(verdict.brokenAt, 2);
+  assert.equal(verdict.reason, RULE_IDENTITY_CHAIN_REASONS.RULE_VERSION_CHANGED);
+});
+
 test('a chain is refused when the same rule changes version mid-chain', () => {
   const records = [
     { metadata: { ruleIdentity: { policyVersion: 'policy-1', ruleId: 'admission_rule', instanceId: 'r-1' } } },
