@@ -1248,6 +1248,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/bounded-step-history.js": {
+   "context": "AgentAction",
+   "evidence": "#3618 bounded ring of recent step reports plus exact tallies for the agent run's step count"
+  },
   "lib/agent-v3-approval-methods.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"

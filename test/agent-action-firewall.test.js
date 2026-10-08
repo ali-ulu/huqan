@@ -305,3 +305,70 @@ test('package root exposes the same Agent Action Firewall seam', () => {
   });
   assert.equal(decision.decision, 'block');
 });
+
+// #3618 (R53): field-level evidence on the firewall's own decision. The firewall
+// value-clips every structured field to 512 chars, so the verdict was made on a
+// bounded copy; the evidence names the clip as length before/after, never the
+// value, and only when a clip actually happened.
+
+function hostileContext() {
+  // A getter that throws forces evaluateAutomationSafety into its catch, the
+  // one path that turns an unclassifiable action into a fail-closed block.
+  return new Proxy({}, { get() { throw new Error('hostile'); }, has() { throw new Error('hostile'); }, ownKeys() { throw new Error('hostile'); } });
+}
+
+test('a clipped field is named as length before/after on the decision, never the value', () => {
+  const long = 'a'.repeat(600);
+  const decision = evaluateAgentActionFirewall({
+    surface: 'sdk',
+    tool: 'github',
+    action: 'push',
+    input: { action: long, target: 'origin/main' },
+  });
+  assert.deepEqual(decision.metadata.fieldEvidence, [
+    { propertyPath: 'input.action', valueBefore: '600', valueAfter: '512' },
+  ]);
+  // The evidence is value-free: only the lengths are recorded, never the value
+  // that was clipped (the firewall's own findings may still echo the action).
+  assert.equal(JSON.stringify(decision.metadata.fieldEvidence).includes(long), false, 'the raw value never lands in the evidence');
+});
+
+test('a decision with no clipped field carries no fieldEvidence key at all', () => {
+  const decision = evaluateAgentActionFirewall({
+    surface: 'sdk',
+    tool: 'github',
+    action: 'force_push',
+    input: { action: 'force_push', target: 'origin/main' },
+  });
+  assert.equal(decision.decision, 'block');
+  assert.equal(Object.prototype.hasOwnProperty.call(decision.metadata, 'fieldEvidence'), false);
+});
+
+test('the fail-closed catch path still names the clip that preceded it', () => {
+  const long = 'a'.repeat(600);
+  const decision = evaluateAgentActionFirewall({
+    surface: 'sdk',
+    tool: 'github',
+    action: 'push',
+    input: { action: long },
+    context: { repoState: hostileContext() },
+  });
+  assert.equal(decision.decision, 'block');
+  assert.equal(decision.reason, 'AGENT_ACTION_FIREWALL_EVALUATION_FAILED');
+  assert.deepEqual(decision.metadata.fieldEvidence, [
+    { propertyPath: 'input.action', valueBefore: '600', valueAfter: '512' },
+  ]);
+});
+
+test('the fail-closed catch path without a clip keeps the exact malformed shape', () => {
+  const decision = evaluateAgentActionFirewall({
+    surface: 'sdk',
+    tool: 'github',
+    action: 'push',
+    input: { action: 'push' },
+    context: { repoState: hostileContext() },
+  });
+  assert.equal(decision.decision, 'block');
+  assert.equal(decision.reason, 'AGENT_ACTION_FIREWALL_EVALUATION_FAILED');
+  assert.equal(Object.prototype.hasOwnProperty.call(decision.metadata, 'fieldEvidence'), false);
+});
