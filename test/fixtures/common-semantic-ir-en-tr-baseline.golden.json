@@ -1,6 +1,6 @@
 {
-  "description": "EN/TR Common Semantic IR records produced by the L1 baseline (#3312) before the L2 language adapters (#3476). The adapters must leave every one of these byte-identical. Regenerate only from the pre-adapter module, never from the current one.",
-  "source": "lib/common-semantic-ir.js @ origin/main 5bff2104",
+  "description": "EN/TR Common Semantic IR records used as the language-adapter regression baseline (#3476). The cases were first frozen from the L1 baseline (#3312) before the L2 adapters existed; the English-copula cases were refreshed once, deliberately, when #3643 taught the predicate parser to read \"X is/are Y\" as a type relation instead of leaving \"are animals\" as an özellik node. The L2 adapters must leave every case byte-identical.",
+  "source": "lib/common-semantic-ir.js @ origin/main 9a626a43 + predicate-parser #3643",
   "cases": [
     {
       "text": "Deployment requires approval",
@@ -201,8 +201,8 @@
           "value": [
             {
               "subject": "The service",
-              "object": "is available",
-              "relation": "özellik",
+              "object": "available",
+              "relation": "tür",
               "polarity": "unknown",
               "restriction": false
             }
@@ -246,7 +246,7 @@
               "reason": "unknown_alias"
             },
             {
-              "text": "is available",
+              "text": "available",
               "status": "unresolved",
               "reason": "unknown_alias"
             }
@@ -1453,8 +1453,8 @@
           "value": [
             {
               "subject": "Cats",
-              "object": "are animals",
-              "relation": "özellik",
+              "object": "animals",
+              "relation": "tür",
               "polarity": "unknown",
               "restriction": false
             }
@@ -1498,7 +1498,7 @@
               "reason": "unknown_alias"
             },
             {
-              "text": "are animals",
+              "text": "animals",
               "status": "unresolved",
               "reason": "unknown_alias"
             }
@@ -1536,8 +1536,8 @@
           "value": [
             {
               "subject": "The war",
-              "object": "is over",
-              "relation": "yapabilir",
+              "object": "over",
+              "relation": "tür",
               "polarity": "unknown",
               "restriction": false
             }
@@ -1581,7 +1581,7 @@
               "reason": "unknown_alias"
             },
             {
-              "text": "is over",
+              "text": "over",
               "status": "unresolved",
               "reason": "unknown_alias"
             }
@@ -1619,8 +1619,8 @@
           "value": [
             {
               "subject": "The die",
-              "object": "is cast",
-              "relation": "özellik",
+              "object": "cast",
+              "relation": "tür",
               "polarity": "unknown",
               "restriction": false
             }
@@ -1664,7 +1664,7 @@
               "reason": "unknown_alias"
             },
             {
-              "text": "is cast",
+              "text": "cast",
               "status": "unresolved",
               "reason": "unknown_alias"
             }
@@ -1702,8 +1702,8 @@
           "value": [
             {
               "subject": "Straße",
-              "object": "is closed",
-              "relation": "özellik",
+              "object": "closed",
+              "relation": "tür",
               "polarity": "unknown",
               "restriction": false
             }
@@ -1747,7 +1747,7 @@
               "reason": "unknown_alias"
             },
             {
-              "text": "is closed",
+              "text": "closed",
               "status": "unresolved",
               "reason": "unknown_alias"
             }
