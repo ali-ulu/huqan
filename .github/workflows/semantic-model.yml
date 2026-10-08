@@ -1,0 +1,49 @@
+name: Semantic model portability
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semantic-model-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  portability:
+    name: Semantic model (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Upgrade Windows npm for current Visual Studio support
+        if: runner.os == 'Windows'
+        run: npm install -g npm@11.6.3
+      - run: npm ci --include=optional
+      - name: Replay frozen artifacts and check family compatibility
+        run: node --test test/semantic-model-artifact.test.js test/semantic-model-family-features.test.js test/semantic-model-text-features.test.js test/semantic-model-training.test.js
+      - name: Verify artifact size and inference latency
+        run: node scripts/benchmark-semantic-model.js
+
+  semantic-model-gate:
+    name: Semantic Model
+    needs: portability
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every platform result
+        env:
+          RESULT: ${{ needs.portability.result }}
+        run: test "$RESULT" = "success"

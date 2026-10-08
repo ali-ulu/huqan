@@ -1389,7 +1389,11 @@
     "lib/semantic-model-text-features.js",
     "lib/semantic-model-artifact.js",
     "lib/semantic-model-inference.js",
-    "config/semantic-wiring-ledger.json"
+    "config/semantic-wiring-ledger.json",
+    "lib/semantic-model-artifacts/ssm.json",
+    "lib/semantic-model-artifacts/rwkv.json",
+    "lib/semantic-model-artifacts/mamba.json",
+    "lib/semantic-model-artifacts/transformer.json"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",

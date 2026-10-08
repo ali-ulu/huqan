@@ -44,3 +44,39 @@ test('rehashed corpora still require quorum and immutable consensus on every pai
   edited.records[0].weight = 0.123;
   assert.throws(() => trainSemanticModel(rehash(edited), { family: 'SSM', sourceCommit: 'a'.repeat(40) }), /consensus_invalid/);
 });
+
+test('all four packaged model artifacts replay byte for byte from their recorded source commit', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { stableStringify } = require('../scripts/contradiction-eval-freeze-contract');
+  for (const family of FAMILIES) {
+    const bytes = fs.readFileSync(path.join(__dirname, '../lib/semantic-model-artifacts', `${family.toLowerCase()}.json`), 'utf8');
+    const artifact = JSON.parse(bytes);
+    const replay = trainSemanticModel(dataset, { family, sourceCommit: artifact.sourceCommit });
+    assert.equal(bytes, `${stableStringify(replay)}\n`);
+    assert.deepEqual(loadSemanticModel(artifact).predict(dataset.records[0]), loadSemanticModel(replay).predict(dataset.records[0]));
+  }
+});
+
+test('every platform matches frozen Windows inference within absolute 1e-6 tolerance', () => {
+  const reference = require('./fixtures/semantic-training-v1/inference-reference.json');
+  assert.equal(reference.tolerance, 1e-6);
+  assert.deepEqual(reference.rows.map(row => row.family), FAMILIES);
+  const pairs = dataset.records.filter(record => record.split === 'calibration' && !record.needsReview);
+  for (const row of reference.rows) {
+    const artifact = require(`../lib/semantic-model-artifacts/${row.family.toLowerCase()}.json`);
+    assert.equal(artifact.artifactDigest, row.artifactDigest);
+    assert.equal(row.predictions.length, pairs.length);
+    const model = loadSemanticModel(artifact);
+    for (let i = 0; i < pairs.length; i++) {
+      const expected = row.predictions[i];
+      const actual = model.predict(pairs[i]);
+      assert.equal(expected.pairDigest, pairs[i].pairDigest);
+      assert.equal(actual.label, expected.label);
+      for (const label of LABELS) assert.ok(Math.abs(actual.distribution[label] - expected.distribution[label]) <= 1e-6,
+        `${row.family} ${expected.pairDigest} ${label}: distribution drift`);
+      for (let j = 0; j < LABELS.length; j++) assert.ok(Math.abs(actual.rawScores[j] - expected.rawScores[j]) <= 1e-6,
+        `${row.family} ${expected.pairDigest}: raw score drift`);
+    }
+  }
+});
