@@ -53,3 +53,13 @@ test('llm-ask prints the answer, the evidence and a default risk label', () => {
     'Risk: manipulation (skor: n/a)',
   ]);
 });
+
+test('verify says out loud when the only support is a taught fact (#3652)', () => {
+  const out = verifyCommand(cliWith({ data: { status: 'verified', confidence: 0.9, grounding: 'taught_only' }, evidence: [] }), 'x');
+  assert.equal(out, 'Verify: verified (confidence: 0.90)\nGrounding: taught only - asserted to HUQAN through learn, not checked against an independent source.');
+});
+
+test('verify prints no grounding line for stored_graph support (#3652)', () => {
+  const out = verifyCommand(cliWith({ data: { status: 'verified', confidence: 0.9, grounding: 'stored_graph' }, evidence: [] }), 'x');
+  assert.equal(out, 'Verify: verified (confidence: 0.90)');
+});

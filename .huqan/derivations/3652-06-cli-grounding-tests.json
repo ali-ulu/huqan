@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "huqan-derivation-v3",
+  "catalogVersion": "1.0.0",
+  "operationType": "insert_after",
+  "operation": {
+    "type": "insert_after",
+    "path": "test/cli-knowledge-commands-fallbacks.test.js",
+    "anchor": "    'Risk: manipulation (skor: n/a)',\r\n  ]);\r\n});",
+    "insert": "\r\n\r\ntest('verify says out loud when the only support is a taught fact (#3652)', () => {\r\n  const out = verifyCommand(cliWith({ data: { status: 'verified', confidence: 0.9, grounding: 'taught_only' }, evidence: [] }), 'x');\r\n  assert.equal(out, 'Verify: verified (confidence: 0.90)\\nGrounding: taught only - asserted to HUQAN through learn, not checked against an independent source.');\r\n});\r\n\r\ntest('verify prints no grounding line for stored_graph support (#3652)', () => {\r\n  const out = verifyCommand(cliWith({ data: { status: 'verified', confidence: 0.9, grounding: 'stored_graph' }, evidence: [] }), 'x');\r\n  assert.equal(out, 'Verify: verified (confidence: 0.90)');\r\n});"
+  },
+  "allowedPaths": [
+    "test/cli-knowledge-commands-fallbacks.test.js"
+  ],
+  "inputs": [
+    {
+      "path": "test/cli-knowledge-commands-fallbacks.test.js",
+      "sha256": "b2d30008b64f8ca951f410e350031cfa5d6e7854e192062ebaf9b99150f44a43"
+    }
+  ],
+  "patch": [
+    {
+      "path": "test/cli-knowledge-commands-fallbacks.test.js",
+      "beforeSha256": "b2d30008b64f8ca951f410e350031cfa5d6e7854e192062ebaf9b99150f44a43",
+      "afterSha256": "dc01db645821ff51acb1eb0342b46748ee22638700eed9230d392ae0eb1f44bd"
+    }
+  ],
+  "runnerStatus": "COMPLETED",
+  "runnerReason": "",
+  "derivationHash": "f629508d8ec51356a061a4c182a748a41c0bf1061160b5bc7ce9a5c34d386c02",
+  "taskId": "3652-06-cli-grounding-tests",
+  "workspaceId": "default",
+  "outcome": "applied",
+  "gate": {
+    "decision": "allow",
+    "reason": "LOW_RISK_TESTS_ONLY",
+    "riskLevel": "low",
+    "policyVersion": "AB3-v0.1.0",
+    "operatorAuthorized": true
+  },
+  "observedVerification": {
+    "ran": false,
+    "ok": null,
+    "command": null,
+    "evidenceRef": null
+  },
+  "createdAt": "2026-10-08T18:47:49.863Z",
+  "recordHash": "2ab2d9f6709ea934e147f1fc72212476a3aecf4c384d22f20764cac9ae20f1b8"
+}
