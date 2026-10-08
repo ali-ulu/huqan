@@ -2994,14 +2994,18 @@
  {
   "input": "restore extra words",
   "noKernel": {
-   "command": "anlamadım",
-   "args": "",
-   "workflowId": null
+   "command": "restore",
+   "args": {
+    "backupDir": "extra words"
+   },
+   "workflowId": "restore"
   },
   "knownNode": {
-   "command": "anlamadım",
-   "args": "",
-   "workflowId": null
+   "command": "restore",
+   "args": {
+    "backupDir": "extra words"
+   },
+   "workflowId": "restore"
   }
  },
  {
@@ -3371,14 +3375,18 @@
  {
   "input": "geri yukle extra words",
   "noKernel": {
-   "command": "anlamadım",
-   "args": "",
-   "workflowId": null
+   "command": "restore",
+   "args": {
+    "backupDir": "extra words"
+   },
+   "workflowId": "restore"
   },
   "knownNode": {
-   "command": "anlamadım",
-   "args": "",
-   "workflowId": null
+   "command": "restore",
+   "args": {
+    "backupDir": "extra words"
+   },
+   "workflowId": "restore"
   }
  },
  {
@@ -9195,14 +9203,18 @@
  {
   "input": "geri yükle extra words",
   "noKernel": {
-   "command": "anlamadım",
-   "args": "",
-   "workflowId": null
+   "command": "restore",
+   "args": {
+    "backupDir": "extra words"
+   },
+   "workflowId": "restore"
   },
   "knownNode": {
-   "command": "anlamadım",
-   "args": "",
-   "workflowId": null
+   "command": "restore",
+   "args": {
+    "backupDir": "extra words"
+   },
+   "workflowId": "restore"
   }
  },
  {
