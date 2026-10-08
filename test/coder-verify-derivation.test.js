@@ -188,4 +188,43 @@ describe('verifyDerivation', () => {
 
     assert.equal(read('../' + path.basename(outside) + '/secret.txt'), null);
   });
+
+  it('re-derives a record made on a CRLF checkout against an LF base (#3696)', () => {
+    const head = makeRoot();
+    const base = makeRoot();
+    write(head, 'docs/notes.md', 'one\r\ntwo\r\n');
+    write(base, 'docs/notes.md', 'one\ntwo\n');
+    const crlfTask = {
+      id: 'verify-crlf-anchor',
+      level: 'l0',
+      allowedPaths: ['docs/notes.md'],
+      operation: { type: 'insert_after', path: 'docs/notes.md', anchor: 'one\r\ntwo\r\n', insert: 'three\r\n' },
+    };
+    const result = applyDerivation({ task: crlfTask, root: head, repoState: CLEAN_BRANCH });
+    assert.equal(result.outcome, 'applied', 'fixture must start from a real applied derivation');
+
+    const verdict = verify({ record: result.record, base, head });
+
+    assert.equal(verdict.ok, true, verdict.detail);
+    assert.equal(verdict.derivationHash, result.record.derivationHash);
+  });
+
+  it('re-derives an LF record against a CRLF base directory (#3696)', () => {
+    const head = makeRoot();
+    const base = makeRoot();
+    write(head, 'docs/notes.md', 'one\ntwo\n');
+    write(base, 'docs/notes.md', 'one\r\ntwo\r\n');
+    const lfTask = {
+      id: 'verify-lf-anchor',
+      level: 'l0',
+      allowedPaths: ['docs/notes.md'],
+      operation: { type: 'insert_after', path: 'docs/notes.md', anchor: 'one\ntwo\n', insert: 'three\n' },
+    };
+    const result = applyDerivation({ task: lfTask, root: head, repoState: CLEAN_BRANCH });
+    assert.equal(result.outcome, 'applied', 'fixture must start from a real applied derivation');
+
+    const verdict = verify({ record: result.record, base, head });
+
+    assert.equal(verdict.ok, true, verdict.detail);
+  });
 });
