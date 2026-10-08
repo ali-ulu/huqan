@@ -384,6 +384,15 @@ cross-workspace gate'lerini yeniden kullanır. En sert karar kazanır:
 | `review` | İnsan kararı olmadan çalışmaz |
 | `block` | Çalışmaz |
 
+### Alan-düzeyi kanıt (`metadata.fieldEvidence`)
+
+Guard, kararın şeklini bounded tutarken hangi alanın kırpıldığını göstermek
+için `metadata.fieldEvidence` taşır (`lib/external-action-guard-gates.js:90,108`).
+Allowlist'li komut, çözümlenmiş hedef (`target.path` → `target.resolvedPath`) ve
+komut şekli için `{propertyPath, valueBefore, valueAfter}` satırları üretilir.
+Bu alan **audit-only**'dir: hashed admission receipt'e dahil değildir ve yalnız
+en az bir satır varsa eklenir, aksi halde kararın şekli değişmez.
+
 ### Codex hook sözleşmesi (ölçüldü, codex-cli 0.151.0)
 
 Codex ikilisi hook giriş/çıkış şemalarını kendi içinde taşıyor; aşağıdakiler
