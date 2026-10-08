@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "huqan-derivation-v3",
+  "catalogVersion": "1.0.0",
+  "operationType": "replace_text",
+  "operation": {
+    "type": "replace_text",
+    "path": "lib/verify-result.js",
+    "find": "  const nextData = guarded.data;",
+    "replace": "  const nextData = withGrounding(this.kernel.graph, guarded.data, context, workspaceId);"
+  },
+  "allowedPaths": [
+    "lib/verify-result.js"
+  ],
+  "inputs": [
+    {
+      "path": "lib/verify-result.js",
+      "sha256": "b3712208142c7e29affc7c86afbaa7b3b3522d10debc107717c8ce550f0fd9ec"
+    }
+  ],
+  "patch": [
+    {
+      "path": "lib/verify-result.js",
+      "beforeSha256": "b3712208142c7e29affc7c86afbaa7b3b3522d10debc107717c8ce550f0fd9ec",
+      "afterSha256": "fa4b9b24210c0991d910be02cd466a371370597ca34770f307f33115ea3f2404"
+    }
+  ],
+  "runnerStatus": "COMPLETED",
+  "runnerReason": "",
+  "derivationHash": "7341184b8189f1d10ebaca1e128084e5dc18dbe990821cbee951cb63b7ed843b",
+  "taskId": "3652-02-grounding-wire",
+  "workspaceId": "default",
+  "outcome": "applied",
+  "gate": {
+    "decision": "allow",
+    "reason": "OPERATOR_AUTHORIZED_REVIEW",
+    "riskLevel": "low",
+    "policyVersion": "AB3-v0.1.0",
+    "operatorAuthorized": true
+  },
+  "observedVerification": {
+    "ran": false,
+    "ok": null,
+    "command": null,
+    "evidenceRef": null
+  },
+  "createdAt": "2026-10-08T18:47:59.662Z",
+  "recordHash": "1f33af29f63e631384bae1538c4ae673950d5d908df58d38c2ae7d229e752eb6"
+}
