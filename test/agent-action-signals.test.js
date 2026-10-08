@@ -14,6 +14,7 @@ const {
   buildMetadata,
   hasAutomationMarker,
   hasStructuredAction,
+  inputFieldEvidence,
 } = require('../lib/agent-action-signals');
 
 test('actionText folds structured values but never a structured target', () => {
@@ -65,4 +66,31 @@ test('an incomplete goal-integrity record is left out of the metadata', () => {
     assert.equal(Object.hasOwn(meta, 'goalIntegrity'), false, JSON.stringify(goalIntegrity));
     assert.equal(meta.workspaceId, 'default');
   }
+});
+
+test('input field evidence names only the fields the firewall actually clipped, as lengths', () => {
+  const long = 'x'.repeat(600);
+  const rows = inputFieldEvidence({ command: long, target: 'short', action: 42, nested: long });
+  // `nested` is not a structured action key, `action` is not a string, and
+  // `target` is under the clip, so only `command` was actually cut.
+  assert.deepEqual(rows, [{ propertyPath: 'input.command', valueBefore: '600', valueAfter: '512' }]);
+  assert.ok(Object.isFrozen(rows[0]), 'each row is frozen');
+  assert.equal(Object.hasOwn(rows[0], 'value'), false, 'the value itself never lands in the row');
+});
+
+test('input field evidence is empty for a missing, non-object or array input', () => {
+  for (const input of [undefined, null, 'text', 7, ['command'], true]) {
+    assert.deepEqual(inputFieldEvidence(input), [], String(input));
+  }
+});
+
+test('input field evidence carries at most one row per structured key, so it is bounded by construction', () => {
+  const long = 'y'.repeat(600);
+  const input = {};
+  for (const key of ['action', 'operation', 'operationType', 'intent', 'command', 'cmd', 'shell', 'script', 'exec', 'target', 'deploy', 'release', 'merge', 'workflow', 'branch', 'baseBranch']) {
+    input[key] = long;
+  }
+  const rows = inputFieldEvidence(input);
+  assert.equal(rows.length, 16, 'one row per structured key, never more');
+  assert.equal(rows[15].propertyPath, 'input.baseBranch');
 });
