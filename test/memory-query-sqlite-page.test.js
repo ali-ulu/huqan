@@ -22,9 +22,14 @@ test('SQLite query uses an indexed bounded page and preserves filters', () => {
       { workspaceId: 'ws-a', orderBy: 'updatedAt', limit: 2 },
       { workspaceId: 'ws-a', status: 'deleted', limit: 2 },
       { workspaceId: 'ws-a', limit: 1.5, offset: 2.5 },
+      // #3640: the indexed path and the engine must agree on the workspace's
+      // unfiltered count, or a caller could read two different stores.
+      { workspaceId: 'ws-a', storeTotal: true, limit: 3, offset: 4 },
+      { workspaceId: 'ws-a', status: 'deleted', storeTotal: true, limit: 2 },
     ]) {
       assert.deepEqual(store.query(opts), runQuery({ memories: store._memories }, opts));
     }
+    assert.equal(store.query({ workspaceId: 'ws-a', storeTotal: true }).storeTotal, 12);
     assert.equal(store.list({ workspaceId: 'ws-a', includeDeleted: true }).total, 12);
     const expected = store.query({ workspaceId: 'ws-a', limit: 3, offset: 4 });
     assert.equal(expected.total, 12);

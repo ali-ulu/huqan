@@ -42,6 +42,28 @@ const RECORDS = [
 
 const bm25 = (opts) => runQuery(contextWith(RECORDS), { text: 'recall gate provenance', retrievalMode: 'bm25', ...opts });
 
+describe('memory query: storeTotal is opt-in', () => {
+  // #3640: the CLI needs the workspace's unfiltered count to tell an empty
+  // store from a text that matched nothing, without a second read.
+  test('storeTotal counts the workspace, not the query, and stays absent by default', () => {
+    const context = contextWith(RECORDS);
+    assert.equal(runQuery(context, { text: 'recall gate provenance' }).storeTotal, undefined);
+    // Four active records in the default workspace: m-a, m-b, m-c, m-f.
+    // m-d is tombstoned and hidden, m-e lives in another workspace.
+    const counted = runQuery(context, { text: 'no-such-word', storeTotal: true });
+    assert.equal(counted.total, 0);
+    assert.equal(counted.storeTotal, 4);
+    // A status filter narrows the page but not the store count.
+    assert.equal(runQuery(context, { status: 'deleted', storeTotal: true }).storeTotal, 4);
+    // Visibility flags still apply, the way they do for every read.
+    assert.equal(runQuery(context, { includeDeleted: true, storeTotal: true }).storeTotal, 5);
+  });
+
+  test('an empty store answers storeTotal 0', () => {
+    assert.equal(runQuery(contextWith([]), { text: 'anything', storeTotal: true }).storeTotal, 0);
+  });
+});
+
 describe('memory query: retrievalMode bm25 is opt-in', () => {
   test('the default substring path is unchanged and carries no retrieval field', () => {
     const result = runQuery(contextWith(RECORDS), { text: 'recall gate provenance' });
