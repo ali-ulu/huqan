@@ -141,6 +141,19 @@ test('an insufficient calibration split yields INSUFFICIENT with no arms', () =>
   assert.equal(result.reason, 'calibration_insufficient');
 });
 
+test('a pinned source commit adds the C arm; without it the A/B report is unchanged', () => {
+  const withoutC = runContradictionBaseline({ corpus: CORPUS, labels: LABELS, contract: CONTRACT, threshold: 0.5 });
+  const withC = runContradictionBaseline({ corpus: CORPUS, labels: LABELS, contract: CONTRACT, threshold: 0.5, sourceCommit: 'a'.repeat(40) });
+  assert.deepEqual(Object.keys(withoutC.arms), ['A', 'B']);
+  assert.deepEqual(Object.keys(withC.arms), ['A', 'B', 'C']);
+  assert.equal(withoutC.fusion, null);
+  assert.equal(withC.fusion.status, 'MEASURED');
+  assert.equal(withC.arms.C.probabilityKind, PROBABILITY_KIND.CALIBRATED);
+  // A and B are identical whether or not C is present.
+  assert.deepEqual(withC.arms.A.confusion, withoutC.arms.A.confusion);
+  assert.deepEqual(withC.arms.B.confusion, withoutC.arms.B.confusion);
+});
+
 test('armBCalibrated maps the same raw score through the frozen artifact', () => {
   const records = Array.from({ length: 10 }, (_, index) => ({
     pairId: `pair:${index}`, split: 'calibration',

@@ -77,6 +77,19 @@ test('the contradiction sub-path resolves a request file to an A/B measurement',
   assertCanonicalUntouched(box);
 });
 
+test('a request with a pinned source commit also reports the C fusion arm', (t) => {
+  const box = sandbox(t);
+  const file = writeText(box, 'r50-c.json', JSON.stringify(request({ sourceCommit: 'a'.repeat(40) })));
+  const result = invoke(['contradiction', '--contradiction-records', file], box);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.status, 'MEASURED');
+  assert.deepEqual(Object.keys(result.output.arms), ['A', 'B', 'C']);
+  assert.equal(result.output.arms.C.probabilityKind, 'CALIBRATED');
+  assert.equal(result.output.fusion.status, 'MEASURED');
+  assert.equal(result.output.fusion.authority.canonical, false);
+  assertCanonicalUntouched(box);
+});
+
 test('contradiction usage errors throw before any store is opened', async () => {
   await assert.rejects(
     runCognitiveLab(['contradiction'], { openGraph: () => { throw new Error('must not open a graph'); } }),

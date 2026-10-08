@@ -11,6 +11,15 @@
   mapping fit only on the calibration split). The path is store-free, opens no
   graph, leaves canonical memory untouched, and asserts no gain. It is a
   measurement surface, not a production contradiction integration.
+- **Deterministic local fusion arm (R50, #3582).** When the request pins a
+  `sourceCommit`, the same sub-path also reports arm C: a frozen 18-feature
+  vector (the nine detector flags plus a bounded claim-metadata block, no raw
+  text or embedding) through a closed-form ridge readout trained on the train
+  split, mapped to a probability by the same calibration artifact. The raw
+  readout is a score, never a probability, and the arm is
+  `DETERMINISTIC`/`LOCAL`/`CANDIDATE_ONLY` with zero model calls, tokens or
+  external calls. Production integration and the learned-meaning D arm are
+  #3583's scope, not this one.
 
 ### Changed (breaking)
 - **An MCP `tools/call` with a non-JSON `arguments` string is now a parse

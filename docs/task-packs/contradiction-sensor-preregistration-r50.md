@@ -237,3 +237,78 @@ node --test test/cognitive-lab-contradiction-cli-wiring.test.js
 - PR2 A ve B'yi ölçer; C kolunu (füzyon) veya abstention politikasını içermez (PR3/PR4).
 - Hiçbir kazanç, promotion veya üretim davranışı iddiası yoktur; `assertsGain: false`, `productionBehaviorChanged: false`.
 - B'nin holdout'ta hiç pozitif dememesi, tek bir karar eşiğinin (0.5) sonucudur; eşik taraması PR4'ün politika simülasyonuna aittir.
+
+---
+
+## 13. PR3 ölçümü — C kolu (deterministik yerel füzyon)
+
+**Status:** ölçüldü. C kolu HUQAN'ın kendi deterministik okuma cihazıdır; hiçbir üretim yoluna bağlanmaz ve D kolunun (öğrenilmiş anlam modeli, #3583) yerini almaz.
+
+**Kapsam:** PR3 — deterministik füzyon. `lib/cognitive-lab-contradiction-features.js` (donmuş özellik çıkarıcı), `lib/cognitive-lab-contradiction-fusion.js` (kapalı-form ridge okuma + kalibre olasılık), `lib/cognitive-lab-contradiction-evaluator.js` içinde `sourceCommit` verilince eklenen C kolu.
+
+### Yöntem
+
+- Özellik vektörü §6'da dondu: 9 kural-fired bayrağı (`runContradictionRules` sırası) + `contradictionSignalCount`, `maxSeverity`, `maxDeclaredConfidence`, `evidenceCount`, `sameSubject`, `sourceTypeKnown`, `sameSourceType`, `frameKnown`, `sameFrame`. Genişlik 18; spec digest `6d508b4d…b71b5278`.
+- Yasaklı özellikler (ham metin token'ı, TF-IDF/embedding, opposition-pair kimliği, `candidateId`/path, insan etiketi, split/reviewer kimliği, dış model/Jev/NLI skoru) çıkarıcıya alınmadı; `maxDeclaredConfidence` yalnız girdi özelliğidir, olasılık olarak okunmaz.
+- Readout kapalı-formdur: `ridgeFit` (Gram matrisi + sabit terim, `ridge = 0.5`), yalnız train split'inde (n=63 skorlanabilir) fit edilir. Çıktı **skor**tur; olasılık yalnız kalibrasyondan geçerek elde edilir. Holdout fit sırasında okunmaz.
+- C kolu **kendi** kalibrasyon artifact'ını fit eder: `fitFusion`, okumanın calibration split'teki skorlarını (n=16 skorlanabilir) PR2 ile aynı deterministik isotonic+Laplace fitter'ından geçirir. PR2'nin kural-skoru eşlemesini C'ye uygulamak, bir dağılımın skorunu başka bir dağılımın basamak fonksiyonuna sokardı; `applyCalibration` clamp/interpolate edip yine bir sayı döndürür, dolayısıyla raporlanan Brier/ECE fit edilen eşleme tarafından desteklenmez. Bu yüzden ayrı artifact zorunludur. `fitFusion` artifact'ın `calibration.version` alanına bu eşlemenin digest'ini yazar; `fusionProbability` digest uyuşmayan bir kalibrasyon artifact'ını `fusion_calibration_mismatch` ile reddeder.
+- `fitFusion` ihraç edilen bir fitter olduğu için split koruması kendi içindedir: `trainRecords` içinde train dışı, `calibrationRecords` içinde calibration dışı bir kayıt `fusion_label_leakage` ile reddedilir (evaluator'ın kendi filtresi yeterli değildir).
+- Artifact deterministiktir: aynı train+calibration verisi bayt-bayt aynı artifact'ı üretir; okuma öncesi digest doğrulanır.
+- Yetki sınırı: `DETERMINISTIC / LOCAL / CANDIDATE_ONLY / canonical:false`, `modelCalls:0`, `tokens:0`, `externalCalls:0`. Semantik keşif veya kazanç iddiası yoktur.
+
+### Fusion artifact'ı
+
+```text
+featureSpecDigest  6d508b4d2808bd082fdc3d3e6a7bf5f564426683f0b86830a0a240b4b71b5278
+algorithm          ridgeFit   ridge 0.5   trainN 63
+readout (18 ağırlık + bias)
+  [-0.2679, 0, 0, -0.0479, 0, 0.3494, 0, 0, 0, 0.0336, 0.0327, 0.0343,
+    0.0672, 0.0555, 0.0555, 0.0555, 0.0555, 0.0555, 0.0555]
+artifact digest    cbbe0f4ca2fe51c3b78e7eaf97d55a44a8a88e2a5b2fb1b475959bcb5713ca8a
+C kalibrasyonu     (kendi eşlemesi) digest dcbd14ae19ffb1e98c990f37b81c09ad7b682cd8044d3c662905f511bc318bbb
+  score -> probability   (support)
+  0.2953 -> 0.1667        (2)
+  0.3331 -> 0.3214        (13)
+  0.5120 -> 0.7500        (1)
+```
+
+Negatif bias, "hiç sinyal yok" durumunu düşük olasılığa çeker; `CAUSE_PREVENT_OPPOSITION` en güçlü pozitif ağırlığı taşır. C'nin eşlemesi PR2'nin kural-skoru eşlemesinden ayrıdır: aynı isotonic+Laplace fitter'ı, farklı bir skor dağılımı üzerinde çalışır.
+
+### Holdout sonucu (aynı donmuş holdout, eşik 0.5)
+
+| Metrik | A (declared) | B (calibrated rules) | C (local fusion) |
+|---|---|---|---|
+| predicted positive | 6 | 0 | 1 |
+| TP / FP / TN / FN | 2 / 4 / 4 / 3 | 0 / 0 / 8 / 5 | 1 / 0 / 8 / 4 |
+| precision | 0.333 | n/a (0 predicted) | 1.000 |
+| recall | 0.400 | 0.000 | 0.200 |
+| false-positive rate | 0.500 | 0.000 | 0.000 |
+| coverage | 0.462 | 0.000 | 0.077 |
+| Brier | raporlanmaz | 0.2414 | 0.2048 |
+| ECE | raporlanmaz | 0.0385 | 0.0897 |
+
+**Okuma.** C, A'nın aşırı-güvenini düzeltir: eşik 0.5'te yalnız 1 pozitif der ve o pozitif gerçektir (precision 1.000), oysa A 6 pozitifin 4'ünü yanlış verir. B'nin karar düzeyinde çekingenliğine karşı C, kalibre olasılığı 0.75 olan tek bir yüksek-skor pair'i yakalar; Brier'ı B'den iyidir (0.2048 vs 0.2414), ECE'si ise daha kötüdür (0.0897 vs 0.0385) — küçük holdout'ta tek bir yüksek skor ECE'yi büyütür. Bu, C'nin B'ye karşı karar düzeyinde bir üstünlük kurduğunu **iddia etmez**; kesin karşılaştırma ve eşik taraması PR4'ün eşlenmiş raporuna aittir. Bu bölüm kazanç iddia etmez (`assertsGain: false`).
+
+Not: C'nin kalibrasyonu kendi skor dağılımı üzerinde fit edilmemiş olsaydı (PR2 eşlemesi yeniden kullanılsaydı) C hiç pozitif demez ve Brier/ECE fit edilen eşleme tarafından desteklenmezdi; yukarıdaki sayılar ayrı artifact'ın sonucudur.
+
+### PR3 kabul durumu
+
+- [x] Deterministik özellik seti (9 kural bayrağı + sınırlı meta veri) dondu ve digest'lendi.
+- [x] Yasaklı özellikler (embedding, opposition-pair, path, insan etiketi, split) çıkarıcıda yok; test bunu doğruluyor.
+- [x] Readout kapalı-form, yalnız train split'inde fit; çıktı skor, olasılık yalnız kalibrasyondan.
+- [x] C kolu kendi kalibrasyon artifact'ını (kendi skor dağılımı üzerinde) fit ediyor; PR2'nin kural-skoru eşlemesini kullanmıyor ve yabancı eşlemeyi `fusion_calibration_mismatch` ile reddediyor.
+- [x] `fitFusion` split korumasını kendi içinde taşıyor (`fusion_label_leakage`); ihraç edilen fitter'a holdout kaydı verilemiyor.
+- [x] Artifact deterministik ve digest-bağlı; tampered artifact okuma öncesi reddediliyor.
+- [x] Dış model/Jev/NLI yok; yetki sınırı `DETERMINISTIC/LOCAL/CANDIDATE_ONLY`.
+- [x] `assertsGain: false`, `productionBehaviorChanged: false`.
+
+Doğrulama:
+
+```bash
+node --test test/cognitive-lab-contradiction-fusion.test.js
+```
+
+### Sınırlar
+
+- C, HUQAN'ın kendi özellikleri üzerinde yerel bir okumadır; D kolunun (öğrenilmiş anlam modeli) yerine geçmez.
+- Karar düzeyinde kazanç iddiası yoktur; üretim entegrasyonu (`off|shadow|on`) ve D kolu #3583'ün sahipliğindedir.
