@@ -1,0 +1,507 @@
+{
+  "source": "https://huggingface.co/datasets/stanfordnlp/snli",
+  "license": "CC-BY-SA-4.0",
+  "attribution": "The Stanford NLP Group",
+  "rows": [
+    {
+      "premise": "A person on a horse jumps over a broken down airplane.",
+      "hypothesis": "A person is training his horse for a competition.",
+      "label": 1
+    },
+    {
+      "premise": "A person on a horse jumps over a broken down airplane.",
+      "hypothesis": "A person is at a diner, ordering an omelette.",
+      "label": 2
+    },
+    {
+      "premise": "A person on a horse jumps over a broken down airplane.",
+      "hypothesis": "A person is outdoors, on a horse.",
+      "label": 0
+    },
+    {
+      "premise": "Children smiling and waving at camera",
+      "hypothesis": "They are smiling at their parents",
+      "label": 1
+    },
+    {
+      "premise": "Children smiling and waving at camera",
+      "hypothesis": "There are children present",
+      "label": 0
+    },
+    {
+      "premise": "Children smiling and waving at camera",
+      "hypothesis": "The kids are frowning",
+      "label": 2
+    },
+    {
+      "premise": "A boy is jumping on skateboard in the middle of a red bridge.",
+      "hypothesis": "The boy skates down the sidewalk.",
+      "label": 2
+    },
+    {
+      "premise": "A boy is jumping on skateboard in the middle of a red bridge.",
+      "hypothesis": "The boy does a skateboarding trick.",
+      "label": 0
+    },
+    {
+      "premise": "A boy is jumping on skateboard in the middle of a red bridge.",
+      "hypothesis": "The boy is wearing safety equipment.",
+      "label": 1
+    },
+    {
+      "premise": "An older man sits with his orange juice at a small table in a coffee shop while employees in bright colored shirts smile in the background.",
+      "hypothesis": "An older man drinks his juice as he waits for his daughter to get off work.",
+      "label": 1
+    },
+    {
+      "premise": "An older man sits with his orange juice at a small table in a coffee shop while employees in bright colored shirts smile in the background.",
+      "hypothesis": "A boy flips a burger.",
+      "label": 2
+    },
+    {
+      "premise": "An older man sits with his orange juice at a small table in a coffee shop while employees in bright colored shirts smile in the background.",
+      "hypothesis": "An elderly man sits in a small shop.",
+      "label": 1
+    },
+    {
+      "premise": "Two blond women are hugging one another.",
+      "hypothesis": "Some women are hugging on vacation.",
+      "label": 1
+    },
+    {
+      "premise": "Two blond women are hugging one another.",
+      "hypothesis": "The women are sleeping.",
+      "label": 2
+    },
+    {
+      "premise": "Two blond women are hugging one another.",
+      "hypothesis": "There are women showing affection.",
+      "label": 0
+    },
+    {
+      "premise": "A few people in a restaurant setting, one of them is drinking orange juice.",
+      "hypothesis": "The people are eating omelettes.",
+      "label": 1
+    },
+    {
+      "premise": "A few people in a restaurant setting, one of them is drinking orange juice.",
+      "hypothesis": "The people are sitting at desks in school.",
+      "label": 2
+    },
+    {
+      "premise": "A few people in a restaurant setting, one of them is drinking orange juice.",
+      "hypothesis": "The diners are at a restaurant.",
+      "label": 0
+    },
+    {
+      "premise": "An older man is drinking orange juice at a restaurant.",
+      "hypothesis": "A man is drinking juice.",
+      "label": 0
+    },
+    {
+      "premise": "An older man is drinking orange juice at a restaurant.",
+      "hypothesis": "Two women are at a restaurant drinking wine.",
+      "label": 2
+    },
+    {
+      "premise": "An older man is drinking orange juice at a restaurant.",
+      "hypothesis": "A man in a restaurant is waiting for his meal to arrive.",
+      "label": 1
+    },
+    {
+      "premise": "A man with blond-hair, and a brown shirt drinking out of a public water fountain.",
+      "hypothesis": "A blond man getting a drink of water from a fountain in the park.",
+      "label": 1
+    },
+    {
+      "premise": "A man with blond-hair, and a brown shirt drinking out of a public water fountain.",
+      "hypothesis": "A blond man wearing a brown shirt is reading a book on a bench in the park",
+      "label": 2
+    },
+    {
+      "premise": "A man with blond-hair, and a brown shirt drinking out of a public water fountain.",
+      "hypothesis": "A blond man drinking water from a fountain.",
+      "label": 0
+    },
+    {
+      "premise": "Two women who just had lunch hugging and saying goodbye.",
+      "hypothesis": "The friends scowl at each other over a full dinner table.",
+      "label": 2
+    },
+    {
+      "premise": "Two women who just had lunch hugging and saying goodbye.",
+      "hypothesis": "There are two woman in this picture.",
+      "label": 0
+    },
+    {
+      "premise": "Two women who just had lunch hugging and saying goodbye.",
+      "hypothesis": "The friends have just met for the first time in 20 years, and have had a great time catching up.",
+      "label": 1
+    },
+    {
+      "premise": "Two women, holding food carryout containers, hug.",
+      "hypothesis": "The two sisters saw each other across the crowded diner and shared a hug, both clutching their doggie bags.",
+      "label": 1
+    },
+    {
+      "premise": "Two women, holding food carryout containers, hug.",
+      "hypothesis": "Two groups of rival gang members flipped each other off.",
+      "label": 2
+    },
+    {
+      "premise": "Two women, holding food carryout containers, hug.",
+      "hypothesis": "Two women hug each other.",
+      "label": 0
+    },
+    {
+      "premise": "A Little League team tries to catch a runner sliding into a base in an afternoon game.",
+      "hypothesis": "A team is trying to score the games winning out.",
+      "label": 1
+    },
+    {
+      "premise": "A Little League team tries to catch a runner sliding into a base in an afternoon game.",
+      "hypothesis": "A team is trying to tag a runner out.",
+      "label": 0
+    },
+    {
+      "premise": "A Little League team tries to catch a runner sliding into a base in an afternoon game.",
+      "hypothesis": "A team is playing baseball on Saturn.",
+      "label": 2
+    },
+    {
+      "premise": "The school is having a special event in order to show the american culture on how other cultures are dealt with in parties.",
+      "hypothesis": "A school hosts a basketball game.",
+      "label": 2
+    },
+    {
+      "premise": "The school is having a special event in order to show the american culture on how other cultures are dealt with in parties.",
+      "hypothesis": "A high school is hosting an event.",
+      "label": 1
+    },
+    {
+      "premise": "The school is having a special event in order to show the american culture on how other cultures are dealt with in parties.",
+      "hypothesis": "A school is hosting an event.",
+      "label": 0
+    },
+    {
+      "premise": "High fashion ladies wait outside a tram beside a crowd of people in the city.",
+      "hypothesis": "The women do not care what clothes they wear.",
+      "label": 2
+    },
+    {
+      "premise": "High fashion ladies wait outside a tram beside a crowd of people in the city.",
+      "hypothesis": "Women are waiting by a tram.",
+      "label": 0
+    },
+    {
+      "premise": "High fashion ladies wait outside a tram beside a crowd of people in the city.",
+      "hypothesis": "The women enjoy having a good fashion sense.",
+      "label": 1
+    },
+    {
+      "premise": "A man, woman, and child enjoying themselves on a beach.",
+      "hypothesis": "A child with mom and dad, on summer vacation at the beach.",
+      "label": 1
+    },
+    {
+      "premise": "A man, woman, and child enjoying themselves on a beach.",
+      "hypothesis": "A family of three is at the beach.",
+      "label": 0
+    },
+    {
+      "premise": "A man, woman, and child enjoying themselves on a beach.",
+      "hypothesis": "A family of three is at the mall shopping.",
+      "label": 2
+    },
+    {
+      "premise": "People waiting to get on a train or just getting off.",
+      "hypothesis": "The people waiting on the train are sitting.",
+      "label": 1
+    },
+    {
+      "premise": "People waiting to get on a train or just getting off.",
+      "hypothesis": "There are people just getting on a train",
+      "label": 0
+    },
+    {
+      "premise": "People waiting to get on a train or just getting off.",
+      "hypothesis": "There are people waiting on a train.",
+      "label": 0
+    },
+    {
+      "premise": "A couple playing with a little boy on the beach.",
+      "hypothesis": "A couple are playing with a young child outside.",
+      "label": 0
+    },
+    {
+      "premise": "A couple playing with a little boy on the beach.",
+      "hypothesis": "A couple are playing frisbee with a young child at the beach.",
+      "label": 1
+    },
+    {
+      "premise": "A couple playing with a little boy on the beach.",
+      "hypothesis": "A couple watch a little girl play by herself on the beach.",
+      "label": 2
+    },
+    {
+      "premise": "A couple play in the tide with their young son.",
+      "hypothesis": "The family is sitting down for dinner.",
+      "label": 2
+    },
+    {
+      "premise": "A couple play in the tide with their young son.",
+      "hypothesis": "The family is outside.",
+      "label": 0
+    },
+    {
+      "premise": "A couple play in the tide with their young son.",
+      "hypothesis": "The family is on vacation.",
+      "label": 1
+    },
+    {
+      "premise": "A man and a woman cross the street in front of a pizza and gyro restaurant.",
+      "hypothesis": "The people are standing still on the curb.",
+      "label": 2
+    },
+    {
+      "premise": "A man and a woman cross the street in front of a pizza and gyro restaurant.",
+      "hypothesis": "Near a couple of restaurants, two people walk across the street.",
+      "label": 0
+    },
+    {
+      "premise": "A man and a woman cross the street in front of a pizza and gyro restaurant.",
+      "hypothesis": "The couple are walking across the street together.",
+      "label": 1
+    },
+    {
+      "premise": "A woman in a green jacket and hood over her head looking towards a valley.",
+      "hypothesis": "The woman is nake.",
+      "label": 2
+    },
+    {
+      "premise": "A woman in a green jacket and hood over her head looking towards a valley.",
+      "hypothesis": "The woman is cold.",
+      "label": 1
+    },
+    {
+      "premise": "A woman in a green jacket and hood over her head looking towards a valley.",
+      "hypothesis": "The woman is wearing green.",
+      "label": 0
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "The man with the sign is caucasian.",
+      "label": 1
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "They are protesting outside the capital.",
+      "label": 2
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "A woman in white.",
+      "label": 0
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "A man is advertising for a restaurant.",
+      "label": 0
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "The woman is wearing black.",
+      "label": 2
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "A man and a woman walk down a crowded city street.",
+      "label": 1
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "The woman is wearing white.",
+      "label": 0
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "They are working for John's Pizza.",
+      "label": 1
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "Olympic swimming.",
+      "label": 2
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "A man and a soman are eating together at John's Pizza and Gyro.",
+      "label": 2
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "They are walking with a sign.",
+      "label": 0
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "The woman is waiting for a friend.",
+      "label": 1
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "The man is sitting down while he has a sign for John's Pizza and Gyro in his arms.",
+      "label": 2
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "The woman and man are outdoors.",
+      "label": 0
+    },
+    {
+      "premise": "Woman in white in foreground and a man slightly behind walking with a sign for John's Pizza and Gyro in the background.",
+      "hypothesis": "A woman ordering pizza.",
+      "label": 1
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "The people are related.",
+      "label": 1
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults run across the street to get away from a red shirted person chasing them.",
+      "label": 2
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "The adults are both male and female.",
+      "label": 0
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two people walk home after a tasty steak dinner.",
+      "label": 1
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults swimming in water",
+      "label": 2
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults walk across a street.",
+      "label": 0
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two people ride bicycles into a tunnel.",
+      "label": 2
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two people walk away from a restaurant across a street.",
+      "label": 0
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults walking across a road near the convicted prisoner dressed in red",
+      "label": 1
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two friends cross a street.",
+      "label": 1
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Some people board a train.",
+      "label": 2
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults walk across the street.",
+      "label": 0
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults walking across a road",
+      "label": 0
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "There are no women in the picture.",
+      "label": 2
+    },
+    {
+      "premise": "Two adults, one female in white, with shades and one male, gray clothes, walking across a street, away from a eatery with a blurred image of a dark colored red shirted person in the foreground.",
+      "hypothesis": "Two adults walk across the street to get away from a red shirted person who is chasing them.",
+      "label": 1
+    },
+    {
+      "premise": "A woman wearing all white and eating, walks next to a man holding a briefcase.",
+      "hypothesis": "A married couple is sleeping.",
+      "label": 2
+    },
+    {
+      "premise": "A woman wearing all white and eating, walks next to a man holding a briefcase.",
+      "hypothesis": "A female is next to a man.",
+      "label": 0
+    },
+    {
+      "premise": "A woman wearing all white and eating, walks next to a man holding a briefcase.",
+      "hypothesis": "A married couple is walking next to each other.",
+      "label": 1
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "Nobody has food.",
+      "label": 2
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "A woman eats a banana and walks across a street, and there is a man trailing behind her.",
+      "label": 0
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "The woman and man are playing baseball together.",
+      "label": 2
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "two coworkers cross pathes on a street",
+      "label": 1
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "A woman eats ice cream walking down the sidewalk, and there is another woman in front of her with a purse.",
+      "label": 2
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "The mans briefcase is for work.",
+      "label": 1
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "A person eating.",
+      "label": 0
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "A person that is hungry.",
+      "label": 1
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "An actress and her favorite assistant talk a walk in the city.",
+      "label": 1
+    },
+    {
+      "premise": "A woman is walking across the street eating a banana, while a man is following with his briefcase.",
+      "hypothesis": "a woman eating a banana crosses a street",
+      "label": 0
+    }
+  ]
+}
