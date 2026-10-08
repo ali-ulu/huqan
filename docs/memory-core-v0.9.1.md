@@ -69,11 +69,11 @@ Tombstoned (`type: "deleted"`) edilen bir hafıza `list()`, `query()` vb. genel 
 
 ### Kayıt Deposunu Ne Doldurur?
 
-Depoya yeni bir **başlangıç (kanonik)** kaydı yazan tek üretim çağrısı `lib/error-prevention/store.js`'teki `memoryStore.store(...)`'dur; buna SDK köprüsü `createErrorPrevention` (`index.js` → `lib/error-prevention/`) üzerinden erişilir. Bir MCP tool'u veya açılışta çalışan bir loader başlangıç kaydı **yazmaz** (bkz. `docs/audits/direct-mutation-inventory.md`). Buna karşılık **`memory-lifecycle supersede` bir istisnadır**: mevcut bir kaydı yeni bir **replacement record** ile değiştirir ve bu replacement record depoya yazılır.
+Depoya yeni bir **başlangıç (kanonik)** kaydı yazan, depo içindeki bilinen üretim çağrısı `lib/error-prevention/store.js`'teki `memoryStore.store(...)`'dur; buna SDK köprüsü `createErrorPrevention` (`index.js` → `lib/error-prevention/`) üzerinden erişilir. Ancak `MemoryStore.store(...)` genel bir API'dir: kernel'i tutan bir host aynı depoya doğrudan `kernel.memory.store({ content, workspaceId, ... })` ile de başlangıç kaydı yazabilir, `createErrorPrevention` zorunlu değildir. Bir MCP tool'u veya açılışta çalışan bir loader başlangıç kaydı **yazmaz** (bkz. `docs/audits/direct-mutation-inventory.md`). Buna karşılık **`memory-lifecycle supersede` bir istisnadır**: mevcut bir kaydı yeni bir **replacement record** ile değiştirir ve bu replacement record depoya yazılır.
 
 Depo şu yollarla dolabilir:
 
-1. **SDK/API yolu:** `createErrorPrevention(memoryStore)` ile `storeContent(...)` çağırmak (üretimde bilinen tek başlangıç-kaydı yazıcısı).
+1. **SDK/API yolu:** `createErrorPrevention(memoryStore)` ile `storeContent(...)` çağırmak; ya da kernel'i tutan bir host'ta doğrudan `kernel.memory.store({ content, workspaceId, ... })` çağırmak.
 2. **`memory-lifecycle supersede`:** **zaten var olan** bir kaydı, depoya yazılan yeni bir replacement record ile değiştirir; ilk kaydı yaratamaz.
 3. **Mevcut kalıcılık dosyası:** yapılandırılmış `memory-store.json` (JSON backend) veya `memoryStoreDbPath` (SQLite backend) hazır kayıtlarla açılışa verilebilir. `MemoryStore` açılışta bu dosyayı hidratlar (`kernel.js` → `new MemoryStore({ memoryStorePath, memoryStoreDbPath })`).
 
