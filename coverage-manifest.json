@@ -347,22 +347,22 @@
       ],
       "sites": [
         {
-          "line": 111,
+          "line": 119,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 113,
+          "line": 121,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 166,
+          "line": 174,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 177,
+          "line": 185,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
