@@ -90,6 +90,22 @@ test('a request with a pinned source commit also reports the C fusion arm', (t) 
   assertCanonicalUntouched(box);
 });
 
+test('the contradiction-report sub-path resolves a request file to the A/B/C report', (t) => {
+  const box = sandbox(t);
+  const file = writeText(box, 'r50-report.json', JSON.stringify(request({ sourceCommit: 'a'.repeat(40) })));
+  const result = invoke(['contradiction-report', '--contradiction-report-records', file], box);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.status, 'MEASURED');
+  assert.deepEqual(Object.keys(result.output.arms), ['A', 'B', 'C']);
+  assert.equal(result.output.comparison.primary.baseline, 'B');
+  assert.equal(result.output.comparison.primary.candidate, 'C');
+  assert.equal(result.output.productionBehaviorChanged, false);
+  assert.equal(result.output.automaticPromotion, false);
+  assert.equal(result.output.policy.productionWiring, false);
+  assert.equal(result.output.weakness.length, 9);
+  assertCanonicalUntouched(box);
+});
+
 test('contradiction usage errors throw before any store is opened', async () => {
   await assert.rejects(
     runCognitiveLab(['contradiction'], { openGraph: () => { throw new Error('must not open a graph'); } }),

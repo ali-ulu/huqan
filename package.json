@@ -1351,6 +1351,8 @@
     "lib/cognitive-lab-contradiction-evaluator.js",
     "lib/cognitive-lab-contradiction-features.js",
     "lib/cognitive-lab-contradiction-fusion.js",
+    "lib/cognitive-lab-contradiction-report.js",
+    "lib/cognitive-lab-contradiction-policy.js",
     "lib/cognitive-lab-budget-envelope.js",
     "lib/causal/causal-episode-contract.js",
     "lib/causal/learned-causal-engine.js",
