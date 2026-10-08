@@ -108,7 +108,7 @@ node scripts/build-contradiction-eval-fixture.js --check   # 0
 ## 9. Sınırlar ve devir
 
 - **Örneklem sentetiktir.** Corpus elle yazılmış 110 benzersiz pair'den gelir; mutlak precision/recall doğal dağılıma genellemez. Karşılaştırma geçerlidir, mutlak değerler değil.
-- **Holdout bağımsız adjudication'ı** ön-kayıtta `PENDING_INDEPENDENT_HOLDOUT_REVIEW` olarak kayıtlıdır; promotion gate'i bu alan `ADJUDICATED` olmadan yeşil sayılmaz.
+- **Holdout bağımsız adjudication'ı** ön-kayıtta `PENDING_INDEPENDENT_HOLDOUT_REVIEW` olarak kayıtlıdır; promotion gate'i bu alan `ADJUDICATED` olmadan yeşil sayılmaz. Bu nedenle §2–§5 sayıları **geçicidir**: bağımsız inceleme tamamlanmadan promotion/tuning/eşik seçimi için kullanılamaz (ön-kayıt §3.1'de kayıtlı protokol sapması).
 - **C reddedildi ama yasaklanmadı.** Ölçüm "bu holdout'ta B'nin üstüne ölçülebilir değer koymuyor" der; daha büyük/representative bir corpus'ta yeniden ölçülebilir.
 - **Üretim entegrasyonu açılmadı.** `semantic-signals.js` davranışı değişmedi; hiçbir contradiction candidate otomatik bloklanmadı/reddedilmedi/terfi ettirilmedi.
 - **D kolu (R51, #3583)** aynı donmuş holdout'a öğretmenlerden öğrenmiş bir anlam modelini ekleyecek; bu ölçüm onun baseline'ıdır.
