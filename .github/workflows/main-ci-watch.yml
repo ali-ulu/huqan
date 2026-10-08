@@ -1,15 +1,26 @@
 name: Main CI Watch
 
 on:
+  # #3663: the 15-minute schedule below never ran on cadence. GitHub delays and
+  # drops scheduled runs under load, and this watcher's own history shows gaps
+  # of 3-7 hours, so a red main went unseen for most of a working day. The
+  # watcher therefore also runs when a workflow that runs on main completes.
+  # A workflow_run event fires after that run has finished, so the watcher
+  # still never inspects or reruns a run that is in progress; runs still in
+  # flight for the same commit read as PENDING and keep main from being called
+  # green. There is no branch filter: a tag-triggered Publish run carries the
+  # tag as its branch and must still raise an alert (#3331).
+  workflow_run:
+    workflows:
+      - Benchmark Regression
+      - API Contract
+      - Publish to npm
+      - Repo Radar Contract
+    types: [completed]
   schedule:
-    # Every 15 minutes, not hourly. The watcher re-runs transient failures and
-    # opens an alert only on persistent red, but a merged commit that reddens
-    # main sits undetected for the whole gap between runs -- #3262 left `npm
-    # test` red on main for ~50 minutes, and a contributor could merge on top of
-    # it in that window. A shorter period bounds that window without changing
-    # what the watcher does. It stays a schedule rather than a push/workflow_run
-    # trigger so the watcher never runs concurrently with the workflows it
-    # inspects and reruns.
+    # The fallback when nothing completes on a quiet main, so re-runs and alert
+    # closures still happen. Every 15 minutes, not hourly: #3262 left `npm
+    # test` red on main for ~50 minutes.
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
@@ -18,7 +29,10 @@ permissions:
 
 concurrency:
   group: main-ci-watch
-  cancel-in-progress: true
+  # Queue rather than cancel: with event triggers a newer run would otherwise
+  # cancel one that is part-way through re-running jobs or opening an alert.
+  # GitHub keeps one pending run per group, so a burst still collapses.
+  cancel-in-progress: false
 
 jobs:
   inspect-main:
@@ -28,8 +42,19 @@ jobs:
       actions: write
       contents: read
       issues: write
-    timeout-minutes: 10
+    # A pull request's Benchmark Regression / API Contract run also completes
+    # as a workflow_run event; it says nothing about main.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event != 'pull_request'
+    # Up to five minutes of settle wait plus the scan of ten commits.
+    timeout-minutes: 15
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/main-ci-watch-contexts.json
+            scripts/main-ci-watch-state.js
+          sparse-checkout-cone-mode: false
       - name: Re-run transient failures once, then alert on persistent red commits
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,48 +69,6 @@ jobs:
 
           alerts=0
           latest_sha="${shas[0]}"
-
-          latest_state="$(
-            gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&per_page=100" \
-              --jq '
-                [
-                  .workflow_runs[]
-                  | select(.name != "Main CI Watch")
-                ]
-                | group_by(.name)
-                | map(max_by([.run_number, .run_attempt]))
-              '
-          )"
-
-          latest_count="$(jq 'length' <<<"$latest_state")"
-          latest_blocking="$(
-            jq '[
-              .[]
-              | select(
-                  .status != "completed"
-                  or (
-                    .conclusion != "success"
-                    and .conclusion != "skipped"
-                    and .conclusion != "neutral"
-                  )
-                )
-            ] | length' <<<"$latest_state"
-          )"
-
-          latest_committed_at="$(
-            gh api "repos/$REPO/commits/$latest_sha" --jq '.commit.committer.date'
-          )"
-          latest_epoch="$(date -d "$latest_committed_at" +%s)"
-          now_epoch="$(date -u +%s)"
-          settled=false
-          if (( now_epoch - latest_epoch >= 300 )); then
-            settled=true
-          fi
-
-          main_green=false
-          if [[ "$settled" == "true" && "$latest_count" -gt 0 && "$latest_blocking" -eq 0 ]]; then
-            main_green=true
-          fi
 
           for sha in "${shas[@]}"; do
             short="${sha:0:7}"
@@ -196,6 +179,54 @@ jobs:
             alerts=$((alerts + 1))
           done
 
+          # #3662: main is green only when every post-merge check the ruleset
+          # requires was observed on the latest commit and passed. A check with
+          # no run is MISSING, not "nothing failed"; see
+          # scripts/main-ci-watch-state.js and .github/main-ci-watch-contexts.json.
+          # This runs after the alert loop and tolerates its own failure: an
+          # API error or a broken script only withholds green, it never stops
+          # a red commit from being re-run or alerted on.
+          verdict="STATE_UNAVAILABLE"
+          main_green=false
+          latest_committed_at="$(
+            gh api "repos/$REPO/commits/$latest_sha" --jq '.commit.committer.date' || true
+          )"
+          if [[ -n "$latest_committed_at" ]]; then
+            # An event-triggered run can arrive before the commit has settled;
+            # nothing would wake the watcher again until the schedule, so wait
+            # out the rest of the five-minute window here instead.
+            age=$(( $(date -u +%s) - $(date -d "$latest_committed_at" +%s) ))
+            if (( age >= 0 && age < 300 )); then
+              echo "Latest main ${latest_sha:0:7} is ${age}s old; waiting $(( 300 - age ))s for it to settle."
+              sleep $(( 300 - age ))
+            fi
+          fi
+          if [[ -n "$latest_committed_at" ]] \
+            && gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&per_page=100" \
+              --jq '[.workflow_runs[] | {name, status, conclusion, run_number, run_attempt}]' > /tmp/workflow-runs.json \
+            && gh api --paginate "repos/$REPO/commits/$latest_sha/check-runs?per_page=100" \
+              --jq '.check_runs[] | {id, name, status, conclusion}' | jq -s '.' > /tmp/check-runs.json \
+            && node scripts/main-ci-watch-state.js \
+              --inventory .github/main-ci-watch-contexts.json \
+              --check-runs /tmp/check-runs.json \
+              --workflow-runs /tmp/workflow-runs.json \
+              --committed-at "$latest_committed_at" > /tmp/main-state.json; then
+            verdict="$(jq -r '.verdict' /tmp/main-state.json)"
+            main_green="$(jq -r '.mainGreen' /tmp/main-state.json)"
+            {
+              echo "### Main CI Watch: ${latest_sha:0:7} -- $verdict"
+              echo
+              echo "| Post-merge required check | State |"
+              echo "|---|---|"
+              jq -r '.contexts[] | "| \(.context) | \(.state) |"' /tmp/main-state.json
+              echo
+              echo "Not observable after merge, enforced on the pull request by branch protection: $(jq -r '.notObservablePostMerge | join(", ")' /tmp/main-state.json)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Could not compute the main CI state for ${latest_sha:0:7}; main is not called green and alerts stay open."
+          fi
+          echo "Latest main ${latest_sha:0:7}: $verdict"
+
           if [[ "$main_green" == "true" ]]; then
             mapfile -t resolved_issues < <(
               gh issue list \
@@ -212,11 +243,11 @@ jobs:
             for issue_number in "${resolved_issues[@]}"; do
               gh issue comment "$issue_number" \
                 --repo "$REPO" \
-                --body "Current main \`$latest_sha\` is fully green across its latest workflow attempts. Closing this CI alert."
+                --body "Current main \`$latest_sha\` has every post-merge required check observed and green ($verdict). Closing this CI alert."
               gh issue close "$issue_number" --repo "$REPO" --reason completed
             done
           else
-            echo "Current main is not fully green or has not settled for 5 minutes; CI alert issues remain open."
+            echo "Current main is not verified green ($verdict); CI alert issues remain open."
           fi
 
           echo "Scanned ${#shas[@]} recent main commits; opened $alerts new alert issue(s)."
