@@ -420,6 +420,7 @@
     "lib/coder/derivation-record.js",
     "lib/coder/experience-reporter.js",
     "lib/coder/journal-store.js",
+    "lib/repo-artifacts.js",
     "lib/experience/adapter-scope.js",
     "lib/coder/observed-verification.js",
     "lib/coder/verify-derivation.js",

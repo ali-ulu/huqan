@@ -4238,6 +4238,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-WORKFLOW-P"
   },
+  "lib/repo-artifacts.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P; #3642 dependency-free runtime-artifact classifier for the coder gate"
+  },
   "lib/http/ingest-approval-audit-writer.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
