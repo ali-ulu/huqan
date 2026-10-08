@@ -20,7 +20,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { readRepoState, runCliCoder } = require('../lib/cli-coder');
-const { isRuntimeArtifact, partitionUntracked } = require('../lib/coder/repo-artifacts');
+const { isRuntimeArtifact, partitionUntracked } = require('../lib/repo-artifacts');
 
 function makeRoot() {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-untracked-')));
