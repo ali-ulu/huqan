@@ -3634,6 +3634,10 @@
    "kind": "infra",
    "evidence": "#3583 R51 local candidate-only inference reusing four existing family encoders"
   },
+  "lib/semantic-model-calibration.js": {
+   "kind": "infra",
+   "evidence": "#3583 R51 calibration-split temperature scaling and ABSTAIN band for own-weight predictions"
+  },
   "lib/cognitive-model-local-rwkv.js": {
    "kind": "infra",
    "evidence": "#3561 I6 local RWKV linear-attention candidate"

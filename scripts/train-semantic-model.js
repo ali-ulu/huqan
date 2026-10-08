@@ -81,4 +81,4 @@ if (require.main === module) {
   try { process.stdout.write(`${main(process.argv.slice(2))}\n`); }
   catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1; }
 }
-module.exports = { trainSemanticModel, main };
+module.exports = { trainSemanticModel, validateTrainingRecord, main };

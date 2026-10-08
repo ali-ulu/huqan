@@ -1393,7 +1393,12 @@
     "lib/semantic-model-artifacts/ssm.json",
     "lib/semantic-model-artifacts/rwkv.json",
     "lib/semantic-model-artifacts/mamba.json",
-    "lib/semantic-model-artifacts/transformer.json"
+    "lib/semantic-model-artifacts/transformer.json",
+    "lib/semantic-model-calibration.js",
+    "lib/semantic-model-artifacts/ssm.calibration.json",
+    "lib/semantic-model-artifacts/rwkv.calibration.json",
+    "lib/semantic-model-artifacts/mamba.calibration.json",
+    "lib/semantic-model-artifacts/transformer.calibration.json"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",
