@@ -45,6 +45,17 @@
   `INVALID_INPUT` / `malformed_input_blocked`. An object value, a missing value
   and a JSON string that parses to a non-object are unchanged.
 
+### Fixed
+- **`huqan quickstart` no longer leaves a `memory.db` in the working directory
+  (#3649).** Booting the CLI built a kernel whose store defaults to the working
+  directory, so the command that advertises a throwaway demo (and prints "your
+  own memory was not touched") still created a brand-new store beside the user
+  -- and, because the store-creation guard refuses a second unnamed store, a
+  second run from another directory failed outright with "refusing to create a
+  new store at an unnamed path". `quickstart` and `--help`, which read and
+  write nothing, now boot against a throwaway store under the OS temp root; the
+  local-first cwd default is unchanged for every command that keeps a store.
+
 ## v1.0.0
 
 Released 2026-10-07. The first major release. It marks the point where the MCP

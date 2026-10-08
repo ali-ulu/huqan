@@ -165,3 +165,54 @@ test('ingest preview keeps plain output stable and external sources fail closed'
   assert.equal(external.exitCode, CLI_EXIT_CODES.capability_not_available);
   assert.deepEqual(stderr, ['Ingest preview unavailable: CLI preview supports manual sources only.']);
 });
+
+test('a store-free command boots against a throwaway kernel, not the caller store (#3649)', async () => {
+  const os = require('node:os');
+  const path = require('node:path');
+  const { isEphemeralStorePath } = require('../lib/store-creation-guard');
+
+  const seen = [];
+  const result = await runCliArgv(['quickstart'], { stdout: () => {} }, {
+    parseCommand: () => ({ command: 'quickstart' }),
+    createCli: options => {
+      seen.push(options);
+      return fakeCli({ parsed: { command: 'quickstart' }, output: 'quickstart ok' });
+    },
+  });
+
+  assert.equal(result.exitCode, CLI_EXIT_CODES.completed);
+  assert.equal(seen.length, 1);
+  const kernel = seen[0].kernel;
+  assert.ok(kernel, 'the store-free command must boot with an explicit kernel');
+  assert.equal(isEphemeralStorePath(kernel.dbPath), true, kernel.dbPath);
+  assert.equal(path.dirname(path.resolve(kernel.dbPath)), path.dirname(path.resolve(kernel.memoryPath)));
+  assert.match(kernel.dbPath, new RegExp(os.tmpdir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('a command that keeps a store boots with the caller default (#3649)', async () => {
+  const seen = [];
+  await runCliArgv(['status'], { stdout: () => {} }, {
+    parseCommand: () => ({ command: 'durum' }),
+    createCli: options => {
+      seen.push(options);
+      return fakeCli({ parsed: { command: 'durum' }, output: 'status ok' });
+    },
+  });
+
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0], undefined, 'the default store must not be redirected');
+});
+
+test('a pre-boot parse that throws falls back to the caller default (#3649)', async () => {
+  const seen = [];
+  await runCliArgv(['status'], { stdout: () => {} }, {
+    parseCommand: () => { throw new Error('needs the kernel'); },
+    createCli: options => {
+      seen.push(options);
+      return fakeCli({ parsed: { command: 'durum' }, output: 'status ok' });
+    },
+  });
+
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0], undefined);
+});

@@ -3942,6 +3942,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/cli-ephemeral-boot.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
   "lib/cli-experience-learn.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
