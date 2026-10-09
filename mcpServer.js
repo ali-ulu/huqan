@@ -86,6 +86,8 @@ function createServer(kernelOrOptions = {}) {
     },
     callTool: params => callTool(kernel, params, {
       approvalStore,
+      // Host-owned context; never populated from tools/call params.
+      gateMetadata: options.gateMetadata,
       operatorSecret: operatorToken,
       operatorCapabilityNonces,
       trustEvidenceLedger: options.trustEvidenceLedger || null,
