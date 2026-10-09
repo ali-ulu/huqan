@@ -1387,6 +1387,7 @@
     "lib/cognitive-model-port.d.ts",
     "lib/cognitive-model-local-ssm.d.ts",
     "lib/semantic-model-text-features.js",
+    "lib/semantic-model-text-features-v2.js",
     "lib/semantic-model-artifact.js",
     "lib/semantic-model-inference.js",
     "lib/semantic-model-port.js",
