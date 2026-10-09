@@ -3,6 +3,17 @@
 const { pairDigestOf, digestOf, requireExactFields } = require('./contradiction-eval-freeze-contract');
 const { labelPair, textPairKey, validateTeacherOutput, assertNoHoldoutLeakage } = require('./semantic-teacher-contract');
 const LICENSES = Object.freeze(['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'MIT', 'Apache-2.0']);
+// The HUQAN owner's own usage data (human review decisions made inside HUQAN)
+// is not a published dataset and carries no open licence. It is admitted under
+// this SPDX LicenseRef, and only for HUQAN's own internal source ids, so an
+// external dataset can never use it to bypass the open-licence allow-list.
+const INTERNAL_USAGE_LICENSE = 'LicenseRef-HUQAN-Owner-Usage-Data';
+const INTERNAL_SOURCE_IDS = Object.freeze(['conflict-review']);
+
+function licenseAdmitted(source) {
+  if (LICENSES.includes(source.license)) return true;
+  return source.license === INTERNAL_USAGE_LICENSE && INTERNAL_SOURCE_IDS.includes(source.id);
+}
 
 function buildTrainingDataset({ records, teachers, sources, frozenCorpus, sourceCommit }) {
   if (!Array.isArray(records) || !records.length || !Array.isArray(teachers) || !Array.isArray(sources)) {
@@ -16,7 +27,7 @@ function buildTrainingDataset({ records, teachers, sources, frozenCorpus, source
   for (const source of sources) {
     requireExactFields(source, ['id', 'license', 'url', 'attribution'], 'semantic_license_invalid', 'source');
     if (![source.id, source.url, source.attribution].every(value => typeof value === 'string' && value.trim()) ||
-        !LICENSES.includes(source.license) || sourceMap.has(source.id)) throw new TypeError('semantic_license_invalid');
+        !licenseAdmitted(source) || sourceMap.has(source.id)) throw new TypeError('semantic_license_invalid');
     sourceMap.set(source.id, source);
   }
   assertNoHoldoutLeakage(records, frozenCorpus);
@@ -52,4 +63,4 @@ function buildTrainingDataset({ records, teachers, sources, frozenCorpus, source
   return { ...artifact, corpusDigest: `sha256:${digestOf(artifact)}` };
 }
 
-module.exports = { LICENSES, buildTrainingDataset };
+module.exports = { LICENSES, INTERNAL_USAGE_LICENSE, INTERNAL_SOURCE_IDS, buildTrainingDataset };
