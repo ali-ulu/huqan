@@ -117,6 +117,10 @@ class Kernel {
     this.contractVersion = CONTRACT_VERSION;
     this.lang = opts.lang || readCompatibleEnvironmentVariable('LANG') || 'tr';
     this.nlp = createNlp(this.lang);
+    // #3704: lib/kernel-primitive-methods.js (AgentAction) cannot import
+    // nlp/index.js (Knowledge) directly — the port is Platform-only. Inject
+    // the resolver here at the composition root instead.
+    this._resolveNlpPack = createNlp;
     this.capabilities = { ...DEFAULT_CAPABILITIES, ...(opts.capabilities || {}) };
     this._rust = hasRust ? new RustGraph() : null;
     this.plugins = new PluginManager(this);
