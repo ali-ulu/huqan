@@ -2,17 +2,17 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 61,
-    "sites": 134,
+    "files": 63,
+    "sites": 137,
     "byCapability": {
-      "process": 18,
+      "process": 20,
       "egress": 4,
-      "fs_write": 112
+      "fs_write": 113
     },
     "byRole": {
       "enforcement": 35,
       "adapter_read": 6,
-      "operator_tool": 36,
+      "operator_tool": 39,
       "persistence": 38,
       "evidence": 14,
       "egress_operator_gated": 2,
@@ -272,7 +272,7 @@
       ],
       "sites": [
         {
-          "line": 126,
+          "line": 128,
           "capability": "process",
           "call": "childProcess.execFileSync"
         }
@@ -281,28 +281,28 @@
     {
       "file": "lib/coder/apply-derivation.js",
       "role": "operator_tool",
-      "why": "applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure",
+      "why": "applies a deterministic transform only after ordinary code-change admission or the explicit closed project-initialization permission; initialization uses exclusive creation, and failed writes roll back the files written by this invocation",
       "capabilities": [
         "fs_write"
       ],
       "sites": [
         {
-          "line": 124,
+          "line": 103,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 125,
+          "line": 104,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 139,
+          "line": 122,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 140,
+          "line": 123,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
@@ -320,6 +320,42 @@
           "line": 35,
           "capability": "fs_write",
           "call": "nodeFs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-initialization-permission.js",
+      "role": "operator_tool",
+      "why": "reads live Git identity/status/head to bind a single-use recipe permission; removes only empty src/test directories created by an initialization whose rollback already removed its files",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 18,
+          "capability": "process",
+          "call": "execFileSync"
+        },
+        {
+          "line": 119,
+          "capability": "fs_write",
+          "call": "fs.rmdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-verification.js",
+      "role": "operator_tool",
+      "why": "mandatory native fixed HTTP verification for explicitly approved closed initialization; its process adapter runs only after the existing command-exec gate admits the fixed command",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 12,
+          "capability": "process",
+          "call": "spawnSync"
         }
       ]
     },
