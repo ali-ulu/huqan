@@ -13,7 +13,10 @@
  * between the two is evidence of cross-sentence reasoning. English only.
  * Streams the files, so memory stays at the weight arrays (~12 MB).
  *
- * Usage: node scripts/benchmark-semantic-v2-snli.js <snli_1.0 dir> [trainLimit=600000] [epochs=3]
+ * Turkish: --language=tr reads SNLI-TR 1.1 (boun-tabi/NLI-TR, CC-BY-SA-4.0, the
+ * same pairs machine-translated), so EN and TR are measured on aligned data.
+ *
+ * Usage: node scripts/benchmark-semantic-v2-snli.js <dir> [trainLimit=600000] [epochs=3] [--language=en|tr]
  */
 
 const fs = require('node:fs');
@@ -24,6 +27,7 @@ const { LEARNED_LABELS } = require('../lib/semantic-model-artifact-v2');
 const { scoresFor } = require('../lib/semantic-model-inference-v2');
 const { createLogisticTrainer } = require('./train-semantic-model-v2');
 
+const FILES = Object.freeze({ en: split => `snli_1.0_${split}.jsonl`, tr: split => `snli_tr_1.1_${split}.jsonl` });
 const GOLD = Object.freeze({ contradiction: 'CONTRADICTION', entailment: 'ENTAILMENT', neutral: 'NEUTRAL' });
 
 function toExample(row) {
@@ -51,16 +55,16 @@ async function* examples(file, limit) {
   }
 }
 
-function encode(record, hypothesisOnly) {
-  try { return encodeTextPair(record, { language: 'en', hypothesisOnly }); } catch { return null; }
+function encode(record, hypothesisOnly, language) {
+  try { return encodeTextPair(record, { language, hypothesisOnly }); } catch { return null; }
 }
 
-async function measure(dir, { hypothesisOnly, trainLimit, epochs }) {
+async function measure(dir, { hypothesisOnly, trainLimit, epochs, language = 'en' }) {
   const trainer = createLogisticTrainer();
   let trained = 0;
   for (let epoch = 0; epoch < epochs; epoch++) {
-    for await (const { record, y } of examples(path.join(dir, 'snli_1.0_train.jsonl'), trainLimit)) {
-      const features = encode(record, hypothesisOnly);
+    for await (const { record, y } of examples(path.join(dir, FILES[language]('train')), trainLimit)) {
+      const features = encode(record, hypothesisOnly, language);
       if (!features) continue;
       trainer.step(features, LEARNED_LABELS.map((_, k) => Number(k === y)), 1);
       if (epoch === 0) trained++;
@@ -69,8 +73,8 @@ async function measure(dir, { hypothesisOnly, trainLimit, epochs }) {
   const weights = trainer.finish();
   const dimensions = weights.length / LEARNED_LABELS.length;
   let n = 0, correct = 0, truePositive = 0, predictedPositive = 0, goldPositive = 0;
-  for await (const { record, y } of examples(path.join(dir, 'snli_1.0_test.jsonl'), Infinity)) {
-    const features = encode(record, hypothesisOnly);
+  for await (const { record, y } of examples(path.join(dir, FILES[language]('test')), Infinity)) {
+    const features = encode(record, hypothesisOnly, language);
     if (!features) continue;
     const scores = Array.from(scoresFor(weights, dimensions, features));
     const predicted = scores.indexOf(Math.max(...scores));
@@ -87,13 +91,15 @@ async function measure(dir, { hypothesisOnly, trainLimit, epochs }) {
 }
 
 async function main(argv) {
-  const [dir, limitArg, epochsArg] = argv;
+  const language = (argv.find(arg => arg.startsWith('--language=')) || '--language=en').slice('--language='.length);
+  const [dir, limitArg, epochsArg] = argv.filter(arg => !arg.startsWith('--'));
+  if (!Object.hasOwn(FILES, language)) throw new TypeError('language must be en or tr');
   if (!dir) throw new TypeError('usage: benchmark-semantic-v2-snli.js <snli_1.0 dir> [trainLimit] [epochs]');
   const trainLimit = Number(limitArg || 600000);
   const epochs = Number(epochsArg || 3);
-  const full = await measure(dir, { hypothesisOnly: false, trainLimit, epochs });
-  const hypothesisOnly = await measure(dir, { hypothesisOnly: true, trainLimit, epochs });
-  return { dataset: 'SNLI 1.0 (CC-BY-SA-4.0)', language: 'en', trainLimit, epochs, full, hypothesisOnly,
+  const full = await measure(dir, { hypothesisOnly: false, trainLimit, epochs, language });
+  const hypothesisOnly = await measure(dir, { hypothesisOnly: true, trainLimit, epochs, language });
+  return { dataset: language === 'tr' ? 'SNLI-TR 1.1 (CC-BY-SA-4.0)' : 'SNLI 1.0 (CC-BY-SA-4.0)', language, trainLimit, epochs, full, hypothesisOnly,
     crossSentenceGain: Number((full.accuracy - hypothesisOnly.accuracy).toFixed(4)) };
 }
 
