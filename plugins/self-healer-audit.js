@@ -5,6 +5,7 @@ const { runSelfHealerDryRun } = require('../lib/self-healer/dryrun-runner');
 const { runSelfHealerAudit } = require('../lib/self-healer/audit-runner');
 const { classifyRawFinding } = require('../lib/self-healer/finding-classifier');
 const { createSelfHealerApprovalBridge } = require('../lib/self-healer/approval-bridge');
+const { proposeConcreteFix } = require('../lib/self-healer/fix-producer');
 const { simulateSourceCandidate } = require('../lib/self-healer/source-dogfood-simulator');
 const {
   assessBehavior,
@@ -157,6 +158,20 @@ async function runSourceSimulation(kernel, options = {}) {
   return { ...governFindings(kernel, [simulation.finding], options), simulation };
 }
 
+/**
+ * Joins a finding's safety decision with a caller-supplied verified failure
+ * record to produce one concrete, reviewable fix (#3670). Nothing is applied:
+ * the returned proposal is a coder transform task that still has to clear
+ * code-change-gate. With no record, or a decision that forbids a proposal,
+ * the result names the refusal instead of guessing a fix.
+ */
+function runProposeFix(options = {}) {
+  const workspaceId = options.workspaceId || 'default';
+  const rawFinding = options.finding && typeof options.finding === 'object' ? options.finding : {};
+  const finding = classifyRawFinding({ ...rawFinding, workspaceId }, { workspaceId });
+  return proposeConcreteFix(finding, { failure: options.failure });
+}
+
 function failure(error) {
   return {
     ok: false,
@@ -183,6 +198,9 @@ module.exports = {
       try { return runBehavioralObservation(kernel, input); } catch (error) { return failure(error); }
     }
     if (action === 'simulate') return runSourceSimulation(kernel, input).catch(failure);
+    if (action === 'propose-fix') {
+      try { return runProposeFix(input); } catch (error) { return failure(error); }
+    }
     return { ok: false, error: `Unsupported self-healer-audit action: ${action}` };
   },
 };
@@ -194,4 +212,5 @@ module.exports._test = {
   runBehavioralObservation,
   runReachabilityAudit,
   runSourceSimulation,
+  runProposeFix,
 };

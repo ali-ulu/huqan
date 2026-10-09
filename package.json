@@ -1073,6 +1073,7 @@
     "lib/self-healer/approval-bridge.js",
     "lib/self-healer/finding-schema.js",
     "lib/self-healer/safety-decision.js",
+    "lib/self-healer/fix-producer.js",
     "lib/self-healer/source-dependency-graph.js",
     "lib/self-healer/source-dogfood-simulator.js",
     "lib/semantic-score.js",
