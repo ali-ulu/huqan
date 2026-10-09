@@ -24,7 +24,7 @@ const { shellQuote, mapCliCommandToMcpTool } = require('./lib/cli-helpers');
 const { runCliRepl } = require('./lib/cli-repl');
 const { installCliRuntimeMethods } = require('./lib/cli-runtime-methods');
 const { evaluateCliGate } = require('./lib/cli-gate-evaluation');
-const { createCliCommandHandlers } = require('./lib/cli-command-handlers');
+const { createCliCommandHandlers } = require('./lib/coder/cli-composition');
 const { MemoryLifecycle } = require('./lib/memory-lifecycle');
 const {
   compareHypothesisFrames, consumeHypothesisCognition,

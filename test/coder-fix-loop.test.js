@@ -9,6 +9,8 @@ const path = require('node:path');
 const { TEST_REFUSALS, runDeclaredTest } = require('../lib/coder/test-execution');
 const { LOOP_OUTCOMES, LOOP_REFUSALS, runFixLoop } = require('../lib/coder/fix-loop');
 const { runCliCoder } = require('../lib/cli-coder');
+const coderLoop = require('../lib/coder/fix-loop');
+const { createExperienceJournal } = require('../lib/experience/journal');
 
 function makeRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-coder-loop-'));
@@ -57,6 +59,11 @@ const TWO_CANDIDATES = [
 ];
 
 describe('runDeclaredTest', () => {
+  it('keeps fractional timeouts bounded above zero', () => {
+    const spawn = fakeSpawn([{ status: 0 }]);
+    runDeclaredTest({ test: { command: 'node test/check.js', timeoutMs: 0.5 }, root: '.', spawn });
+    assert.equal(spawn.calls[0].options.timeout, 1);
+  });
   it('runs the tokenized command without a shell and reports ok on exit 0', () => {
     const root = makeRoot();
     write(root, 'test/check.js', 'process.exit(0);\n');
@@ -147,6 +154,45 @@ describe('runDeclaredTest', () => {
 });
 
 describe('runFixLoop', () => {
+  it('closes failed candidates after recording the test and rollback evidence', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    const journal = createExperienceJournal();
+    const result = runFixLoop({ task: loopTask(), root, repoState: CLEAN_BRANCH,
+      runId: 'loop-failed', journal, spawn: fakeSpawn([{ status: 1 }]) });
+    assert.equal(result.ok, false);
+    const events = journal.read('loop-failed:c1');
+    const closed = events.find(event => event.type === 'run_closed');
+    assert.notEqual(closed.outcomeStatus, 'verified');
+    assert.equal(closed.payload.evidence.test.ok, false);
+    assert.equal(closed.payload.evidence.rolledBack, true);
+    assert.equal(closed.payload.evidence.kept, false);
+    assert.equal(read(root, 'docs/notes.md'), 'greeting: hello v1\n');
+  });
+
+  it('refuses a passing test that changes the derived file', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    const result = runFixLoop({
+      task: loopTask(), root, repoState: CLEAN_BRANCH,
+      spawn: () => {
+        write(root, 'docs/notes.md', 'unexpected content\n');
+        return { status: 0 };
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(read(root, 'docs/notes.md'), 'greeting: hello v1\n');
+  });
+
+  it('does not allow callers to raise the candidate ceiling', () => {
+    const result = runFixLoop({
+      task: loopTask({ candidates: Array(9).fill(TWO_CANDIDATES[0]) }),
+      root: makeRoot(), repoState: CLEAN_BRANCH, maxCandidates: 100,
+    });
+    assert.equal(result.reason, LOOP_REFUSALS.CANDIDATES_OVER_CAP);
+    assert.equal(result.attempts.length, 0);
+  });
+
   it('keeps the first candidate whose test passes and stops the loop', () => {
     const root = makeRoot();
     write(root, 'docs/notes.md', 'greeting: hello v1\n');
@@ -340,6 +386,19 @@ describe('runFixLoop', () => {
 });
 
 describe('coder CLI fix-loop wiring', () => {
+  it('the production command composition supplies the loop collaborator', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    write(root, 'test/check.js', 'process.exit(0);\n');
+    const taskFile = path.join(root, 'task.json');
+    fs.writeFileSync(taskFile, JSON.stringify(loopTask()), 'utf8');
+    const { createCliCommandHandlers } = require('../lib/coder/cli-composition');
+    const handlers = createCliCommandHandlers({});
+    const result = handlers.coder(null, [taskFile, '--root', root], { json: true });
+    assert.equal(result.data.outcome, LOOP_OUTCOMES.APPLIED_TESTED);
+    assert.equal(read(root, 'docs/notes.md'), 'greeting: hi v2\n');
+  });
+
   it('runs the loop and keeps the patch when the declared test passes', () => {
     const root = makeRoot();
     write(root, 'docs/notes.md', 'greeting: hello v1\n');
@@ -349,7 +408,7 @@ describe('coder CLI fix-loop wiring', () => {
 
     // --root is how the command names the tree; without it the CLI defaults to
     // process.cwd(), which is not the tree this test set up.
-    const result = runCliCoder([taskFile, '--root', root], { json: true });
+    const result = runCliCoder([taskFile, '--root', root], { json: true, coderLoop });
 
     assert.equal(result.status, 'completed');
     assert.equal(result.data.outcome, LOOP_OUTCOMES.APPLIED_TESTED);
@@ -362,7 +421,7 @@ describe('coder CLI fix-loop wiring', () => {
     const taskFile = path.join(root, 'task.json');
     fs.writeFileSync(taskFile, JSON.stringify(loopTask({ test: { command: 'rm -rf /' } })), 'utf8');
 
-    const result = runCliCoder([taskFile, '--root', root], { json: true });
+    const result = runCliCoder([taskFile, '--root', root], { json: true, coderLoop });
 
     assert.equal(result.status, 'refused');
     assert.equal(result.data.attempts[0].test.reason, TEST_REFUSALS.GATE_BLOCKED);

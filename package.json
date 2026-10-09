@@ -419,6 +419,7 @@
     "lib/coder/apply-derivation.js",
     "lib/coder/derivation-record.js",
     "lib/coder/fix-loop.js",
+    "lib/coder/cli-composition.js",
     "lib/coder/test-execution.js",
     "lib/coder/experience-reporter.js",
     "lib/coder/journal-store.js",

@@ -2468,6 +2468,14 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-WORKFLOW-A"
   },
+  "lib/coder/fix-loop.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-test-loop"
+  },
+  "lib/coder/test-execution.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-test-loop"
+  },
   "lib/coder/derivation-record.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-WORKFLOW-A"
@@ -4273,6 +4281,10 @@
   "lib/coder/journal-store.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-WORKFLOW-P"
+  },
+  "lib/coder/cli-composition.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#coder-test-loop"
   },
   "lib/repo-artifacts.js": {
    "kind": "infra",
@@ -6381,6 +6393,11 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/coder/fix-loop.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "ownership-map-2446.md#coder-test-loop"
   },
   "lib/coder/verify-ocr.js": {
    "owner": "AgentAction",

@@ -35,7 +35,8 @@ describe('the CLI command table lives in lib/ (#3101)', () => {
   it('cli.js no longer requires the modules only the command table used', () => {
     const source = read('cli.js');
     for (const name of MOVED) assert.doesNotMatch(source, new RegExp(`require\\('\\./lib/${name}'\\)`), name);
-    assert.match(source, /require\('\.\/lib\/cli-command-handlers'\)/);
+    assert.match(source, /require\('\.\/lib\/coder\/cli-composition'\)/);
+    assert.match(read('lib', 'coder', 'cli-composition.js'), /require\('\.\.\/cli-command-handlers'\)/);
   });
 
   it('cli.js has left the FANOUT tracker', () => {
