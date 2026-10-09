@@ -154,6 +154,23 @@ describe('runDeclaredTest', () => {
 });
 
 describe('runFixLoop', () => {
+  it('a real content test rejects the first patch and accepts the next candidate', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    write(root, 'test/check.js',
+      "const fs = require('node:fs');\n"
+      + "process.exit(fs.readFileSync('docs/notes.md', 'utf8') === 'greeting: hi v2\\n' ? 0 : 1);\n");
+    const result = runFixLoop({ task: loopTask({ candidates: TWO_CANDIDATES }),
+      root, repoState: CLEAN_BRANCH });
+    assert.equal(result.outcome, LOOP_OUTCOMES.APPLIED_TESTED);
+    assert.equal(result.attempts.length, 2);
+    assert.equal(result.attempts[0].test.exitCode, 1);
+    assert.equal(result.attempts[0].rolledBack, true);
+    assert.equal(result.attempts[1].test.exitCode, 0);
+    assert.equal(result.record.observedVerification.ok, true);
+    assert.equal(read(root, 'docs/notes.md'), 'greeting: hi v2\n');
+  });
+
   it('closes failed candidates after recording the test and rollback evidence', () => {
     const root = makeRoot();
     write(root, 'docs/notes.md', 'greeting: hello v1\n');
