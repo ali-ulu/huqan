@@ -16,7 +16,12 @@ const SPEC = { kind: 'project_spec', name: 'greeting-api', archetype: 'node_json
 const REPO = { branch: 'codex/project', dirty: false, hasUntracked: false };
 
 function rootOf(t) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-project-')));
+  // `fs.realpathSync.native`, not the JS variant: initialization binds its
+  // permission to the native realpath of the root (project-initialization-
+  // permission.js) and refuses when the loop runs against a different spelling.
+  // Only the native call expands Windows 8.3 short names, so a short-name TEMP
+  // (RUNNER~1) made every initialization test refuse there (#3744).
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-project-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }
