@@ -93,11 +93,21 @@ describe('runDeclaredTest', () => {
     assert.equal(result.reason, 'TEST_FAILED');
   });
 
+  it('reports an external SIGTERM as test failure rather than timeout', () => {
+    const result = runDeclaredTest({
+      test: { command: 'node test/check.js' }, root: '.',
+      spawn: fakeSpawn([{ status: null, signal: 'SIGTERM' }]),
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.signal, 'SIGTERM');
+    assert.equal(result.reason, 'TEST_FAILED');
+  });
+
   it('reports a timeout as a failed test', () => {
     const result = runDeclaredTest({
       test: { command: 'node test/check.js' },
       root: '.',
-      spawn: fakeSpawn([{ status: null, signal: 'SIGTERM' }]),
+      spawn: fakeSpawn([{ status: null, signal: 'SIGTERM', error: { code: 'ETIMEDOUT' } }]),
     });
 
     assert.equal(result.ok, false);
