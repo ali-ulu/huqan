@@ -175,3 +175,14 @@ test('the script output is byte-identical across two runs and records a STAY_SHA
 test('the script refuses to run without a 40-char source commit', () => {
   assert.throws(() => execFileSync(process.execPath, [SCRIPT], { encoding: 'utf8', stdio: 'pipe' }), /usage/);
 });
+
+test('R55: the pre-declared LOGISTIC_V2 arm is measured, recorded and still decides STAY_SHADOW', () => {
+  const out = execFileSync(process.execPath, [SCRIPT, `--source-commit=${SOURCE_COMMIT}`, '--family=LOGISTIC_V2'], { encoding: 'utf8' });
+  assert.equal(out, execFileSync(process.execPath, [SCRIPT, `--source-commit=${SOURCE_COMMIT}`, '--family=LOGISTIC_V2'], { encoding: 'utf8' }));
+  const report = JSON.parse(out);
+  assert.equal(report.armDFamily, 'LOGISTIC_V2');
+  assert.equal(report.decision.decision, 'STAY_SHADOW');
+  assert.ok(!report.secondaryFamilies.some(row => row.family === 'LOGISTIC_V2'));
+  assert.ok(report.secondaryFamilies.some(row => row.family === 'SSM'));
+  assert.throws(() => execFileSync(process.execPath, [SCRIPT, `--source-commit=${SOURCE_COMMIT}`, '--family=GPT'], { encoding: 'utf8', stdio: 'pipe' }), /usage/);
+});

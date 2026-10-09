@@ -24,4 +24,51 @@ Bu bölüm R50 holdout'una bakılmadan yazıldı ve ölçüm sonucu ne olursa ol
 
 ## 2. Sonuç
 
-_(ölçümden sonra eklenir)_
+**Karar: STAY_SHADOW.** `DEFAULT_MODE` `shadow`, varsayılan aile SSM olarak kalır.
+
+Komut: `node scripts/semantic-model-holdout-eval.js --source-commit=<sha> --family=LOGISTIC_V2`
+(deterministik; iki koşu byte-eşit). R50 kolları aynen yeniden üretildi (B Brier 0.2414).
+
+Holdout: 15 çift, 13 skorlanabilir (5 `CONTRADICTION` / 8 `NOT_CONTRADICTION`; 1
+`UNCERTAIN`, 1 `INVALID_PAIR` hariç). Holdout İngilizcedir; tüm çiftler `en` artifact'ına gitti.
+
+| Kol | Karar verilen | TP / FP / TN / FN | FPR | Brier | ECE |
+|---|---|---|---|---|---|
+| B (kalibre kurallar, R50) | 13 | 0 / 0 / 8 / 5 | 0.000 | 0.2414 | 0.0385 |
+| **D (LOGISTIC_V2)** | **2** | **1 / 1 / 0 / 0** | **1.000** | 0.3657* | 0.3578* |
+| v1 aileleri (ikincil) | 0 | — | — | — | — |
+
+\* 2 çift üzerinde; ölçüm sayılmaz (`INSUFFICIENT`).
+
+- D 13 çiftin 11'inde `inside_abstain_band` ile çekimser kaldı; kapsam **0.154** (eşik ≥ 0.10 ✓).
+- Eşleşmiş D vs B: 2 çift → `INSUFFICIENT` (`sample_below_minimum`); Brier ve ECE ölçülemedi.
+- FPR artışı **1.0** (eşik ≤ 0.02 ✗).
+- R50 holdout bağımsız adjudication'ı hâlâ beklemede (✗).
+- Kuralların sessiz kaldığı 7 çiftte D yalnız 1 karar verdi ve o bir yanlış pozitif.
+
+`decideDefaultMode` gerekçeleri: `paired_brier_not_measured`, `ece_not_measured`,
+`fpr_increase_above_0.02`, `holdout_adjudication_not_adjudicated`.
+
+## 3. D'nin emin olduğu iki çift
+
+| Gold | D | Çift |
+|---|---|---|
+| CONTRADICTION | CONTRADICTION (p=0.87) ✓ | `learning writes to the store` ↔ `learning never writes to the store` |
+| NOT_CONTRADICTION | CONTRADICTION (p=0.85) ✗ | `in the enterprise profile the license is commercial` ↔ `in the community profile the license is Apache-2.0` |
+
+Okuma: v2 özellikleri olumsuzluğu (`never`) yakalıyor; ama **kapsam niteleyicisini**
+(`enterprise` / `community` profili, `EU` / `US`, `shadow` / `on` aşaması) temsil etmiyor ve
+farklı kapsamdaki iki iddiayı çelişki sanabiliyor. Sayısal çelişkilerde (4 ↔ 8 worker, Mart ↔
+Ağustos) karar vermiyor, çekimser kalıyor. SNLI'nin fotoğraf altyazısı dağılımından HUQAN'ın kısa,
+kapsamlı olgu iddialarına aktarım zayıf.
+
+## 4. Dürüst değerlendirme ve sonraki tur
+
+- SNLI test setinde (eğitimde görülmedi) emin D doğruluğu 0.906 idi (#3724). HUQAN holdout'unda
+  aynı model 13 çiftte 2 emin karar verdi ve biri yanlıştı: **alan kayması** gerçek.
+- 13 skorlanabilir çift, bir kazancı istatistiksel olarak göstermek için de yetersiz; R50'nin
+  bağımsız adjudication kapısı kapanmadan hiçbir sonuç `on` açamaz.
+- Sonraki tur için en güçlü kaldıraçlar: (1) HUQAN'ın kendi çelişki inceleme kararları (#3720
+  dışa aktarma) ile eğitim; (2) kapsam niteleyicisi ve sayı/birim uyumu için özellikler
+  (kurallar zaten `NUMERICAL_CONFLICT` taşıyor — model özelliği olarak girebilir); (3) daha büyük,
+  bağımsız denetlenmiş HUQAN holdout'u.
