@@ -1,6 +1,7 @@
 # Trust signals: heuristics inform, the kernel decides
 
-Status: implementation (observation-only). No gate reads these signals yet.
+Status: implementation (observation and review-priority hints; own-weight
+semantic model shipped, default `shadow`). No gate reads these signals yet.
 
 ## Rule
 
@@ -39,10 +40,50 @@ report to envelope `meta.robustness`. Default calls are byte-identical;
 the probe takes a verify function and cannot write to any graph. No gate
 consumes the score yet.
 
+## Signal 3 — own-weight semantic model (R51/R55, shipped, default shadow)
+
+The live contradiction/verify path reports a local, own-weight model through
+the Core port in `lib/semantic-model-port.js`. Core never requires the
+Application model directly: `agentRuntime.js` installs the provider for
+server/MCP/CLI, and `index.js` installs it for package-root library consumers.
+`lib/semantic-model-provider.js` loads the packaged weights lazily for local
+inference, without a network call.
+
+- `HUQAN_SEMANTIC_MODEL=off|shadow|on` selects the mode. Unset or empty means
+  `shadow`; an unknown value fails closed to `off`. `off` omits the model
+  field and preserves the rules-only output; `shadow` computes and reports
+  the signal without changing decisions or review priority.
+- `HUQAN_SEMANTIC_MODEL_FAMILY` selects the family (default `SSM`). R55's
+  `LOGISTIC_V2` is opt-in and routes English/Turkish pairs to their respective
+  packaged artifacts and calibrators. The
+  [R55 holdout result](task-packs/semantic-model-result-r55.md) is
+  `STAY_SHADOW`: the default mode remains `shadow` and the default family
+  remains `SSM`.
+- The signal has `authority: CANDIDATE_ONLY`. `lib/semantic-signals.js`
+  attaches it as `semanticModel` beside the rule `summary`, never in the
+  rule `signals` or their confidence. `lib/verify-native.js` evaluates at
+  most 16 stored-edge/incoming-statement pairs per verify and attaches the
+  strongest result separately; rule-derived `status`, `confidence`, and
+  `signals` remain unchanged in every mode. No gate consumes the model.
+- Only `on` with a calibrated `CONFIDENT` band and a `CONTRADICTION` label
+  produces a nonzero `reviewPriority` hint. Every other case has priority
+  zero. The hint can inform review ordering; it never rejects, blocks, or
+  overrides the rules.
+- Once a provider is registered, missing, corrupt, or unsupported artifacts,
+  unsupported input, and prediction/calibration errors report `ABSTAIN`
+  with a `reason`. Missing or insufficient calibration also leaves the
+  band at `ABSTAIN`; a raw prediction is not a calibrated decision.
+- `lib/verify-result.js` adds the receipt projection to
+  `meta.trustReceiptPreview.semanticModel`: `artifactDigest`, `family`,
+  `mode`, `band`, `p`, `reviewPriority`, and `reason`. The digest identifies
+  the weights when available; load failures may leave it null. The field
+  is absent in `off`, or when there is no registered provider or no edge
+  pair to evaluate.
+
 ## Explicitly not claimed
 
-- **No calibrated scores yet.** F0-A measured zero (declaration,
-  outcome) pairs in the repository (43 receipts, none carrying
+- **No per-agent declared-confidence calibration yet.** F0-A measured zero
+  (declaration, outcome) pairs in the repository (43 receipts, none carrying
   confidence). Isotonic/Platt fitting starts only after declarations
   accumulate against outcomes in production.
 - **No policy thresholds yet.** Numbers like 0.75/0.40 are undecided;
