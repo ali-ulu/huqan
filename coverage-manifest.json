@@ -353,7 +353,7 @@
       ],
       "sites": [
         {
-          "line": 12,
+          "line": 20,
           "capability": "process",
           "call": "spawnSync"
         }
