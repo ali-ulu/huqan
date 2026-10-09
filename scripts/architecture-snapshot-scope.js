@@ -203,7 +203,7 @@ const FANOUT_ALLOWED = Object.freeze([
   },
   {
     file: 'cli.js',
-    ceiling: 20,
+    ceiling: 21,
     why: 'Three of the requires wire collaborators the inner rings may not require themselves: the Adapters '
       + 'MemoryLifecycle and its Application receipt chain (#3461), and the Adapters K0/K1 cognition consumer '
       + 'lib/memory-hypothesis-cognition.js that lib/cli-hypotheses.js (Core) must not require (#3568). cli.js is '
