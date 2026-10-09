@@ -949,13 +949,13 @@ jobs:
             git --no-pager show --stat --oneline HEAD
           } > pr-body.md
           # Opening the PR needs the repository setting "Allow GitHub Actions
-          # to create and approve pull requests". Without it the pushed branch
-          # is the deliverable: say so loudly instead of failing the nightly,
-          # whose red must keep meaning a test failed.
+          # to create and approve pull requests". Fail the refresh if the PR
+          # cannot be opened, while keeping the branch link for manual recovery.
           if ! gh pr create --title "chore(ci): refresh shard weights from nightly timings" --body-file pr-body.md --base main --head "$branch"; then
             compare="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}"
-            echo "::warning::shard weights pushed to ${branch} but the PR could not be opened; open it from ${compare}"
+            echo "::error::shard weights pushed to ${branch} but the PR could not be opened; open it from ${compare}"
             echo "Shard weights pushed to \`${branch}\`; open the PR manually: ${compare}" >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
           fi
 
   # ---------------------------------------------------------------------
