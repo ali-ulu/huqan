@@ -1,4 +1,3 @@
 {
-  "lib/common-semantic-ir.js": "read-only versioned Common Semantic IR composing the existing EN/TR parsers and the de/ar nlp packs; pure contract, unit-tested, awaiting the intent/grounding phases that adopt it",
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it"
 }

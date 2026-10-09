@@ -8,12 +8,12 @@ const { LABELS, buildArtifact, digest } = require('../lib/semantic-model-artifac
 const { STEPS } = require('../lib/semantic-model-text-features');
 const { createEncoder, readoutFeatures } = require('../lib/semantic-model-inference');
 const { digestOf, pairDigestOf, stableStringify } = require('./contradiction-eval-freeze-contract');
-const { assertNoHoldoutLeakage, HUMAN_REVIEW_TEACHER_ID } = require('./semantic-teacher-contract');
+const { assertNoHoldoutLeakage, HUMAN_GOLD_TEACHER_IDS } = require('./semantic-teacher-contract');
 
 /** Recheck each consensus boundary, even when a caller recomputes the outer corpus hash. */
 function validateTrainingRecord(record) {
   const { pairDigest, distribution, disagreement, weight, needsReview, teacherSet } = record;
-  const isHumanGold = Array.isArray(teacherSet) && teacherSet.length === 1 && teacherSet[0].teacherId === HUMAN_REVIEW_TEACHER_ID;
+  const isHumanGold = Array.isArray(teacherSet) && teacherSet.length === 1 && HUMAN_GOLD_TEACHER_IDS.includes(teacherSet[0].teacherId);
   if (!Array.isArray(teacherSet) || (teacherSet.length < 2 && !isHumanGold) || teacherSet.length > 64 ||
       new Set(teacherSet.map(teacher => teacher.teacherId)).size !== teacherSet.length ||
       !teacherSet.every(teacher => [teacher.teacherId, teacher.teacherVersion].every(value => typeof value === 'string' && value.trim()))) {
