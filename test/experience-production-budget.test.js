@@ -10,7 +10,7 @@ const { createExperienceJournal } = require('../lib/experience/journal');
 const { budgetExperienceJournal } = require('../lib/experience/budgeted-journal');
 const { applyDerivation } = require('../lib/coder/apply-derivation');
 
-test('an exceeded measured write budget stops the real disk effect and preserves refusal events', () => {
+test('a slow acknowledged journal does not refuse the real coder disk effect', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-budget-effect-'));
   try {
     fs.mkdirSync(path.join(root, 'docs'));
@@ -20,13 +20,32 @@ test('an exceeded measured write budget stops the real disk effect and preserves
     const result = applyDerivation({ root, journal, runId: 'over-budget', repoState: { branch: 'feat/test' },
       task: { id: 'budgeted', level: 'l0', allowedPaths: ['docs/a.md'],
         operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } } });
+    assert.equal(result.ok, true, result.reason);
+    assert.equal(journal.writeCost('over-budget').reason, 'write_cost_event_too_slow');
+    assert.equal(journal.writeCostGuard('over-budget').decision, 'allow');
+    assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'after');
+    assert.equal(journal.manifest('over-budget').closed, true);
+    assert.ok(journal.read('over-budget').some(event => event.proofs?.verification === true));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+for (const ceiling of [{ MAX_JSON_BYTES_PER_EVENT: 1 }, { MAX_EVENTS_PER_RUN: 1 }]) {
+  test(`coder refuses a deterministic journal ceiling: ${Object.keys(ceiling)[0]}`, t => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-budget-guard-'));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    fs.mkdirSync(path.join(root, 'docs'));
+    fs.writeFileSync(path.join(root, 'docs/a.md'), 'before');
+    const journal = budgetExperienceJournal(createExperienceJournal(), { ceiling, now: () => 0 });
+    const result = applyDerivation({ root, journal, runId: 'guard', repoState: { branch: 'feat/test' },
+      task: { id: 'guard', level: 'l0', allowedPaths: ['docs/a.md'],
+        operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } } });
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'WRITE_COST_BUDGET_REFUSED');
     assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
-    assert.equal(journal.manifest('over-budget').closed, true);
-    assert.ok(journal.read('over-budget').some(event => event.type === 'failure'));
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
-});
+    assert.equal(journal.manifest('guard').closed, true);
+    assert.ok(journal.read('guard').some(event => event.type === 'failure'));
+  });
+}
 
 test('slow committed writes keep their acknowledgement and later audit events', () => {
   const clock = [0, 10, 15, 20, 21];

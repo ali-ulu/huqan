@@ -421,6 +421,7 @@
     "lib/coder/derivation-record.js",
     "lib/coder/fix-loop.js",
     "lib/coder/cli-composition.js",
+    "lib/coder/learned-candidate.js",
     "lib/coder/project-producer.js",
     "lib/coder/project-templates.js",
     "lib/coder/project-initialization.js",
