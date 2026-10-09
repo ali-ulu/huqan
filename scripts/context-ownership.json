@@ -6969,9 +6969,10 @@
   "lib/common-semantic-ir.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "ownership-map-2446.md#R-VERIFY-K; L2 candidate Action IR consumes the L1 record (#3476)"
+   "evidence": "ownership-map-2446.md#R-VERIFY-K; L2 candidate Action IR consumes the L1 record (#3476); #3717 R55 semantic model provider routes each pair to its language artifact with detectLanguage (unknown -> abstain)"
   }
  },
  "legacyEdges": {

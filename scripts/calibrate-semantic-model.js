@@ -5,12 +5,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { LABELS, digest } = require('../lib/semantic-model-artifact');
 const { loadSemanticModel } = require('../lib/semantic-model-inference');
+const { loadSemanticModelV2 } = require('../lib/semantic-model-inference-v2');
+const { SCHEMA: V2_SCHEMA } = require('../lib/semantic-model-artifact-v2');
 const { fitCalibration } = require('../lib/semantic-model-calibration');
 const { digestOf, stableStringify } = require('./contradiction-eval-freeze-contract');
 const { assertNoHoldoutLeakage } = require('./semantic-teacher-contract');
 const { validateTrainingRecord } = require('./train-semantic-model');
 
 const FROZEN_CORPUS = path.join(__dirname, '../test/fixtures/contradiction-eval-v1.corpus.json');
+
+/** R55 (#3717): a v2 artifact is recognised by its schema; everything else keeps the v1 loader. */
+function loadAnyModel(modelInput) {
+  const value = typeof modelInput === 'string' ? JSON.parse(modelInput) : modelInput;
+  return value && value.schemaVersion === V2_SCHEMA ? loadSemanticModelV2(modelInput) : loadSemanticModel(modelInput);
+}
 
 /** Hard calibration target: the consensus soft label's argmax, ties in LABELS order. */
 function consensusLabel(distribution) {
@@ -30,7 +38,7 @@ function calibrateSemanticModel(dataset, modelInput, options = {}) {
   const records = dataset.records.filter(record => record.split === 'calibration' && record.weight > 0 && !record.needsReview)
     .sort((a, b) => a.pairDigest < b.pairDigest ? -1 : a.pairDigest > b.pairDigest ? 1 : 0);
   if (!records.length) throw new TypeError('semantic_calibration_input_invalid');
-  const model = loadSemanticModel(modelInput);
+  const model = loadAnyModel(modelInput);
   return fitCalibration(records.map(record => model.predict(record)), records.map(record => consensusLabel(record.distribution)),
     { ...options, calibrationCorpusDigest: digest(records) });
 }

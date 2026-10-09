@@ -100,19 +100,47 @@ test('the learner actually learns a cross-sentence signal on a separable synthet
   assert.equal(learnedTarget({ CONTRADICTION: 0, ENTAILMENT: 0, NEUTRAL: 0, ABSTAIN: 1 }), null);
 });
 
-test('the provider serves LOGISTIC_V2 only when its artifact exists, and fails closed otherwise', () => {
+test('the provider serves LOGISTIC_V2 per language only when that artifact exists, and fails closed otherwise', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r55-v2-'));
-  const record = { stored: { text: 'A man plays a guitar.' }, incoming: { text: 'Nobody plays music.' } };
+  const english = { stored: { text: 'The man is playing a guitar.' }, incoming: { text: 'Nobody is playing music.' } };
+  const turkish = { stored: { text: 'Adam gitar çalıyor.' }, incoming: { text: 'Kimse müzik çalmıyor.' } };
+  const unknown = { stored: { text: 'A man plays guitar.' }, incoming: { text: 'Nobody plays music.' } };
+  const env = { HUQAN_SEMANTIC_MODEL_FAMILY: 'logistic_v2' };
+  const run = (record) => evaluateSemanticModel(record.stored, record.incoming,
+    { mode: 'shadow', provider: createSemanticModelProvider({ env, artifactDir: dir }) });
   try {
-    const env = { HUQAN_SEMANTIC_MODEL_FAMILY: 'logistic_v2' };
-    const missing = evaluateSemanticModel(record.stored, record.incoming, { mode: 'shadow', provider: createSemanticModelProvider({ env, artifactDir: dir }) });
-    assert.equal(missing.reason, 'artifact_unavailable:semantic_artifact_missing');
-    fs.writeFileSync(path.join(dir, 'logistic-v2.json'), stableStringify(trained()));
-    const signal = evaluateSemanticModel(record.stored, record.incoming, { mode: 'shadow', provider: createSemanticModelProvider({ env, artifactDir: dir }) });
+    assert.equal(run(english).reason, 'artifact_unavailable:semantic_artifact_missing');
+    fs.writeFileSync(path.join(dir, 'logistic-v2-en.json'), stableStringify(trained()));
+    const signal = run(english);
     assert.equal(signal.family, FAMILY);
     assert.equal(signal.artifactDigest, trained().artifactDigest);
     assert.equal(signal.band, 'ABSTAIN');
     assert.equal(signal.reason, 'uncalibrated');
+    // Turkish routes to its own artifact, which is absent here; an unknown language never guesses.
+    assert.equal(run(turkish).reason, 'artifact_unavailable:semantic_artifact_missing');
+    assert.equal(run(unknown).reason, 'input_unsupported:language_unsupported:unknown');
+    // The prediction carries its variant, so the paired calibrator reads the right file.
+    assert.equal(createSemanticModelProvider({ env, artifactDir: dir })(english).variant, 'en');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the calibrator picks the calibration file of the variant that answered', () => {
+  const { createSemanticModelCalibrator } = require('../lib/semantic-model-provider');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r55-v2-cal-'));
+  const env = { HUQAN_SEMANTIC_MODEL_FAMILY: 'logistic_v2' };
+  try {
+    const model = loadSemanticModelV2(trained());
+    const predictions = [];
+    for (let i = 0; i < 60; i++) predictions.push(model.predict({ stored: { text: `The item ${i} is red.` }, incoming: { text: `The item ${i} is ${i % 2 ? 'not red' : 'red'}.` } }));
+    const calibration = fitCalibration(predictions, predictions.map(p => p.label), { calibrationCorpusDigest: `sha256:${'f'.repeat(64)}` });
+    fs.writeFileSync(path.join(dir, 'logistic-v2-en.json'), stableStringify(trained()));
+    fs.writeFileSync(path.join(dir, 'logistic-v2-en.calibration.json'), stableStringify(calibration));
+    const calibrator = createSemanticModelCalibrator({ env, artifactDir: dir });
+    const english = createSemanticModelProvider({ env, artifactDir: dir })({ stored: { text: 'The man is playing a guitar.' }, incoming: { text: 'Nobody is playing music.' } });
+    assert.equal(calibrator(english).calibrationDigest, calibration.calibrationDigest);
+    assert.equal(calibrator({ ...english, variant: 'tr' }), null);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

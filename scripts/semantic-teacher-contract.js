@@ -66,12 +66,19 @@ function assertNoHoldoutLeakage(records, frozenCorpus) {
  * Human review (R51 PR4b) is the single gold teacher for its pair: the label is
  * the reviewer's distribution verbatim, with zero disagreement and full weight.
  * Model teachers on that pair are validated but never averaged into the label.
+ *
+ * R55 (#3717, owner decision 2026-10-09, docs/task-packs/semantic-model-data-r55.md):
+ * the crowd annotator distribution of a human-labelled NLI corpus (SNLI, SNLI-TR)
+ * is the same kind of single human gold teacher, `human-annotators`. It is a
+ * written exception to R51's two-independent-teachers rule, limited to these ids.
  */
 const HUMAN_REVIEW_TEACHER_ID = 'human-review';
+const HUMAN_ANNOTATORS_TEACHER_ID = 'human-annotators';
+const HUMAN_GOLD_TEACHER_IDS = Object.freeze([HUMAN_REVIEW_TEACHER_ID, HUMAN_ANNOTATORS_TEACHER_ID]);
 
 function labelPair(outputs) {
   if (!Array.isArray(outputs)) throw new TypeError('teacher_quorum_missing');
-  const humans = outputs.filter(output => output && output.teacherId === HUMAN_REVIEW_TEACHER_ID);
+  const humans = outputs.filter(output => output && HUMAN_GOLD_TEACHER_IDS.includes(output.teacherId));
   if (humans.length === 0) return consensus(outputs);
   if (humans.length !== 1) throw new TypeError('human_review_label_conflict');
   const [human] = humans.map(validateTeacherOutput);
@@ -82,4 +89,4 @@ function labelPair(outputs) {
   return { ...record, digest: `sha256:${digestOf(record)}` };
 }
 
-module.exports = { LABELS, HUMAN_REVIEW_TEACHER_ID, textPairKey, validateTeacherOutput, consensus, labelPair, assertNoHoldoutLeakage };
+module.exports = { LABELS, HUMAN_REVIEW_TEACHER_ID, HUMAN_ANNOTATORS_TEACHER_ID, HUMAN_GOLD_TEACHER_IDS, textPairKey, validateTeacherOutput, consensus, labelPair, assertNoHoldoutLeakage };
