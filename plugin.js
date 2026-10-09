@@ -21,6 +21,13 @@ const { installPluginProvenanceMethods } = require('./lib/plugin-manager-provena
 // evidence URL, say) has somewhere to live that is not beforeLearn. See
 // #348 -- beforeLearn stays synchronous on purpose.
 //
+// beforeGateDecision is synchronous MCP evidence, dispatched through
+// collectEvidence('beforeGateDecision', { tool, args, metadata }) before core
+// evaluation. Return undefined or { decision: 'allow'|'review'|'dry_run_only'|'block', reason? }.
+// Each plugin gets a separate input copy; signals can only restrict the core
+// verdict. Invalid/async signals block. afterGateDecision remains a
+// non-authoritative observer without raw text.
+//
 // beforeLearn / beforeAsk may return a partial input payload. Returned fields
 // other than text/opts (learn) or question/workspaceId (ask) are exposed under
 // result.data.annotations[plugin.name]. `annotations` is reserved for the
