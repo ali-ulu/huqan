@@ -103,11 +103,60 @@ describe('task producer', () => {
   });
 
   it('returns needs_human_decision rather than a guessed task for an unsupported operation', () => {
-    const result = produceTask(failure({ action: { operation: 'insert_after', path: 'docs/notes.md' } }));
+    // json_schema_route_test needs a whole schema, which a failure record does
+    // not carry, so it stays unmappable -- refusing it is the correct answer,
+    // not a gap in the catalog.
+    const result = produceTask(failure({ action: { operation: 'json_schema_route_test', path: 'docs/notes.md' } }));
 
     assert.equal(result.status, PRODUCER_STATUSES.NEEDS_HUMAN_DECISION);
     assert.equal(result.reason, PRODUCER_REASONS.NO_SUPPORTED_OPERATION);
     assert.equal(result.task, null);
+  });
+
+  it('projects a verified insert_after failure by reading observed as the anchor and expected as the insert', () => {
+    const result = produceTask(failure({
+      action: { operation: 'insert_after', path: 'docs/notes.md' },
+      observed: 'const x = 1;',
+      expected: '\nconst y = 2;',
+    }));
+
+    assert.equal(result.status, PRODUCER_STATUSES.TASK_PRODUCED);
+    assert.equal(result.task.operation.type, 'insert_after');
+    assert.equal(result.task.operation.anchor, 'const x = 1;');
+    assert.equal(result.task.operation.insert, '\nconst y = 2;');
+  });
+
+  it('refuses an insert_after failure whose anchor is not unique in the held file', () => {
+    const result = produceTask(failure({
+      action: { operation: 'insert_after', path: 'docs/notes.md' },
+      observed: 'x',
+      expected: 'y',
+    }), { files: { 'docs/notes.md': 'x x' } });
+
+    assert.equal(result.status, PRODUCER_STATUSES.NEEDS_HUMAN_DECISION);
+    assert.equal(result.reason, PRODUCER_REASONS.ANCHOR_NOT_UNIQUE);
+    assert.equal(result.task, null);
+  });
+
+  it('projects a verified rename_identifier failure only when both halves are real identifiers', () => {
+    const renamed = produceTask(failure({
+      action: { operation: 'rename_identifier', path: 'src/thing.js' },
+      observed: 'oldName',
+      expected: 'newName',
+    }));
+    assert.equal(renamed.status, PRODUCER_STATUSES.TASK_PRODUCED);
+    assert.equal(renamed.task.operation.type, 'rename_identifier');
+    assert.equal(renamed.task.operation.from, 'oldName');
+    assert.equal(renamed.task.operation.to, 'newName');
+
+    const notIdentifiers = produceTask(failure({
+      action: { operation: 'rename_identifier', path: 'src/thing.js' },
+      observed: 'old name',
+      expected: 'new name',
+    }));
+    assert.equal(notIdentifiers.status, PRODUCER_STATUSES.NEEDS_HUMAN_DECISION);
+    assert.equal(notIdentifiers.reason, PRODUCER_REASONS.IDENTIFIER_PAIR_INVALID);
+    assert.equal(notIdentifiers.task, null);
   });
 
   it('refuses a failure whose path is absolute or escapes the root', () => {
@@ -230,9 +279,41 @@ describe('produced task through the coder pipeline', () => {
     const root = makeRoot();
     write(root, 'docs/notes.md', 'version v1.0.0\n');
 
-    const result = produceTask(failure({ action: { operation: 'insert_after', path: 'docs/notes.md' } }));
+    // json_schema_route_test is the shape a failure record cannot carry.
+    const result = produceTask(failure({ action: { operation: 'json_schema_route_test', path: 'docs/notes.md' } }));
 
     assert.equal(result.task, null);
     assert.equal(read(root, 'docs/notes.md'), 'version v1.0.0\n');
+  });
+
+  it('applies a produced insert_after task and a produced rename_identifier task through the gate', () => {
+    const insertRoot = makeRoot();
+    write(insertRoot, 'docs/notes.md', 'before\n');
+    const insert = produceTask(failure({
+      action: { operation: 'insert_after', path: 'docs/notes.md' },
+      observed: 'before\n',
+      expected: 'after\n',
+    })).task;
+    const inserted = applyDerivation({ task: insert, root: insertRoot, repoState: CLEAN_BRANCH });
+    assert.equal(inserted.outcome, 'applied');
+    assert.equal(read(insertRoot, 'docs/notes.md'), 'before\nafter\n');
+
+    const renameRoot = makeRoot();
+    write(renameRoot, 'src/thing.js', 'const oldName = 1;\n');
+    const rename = produceTask(failure({
+      action: { operation: 'rename_identifier', path: 'src/thing.js' },
+      observed: 'oldName',
+      expected: 'newName',
+    })).task;
+    // A source-file change is refused until an operator authorizes it: the
+    // proposal confers nothing, and the gate is what decides.
+    const unauthorized = applyDerivation({ task: rename, root: renameRoot, repoState: CLEAN_BRANCH });
+    assert.equal(unauthorized.ok, false);
+    assert.equal(unauthorized.reason, 'GATE_REFUSED');
+    assert.equal(read(renameRoot, 'src/thing.js'), 'const oldName = 1;\n');
+
+    const renamed = applyDerivation({ task: rename, root: renameRoot, repoState: CLEAN_BRANCH, authorized: true });
+    assert.equal(renamed.outcome, 'applied');
+    assert.equal(read(renameRoot, 'src/thing.js'), 'const newName = 1;\n');
   });
 });

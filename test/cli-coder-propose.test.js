@@ -70,7 +70,7 @@ describe('coder propose', () => {
   });
 
   it('refuses with a non-zero exit and no task when the failure cannot be mapped', () => {
-    withFailureFile(failure({ action: { operation: 'insert_after', path: 'docs/notes.md' } }), (file) => {
+    withFailureFile(failure({ action: { operation: 'json_schema_route_test', path: 'docs/notes.md' } }), (file) => {
       const result = runCliCoderPropose([file], { json: true });
       assert.equal(result.status, 'needs_human_decision');
       assert.equal(result.data.task, null);
