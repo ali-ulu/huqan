@@ -12,16 +12,16 @@
 
 **Reasons (each verified against the repository on 2026-09-28):**
 
-1. No operative commercial license text exists: `docs/legal/commercial-license-working-draft.md` is `HUQAN-COMMERCIAL-v1.0-review` ("NOT OPERATIVE") and `docs/gtm/commercial-license-draft.md` is an explicitly non-binding strategic draft.
+1. No operative commercial license text exists: the internal `HUQAN-COMMERCIAL-v1.0-review` working draft was marked "NOT OPERATIVE", and the GTM commercial draft was an explicitly non-binding strategic placeholder. Both were internal, non-binding drafts removed from the repository during a repository cleanup; neither ever granted commercial rights.
 2. The ownership chain and the Project Owner's legal capacity have not been confirmed by qualified counsel, so no grant could be made safely today.
 3. `CLA.md` (`HUQAN-ICLA-v1.0-review`) is non-operative and no acceptance mechanism (CLA assistant, DCO check) is active, so future-contribution rights are not established; relicensing contributions that do not yet exist cannot be promised.
-4. The enterprise segment that would justify a commercial tier requires hosted, multi-tenant, SSO, and remote-enforcement infrastructure that HUQAN deliberately does not have today (`docs/gtm/four-fits-analysis.md`, scenario B).
+4. The enterprise segment that would justify a commercial tier requires hosted, multi-tenant, SSO, and remote-enforcement infrastructure that HUQAN deliberately does not have today (scenario B of the former GTM four-fits analysis, removed in the repository cleanup).
 
 **Consequences:**
 
 - `package.json` stays `AGPL-3.0-only`; `LICENSE` and `NOTICE` stay unchanged.
 - `CLA.md` remains a non-operative review draft; external non-trivial contributions are still not treated as cleared for future relicensing (see `CONTRIBUTING.md`).
-- The GTM commercial drafts remain internal, non-binding placeholders and must not be quoted as offers.
+- The former GTM commercial drafts were internal, non-binding placeholders; they have been removed from the repository and must not be quoted as offers.
 - This file is the canonical licensing-status record; other documents link here instead of restating the status.
 
 **Revisit conditions (any one triggers a new decision record here):**
@@ -46,7 +46,7 @@ The project should require an accepted CLA or another approved rights record bef
 
 ## Commercial licensing rule
 
-The `docs/legal/commercial-license-working-draft.md` is now a consolidated, non-binding working document (`HUQAN-COMMERCIAL-v1.0-review`). It does not grant commercial rights and is not a public offer. A commercial license may be published or signed only after:
+The internal `HUQAN-COMMERCIAL-v1.0-review` working draft was a consolidated, non-binding document. It did not grant commercial rights and was not a public offer; it has since been removed from the repository during a cleanup. A commercial license may be published or signed only after:
 
 1. the Project Owner’s legal capacity and the final notice details are confirmed;
 2. the covered HUQAN components and versions are defined;
