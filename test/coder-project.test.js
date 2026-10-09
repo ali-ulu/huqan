@@ -190,8 +190,9 @@ test('a zero-exit test with mutated output fails independent verification and ro
   const journal = require('../lib/experience/journal').createExperienceJournal();
   const original = fs.readFileSync;
   let mutated = false;
+  let reads = 0;
   fs.readFileSync = function(target, ...args) {
-    if (String(target) === path.join(context.root, 'routes.json') && fs.existsSync(target) && !mutated) {
+    if (String(target) === path.join(context.root, 'routes.json') && fs.existsSync(target) && ++reads === 2 && !mutated) {
       mutated = true;
       fs.writeFileSync(target, '[]');
     }
@@ -260,21 +261,23 @@ test('direct permission use cannot skip fixed verification with null or forged v
     const issued = require('../lib/coder/project-initialization-permission')
       .createProjectInitializationPermission(SPEC, context);
     assert.equal(issued.ok, true);
-    const original = fs.writeFileSync;
-    fs.writeFileSync = function(target, ...args) {
-      const value = original.call(this, target, ...args);
-      if (String(target) === path.join(context.root, 'README.md')) original.call(this,
-        path.join(context.root, 'routes.json'), '[]');
-      return value;
+    const original = fs.readFileSync;
+    let reads = 0;
+    fs.readFileSync = function(target, ...args) {
+      if (String(target) === path.join(context.root, 'routes.json') && fs.existsSync(target) && ++reads === 2) {
+        fs.writeFileSync(target, '[]');
+      }
+      return original.call(this, target, ...args);
     };
     let result;
     try { result = require('../lib/coder/apply-derivation').applyDerivation({ task: issued.task,
       root: context.root, repoState: issued.repoState, projectInitializationPermission: issued.permission,
       verify: fakeVerifier }); }
-    finally { fs.writeFileSync = original; }
+    finally { fs.readFileSync = original; }
     assert.equal(result.ok, false);
     assert.equal(result.record.observedVerification.ran, true);
-    assert.equal(result.initializationVerification.test.exitCode, 1);
+    assert.equal(result.initializationVerification.test.exitCode, 0);
+    assert.equal(result.initializationVerification.reason, 'HEAD_MISMATCH');
     assert.equal(result.rolledBack, true);
     assert.deepEqual(fs.readdirSync(context.root), []);
   }
@@ -322,7 +325,10 @@ test('a replaced target root fails closed without rolling back files through a j
   const context = initializationContext(t);
   const outside = path.join(path.dirname(context.root), 'outside');
   fs.mkdirSync(outside);
+  fs.mkdirSync(path.join(outside, 'test'));
   fs.writeFileSync(path.join(outside, 'sentinel.txt'), 'preserve');
+  fs.writeFileSync(path.join(outside, 'test/api.test.js'),
+    "require('node:fs').writeFileSync('executed.txt', 'unexpected code execution');");
   const original = fs.writeFileSync;
   fs.writeFileSync = function(target, ...args) {
     const value = original.call(this, target, ...args);
@@ -337,7 +343,10 @@ test('a replaced target root fails closed without rolling back files through a j
   finally { fs.writeFileSync = original; }
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'ROLLBACK_NOT_VERIFIED');
-  assert.deepEqual(fs.readdirSync(outside), ['sentinel.txt']);
+  assert.deepEqual(fs.readdirSync(outside), ['sentinel.txt', 'test']);
+  assert.equal(result.initializationVerification, undefined);
+  assert.equal(result.attempts[0].test.ran, false);
+  assert.equal(fs.existsSync(path.join(outside, 'executed.txt')), false);
   assert.equal(fs.readFileSync(path.join(outside, 'sentinel.txt'), 'utf8'), 'preserve');
 });
 
