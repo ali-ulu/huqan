@@ -130,3 +130,24 @@ test('v2 predictions go through the existing calibration contract', () => {
   assert.equal(applied.calibrated, true);
   assert.ok(applied.distribution.ABSTAIN < 1e-9);
 });
+
+test('the SNLI benchmark rejects invalid limits and a dataset with no usable pairs', async () => {
+  const { main: benchmark } = require('../scripts/benchmark-semantic-v2-snli');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r55-bench-'));
+  try {
+    for (const args of [[dir, '0'], [dir, '-5'], [dir, '1.5'], [dir, 'abc'], [dir, '10', '0'], [dir, '10', 'Infinity'], [dir, '10', '51']]) {
+      await assert.rejects(benchmark(args), /must be/);
+    }
+    await assert.rejects(benchmark([dir, '10', '1', '--language=de']), /language must be/);
+    const row = (gold) => JSON.stringify({ gold_label: gold, sentence1: 'A man sleeps.', sentence2: 'A man is awake.' });
+    fs.writeFileSync(path.join(dir, 'snli_1.0_train.jsonl'), `${row('contradiction')}\n`);
+    fs.writeFileSync(path.join(dir, 'snli_1.0_test.jsonl'), `${row('-')}\n`);
+    await assert.rejects(benchmark([dir, '10', '1']), /no usable test pairs/);
+    fs.writeFileSync(path.join(dir, 'snli_1.0_test.jsonl'), `${row('contradiction')}\n`);
+    const report = await benchmark([dir, '10', '1']);
+    assert.equal(report.full.testPairs, 1);
+    assert.ok(Number.isFinite(report.crossSentenceGain));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

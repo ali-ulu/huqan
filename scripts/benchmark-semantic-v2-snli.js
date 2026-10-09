@@ -27,6 +27,8 @@ const { LEARNED_LABELS } = require('../lib/semantic-model-artifact-v2');
 const { scoresFor } = require('../lib/semantic-model-inference-v2');
 const { createLogisticTrainer } = require('./train-semantic-model-v2');
 
+// Same upper bound as the v2 artifact contract's config.epochs.
+const MAX_EPOCHS = 50;
 const FILES = Object.freeze({ en: split => `snli_1.0_${split}.jsonl`, tr: split => `snli_tr_1.1_${split}.jsonl` });
 const GOLD = Object.freeze({ contradiction: 'CONTRADICTION', entailment: 'ENTAILMENT', neutral: 'NEUTRAL' });
 
@@ -84,6 +86,7 @@ async function measure(dir, { hypothesisOnly, trainLimit, epochs, language = 'en
     if (y === 0) goldPositive++;
     if (predicted === 0 && y === 0) truePositive++;
   }
+  if (trained === 0 || n === 0) throw new TypeError(`no usable ${trained === 0 ? 'training' : 'test'} pairs in ${dir}`);
   const round = value => Number(value.toFixed(4));
   return { trainPairs: trained, testPairs: n, accuracy: round(correct / n),
     contradictionRecall: round(truePositive / Math.max(1, goldPositive)),
@@ -97,6 +100,8 @@ async function main(argv) {
   if (!dir) throw new TypeError('usage: benchmark-semantic-v2-snli.js <snli_1.0 dir> [trainLimit] [epochs]');
   const trainLimit = Number(limitArg || 600000);
   const epochs = Number(epochsArg || 3);
+  if (!Number.isSafeInteger(trainLimit) || trainLimit < 1) throw new TypeError('trainLimit must be a positive integer');
+  if (!Number.isInteger(epochs) || epochs < 1 || epochs > MAX_EPOCHS) throw new TypeError(`epochs must be an integer in 1..${MAX_EPOCHS}`);
   const full = await measure(dir, { hypothesisOnly: false, trainLimit, epochs, language });
   const hypothesisOnly = await measure(dir, { hypothesisOnly: true, trainLimit, epochs, language });
   return { dataset: language === 'tr' ? 'SNLI-TR 1.1 (CC-BY-SA-4.0)' : 'SNLI 1.0 (CC-BY-SA-4.0)', language, trainLimit, epochs, full, hypothesisOnly,
