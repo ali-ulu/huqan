@@ -13,6 +13,11 @@ const path = require('node:path');
 
 const { extractSubjectAndPredicate } = require('../lib/verify-subject');
 const { buildContradictionEvidence } = require('../lib/verify-contradiction-evidence');
+const Kernel = require('../kernel');
+
+function realKernel() {
+  return new Kernel({ noLoad: true, loadPlugins: false });
+}
 
 function stubKernel(nodes = {}) {
   return {
@@ -49,6 +54,31 @@ test('#2140: explicit parts feed the fallback path', () => {
   assert.equal(res.subject, 'kedi');
   assert.equal(res.predicate, 'uyur');
   assert.equal(res.matchedSubject, false);
+});
+
+test('#3704: a determiner-led English claim matches its own node', () => {
+  const kernel = realKernel();
+  kernel.graph.addNode('cat', { type: 'concept' });
+  const res = extractSubjectAndPredicate(kernel, 'a cat is a mammal', 'default', null);
+  assert.equal(res.subject, 'cat');
+  assert.equal(res.matchedSubject, true);
+});
+
+test('#3704: a legacy article node does not shadow the determiner-stripped subject', () => {
+  const kernel = realKernel();
+  kernel.graph.addNode('a', { type: 'concept' });
+  kernel.graph.addNode('cat', { type: 'concept' });
+  const res = extractSubjectAndPredicate(kernel, 'a cat is a mammal', 'default', null);
+  assert.equal(res.subject, 'cat');
+  assert.equal(res.matchedSubject, true);
+});
+
+test('#3704: the determiner-stripped retry normalizes the lookup form', () => {
+  const kernel = realKernel();
+  kernel.graph.addNode('cat', { type: 'concept' });
+  const res = extractSubjectAndPredicate(kernel, 'the "cat" is blue', 'default', null);
+  assert.equal(res.subject, 'cat');
+  assert.equal(res.matchedSubject, true);
 });
 
 test('#2140: contradiction evidence defaults the relation and clamps confidence', () => {
