@@ -85,6 +85,8 @@ function createServer(kernelOrOptions = {}) {
       kernel.graph.runMutationOnce(operationId, () => receipt);
     },
     callTool: params => callTool(kernel, params, {
+      // Trusted embedding context, never taken from the JSON-RPC request.
+      gateMetadata: options.gateMetadata,
       approvalStore,
       operatorSecret: operatorToken,
       operatorCapabilityNonces,
