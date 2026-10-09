@@ -15,6 +15,9 @@ function manager(...handlers) {
 }
 
 const ask = { tool: 'huqan.ask', args: { question: 'A domain-specific question' }, metadata: {} };
+// Live dispatch enriches metadata with receiver-owned MCP defaults (#3753)
+// before the gate runs; the plugin hook sees that enriched input.
+const liveAsk = { ...ask, metadata: { source: 'mcp', actor: 'mcp-client', runner: 'mcp', sourceTrust: 'unknown' } };
 
 test('MCP ingress delivers evaluated text before telemetry and prevents execution on review', () => {
   const kernel = new Kernel({ noLoad: true, loadPlugins: false });
@@ -24,7 +27,7 @@ test('MCP ingress delivers evaluated text before telemetry and prevents executio
     name: 'domain-review',
     beforeGateDecision(_kernel, input) {
       order.push('before');
-      assert.deepEqual(input, ask);
+      assert.deepEqual(input, liveAsk);
       return { decision: 'review' };
     },
     afterGateDecision(_kernel, event) {
