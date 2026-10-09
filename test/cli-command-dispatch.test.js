@@ -313,7 +313,9 @@ const GOLDEN = {
   'onayla': '8e5a19eadc89350ef709bee318dd6488560a342c219ab3d54542d875c3614bbb',
   'audit': '3fa127914571b0e1ed3f6271f18b9b6c0e292edef413235d407dbec79420f585',
   'receipt': '840c7fa4d05cc2e70ca2294f2c22cf559085f96e04203e3941d1bd606f3644a2',
-  'coder': 'fa7d13a8ff987c4dfc9294fb34812fd98f361cb8b5e43fe647f8cd827831061b',
+  // Coder now receives the loop collaborator; production wiring is covered
+  // by coder-fix-loop.test.js. Other dispatch contracts stay byte-identical.
+  'coder': '44514841e59586aec7907b313b9aabffb235df4cc7eaa9d41e870f00e1b892ef',
   'restore': '14aae65724102a4aecfb635c549afbecce983e5e7802577b7adcc2a5bb42c4ab',
   'düşün': '96f56501ebff60b787156ad1351ce3930111c72da09d416e4d5538c11e12fd28',
   'optimize': '17660f2da82a832960efc54bbbff3b2b4251276a6312d8eafbde704e58c610c4',

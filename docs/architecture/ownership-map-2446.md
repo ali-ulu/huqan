@@ -290,3 +290,13 @@ anchors).
 7. Respect prior labour: read existing issues/PRs, do not redo done work, do
    not silently overrule a recorded decision (D1–D8 name what they overrule).
 8. If you cannot finish, say what was not done and what was not verified.
+
+## Coder test loop
+
+`lib/coder/fix-loop.js` and `lib/coder/test-execution.js` belong to
+AgentAction: they apply gated candidates, execute declared tests, verify the
+result and restore failed candidates. The loop calls `applyDerivation` and
+`runDeclaredTest`; it exposes a port to Platform through `lib/cli-coder.js`.
+`lib/coder/cli-composition.js` is a Platform entry that supplies this port to
+the existing command table. It holds no domain decisions. Test and rollback
+evidence use the existing Experience journal, not another persistence store.

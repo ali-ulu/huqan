@@ -272,7 +272,7 @@
       ],
       "sites": [
         {
-          "line": 120,
+          "line": 126,
           "capability": "process",
           "call": "childProcess.execFileSync"
         }
