@@ -28,6 +28,9 @@
 
 const Kernel = require('./kernel');
 const KernelV2 = require('./kernel.v2');
+// R51 (#3583): a library consumer gets the same own-weight semantic model
+// wiring as the server/MCP/CLI runtimes (shadow by default; HUQAN_SEMANTIC_MODEL=off disables it).
+require('./lib/semantic-model-provider').installSemanticModelProvider();
 const errorPrevention = require('./lib/error-prevention');
 const agentActionFirewall = require('./lib/agent-action-firewall');
 const agentIdentityRuntime = require('./lib/agent-identity-runtime');
