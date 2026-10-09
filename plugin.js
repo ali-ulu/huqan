@@ -21,6 +21,14 @@ const { installPluginProvenanceMethods } = require('./lib/plugin-manager-provena
 // evidence URL, say) has somewhere to live that is not beforeLearn. See
 // #348 -- beforeLearn stays synchronous on purpose.
 //
+// beforeGateDecision is synchronous MCP evidence, dispatched through
+// collectGateEvidence({ tool, args, metadata }) before core evaluation.
+// Return undefined or { decision: 'allow'|'review'|'dry_run_only'|'block', reason? }.
+// Each plugin gets a separate input copy; signals can only restrict the core
+// verdict. Invalid/async signals block. The operator's existing explicit
+// human-approval opt-out still applies to review decisions, never blocks.
+// afterGateDecision remains a non-authoritative observer without raw text.
+//
 // Note: plugin-boundary-contract.test.js parses this array straight out of
 // the source and will not tolerate comments *inside* the literal.
 const EVENTS = [
@@ -41,6 +49,7 @@ const EVENTS = [
   'afterTask',
   'beforeAgentRun',
   'afterAgentRun',
+  'beforeGateDecision',
   'afterGateDecision',
 ];
 
