@@ -110,6 +110,58 @@ test('self-healer-audit: run() rejects an unsupported action', () => {
   assert.equal(selfHealerAudit.run(fakeKernel(), { action: 'nonsense' }).ok, false);
 });
 
+test('self-healer-audit: propose-fix turns a finding + verified record into a concrete task without apply', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'propose-fix',
+    workspaceId: 'default',
+    finding: {
+      kind: 'stale_docs',
+      severity: 'low',
+      title: 'stale docs',
+      summary: 'a doc is stale',
+      evidence: [{ type: 'file', ref: 'docs/notes.md', detail: 'stale' }],
+      affectedFiles: ['docs/notes.md'],
+      suggestedFix: { summary: 'update doc', allowedFiles: ['docs/notes.md'], forbiddenFiles: [], risk: 'low' },
+    },
+    failure: {
+      kind: 'failure_record',
+      schemaVersion: '1.0.0',
+      failureId: 'failure-plugin-1',
+      verificationStatus: 'verified',
+      action: { operation: 'replace_text', path: 'docs/notes.md' },
+      observed: 'old line\n',
+      expected: 'new line\n',
+      evidence: [],
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied, false);
+  assert.equal(result.decision, 'propose');
+  assert.equal(result.proposal.operation.type, 'replace_text');
+  assert.equal(result.proposal.operation.path, 'docs/notes.md');
+  assert.equal(result.refusal, null);
+});
+
+test('self-healer-audit: propose-fix without a record names the refusal rather than guessing', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'propose-fix',
+    workspaceId: 'default',
+    finding: {
+      kind: 'stale_docs',
+      severity: 'low',
+      title: 'stale docs',
+      summary: 'a doc is stale',
+      evidence: [{ type: 'file', ref: 'docs/notes.md', detail: 'stale' }],
+      affectedFiles: ['docs/notes.md'],
+      suggestedFix: { summary: 'update doc', allowedFiles: ['docs/notes.md'], forbiddenFiles: [], risk: 'low' },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied, false);
+  assert.equal(result.proposal, null);
+  assert.equal(result.refusal.reason, 'NO_FAILURE_RECORD');
+});
+
 test('self-healer-audit: the real repo root does not throw and produces a well-formed result', () => {
   const result = selfHealerAudit.run(fakeKernel(), { action: 'scan' });
   assert.equal(result.ok, true);

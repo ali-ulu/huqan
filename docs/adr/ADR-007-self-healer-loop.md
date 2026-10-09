@@ -17,6 +17,7 @@ Current implemented authority remains in source and tests:
 - `lib/self-healer/finding-schema.js`
 - `lib/self-healer/audit-runner.js`
 - `lib/self-healer/finding-classifier.js`
+- `lib/self-healer/fix-producer.js`
 - `lib/self-healer/index.js`
 - `lib/self-healer/behavioral-containment.js`
 - `test/self-healer-*.test.js`
@@ -24,16 +25,20 @@ Current implemented authority remains in source and tests:
 
 The current implemented surface includes finding schema validation,
 caller-provided check normalization into audit reports, finding classification,
-and a bounded AgentV3 behavioral-containment seam. External-action outcomes can
+concrete fix proposal production from a verified failure record, and a bounded
+AgentV3 behavioral-containment seam. External-action outcomes can
 feed that same seam through `lib/post-action-monitor.js`: a human-activated
 baseline deviation produces a classified finding, durable quarantine evidence,
-and a critical graduated-autonomy demotion signal. Nightly repo audits,
-autonomous repo scanning, fix proposal generation, draft patch/PR production,
-receipt emission beyond bounded receipt summaries, and memory/audit integration
-remain target capabilities unless a later source file and test prove otherwise.
-The AgentV3 seam observes only the current run's declared baseline and bounded
-step metadata. The post-action seam observes only explicitly reported bounded
-outcome metadata; neither surface creates an autonomous Self-Healer runner.
+and a critical graduated-autonomy demotion signal. `lib/self-healer/fix-producer.js`
+joins a finding's safety decision with a caller-supplied verified failure record
+to produce one concrete coder transform task; it never applies, and the task
+still clears code-change-gate. Autonomous repo scanning, draft patch/PR
+production, receipt emission beyond bounded receipt summaries, and memory/audit
+integration remain target capabilities unless a later source file and test prove
+otherwise. The AgentV3 seam observes only the current run's declared baseline and
+bounded step metadata. The post-action seam observes only explicitly reported
+bounded outcome metadata; neither surface creates an autonomous Self-Healer
+runner, and no surface applies a change without a human review.
 
 ## Context
 
@@ -210,9 +215,12 @@ Self-Healer runs in constrained modes:
   - require operator review and pause on repeated anomalies
   - no autonomous repair, credential revocation, reintegration, or Self-Healer loop
 
-- `proposal_only` (PLANNED)
-  - produce fix/test plan
-  - no patch
+- `proposal_only` (IMPLEMENTED)
+  - produce a concrete fix/test proposal from a finding plus a caller-supplied
+    verified failure record (`lib/self-healer/fix-producer.js`)
+  - the proposal is a coder transform task and is not applied; it clears
+    code-change-gate like any other task
+  - no patch written, no apply
 
 - `draft_patch` (PLANNED)
   - create branch/patch
