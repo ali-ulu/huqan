@@ -1390,6 +1390,8 @@
     "lib/semantic-model-text-features-v2.js",
     "lib/semantic-model-artifact.js",
     "lib/semantic-model-inference.js",
+    "lib/semantic-model-artifact-v2.js",
+    "lib/semantic-model-inference-v2.js",
     "lib/semantic-model-port.js",
     "lib/semantic-model-provider.js",
     "config/semantic-wiring-ledger.json",

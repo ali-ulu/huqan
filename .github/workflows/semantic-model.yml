@@ -32,7 +32,7 @@ jobs:
         run: npm install -g npm@11.6.3
       - run: npm ci --include=optional
       - name: Replay frozen artifacts and check family compatibility
-        run: node --test test/semantic-model-artifact.test.js test/semantic-model-family-features.test.js test/semantic-model-text-features.test.js test/semantic-model-training.test.js
+        run: node --test test/semantic-model-artifact.test.js test/semantic-model-family-features.test.js test/semantic-model-text-features.test.js test/semantic-model-training.test.js test/semantic-model-v2.test.js
       - name: Verify artifact size and inference latency
         run: node scripts/benchmark-semantic-model.js
 
