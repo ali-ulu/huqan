@@ -85,6 +85,8 @@ function createServer(kernelOrOptions = {}) {
       kernel.graph.runMutationOnce(operationId, () => receipt);
     },
     callTool: params => callTool(kernel, params, {
+      // Receiver-owned policy context; never taken from tools/call params.
+      gateMetadata: options.gateMetadata,
       approvalStore,
       operatorSecret: operatorToken,
       operatorCapabilityNonces,
