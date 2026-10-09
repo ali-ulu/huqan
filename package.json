@@ -418,6 +418,8 @@
     "lib/task-producer.js",
     "lib/coder/apply-derivation.js",
     "lib/coder/derivation-record.js",
+    "lib/coder/fix-loop.js",
+    "lib/coder/test-execution.js",
     "lib/coder/experience-reporter.js",
     "lib/coder/journal-store.js",
     "lib/repo-artifacts.js",
