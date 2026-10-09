@@ -21,6 +21,13 @@ const { installPluginProvenanceMethods } = require('./lib/plugin-manager-provena
 // evidence URL, say) has somewhere to live that is not beforeLearn. See
 // #348 -- beforeLearn stays synchronous on purpose.
 //
+// beforeLearn / beforeAsk may return a partial input payload. Returned fields
+// other than text/opts (learn) or question/workspaceId (ask) are exposed under
+// result.data.annotations[plugin.name]. `annotations` is reserved for the
+// accumulated output. Omitted input fields and earlier annotations survive.
+// Annotation values must be JSON-serializable for learn's durable replay;
+// they are advisory and do not become gate decisions or signed receipt data.
+//
 // Note: plugin-boundary-contract.test.js parses this array straight out of
 // the source and will not tolerate comments *inside* the literal.
 const EVENTS = [
