@@ -41,6 +41,7 @@ const EVENTS = [
   'afterTask',
   'beforeAgentRun',
   'afterAgentRun',
+  'beforeGateDecision',
   'afterGateDecision',
 ];
 
