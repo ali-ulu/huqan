@@ -1,5 +1,10 @@
 # V3 Core Smoke Checklist
 
+> Arşiv kaydı (2026-10-09): Bu belge eski sürümün doğrulama planıdır; güncel
+> sürüm prosedürü değildir. Komutlar, dosya yolları ve test sayıları tarihsel
+> haliyle korunmuştur ve bugün geçerli olmayabilir. Güncel yerel doğrulama
+> adımları için [CONTRIBUTING.md](../../../CONTRIBUTING.md) belgesine bakın.
+
 ## V3 Core Components
 
 - Approval Request Schema
