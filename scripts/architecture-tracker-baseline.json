@@ -1012,10 +1012,14 @@
       "lib/self-healer/source-dependency-graph.js": "Application",
       "lib/self-healer/source-dogfood-simulator.js": "Application",
       "lib/self-test-oracle.js": "Core",
+      "lib/semantic-model-artifact-v2.js": "Core",
       "lib/semantic-model-artifact.js": "Core",
+      "lib/semantic-model-calibration.js": "Core",
+      "lib/semantic-model-inference-v2.js": "Core",
       "lib/semantic-model-inference.js": "Application",
       "lib/semantic-model-port.js": "Core",
       "lib/semantic-model-provider.js": "Application",
+      "lib/semantic-model-text-features-v2.js": "Core",
       "lib/semantic-model-text-features.js": "Core",
       "lib/semantic-score.js": "Core",
       "lib/semantic-signals.js": "Core",
@@ -1237,10 +1241,12 @@
       "scripts/audit-impact-replay-coverage.js": "UI",
       "scripts/backup.js": "UI",
       "scripts/benchmark-semantic-model.js": "UI",
+      "scripts/benchmark-semantic-v2-snli.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
       "scripts/build-contradiction-eval-fixture.js": "UI",
       "scripts/build-semantic-training-dataset.js": "UI",
+      "scripts/calibrate-semantic-model.js": "UI",
       "scripts/capability-usage.js": "UI",
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
@@ -1284,6 +1290,7 @@
       "scripts/enforcement-coverage-classification.js": "UI",
       "scripts/enforcement-coverage.js": "UI",
       "scripts/explain-npm-publish-failure.js": "UI",
+      "scripts/export-conflict-reviews.js": "UI",
       "scripts/external-client.js": "UI",
       "scripts/external-conformance/consumer-bundles.js": "UI",
       "scripts/external-conformance/consumer-harness.js": "UI",
@@ -1324,12 +1331,15 @@
       "scripts/require-scan.js": "UI",
       "scripts/restore.js": "UI",
       "scripts/retained-deep-imports.js": "UI",
+      "scripts/retrain-semantic-model.js": "UI",
       "scripts/run-test-shard.js": "UI",
       "scripts/run-tests.js": "UI",
       "scripts/run-trust-receipt-pilot.js": "UI",
       "scripts/security-release-evaluation.js": "UI",
       "scripts/seed-demo.js": "UI",
+      "scripts/semantic-model-holdout-eval.js": "UI",
       "scripts/semantic-nli-adapter.js": "UI",
+      "scripts/semantic-review-labels.js": "UI",
       "scripts/semantic-teacher-contract.js": "UI",
       "scripts/semantic-training-dataset.js": "UI",
       "scripts/setup-sqlite.js": "UI",
@@ -1338,6 +1348,7 @@
       "scripts/spawn-windows-aware.js": "UI",
       "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
+      "scripts/train-semantic-model-v2.js": "UI",
       "scripts/train-semantic-model.js": "UI",
       "scripts/update-shard-weights.js": "UI",
       "scripts/verify-package-tarball.js": "UI",
@@ -1592,6 +1603,7 @@
         "lib/pilot/trust-receipt-pilot.js",
         "lib/pr-guardian/index.js",
         "lib/registry/registry-bundle-signing-key-resolver.js",
+        "lib/semantic-model-provider.js",
         "lib/trust-evidence-ledger.js"
       ],
       "kernel.js": [
@@ -5421,10 +5433,26 @@
       "lib/self-test-oracle.js": [
         "lib/text-utils.js"
       ],
+      "lib/semantic-model-artifact-v2.js": [
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js",
+        "lib/semantic-model-text-features-v2.js"
+      ],
       "lib/semantic-model-artifact.js": [
         "lib/hash-chain.js",
         "lib/is-plain-object.js",
         "lib/semantic-model-text-features.js"
+      ],
+      "lib/semantic-model-calibration.js": [
+        "lib/cognitive-lab-probability-calibration.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js",
+        "lib/semantic-model-artifact-v2.js",
+        "lib/semantic-model-artifact.js"
+      ],
+      "lib/semantic-model-inference-v2.js": [
+        "lib/semantic-model-artifact-v2.js",
+        "lib/semantic-model-text-features-v2.js"
       ],
       "lib/semantic-model-inference.js": [
         "lib/cognitive-model-local-mamba.js",
@@ -5435,13 +5463,21 @@
         "lib/semantic-model-text-features.js"
       ],
       "lib/semantic-model-provider.js": [
+        "lib/semantic-model-calibration.js",
+        "lib/semantic-model-inference-v2.js",
         "lib/semantic-model-inference.js",
         "lib/semantic-model-port.js",
         "lib/semantic-model-text-features.js"
       ],
+      "lib/semantic-model-text-features-v2.js": [
+        "lib/hash-chain.js",
+        "lib/turkish-copula.js",
+        "nlp/lang-tr.js"
+      ],
       "lib/semantic-model-text-features.js": [
         "lib/cognitive-lab-contradiction-features.js",
-        "lib/hash-chain.js"
+        "lib/hash-chain.js",
+        "lib/semantic-model-text-features-v2.js"
       ],
       "lib/semantic-score.js": [
         "lib/semantic-signals.js",
@@ -6109,6 +6145,12 @@
       "scripts/benchmark-semantic-model.js": [
         "lib/semantic-model-inference.js"
       ],
+      "scripts/benchmark-semantic-v2-snli.js": [
+        "lib/semantic-model-artifact-v2.js",
+        "lib/semantic-model-inference-v2.js",
+        "lib/semantic-model-text-features-v2.js",
+        "scripts/train-semantic-model-v2.js"
+      ],
       "scripts/benign-false-block-rate.js": [
         "lib/external-action-guard.js"
       ],
@@ -6120,6 +6162,14 @@
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/semantic-nli-adapter.js",
         "scripts/semantic-training-dataset.js"
+      ],
+      "scripts/calibrate-semantic-model.js": [
+        "lib/semantic-model-artifact.js",
+        "lib/semantic-model-calibration.js",
+        "lib/semantic-model-inference.js",
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js",
+        "scripts/train-semantic-model.js"
       ],
       "scripts/capability-usage.js": [
         "lib/default-persistence-path.js",
@@ -6202,6 +6252,12 @@
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",
         "scripts/enforcement-coverage-classification.js"
+      ],
+      "scripts/export-conflict-reviews.js": [
+        "lib/kernel-factory.js",
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-review-labels.js",
+        "scripts/semantic-training-dataset.js"
       ],
       "scripts/external-conformance/consumer-bundles.js": [
         "scripts/external-conformance/consumer-harness.js",
@@ -6317,6 +6373,13 @@
         "backupRestore.js",
         "lib/environment-compat.js"
       ],
+      "scripts/retrain-semantic-model.js": [
+        "lib/semantic-model-artifact.js",
+        "scripts/calibrate-semantic-model.js",
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-training-dataset.js",
+        "scripts/train-semantic-model.js"
+      ],
       "scripts/run-test-shard.js": [
         "scripts/ci-shard-manifest.js",
         "scripts/junit-merge.js",
@@ -6335,7 +6398,18 @@
         "kernel.v2.js",
         "lib/environment-compat.js"
       ],
+      "scripts/semantic-model-holdout-eval.js": [
+        "lib/cognitive-lab-contradiction-evaluator.js",
+        "lib/cognitive-lab-contradiction-report.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/semantic-model-port.js",
+        "lib/semantic-model-provider.js"
+      ],
       "scripts/semantic-nli-adapter.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js"
+      ],
+      "scripts/semantic-review-labels.js": [
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/semantic-teacher-contract.js"
       ],
@@ -6351,6 +6425,13 @@
       ],
       "scripts/test-consumer-compile.js": [
         "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/train-semantic-model-v2.js": [
+        "lib/semantic-model-artifact-v2.js",
+        "lib/semantic-model-text-features-v2.js",
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js",
+        "scripts/train-semantic-model.js"
       ],
       "scripts/train-semantic-model.js": [
         "lib/cognitive-model-local-primitives.js",

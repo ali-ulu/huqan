@@ -3642,6 +3642,14 @@
    "kind": "infra",
    "evidence": "#3583 R51 calibration-split temperature scaling and ABSTAIN band for own-weight predictions"
   },
+  "lib/semantic-model-artifact-v2.js": {
+   "kind": "infra",
+   "evidence": "#3717 R55 PR2 own-weight v2 logistic artifact contract over the huqan-semantic-text-v2 features"
+  },
+  "lib/semantic-model-inference-v2.js": {
+   "kind": "infra",
+   "evidence": "#3717 R55 PR2 pure-JS v2 inference behind the semantic model port and calibration"
+  },
   "lib/semantic-model-port.js": {
    "kind": "infra",
    "evidence": "#3583 R51 PR3 Core seam: off|shadow|on mode, fail-closed typed model signal beside the verify rules"

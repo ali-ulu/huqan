@@ -17,7 +17,7 @@ const {
   strongestSemanticModel,
   semanticModelReceiptView,
 } = require('../lib/semantic-model-port');
-const { createSemanticModelProvider, FAMILY_FILES } = require('../lib/semantic-model-provider');
+const { createSemanticModelProvider, FAMILY_FILES, PACKAGED_FAMILY_FILES } = require('../lib/semantic-model-provider');
 
 const ARTIFACT_DIR = path.join(__dirname, '..', 'lib', 'semantic-model-artifacts');
 const STORED = { text: 'paris is the capital of france', subject: 'paris' };
@@ -134,7 +134,7 @@ test('a distribution that does not sum to one is rejected, even with a confident
 });
 
 test('each packaged family loads, answers with its own digest, and the load happens once', () => {
-  for (const [family, file] of Object.entries(FAMILY_FILES)) {
+  for (const [family, file] of Object.entries(PACKAGED_FAMILY_FILES)) {
     const expected = JSON.parse(fs.readFileSync(path.join(ARTIFACT_DIR, file), 'utf8')).artifactDigest;
     const signal = evaluateSemanticModel(STORED, INCOMING, {
       mode: 'shadow', provider: createSemanticModelProvider({ env: { HUQAN_SEMANTIC_MODEL_FAMILY: family.toLowerCase() } }),
