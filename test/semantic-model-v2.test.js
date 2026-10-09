@@ -179,3 +179,16 @@ test('the SNLI benchmark rejects invalid limits and a dataset with no usable pai
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a language variant file holding a model of another language fails closed', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r55-v2-lang-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'logistic-v2-tr.json'), stableStringify(trained()));
+    const env = { HUQAN_SEMANTIC_MODEL_FAMILY: 'logistic_v2' };
+    const signal = evaluateSemanticModel({ text: 'Adam gitar çalıyor.' }, { text: 'Kimse müzik çalmıyor.' },
+      { mode: 'shadow', provider: createSemanticModelProvider({ env, artifactDir: dir }) });
+    assert.equal(signal.reason, 'artifact_unavailable:semantic_artifact_language_mismatch');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

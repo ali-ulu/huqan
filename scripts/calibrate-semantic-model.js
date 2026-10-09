@@ -7,6 +7,7 @@ const { LABELS, digest } = require('../lib/semantic-model-artifact');
 const { loadSemanticModel } = require('../lib/semantic-model-inference');
 const { loadSemanticModelV2 } = require('../lib/semantic-model-inference-v2');
 const { SCHEMA: V2_SCHEMA } = require('../lib/semantic-model-artifact-v2');
+const { CORPORA } = require('./build-semantic-snli-dataset');
 const { fitCalibration } = require('../lib/semantic-model-calibration');
 const { digestOf, stableStringify } = require('./contradiction-eval-freeze-contract');
 const { assertNoHoldoutLeakage } = require('./semantic-teacher-contract');
@@ -18,6 +19,20 @@ const FROZEN_CORPUS = path.join(__dirname, '../test/fixtures/contradiction-eval-
 function loadAnyModel(modelInput) {
   const value = typeof modelInput === 'string' ? JSON.parse(modelInput) : modelInput;
   return value && value.schemaVersion === V2_SCHEMA ? loadSemanticModelV2(modelInput) : loadSemanticModel(modelInput);
+}
+
+/**
+ * A language-bound (v2) model is never calibrated on a corpus of another
+ * language: it would encode those records with the wrong tokenizer and bind a
+ * meaningless calibration to its digest. Sources of unknown language pass.
+ */
+function assertLanguageMatches(model, sources) {
+  if (!model.language) return;
+  const sourceLanguages = new Map(Object.values(CORPORA).map(corpus => [corpus.sourceId, corpus.language]));
+  for (const source of Array.isArray(sources) ? sources : []) {
+    const language = sourceLanguages.get(source.id);
+    if (language && language !== model.language) throw new TypeError('semantic_calibration_language_mismatch');
+  }
 }
 
 /** Hard calibration target: the consensus soft label's argmax, ties in LABELS order. */
@@ -39,6 +54,7 @@ function calibrateSemanticModel(dataset, modelInput, options = {}) {
     .sort((a, b) => a.pairDigest < b.pairDigest ? -1 : a.pairDigest > b.pairDigest ? 1 : 0);
   if (!records.length) throw new TypeError('semantic_calibration_input_invalid');
   const model = loadAnyModel(modelInput);
+  assertLanguageMatches(model, dataset.sources);
   return fitCalibration(records.map(record => model.predict(record)), records.map(record => consensusLabel(record.distribution)),
     { ...options, calibrationCorpusDigest: digest(records) });
 }

@@ -98,3 +98,25 @@ test('the CLI validates its arguments and never overwrites an output', async () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('SNLI-TR translation re-annotations win over the inherited labels, and broken translations are dropped', () => {
+  const base = row('Adam uyuyor.', 'Adam uyanık.', 'neutral', ['neutral']);
+  const relabelled = adaptSnliRow({ ...base, translation_annotations: { gold_label: 'contradiction',
+    annotator_labels: ['contradiction', 'contradiction', 'contradiction', 'neutral', 'contradiction'] } }, CORPORA.tr, 'calibration');
+  assert.deepEqual(relabelled.teacher.distribution, { CONTRADICTION: 0.8, ENTAILMENT: 0, NEUTRAL: 0.2, ABSTAIN: 0 });
+  assert.deepEqual(adaptSnliRow({ ...base, translation_annotations: { gold_label: 'broken', annotator_labels: [] } }, CORPORA.tr, 'train'),
+    { drop: 'translation_broken' });
+  assert.deepEqual(adaptSnliRow(base, CORPORA.tr, 'train').teacher.distribution, { CONTRADICTION: 0, ENTAILMENT: 0, NEUTRAL: 1, ABSTAIN: 0 });
+});
+
+test('calibration refuses a v2 model of another language than the dataset corpus', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r55-snli-lang-'));
+  try {
+    writeCorpus(dir, 'snli_1.0');
+    const { dataset } = await buildSnliDataset({ dir, language: 'en', trainLimit: 1000, calibrationLimit: 1000, sourceCommit: SHA, frozenCorpus: FROZEN });
+    const turkish = trainSemanticModelV2(dataset, { language: 'tr', sourceCommit: SHA, frozenCorpus: FROZEN });
+    assert.throws(() => calibrateSemanticModel(dataset, stableStringify(turkish)), /semantic_calibration_language_mismatch/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

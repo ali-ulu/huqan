@@ -26,9 +26,9 @@ const { LABELS, HUMAN_ANNOTATORS_TEACHER_ID, textPairKey } = require('./semantic
 const { buildTrainingDataset } = require('./semantic-training-dataset');
 
 const CORPORA = Object.freeze({
-  en: { prefix: 'snli_1.0', sourceId: 'snli-en', version: 'snli-1.0',
+  en: { language: 'en', prefix: 'snli_1.0', sourceId: 'snli-en', version: 'snli-1.0',
     url: 'https://nlp.stanford.edu/projects/snli/', attribution: 'SNLI 1.0, Bowman et al. 2015, Stanford NLP' },
-  tr: { prefix: 'snli_tr_1.1', sourceId: 'snli-tr', version: 'snli-tr-1.1',
+  tr: { language: 'tr', prefix: 'snli_tr_1.1', sourceId: 'snli-tr', version: 'snli-tr-1.1',
     url: 'https://github.com/boun-tabi/NLI-TR', attribution: 'SNLI-TR 1.1, Budur et al. 2020, Bogazici University (translation of SNLI 1.0)' },
 });
 const ANNOTATOR_LABELS = Object.freeze({ contradiction: 'CONTRADICTION', entailment: 'ENTAILMENT', neutral: 'NEUTRAL' });
@@ -36,13 +36,31 @@ const MAX_TEXT = 2048;
 
 function fail(code) { throw new TypeError(code); }
 
+/**
+ * The labels that describe THIS text pair. SNLI-TR 1.1 re-annotated a sample of
+ * translated pairs (`translation_annotations`); where present, those judge the
+ * Turkish text and win over the inherited English labels, and a `broken`
+ * translation is dropped. Other rows keep the corpus-level labels.
+ */
+function pairLabels(row) {
+  const translated = row.translation_annotations;
+  if (translated && typeof translated === 'object') {
+    if (translated.gold_label === 'broken') return { drop: 'translation_broken' };
+    return { gold: translated.gold_label, votes: translated.annotator_labels };
+  }
+  return { gold: row.gold_label, votes: row.annotator_labels };
+}
+
 /** One SNLI row -> {record, teacher} or a drop reason. Pure. */
 function adaptSnliRow(row, corpus, split) {
-  if (!row || !ANNOTATOR_LABELS[row.gold_label]) return { drop: 'no_gold_label' };
+  if (!row) return { drop: 'no_gold_label' };
+  const labels = pairLabels(row);
+  if (labels.drop) return labels;
+  if (!ANNOTATOR_LABELS[labels.gold]) return { drop: 'no_gold_label' };
   const premise = typeof row.sentence1 === 'string' ? row.sentence1.trim() : '';
   const hypothesis = typeof row.sentence2 === 'string' ? row.sentence2.trim() : '';
   if (!premise || !hypothesis || premise.length > MAX_TEXT || hypothesis.length > MAX_TEXT) return { drop: 'text_invalid' };
-  const votes = (Array.isArray(row.annotator_labels) ? row.annotator_labels : []).map(label => ANNOTATOR_LABELS[label]).filter(Boolean);
+  const votes = (Array.isArray(labels.votes) ? labels.votes : []).map(label => ANNOTATOR_LABELS[label]).filter(Boolean);
   if (!votes.length) return { drop: 'no_annotator_label' };
   const input = { stored: { text: premise }, incoming: { text: hypothesis } };
   const distribution = Object.fromEntries(LABELS.map(label => [label, votes.filter(vote => vote === label).length / votes.length]));
@@ -54,7 +72,8 @@ function adaptSnliRow(row, corpus, split) {
 }
 
 async function readSplit(file, corpus, split, limit, state) {
-  const rl = readline.createInterface({ input: fs.createReadStream(file), crlfDelay: Infinity });
+  const input = fs.createReadStream(file);
+  const rl = readline.createInterface({ input, crlfDelay: Infinity });
   let kept = 0;
   try {
     for await (const line of rl) {
@@ -71,7 +90,9 @@ async function readSplit(file, corpus, split, limit, state) {
       if (++kept >= limit) break;
     }
   } finally {
+    // rl.close() does not close its input; an early limit would leak the handle.
     rl.close();
+    input.destroy();
   }
   return kept;
 }
