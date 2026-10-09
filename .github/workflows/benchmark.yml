@@ -784,7 +784,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build Docker image
-        run: docker build -t huqan:test .
+        run: |
+          set -euo pipefail
+          build_log="$(mktemp)"
+          trap 'rm -f "${build_log}"' EXIT
+          for attempt in 1 2 3; do
+            if docker build --progress=plain -t huqan:test . >"${build_log}" 2>&1; then
+              cat "${build_log}"
+              exit 0
+            else
+              status=$?
+            fi
+            cat "${build_log}"
+            # Registry token-service outages can outlast BuildKit's own retry.
+            # Retry only that transient failure; never hide a broken build.
+            if [ "${attempt}" -eq 3 ] || ! grep -Eq 'failed to fetch (oauth|anonymous) token:.*(502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout)' "${build_log}"; then
+              exit "${status}"
+            fi
+            delay=$((attempt * 15))
+            echo "Registry token service unavailable; retrying Docker build in ${delay}s (attempt ${attempt}/3)."
+            sleep "${delay}"
+          done
 
       - name: Run Docker runtime smoke
         run: |
