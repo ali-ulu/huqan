@@ -22,7 +22,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
-const { encodeTextPair } = require('../lib/semantic-model-text-features-v2');
+const { encodeTextPair, tokenize } = require('../lib/semantic-model-text-features-v2');
 const { LEARNED_LABELS } = require('../lib/semantic-model-artifact-v2');
 const { scoresFor } = require('../lib/semantic-model-inference-v2');
 const { createLogisticTrainer } = require('./train-semantic-model-v2');
@@ -32,22 +32,32 @@ const MAX_EPOCHS = 50;
 const FILES = Object.freeze({ en: split => `snli_1.0_${split}.jsonl`, tr: split => `snli_tr_1.1_${split}.jsonl` });
 const GOLD = Object.freeze({ contradiction: 'CONTRADICTION', entailment: 'ENTAILMENT', neutral: 'NEUTRAL' });
 
-function toExample(row) {
+function toExample(row, language = 'en') {
   const label = GOLD[row.gold_label];
   const premise = String(row.sentence1 || '');
   const hypothesis = String(row.sentence2 || '');
   if (!label || !premise.trim() || !hypothesis.trim() || premise.length > 2048 || hypothesis.length > 2048) return null;
+  // Both arms must train and score on the same usable pairs. In particular,
+  // hypothesis-only encoding never reads the premise, so punctuation-only
+  // premises would otherwise enter only the baseline and distort the gain.
+  // Filter before the stream counts this row toward the training limit.
+  try {
+    tokenize(premise, language);
+    tokenize(hypothesis, language);
+  } catch {
+    return null;
+  }
   return { record: { stored: { text: premise }, incoming: { text: hypothesis } }, y: LEARNED_LABELS.indexOf(label) };
 }
 
-async function* examples(file, limit) {
+async function* examples(file, limit, language) {
   const rl = readline.createInterface({ input: fs.createReadStream(file), crlfDelay: Infinity });
   let count = 0;
   try {
     for await (const line of rl) {
       if (!line.trim()) continue;
       let example = null;
-      try { example = toExample(JSON.parse(line)); } catch { example = null; }
+      try { example = toExample(JSON.parse(line), language); } catch { example = null; }
       if (!example) continue;
       yield example;
       if (++count >= limit) break;
@@ -65,7 +75,7 @@ async function measure(dir, { hypothesisOnly, trainLimit, epochs, language = 'en
   const trainer = createLogisticTrainer();
   let trained = 0;
   for (let epoch = 0; epoch < epochs; epoch++) {
-    for await (const { record, y } of examples(path.join(dir, FILES[language]('train')), trainLimit)) {
+    for await (const { record, y } of examples(path.join(dir, FILES[language]('train')), trainLimit, language)) {
       const features = encode(record, hypothesisOnly, language);
       if (!features) continue;
       trainer.step(features, LEARNED_LABELS.map((_, k) => Number(k === y)), 1);
@@ -75,7 +85,7 @@ async function measure(dir, { hypothesisOnly, trainLimit, epochs, language = 'en
   const weights = trainer.finish();
   const dimensions = weights.length / LEARNED_LABELS.length;
   let n = 0, correct = 0, truePositive = 0, predictedPositive = 0, goldPositive = 0;
-  for await (const { record, y } of examples(path.join(dir, FILES[language]('test')), Infinity)) {
+  for await (const { record, y } of examples(path.join(dir, FILES[language]('test')), Infinity, language)) {
     const features = encode(record, hypothesisOnly, language);
     if (!features) continue;
     const scores = Array.from(scoresFor(weights, dimensions, features));

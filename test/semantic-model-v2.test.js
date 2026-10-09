@@ -192,3 +192,41 @@ test('a language variant file holding a model of another language fails closed',
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const language of ['en', 'tr']) {
+  test(`the ${language} SNLI benchmark compares the same usable pairs before applying the training limit`, async () => {
+    const { main: benchmark } = require('../scripts/benchmark-semantic-v2-snli');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'r55-bench-paired-'));
+    const prefix = language === 'tr' ? 'snli_tr_1.1' : 'snli_1.0';
+    const valid = { gold_label: 'contradiction',
+      sentence1: language === 'tr' ? 'Adam uyuyor.' : 'The man sleeps.',
+      sentence2: language === 'tr' ? 'Adam uyumuyor.' : 'The man does not sleep.' };
+    const invalid = [
+      { ...valid, sentence1: '...!?', gold_label: 'entailment' },
+      { ...valid, sentence1: '😀', gold_label: 'neutral' },
+      { ...valid, sentence2: '...!?' },
+    ];
+    const write = rows => {
+      for (const split of ['train', 'test']) {
+        fs.writeFileSync(path.join(dir, `${prefix}_${split}.jsonl`), `${rows.map(row => JSON.stringify(row)).join('\n')}\n`);
+      }
+    };
+    try {
+      write([valid]);
+      const expected = await benchmark([dir, '1', '2', `--language=${language}`]);
+      write([...invalid, valid]);
+      const actual = await benchmark([dir, '1', '2', `--language=${language}`]);
+      assert.deepEqual(actual, expected);
+      assert.equal(actual.full.trainPairs, 1);
+      assert.equal(actual.hypothesisOnly.trainPairs, 1);
+      assert.equal(actual.full.testPairs, 1);
+      assert.equal(actual.hypothesisOnly.testPairs, 1);
+      // With a limit above the available rows, neither arm may admit extra rows.
+      const unlimited = await benchmark([dir, '100', '2', `--language=${language}`]);
+      assert.deepEqual(unlimited.full, expected.full);
+      assert.deepEqual(unlimited.hypothesisOnly, expected.hypothesisOnly);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
