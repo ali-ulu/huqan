@@ -44,6 +44,7 @@
     "check:architecture-trackers": "node scripts/architecture-snapshot.js --check",
     "review:queue": "node scripts/architecture-review-queue.js",
     "check:cycles": "node scripts/check-import-cycles.js",
+    "check:import-cycles": "npm run check:cycles",
     "check:module-boundary": "node scripts/check-module-boundary.js",
     "check:layers": "node scripts/check-layers.js",
     "check:doc-status": "node scripts/check-doc-status.js",
