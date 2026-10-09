@@ -139,6 +139,38 @@ non-claims until separately implemented and evidenced. This bounded gate is
 separate from #1103 registry publication, #1119 package/release work and #1182
 A2A agent-card/exchange availability.
 
+## MCP Gate Evidence Hook
+
+`beforeGateDecision(kernel, { tool, args, metadata })` runs synchronously
+before the MCP gate evaluates a known tool. `args` contains the evaluated
+text (for example, `args.question` for `huqan.ask` or `args.text` for
+`huqan.learn`). Each plugin receives a separate deep copy of the input.
+
+Return `undefined` to abstain, or `{ decision, reason? }`, where `decision`
+is `allow`, `review`, `dry_run_only`, or `block`, and `reason` is an optional
+non-sensitive string (recorded up to 256 characters). For example:
+
+```js
+beforeGateDecision(kernel, { tool, args }) {
+  if (tool === 'huqan.ask' && needsDomainReview(args.question)) {
+    return { decision: 'review', reason: 'domain_review_required' };
+  }
+}
+```
+
+Core records each signal with its plugin identity in the gate findings and
+merges it using the existing priority: `block > dry_run_only > review > allow`.
+A plugin cannot erase another plugin's evidence, downgrade a core decision,
+rewrite the tool/arguments, or supply execution flags. Throws, Promises and
+malformed signals fail closed as `plugin_gate_error`. The existing explicit
+human-approval toggle still applies to review decisions; it never overrides
+a block. Invalid/unknown tools and pre-gate authorization refusals do not run
+this hook.
+
+This hook is wired to MCP gate evaluation, not every kernel or agent gate.
+`afterGateDecision` remains an observational telemetry event; it does not
+receive raw arguments or let a plugin revise the decision.
+
 ## Verify Status Contract
 
 `verify.status` remains a core contract, not a plugin-specific invention.

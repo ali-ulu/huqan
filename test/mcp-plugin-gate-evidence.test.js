@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 const PluginManager = require('../plugin');
-const { callTool } = require('../mcpServer');
+const { callTool, createServer } = require('../mcpServer');
 const { evaluateMcpGate } = require('../lib/mcp-gate-adapter');
 const { applyHumanApprovalToggle } = require('../lib/human-approval-toggle');
 const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
@@ -164,4 +164,55 @@ test('the hook receives full evaluated text, including content beyond core class
   const result = evaluateMcpGate({ ...input, args: { question } }, { plugins });
   assert.equal(received, question);
   assert.equal(result.decision, 'review');
+});
+
+test('plugin evidence survives a core gate early block', () => {
+  const plugins = manager(() => ({ decision: 'review', reason: 'domain_review_required' }));
+  const result = evaluateMcpGate({
+    tool: input.tool, args: { ...input.args, workspaceId: 'other' }, metadata: { workspaceId: 'default' },
+  }, { plugins });
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, 'ab11_cross_workspace_access_blocked');
+  assert.ok(result.findings.some(f => f.plugin === 'signal-0' && f.reason === 'domain_review_required'));
+});
+
+test('an explicit plugin dry-run restriction survives agent review restoration and opt-out', () => {
+  const plugins = manager(() => ({ decision: 'dry_run_only' }));
+  const gate = evaluateMcpGate({ tool: 'huqan.agent', args: { goal: 'summarize' } }, { plugins });
+  assert.equal(gate.decision, 'dry_run_only');
+  for (const env of [{}, { HUQAN_HUMAN_APPROVAL_DISABLED: 'true' }]) {
+    const result = applyHumanApprovalToggle(gate, env);
+    assert.equal(result.decision, 'dry_run_only');
+    assert.equal(result.canExecute, false);
+    assert.equal(result.requiredReview, false);
+  }
+});
+
+test('JSON-RPC tools/call delivers gate text and never executes a reviewed ask', (t) => {
+  const kernel = new Kernel(isolatedKernelOptions('plugin-gate-rpc', { loadPlugins: false }));
+  const server = createServer({ kernel, approvalStore: null, operatorCapabilityNonces: new Map() });
+  t.after(() => { server.close(); kernel.graph.close?.(); kernel.memory.close?.(); });
+  const order = [];
+  let received;
+  let telemetry;
+  kernel.plugins.register({
+    name: 'rpc-classifier',
+    beforeGateDecision(_kernel, payload) {
+      order.push('before');
+      received = payload;
+      return { decision: 'review', reason: 'domain_review_required' };
+    },
+    beforeAsk() { order.push('ask'); },
+    afterGateDecision(_kernel, event) { order.push('after'); telemetry = event; },
+  });
+  const response = server.handleRequest({
+    jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: input.tool, arguments: input.args },
+  });
+  assert.deepEqual(received, { ...input, metadata: {} });
+  assert.equal(response.result.structuredContent.gate.decision, 'review');
+  assert.equal(response.result.structuredContent.gate.canExecute, false);
+  assert.deepEqual(order, ['before', 'after']);
+  assert.equal(telemetry.decision, 'review');
+  assert.equal(JSON.stringify(telemetry).includes(input.args.question), false);
 });
