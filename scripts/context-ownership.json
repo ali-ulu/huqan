@@ -2476,6 +2476,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/coder/learned-candidate.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
   "lib/coder/project-templates.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
@@ -6423,6 +6427,11 @@
    "owner": "AgentAction",
    "consumers": ["Platform"],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/learned-candidate.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
   },
   "lib/coder/project-initialization.js": {
    "owner": "AgentAction",

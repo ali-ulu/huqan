@@ -301,6 +301,15 @@ result and restore failed candidates. The loop calls `applyDerivation` and
 the existing command table. It holds no domain decisions. Test and rollback
 evidence use the existing Experience journal, not another persistence store.
 
+## Coder candidate memory
+
+`lib/coder/learned-candidate.js` belongs to AgentAction and is supplied to
+Platform through `lib/coder/cli-composition.js`. It stores explicit,
+candidate-only method artifacts and resolves them against fresh sealed
+Experience evidence. It reuses the existing compiler and router; it never
+installs a method or relaxes source, coverage, trust or path boundaries.
+The journal continues to contain hashes rather than full method bodies.
+
 ## Coder project recipe
 
 `lib/coder/project-producer.js` owns the AgentAction requirements-to-task

@@ -215,6 +215,10 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'applies a deterministic transform only after ordinary code-change admission or the explicit closed project-initialization permission; initialization uses exclusive creation, and failed writes roll back the files written by this invocation',
   }),
+  'lib/coder/learned-candidate.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'explicitly persists candidate-only method bodies in a bounded private coder directory; exclusive creation and fresh sealed-source validation grant no installation or code-write authority',
+  }),
   'lib/coder/project-verification.js': Object.freeze({
     role: 'operator_tool',
     why: 'mandatory native fixed HTTP verification for explicitly approved closed initialization; its process adapter runs only after the existing command-exec gate admits the fixed command',
