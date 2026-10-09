@@ -32,6 +32,7 @@ test('learn returns namespaced annotations without losing text or opts, includin
   annotate(k);
   k.usePlugin({ name: 'classifier', beforeLearn() { return { aura: { category: 'animal' } }; } });
   k.usePlugin({ name: 'translator', beforeLearn(_k, data) {
+    assert.deepEqual(data.aura, { category: 'animal' });
     return { ...data, text: 'kedi hayvandir' };
   } });
   const opts = { ...seedOpts, mutationOperationId: 'annotated-learn', workspaceId: 'tenant' };
@@ -100,5 +101,16 @@ test('synchronous learn still fails closed on throwing and async hooks', t => {
     k.usePlugin({ name: 'invalid', beforeLearn });
     assert.throws(() => k.learn('kedi hayvandir', seedOpts), /plugin refusal|returned a Promise/);
     assert.equal(k.graph.getNode('kedi'), null);
+  }
+});
+
+
+test('returned in-place annotations retain ownership through later passthrough hooks', t => {
+  const k = makeKernel(t);
+  function enrich(_k, data) { data.aura = risk; return data; }
+  k.usePlugin({ name: 'enricher', beforeLearn: enrich, beforeAsk: enrich });
+  k.usePlugin({ name: 'passthrough', beforeLearn: (_k, data) => data, beforeAsk: (_k, data) => data });
+  for (const result of [k.learn('kedi hayvandir', seedOpts), k.ask('kedi nedir')]) {
+    assert.deepEqual(result.data.annotations, { enricher: { aura: risk } });
   }
 });
