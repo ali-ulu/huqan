@@ -37,6 +37,7 @@
     "verify": "node scripts/verify-suite.js",
     "check:action-pins": "node scripts/check-action-pins.js",
     "check:licenses": "node scripts/check-licenses.js",
+    "check:deprecations": "node scripts/check-deprecations.js",
     "check:control-chars": "node scripts/check-control-chars.js",
     "check:structured-log": "node scripts/check-structured-log-format.js",
     "arch:snapshot": "node scripts/architecture-snapshot.js",

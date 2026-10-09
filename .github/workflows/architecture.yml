@@ -120,6 +120,9 @@ jobs:
       - name: Require the benign false-block rate to hold its recorded baseline
         run: node scripts/benign-false-block-rate.js
 
+      - name: Require deprecations to be complete, on schedule, warned and guided
+        run: npm run check:deprecations
+
   source-gates:
     name: Architecture source gates
     runs-on: ubuntu-latest
