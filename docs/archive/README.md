@@ -41,6 +41,23 @@ For architecture decisions, also see the `docs/ADR-*.md` files.
   itself is being re-evaluated for the v1.0 forward-compatibility phase. Kept
   as historical context only.
 
+## Archived Release Smoke Procedures (2026-10-09)
+
+The following superseded procedures are preserved unchanged for historical
+reference; their commands, endpoint expectations, and test counts are not
+current release verification instructions:
+
+- [v0.8 RC smoke](release-smoke-2026-10-09/v0.8-rc-smoke.md) records the
+  v0.8.0 release candidate. Its `lib/axiom-package-format.test.js` citation
+  refers to a deleted test and is retained only as part of that record.
+- [V3 Core smoke checklist](release-smoke-2026-10-09/v3-smoke-checklist.md)
+  records the V3 boundary and the MCP integration status at that time.
+- [Memory Core smoke plan](release-smoke-2026-10-09/memory-core-smoke.md)
+  records v0.9.1 verification, including its historical `682+` scenario count.
+
+Use the current [PR checklist](../PR_CHECKLIST.md) and repository test scripts
+for current verification requirements.
+
 ## Templates
 
 - `docs/templates/auto-pr-receipt.md` — Trust Receipt template originally
