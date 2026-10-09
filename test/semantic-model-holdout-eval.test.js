@@ -185,4 +185,5 @@ test('R55: the pre-declared LOGISTIC_V2 arm is measured, recorded and still deci
   assert.ok(!report.secondaryFamilies.some(row => row.family === 'LOGISTIC_V2'));
   assert.ok(report.secondaryFamilies.some(row => row.family === 'SSM'));
   assert.throws(() => execFileSync(process.execPath, [SCRIPT, `--source-commit=${SOURCE_COMMIT}`, '--family=GPT'], { encoding: 'utf8', stdio: 'pipe' }), /usage/);
+  assert.throws(() => execFileSync(process.execPath, [SCRIPT, `--source-commit=${SOURCE_COMMIT}`, '--family='], { encoding: 'utf8', stdio: 'pipe' }), /usage/);
 });

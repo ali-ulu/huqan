@@ -286,7 +286,7 @@ function parseArgs(argv) {
     const arg = argv.find((item) => item.startsWith(`--${name}=`));
     return arg ? arg.slice(name.length + 3) : null;
   };
-  return { sourceCommit: value('source-commit'), family: value('family') || DEFAULT_FAMILY };
+  return { sourceCommit: value('source-commit'), family: value('family') ?? DEFAULT_FAMILY };
 }
 
 function main(argv) {
