@@ -1,6 +1,8 @@
 # Trust signals: heuristics inform, the kernel decides
 
-Status: implementation (observation-only). No gate reads these signals yet.
+Status: shipped signals, including the live own-weight semantic model (R51/R55,
+default shadow). No gate reads these signals; model output is candidate-only,
+with an optional review-priority hint in on mode.
 
 ## Rule
 
@@ -39,20 +41,64 @@ report to envelope `meta.robustness`. Default calls are byte-identical;
 the probe takes a verify function and cannot write to any graph. No gate
 consumes the score yet.
 
+## Signal 3 — own-weight semantic model (R51/R55, shipped, default shadow)
+
+`HUQAN_SEMANTIC_MODEL=off|shadow|on` selects the mode. The default is
+`shadow`; an unknown value fails closed to `off`. `HUQAN_SEMANTIC_MODEL_FAMILY`
+selects the model family (default `SSM`). The R55 holdout decision is
+**STAY_SHADOW**: neither default changed; see
+[`semantic-model-result-r55.md`](task-packs/semantic-model-result-r55.md).
+
+The Application-side provider loads local own-weight artifacts and is installed
+by `agentRuntime.js` for server, MCP and CLI paths. Core calls the provider
+through `lib/semantic-model-port.js`; it never requires the Application model.
+The output carries `authority: CANDIDATE_ONLY` and sits beside the rule
+`summary` as `semanticModel`, never inside the rule `signals`. In every mode,
+rule signals, `status` and `confidence` stay unchanged. No gate consumes it.
+
+- `off`: no model field; outputs remain exactly rules-only.
+- `shadow`: compute and report the signal; `reviewPriority` stays zero.
+- `on`: only a calibrated prediction with `band: CONFIDENT` and
+  `label: CONTRADICTION` produces a nonzero `reviewPriority` (the calibrated
+  contradiction probability). This is a review-ordering hint; it never rejects,
+  blocks or overrides the rules.
+
+Missing, corrupt or unsupported artifacts, unsupported inputs, prediction
+errors and calibration failures yield `band: ABSTAIN` with a `reason` instead
+of breaking verification. Missing or insufficient calibration also abstains;
+the default packaged SSM reports `calibration_insufficient`.
+
+Live verify compares at most 16 stored-edge/claim pairs and attaches the
+strongest model signal separately at `meta.semanticTrust.semanticModel`.
+`meta.trustReceiptPreview.semanticModel` exposes `artifactDigest`, `family`,
+`mode`, `band`, `p`, `reviewPriority` and `reason` so an audit can identify the
+weights that answered. The field is absent in `off` mode, with no stored edge
+to compare, or when no provider is installed; an artifact-load failure may
+leave `artifactDigest` null.
+
+Source: [`semantic-model-port.js`](../lib/semantic-model-port.js),
+[`semantic-model-provider.js`](../lib/semantic-model-provider.js),
+[`semantic-signals.js`](../lib/semantic-signals.js),
+[`verify-native.js`](../lib/verify-native.js),
+[`verify-result.js`](../lib/verify-result.js) and
+[`agentRuntime.js`](../agentRuntime.js). The contract is pinned by
+`test/semantic-model-port.test.js`, `test/semantic-model-live-wiring.test.js`
+and `test/semantic-model-calibration-wiring.test.js`.
+
 ## Explicitly not claimed
 
-- **No calibrated scores yet.** F0-A measured zero (declaration,
+- **No calibrated declared-confidence scores yet.** F0-A measured zero (declaration,
   outcome) pairs in the repository (43 receipts, none carrying
   confidence). Isotonic/Platt fitting starts only after declarations
   accumulate against outcomes in production.
-- **No policy thresholds yet.** Numbers like 0.75/0.40 are undecided;
+- **No gate policy thresholds for these signals yet.** Numbers like 0.75/0.40 are undecided;
   shipping thresholds without the decision logic that consumes them
   would be dead configuration. They land together, in a later step.
 - **No quantum anything.** Earlier drafts used quantum-inspired
   language for these signals; it was rejected: a security layer owes
   auditors statistics, not metaphors.
 
-## Graduating a signal to a decision (future work)
+## Graduating declared confidence to a decision (future work)
 
 1. Accumulate (declaredConfidence, outcome) pairs from production traffic.
 2. Fit per-agent calibration; report ECE before/after.
