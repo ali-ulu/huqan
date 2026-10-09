@@ -6469,9 +6469,10 @@
   "lib/experience/learning-intake.js": {
    "owner": "Trust",
    "consumers": [
-    "Platform"
+    "Platform",
+    "AgentAction"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md#coder-candidate-memory: lib/coder/learned-candidate.js revalidates sealed evidence without installing authority"
   },
   "lib/mcp-gate-adapter.js": {
    "owner": "AgentAction",
