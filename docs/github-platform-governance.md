@@ -175,6 +175,17 @@ The target is least privilege:
 - fork-PR execution/approval policy intentional;
 - privileged release authority isolated from ordinary PR jobs.
 
+### Container registry pulls
+
+The `Docker build` job in `.github/workflows/benchmark.yml` authenticates to
+Docker Hub when the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository
+secrets are set, and otherwise pulls anonymously and emits a `::warning::`. The
+distinction matters because Docker Hub rate-limits anonymous pulls by shared
+runner IP (`429 Too Many Requests` / `toomanyrequests`); an authenticated pull
+is billed to the account quota instead. The build step also retries two
+transient registry failures with bounded backoff — a token-service outage and
+the anonymous-pull rate limit — and never retries a genuine build failure.
+
 ## Release environment
 
 The `npm-publish` environment is part of release authority and is referenced

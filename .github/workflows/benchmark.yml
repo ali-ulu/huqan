@@ -783,6 +783,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Docker Hub throttles anonymous pulls by shared runner IP (#3749 follow-up):
+      # the failure is `429 Too Many Requests - toomanyrequests`, which no amount of
+      # retrying fixes because the quota does not refill on our schedule. Authenticate
+      # when the repository provides credentials so the pull is billed to the account's
+      # quota instead of the anonymous one. When the secrets are absent the build still
+      # runs anonymously, exactly as before, and only a warning is emitted.
+      - name: Log in to Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
+            echo "::warning::DOCKERHUB_USERNAME/DOCKERHUB_TOKEN are not configured; pulling anonymously, which is subject to the shared-IP rate limit. Add both repository secrets to enable authenticated pulls."
+            exit 0
+          fi
+          printf '%s' "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
       - name: Build Docker image
         run: |
           set -euo pipefail
@@ -796,13 +813,14 @@ jobs:
               status=$?
             fi
             cat "${build_log}"
-            # Registry token-service outages can outlast BuildKit's own retry.
-            # Retry only that transient failure; never hide a broken build.
-            if [ "${attempt}" -eq 3 ] || ! grep -Eq 'failed to fetch (oauth|anonymous) token:.*(502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout)' "${build_log}"; then
+            # Two transient registry failures are worth a retry: a token-service
+            # outage, and an anonymous pull rate limit, which a short backoff can
+            # clear once the shared-IP quota frees up. Never retry anything else.
+            if [ "${attempt}" -eq 3 ] || ! grep -Eq 'failed to fetch (oauth|anonymous) token:.*(502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout)|toomanyrequests|429 Too Many Requests' "${build_log}"; then
               exit "${status}"
             fi
             delay=$((attempt * 15))
-            echo "Registry token service unavailable; retrying Docker build in ${delay}s (attempt ${attempt}/3)."
+            echo "Transient registry failure; retrying Docker build in ${delay}s (attempt ${attempt}/3)."
             sleep "${delay}"
           done
 

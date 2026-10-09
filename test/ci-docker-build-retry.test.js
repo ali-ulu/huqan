@@ -78,6 +78,15 @@ describe('Docker build retries transient registry token outages (#3749)', {
     assert.equal(result.attempts, 3);
   });
 
+  it('retries the anonymous-pull rate limit that a short backoff can clear', t => {
+    const rateLimit = '#3 ERROR: failed to copy: httpReadSeeker: failed open: unexpected status code https://registry-1.docker.io/v2/library/node/manifests/sha256:43ac: 429 Too Many Requests - Server message: toomanyrequests: You have reached your unauthenticated pull rate limit.';
+    const result = runBuild(t, [rateLimit]);
+    assert.equal(result.status, 0);
+    assert.equal(result.attempts, 2);
+    assert.deepEqual(result.sleeps, ['15']);
+    assert.match(result.stdout, /toomanyrequests/);
+  });
+
   for (const failure of [
     'ERROR: process npm ci did not complete successfully: exit code: 1',
     'failed to fetch oauth token: unexpected status: 401 Unauthorized',
