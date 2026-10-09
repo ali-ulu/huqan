@@ -1,5 +1,10 @@
 # Memory Core Smoke Test Planı
 
+> Arşiv kaydı (2026-10-09): Bu belge eski sürümün doğrulama planıdır; güncel
+> sürüm prosedürü değildir. Komutlar, dosya yolları ve test sayıları tarihsel
+> haliyle korunmuştur ve bugün geçerli olmayabilir. Güncel yerel doğrulama
+> adımları için [CONTRIBUTING.md](../../../CONTRIBUTING.md) belgesine bakın.
+
 AXIOM v0.9.1 sürümü release edilmeden hemen önce veya release sonrasında sistemin sağlığını end-to-end kanıtlamak için yürütülecek minimal ve kanonik doğrulama adımlarıdır.
 
 ## 1. Clean Clone Smoke
