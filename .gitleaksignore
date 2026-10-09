@@ -29,3 +29,36 @@ d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.tes
 # finding is introduced going forward; this entry only silences the
 # already-superseded historical commit.
 23004e6cfe9762fcbdf031390e5bd6cdfb3d60b4:test/logmask-erased-trace.test.js:generic-api-key:14
+
+# Same situation again, now discovered on the full-history path: the scheduled
+# `Security Checks` run scans every commit, so these historical findings had
+# failed it every week since 2026-08-10 while pull requests stayed green -- a
+# PR run only scans its own pushed range and never sees the older commits
+# (#364/#365 made that scan fail-closed). Every entry below is a synthetic
+# fixture from a gate's own test corpus: a made-up bearer/`api_key=`/`sk-`
+# placeholder that is the input proving a detector fires, or a `...-valid-key`
+# JSON fixture name that gitleaks reads as an API key. None is a real
+# credential, so there is nothing to rotate; several were already rewritten at
+# their live lines (the plugins/secret-masker.test.js AWS vector carries a
+# `nosemgrep` for the same reason), and the rest only exist in the frozen
+# historical commit. Same fix, and same reasoning, as the entries above.
+146d14b0b7ef83a6a6002fcb2fbc33cf4b83ffb7:test/reviewed-external-ingest-candidates.test.js:generic-api-key:119
+15c6305d768a54c48fdf38abf4f0202db4613dda:test/agent-action-gate-adapter.test.js:curl-auth-header:122
+15c6305d768a54c48fdf38abf4f0202db4613dda:test/agent-action-gate-adapter.test.js:generic-api-key:150
+15c6305d768a54c48fdf38abf4f0202db4613dda:test/agent-action-gate-hook.test.js:generic-api-key:92
+3008de53cbc61b82cab3be60ef13a70e485ac6bd:test/tool-call-gate.test.js:generic-api-key:126
+3008de53cbc61b82cab3be60ef13a70e485ac6bd:test/tool-call-gate.test.js:generic-api-key:299
+31431918238b646fbb0545b5d049489f7edcd13a:test/memory-mutation-gate.test.js:generic-api-key:329
+3331235ef9f112dba1fb5e8067186c70b400a4f8:test/inline-enforcement-matrix.test.js:generic-api-key:185
+50f93192334a1495996bb25b275d54f28be36ae3:test/tool-call-gate.test.js:generic-api-key:187
+6c21d2be524c6614f106a24e5e96b74d6a861525:test/v5-trusted-key-resolver-binding-adversarial.test.js:generic-api-key:911
+6c21d2be524c6614f106a24e5e96b74d6a861525:test/v5-trusted-key-resolver-binding-adversarial.test.js:generic-api-key:920
+704ca47c742d18a586faaaec2c3e7a9cff6010e8:plugins/secret-masker.test.js:aws-access-token:20
+704ca47c742d18a586faaaec2c3e7a9cff6010e8:plugins/secret-masker.test.js:generic-api-key:32
+82da256f2c32d913d48ab783813bcb7f3173971a:test/automation-safety-gate.test.js:generic-api-key:320
+94b6a8f991dee04b367e68daec2cfba218f57b8a:test/code-change-gate.test.js:generic-api-key:297
+94b6a8f991dee04b367e68daec2cfba218f57b8a:test/code-change-gate.test.js:generic-api-key:539
+99847901411128b1a0515ed5da23589206716f06:test/v4-b2b-ingest-approval-authority-gap.test.js:generic-api-key:240
+b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:20
+b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:23
+b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:26
