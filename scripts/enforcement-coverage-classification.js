@@ -213,7 +213,15 @@ const CLASSIFIED = Object.freeze({
   'lib/receipt/receipt-exporter-pdf.js': Object.freeze({ role: 'operator_tool', why: 'writes the receipt-exporter plugin PDF export to an operator-named path; runs on explicit invocation, not on an agent request' }),
   'lib/coder/apply-derivation.js': Object.freeze({
     role: 'operator_tool',
-    why: 'applies a deterministic transform to a working tree, but only after evaluateCodeChange returns allow; its writes are the gated action, invoked by the human-run `coder` CLI, and the whole patch is rolled back on the first write failure',
+    why: 'applies a deterministic transform only after ordinary code-change admission or the explicit closed project-initialization permission; initialization uses exclusive creation, and failed writes roll back the files written by this invocation',
+  }),
+  'lib/coder/project-verification.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'mandatory native fixed HTTP verification for explicitly approved closed initialization; its process adapter runs only after the existing command-exec gate admits the fixed command',
+  }),
+  'lib/coder/project-initialization-permission.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'reads live Git identity/status/head to bind a single-use recipe permission; removes only empty src/test directories created by an initialization whose rollback already removed its files',
   }),
   'lib/coder/verify-ocr.js': Object.freeze({
     role: 'operator_tool',

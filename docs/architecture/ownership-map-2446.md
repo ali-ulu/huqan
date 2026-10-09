@@ -300,3 +300,20 @@ result and restore failed candidates. The loop calls `applyDerivation` and
 `lib/coder/cli-composition.js` is a Platform entry that supplies this port to
 the existing command table. It holds no domain decisions. Test and rollback
 evidence use the existing Experience journal, not another persistence store.
+
+## Coder project recipe
+
+`lib/coder/project-producer.js` owns the AgentAction requirements-to-task
+decision for the closed `node_json_api` recipe. Its pure collaborator
+`lib/coder/project-templates.js` emits the fixed files. Neither performs I/O,
+authorizes a mutation or invokes a model. Platform's
+`lib/coder/cli-composition.js` supplies the producer port to `lib/cli-coder.js`;
+the latter previews or delegates the resulting task to the existing fix loop.
+`lib/coder/project-initialization.js` coordinates the default-off explicit
+initialization. `lib/coder/project-initialization-permission.js` binds live source
+and empty-target state to a single-use fixed recipe permission.
+`lib/coder/project-verification.js` supplies mandatory native HTTP and independent
+re-derivation verification, even for direct calls to `applyDerivation`; caller
+verifiers and injected file systems cannot certify initialization. General gate
+decisions remain unchanged. Main activation remains an unapproved draft; see
+`docs/coder-project-contract.md`.

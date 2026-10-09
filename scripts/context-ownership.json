@@ -2472,6 +2472,26 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-test-loop"
   },
+  "lib/coder/project-producer.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-templates.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-initialization.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-initialization-permission.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-verification.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
   "lib/coder/test-execution.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-test-loop"
@@ -6398,6 +6418,16 @@
    "owner": "AgentAction",
    "consumers": ["Platform"],
    "evidence": "ownership-map-2446.md#coder-test-loop"
+  },
+  "lib/coder/project-producer.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-initialization.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
   "lib/coder/verify-ocr.js": {
    "owner": "AgentAction",
