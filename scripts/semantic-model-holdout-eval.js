@@ -20,7 +20,7 @@
  * unmeasurable threshold leaves DEFAULT_MODE `shadow`. This script never edits
  * lib/semantic-model-port.js; a PROMOTE_ON result is applied by hand.
  *
- * Usage: node scripts/semantic-model-holdout-eval.js --source-commit=<40-hex>
+ * Usage: node scripts/semantic-model-holdout-eval.js --source-commit=<40-hex> [--family=<FAMILY>]
  * Prints a deterministic JSON report (no wall-clock, no environment reads).
  */
 
@@ -43,7 +43,6 @@ const LABELS_PATH = path.join(REPO_ROOT, 'test', 'fixtures', 'contradiction-eval
 // Same calibrator contract as R50 (test/cognitive-lab-contradiction-cli-wiring.test.js).
 const CALIBRATOR_CONTRACT = Object.freeze({ minimumSamples: 10, smoothingAlpha: 0.5 });
 const THRESHOLD = 0.5;
-const SECONDARY_FAMILIES = Object.freeze(Object.keys(FAMILY_FILES).filter((family) => family !== DEFAULT_FAMILY));
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 
 // Frozen in the R51 preregistration ("Donmuş bütçe ve promotion" and R50's sample floor).
@@ -187,8 +186,8 @@ function countBy(values) {
 }
 
 /** Secondary families: abstention and coverage only. Not used for any decision. */
-function secondaryFamilyRows(scorable) {
-  return SECONDARY_FAMILIES.map((family) => {
+function secondaryFamilyRows(scorable, primaryFamily) {
+  return Object.keys(FAMILY_FILES).filter((family) => family !== primaryFamily).map((family) => {
     const { kept, abstainReasons } = armDDecisions(scorable, portSignalOf(family));
     return Object.freeze({
       family,
@@ -201,9 +200,11 @@ function secondaryFamilyRows(scorable) {
 
 /**
  * The full PR5 measurement over joined records. `signalOf` injects the arm-D
- * signal (defaults to the packaged SSM through the port) for tests.
+ * signal (defaults to the packaged `family` through the port) for tests. R55
+ * (#3717) pre-declares `family` before measuring (docs/task-packs/
+ * semantic-model-result-r55.md); it is never chosen on the holdout.
  */
-function measureHoldout({ records, sourceCommit, signalOf = portSignalOf(DEFAULT_FAMILY), adjudicationStatus = 'UNKNOWN' }) {
+function measureHoldout({ records, sourceCommit, family = DEFAULT_FAMILY, signalOf = portSignalOf(family), adjudicationStatus = 'UNKNOWN' }) {
   const base = runContradictionReport({ records, contract: CALIBRATOR_CONTRACT, threshold: THRESHOLD, sourceCommit });
   const holdoutAll = records.filter((record) => record.split === 'holdout');
   const scorable = holdoutAll.filter(isScorable);
@@ -242,6 +243,7 @@ function measureHoldout({ records, sourceCommit, signalOf = portSignalOf(DEFAULT
   return Object.freeze({
     schemaVersion: SCHEMA_VERSION,
     sourceCommit,
+    armDFamily: family,
     calibratorContract: CALIBRATOR_CONTRACT,
     comparisonContract: DEFAULT_REPORT_CONTRACT,
     threshold: THRESHOLD,
@@ -273,27 +275,30 @@ function measureHoldout({ records, sourceCommit, signalOf = portSignalOf(DEFAULT
       pairedCvsB: pairedOn(B, armOverDecisions(C, silent), silentKeys),
       note: 'rule-silent pairs (no contradiction rule fired); reported, not used for the decision',
     }),
-    secondaryFamilies: secondaryFamilyRows(scorable),
+    secondaryFamilies: secondaryFamilyRows(scorable, family),
     decisionInput: primary,
     decision: decideDefaultMode(primary),
   });
 }
 
 function parseArgs(argv) {
-  const arg = argv.find((item) => item.startsWith('--source-commit='));
-  return { sourceCommit: arg ? arg.slice('--source-commit='.length) : null };
+  const value = (name) => {
+    const arg = argv.find((item) => item.startsWith(`--${name}=`));
+    return arg ? arg.slice(name.length + 3) : null;
+  };
+  return { sourceCommit: value('source-commit'), family: value('family') ?? DEFAULT_FAMILY };
 }
 
 function main(argv) {
-  const { sourceCommit } = parseArgs(argv);
-  if (!sourceCommit || !COMMIT_PATTERN.test(sourceCommit)) {
-    throw new TypeError('usage: node scripts/semantic-model-holdout-eval.js --source-commit=<40-hex>');
+  const { sourceCommit, family } = parseArgs(argv);
+  if (!sourceCommit || !COMMIT_PATTERN.test(sourceCommit) || !Object.hasOwn(FAMILY_FILES, family)) {
+    throw new TypeError('usage: node scripts/semantic-model-holdout-eval.js --source-commit=<40-hex> [--family=<FAMILY>]');
   }
   const corpus = JSON.parse(fs.readFileSync(CORPUS_PATH, 'utf8'));
   const labels = JSON.parse(fs.readFileSync(LABELS_PATH, 'utf8'));
   const adjudicationStatus = labels.provenance && labels.provenance.adjudication
     ? labels.provenance.adjudication.status : 'UNKNOWN';
-  const report = measureHoldout({ records: joinCorpusLabels(corpus, labels), sourceCommit, adjudicationStatus });
+  const report = measureHoldout({ records: joinCorpusLabels(corpus, labels), sourceCommit, family, adjudicationStatus });
   return `${JSON.stringify(report, null, 2)}\n`;
 }
 
