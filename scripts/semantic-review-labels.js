@@ -23,8 +23,9 @@
  *
  * Output is a builder-compatible {records, teachers, sources}. Human labels use teacherId
  * `human-review`, which the dataset builder treats as the single gold teacher for its pair.
- * Pairs matching the R50 holdout are refused. The source license is supplied by the operator and
- * must be on the builder allow-list; this script does not choose a license.
+ * Pairs matching the R50 holdout are refused. The source license must be admitted by the dataset
+ * builder: an open licence on its allow-list, or LicenseRef-HUQAN-Owner-Usage-Data, the owner's
+ * decision for HUQAN's own review data (scripts/export-conflict-reviews.js writes that one).
  */
 
 const fs = require('node:fs');
