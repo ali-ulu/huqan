@@ -3224,6 +3224,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-SELF-A"
   },
+  "lib/self-healer/fix-producer.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-SELF-A"
+  },
   "lib/self-healer/index.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-SELF-A"
@@ -5919,6 +5923,13 @@
     "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/self-healer/fix-producer.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#3670 the self-healer-audit plugin (Trust) imports the fix producer to offer a reviewable fix"
   },
   "lib/self-healer/behavioral-containment.js": {
    "owner": "AgentAction",
