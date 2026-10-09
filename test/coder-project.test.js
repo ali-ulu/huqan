@@ -192,11 +192,13 @@ test('a zero-exit test with mutated output fails independent verification and ro
   let mutated = false;
   let reads = 0;
   fs.readFileSync = function(target, ...args) {
-    if (String(target) === path.join(context.root, 'routes.json') && fs.existsSync(target) && ++reads === 2 && !mutated) {
+    const content = original.call(this, target, ...args);
+    if (String(target) === path.join(context.root, 'routes.json') && ++reads === 2 && !mutated) {
       mutated = true;
       fs.writeFileSync(target, '[]');
+      return original.call(this, target, ...args);
     }
-    return original.call(this, target, ...args);
+    return content;
   };
   let result;
   try { result = initializeProject(SPEC, { ...context, journal, runId: 'project-mutated' }); }
@@ -264,10 +266,12 @@ test('direct permission use cannot skip fixed verification with null or forged v
     const original = fs.readFileSync;
     let reads = 0;
     fs.readFileSync = function(target, ...args) {
-      if (String(target) === path.join(context.root, 'routes.json') && fs.existsSync(target) && ++reads === 2) {
+      const content = original.call(this, target, ...args);
+      if (String(target) === path.join(context.root, 'routes.json') && ++reads === 2) {
         fs.writeFileSync(target, '[]');
+        return original.call(this, target, ...args);
       }
-      return original.call(this, target, ...args);
+      return content;
     };
     let result;
     try { result = require('../lib/coder/apply-derivation').applyDerivation({ task: issued.task,
