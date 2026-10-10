@@ -90,6 +90,37 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' envelope beside it in lib/receipt/.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/gate-signal-provider.js',
+    to: 'lib/error-prevention/index.js',
+    why: 'The AURA<->HUQAN signal provider folds an active error-prevention rule into a bounded gate'
+      + ' signal; the provider sits in Core (flat lib/, beside the gate) while the rule engine lives'
+      + ' with error-prevention (Application). The rule source is only reached when the provider is'
+      + ' built for a live kernel (opt-in), so a gate call without a kernel never loads it. The'
+      + ' follow-up fix is to inject the rule source from the cli.js/mcpServer.js entrypoint beside'
+      + ' the gate, rather than require it from the adapter.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/gate-signal-provider.js',
+    to: 'lib/error-prevention/decision.js',
+    why: 'Same Core -> Application edge as the error-prevention index above: the provider borrows'
+      + ' matchesRule() to test a learned rule against an action fingerprint. Resolved by the same'
+      + ' follow-up (inject the rule source, or lift the pure matcher/fingerprint helpers into a'
+      + ' shared ring).',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/aura-canary-bridge.js',
+    to: 'lib/experience/canary.js',
+    why: 'The AURA rule-promotion bridge holds the canary admission registry; the bridge sits in'
+      + ' Core (flat lib/) while the canary/admission ladder lives with the experience pipeline'
+      + ' (Application). Consumed today only by the standalone operator loop scripts/aura-loop.js'
+      + ' (an entrypoint, which may reach Application) -- the same shape as the cli-promote.js ->'
+      + ' lib/experience/canary.js edge above. The follow-up fix is to construct the bridge behind'
+      + ' the loop entrypoint and pass the registry in.',
+    review_by: '2026-12-31',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {

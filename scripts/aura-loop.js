@@ -16,9 +16,8 @@
 //      BESLEME     HUQAN's outcome also answers AURA's open cross-check, and
 //                  AURA's own recalc re-scores the case (pending -> block).
 //
-// Every step is a real call into HUQAN's and AURA's own code. Nothing is
-// mocked: the gate is lib/mcp-gate-adapter.js, the learning is
-// lib/error-prevention, the scoring is AURA's scripts/recalc_confidence.ts.
+// Every step is a real call into HUQAN's and AURA's own code. Nothing is mocked: the gate is lib/mcp-gate-adapter.js,
+// the learning is lib/error-prevention, the scoring is AURA's scripts/recalc_confidence.ts.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -112,7 +111,6 @@ function proveCanaryTripwire({ signalIds, leaked = true }) {
 // guards: the rule is a low-risk text write, whatever it later refuses. So this
 // loop does not carry AURA's action risk into the rule's `riskScore` — it puts
 // it in the rule's constraint text, where it belongs.
-
 function loadAuraRecalc(auraRoot) {
   process.env.TS_NODE_PROJECT = path.join(auraRoot, 'tsconfig.json');
   process.env.TS_NODE_TRANSPILE_ONLY = 'true';
