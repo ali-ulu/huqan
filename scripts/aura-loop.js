@@ -29,6 +29,7 @@ const { evaluateMcpGate } = require('../lib/mcp-gate-adapter');
 const auraSignalPack = require('../lib/aura-signal-pack');
 const auraRisk = require('../plugins/aura-risk');
 const auraCanary = require('../lib/aura-canary-bridge');
+const { auraRuleProvenance } = require('../lib/error-prevention/rule-proposal');
 const { AURA_DECISION_TO_HUQAN, _test: auraRiskTest } = auraRisk;
 const createAuraRiskPlugin = auraRisk.create;
 
@@ -252,7 +253,7 @@ async function runAuraLoop(options = {}) {
   // The rule is AURA-derived; the provenance marker travels with the failure and
   // the rule so activation can enforce the bounded canary trial on the core path
   // too, not only here (#3778).
-  const ruleProvenance = auraCanary.auraRuleProvenance({ workspaceId });
+  const ruleProvenance = auraRuleProvenance({ workspaceId });
   const failure = prevention.recordFailure({
     source: 'verifier_failure',
     tool,
