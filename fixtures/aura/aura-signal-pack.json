@@ -1,5 +1,6 @@
 {
   "packVersion": "huqan.aura-signal-pack.v1",
+  "contentHash": "52791330a58395324441ff69a3359f80e90125d4ee914c0a858ddedd0c2aeb53",
   "generator": "aura-signal-pack-bridge",
   "engineAvailable": true,
   "auraRoot": "/workspace/project/aura",
