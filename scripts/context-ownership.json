@@ -6981,7 +6981,9 @@
   "lib/plugin-manager-events.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Knowledge",
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },

@@ -60,6 +60,35 @@ A plugin may propose facts, relations, labels, or candidates, but it must not:
 
 If a plugin cannot satisfy the boundary, the result must fail closed or remain non-canonical.
 
+## MCP gate evidence hook
+
+`beforeGateDecision(kernel, { tool, args, metadata })` runs synchronously on
+known MCP tools before their core gates, including approved-agent
+revalidation. Each registered handler receives its own deep copy of the
+evaluated input; text is available in the tool's normal argument field
+(`args.question`, `args.text`, `args.claim`, or `args.goal`). Mutating this
+copy does not rewrite the call or another handler's input.
+
+A handler may return `undefined` for no evidence, or
+`{ decision: 'allow' | 'review' | 'dry_run_only' | 'block' }`. Core records
+each signal with its plugin name in `findings` and merges it using the
+existing MCP precedence: `block > dry_run_only > review > allow`.
+Signals cannot lower core decisions or erase earlier plugin evidence.
+Other returned fields are ignored. Exceptions, Promise results, and invalid
+signals produce fail-closed block evidence without exposing exception text.
+
+`afterGateDecision` remains an observation-only hook; its return value does
+not affect the decision. Raw evaluated text is not added to telemetry.
+Existing operator authorization and the explicit human-approval toggle remain
+core policy. This hook does not run for operator tools that bypass the MCP
+gate, malformed/unknown tools, or unrelated memory/agent-budget gates.
+
+```js
+beforeGateDecision(kernel, { args }) {
+  if (needsDomainReview(args.question)) return { decision: 'review' };
+}
+```
+
 ## Enforcement Boundary: Signed Is Not Sandboxed
 
 The Boundary Rule above is a **contract**, not a runtime confinement.
