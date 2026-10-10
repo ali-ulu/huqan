@@ -69,6 +69,14 @@ evaluated input; text is available in the tool's normal argument field
 (`args.question`, `args.text`, `args.claim`, or `args.goal`). Mutating this
 copy does not rewrite the call or another handler's input.
 
+The second argument's `metadata` is receiver-owned policy context, not a
+caller-controlled field. The host runtime fixes `source`, `actor`, `runner`,
+and `sourceTrust`, then spreads the receiver's `gateMetadata` (passed only
+through `callTool` options, never derived from the `tools/call` params) over
+them. The caller's `tools/call` parameters do not enter this context; in
+particular `args.workspaceId` is the target workspace, not evidence of the
+caller's workspace or grants.
+
 A handler may return `undefined` for no evidence, or
 `{ decision: 'allow' | 'review' | 'dry_run_only' | 'block' }`. Core records
 each signal with its plugin name in `findings` and merges it using the
@@ -88,6 +96,21 @@ beforeGateDecision(kernel, { args }) {
   if (needsDomainReview(args.question)) return { decision: 'review' };
 }
 ```
+
+## Input-transform hook annotations
+
+`beforeLearn` and `beforeAsk` may return a partial input payload. The
+recognized input fields are `text` and `opts` for `beforeLearn`, and
+`question` and `workspaceId` for `beforeAsk`. Any other returned field is
+exposed under `result.data.annotations[plugin.name]`. Omitted input fields
+and annotations added by earlier hooks survive: `annotations` is reserved for
+this accumulated output, so a later hook does not overwrite an earlier
+plugin's entry and a field echoed unchanged from the input is not attributed
+to every plugin that returns the full payload.
+
+Annotation values must be JSON-serializable, because learn's durable replay
+preserves `annotations` through admission. They are advisory: they do not
+become gate decisions or signed receipt data, and they grant no authority.
 
 ## Enforcement Boundary: Signed Is Not Sandboxed
 
