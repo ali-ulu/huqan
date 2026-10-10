@@ -20,7 +20,7 @@
 
 const fs = require('node:fs');
 const { analyseManipulation } = require('../lib/text-safety-scorer');
-const { defaultPackPath } = require('../lib/aura-signal-pack');
+const { computeContentHash, defaultPackPath } = require('../lib/aura-signal-pack');
 
 const PLUGIN_NAME = 'aura-risk';
 const PLUGIN_VERSION = '0.1.0';
@@ -47,7 +47,7 @@ function packPath(options = {}) {
 }
 
 function emptyPack() {
-  return { packVersion: '', engineAvailable: false, signalIds: [], triggerToSignal: {}, cases: [] };
+  return { packVersion: '', contentHash: '', engineAvailable: false, signalIds: [], triggerToSignal: {}, cases: [] };
 }
 
 function loadPack(options = {}) {
@@ -55,11 +55,16 @@ function loadPack(options = {}) {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (!parsed || typeof parsed !== 'object') return emptyPack();
+    const triggerToSignal = parsed.triggerToSignal && typeof parsed.triggerToSignal === 'object' ? parsed.triggerToSignal : {};
+    const contentHash = computeContentHash({ signalIds: parsed.signalIds, triggerToSignal });
+    const pinned = options.expectedContentHash || process.env.AURA_SIGNAL_PACK_HASH || '';
+    if (pinned && pinned !== contentHash) return emptyPack();
     return {
       packVersion: parsed.packVersion || '',
+      contentHash,
       engineAvailable: parsed.engineAvailable === true,
       signalIds: Array.isArray(parsed.signalIds) ? parsed.signalIds : [],
-      triggerToSignal: parsed.triggerToSignal && typeof parsed.triggerToSignal === 'object' ? parsed.triggerToSignal : {},
+      triggerToSignal,
       cases: Array.isArray(parsed.cases) ? parsed.cases : [],
     };
   } catch (_) {

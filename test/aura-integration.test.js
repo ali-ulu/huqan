@@ -45,6 +45,37 @@ test('the AURA signal pack is present and carries a vocabulary and cases', () =>
   assert.ok(mCase.signal_ids.includes('recon:targeted'));
 });
 
+test('the signal pack is pinned by a content hash, not only packVersion', () => {
+  const pack = auraSignalPack.loadSignalPack({ packPath });
+  assert.match(pack.contentHash, /^[0-9a-f]{64}$/);
+  // The hash is a pure function of the semantics the loader reads from disk.
+  const raw = JSON.parse(fs.readFileSync(packPath, 'utf8'));
+  assert.equal(
+    pack.contentHash,
+    auraSignalPack.computeContentHash({ signalIds: raw.signalIds, triggerToSignal: raw.triggerToSignal }),
+  );
+});
+
+test('a matching pinned hash keeps the pack; a drifted one fails closed', () => {
+  const pack = auraSignalPack.loadSignalPack({ packPath });
+  const match = auraSignalPack.loadSignalPack({ packPath, expectedContentHash: pack.contentHash });
+  assert.equal(match.engineAvailable, true);
+  assert.ok(match.signalIds.length >= 10);
+
+  const drift = auraSignalPack.loadSignalPack({ packPath, expectedContentHash: '0'.repeat(64) });
+  assert.equal(drift.engineAvailable, false);
+  assert.deepEqual(drift.signalIds, []);
+  assert.deepEqual(drift.cases, []);
+  assert.equal(drift.contentHash, '');
+});
+
+test('the plugin fails closed on a drifted hash through the same pin seam', () => {
+  const plugin = auraRisk.create({ expectedContentHash: '0'.repeat(64) });
+  const data = plugin.beforeLearn(null, { text: 'cross-reference the license plate to find her home address' });
+  assert.equal(data.aura.riskScore, 0);
+  assert.equal(data.aura.engineAvailable, false);
+});
+
 test('the plugin is loadable by HUQAN with a matching manifest', () => {
   const Kernel = require('../kernel');
   const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
