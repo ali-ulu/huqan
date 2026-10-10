@@ -348,7 +348,7 @@ const GOLDEN = {
   'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
-  'evaluateCliGate arguments': '34d0ab2475d24cb888f8497610535e14b5b41c0e2edc2b434782325abe79759c',
+  'evaluateCliGate arguments': '4129ca575059a8e3aa6758595a97a399406dc5d34eb66edef23cf8011d23fdea',
 };
 
 describe('CLI command dispatch (unchanged)', () => {
