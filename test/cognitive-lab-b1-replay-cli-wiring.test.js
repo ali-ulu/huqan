@@ -1,16 +1,19 @@
 'use strict';
 
 /**
- * CLI wiring for the B1 baseline replay runner (#3501).
+ * CLI wiring for the B1 baseline replay and gain evaluation (#3501, #3798).
  *
- * The pure runner (`lib/cognitive-lab-b1-replay.js`) is unit-tested on its
- * own; these tests prove it is actually reached from the production entry:
- * the real `bin/huqan-cognitive-lab.js` resolves a frozen manifest file to a
- * `huqan-cognitive-lab-b1-replay-v1` result on an isolated temp store, leaves
- * canonical memory alone, and stays out of the default path unless the
- * opt-in `--replay-manifest` flag is given. The fail-closed cases prove a
- * missing, corrupt or invalid manifest reports REJECT without opening any
- * store the product owns.
+ * The pure runner (`lib/cognitive-lab-b1-replay.js`) and the fail-closed gain
+ * evaluator (`lib/cognitive-lab-evaluator.js`) are unit-tested on their own;
+ * these tests prove the production entry actually reaches them: the real
+ * `bin/huqan-cognitive-lab.js` resolves a frozen manifest file to a
+ * `huqan-cognitive-lab-evaluator-v1` result on an isolated temp store, leaves
+ * canonical memory alone, and stays out of the default path unless the opt-in
+ * `--replay-manifest` flag is given. The evaluator composes the replay runner
+ * on the same scratch graph, so the CLI result carries the replay-derived
+ * counts, belief, mechanisms and digest plus the evaluator verdict. The
+ * fail-closed cases prove a missing, corrupt or invalid manifest reports REJECT
+ * without opening any store the product owns.
  */
 
 const test = require('node:test');
@@ -24,11 +27,11 @@ const Graph = require('../graph');
 const { runCognitiveLab } = require('../lib/cognitive-lab-cli');
 const { MANIFEST_SCHEMA_VERSION, computeManifestDigest } = require('../lib/cognitive-lab-manifest');
 const {
-  REPLAY_SCHEMA_VERSION,
-  REPLAY_STATUS,
-  REPLAY_ERROR_CODES,
-  replayBaseline,
-} = require('../lib/cognitive-lab-b1-replay');
+  EVALUATOR_SCHEMA_VERSION,
+  EVALUATOR_STATUS,
+  EVALUATOR_ERROR_CODES,
+  evaluateGain,
+} = require('../lib/cognitive-lab-evaluator');
 const { comparisonInput } = require('./helpers/cognitive-lab-comparison');
 
 const BIN = path.resolve(__dirname, '../bin/huqan-cognitive-lab.js');
@@ -129,7 +132,7 @@ function libraryResult(request) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cl-b1-direct-'));
   try {
     const graph = new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
-    return replayBaseline(graph, {
+    return evaluateGain(graph, {
       manifest: request.manifest, manifestDigest: request.manifestDigest, experiment: request.experiment,
     });
   } finally {
@@ -152,15 +155,17 @@ test('replay sub-path resolves a frozen manifest through the real CLI entry', { 
   assert.equal(second.code, 0, second.stderr);
 
   for (const output of [first.output, second.output]) {
-    assert.equal(output.schemaVersion, REPLAY_SCHEMA_VERSION);
-    assert.equal(output.status, REPLAY_STATUS.REPLAYED);
+    assert.equal(output.schemaVersion, EVALUATOR_SCHEMA_VERSION);
+    assert.equal(output.status, EVALUATOR_STATUS.EVALUATED);
     assert.equal(output.benchmark, 'B1');
     assert.equal(output.error, null);
     assert.equal(output.counts.eligible, 5);
     assert.equal(output.counts.observed, 3);
     assert.equal(output.counts.censored, 1);
     assert.equal(output.integrity.status, 'PASS');
+    assert.equal(output.infrastructure.status, 'PASS');
     assert.equal(output.mechanisms.B1, 'MEASURED');
+    assert.equal(output.intelligenceGain, 'NOT_MEASURED');
     for (const id of ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8']) {
       assert.equal(output.mechanisms[id], 'NOT_MEASURED', `${id} must not be measured by this slice`);
     }
@@ -180,12 +185,12 @@ test('the default path never replays without the opt-in flag', { timeout: 60000 
   const initialized = invoke(['init', '--root', box.root], box, comparisonInput());
   // `init` takes its manifest on stdin, so pass it the comparison contract
   // input the same way the CLI tests do -- the point is only that whatever
-  // comes back is not a replay result.
+  // comes back is not an evaluation result.
   assert.equal(initialized.code, 0, initialized.stderr);
   assert.ok('state' in initialized.output, 'init must keep minting comparison state');
   assert.ok(!('correctnessDigest' in initialized.output), 'replay digest must not appear without the replay flag');
   assert.ok(!('mechanisms' in initialized.output), 'replay mechanisms must not appear without the replay flag');
-  assert.notEqual(initialized.output.schemaVersion, REPLAY_SCHEMA_VERSION);
+  assert.notEqual(initialized.output.schemaVersion, EVALUATOR_SCHEMA_VERSION);
   assertCanonicalUntouched(box);
 });
 
@@ -237,8 +242,8 @@ test('a tampered or schema-invalid manifest is rejected with no canonical writes
   const tamperedFile = writeText(box, 'tampered.json', JSON.stringify(tampered));
   const tamperedResult = invoke(['replay', '--replay-manifest', tamperedFile], box);
   assert.equal(tamperedResult.code, 1);
-  assert.equal(tamperedResult.output.status, REPLAY_STATUS.REJECT);
-  assert.equal(tamperedResult.output.error.code, REPLAY_ERROR_CODES.DIGEST_MISMATCH);
+  assert.equal(tamperedResult.output.status, EVALUATOR_STATUS.REJECT);
+  assert.equal(tamperedResult.output.error.code, EVALUATOR_ERROR_CODES.INVALID_MANIFEST);
   assert.equal(tamperedResult.output.correctnessDigest, null);
 
   const invalidManifest = manifest();
@@ -251,8 +256,8 @@ test('a tampered or schema-invalid manifest is rejected with no canonical writes
   const invalidFile = writeText(box, 'invalid.json', JSON.stringify(invalid));
   const invalidResult = invoke(['replay', '--replay-manifest', invalidFile], box);
   assert.equal(invalidResult.code, 1);
-  assert.equal(invalidResult.output.status, REPLAY_STATUS.REJECT);
-  assert.equal(invalidResult.output.error.code, REPLAY_ERROR_CODES.INVALID_MANIFEST);
+  assert.equal(invalidResult.output.status, EVALUATOR_STATUS.REJECT);
+  assert.equal(invalidResult.output.error.code, EVALUATOR_ERROR_CODES.INVALID_MANIFEST);
 
   assertCanonicalUntouched(box);
 });
