@@ -121,7 +121,7 @@ class CLI {
   }
 
   evaluateCliGate(command, args) {
-    return evaluateCliGate((...a) => this._evaluateCliMutationGate(...a), command, args);
+    return evaluateCliGate((...a) => this._evaluateCliMutationGate(...a), command, args, this.kernel);
   }
 
   // Records that a mutation actually completed. Its failure is reported, not

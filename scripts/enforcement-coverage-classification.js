@@ -258,6 +258,12 @@ const CLASSIFIED = Object.freeze({
     why: 'fetches public web search results from Brave/Firecrawl/Tavily over pinned https endpoints; sends only the operator query, performs no write against the APIs, and secret/PII queries are blocked by the egress gate before transport',
   }),
 
+  // ── the AURA bridge ────────────────────────────────────────────────────
+  'lib/aura-signal-pack.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'regenerates the deterministic AURA signal pack by running the AURA engine over a temp copy of its case files and writing the artifact next to it; it runs from an operator command (node lib/aura-signal-pack.js), the AURA source tree is never modified, and no agent action reaches the write',
+  }),
+
   // ── outside the boundary, listed ───────────────────────────────────────
   'rustGraph.js': Object.freeze({
     role: 'unguarded',

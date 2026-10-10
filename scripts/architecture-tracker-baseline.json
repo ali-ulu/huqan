@@ -127,6 +127,8 @@
       "lib/audit-log.js": "Core",
       "lib/audit-query-primitives.js": "Core",
       "lib/audit-query.js": "Core",
+      "lib/aura-canary-bridge.js": "Core",
+      "lib/aura-signal-pack.js": "Core",
       "lib/automation-safety-gate/automation-findings-summary.js": "Application",
       "lib/automation-safety-gate/automation-input-normalizer.js": "Application",
       "lib/automation-safety-gate/automation-operation-classifier-delivery.js": "Application",
@@ -225,10 +227,19 @@
       "lib/code-change-input.js": "Core",
       "lib/code-change-path-classification.js": "Core",
       "lib/coder/apply-derivation.js": "Application",
+      "lib/coder/cli-composition.js": "Application",
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/experience-reporter.js": "Application",
+      "lib/coder/fix-loop.js": "Application",
       "lib/coder/journal-store.js": "Application",
+      "lib/coder/learned-candidate.js": "Application",
       "lib/coder/observed-verification.js": "Application",
+      "lib/coder/project-initialization-permission.js": "Application",
+      "lib/coder/project-initialization.js": "Application",
+      "lib/coder/project-producer.js": "Application",
+      "lib/coder/project-templates.js": "Application",
+      "lib/coder/project-verification.js": "Application",
+      "lib/coder/test-execution.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
       "lib/cognitive-lab-b1-manifest.js": "Core",
@@ -466,6 +477,7 @@
       "lib/gate-hook-reports.js": "Core",
       "lib/gate-outcome-history.js": "Core",
       "lib/gate-outcome-projection.js": "Core",
+      "lib/gate-signal-provider.js": "Core",
       "lib/gate-telemetry.js": "Core",
       "lib/github-app-beta-auth.js": "Core",
       "lib/github-app-beta-handler.js": "Core",
@@ -1007,6 +1019,7 @@
       "lib/self-healer/dryrun-runner.js": "Application",
       "lib/self-healer/finding-classifier.js": "Application",
       "lib/self-healer/finding-schema.js": "Application",
+      "lib/self-healer/fix-producer.js": "Application",
       "lib/self-healer/index.js": "Application",
       "lib/self-healer/safety-decision.js": "Application",
       "lib/self-healer/source-dependency-graph.js": "Application",
@@ -1152,6 +1165,7 @@
       "packages/huqan-verify/index.js": "Adapters",
       "persistencePaths.js": "Adapters",
       "plugin.js": "Application",
+      "plugins/aura-risk.js": "Application",
       "plugins/company-brain.js": "Application",
       "plugins/contradiction-alert.js": "Application",
       "plugins/daily-digest.js": "Application",
@@ -1239,12 +1253,14 @@
       "scripts/architecture-snapshot-scope.js": "UI",
       "scripts/architecture-snapshot.js": "UI",
       "scripts/audit-impact-replay-coverage.js": "UI",
+      "scripts/aura-loop.js": "UI",
       "scripts/backup.js": "UI",
       "scripts/benchmark-semantic-model.js": "UI",
       "scripts/benchmark-semantic-v2-snli.js": "UI",
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
       "scripts/build-contradiction-eval-fixture.js": "UI",
+      "scripts/build-semantic-snli-dataset.js": "UI",
       "scripts/build-semantic-training-dataset.js": "UI",
       "scripts/calibrate-semantic-model.js": "UI",
       "scripts/capability-usage.js": "UI",
@@ -1514,13 +1530,13 @@
       "cli.js": [
         "agentRuntime.js",
         "dream.js",
-        "lib/cli-command-handlers.js",
         "lib/cli-gate-evaluation.js",
         "lib/cli-helpers.js",
         "lib/cli-mutation-gate.js",
         "lib/cli-repl.js",
         "lib/cli-runtime-methods.js",
         "lib/cli-workflow-adapter.js",
+        "lib/coder/cli-composition.js",
         "lib/command-parser.js",
         "lib/environment-compat.js",
         "lib/http/process-failure-handlers.js",
@@ -1954,6 +1970,10 @@
         "lib/audit-query-primitives.js",
         "lib/graph-record-utils.js"
       ],
+      "lib/aura-canary-bridge.js": [
+        "lib/context-canary.js",
+        "lib/experience/canary.js"
+      ],
       "lib/automation-safety-gate/automation-findings-summary.js": [
         "lib/automation-safety-gate/automation-input-normalizer.js",
         "lib/automation-safety-gate/automation-safety-vocabulary.js",
@@ -2336,10 +2356,19 @@
         "lib/coder/derivation-record.js",
         "lib/coder/experience-reporter.js",
         "lib/coder/observed-verification.js",
+        "lib/coder/project-initialization-permission.js",
+        "lib/coder/project-verification.js",
         "lib/deterministic-task-runner.js",
         "lib/experience/coder-routing-runtime.js",
         "lib/experience/contract.js",
         "lib/path-safety.js"
+      ],
+      "lib/coder/cli-composition.js": [
+        "lib/cli-command-handlers.js",
+        "lib/coder/fix-loop.js",
+        "lib/coder/learned-candidate.js",
+        "lib/coder/project-initialization.js",
+        "lib/coder/project-producer.js"
       ],
       "lib/coder/derivation-record.js": [
         "lib/receipt/canonical-receipt.js"
@@ -2349,11 +2378,39 @@
         "lib/experience/contract.js",
         "lib/experience/verifier.js"
       ],
+      "lib/coder/fix-loop.js": [
+        "lib/coder/apply-derivation.js",
+        "lib/coder/project-initialization-permission.js",
+        "lib/coder/test-execution.js",
+        "lib/path-safety.js"
+      ],
       "lib/coder/journal-store.js": [
         "lib/experience/budgeted-journal.js",
         "lib/experience/journal.js",
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
+      ],
+      "lib/coder/learned-candidate.js": [
+        "lib/experience/learning-intake.js",
+        "lib/path-safety.js"
+      ],
+      "lib/coder/project-initialization-permission.js": [
+        "lib/coder/project-producer.js",
+        "lib/coder/verify-derivation.js"
+      ],
+      "lib/coder/project-initialization.js": [
+        "lib/coder/fix-loop.js",
+        "lib/coder/project-initialization-permission.js"
+      ],
+      "lib/coder/project-producer.js": [
+        "lib/coder/project-templates.js"
+      ],
+      "lib/coder/project-verification.js": [
+        "lib/coder/project-initialization-permission.js",
+        "lib/coder/test-execution.js"
+      ],
+      "lib/coder/test-execution.js": [
+        "lib/command-exec-gate.js"
       ],
       "lib/coder/verify-derivation.js": [
         "lib/coder/derivation-record.js",
@@ -3274,6 +3331,10 @@
         "lib/gate-outcome-history.js",
         "lib/is-plain-object.js"
       ],
+      "lib/gate-signal-provider.js": [
+        "lib/error-prevention/decision.js",
+        "lib/error-prevention/index.js"
+      ],
       "lib/gate-telemetry.js": [
         "lib/observability/kernel-sink.js"
       ],
@@ -4124,7 +4185,8 @@
       ],
       "lib/kernel-learn-transaction.js": [
         "lib/cli-mutation-audit-intent.js",
-        "lib/errors/provenance-error.js"
+        "lib/errors/provenance-error.js",
+        "lib/plugin-manager-events.js"
       ],
       "lib/kernel-mutation-admission.js": [
         "lib/conflict-detector.js",
@@ -4150,7 +4212,8 @@
         "lib/trust-calibration.js"
       ],
       "lib/kernel-read-use-cases-ask.js": [
-        "lib/kernel-read-use-cases-language.js"
+        "lib/kernel-read-use-cases-language.js",
+        "lib/plugin-manager-events.js"
       ],
       "lib/kernel-read-use-cases.js": [
         "lib/kernel-read-use-cases-analysis.js",
@@ -4312,6 +4375,7 @@
       ],
       "lib/mcp-gate-adapter.js": [
         "lib/action-risk-classifier.js",
+        "lib/gate-signal-provider.js",
         "lib/mcp-gate-adapter-action-gates.js",
         "lib/mcp-gate-adapter-contract.js",
         "lib/mcp-gate-adapter-data-gates.js",
@@ -4513,6 +4577,7 @@
         "lib/emergency-stop.js",
         "lib/gate-telemetry.js",
         "lib/human-approval-toggle.js",
+        "lib/is-plain-object.js",
         "lib/json-object.js",
         "lib/mcp-agent-continuation.js",
         "lib/mcp-approval-decision-handler.js",
@@ -5408,6 +5473,11 @@
         "lib/json-clone.js",
         "lib/workspace-id.js"
       ],
+      "lib/self-healer/fix-producer.js": [
+        "lib/is-plain-object.js",
+        "lib/self-healer/safety-decision.js",
+        "lib/task-producer.js"
+      ],
       "lib/self-healer/index.js": [
         "lib/self-healer/audit-runner.js",
         "lib/self-healer/dryrun-runner.js",
@@ -5463,6 +5533,7 @@
         "lib/semantic-model-text-features.js"
       ],
       "lib/semantic-model-provider.js": [
+        "lib/common-semantic-ir.js",
         "lib/semantic-model-calibration.js",
         "lib/semantic-model-inference-v2.js",
         "lib/semantic-model-inference.js",
@@ -5563,6 +5634,9 @@
       "lib/store-creation-guard.js": [
         "lib/default-persistence-path.js",
         "lib/huqan-state-root.js"
+      ],
+      "lib/task-producer.js": [
+        "lib/task-identifier-lexer.js"
       ],
       "lib/text-safety-scorer.js": [
         "lib/kernel-v2-native.js"
@@ -5925,6 +5999,10 @@
         "lib/plugin-provenance-registry.js",
         "lib/plugin-verification.js"
       ],
+      "plugins/aura-risk.js": [
+        "lib/aura-signal-pack.js",
+        "lib/text-safety-scorer.js"
+      ],
       "plugins/company-brain.js": [
         "lib/company-brain-ingest.js",
         "lib/company-brain-query.js",
@@ -5993,6 +6071,7 @@
         "lib/self-healer/behavioral-containment.js",
         "lib/self-healer/dryrun-runner.js",
         "lib/self-healer/finding-classifier.js",
+        "lib/self-healer/fix-producer.js",
         "lib/self-healer/source-dogfood-simulator.js"
       ],
       "plugins/workspace-sync.js": [
@@ -6138,6 +6217,15 @@
       "scripts/audit-impact-replay-coverage.js": [
         "lib/autonomy-receipt-history.js"
       ],
+      "scripts/aura-loop.js": [
+        "lib/aura-canary-bridge.js",
+        "lib/aura-signal-pack.js",
+        "lib/error-prevention/index.js",
+        "lib/experience/canary.js",
+        "lib/mcp-gate-adapter.js",
+        "lib/memory-store.js",
+        "plugins/aura-risk.js"
+      ],
       "scripts/backup.js": [
         "backupRestore.js",
         "lib/environment-compat.js"
@@ -6158,15 +6246,23 @@
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/contradiction-eval-freeze.js"
       ],
+      "scripts/build-semantic-snli-dataset.js": [
+        "scripts/contradiction-eval-freeze-contract.js",
+        "scripts/semantic-teacher-contract.js",
+        "scripts/semantic-training-dataset.js"
+      ],
       "scripts/build-semantic-training-dataset.js": [
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/semantic-nli-adapter.js",
         "scripts/semantic-training-dataset.js"
       ],
       "scripts/calibrate-semantic-model.js": [
+        "lib/semantic-model-artifact-v2.js",
         "lib/semantic-model-artifact.js",
         "lib/semantic-model-calibration.js",
+        "lib/semantic-model-inference-v2.js",
         "lib/semantic-model-inference.js",
+        "scripts/build-semantic-snli-dataset.js",
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/semantic-teacher-contract.js",
         "scripts/train-semantic-model.js"
@@ -6656,6 +6752,12 @@
         "toLayer": "Application"
       },
       {
+        "from": "lib/aura-canary-bridge.js",
+        "to": "lib/experience/canary.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
         "from": "lib/autonomy-receipt-history.js",
         "to": "lib/receipt/canonical-receipt.js",
         "fromLayer": "Core",
@@ -6930,6 +7032,18 @@
         "to": "lib/memory-store-utils.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/gate-signal-provider.js",
+        "to": "lib/error-prevention/decision.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/gate-signal-provider.js",
+        "to": "lib/error-prevention/index.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
       },
       {
         "from": "lib/gate-telemetry.js",

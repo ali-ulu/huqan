@@ -212,6 +212,10 @@
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-PLUGINS-K"
   },
+  "plugins/aura-risk.js": {
+   "context": "Knowledge",
+   "evidence": "AURA<->HUQAN loop: labels a request with AURA's social-engineering signals (graph-free knowledge annotation), the R-PLUGINS-K family; its gateSignal seam is read by lib/gate-signal-provider.js"
+  },
   "plugins/contradiction-alert.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-PLUGINS-K"
@@ -1691,6 +1695,18 @@
   "lib/mcp-gate-adapter.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
+  "lib/gate-signal-provider.js": {
+   "context": "AgentAction",
+   "evidence": "AURA<->HUQAN loop: folds a plugin gateSignal and an active error-prevention rule into a bounded gate signal; consumed by lib/mcp-gate-adapter.js on the gate path (part of the R-GATES-A enforcement family)"
+  },
+  "lib/aura-canary-bridge.js": {
+   "context": "Trust",
+   "evidence": "AURA<->HUQAN loop: rule canary trial + leak tripwire built on the AgentAction canary primitives (lib/context-canary.js, R-GATES-A); consumed by the standalone operator loop scripts/aura-loop.js"
+  },
+  "lib/aura-signal-pack.js": {
+   "context": "Knowledge",
+   "evidence": "AURA<->HUQAN signal pack: runs the AURA engine over its case files and writes the deterministic artifact; consumed by plugins/aura-risk.js as a Knowledge-side knowledge artifact (R-PLUGINS-K family)"
   },
   "lib/mcp-human-oversight-adapter.js": {
    "context": "AgentAction",
@@ -4909,9 +4925,10 @@
   "lib/context-canary.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; Trust added 2026-10-09 (AURA rule-promotion bridge lib/aura-canary-bridge.js plants/detects the canary for a learned rule)"
   },
   "lib/experience/run-repair.js": {
    "owner": "Trust",
