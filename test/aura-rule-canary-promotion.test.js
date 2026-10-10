@@ -154,6 +154,29 @@ test('activateRule refuses an AURA rule with no trial and activates it once the 
   assert.equal(activated.rule.activationCanaryTrialStatus, CANARY_STATUS.PASSED);
 });
 
+test('a non-AURA activation override cannot clear a stored AURA rule', () => {
+  const { prevention } = makeEngine();
+  const failure = recordFailure(prevention, auraRuleProvenance({ workspaceId: 'huqan' }));
+  assert.equal(failure.ok, true);
+  const proposal = prevention.proposeRule(failure.memory.memoryId, {
+    workspaceId: 'huqan',
+    provenance: auraRuleProvenance({ workspaceId: 'huqan' }),
+    enforcement: 'require_verify',
+    constraint: 'Review the read when AURA signals fire.',
+  });
+  assert.equal(isAuraDerivedProvenance(proposal.memory.provenance), true);
+
+  // The caller supplies a non-AURA provenance and no trial: the AURA
+  // classification comes from the *stored* rule, so this must still be refused.
+  const refused = prevention.activateRule(proposal.memory.memoryId, {
+    workspaceId: 'huqan',
+    provenance: { sourceRef: 'axiom-memory-core' },
+  });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.decision.decision, 'reject');
+  assert.equal(refused.decision.reason, 'aura_rule_requires_canary_trial');
+});
+
 test('a non-AURA rule is unaffected by the canary gate', () => {
   const { prevention } = makeEngine();
   const failure = recordFailure(prevention);
