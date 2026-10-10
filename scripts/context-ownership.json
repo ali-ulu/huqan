@@ -3248,6 +3248,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-SELF-A"
   },
+  "lib/self-healer/repository-scan.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-SELF-A"
+  },
   "lib/self-healer/safety-decision.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-SELF-A"
@@ -5947,6 +5951,13 @@
     "Trust"
    ],
    "evidence": "#3670 the self-healer-audit plugin (Trust) imports the fix producer to offer a reviewable fix"
+  },
+  "lib/self-healer/repository-scan.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#3800 the self-healer-audit plugin (Trust) imports the read-only scan to produce its own findings"
   },
   "lib/self-healer/behavioral-containment.js": {
    "owner": "AgentAction",
