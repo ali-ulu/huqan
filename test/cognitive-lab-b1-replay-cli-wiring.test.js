@@ -197,6 +197,21 @@ test('replay sub-path resolves a frozen manifest through the real CLI entry', { 
   assertCanonicalUntouched(box);
 });
 
+test('an evaluator REJECT fails the process even when the replay itself succeeded', { timeout: 60000 }, (t) => {
+  const box = sandbox(t);
+  // A source event that names more than one decision trips the evaluator's
+  // independence guard (DUPLICATION) while the replay runner still reports
+  // REPLAYED. The CLI must not exit 0 on that verdict.
+  const request = replayRequest({ experiment: experiment({ sourceEvents: { evt1: ['h1', 'h2'] } }) });
+  const file = writeText(box, 'dup.json', JSON.stringify(request));
+
+  const result = invoke(['replay', '--replay-manifest', file], box);
+  assert.equal(result.code, 1, 'an evaluator REJECT must set a non-zero exit code');
+  assert.equal(result.output.status, REPLAY_STATUS.REPLAYED);
+  assert.equal(result.output.evaluation.status, EVALUATOR_STATUS.REJECT);
+  assertCanonicalUntouched(box);
+});
+
 test('the default path never replays without the opt-in flag', { timeout: 60000 }, (t) => {
   const box = sandbox(t);
   const initialized = invoke(['init', '--root', box.root], box, comparisonInput());
