@@ -7,17 +7,16 @@
 // another person (camouflage, alibis, targeted recon, extortion, high-value
 // targeting). AURA carries exactly those. This script closes the circle:
 //
-//   1. TEŞHİS     AURA signal pack names the signals in the text.
-//   2. KARAR      HUQAN's gate decides; AURA's risk is read alongside it.
-//   3. İCRA       The gate's decision executes (allow => the action runs).
-//   4. SONUÇ      The outcome is compared: gate allow + AURA high risk = blind spot.
-//   5. ÖĞRENME    The blind spot becomes a verified failure, then a proposed
-//      /GERİ      rule, then an active rule; a re-preflight now escalates.
-//      BESLEME     HUQAN's outcome also answers AURA's open cross-check, and
-//                  AURA's own recalc re-scores the case (pending -> block).
+//   1. TEŞHİS   AURA signal pack names the signals in the text.
+//   2. KARAR    HUQAN's gate decides; AURA's risk is read alongside it.
+//   3. İCRA     The gate's decision executes (allow => the action runs).
+//   4. SONUÇ    The outcome is compared: gate allow + AURA high risk = blind spot.
+//   5. ÖĞRENME  The blind spot becomes a verified failure, a proposed rule, then
+//      /GERİ    an active rule; a re-preflight now escalates. HUQAN's outcome
+//      BESLEME  also answers AURA's cross-check, and AURA's recalc re-scores.
 //
-// Every step is a real call into HUQAN's and AURA's own code. Nothing is mocked: the gate is lib/mcp-gate-adapter.js,
-// the learning is lib/error-prevention, the scoring is AURA's scripts/recalc_confidence.ts.
+// Every step calls real code: gate lib/mcp-gate-adapter.js, learning
+// lib/error-prevention, scoring AURA's scripts/recalc_confidence.ts.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -29,6 +28,7 @@ const { evaluateMcpGate } = require('../lib/mcp-gate-adapter');
 const auraSignalPack = require('../lib/aura-signal-pack');
 const auraRisk = require('../plugins/aura-risk');
 const auraCanary = require('../lib/aura-canary-bridge');
+const { auraRuleProvenance } = require('../lib/error-prevention/rule-proposal');
 const { AURA_DECISION_TO_HUQAN, _test: auraRiskTest } = auraRisk;
 const createAuraRiskPlugin = auraRisk.create;
 
@@ -37,12 +37,9 @@ const DEFAULT_TOOL = 'huqan.ask';
 const DEFAULT_OPERATION = 'ask';
 const DEFAULT_APPROVAL_ID = 'aura-loop-approval';
 
-// The loop's own finding, encoded as a bounded canary trial (lib/experience/
-// canary.js). The baseline is the gate *without* the learned rule: it allows the
-// AURA blind spot, so some of its runs are negative examples. The candidate is
-// the gate *with* the rule: it escalates every occurrence, so its runs are
-// positive procedures and its negative-example rate is zero. HUQAN's real trial
-// decides the rest — this only supplies the sample it evaluates.
+// The loop's finding as a bounded canary trial (lib/experience/canary.js): the
+// baseline is the gate without the learned rule; the candidate is the gate with
+// it. HUQAN decides the rest — this only supplies the sample.
 const CANARY_TRIAL_SAMPLE = 12;
 const CANARY_TRIAL_START = Date.parse('2026-01-01T00:00:00.000Z');
 
@@ -61,10 +58,9 @@ function canaryTrialSample({ declared, startAt }) {
   return { candidateRuns, baselineWindowRuns };
 }
 
-// Promotion admission for the canary (#3469): a learner may not authorize its own
-// change. The proposer is the loop ('aura-loop'); the authority is a separate,
-// verified operator principal. A registry with no resolver refuses every
-// authority identity, so the loop must supply a real one to promote at all.
+// Promotion admission for the canary (#3469): a learner may not authorize its
+// own change. The proposer is the loop; the authority is a separate, verified
+// operator principal (a registry with no resolver refuses every authority).
 function resolveAuraCanaryAdmission({ workspaceId, capabilityId, promotionId, operator, proposerIds }) {
   const { createPromotionAdmissionRegistry } = require('../lib/experience/canary');
   const registry = createPromotionAdmissionRegistry({
@@ -81,11 +77,9 @@ function resolveAuraCanaryAdmission({ workspaceId, capabilityId, promotionId, op
   return registry.resolveAdmission({ workspaceId, capabilityId, promotionId, proposerIds });
 }
 
-// #9 — the deterministic half. AURA scores the *intent* of the risky text; a
-// planted context canary proves the *act*. The marker goes where the risky text
-// is heading (a system prompt, a memory entry); if it then shows up in an
-// outbound payload, AB14 blocks and the receipt carries only a fingerprint. The
-// block is the strongest possible answer to AURA's open cross-check.
+// #9 — AURA scores the *intent* of the risky text; a planted context canary
+// proves the *act*. If the marker shows up in an outbound payload, AB14 blocks
+// and the receipt carries only a fingerprint — the strongest answer to AURA.
 function proveCanaryTripwire({ signalIds, leaked = true }) {
   const planted = auraCanary.plantCanaryForAuraSignal({ signalIds, context: 'aura-risky-context' });
   const payload = leaked
@@ -143,8 +137,8 @@ function gateDecide(tool, text) {
 }
 
 // Step 5 write-back: AURA stays `pending` until its cross-check questions are
-// answered. HUQAN's gate outcome is exactly such an answer, so the loop writes
-// it into the case's cross_check.history and lets AURA's own recalc re-score.
+// answered. HUQAN's gate outcome is such an answer, so the loop writes it into
+// the case's cross_check.history and lets AURA's own recalc re-score.
 function answerCrossCheck(caseObj, gateResult, caseId) {
   const questions = caseObj.cross_check && Array.isArray(caseObj.cross_check.questions)
     ? caseObj.cross_check.questions
@@ -220,17 +214,14 @@ async function runAuraLoop(options = {}) {
   });
 
   // --- 5. ÖĞRENME / GERİ BESLEME ------------------------------------------
-  // The store is injectable so the loop can write its learned rule into the
-  // same store a live gate reads (kernel.memory), instead of a private one the
-  // gate never sees. Default keeps the loop self-contained.
+  // The store is injectable so the loop writes its learned rule into the same
+  // store a live gate reads (kernel.memory), not a private one it never sees.
   const memory = options.memory || new MemoryStore({ useSQLite: false });
   const approvalSubjects = new Map();
   const prevention = createErrorPrevention(memory, {
-    // Trusted evidence: a case produced by AURA's own engine, present in the
-    // pack. AURA is a verifier here — it independently scored the same text —
-    // so the failure source is `verifier_failure`, and this callback verifies
-    // the evidence really is an engine-scored AURA case. It verifies the
-    // evidence, not the claim.
+    // Trusted evidence: a case produced by AURA's own engine. AURA is a verifier
+    // here, so the failure source is `verifier_failure` and this callback checks
+    // the evidence really is an engine-scored AURA case (the evidence, not the claim).
     verifyEvidence({ source, evidence }) {
       return source === 'verifier_failure'
         && Array.isArray(evidence)
@@ -249,11 +240,15 @@ async function runAuraLoop(options = {}) {
     },
   });
 
+  // The provenance marker travels with the failure and the rule so the core
+  // activation path enforces the bounded canary trial too (#3778).
+  const ruleProvenance = auraRuleProvenance({ workspaceId });
   const failure = prevention.recordFailure({
     source: 'verifier_failure',
     tool,
     operation,
     workspaceId,
+    provenance: ruleProvenance,
     expected: 'review',
     observed: gate.decision,
     evidence: [{ type: 'aura_case', ref: caseId, verifiedBy: 'aura-engine' }],
@@ -262,6 +257,7 @@ async function runAuraLoop(options = {}) {
 
   const proposal = prevention.proposeRule(failure.memory.memoryId, {
     workspaceId,
+    provenance: ruleProvenance,
     enforcement: 'require_verify',
     constraint: `When AURA signals ${aura.signalIds.join(', ')} are present (AURA risk ${aura.riskScore}), a read-only ${tool} must be reviewed, not allowed.`,
     remediation: 'Require a human cross-check before the read is served.',
@@ -295,13 +291,17 @@ async function runAuraLoop(options = {}) {
 
   // The rule is activated only when the trial passed AND an admission exists.
   // Otherwise it stays `proposed`: the gate keeps allowing, which is exactly
-  // HUQAN's fail-closed posture for an unproven candidate.
+  // HUQAN's fail-closed posture for an unproven candidate. The trial evidence is
+  // handed to the core so its own admission can re-verify the same condition
+  // instead of trusting the loop (#3778).
+  const canaryTrial = auraCanary.auraRuleTrialEvidence(trial);
   let activation = null;
   if (promotion.activate) {
     activation = prevention.activateRule(proposal.memory.memoryId, {
       workspaceId,
       approvalId,
       actor: 'aura-loop',
+      canaryTrial,
     });
     if (!activation.ok) throw Object.assign(new Error('activateRule failed'), { code: 'ACTIVATE_FAILED' });
   }
