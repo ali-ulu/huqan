@@ -29,6 +29,11 @@ const {
   REPLAY_ERROR_CODES,
   replayBaseline,
 } = require('../lib/cognitive-lab-b1-replay');
+const {
+  EVALUATOR_SCHEMA_VERSION,
+  EVALUATOR_STATUS,
+  evaluateGain,
+} = require('../lib/cognitive-lab-evaluator');
 const { comparisonInput } = require('./helpers/cognitive-lab-comparison');
 
 const BIN = path.resolve(__dirname, '../bin/huqan-cognitive-lab.js');
@@ -129,9 +134,11 @@ function libraryResult(request) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cl-b1-direct-'));
   try {
     const graph = new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
-    return replayBaseline(graph, {
-      manifest: request.manifest, manifestDigest: request.manifestDigest, experiment: request.experiment,
-    });
+    const input = { manifest: request.manifest, manifestDigest: request.manifestDigest, experiment: request.experiment };
+    return {
+      replay: replayBaseline(graph, input),
+      evaluation: evaluateGain(graph, input),
+    };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -167,7 +174,22 @@ test('replay sub-path resolves a frozen manifest through the real CLI entry', { 
     assert.ok(!('state' in output), 'replay must not mint a comparison state directory');
   }
   assert.equal(first.output.correctnessDigest, second.output.correctnessDigest);
-  assert.equal(first.output.correctnessDigest, libraryResult(request).correctnessDigest);
+  assert.equal(first.output.correctnessDigest, libraryResult(request).replay.correctnessDigest);
+
+  // The opt-in replay path now feeds its replay through the fail-closed gain
+  // evaluator: the CLI reports the evaluator verdict alongside the replay, and
+  // that verdict matches a direct evaluator call on the same frozen inputs.
+  const direct = libraryResult(request).evaluation;
+  for (const output of [first.output, second.output]) {
+    assert.ok(output.evaluation, 'replay must report the evaluator verdict');
+    assert.equal(output.evaluation.schemaVersion, EVALUATOR_SCHEMA_VERSION);
+    assert.equal(output.evaluation.status, EVALUATOR_STATUS.EVALUATED);
+    assert.equal(output.evaluation.benchmark, 'B1');
+    assert.equal(output.evaluation.infrastructure.status, 'PASS');
+    assert.equal(output.evaluation.intelligenceGain, 'NOT_MEASURED');
+  }
+  assert.equal(first.output.evaluation.correctnessDigest, direct.correctnessDigest);
+  assert.equal(first.output.evaluation.correctnessDigest, first.output.correctnessDigest);
 
   // Temp isolation: the sandbox holds only the canary and the request file;
   // no store was opened beside the removed scratch directory.
