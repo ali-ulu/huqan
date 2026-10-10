@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { stripCopula } = require('../lib/turkish-copula');
+const { stripCopula, stripCopulaOrKeep, hasCopula } = require('../lib/turkish-copula');
 const { parsePredicate } = require('../lib/predicate-parser');
 const { normalizeText } = require('../lib/text-utils');
 const { stripCopulaSuffix, foldTurkishAscii } = require('../lib/verify-turkish-text');
@@ -158,4 +158,48 @@ test('#1196 normalizeText folds dotless ı so case no longer changes the token',
 
   // Words that differ by more than case still differ.
   assert.notEqual(normalizeText('kırmızı'), normalizeText('yeşil'));
+});
+
+test('hasCopula reports only endings a real stem could take', () => {
+  // The positive and negative sides of the guard, through the public predicate
+  // rather than stripCopula's stem.
+  assert.equal(hasCopula('kitaptır'), true);
+  assert.equal(hasCopula('doktordur'), true);
+  assert.equal(hasCopula('kültür'), false);
+  assert.equal(hasCopula('tür'), false);
+  assert.equal(hasCopula(''), false);
+});
+
+test('stripCopulaOrKeep returns the word unchanged on refusal', () => {
+  // The convenience wrapper exists so callers that want the original back never
+  // touch a null stem; both arms are pinned.
+  assert.equal(stripCopulaOrKeep('kültür'), 'kültür');
+  assert.equal(stripCopulaOrKeep('tür'), 'tür');
+  assert.equal(stripCopulaOrKeep('kitaptır'), 'kitap');
+});
+
+test('the copula guard fails closed on empty and non-string input', () => {
+  // `String(word || '')` is the entry guard: nullish input must not throw and
+  // must produce a refusal, never a mangled stem.
+  for (const word of [undefined, null, '', 0]) {
+    assert.equal(stripCopula(word), null, `${JSON.stringify(word)} must be refused`);
+    assert.equal(hasCopula(word), false);
+  }
+});
+
+test('the vowel-harmony and consonant-assimilation guards each refuse their mismatch', () => {
+  // Vowel harmony: `doktor`'s last vowel is `o`, which takes `-dur`, not `-dir`.
+  assert.equal(stripCopula('doktordir'), null);
+  // Consonant assimilation: `kitap` ends in a voiceless consonant, so it takes
+  // `-tır`, and the spelled `d` is not a copula it could carry.
+  assert.equal(stripCopula('kitapdır'), null);
+  // The legitimate spelling of the same stem still strips.
+  assert.equal(stripCopula('kitaptır'), 'kitap');
+  assert.equal(stripCopula('kitabdır'), 'kitab');
+});
+
+test('a would-be stem with no vowel is refused, not guessed at', () => {
+  // `lastVowelOf` returns null for a consonant-only stem; the guard must treat
+  // that as "cannot decide" and refuse rather than pick a harmony it cannot know.
+  assert.equal(stripCopula('trttır'), null);
 });
