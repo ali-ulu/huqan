@@ -14,6 +14,7 @@ const {
   evaluateContextCanaries,
   isContextCanaryId,
   issueContextCanary,
+  plantContextCanaryInValue,
 } = require('../lib/context-canary');
 
 const FIXED = issueContextCanary({ randomBytes: () => Buffer.from('00112233445566778899aabb', 'hex') });
@@ -94,4 +95,11 @@ test('a cyclic payload terminates', () => {
   const cyclic = { text: 'clean' };
   cyclic.self = cyclic;
   assert.equal(evaluateContextCanaries(cyclic).decision, 'allow');
+});
+
+test('a planted canary survives an own __proto__ key on the payload', () => {
+  const payload = JSON.parse(`{"__proto__":"secret","note":"hi"}`);
+  const planted = plantContextCanaryInValue(payload);
+  assert.equal(Object.prototype.hasOwnProperty.call(planted.payload, '__proto__'), true);
+  assert.equal(evaluateContextCanaries(planted.payload).decision, 'block');
 });
