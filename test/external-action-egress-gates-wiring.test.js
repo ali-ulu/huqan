@@ -76,3 +76,29 @@ test('an expected destination leaves the guard verdict as it was without AB13', 
   });
   assert.equal(withExpected.decision, without.decision);
 });
+
+// #3777: without an opt-in the gate only detected a preselected marker; nothing
+// on the live egress path ever planted one, so an AURA signal could never be
+// proven on egress. These pin the planting seam: a known risky signal makes the
+// egress itself carry a canary, which AB14 then blocks on.
+
+test('an AURA signal plants a canary on the live egress path', () => {
+  const without = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), OPTIONS);
+  assert.notEqual(without.decision, 'block', 'without a signal nothing blocks this call, or the test proves nothing');
+
+  const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), {
+    ...OPTIONS,
+    auraSignalIds: ['AURA-SIGNAL-3777'],
+  });
+  const finding = result.findings.find((item) => item.gate === 'AB14');
+  assert.equal(finding.decision, 'block', 'the planted canary must trip AB14');
+  assert.equal(result.decision, 'block', 'the AB14 decision must be merged into the guard verdict');
+  assert.ok(finding.canaryFingerprints.length >= 1);
+});
+
+test('without a signal the payload is not marked and AB14 stays silent', () => {
+  const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), OPTIONS);
+  const finding = result.findings.find((item) => item.gate === 'AB14');
+  assert.equal(finding.decision, 'allow');
+  assert.deepEqual(finding.canaryFingerprints, []);
+});
