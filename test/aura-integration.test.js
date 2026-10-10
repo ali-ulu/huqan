@@ -24,6 +24,15 @@ const { analyseManipulation } = require('../lib/text-safety-scorer');
 
 const packPath = auraSignalPack.defaultPackPath();
 
+// The live half of the loop drives AURA's own TypeScript engine
+// (scripts/recalc_confidence.ts) and its case files, which live in a separate
+// checkout. CI does not check AURA out, so the live tests skip there and run
+// wherever AURA_ROOT (or the default ../aura) is present. The deterministic
+// half -- the signal pack, the plugin and the gate -- needs no live tree and
+// always runs.
+const AURA_TREE = auraSignalPack.auraRoot();
+const AURA_ENGINE_AVAILABLE = fs.existsSync(path.join(AURA_TREE, 'scripts', 'recalc_confidence.ts'));
+
 test('the AURA signal pack is present and carries a vocabulary and cases', () => {
   assert.ok(fs.existsSync(packPath), `signal pack missing: ${packPath} (run: node lib/aura-signal-pack.js)`);
   const pack = auraSignalPack.loadSignalPack({ packPath });
@@ -87,7 +96,7 @@ test('HUQAN\'s gate allows a read that AURA scores high — the gap the loop tar
   assert.equal(gate.allowed, true);
 });
 
-test('the 5-step loop closes on both sides', async () => {
+test('the 5-step loop closes on both sides', { skip: !AURA_ENGINE_AVAILABLE && 'AURA source tree not checked out (set AURA_ROOT)' }, async () => {
   const result = await runAuraLoop();
   assert.equal(result.blindSpot, true, 'the loop should detect the blind spot');
 
@@ -108,7 +117,7 @@ test('the 5-step loop closes on both sides', async () => {
   assert.equal(result.report[4].detail.loopClosed, true);
 });
 
-test('the loop is deterministic across runs', async () => {
+test('the loop is deterministic across runs', { skip: !AURA_ENGINE_AVAILABLE && 'AURA source tree not checked out (set AURA_ROOT)' }, async () => {
   const first = await runAuraLoop();
   const second = await runAuraLoop();
   assert.deepEqual(first.gateAfter, second.gateAfter);
@@ -257,7 +266,7 @@ test('canary: an operator cannot authorize a rule it proposed (self-authorizatio
   assert.equal(separate.admitted, true);
 });
 
-test('canary: the live loop runs the trial and reports it, and still closes', async () => {
+test('canary: the live loop runs the trial and reports it, and still closes', { skip: !AURA_ENGINE_AVAILABLE && 'AURA source tree not checked out (set AURA_ROOT)' }, async () => {
   const result = await runAuraLoop();
   assert.equal(result.report[4].detail.huqan.canary.trialStatus, 'passed');
   assert.equal(result.report[4].detail.huqan.canary.admission, true);

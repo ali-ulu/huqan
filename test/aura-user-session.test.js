@@ -19,7 +19,14 @@ const { createServer } = require('../mcpServer');
 const auraSignalPack = require('../lib/aura-signal-pack');
 const { runAuraLoop } = require('../scripts/aura-loop');
 
-test('USER SESSION: a live MCP session is hardened by the loop', async () => {
+// Step 5 of the loop drives AURA's own engine and case files, which live in a
+// separate checkout. CI does not check AURA out, so this end-to-end session test
+// skips there and runs wherever AURA_ROOT (or the default ../aura) is present.
+const AURA_ENGINE_AVAILABLE = fs.existsSync(
+  path.join(auraSignalPack.auraRoot(), 'scripts', 'recalc_confidence.ts'),
+);
+
+test('USER SESSION: a live MCP session is hardened by the loop', { skip: !AURA_ENGINE_AVAILABLE && 'AURA source tree not checked out (set AURA_ROOT)' }, async () => {
   const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: true });
   const server = createServer({ kernel, approvalStore: null });
   const risky = auraSignalPack.loadSignalPack()
