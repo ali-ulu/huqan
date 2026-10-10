@@ -182,6 +182,9 @@ describe('safe-file-walk pruneDirectory option', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
+  const relativePaths = (files) =>
+    files.map((file) => path.relative(root, file).split(path.sep).join('/'));
+
   it('never descends into a pruned directory', () => {
     write(root, 'src/keep.js', 'x');
     write(root, 'skip/ignored.js', 'x');
@@ -192,7 +195,7 @@ describe('safe-file-walk pruneDirectory option', () => {
       pruneDirectory: (name) => name === 'skip',
     });
 
-    assert.deepEqual(walked.map((file) => path.relative(root, file)), ['src/keep.js']);
+    assert.deepEqual(relativePaths(walked), ['src/keep.js']);
   });
 
   it('walks every directory when pruneDirectory is omitted', () => {
@@ -204,9 +207,6 @@ describe('safe-file-walk pruneDirectory option', () => {
       matchesFile: (file) => file.endsWith('.js'),
     });
 
-    assert.deepEqual(
-      walked.map((file) => path.relative(root, file)).sort(),
-      ['skip/ignored.js', 'src/keep.js'],
-    );
+    assert.deepEqual(relativePaths(walked).sort(), ['skip/ignored.js', 'src/keep.js']);
   });
 });
