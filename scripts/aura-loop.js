@@ -249,11 +249,16 @@ async function runAuraLoop(options = {}) {
     },
   });
 
+  // The rule is AURA-derived; the provenance marker travels with the failure and
+  // the rule so activation can enforce the bounded canary trial on the core path
+  // too, not only here (#3778).
+  const ruleProvenance = auraCanary.auraRuleProvenance({ workspaceId });
   const failure = prevention.recordFailure({
     source: 'verifier_failure',
     tool,
     operation,
     workspaceId,
+    provenance: ruleProvenance,
     expected: 'review',
     observed: gate.decision,
     evidence: [{ type: 'aura_case', ref: caseId, verifiedBy: 'aura-engine' }],
@@ -262,6 +267,7 @@ async function runAuraLoop(options = {}) {
 
   const proposal = prevention.proposeRule(failure.memory.memoryId, {
     workspaceId,
+    provenance: ruleProvenance,
     enforcement: 'require_verify',
     constraint: `When AURA signals ${aura.signalIds.join(', ')} are present (AURA risk ${aura.riskScore}), a read-only ${tool} must be reviewed, not allowed.`,
     remediation: 'Require a human cross-check before the read is served.',
@@ -295,13 +301,17 @@ async function runAuraLoop(options = {}) {
 
   // The rule is activated only when the trial passed AND an admission exists.
   // Otherwise it stays `proposed`: the gate keeps allowing, which is exactly
-  // HUQAN's fail-closed posture for an unproven candidate.
+  // HUQAN's fail-closed posture for an unproven candidate. The trial evidence is
+  // handed to the core so its own admission can verify the same condition rather
+  // than trusting the loop (#3778).
+  const canaryTrial = auraCanary.auraRuleTrialEvidence(trial);
   let activation = null;
   if (promotion.activate) {
     activation = prevention.activateRule(proposal.memory.memoryId, {
       workspaceId,
       approvalId,
       actor: 'aura-loop',
+      canaryTrial,
     });
     if (!activation.ok) throw Object.assign(new Error('activateRule failed'), { code: 'ACTIVATE_FAILED' });
   }
