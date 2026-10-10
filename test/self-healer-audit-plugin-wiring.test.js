@@ -135,3 +135,32 @@ test('default plugin run makes approval bridge state explicit when no runtime is
   assert.equal(result.approvalBridge.applied, false);
   assert.equal(result.approvalBridge.executed, false);
 });
+
+test('scan-repository action produces its own findings and stays non-applying', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sh2-plugin-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'src', 'half-merged.js'), '<<<<<<< HEAD\nconst x = 1;\n=======\n>>>>>>> other\n');
+
+    const result = plugin.run({}, {
+      action: 'scan-repository',
+      workspaceId: 'default',
+      repoRoot: tmp,
+      maxIterationsPerWindow: 10,
+      now: 1_700_000_000_000,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.action, 'scan-repository');
+    assert.equal(result.scan.findingCount, 1);
+    assert.equal(result.scan.filesScanned, 1);
+    assert.equal(result.auditReport.mode, 'audit_only');
+    assert.equal(result.auditReport.findingCount, 1);
+    assert.equal(result.applied, false);
+    assert.equal(result.proposals[0].decision, 'require_review');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

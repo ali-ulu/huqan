@@ -3,6 +3,7 @@
 const { analyzeReachability } = require('../lib/module-reachability');
 const { runSelfHealerDryRun } = require('../lib/self-healer/dryrun-runner');
 const { runSelfHealerAudit } = require('../lib/self-healer/audit-runner');
+const { runRepositoryScan } = require('../lib/self-healer/repository-scan');
 const { classifyRawFinding } = require('../lib/self-healer/finding-classifier');
 const { createSelfHealerApprovalBridge } = require('../lib/self-healer/approval-bridge');
 const { proposeConcreteFix } = require('../lib/self-healer/fix-producer');
@@ -150,6 +151,30 @@ function runReachabilityAudit(kernel, options = {}) {
   return { ...governFindings(kernel, findings, options), unacknowledgedCount: findings.length };
 }
 
+/**
+ * SH-2 autonomous scan (#3800): the walk produces the findings itself instead
+ * of taking them from the caller. Read-only; the governed pipeline that follows
+ * still never applies anything.
+ */
+function runRepositoryScanAudit(kernel, options = {}) {
+  const repoRoot = options.repoRoot || options.root || process.cwd();
+  const scan = runRepositoryScan(
+    { ...options, repoRoot },
+    { workspaceId: options.workspaceId || 'default' },
+  );
+  return {
+    ...governFindings(kernel, scan.findings, { ...options, repoRoot }),
+    action: 'scan-repository',
+    scan: {
+      filesScanned: scan.filesScanned,
+      filesSkipped: scan.filesSkipped,
+      findingCount: scan.findingCount,
+      truncated: scan.truncated,
+      prunedDirectories: scan.prunedDirectories,
+    },
+  };
+}
+
 async function runSourceSimulation(kernel, options = {}) {
   const simulation = await simulateSourceCandidate(options);
   if (!simulation.candidate) {
@@ -194,6 +219,9 @@ module.exports = {
     if (action === 'scan') {
       try { return runReachabilityAudit(kernel, input); } catch (error) { return failure(error); }
     }
+    if (action === 'scan-repository') {
+      try { return runRepositoryScanAudit(kernel, input); } catch (error) { return failure(error); }
+    }
     if (action === 'behavior') {
       try { return runBehavioralObservation(kernel, input); } catch (error) { return failure(error); }
     }
@@ -211,6 +239,7 @@ module.exports._test = {
   governFindings,
   runBehavioralObservation,
   runReachabilityAudit,
+  runRepositoryScanAudit,
   runSourceSimulation,
   runProposeFix,
 };
