@@ -20,7 +20,9 @@ function runBuild(t, failures) {
   const harness = `
 docker() {
   printf '%s\\n' "$*" >> "$TEST_DIR/calls"
-  count=$(wc -l < "$TEST_DIR/calls")
+  # BSD/macOS wc pads its count with leading spaces, which would break the
+  # failure-<n> lookup; strip whitespace so the counter is portable.
+  count=$(wc -l < "$TEST_DIR/calls" | tr -d '[:space:]')
   if [ -f "$TEST_DIR/failure-$count" ]; then
     cat "$TEST_DIR/failure-$count" >&2
     return 17
