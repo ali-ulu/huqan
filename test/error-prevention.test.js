@@ -247,3 +247,37 @@ test('superseded prevention rule no longer blocks and is queryable as superseded
   assert.equal(result.matchedRules.length, 1);
   assert.equal(result.matchedRules[0].ruleId, replacement.rule.ruleId);
 });
+
+test('classifyFailureTrust maps each trust tier and fails closed on unknown input', () => {
+  const { classifyFailureTrust, normalizeSource, FAILURE_SOURCES } = require('../lib/error-prevention/trust');
+
+  // Objective source + evidence + external verification -> verified/high.
+  assert.deepEqual(
+    classifyFailureTrust('ci_failure', [{ type: 'ci' }], { verified: true }),
+    { source: 'ci_failure', verificationStatus: 'verified', trust: 'high' },
+  );
+
+  // Objective source + evidence, but no external verification -> candidate/medium.
+  assert.deepEqual(
+    classifyFailureTrust('test_failure', [{ type: 'test' }]),
+    { source: 'test_failure', verificationStatus: 'candidate', trust: 'medium' },
+  );
+
+  // A user correction is a candidate on its own, with no evidence required.
+  assert.deepEqual(
+    classifyFailureTrust('user_correction'),
+    { source: 'user_correction', verificationStatus: 'candidate', trust: 'medium' },
+  );
+
+  // A non-objective source, or an objective one without evidence, is unverified/low.
+  assert.equal(classifyFailureTrust('model_self_report').trust, 'low');
+  assert.equal(classifyFailureTrust('ci_failure').trust, 'low');
+
+  // Unknown and non-string sources fail closed to the least-trusted source.
+  assert.equal(normalizeSource('totally_unknown'), 'external_content');
+  assert.equal(normalizeSource(undefined), 'external_content');
+  assert.equal(normalizeSource(42), 'external_content');
+  assert.equal(classifyFailureTrust(undefined).source, 'external_content');
+  assert.ok(FAILURE_SOURCES.includes('external_content'));
+});
+

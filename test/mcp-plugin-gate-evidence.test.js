@@ -170,3 +170,43 @@ test('approved-agent revalidation consults current plugin evidence', () => {
   assert.equal(result.canExecute, false);
   assert.ok(result.findings.some(f => f.plugin === 'signal-0' && f.decision === 'block'));
 });
+
+// The signal provider seam (lib/gate-signal-provider.js) is opt-in and its
+// kernel-backed path also runs through the live AURA tests, which skip when the
+// AURA tree is absent. These drive the seam directly so the adapter's
+// provider-merge branches stay covered everywhere.
+test('an explicit signal provider can escalate a call, and only upward', () => {
+  const askAllow = evaluateMcpGate(ask);
+  assert.equal(askAllow.decision, 'allow');
+
+  const escalated = evaluateMcpGate(ask, {
+    signalProvider: () => ({ decision: 'review', reason: 'signal:recon:targeted', findings: [{ gate: 'SIGNAL', id: 'recon:targeted' }] }),
+  });
+  assert.equal(escalated.decision, 'review');
+  assert.equal(escalated.reason, 'signal:recon:targeted');
+  assert.ok(escalated.findings.some(f => f.gate === 'SIGNAL'));
+});
+
+test('a provider with no reason falls back to the signal-review reason', () => {
+  const escalated = evaluateMcpGate(ask, { signalProvider: () => ({ decision: 'review' }) });
+  assert.equal(escalated.decision, 'review');
+  assert.equal(escalated.reason, 'gate_signal_review');
+});
+
+test('a provider result that cannot raise the decision changes nothing', () => {
+  const baseline = evaluateMcpGate(ask);
+  // Not an object, and an object whose decision does not raise the verdict: the
+  // provider contributes evidence, it never rewrites an unchanged decision.
+  assert.deepEqual(evaluateMcpGate(ask, { signalProvider: () => undefined }), baseline);
+  assert.deepEqual(evaluateMcpGate(ask, { signalProvider: () => 'review' }), baseline);
+  assert.deepEqual(evaluateMcpGate(ask, { signalProvider: () => ({ decision: 'allow' }) }), baseline);
+});
+
+test('a kernel-backed provider with no signals and no rules stays a no-op', () => {
+  const baseline = evaluateMcpGate(ask);
+  const kernel = { plugins: { plugins: [] } };
+  assert.deepEqual(evaluateMcpGate(ask, { kernel }), baseline);
+  // A kernel object that cannot host a rule store is still not a provider error.
+  assert.deepEqual(evaluateMcpGate(ask, { kernel: {} }), baseline);
+});
+
