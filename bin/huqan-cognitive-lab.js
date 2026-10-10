@@ -39,7 +39,10 @@ function readDesign(dbPath, runId) {
 runCognitiveLab(process.argv.slice(2), { openGraph: options => new Graph(options), readDesign })
   .then(result => {
     process.stdout.write(`${JSON.stringify(result)}\n`);
-    if (result.status === 'REJECT') process.exitCode = 1;
+    // A replay can succeed (`status: REPLAYED`) while the fail-closed gain
+    // evaluator rejects the same measurement. The evaluator verdict is part of
+    // the top-level result, so its REJECT must fail the process too.
+    if (result.status === 'REJECT' || result.evaluation?.status === 'REJECT') process.exitCode = 1;
   })
   .catch(error => {
     process.stdout.write(`${JSON.stringify({ status: 'REJECT', assertsGain: false, intelligenceGain: 'NOT_MEASURED', error: error.message })}\n`);
