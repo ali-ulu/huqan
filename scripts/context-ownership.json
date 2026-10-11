@@ -1702,7 +1702,7 @@
   },
   "lib/aura-canary-bridge.js": {
    "context": "Trust",
-   "evidence": "AURA<->HUQAN loop: rule canary trial + leak tripwire built on the AgentAction canary primitives (lib/context-canary.js, R-GATES-A); consumed by the standalone operator loop scripts/aura-loop.js"
+   "evidence": "AURA<->HUQAN loop: rule canary trial + leak tripwire built on the AgentAction canary primitives (lib/context-canary.js, R-GATES-A); consumed by the operator loop scripts/aura-loop.js, the live egress gate lib/external-action-egress-gates.js, and the core admission lib/error-prevention/admission.js (#3799)"
   },
   "lib/aura-signal-pack.js": {
    "context": "Knowledge",
@@ -4831,6 +4831,11 @@
   }
  ],
  "publishedPorts": {
+  "lib/aura-canary-bridge.js": {
+   "owner": "Trust",
+   "consumers": ["AgentAction"],
+   "evidence": "#3799 the live egress gate plants through the bridge and the core admission reads its trial evidence, so AgentAction consumes this Trust port"
+  },
   "nlp/lang-tr.js": {
    "owner": "Knowledge",
    "consumers": ["Platform"],

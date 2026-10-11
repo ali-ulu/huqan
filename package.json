@@ -254,6 +254,7 @@
     "lib/agent-v3-approval-methods.js",
     "lib/agent-v3-status-methods.js",
     "lib/agent-v3-plan-methods.js",
+    "lib/aura-canary-bridge.js",
     "lib/experience/runtime-seam.js",
     "lib/agent-v3-run-state.js",
     "lib/agent-v3-storage-factory.js",

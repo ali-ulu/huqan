@@ -102,3 +102,42 @@ test('without a signal the payload is not marked and AB14 stays silent', () => {
   assert.equal(finding.decision, 'allow');
   assert.deepEqual(finding.canaryFingerprints, []);
 });
+
+// #3799: the plant is driven by the AURA bridge, so the same egress that carries
+// a high AURA score (the shape a live caller carries when it ran the plugin but
+// kept no signal ids) is marked too. The score is the second seam beside the
+// explicit ids above.
+
+test('a high AURA risk score plants a canary and blocks on the live egress path', () => {
+  const without = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), OPTIONS);
+  assert.notEqual(without.decision, 'block', 'without a signal nothing blocks this call, or the test proves nothing');
+
+  const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), {
+    ...OPTIONS,
+    auraRiskScore: 0.87,
+  });
+  const finding = result.findings.find((item) => item.gate === 'AB14');
+  assert.equal(finding.decision, 'block', 'a high score must plant a canary that trips AB14');
+  assert.equal(result.decision, 'block', 'the AB14 decision must be merged into the guard verdict');
+  assert.ok(finding.canaryFingerprints.length >= 1);
+});
+
+test('a below-threshold AURA risk score leaves the payload unmarked', () => {
+  const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), {
+    ...OPTIONS,
+    auraRiskScore: 0.4,
+  });
+  const finding = result.findings.find((item) => item.gate === 'AB14');
+  assert.equal(finding.decision, 'allow');
+  assert.deepEqual(finding.canaryFingerprints, []);
+});
+
+test('explicit AURA signal ids win over a below-threshold score', () => {
+  const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), {
+    ...OPTIONS,
+    auraSignalIds: ['recon:targeted'],
+    auraRiskScore: 0.1,
+  });
+  const finding = result.findings.find((item) => item.gate === 'AB14');
+  assert.equal(finding.decision, 'block', 'a named signal must still plant even when the score is low');
+});
