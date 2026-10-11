@@ -209,4 +209,19 @@ describe('safe-file-walk pruneDirectory option', () => {
 
     assert.deepEqual(relativePaths(walked).sort(), ['skip/ignored.js', 'src/keep.js']);
   });
+
+  it('reports paths under the caller root when the root is a symlink', () => {
+    write(root, 'src/keep.js', 'x');
+    const link = path.join(os.tmpdir(), `sh2-link-${process.pid}-${Date.now()}`);
+    fs.symlinkSync(root, link, 'dir');
+    try {
+      const walked = listFilesWithinRoot(link, {
+        rootPath: link,
+        matchesFile: (file) => file.endsWith('.js'),
+      });
+      assert.deepEqual(walked.map((file) => path.relative(link, file)), ['src/keep.js']);
+    } finally {
+      fs.rmSync(link, { force: true });
+    }
+  });
 });
