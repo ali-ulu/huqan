@@ -219,7 +219,10 @@ describe('safe-file-walk pruneDirectory option', () => {
         rootPath: link,
         matchesFile: (file) => file.endsWith('.js'),
       });
-      assert.deepEqual(walked.map((file) => path.relative(link, file)), ['src/keep.js']);
+      const walkedRelative = walked.map((file) =>
+        path.relative(link, file).split(path.sep).join('/'),
+      );
+      assert.deepEqual(walkedRelative, ['src/keep.js']);
     } finally {
       fs.rmSync(link, { force: true });
     }
