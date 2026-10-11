@@ -554,6 +554,7 @@
     "lib/contradiction-rules-text.js",
     "lib/contradiction-rules-value-detectors.js",
     "lib/contradiction-rules-vocabulary.js",
+    "lib/aura-canary-bridge.js",
     "lib/context-canary.js",
     "lib/control-plane-paths.js",
     "lib/cross-workspace-access-gate.js",
