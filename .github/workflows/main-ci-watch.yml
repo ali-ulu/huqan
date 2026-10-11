@@ -160,6 +160,29 @@ jobs:
               continue
             fi
 
+            # Alert once per SHA (#3822-#3824): an earlier watcher run already
+            # surfaced this commit's failures and that issue was closed when
+            # main went green. Runs are immutable, so the same failed attempt
+            # would otherwise re-open an identical alert on every later
+            # non-green verdict while the commit stays in the 10-commit
+            # window. A closed watcher issue for the exact title blocks the
+            # duplicate; genuinely new runs on the same SHA stay visible in
+            # the Actions UI.
+            existing_closed="$(
+              gh issue list \
+                --repo "$REPO" \
+                --state closed \
+                --search "$short in:title" \
+                --json number,title,body \
+                --jq '.[] | select(.title == "'"$title"'") | select(.body | contains("Created automatically by the repository-native Main CI Watch workflow")) | .number' \
+                | head -n 1
+            )"
+
+            if [[ -n "$existing_closed" ]]; then
+              echo "$short: already alerted in #$existing_closed; not re-opening."
+              continue
+            fi
+
             {
               echo "Main commit \`$sha\` has completed workflow failures."
               echo
