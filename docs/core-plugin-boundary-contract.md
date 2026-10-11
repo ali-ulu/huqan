@@ -82,8 +82,11 @@ A handler may return `undefined` for no evidence, or
 each signal with its plugin name in `findings` and merges it using the
 existing MCP precedence: `block > dry_run_only > review > allow`.
 Signals cannot lower core decisions or erase earlier plugin evidence.
-Other returned fields are ignored. Exceptions, Promise results, and invalid
-signals produce fail-closed block evidence without exposing exception text.
+Other returned fields are ignored. A handler that throws, returns a Promise
+result, or returns an invalid signal produces fail-closed `block` evidence
+without exposing exception text. This is one of two fail-closed outcomes at
+the gate; the kernel signal provider below fails closed to `review`, not
+`block`, and the two must not be conflated.
 
 `afterGateDecision` remains an observation-only hook; its return value does
 not affect the decision. Raw evaluated text is not added to telemetry.
@@ -96,6 +99,54 @@ beforeGateDecision(kernel, { args }) {
   if (needsDomainReview(args.question)) return { decision: 'review' };
 }
 ```
+
+## Kernel signal provider
+
+The `beforeGateDecision` handler above is only one of two ways a signal reaches
+the gate. On calls that hold a kernel, the MCP gate adapter also consults a
+**signal provider** before deciding. The adapter resolves it from a caller
+override (`options.signalProvider`) or, when the caller passed
+`options.kernel`, from `gateSignalProviderForKernel` (`lib/mcp-gate-adapter.js`,
+`lib/gate-signal-provider.js`). The call sites that hold a kernel are the tool
+dispatch path (`lib/mcp/tool-dispatch.js`) and the agent approval path
+(`lib/mcp-agent-approval-execution.js`), both passing
+`{ plugins: kernel?.plugins, kernel }`, plus the CLI gate
+(`lib/cli-gate-evaluation.js`).
+
+The provider folds two sources into one bounded verdict: each loaded plugin's
+`gateSignal(kernel, input)` return value, and the kernel's own **active
+error-prevention rules** (`listRules` on the kernel's error-prevention engine,
+`lib/gate-signal-provider.js`). `plugins/aura-risk.js` is the reference
+implementation of a `gateSignal` producer: it returns a bounded signal (a
+decision plus the signal ids that produced it), never a payload mutation, and
+never a canonical write. A plugin that throws or returns a thenable the
+synchronous seam cannot await is not evidence of safety: it floors the verdict
+at `review` (`lib/gate-signal-provider.js`).
+
+The provider proposes, it does not decide. Its `decision` is merged into the
+existing most-restrictive precedence `block > dry_run_only > review > allow`
+(`lib/mcp-gate-adapter-decisions.js`); merging can only raise the decision, so a
+provider can escalate a call the gates would have allowed but can never lower
+one they would have stopped. When the provider raises the decision, the gate
+reason is `gate_signal_review`
+(`MCP_GATE_REASONS.SIGNAL_REVIEW`, `lib/mcp-gate-adapter-contract.js`), or the
+provider's own `reason` when it supplies one.
+
+The two fail-closed outcomes differ. An invalid `beforeGateDecision` handler
+signal produces `block` (above). A provider or plugin-throwing error produces
+`review` with reason `signal_provider_error`
+(`lib/gate-signal-provider.js`); the provider floors at `review`, never
+`block`, and never `allow`.
+
+A caller that does not hold a kernel never sees the provider: the adapter uses
+its own gates only, exactly as before. The seam therefore adds a way to
+escalate a decision, never a new way to reach `allow`. No canonical write is
+performed on this path.
+
+The AURA rule promotion that rides this seam is bounded: an AURA-derived rule
+cannot skip the bounded canary trial, so a rule learned from a blind spot is
+refused with `aura_rule_requires_canary_trial` rather than hardened on the live
+gate before the trial passes (`lib/error-prevention/admission.js`, #3788).
 
 ## Input-transform hook annotations
 
