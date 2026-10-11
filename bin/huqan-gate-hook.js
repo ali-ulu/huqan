@@ -24,6 +24,32 @@ const { writeStructuredLog } = require('../lib/http/structured-log');
 const { argumentValue } = require('../lib/gate-hook-input');
 const { runHookEvaluation } = require('../lib/gate-hook-evaluate');
 
+// #3843: the live AURA signal producer. AURA is an external, domain plugin, so
+// core must not require it statically -- the boundary contract keeps the action
+// gate in core and domain interpretation in plugins. This composition root is
+// the one place that may pull the plugin in and hand its bounded signals to the
+// hook path as an opt-in provider. Off by default: with no `--aura-signals`
+// (or HUQAN_GATE_AURA_SIGNALS), the egress gate is exactly as before, so a
+// detection-only install is unchanged.
+function auraSignalProviderFromEnvironment() {
+  const enabled = process.argv.includes('--aura-signals')
+    || /^(1|true|on|yes)$/i.test(String(process.env.HUQAN_GATE_AURA_SIGNALS || ''));
+  if (!enabled) return {};
+  try {
+    const { create } = require('../plugins/aura-risk');
+    const { gateSignalProviderForPlugins } = require('../lib/gate-signal-provider');
+    return { signalProvider: gateSignalProviderForPlugins({ plugins: [create()] }) };
+  } catch (err) {
+    // A signal source that cannot load is not evidence of safety, but it also
+    // must not turn every hook call into a failure. Report and fall through to
+    // the unchanged path; the operator asked for signals and did not get them.
+    writeStructuredLog(console, 'error', 'gate_hook.aura_signals_unavailable', null, {
+      runtime: 'gate-hook', error: err && err.message,
+    });
+    return {};
+  }
+}
+
 createProcessFailureHandlers({
   logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
     runtime: 'gate-hook',
@@ -108,7 +134,7 @@ async function main() {
       issueIdentityCard();
       return;
     }
-    await runHookEvaluation(command);
+    await runHookEvaluation(command, auraSignalProviderFromEnvironment());
   } catch (error) {
     process.stderr.write(`HUQAN external action guard failed closed: ${error?.message || error}\n`);
     process.exitCode = 2;

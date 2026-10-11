@@ -4840,6 +4840,16 @@
    "consumers": ["AgentAction"],
    "evidence": "#3799 core egress gate plants the AURA canary through the bridge on the live path (AB14), not only the operator loop"
   },
+  "lib/gate-signal-provider.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "#3843 the hook CLI (bin/huqan-gate-hook.js) composes the plugin-backed signal provider from this module and hands it to the egress seam, so an AURA-flagged context reaches AB14 on the live path"
+  },
+  "plugins/aura-risk.js": {
+   "owner": "Knowledge",
+   "consumers": ["Platform"],
+   "evidence": "#3843 the hook CLI is the composition root that loads the AURA plugin and passes its bounded gateSignal ids to the egress seam; core lib/ still never requires the plugin"
+  },
   "nlp/lang-tr.js": {
    "owner": "Knowledge",
    "consumers": ["Platform"],
