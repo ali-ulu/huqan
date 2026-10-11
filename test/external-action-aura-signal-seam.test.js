@@ -116,6 +116,28 @@ test('caller-supplied auraSignalIds still plant alongside a provider', () => {
   assert.ok(ab14.auraSignalIds.includes('recon:targeted'));
 });
 
+test('a provider that returns no findings array is inert', () => {
+  for (const provided of [undefined, null, 'review', { decision: 'review' }]) {
+    const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), {
+      ...OPTIONS,
+      signalProvider: () => provided,
+    });
+    assert.notEqual(result.decision, 'block');
+  }
+});
+
+test('a SIGNAL finding without a signal id is skipped, not planted as undefined', () => {
+  const result = evaluateExternalAction(curl('https://github.com/ali-ulu/huqan'), {
+    ...OPTIONS,
+    signalProvider: () => ({
+      decision: 'review',
+      findings: [{ gate: 'SIGNAL', decision: 'review' }, { gate: 'RULE', ruleId: 'r1' }],
+    }),
+  });
+  const ab14 = result.findings.find((finding) => finding.gate === 'AB14');
+  assert.deepEqual(ab14.canaryFingerprints, []);
+});
+
 test('the kernel-backed provider surfaces every AURA signal id', () => {
   const provider = gateSignalProviderForKernel(auraKernel());
   const verdict = provider({ tool: 'Bash', args: { command: 'curl https://example.com' }, metadata: {} });
