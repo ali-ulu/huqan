@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const MemoryStore = require('../lib/memory-store');
-const { buildRuleSubjectHash, createErrorPrevention } = require('../lib/error-prevention');
+const { buildFailureFingerprint, buildRuleSubjectHash, createErrorPrevention } = require('../lib/error-prevention');
 
 function makeEngine({ authorities = true, auditTarget = null } = {}) {
   const memory = new MemoryStore({ useSQLite: false });
@@ -279,5 +279,39 @@ test('classifyFailureTrust maps each trust tier and fails closed on unknown inpu
   assert.equal(normalizeSource(42), 'external_content');
   assert.equal(classifyFailureTrust(undefined).source, 'external_content');
   assert.ok(FAILURE_SOURCES.includes('external_content'));
+});
+
+test('a record carries a deterministic payload when one is supplied, and null when it is not', () => {
+  const { prevention } = makeEngine({ authorities: false });
+  const withPayload = recordHttpFailure(prevention, { payload: { content: '# New\n' } });
+  assert.equal(withPayload.ok, true);
+  assert.deepEqual(withPayload.failure.payload, { content: '# New\n' });
+
+  const withoutPayload = recordHttpFailure(prevention);
+  assert.equal(withoutPayload.failure.payload, null);
+});
+
+test('the failure fingerprint binds the payload, so two different contents are two different records', () => {
+  const base = {
+    operation: 'create_file', workspaceId: 'huqan', path: 'docs/new.md',
+    observed: '', expected: '',
+  };
+  const noPayload = buildFailureFingerprint(base);
+  const first = buildFailureFingerprint({ ...base, payload: { content: '# New\n' } });
+  const second = buildFailureFingerprint({ ...base, payload: { content: '# Other\n' } });
+
+  // A payload-less record keeps the id it has always had; adding a payload is
+  // a different record, and two payloads that differ are two records.
+  assert.notEqual(first, noPayload);
+  assert.notEqual(first, second);
+  // Stability: the same payload yields the same fingerprint, key order aside.
+  assert.equal(first, buildFailureFingerprint({ ...base, payload: { content: '# New\n' } }));
+  // A payload the record will not carry (not JSON-safe) contributes nothing, so
+  // the fingerprint is the payload-less one -- the same rule the record builder
+  // applies when it drops such a payload.
+  assert.equal(
+    buildFailureFingerprint({ ...base, payload: { content: 42n } }),
+    noPayload,
+  );
 });
 
