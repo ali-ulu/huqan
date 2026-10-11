@@ -216,6 +216,10 @@
    "context": "Knowledge",
    "evidence": "AURA<->HUQAN loop: labels a request with AURA's social-engineering signals (graph-free knowledge annotation), the R-PLUGINS-K family; its gateSignal seam is read by lib/gate-signal-provider.js"
   },
+  "plugins/laya-risk.js": {
+   "context": "Knowledge",
+   "evidence": "Laya<->HUQAN loop: answers typed local decisions (noul/choice/score) about a candidate action via the laya-mcp sidecar and returns a bounded gate signal (graph-free knowledge annotation), the R-PLUGINS-K family; its gateSignal seam is read by lib/gate-signal-provider.js"
+  },
   "plugins/contradiction-alert.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-PLUGINS-K"
