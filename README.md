@@ -51,6 +51,16 @@ A tool call returns `allow`, `review`, `dry_run_only` or `block`. A memory write
 
 A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
 
+## 1.0.0'da neler var
+
+[v0.13.2 sonrası](https://github.com/ali-ulu/huqan/compare/v0.13.2...main) — tamamı [CHANGELOG](./CHANGELOG.md)'da:
+
+- **`huqan coder` dosya oluşturuyor, `--authorize` ile gerçek kaynak değişikliği indiriyor.** `create_file` ve `sequence` dönüşümleri tek derivasyonda test dosyası ekleme ve çok adımlı düzeltme yapıyor. `--authorize` yalnızca operatörün damgaladığı görev+kök için `SOURCE_CHANGE_REQUIRES_REVIEW` engelini `OPERATOR_AUTHORIZED_REVIEW` ile kaldırıyor; kritik bloklar, paket/CI değişiklikleri ve kirli-repo engeli kararını koruyor. Ayrıntı: [`lib/cli-coder.js`](./lib/cli-coder.js).
+- **MCP fail-closed sıkılaştı.** JSON olmayan `arguments` dizesi artık boş çağrı gibi çalışmıyor; `ARGUMENTS_PARSE_ERROR` ile `block` dönüyor.
+- **AURA köprüsü (opsiyonel, harici).** AURA reposundan içerik-hash'li sinyal paketi çekirdek egress yolunda canary tohumu ekiyor; paket yoksa sinyal de yok, yanlış sinyal hiç yok. Ayrıntı: [`lib/aura-signal-pack.js`](./lib/aura-signal-pack.js).
+- **Self-healer.** Salt-okunur otonom repo taraması (`audit_only`) ve doğrulanmış failure-record'dan somut düzeltme üretimi. Kapsam: [`docs/adr/ADR-007-self-healer-loop.md`](./docs/adr/ADR-007-self-healer-loop.md).
+- **Sessizce düzeltilenler.** `quickstart` artık çalışma dizininde `memory.db` bırakmıyor; `upload:` dosyanın yolunu değil içeriğini öğreniyor; `HUQAN_DB_PATH` artık üç store'u da aynı dizine taşıyor.
+
 ## Connect your agent
 
 **MCP** (Claude, Cursor, any MCP client):
