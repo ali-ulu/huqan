@@ -32,7 +32,9 @@ baseline deviation produces a classified finding, durable quarantine evidence,
 and a critical graduated-autonomy demotion signal. `lib/self-healer/fix-producer.js`
 joins a finding's safety decision with a caller-supplied verified failure record
 to produce one concrete coder transform task; it never applies, and the task
-still clears code-change-gate. Autonomous repo scanning, draft patch/PR
+still clears code-change-gate. Autonomous repo scanning is implemented in SH-2:
+`lib/self-healer/repository-scan.js` walks the repository autonomously (read-only,
+bounded) and `test/self-healer-repository-scan.test.js` proves it. Draft patch/PR
 production, receipt emission beyond bounded receipt summaries, and memory/audit
 integration remain target capabilities unless a later source file and test prove
 otherwise. The AgentV3 seam observes only the current run's declared baseline and
@@ -91,7 +93,9 @@ Self-Healer cannot:
 
 Current runtime implements the audit-only helper portion of this loop and a
 bounded runtime observation seam. The audit helper accepts caller-provided
-checks, normalizes them into validated findings, and returns a report. The
+checks, normalizes them into validated findings, and returns a report; it also
+has its own finding source in the autonomous, read-only repository scan
+(`lib/self-healer/repository-scan.js`). The
 canonical AgentV3 path materializes an immutable-shaped, workspace/agent-scoped
 behavioral baseline and evaluates each step before execution. Tool, goal,
 workspace, identity, connector, target, egress, delegation, and repeated
@@ -197,16 +201,16 @@ The following namespaces are distinct and must not be treated as aliases:
 - Trust Receipt
 - Security hardening reports
 - GitHub PR workflow
-- future Repo Scanner
+- Repo Scanner (`lib/self-healer/repository-scan.js`, SH-2)
 
 ## Safety Model
 
 Self-Healer runs in constrained modes:
 
 - `audit_only` (IMPLEMENTED)
-  - accept caller-provided checks
+  - walks the repository autonomously (read-only, bounded)
+  - still accepts caller-provided checks for the hand-fed path
   - produce validated findings and an audit report
-  - does not read or scan repository contents autonomously
   - no write
 
 - `behavioral_observation` (IMPLEMENTED, bounded)

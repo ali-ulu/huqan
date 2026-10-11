@@ -36,6 +36,10 @@ Amaç:
 
 ### SH6 — Read-only repo scanner dry run
 
+Durum: IMPLEMENTED (kanonik SH-2 - Audit-Only Report Helper). `lib/self-healer/repository-scan.js`
+read-only tarar ve `scan-repository` plugin aksiyonu (`plugins/self-healer-audit.js`)
+tarafından çalıştırılır.
+
 Amaç:
 
 - yalnız read-only tarama
