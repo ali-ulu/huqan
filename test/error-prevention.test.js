@@ -306,5 +306,12 @@ test('the failure fingerprint binds the payload, so two different contents are t
   assert.notEqual(first, second);
   // Stability: the same payload yields the same fingerprint, key order aside.
   assert.equal(first, buildFailureFingerprint({ ...base, payload: { content: '# New\n' } }));
+  // A payload the record will not carry (not JSON-safe) contributes nothing, so
+  // the fingerprint is the payload-less one -- the same rule the record builder
+  // applies when it drops such a payload.
+  assert.equal(
+    buildFailureFingerprint({ ...base, payload: { content: 42n } }),
+    noPayload,
+  );
 });
 
