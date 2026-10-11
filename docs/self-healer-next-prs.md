@@ -16,7 +16,7 @@ Bu belge, contract pack sonrası implementasyonun küçük ve güvenli PR'lara n
 | Historical label in this file | Canonical phase | Current status |
 | --- | --- | --- |
 | SH5 - Minimal `scan_run` / `finding` schema helpers | SH-1 - Finding Schema | IMPLEMENTED |
-| SH6 - Read-only repo scanner dry run | SH-2 - Audit-Only Report Helper | PARTIAL |
+| SH6 - Read-only repo scanner dry run | SH-2 - Audit-Only Report Helper | IMPLEMENTED |
 | SH7 - Memory lookup read-only integration | SH-7 - Memory / Audit Integration | PLANNED |
 | SH8 - Fix planner dry-run only | SH-4 - Fix Proposal Generator | PLANNED |
 | SH9 - Regression test planner | SH-4 - Fix Proposal Generator | PLANNED |
