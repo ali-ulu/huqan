@@ -58,3 +58,6 @@ benchmarks/graph-save-current.json
 benchmarks/current-results.json
 benchmarks/observability-load-current.json
 benchmarks/observability-soak-current.json
+
+# Archify diagram working artifacts
+.archify/
