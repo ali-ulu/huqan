@@ -2,16 +2,16 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 65,
-    "sites": 145,
+    "files": 66,
+    "sites": 146,
     "byCapability": {
-      "process": 20,
+      "process": 21,
       "egress": 4,
       "fs_write": 121
     },
     "byRole": {
       "enforcement": 35,
-      "adapter_read": 6,
+      "adapter_read": 7,
       "operator_tool": 47,
       "persistence": 38,
       "evidence": 14,
@@ -1385,6 +1385,21 @@
           "line": 132,
           "capability": "egress",
           "call": "https.request"
+        }
+      ]
+    },
+    {
+      "file": "plugins/laya-risk.js",
+      "role": "adapter_read",
+      "why": "spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS)",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 108,
+          "capability": "process",
+          "call": "spawnSync"
         }
       ]
     },

@@ -264,6 +264,12 @@ const CLASSIFIED = Object.freeze({
     why: 'regenerates the deterministic AURA signal pack by running the AURA engine over a temp copy of its case files and writing the artifact next to it; it runs from an operator command (node lib/aura-signal-pack.js), the AURA source tree is never modified, and no agent action reaches the write',
   }),
 
+  // ── the Laya bridge ────────────────────────────────────────────────────
+  'plugins/laya-risk.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS)',
+  }),
+
   // ── outside the boundary, listed ───────────────────────────────────────
   'rustGraph.js': Object.freeze({
     role: 'unguarded',

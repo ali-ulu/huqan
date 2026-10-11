@@ -1,0 +1,9 @@
+{
+  "packVersion": "huqan.laya-risk-pack.v1",
+  "engineAvailable": true,
+  "questions": [
+    { "id": "scope", "kind": "noul", "ask": "does this action match the workspace's declared scope" },
+    { "id": "risk_class", "kind": "choice", "ask": "which risk class does this payload fall in" },
+    { "id": "severity", "kind": "score", "ask": "how severe is this payload on a 0 to 1 scale" }
+  ]
+}
