@@ -419,3 +419,12 @@ but the loaded memory stays unchanged, and `projectMemory.state` is
 Parent-bound saved chains are reconstructed from their closed ASTs and source-bound training inputs. Every stage must belong to a verified parent method or parent chain. Task identity, ancestry, independent native success and all generated output hashes remain mandatory before the proposal is admitted. Replaying the saved chain does not repeat its original candidate search.
 
 `test/coder-composition-learning-gain.test.js` declares three unseen same-chain transfer tasks before source training, compares identical requirements and six generated file bodies under the same search cap, and counts source replay and additional chain training. Native acceptance remains mandatory in both arms. Search savings and native verification costs are separate measurements; this experiment cannot establish unrestricted software development or general learning gain.
+
+
+### Accumulator-dependent decisions
+
+`compute.family: "array-stateful-fold"` searches a closed 48-program vocabulary from training examples only. Each program chooses first-item or empty-result initialization, compares the current item with the accumulator using `>`, `<`, `===`, or `!==`, and conditionally retains the accumulator, selects the item, or assigns an integer from 0 through 3. The mandatory empty-input training example supplies the empty result. This is a bounded conditional loop rather than a built-in maximum/minimum operator.
+
+Runtime inputs remain dense arrays of at most 128 signed-zero-free integers within plus or minus 1,000,000. Validation snapshots immutable programs; later caller mutation cannot change evaluation. Acceptance answers do not select a program. Successful native HTTP verification can persist the method through the existing sealed journal and output-hash gates. New-process transfer still requires independent target acceptance; wrong acceptance rolls back every generated file without changing the source memory.
+
+The current tests establish maximum/minimum synthesis and same-method transfer. They do not establish general learning gains or arbitrary algorithm synthesis.

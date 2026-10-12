@@ -349,3 +349,6 @@ The same Trust conditional-program port also inspects and searches the
 training input values; excess vocabulary refuses explicitly. AgentAction keeps
 family-specific warm selection and the existing exact sealed-source program
 set and output-hash checks.
+
+
+The accumulator-dependent program validator and search in `lib/experience/array-stateful-fold-program.js` belong to Trust and expose a file-level port consumed by AgentAction project selection. This port defines the closed method vocabulary and validates immutable candidate programs; project application authority remains with the existing AgentAction permission and verification flow.

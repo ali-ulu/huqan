@@ -394,6 +394,7 @@
       "lib/experience/array-fold-program.js": "Application",
       "lib/experience/array-guarded-fold-program.js": "Application",
       "lib/experience/array-map-program.js": "Application",
+      "lib/experience/array-stateful-fold-program.js": "Application",
       "lib/experience/bounded-reask.js": "Application",
       "lib/experience/budgeted-journal.js": "Application",
       "lib/experience/canary-admission.js": "Application",
@@ -2564,7 +2565,8 @@
         "lib/experience/array-filter-program.js",
         "lib/experience/array-fold-program.js",
         "lib/experience/array-guarded-fold-program.js",
-        "lib/experience/array-map-program.js"
+        "lib/experience/array-map-program.js",
+        "lib/experience/array-stateful-fold-program.js"
       ],
       "lib/coder/project-verification.js": [
         "lib/coder/project-initialization-permission.js",

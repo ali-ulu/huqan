@@ -2760,6 +2760,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/experience/array-stateful-fold-program.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
   "lib/experience/array-fold-program.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
@@ -7310,6 +7314,13 @@
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
   },
   "lib/experience/array-guarded-fold-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/array-stateful-fold-program.js": {
    "owner": "Trust",
    "consumers": [
     "AgentAction"
