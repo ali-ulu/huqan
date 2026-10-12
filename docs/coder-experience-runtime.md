@@ -78,8 +78,8 @@ their established ownership is preserved.
 
 ## Publication evaluation
 
-The publish workflow runs `scripts/check-release-evaluation.js` before publication.
-It requires these repository variables:
+`scripts/check-release-evaluation.js` is a manual tool; the publish workflow
+does not run it and publication does not wait for it. It reads these variables:
 
 - `HUQAN_RELEASE_EVALUATION_RECORD`: a JSON evaluation record plus `signature`.
 - `HUQAN_RELEASE_EVALUATOR`: the pinned independent evaluator identity.

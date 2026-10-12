@@ -66,10 +66,12 @@ test('implementation identities include committers and Co-Authored-By trailers',
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test('the real publish workflow enforces the evaluation before npm publish', () => {
+// The owner removed this gate from publication (it arrived inside an
+// unrelated agent PR, #3364). The checker stays as a manual tool; this test
+// keeps an agent from quietly wiring it back into publish.yml.
+test('the publish workflow does not block on the release evaluation', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '../.github/workflows/publish.yml'), 'utf8');
-  const gate = workflow.indexOf('run: node scripts/check-release-evaluation.js');
-  assert.ok(gate > 0);
-  assert.ok(gate < workflow.indexOf('          npm publish --access public'));
+  assert.equal(workflow.includes('check-release-evaluation'), false);
+  assert.equal(workflow.includes('HUQAN_RELEASE_EVALUATION_RECORD'), false);
   assert.equal(main({}), 1);
 });
