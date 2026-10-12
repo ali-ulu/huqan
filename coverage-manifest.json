@@ -618,47 +618,47 @@
       ],
       "sites": [
         {
-          "line": 100,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
           "line": 101,
           "capability": "fs_write",
-          "call": "fs.appendFileSync"
-        },
-        {
-          "line": 106,
-          "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 122,
+          "line": 102,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         },
         {
-          "line": 196,
+          "line": 107,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 199,
+          "line": 123,
           "capability": "fs_write",
-          "call": "fs.writeFileSync"
+          "call": "fs.appendFileSync"
         },
         {
-          "line": 211,
+          "line": 197,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 218,
+          "line": 200,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 250,
+          "line": 212,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 219,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 251,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
