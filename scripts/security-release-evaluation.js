@@ -55,7 +55,11 @@ function validateReleaseSecuritySuite(rootDir = path.resolve(__dirname, '..'), g
   return { errors, tests: selectedTests(groups) };
 }
 
-function main() {
+// Only reporter flags pass through: a caller may choose how results are
+// printed (scripts/sign-release-evaluation.js pins TAP to count them), never
+// which tests run.
+function main(argv = process.argv.slice(2)) {
+  const reporterArgs = argv.filter(arg => /^--test-reporter=/.test(arg));
   const rootDir = path.resolve(__dirname, '..');
   const validation = validateReleaseSecuritySuite(rootDir);
   if (validation.errors.length > 0) {
@@ -71,6 +75,7 @@ function main() {
     [
       path.join(rootDir, 'scripts/run-tests.js'),
       '--test-concurrency=1',
+      ...reporterArgs,
       ...validation.tests,
     ],
     {

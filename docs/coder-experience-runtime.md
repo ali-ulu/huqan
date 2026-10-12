@@ -79,7 +79,7 @@ their established ownership is preserved.
 ## Publication evaluation
 
 The publish workflow runs `scripts/check-release-evaluation.js` before publication.
-It requires these repository variables:
+It requires these variables of the `npm-publish` environment:
 
 - `HUQAN_RELEASE_EVALUATION_RECORD`: a JSON evaluation record plus `signature`.
 - `HUQAN_RELEASE_EVALUATOR`: the pinned independent evaluator identity.
@@ -94,5 +94,20 @@ run the evaluation independently and bind those inputs, counts, findings and
 expiry. The gate verifies the signature, pinned identity, version, source,
 digests, expiry, positive pass count and absence of failures or critical findings.
 The evaluator must differ from implementation authors since the prior release.
-Missing evaluation configuration blocks publication. This change does not set
-repository variables or publish a release.
+Missing evaluation configuration blocks publication.
+
+`npm run release:sign-evaluation` (`scripts/sign-release-evaluation.js`) is the
+evaluator's side of this ceremony. At a clean checkout of the release tag:
+
+```bash
+node scripts/sign-release-evaluation.js keygen ~/huqan-evaluator   # once
+node scripts/sign-release-evaluation.js sign --evaluator <email> \
+  --key ~/huqan-evaluator/evaluator-private.pem [--finding <text>]...
+```
+
+`sign` runs the release security suite itself, records the counts it observed,
+signs the record and checks it with the publication gate's own
+`checkReleaseEvaluation` before writing anything, so a record the workflow
+would refuse is never handed over. It writes the three variables as files and
+prints the `gh variable set ... --env npm-publish` commands for the
+repository owner.
