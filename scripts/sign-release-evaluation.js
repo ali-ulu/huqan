@@ -130,10 +130,11 @@ function sign(args, root = ROOT) {
     acceptedRisk: values['accepted-risk'] ?? 'none', expiresAt: new Date(Date.now() + days * DAY_MS).toISOString() });
   const publicKeyPem = crypto.createPublicKey(fs.readFileSync(values.key, 'utf8')).export({ type: 'spki', format: 'pem' });
   // Outside the checkout by default: output inside it would make the next run's clean-tree check fail.
-  const out = values.out ?? path.join(os.tmpdir(), `huqan-release-evaluation-${inputs.releaseSha.slice(0, 8)}`);
+  // A fresh private directory, so another local user cannot pre-create or swap the files handed to `gh`.
+  const out = values.out ?? fs.mkdtempSync(path.join(os.tmpdir(), `huqan-release-evaluation-${inputs.releaseSha.slice(0, 8)}-`));
   fs.mkdirSync(out, { recursive: true });
   for (const [name, value] of Object.entries(publicationVariables(record, publicKeyPem))) {
-    fs.writeFileSync(path.join(out, name), value);
+    fs.writeFileSync(path.join(out, name), value, { mode: 0o600 });
     console.log(`gh variable set ${name} --env npm-publish -R ali-ulu/huqan < "${path.join(out, name)}"`);
   }
   console.log(`signed ${record.recordId} for ${inputs.releaseSha}, expires ${record.expiresAt}`);
