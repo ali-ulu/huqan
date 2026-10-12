@@ -428,3 +428,11 @@ Parent-bound saved chains are reconstructed from their closed ASTs and source-bo
 Runtime inputs remain dense arrays of at most 128 signed-zero-free integers within plus or minus 1,000,000. Validation snapshots immutable programs; later caller mutation cannot change evaluation. Acceptance answers do not select a program. Successful native HTTP verification can persist the method through the existing sealed journal and output-hash gates. New-process transfer still requires independent target acceptance; wrong acceptance rolls back every generated file without changing the source memory.
 
 The current tests establish maximum/minimum synthesis and same-method transfer. They do not establish general learning gains or arbitrary algorithm synthesis.
+
+### Scalar method composition
+
+A computed route can declare `composeScalar: { sources: ["/max", "/min"], examples: [...] }` and separate `acceptanceExamples`. Two through four scalar source routes supply learned programs. Training selects a unique shortest expression with at most two `+`, `-`, or `*` operations. Commutative operand order is canonicalized; distinct matching expressions are refused. Acceptance answers never choose the expression. Inputs retain the existing array bounds; scalar outputs and every intermediate must be signed-zero-free safe integers, so a difference may exceed the input bound.
+
+The generated application tests the composition over HTTP. Existing sealed method records can persist it, bind source programs through the canonical AST, and reuse it without target expression enumeration. Parent-bound replay rebuilds provisional local training provenance from sealed requirements and admits it only after task binding, native verification and regenerated output hashes agree. Ancestor training inputs remain excluded from target holdouts. New primitive synthesis after a memory miss follows the declared fallback; its local provenance is distinguished from ancestor provenance.
+
+The scalar composition tests cover source training, native HTTP, separate-process persistence, parent-bound new composition replay and failed-acceptance rollback. Equal-budget learning-gain measurement remains uncompleted; these tests do not establish general software synthesis.
