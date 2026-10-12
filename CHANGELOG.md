@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## v1.0.0
+
+Released 2026-10-12. The first major release. It marks the point where the MCP
+tool output schemas are enforced rather than merely declared.
 
 ### Added
 - **`huqan coder` can create files and run a fix as one sequence (#3670).**
@@ -56,6 +59,31 @@
   reason `arguments_parse_error`, kept distinct from the schema's
   `INVALID_INPUT` / `malformed_input_blocked`. An object value, a missing value
   and a JSON string that parses to a non-object are unchanged.
+- **MCP output schemas are now the contract clients can rely on.** Four tools had
+  drifted from what they actually return, so the contract described shapes the
+  server never produced. `huqan.search` no longer promises a `total` on the
+  per-tool envelope; `huqan.ask`, `huqan.plan` and `huqan.approve` now accept the
+  payloads they really emit (an unknown-path answer for `ask`, a refusal for
+  `plan`, and the `error` branch for `approve`). Any client that pinned the old
+  schemas must re-read them.
+- **The output-conformance gate enforces every advertised tool.** The
+  declared-only allowlist is empty; a tool whose result does not match its
+  declared schema is withheld and reported as `OUTPUT_SCHEMA_VIOLATION` instead of
+  being passed through. This is why the release is a major: it narrows what the
+  server accepts, which `scripts/api-semver-gate.js` classifies as breaking.
+- The `api-contract` comparison now treats a committed, strictly higher `X.0.0`
+  major as the acknowledged home for a breaking diff, matching the rule the
+  publish-time semver gate already applied (#3590).
+- **One source per workflow input field (#3593).** Where an HTTP workflow and
+  its MCP tool both declare a field, the HTTP request schema is now canonical
+  and the MCP input schema matches it: `question`, `statement`, `goal` and
+  `claim`/`query` bounds are identical on both surfaces, the web-research
+  `maxSnippet`/`summarize` fields are declared on the MCP tool, and HTTP
+  `verify` names `statement` canonically (`claim` stays an accepted alias).
+  `huqan.verify`'s MCP `workspaceId` stays 1..256 against HTTP 1..128, because
+  narrowing it after main reached 1.0.0 would itself be a breaking change. The
+  remaining differences are surface-specific and pinned with their reasons in
+  `test/agent-exit-reasons-and-schema-divergence.test.js`.
 
 ### Fixed
 - **`learn:` reads an English `is`/`are` copula as a type statement
@@ -104,39 +132,6 @@
   tightened: it no longer treats "an operator named *some* store" as "this store
   was named", so a working-directory `memory.db` is refused even when a variable
   named a store somewhere else.
-
-## v1.0.0
-
-Released 2026-10-07. The first major release. It marks the point where the MCP
-tool output schemas are enforced rather than merely declared, and it is the only
-place a breaking API change is expected.
-
-### Changed (breaking)
-- **MCP output schemas are now the contract clients can rely on.** Four tools had
-  drifted from what they actually return, so the contract described shapes the
-  server never produced. `huqan.search` no longer promises a `total` on the
-  per-tool envelope; `huqan.ask`, `huqan.plan` and `huqan.approve` now accept the
-  payloads they really emit (an unknown-path answer for `ask`, a refusal for
-  `plan`, and the `error` branch for `approve`). Any client that pinned the old
-  schemas must re-read them.
-- **The output-conformance gate enforces every advertised tool.** The
-  declared-only allowlist is empty; a tool whose result does not match its
-  declared schema is withheld and reported as `OUTPUT_SCHEMA_VIOLATION` instead of
-  being passed through. This is why the release is a major: it narrows what the
-  server accepts, which `scripts/api-semver-gate.js` classifies as breaking.
-- The `api-contract` comparison now treats a committed, strictly higher `X.0.0`
-  major as the acknowledged home for a breaking diff, matching the rule the
-  publish-time semver gate already applied (#3590).
-- **One source per workflow input field (#3593).** Where an HTTP workflow and
-  its MCP tool both declare a field, the HTTP request schema is now canonical
-  and the MCP input schema matches it: `question`, `statement`, `goal` and
-  `claim`/`query` bounds are identical on both surfaces, the web-research
-  `maxSnippet`/`summarize` fields are declared on the MCP tool, and HTTP
-  `verify` names `statement` canonically (`claim` stays an accepted alias).
-  `huqan.verify`'s MCP `workspaceId` stays 1..256 against HTTP 1..128, because
-  narrowing it after main reached 1.0.0 would itself be a breaking change. The
-  remaining differences are surface-specific and pinned with their reasons in
-  `test/agent-exit-reasons-and-schema-divergence.test.js`.
 
 ## v0.13.2
 
