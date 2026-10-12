@@ -137,11 +137,15 @@
       "lib/authority/authority-pin.js": "Core",
       "lib/authority/authority-service.js": "Core",
       "lib/authority/bundle-manifest.js": "Core",
+      "lib/authority/consume-key.js": "Adapters",
+      "lib/authority/consumption-envelope.js": "Core",
       "lib/authority/decision-envelope.js": "Core",
+      "lib/authority/decision-guard.js": "Core",
       "lib/authority/http-server.js": "Adapters",
       "lib/authority/keys.js": "Core",
       "lib/authority/ledger-store.js": "Adapters",
       "lib/authority/operator-check.js": "Core",
+      "lib/authority/registration-payload.js": "Core",
       "lib/authority/sealed-request.js": "Core",
       "lib/authority/service-main.js": "UI",
       "lib/authority/state-store.js": "Adapters",
@@ -198,6 +202,7 @@
       "lib/cli-backup-commands.js": "Core",
       "lib/cli-capabilities.js": "Core",
       "lib/cli-capability-commands.js": "Core",
+      "lib/cli-coder-project-memory.js": "Core",
       "lib/cli-coder-propose.js": "Core",
       "lib/cli-coder-verify.js": "Core",
       "lib/cli-coder.js": "Core",
@@ -244,18 +249,26 @@
       "lib/code-change-input.js": "Core",
       "lib/code-change-path-classification.js": "Core",
       "lib/coder/apply-derivation.js": "Application",
+      "lib/coder/arithmetic-synthesis.js": "Application",
       "lib/coder/cli-composition.js": "Application",
+      "lib/coder/computed-project-templates.js": "Application",
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/experience-reporter.js": "Application",
+      "lib/coder/expression-search.js": "Application",
       "lib/coder/fix-loop.js": "Application",
       "lib/coder/journal-store.js": "Application",
       "lib/coder/learned-candidate.js": "Application",
       "lib/coder/observed-verification.js": "Application",
+      "lib/coder/project-compute.js": "Application",
       "lib/coder/project-initialization-permission.js": "Application",
       "lib/coder/project-initialization.js": "Application",
+      "lib/coder/project-method-memory.js": "Application",
       "lib/coder/project-producer.js": "Application",
+      "lib/coder/project-programs.js": "Application",
+      "lib/coder/project-spec-data.js": "Application",
       "lib/coder/project-templates.js": "Application",
       "lib/coder/project-verification.js": "Application",
+      "lib/coder/synthesis-memory.js": "Application",
       "lib/coder/test-execution.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
@@ -376,6 +389,11 @@
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
       "lib/experience/adapter-scope.js": "Application",
+      "lib/experience/arithmetic-function.js": "Application",
+      "lib/experience/array-filter-program.js": "Application",
+      "lib/experience/array-fold-program.js": "Application",
+      "lib/experience/array-guarded-fold-program.js": "Application",
+      "lib/experience/array-map-program.js": "Application",
       "lib/experience/bounded-reask.js": "Application",
       "lib/experience/budgeted-journal.js": "Application",
       "lib/experience/canary-admission.js": "Application",
@@ -389,6 +407,7 @@
       "lib/experience/compiler.js": "Application",
       "lib/experience/contract.js": "Application",
       "lib/experience/effect-boundary.js": "Application",
+      "lib/experience/expression-adaptation.js": "Application",
       "lib/experience/journal-connection.js": "Application",
       "lib/experience/journal.js": "Application",
       "lib/experience/learn-read-back.js": "Application",
@@ -1503,7 +1522,13 @@
       ],
       "bin/huqan-authority.js": [
         "lib/authority/authority-client.js",
-        "lib/authority/authority-mode.js"
+        "lib/authority/authority-mode.js",
+        "lib/authority/consume-key.js",
+        "lib/authority/decision-guard.js",
+        "lib/authority/registration-payload.js",
+        "lib/mcp-approval-expiry.js",
+        "lib/mcp-approval-views.js",
+        "mcpServer.js"
       ],
       "bin/huqan-causal-lab.js": [
         "causalSimulator.js",
@@ -2017,13 +2042,25 @@
       "lib/authority/authority-service.js": [
         "lib/authority/approval-registration.js",
         "lib/authority/approval-view.js",
+        "lib/authority/consumption-envelope.js",
         "lib/authority/decision-envelope.js",
         "lib/authority/operator-check.js",
         "lib/authority/sealed-request.js"
       ],
+      "lib/authority/consumption-envelope.js": [
+        "lib/authority/decision-envelope.js",
+        "lib/authority/keys.js",
+        "lib/hash-chain.js"
+      ],
       "lib/authority/decision-envelope.js": [
         "lib/authority/keys.js",
         "lib/hash-chain.js"
+      ],
+      "lib/authority/decision-guard.js": [
+        "lib/authority/consumption-envelope.js",
+        "lib/authority/decision-envelope.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp-tool-names.js"
       ],
       "lib/authority/http-server.js": [
         "lib/authority/decision-envelope.js"
@@ -2033,6 +2070,12 @@
       ],
       "lib/authority/operator-check.js": [
         "lib/authority/totp.js"
+      ],
+      "lib/authority/registration-payload.js": [
+        "lib/json-object.js",
+        "lib/mcp-approval-expiry.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp-tool-names.js"
       ],
       "lib/authority/sealed-request.js": [
         "lib/authority/keys.js",
@@ -2236,15 +2279,22 @@
       "lib/cli-capability-commands.js": [
         "lib/cli-helpers.js"
       ],
+      "lib/cli-coder-project-memory.js": [
+        "lib/cli-helpers.js"
+      ],
       "lib/cli-coder-propose.js": [
+        "lib/cli-workflow-envelope.js",
         "lib/task-producer.js"
       ],
       "lib/cli-coder-verify.js": [
+        "lib/cli-workflow-envelope.js",
         "lib/coder/verify-derivation.js"
       ],
       "lib/cli-coder.js": [
+        "lib/cli-coder-project-memory.js",
         "lib/cli-coder-propose.js",
         "lib/cli-coder-verify.js",
+        "lib/cli-helpers.js",
         "lib/coder/apply-derivation.js",
         "lib/coder/derivation-record.js",
         "lib/coder/journal-store.js",
@@ -2440,8 +2490,17 @@
         "lib/experience/contract.js",
         "lib/path-safety.js"
       ],
+      "lib/coder/arithmetic-synthesis.js": [
+        "lib/coder/expression-search.js",
+        "lib/coder/fix-loop.js",
+        "lib/coder/learned-candidate.js",
+        "lib/coder/synthesis-memory.js",
+        "lib/experience/array-fold-program.js",
+        "lib/experience/expression-adaptation.js"
+      ],
       "lib/coder/cli-composition.js": [
         "lib/cli-command-handlers.js",
+        "lib/coder/arithmetic-synthesis.js",
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
         "lib/coder/project-initialization.js",
@@ -2468,8 +2527,16 @@
         "lib/sqlite-durability.js"
       ],
       "lib/coder/learned-candidate.js": [
+        "lib/experience/compiler.js",
+        "lib/experience/expression-adaptation.js",
         "lib/experience/learning-intake.js",
-        "lib/path-safety.js"
+        "lib/path-safety.js",
+        "lib/task-identifier-lexer.js"
+      ],
+      "lib/coder/project-compute.js": [
+        "lib/coder/computed-project-templates.js",
+        "lib/coder/project-programs.js",
+        "lib/coder/project-spec-data.js"
       ],
       "lib/coder/project-initialization-permission.js": [
         "lib/coder/project-producer.js",
@@ -2477,14 +2544,37 @@
       ],
       "lib/coder/project-initialization.js": [
         "lib/coder/fix-loop.js",
-        "lib/coder/project-initialization-permission.js"
+        "lib/coder/project-initialization-permission.js",
+        "lib/coder/project-method-memory.js"
+      ],
+      "lib/coder/project-method-memory.js": [
+        "lib/coder/project-initialization-permission.js",
+        "lib/coder/project-producer.js",
+        "lib/coder/project-programs.js",
+        "lib/coder/project-spec-data.js",
+        "lib/experience/learning-intake.js"
       ],
       "lib/coder/project-producer.js": [
+        "lib/coder/project-compute.js",
+        "lib/coder/project-spec-data.js",
         "lib/coder/project-templates.js"
+      ],
+      "lib/coder/project-programs.js": [
+        "lib/coder/project-spec-data.js",
+        "lib/experience/array-filter-program.js",
+        "lib/experience/array-fold-program.js",
+        "lib/experience/array-guarded-fold-program.js",
+        "lib/experience/array-map-program.js"
       ],
       "lib/coder/project-verification.js": [
         "lib/coder/project-initialization-permission.js",
         "lib/coder/test-execution.js"
+      ],
+      "lib/coder/synthesis-memory.js": [
+        "lib/coder/fix-loop.js",
+        "lib/coder/learned-candidate.js",
+        "lib/experience/array-fold-program.js",
+        "lib/experience/expression-adaptation.js"
       ],
       "lib/coder/test-execution.js": [
         "lib/command-exec-gate.js"
@@ -2937,6 +3027,18 @@
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/experience/array-filter-program.js": [
+        "lib/experience/array-map-program.js"
+      ],
+      "lib/experience/array-fold-program.js": [
+        "lib/experience/arithmetic-function.js"
+      ],
+      "lib/experience/array-guarded-fold-program.js": [
+        "lib/experience/array-fold-program.js"
+      ],
+      "lib/experience/array-map-program.js": [
+        "lib/experience/array-fold-program.js"
+      ],
       "lib/experience/bounded-reask.js": [
         "lib/experience/repair.js"
       ],
@@ -2965,17 +3067,26 @@
         "lib/experience/coder-canary-runtime.js",
         "lib/experience/coder-trust-replay.js",
         "lib/experience/compiler.js",
+        "lib/experience/expression-adaptation.js",
         "lib/experience/learning-intake.js",
         "lib/experience/personal-execution-model.js",
         "lib/experience/procedure-registry.js",
-        "lib/path-safety.js"
+        "lib/path-safety.js",
+        "lib/task-identifier-lexer.js"
       ],
       "lib/experience/coder-trust-replay.js": [
         "lib/experience/learning-intake.js"
       ],
+      "lib/experience/compiler.js": [
+        "lib/task-identifier-lexer.js"
+      ],
       "lib/experience/effect-boundary.js": [
         "lib/experience/reconciliation.js",
         "lib/experience/runtime-seam.js"
+      ],
+      "lib/experience/expression-adaptation.js": [
+        "lib/experience/arithmetic-function.js",
+        "lib/experience/array-fold-program.js"
       ],
       "lib/experience/journal-connection.js": [
         "lib/memory-store-utils.js",
@@ -3801,6 +3912,7 @@
         "lib/workbench/ingest-approval-audit-writer.js"
       ],
       "lib/http/ingest-approval-runtime.js": [
+        "lib/authority/authority-mode.js",
         "lib/http-human-oversight-adapter.js",
         "lib/http/ingest-approval-audit-writer.js",
         "lib/ingest.js",
@@ -4364,6 +4476,8 @@
       "lib/mcp-approval-decision-handler.js": [
         "lib/approval-execution-evidence.js",
         "lib/approval-receipts.js",
+        "lib/authority/authority-mode.js",
+        "lib/authority/decision-guard.js",
         "lib/json-object.js",
         "lib/mcp-agent-approval-execution.js",
         "lib/mcp-agent-repair-execution.js",
@@ -5167,6 +5281,7 @@
         "lib/pr-guardian/snapshot.js"
       ],
       "lib/pr-guardian/review-service.js": [
+        "lib/authority/authority-mode.js",
         "lib/mcp-approval-views.js",
         "lib/pr-guardian/policy.js",
         "lib/pr-guardian/review-service-execute.js",

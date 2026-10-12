@@ -62,7 +62,7 @@ method learning and transfer, not evidence of general learning gain.
 `node_computed_json_api` extends the local project path with POST computations
 inferred from bounded array input/output examples. It emits six exact files:
 `package.json`, `routes.json`, `src/server.js`, `src/logic.js`,
-`test/api.test.js`, and `README.md`. The existing five-file GET recipe remains
+the generated `test/` directory containing `api.test.js`, and `README.md`. The existing five-file GET recipe remains
 available. No model, dependency, code string, or caller-supplied expression is
 accepted by this recipe.
 
