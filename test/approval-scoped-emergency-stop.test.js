@@ -48,9 +48,29 @@ test('an approval-scoped stop blocks the next step of that approval only', (t) =
   assert.equal(report.status, 'blocked');
   assert.equal(report.result.error.code, 'AGENT_EMERGENCY_STOPPED');
   assert.equal(report.result.meta.emergencyStop.approvalId, 'a1');
+  assert.equal(report.result.meta.emergencyStop.target, approvalStopAgentId('a1'));
 
   assert.throws(() => stepThrough(ledger, { approvalId: 'a2' }), /passed_stop_check/);
   assert.throws(() => stepThrough(ledger, {}), /passed_stop_check/);
+});
+
+test('a stop on the run agent records that agent as the target', (t) => {
+  const ledger = ledgerIn(t);
+  ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'agent-v3', reason: 'operator_stopped_agent', actor: 'operator:test' });
+
+  const report = stepThrough(ledger, { approvalId: 'a1' });
+  assert.equal(report.result.meta.emergencyStop.scope, 'agent');
+  assert.equal(report.result.meta.emergencyStop.target, 'agent-v3');
+  assert.equal(report.result.meta.emergencyStop.approvalId, undefined);
+});
+
+test('a workspace stop records its scope and no agent target', (t) => {
+  const ledger = ledgerIn(t);
+  ledger.stop({ scope: 'workspace', workspaceId: 'w', reason: 'operator_stopped_workspace', actor: 'operator:test' });
+
+  const report = stepThrough(ledger, { approvalId: 'a1' });
+  assert.equal(report.result.meta.emergencyStop.scope, 'workspace');
+  assert.equal(report.result.meta.emergencyStop.target, null);
 });
 
 test('approvalStopAgentId names the stop target an operator passes to huqan.emergency_stop', () => {
@@ -204,7 +224,7 @@ test('the cancellation record names a workspace-wide stop without inventing an a
         terminationReason: 'emergency_stop',
         steps: [
           { id: 'context', status: 'done', result: { ok: true } },
-          { id: 'verify', status: 'blocked', result: { ok: false, error: { code: 'AGENT_EMERGENCY_STOPPED' }, meta: { emergencyStop: { scope: 'workspace' } } } },
+          { id: 'verify', status: 'blocked', result: { ok: false, error: { code: 'AGENT_EMERGENCY_STOPPED' }, meta: { emergencyStop: { scope: 'workspace', target: null } } } },
         ],
       },
     },
@@ -212,6 +232,17 @@ test('the cancellation record names a workspace-wide stop without inventing an a
   assert.equal(workspaceStop.cancelled, true);
   assert.equal(workspaceStop.receipt.cancellation.stopScope, 'workspace');
   assert.equal(workspaceStop.receipt.cancellation.stopTarget, null);
+
+  const agentStop = buildAgentExecutionEvidence({
+    approvalId: 'a1',
+    workspaceId: 'w',
+    args: { goal: GOAL },
+    result: { ok: false, data: { terminationReason: 'emergency_stop', steps: [
+      { id: 'verify', status: 'blocked', result: { ok: false, error: { code: 'AGENT_EMERGENCY_STOPPED' }, meta: { emergencyStop: { scope: 'agent', target: 'agent-v3' } } } },
+    ] } },
+  });
+  assert.equal(agentStop.receipt.cancellation.stopScope, 'agent');
+  assert.equal(agentStop.receipt.cancellation.stopTarget, 'agent-v3');
 
   const noSteps = buildAgentExecutionEvidence({
     approvalId: 'a1',
