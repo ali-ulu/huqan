@@ -105,6 +105,30 @@ The workflow's own tag/version/default-branch checks remain mandatory even when
 the environment is configured. They are an independent release authority, not a
 restatement of the credential.
 
+## Independent release evaluation (#2505)
+
+Before `npm publish`, the workflow runs `scripts/check-release-evaluation.js`.
+It refuses to publish without a record that an evaluator signed for exactly
+this release commit. The evaluator must not be anyone who authored or
+co-authored a commit since the previous release. Without the record the run
+stops with `FAIL release evaluation: record_malformed`, which is what happened
+to `v1.0.1`.
+
+For every release:
+
+1. The evaluator checks out the release tag, runs `npm ci`, then
+   `node scripts/sign-release-evaluation.js sign --evaluator <email> --key <private.pem>`.
+   The first time, they run `keygen <dir>` to create the key. The tool runs the
+   release security suite itself and only writes a record the gate would accept.
+   It prints three `gh variable set ... --env npm-publish` commands.
+2. A repository administrator runs those commands. They set the
+   `npm-publish` environment variables `HUQAN_RELEASE_EVALUATION_RECORD`,
+   `HUQAN_RELEASE_EVALUATOR` and `HUQAN_RELEASE_EVALUATOR_PUBLIC_KEY`.
+3. Re-run the tag's Publish workflow.
+
+The record is bound to the commit and expires after 7 days by default. A new
+tag needs a new record. The private key never leaves the evaluator.
+
 ## npm trusted publisher (one-time, on npmjs.com)
 
 The workflow authenticates over OIDC and stores nothing, but that only works
