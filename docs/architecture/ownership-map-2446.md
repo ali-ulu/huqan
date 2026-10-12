@@ -326,3 +326,26 @@ re-derivation verification, even for direct calls to `applyDerivation`; caller
 verifiers and injected file systems cannot certify initialization. General gate
 decisions remain unchanged. Main activation remains an unapproved draft; see
 `docs/coder-project-contract.md`.
+
+The computed project path also owns `lib/coder/project-method-memory.js`: bounded
+candidate AST persistence and validation against sealed native acceptance and
+all six source-output hashes. `lib/cli-coder-project-memory.js` is a Platform
+composition entry that connects the journal and initializer before preview
+search, so memory reuse does not secretly perform cold enumeration.
+
+`lib/experience/array-guarded-fold-program.js` belongs to Trust and publishes
+closed guard/update AST inspection and bounded training-only search to
+AgentAction. `lib/coder/project-programs.js` selects the supported project
+program family and connects these ports to production and sealed-memory
+validation. The templates emit guards only from inspected internal ASTs.
+
+`lib/experience/array-filter-program.js` is another Trust program port consumed
+by AgentAction. It validates closed integer predicates and searches a bounded
+training-derived threshold vocabulary. Filters preserve order and duplicates;
+they can reduce array length and participate in verified map/filter/fold chains.
+
+The same Trust conditional-program port also inspects and searches the
+`threshold-fold` family. Its cold threshold vocabulary comes only from bounded
+training input values; excess vocabulary refuses explicitly. AgentAction keeps
+family-specific warm selection and the existing exact sealed-source program
+set and output-hash checks.

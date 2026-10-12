@@ -76,7 +76,7 @@ describe('coder propose', () => {
       assert.equal(result.data.task, null);
 
       assert.throws(() => runCliCoderPropose([file]), (error) => {
-        assert.equal(error.exitCode, 1);
+        assert.equal(error.exitCode, 5);
         assert.match(error.message, /NO_SUPPORTED_OPERATION/);
         return true;
       });

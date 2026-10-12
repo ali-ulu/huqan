@@ -2584,7 +2584,31 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/coder/project-spec-data.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-method-memory.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-programs.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/project-compute.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/computed-project-templates.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
   "lib/coder/learned-candidate.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/coder/arithmetic-synthesis.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
   },
@@ -2731,6 +2755,30 @@
   "lib/experience/coder-routing-runtime.js": {
    "context": "Trust",
    "evidence": "coder-experience-runtime.md#runtime-ownership"
+  },
+  "lib/experience/expression-adaptation.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/arithmetic-function.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/array-guarded-fold-program.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/array-fold-program.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/array-map-program.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/array-filter-program.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
   "lib/experience/coder-canary-runtime.js": {
    "context": "Trust",
@@ -3747,6 +3795,14 @@
   "lib/receipt/transparency-log-client.js": {
    "context": "Trust",
    "evidence": "#3608: R35 follow-up Rekor-style inclusion-proof client; Trust-owned verifier with injected fetch, no I/O policy, called from policy-seal verifyInclusion hook"
+  },
+  "lib/coder/expression-search.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/coder/synthesis-memory.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
   }
  },
  "platform": {
@@ -4095,6 +4151,10 @@
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
   "lib/cli-capability-commands.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-coder-project-memory.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
@@ -4929,27 +4989,37 @@
  "publishedPorts": {
   "lib/aura-canary-bridge.js": {
    "owner": "Trust",
-   "consumers": ["AgentAction"],
+   "consumers": [
+    "AgentAction"
+   ],
    "evidence": "#3799 core egress gate plants the AURA canary through the bridge on the live path (AB14), not only the operator loop"
   },
   "lib/gate-signal-provider.js": {
    "owner": "AgentAction",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "#3843 the hook CLI (bin/huqan-gate-hook.js) composes the plugin-backed signal provider from this module and hands it to the egress seam, so an AURA-flagged context reaches AB14 on the live path"
   },
   "plugins/aura-risk.js": {
    "owner": "Knowledge",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "#3843 the hook CLI is the composition root that loads the AURA plugin and passes its bounded gateSignal ids to the egress seam; core lib/ still never requires the plugin"
   },
   "nlp/lang-tr.js": {
    "owner": "Knowledge",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "#3717 R55 sparse semantic features reuse guarded Turkish case and plural normalization"
   },
   "lib/turkish-copula.js": {
    "owner": "Knowledge",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "#3717 R55 sparse semantic features reuse guarded Turkish copula normalization"
   },
   "lib/contradiction-rules.js": {
@@ -6570,22 +6640,30 @@
   },
   "lib/coder/fix-loop.js": {
    "owner": "AgentAction",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "ownership-map-2446.md#coder-test-loop"
   },
   "lib/coder/project-producer.js": {
    "owner": "AgentAction",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
   "lib/coder/learned-candidate.js": {
    "owner": "AgentAction",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
   },
   "lib/coder/project-initialization.js": {
    "owner": "AgentAction",
-   "consumers": ["Platform"],
+   "consumers": [
+    "Platform"
+   ],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
   "lib/coder/verify-ocr.js": {
@@ -7224,6 +7302,62 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md#R-VERIFY-K; L2 candidate Action IR consumes the L1 record (#3476); #3717 R55 semantic model provider routes each pair to its language artifact with detectLanguage (unknown -> abstain)"
+  },
+  "lib/coder/arithmetic-synthesis.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/expression-adaptation.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/array-guarded-fold-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/array-fold-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/array-map-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/array-filter-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/compiler.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/task-identifier-lexer.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
   }
  },
  "legacyEdges": {

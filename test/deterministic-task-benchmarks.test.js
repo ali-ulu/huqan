@@ -25,6 +25,19 @@ function fixture(name) {
 }
 
 describe('Deterministic coding task benchmarks', () => {
+  it('inserts replacement metacharacters as literal text', () => {
+    const task = fixture('l0-version-bump');
+    delete task.expectedPatch;
+    task.files = { 'src/file.js': 'before TOKEN after' };
+    task.allowedPaths = ['src/file.js'];
+    const replacement = "$$ $& $` $'";
+    task.operation = { type: 'replace_text', path: 'src/file.js', find: 'TOKEN', replace: replacement };
+    const result = runTask(task);
+    assert.equal(result.status, STATUS.COMPLETED);
+    assert.equal(result.files['src/file.js'], 'before ' + replacement + ' after');
+    assert.equal(task.files['src/file.js'], 'before TOKEN after');
+  });
+
   for (const name of FIXTURE_NAMES) {
     it(`completes the ${name} fixture with the expected patch`, () => {
       const task = fixture(name);

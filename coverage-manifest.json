@@ -7,12 +7,12 @@
     "byCapability": {
       "process": 22,
       "egress": 5,
-      "fs_write": 129
+      "fs_write": 130
     },
     "byRole": {
       "enforcement": 37,
       "adapter_read": 7,
-      "operator_tool": 49,
+      "operator_tool": 50,
       "persistence": 44,
       "evidence": 14,
       "egress_operator_gated": 2,
@@ -397,7 +397,7 @@
       ],
       "sites": [
         {
-          "line": 54,
+          "line": 55,
           "capability": "process",
           "call": "childProcess.execFileSync"
         }
@@ -412,7 +412,7 @@
       ],
       "sites": [
         {
-          "line": 132,
+          "line": 133,
           "capability": "process",
           "call": "childProcess.execFileSync"
         }
@@ -472,12 +472,12 @@
       ],
       "sites": [
         {
-          "line": 30,
+          "line": 33,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 71,
+          "line": 96,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
@@ -498,9 +498,24 @@
           "call": "execFileSync"
         },
         {
-          "line": 119,
+          "line": 128,
           "capability": "fs_write",
           "call": "fs.rmdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-method-memory.js",
+      "role": "operator_tool",
+      "why": "persists bounded candidate-only project ASTs to an explicit external path after native acceptance and sealed verified-source validation; exclusive creation grants no code-write authority and reuse requires fresh project admission and heldouts",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 268,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
         }
       ]
     },

@@ -17,6 +17,20 @@ function fakeCli({ parsed, gate = null, output = 'ok', error = null }) {
   };
 }
 
+test('Coder refusal and human-decision results never become completed envelopes', async () => {
+  for (const [status, expected, exitCode] of [['refused', 'blocked', 6], ['needs_human_decision', 'review_required', 5]]) {
+    const stdout = [];
+    const result = await runCliArgv(['coder', '--json'], { stdout: value => stdout.push(value),
+      cli: fakeCli({ parsed: { command: 'coder', args: [], workflowId: 'deterministic-coder' },
+        output: { status, data: { reason: 'REFUSED' } } }) });
+    assert.equal(result.exitCode, exitCode);
+    const envelope = JSON.parse(stdout[0]);
+    assert.equal(envelope.status, expected);
+    assert.equal(envelope.ok, false);
+    assert.equal(envelope.data.reason, 'REFUSED');
+  }
+});
+
 test('CLI help is generated from enabled command capabilities', () => {
   const help = cliHelpText();
   const enabled = new Set(WORKFLOW_CAPABILITIES.filter(item => item.availability.cli).map(item => item.workflowId));
