@@ -112,6 +112,25 @@ test('without an installed authority, sync and apply refuse instead of acting', 
   }
 });
 
+test('apply takes the workspace from the signed envelope and refuses a conflicting --workspace', async (t) => {
+  const env = await setup(t);
+  const approvalId = queueLocally('authority flow workspace sentinel hayvandir');
+  await sync({}, env.deps);
+  await operatorDecides(env, approvalId);
+  const conflicting = await apply(approvalId, { workspaceId: 'someone-else' }, env.deps);
+  assert.deepEqual([conflicting.code, conflicting.report.error], [2, 'WORKSPACE_MISMATCH']);
+  assert.ok(!env.ledger.all().some(entry => entry.type === 'approval.consumed'), 'nothing was spent at the authority');
+  const applied = await apply(approvalId, {}, env.deps);
+  assert.equal(applied.code, 0, JSON.stringify(applied.report));
+});
+
+test('a row with a malformed stored expiry is reported, not thrown', () => {
+  const { buildRegistration } = require('../lib/authority/registration-payload');
+  const body = buildRegistration({ id: 'apr_bad', tool: 'huqan.learn', input: '{}', createdAt: new Date().toISOString(),
+    context: { expiresAt: 'not a date' } }, { consumeKey: crypto.randomBytes(32), ttlMs: 60000 });
+  assert.equal(body, null);
+});
+
 test('a crash after consuming is recovered: apply again uses the recorded consumption and runs once', async (t) => {
   const env = await setup(t);
   const approvalId = queueLocally('authority flow crash sentinel hayvandir');
