@@ -66,6 +66,16 @@ const ROLES = Object.freeze({
  */
 const CLASSIFIED = Object.freeze({
   // ── the boundary itself ────────────────────────────────────────────────
+  // ── the approval authority service (ADR-016) ───────────────────────────
+  'lib/authority/state-store.js': Object.freeze({
+    role: 'persistence',
+    why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory the installer created and ACL\'d to the service account; the path comes from the service command line the installer wrote, never from an agent',
+  }),
+  'lib/authority/service-main.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'only `init` writes: the elevated installer runs it once to create the authority state and the admin-only pin; `serve` writes nothing itself, and the ledger and state writes it reaches are the service\'s own store',
+  }),
+
   'sandboxRunner.js': Object.freeze({
     role: 'enforcement',
     why: 'spawns process.execPath running __filename in CHILD_MODE -- this is the AB6 isolation mechanism, and its argv is fixed in source',
