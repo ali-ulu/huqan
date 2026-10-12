@@ -10,7 +10,8 @@
     "huqan-gate": "./bin/huqan-gate-hook.js",
     "huqan-cognitive-lab": "./bin/huqan-cognitive-lab.js",
     "huqan-causal-lab": "./bin/huqan-causal-lab.js",
-    "huqan-neural-lab": "./bin/huqan-neural-lab.js"
+    "huqan-neural-lab": "./bin/huqan-neural-lab.js",
+    "huqan-authority": "./bin/huqan-authority.js"
   },
   "scripts": {
     "prepublishOnly": "npm run check:package-closure",
@@ -885,6 +886,9 @@
     "lib/authority/bundle-manifest.js",
     "lib/authority/approval-registration.js",
     "lib/authority/approval-view.js",
+    "lib/authority/authority-client.js",
+    "lib/authority/authority-mode.js",
+    "lib/authority/authority-pin.js",
     "lib/authority/authority-service.js",
     "lib/authority/http-server.js",
     "lib/authority/ledger-store.js",
@@ -1402,6 +1406,7 @@
     "lib/cognitive-lab-world-model-experiment.js",
     "bin/huqan-causal-lab.js",
     "bin/huqan-neural-lab.js",
+    "bin/huqan-authority.js",
     "lib/cognitive-model-port.js",
     "lib/cognitive-model-local-primitives.js",
     "lib/cognitive-model-local-family.js",

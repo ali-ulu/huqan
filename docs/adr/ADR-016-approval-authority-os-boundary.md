@@ -76,6 +76,14 @@ The authority over operator decisions moves into a separate service.
    only) exists. An environment override can require the service but never
    downgrade from it. With no pin, behaviour is unchanged (legacy mode), and
    every decision reports `boundary: same-user` so the gap stays visible.
+   The pin path is fixed, never derived from the environment. A junction or
+   symlink anywhere on it, or a pin that cannot be read or parsed, fails
+   closed. An override pin (`HUQAN_AUTHORITY_PIN_PATH`, honoured only where
+   none is installed) is reported as `boundary: env-override`, not as an OS
+   boundary. The installer (P5) must therefore refuse a pre-existing install
+   directory it did not create, give it a SYSTEM owner with Users limited to
+   read and execute, and re-check owner, ACL and reparse points after
+   writing the pin.
 
 ## Phases
 

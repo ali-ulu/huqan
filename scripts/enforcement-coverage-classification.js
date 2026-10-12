@@ -67,6 +67,10 @@ const ROLES = Object.freeze({
 const CLASSIFIED = Object.freeze({
   // ── the boundary itself ────────────────────────────────────────────────
   // ── the approval authority service (ADR-016) ───────────────────────────
+  'lib/authority/authority-client.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',
+  }),
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
     why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory the installer created and ACL\'d to the service account; the path comes from the service command line the installer wrote, never from an agent',

@@ -1728,6 +1728,18 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-MCPFLAT-A"
   },
+  "lib/authority/authority-client.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/authority-mode.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/authority-pin.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/approval-registration.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -3714,6 +3726,10 @@
   }
  },
  "platform": {
+  "bin/huqan-authority.js": {
+   "kind": "entry",
+   "evidence": "ADR-016 operator view of the approval authority"
+  },
   "bin/huqan-neural-lab.js": {
    "kind": "entry",
    "evidence": "#3474 I6 bounded B7 experiment composition root"
@@ -6808,6 +6824,20 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/authority/authority-client.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
+  },
+  "lib/authority/authority-mode.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
   },
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",

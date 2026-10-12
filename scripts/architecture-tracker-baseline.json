@@ -23,6 +23,7 @@
       "agent.v3.js": "Application",
       "agentRuntime.js": "Application",
       "backupRestore.js": "Adapters",
+      "bin/huqan-authority.js": "UI",
       "bin/huqan-causal-lab.js": "UI",
       "bin/huqan-cognitive-lab.js": "UI",
       "bin/huqan-gate-hook.js": "UI",
@@ -129,6 +130,22 @@
       "lib/audit-query.js": "Core",
       "lib/aura-canary-bridge.js": "Core",
       "lib/aura-signal-pack.js": "Core",
+      "lib/authority/approval-registration.js": "Core",
+      "lib/authority/approval-view.js": "Core",
+      "lib/authority/authority-client.js": "Adapters",
+      "lib/authority/authority-mode.js": "Core",
+      "lib/authority/authority-pin.js": "Core",
+      "lib/authority/authority-service.js": "Core",
+      "lib/authority/bundle-manifest.js": "Core",
+      "lib/authority/decision-envelope.js": "Core",
+      "lib/authority/http-server.js": "Adapters",
+      "lib/authority/keys.js": "Core",
+      "lib/authority/ledger-store.js": "Adapters",
+      "lib/authority/operator-check.js": "Core",
+      "lib/authority/sealed-request.js": "Core",
+      "lib/authority/service-main.js": "UI",
+      "lib/authority/state-store.js": "Adapters",
+      "lib/authority/totp.js": "Core",
       "lib/automation-safety-gate/automation-findings-summary.js": "Application",
       "lib/automation-safety-gate/automation-input-normalizer.js": "Application",
       "lib/automation-safety-gate/automation-operation-classifier-delivery.js": "Application",
@@ -1021,6 +1038,7 @@
       "lib/self-healer/finding-schema.js": "Application",
       "lib/self-healer/fix-producer.js": "Application",
       "lib/self-healer/index.js": "Application",
+      "lib/self-healer/repository-scan.js": "Application",
       "lib/self-healer/safety-decision.js": "Application",
       "lib/self-healer/source-dependency-graph.js": "Application",
       "lib/self-healer/source-dogfood-simulator.js": "Application",
@@ -1176,6 +1194,7 @@
       "plugins/experiment-planner.js": "Application",
       "plugins/idea-mri.js": "Application",
       "plugins/knowledge-freshness.js": "Application",
+      "plugins/laya-risk.js": "Application",
       "plugins/llm-memory-plugin.js": "Application",
       "plugins/metric-collector.js": "Application",
       "plugins/policy-watchdog.js": "Application",
@@ -1482,6 +1501,10 @@
         "lib/storage/backup-restore-paths.js",
         "lib/storage/backup-restore-restore.js"
       ],
+      "bin/huqan-authority.js": [
+        "lib/authority/authority-client.js",
+        "lib/authority/authority-mode.js"
+      ],
       "bin/huqan-causal-lab.js": [
         "causalSimulator.js",
         "graph.js",
@@ -1499,14 +1522,17 @@
       "bin/huqan-gate-hook.js": [
         "lib/browser-session-observer.js",
         "lib/context-canary.js",
+        "lib/environment-compat.js",
         "lib/external-action-identity-issue.js",
         "lib/gate-hook-evaluate.js",
         "lib/gate-hook-identity.js",
         "lib/gate-hook-input.js",
         "lib/gate-hook-management.js",
         "lib/gate-hook-reports.js",
+        "lib/gate-signal-provider.js",
         "lib/http/process-failure-handlers.js",
-        "lib/http/structured-log.js"
+        "lib/http/structured-log.js",
+        "plugins/aura-risk.js"
       ],
       "bin/huqan-mcp.js": [
         "mcpServer.js"
@@ -1973,6 +1999,57 @@
       "lib/aura-canary-bridge.js": [
         "lib/context-canary.js",
         "lib/experience/canary.js"
+      ],
+      "lib/authority/approval-registration.js": [
+        "lib/mcp-operator-capability.js"
+      ],
+      "lib/authority/authority-client.js": [
+        "lib/authority/decision-envelope.js"
+      ],
+      "lib/authority/authority-mode.js": [
+        "lib/authority/authority-pin.js",
+        "lib/environment-compat.js"
+      ],
+      "lib/authority/authority-pin.js": [
+        "lib/authority/decision-envelope.js",
+        "lib/authority/keys.js"
+      ],
+      "lib/authority/authority-service.js": [
+        "lib/authority/approval-registration.js",
+        "lib/authority/approval-view.js",
+        "lib/authority/decision-envelope.js",
+        "lib/authority/operator-check.js",
+        "lib/authority/sealed-request.js"
+      ],
+      "lib/authority/decision-envelope.js": [
+        "lib/authority/keys.js",
+        "lib/hash-chain.js"
+      ],
+      "lib/authority/http-server.js": [
+        "lib/authority/decision-envelope.js"
+      ],
+      "lib/authority/ledger-store.js": [
+        "lib/hash-chain.js"
+      ],
+      "lib/authority/operator-check.js": [
+        "lib/authority/totp.js"
+      ],
+      "lib/authority/sealed-request.js": [
+        "lib/authority/keys.js",
+        "lib/hash-chain.js"
+      ],
+      "lib/authority/service-main.js": [
+        "lib/authority/authority-pin.js",
+        "lib/authority/authority-service.js",
+        "lib/authority/bundle-manifest.js",
+        "lib/authority/decision-envelope.js",
+        "lib/authority/http-server.js",
+        "lib/authority/ledger-store.js",
+        "lib/authority/state-store.js",
+        "lib/authority/totp.js"
+      ],
+      "lib/authority/state-store.js": [
+        "lib/authority/totp.js"
       ],
       "lib/automation-safety-gate/automation-findings-summary.js": [
         "lib/automation-safety-gate/automation-input-normalizer.js",
@@ -2464,7 +2541,8 @@
         "lib/cognitive-lab-comparison-contract.js",
         "lib/cognitive-lab-comparison-store.js",
         "lib/cognitive-lab-contradiction-evaluator.js",
-        "lib/cognitive-lab-contradiction-report.js"
+        "lib/cognitive-lab-contradiction-report.js",
+        "lib/cognitive-lab-evaluator.js"
       ],
       "lib/cognitive-lab-comparison-contract.js": [
         "lib/cognitive-lab-budget-envelope.js",
@@ -2800,6 +2878,7 @@
         "lib/legacy-alias-usage.js"
       ],
       "lib/error-prevention/admission.js": [
+        "lib/error-prevention/rule-proposal.js",
         "lib/memory-admission-gate.js"
       ],
       "lib/error-prevention/audit.js": [
@@ -2830,10 +2909,12 @@
         "lib/json-clone.js"
       ],
       "lib/error-prevention/failure-record.js": [
+        "lib/deterministic-json-copy.js",
         "lib/error-prevention/decision.js",
         "lib/error-prevention/fingerprint.js"
       ],
       "lib/error-prevention/fingerprint.js": [
+        "lib/deterministic-json-copy.js",
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/error-prevention/index.js": [
@@ -2850,7 +2931,8 @@
         "lib/error-prevention/subject.js"
       ],
       "lib/error-prevention/rule-proposal.js": [
-        "lib/error-prevention/decision.js"
+        "lib/error-prevention/decision.js",
+        "lib/memory-store-utils.js"
       ],
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
@@ -2983,6 +3065,7 @@
         "lib/external-action-identity-log.js"
       ],
       "lib/external-action-egress-gates.js": [
+        "lib/aura-canary-bridge.js",
         "lib/context-canary.js",
         "lib/data-egress-gate.js",
         "lib/data-residency-gate.js",
@@ -5485,6 +5568,11 @@
         "lib/self-healer/finding-schema.js",
         "lib/self-healer/safety-decision.js"
       ],
+      "lib/self-healer/repository-scan.js": [
+        "lib/safe-file-walk.js",
+        "lib/self-healer/finding-classifier.js",
+        "lib/workspace-id.js"
+      ],
       "lib/self-healer/safety-decision.js": [
         "lib/is-plain-object.js"
       ],
@@ -6072,6 +6160,7 @@
         "lib/self-healer/dryrun-runner.js",
         "lib/self-healer/finding-classifier.js",
         "lib/self-healer/fix-producer.js",
+        "lib/self-healer/repository-scan.js",
         "lib/self-healer/source-dogfood-simulator.js"
       ],
       "plugins/workspace-sync.js": [
@@ -6221,6 +6310,7 @@
         "lib/aura-canary-bridge.js",
         "lib/aura-signal-pack.js",
         "lib/error-prevention/index.js",
+        "lib/error-prevention/rule-proposal.js",
         "lib/experience/canary.js",
         "lib/mcp-gate-adapter.js",
         "lib/memory-store.js",
