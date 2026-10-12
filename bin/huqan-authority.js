@@ -115,7 +115,7 @@ async function consumeOnce(client, approvalId, fetched, consumeProof) {
   return { consumption: consumed.body.consumption };
 }
 
-async function apply(approvalId, { workspaceId = 'default' } = {}, deps = {}) {
+async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps = {}) {
   const { resolveMode, createClient, openRuntime, loadConsumeKey } = defaults(deps);
   const mode = resolveMode();
   const refusal = serviceOrRefusal(mode);
@@ -126,6 +126,11 @@ async function apply(approvalId, { workspaceId = 'default' } = {}, deps = {}) {
   if (!fetched.body.envelope) return { code: 3, report: { approvalId, status: 'pending', next: 'decide it in the HUQAN Authority window' } };
   const envelope = fetched.body.envelope;
   const decision = envelope.payload.decision;
+  // The signed envelope names the workspace; preflight still checks it against the row.
+  const workspaceId = requestedWorkspace ?? envelope.payload.workspaceId;
+  if (workspaceId !== envelope.payload.workspaceId) {
+    return { code: 2, report: { approvalId, decision, error: 'WORKSPACE_MISMATCH' } };
+  }
   const consumeProof = consumeProofFor(loadConsumeKey(), approvalId);
   const runtime = openRuntime();
   try {
