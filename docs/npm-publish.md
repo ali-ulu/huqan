@@ -118,7 +118,8 @@ For every release:
 
 1. The evaluator checks out the release tag, runs `npm ci`, then
    `node scripts/sign-release-evaluation.js sign --evaluator <email> --key <private.pem>`.
-   The first time, they run `keygen <dir>` to create the key. The tool runs the
+   The first time, they run `node scripts/sign-release-evaluation.js keygen <dir>`
+   to create the key. The tool runs the
    release security suite itself and only writes a record the gate would accept.
    It prints three `gh variable set ... --env npm-publish` commands.
 2. A repository administrator runs those commands. They set the

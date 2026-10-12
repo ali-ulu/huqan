@@ -20,6 +20,7 @@
 // npm-publish environment.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { parseArgs } = require('node:util');
@@ -48,7 +49,9 @@ function parseTapSummary(output) {
 }
 
 function assertCleanCheckout(root, when) {
-  const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' });
+  // Untracked files count: the security suite loads plugins from the tree, so an
+  // untracked one would run during the evaluation without entering any digest.
+  const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: root, encoding: 'utf8' });
   if (dirty.trim()) throw new Error(`the checkout has local changes ${when}; evaluate a clean checkout of the release tag`);
 }
 
@@ -92,8 +95,19 @@ function keygen(dir) {
   if (!dir) throw new Error('usage: keygen <dir>');
   fs.mkdirSync(dir, { recursive: true });
   const { privateKeyPem, publicKeyPem } = generateEvaluatorKeys();
-  fs.writeFileSync(path.join(dir, 'evaluator-private.pem'), privateKeyPem, { flag: 'wx', mode: 0o600 });
-  fs.writeFileSync(path.join(dir, 'evaluator-public.pem'), publicKeyPem, { flag: 'wx' });
+  const privatePath = path.join(dir, 'evaluator-private.pem');
+  const publicPath = path.join(dir, 'evaluator-public.pem');
+  // Checked up front so a refused run never leaves half a pair behind.
+  for (const existing of [privatePath, publicPath]) {
+    if (fs.existsSync(existing)) throw new Error(`refusing to overwrite ${existing}`);
+  }
+  fs.writeFileSync(privatePath, privateKeyPem, { flag: 'wx', mode: 0o600 });
+  try {
+    fs.writeFileSync(publicPath, publicKeyPem, { flag: 'wx' });
+  } catch (error) {
+    fs.rmSync(privatePath, { force: true });
+    throw error;
+  }
   console.log(`wrote ${dir}/evaluator-private.pem (keep it) and evaluator-public.pem`);
 }
 
@@ -115,7 +129,8 @@ function sign(args, root = ROOT) {
     environment: `${process.platform}-${process.arch} node ${process.version}`,
     acceptedRisk: values['accepted-risk'] ?? 'none', expiresAt: new Date(Date.now() + days * DAY_MS).toISOString() });
   const publicKeyPem = crypto.createPublicKey(fs.readFileSync(values.key, 'utf8')).export({ type: 'spki', format: 'pem' });
-  const out = values.out ?? path.join(root, `release-evaluation-${inputs.releaseSha.slice(0, 8)}`);
+  // Outside the checkout by default: output inside it would make the next run's clean-tree check fail.
+  const out = values.out ?? path.join(os.tmpdir(), `huqan-release-evaluation-${inputs.releaseSha.slice(0, 8)}`);
   fs.mkdirSync(out, { recursive: true });
   for (const [name, value] of Object.entries(publicationVariables(record, publicKeyPem))) {
     fs.writeFileSync(path.join(out, name), value);

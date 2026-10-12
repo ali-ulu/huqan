@@ -75,8 +75,31 @@ test('keygen writes an Ed25519 pair and never overwrites an existing key', () =>
     keygen(dir);
     const privatePem = fs.readFileSync(path.join(dir, 'evaluator-private.pem'), 'utf8');
     assert.equal(crypto.createPrivateKey(privatePem).asymmetricKeyType, 'ed25519');
-    assert.throws(() => keygen(dir), /EEXIST/);
+    assert.throws(() => keygen(dir), /refusing to overwrite/);
     assert.equal(fs.readFileSync(path.join(dir, 'evaluator-private.pem'), 'utf8'), privatePem);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('keygen refuses when only the public key exists, and leaves no half pair', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-evalkeys-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'evaluator-public.pem'), 'existing');
+    assert.throws(() => keygen(dir), /refusing to overwrite/);
+    assert.equal(fs.existsSync(path.join(dir, 'evaluator-private.pem')), false);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('sign refuses an untracked file in the checkout before running anything', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-untracked-'));
+  try {
+    const git = args => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+    git(['init', '-q']);
+    fs.writeFileSync(path.join(dir, 'f'), 'x');
+    git(['add', 'f']);
+    git(['-c', 'user.email=a@example.test', '-c', 'user.name=a', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'w']);
+    fs.mkdirSync(path.join(dir, 'plugins'));
+    fs.writeFileSync(path.join(dir, 'plugins', 'planted.js'), 'module.exports = {};');
+    assert.throws(() => sign(['--evaluator', 'reviewer@example.test', '--key', 'missing.pem'], dir), /local changes before the run/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
