@@ -9,6 +9,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const inputs = [[], [2, 5], [5, 2], [3, 1, 4], [-4, -2], [-2, 7, 1]];
+// Replacement cohort declared before any training; the original preregistration
+// is retained because its empty holdout overlaps mandatory source training.
+const TRANSFER_COHORT = [
+  { train: [[101, -11], [205, 12], [17, 18]], holdout: [[-90, -20], [-20, -90], [44]] },
+  { train: [[301, -21], [405, 22], [27, 28]], holdout: [[-190, -120], [-120, -190], [144]] },
+  { train: [[501, -31], [605, 32], [37, 38]], holdout: [[-290, -220], [-220, -290], [244]] },
+];
 function extremum(input, minimum) {
   const ordered = [...input].sort((a, b) => a - b);
   return ordered.length ? ordered[minimum ? 0 : ordered.length - 1] : 0;
@@ -160,6 +167,49 @@ test('native CLI persists composed methods, reuses in a new process and rolls ba
   assert.equal(rejected.result.data.attempts[0].rolledBack, true);
   assert.deepEqual(fs.readdirSync(rejected.root), []);
   assert.equal(fs.readFileSync(memory, 'utf8'), bytes);
+  const primitiveSpec = projectSpec(); primitiveSpec.name = 'frozen-extrema'; primitiveSpec.routes.pop();
+  const primitiveFile = path.join(base, 'frozen-primitives.json');
+  const primitiveRun = run(primitiveSpec, primitiveFile);
+  assert.equal(primitiveRun.child.status, 0, JSON.stringify(primitiveRun.result));
+  const frozenBytes = fs.readFileSync(primitiveFile, 'utf8');
+  assert.equal(JSON.parse(frozenBytes).programs.some(program => program.type === 'scalar-composition'), false);
+  const cost = result => result.result.data.plan.computation.routes.reduce((sum, row) => sum + row.enumerated, 0)
+    + (result.result.data.projectMemory?.replaySearch || 0);
+  const report = { scope: 'new scalar composition from frozen extrema', budgetPerArm: 65536,
+    sourceTrainingSearch: cost(primitiveRun), coldTargetSearch: 0, frozenTargetSearch: 0,
+    coldNativeChecks: 0, frozenNativeChecks: primitiveRun.result.data.attempts.length,
+    originalPreregistration: 'INSUFFICIENT_SOURCE_HOLDOUT_OVERLAP', generalLearningGain: 'NOT_MEASURED', pairs: [] };
+  assert.equal(report.sourceTrainingSearch, 96);
+  for (let at = 0; at < TRANSFER_COHORT.length; at += 1) {
+    const item = TRANSFER_COHORT[at];
+    const spec = projectSpec(); spec.name = `paired-range-${at}`;
+    const range = input => extremum(input, false) - extremum(input, true);
+    spec.routes[2].composeScalar.examples = item.train.map(input => ({ input, expected: range(input) }));
+    spec.routes[2].acceptanceExamples = item.holdout.map(input => ({ input, expected: range(input) }));
+    const training = new Set([...inputs, ...item.train].map(input => JSON.stringify(input)));
+    assert.equal(item.holdout.some(input => training.has(JSON.stringify(input))), false);
+    const coldPair = run(spec, path.join(base, `cold-pair-${at}.json`));
+    const frozenPair = run(spec, primitiveFile);
+    for (const result of [coldPair, frozenPair]) {
+      assert.equal(result.child.status, 0, JSON.stringify(result.result));
+      assert.equal(result.result.data.attempts[0].test.exitCode, 0);
+    }
+    for (const name of coldPair.result.data.plan.files)
+      assert.deepEqual(fs.readFileSync(path.join(coldPair.root, name)), fs.readFileSync(path.join(frozenPair.root, name)));
+    const coldSearch = cost(coldPair), frozenSearch = cost(frozenPair);
+    assert.equal(coldSearch, 108); assert.equal(frozenSearch, 12);
+    report.coldTargetSearch += coldSearch; report.frozenTargetSearch += frozenSearch;
+    report.coldNativeChecks += coldPair.result.data.attempts.length;
+    report.frozenNativeChecks += frozenPair.result.data.attempts.length;
+    report.pairs.push({ name: spec.name, coldSearch, frozenSearch });
+  }
+  report.amortizedSavedSearch = report.coldTargetSearch - report.sourceTrainingSearch - report.frozenTargetSearch;
+  assert.equal(report.amortizedSavedSearch, 192);
+  assert.equal(report.coldNativeChecks, 3); assert.equal(report.frozenNativeChecks, 4);
+  assert.ok(report.coldTargetSearch <= report.budgetPerArm);
+  assert.ok(report.sourceTrainingSearch + report.frozenTargetSearch <= report.budgetPerArm);
+  assert.equal(fs.readFileSync(primitiveFile, 'utf8'), frozenBytes);
+  t.diagnostic(JSON.stringify(report));
   const derived = projectSpec(); derived.name = 'inverse-range';
   for (const row of [...derived.routes[2].composeScalar.examples, ...derived.routes[2].acceptanceExamples]) row.expected *= -1;
   // Singletons have mathematical zero; do not introduce signed zero.
