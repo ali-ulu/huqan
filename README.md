@@ -51,6 +51,16 @@ A tool call returns `allow`, `review`, `dry_run_only` or `block`. A memory write
 
 A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
 
+## What's new in 1.0.0
+
+[Since v0.13.2](https://github.com/ali-ulu/huqan/compare/v0.13.2...main) — full list in [CHANGELOG](./CHANGELOG.md):
+
+- **`huqan coder` creates files, and `--authorize` lands real source changes.** The `create_file` and `sequence` transforms apply test-file additions and multi-step fixes as one derivation. `--authorize` lifts only the `SOURCE_CHANGE_REQUIRES_REVIEW` hold with authorization explicitly supplied for that run; critical blocks, package/CI changes, and dirty-repo holds keep their own decision. Details: [`lib/cli-coder.js`](./lib/cli-coder.js).
+- **MCP fails closed harder.** A non-JSON `arguments` string no longer runs as an empty call; it returns `ARGUMENTS_PARSE_ERROR` with a `block` decision.
+- **AURA bridge (optional, external).** A content-hashed signal pack from the AURA repository plants canary markers on the core egress path. No pack means no signal, never a wrong signal. Details: [`lib/aura-signal-pack.js`](./lib/aura-signal-pack.js).
+- **Self-healer.** Autonomous read-only repository scan (`audit_only`) plus concrete fix generation from a verified failure record. Scope: [`docs/adr/ADR-007-self-healer-loop.md`](./docs/adr/ADR-007-self-healer-loop.md).
+- **Quiet fixes.** `quickstart` no longer leaves a `memory.db` in the working directory; `upload:` learns a file's content, not its path; `HUQAN_DB_PATH` now co-locates all three stores.
+
 ## Connect your agent
 
 **MCP** (Claude, Cursor, any MCP client):
