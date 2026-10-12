@@ -8,6 +8,7 @@
  *   huqan-authority status                  which authority this runtime answers to,
  *                                           and whether the pinned service answers
  *   huqan-authority sync [--workspace <id>] register pending local approvals with it
+ *   huqan-authority decide                  where the operator decides (it does not open it)
  *   huqan-authority apply <approvalId> [--workspace <id>]
  *                                           fetch the operator's signed decision,
  *                                           consume it, carry it out, record the outcome
@@ -26,7 +27,7 @@ const { listPersistentApprovals, formatApprovalRecord } = require('../lib/mcp-ap
 const { requireAuthorityDecision } = require('../lib/authority/decision-guard');
 const { resolveMcpApprovalTtlMs } = require('../lib/mcp-approval-expiry');
 
-const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | apply <approvalId> [--workspace <id>]';
+const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | decide | apply <approvalId> [--workspace <id>]';
 const MAX_SYNC = 500;
 
 function openLocalRuntime() {
@@ -155,6 +156,18 @@ async function apply(approvalId, { workspaceId = 'default' } = {}, deps = {}) {
   }
 }
 
+// This tool lives in a user-writable checkout. If it launched the operator
+// window elevated, an agent could edit it to launch anything elevated behind
+// the operator's UAC click. So it only says where the protected window is.
+function decide(deps = {}) {
+  const { resolveMode } = defaults(deps);
+  const mode = resolveMode();
+  if (mode.mode !== 'service') return { code: 2, report: { mode: mode.mode, reason: mode.reason || 'no approval authority is installed' } };
+  return { code: 0, report: { next: 'Open "HUQAN Authority" from the Start menu. It runs elevated from the protected install, '
+    + 'shows each pending approval with the arguments it is bound to, and asks for your authenticator code; '
+    + 'then run huqan-authority apply <approvalId> here.' } };
+}
+
 function parseWorkspace(args) {
   const i = args.indexOf('--workspace');
   return i >= 0 ? { workspaceId: args[i + 1], rest: args.filter((_, j) => j !== i && j !== i + 1) } : { rest: args };
@@ -166,6 +179,7 @@ async function main(argv = process.argv.slice(2), deps = {}) {
   let outcome;
   if (command === 'status' && args.length === 0) outcome = await status(deps);
   else if (command === 'sync' && rest.length === 0) outcome = await sync({ workspaceId }, deps);
+  else if (command === 'decide' && args.length === 0) outcome = decide(deps);
   else if (command === 'apply' && rest.length === 1) outcome = await apply(rest[0], { workspaceId }, deps);
   else {
     process.stderr.write(`${USAGE}\n`);
@@ -182,4 +196,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { status, sync, apply, main };
+module.exports = { status, sync, decide, apply, main };

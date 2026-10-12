@@ -55,3 +55,13 @@ test('an override pin is reported as chosen by the environment, not as an OS bou
     createClient: () => ({ identity: async () => ({ status: 200, body: { keyId: PIN.keyId } }) }) });
   assert.equal(result.report.boundary, 'env-override');
 });
+
+test('decide points at the protected window and never launches anything itself', () => {
+  const { decide } = require('../bin/huqan-authority');
+  const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'bin', 'huqan-authority.js'), 'utf8');
+  assert.doesNotMatch(source, /RunAs|Start-Process|runas/i, 'the user-side tool never elevates');
+  const result = decide({ resolveMode: () => ({ mode: 'service', boundary: 'os-service', pin: PIN }) });
+  assert.equal(result.code, 0);
+  assert.match(result.report.next, /Start menu/);
+  assert.equal(decide({ resolveMode: () => ({ mode: 'legacy', boundary: 'same-user' }) }).code, 2);
+});

@@ -53,7 +53,8 @@ const RULES = [
   {
     layer: 'UI',
     why: 'Process entrypoints, and the inbound surfaces a caller drives HUQAN through. Nothing may require these; they require everything below.',
-    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js'],
+    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js',
+      'lib/authority/operator-cli.js'],
     dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/workbench/'],
   },
   {
