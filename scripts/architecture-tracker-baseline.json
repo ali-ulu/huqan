@@ -4407,7 +4407,7 @@
         "lib/secret-scrub-gate.js"
       ],
       "lib/mcp-operator-capability.js": [
-        "lib/receipt/canonical-receipt.js"
+        "lib/hash-chain.js"
       ],
       "lib/mcp-oversight-cases.js": [
         "lib/mcp-oversight-input.js"
@@ -7194,12 +7194,6 @@
         "to": "lib/workbench/ingest-approval-audit-writer.js",
         "fromLayer": "Core",
         "toLayer": "UI"
-      },
-      {
-        "from": "lib/mcp-operator-capability.js",
-        "to": "lib/receipt/canonical-receipt.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
       },
       {
         "from": "lib/mcp-tool-catalog.js",

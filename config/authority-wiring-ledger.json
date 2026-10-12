@@ -1,0 +1,7 @@
+{
+  "lib/authority/bundle-manifest.js": "closed file set the Windows installer copies into a protected directory; its caller is the installer (ADR-016, installer phase)",
+  "lib/authority/decision-envelope.js": "Ed25519 decision and response envelopes; signed by the authority service and verified by the runtime decision guard, both later phases of ADR-016",
+  "lib/authority/keys.js": "algorithm-checked key normalization shared by the envelope and sealed-request primitives; reached through their callers (ADR-016)",
+  "lib/authority/sealed-request.js": "operator decision requests sealed to the authority X25519 key; sealed by the operator client and opened by the service decide route, later phases of ADR-016",
+  "lib/authority/totp.js": "RFC 6238 operator check; its caller is the authority service decide route (ADR-016, service phase)"
+}

@@ -90,6 +90,11 @@ const RULES = [
     files: [
       'causalSimulator.js', 'egitim.js', 'evidence-ranker.js', 'graph.js', 'kernel.js', 'kernel.v2.js',
       'requestGuards.js', 'requestGuards-body.js', 'requestGuards-command-policy.js', 'requestGuards-rate-limit.js', 'toolPolicy.js',
+      // #3860: the approval authority's pure primitives. The runtime's decision
+      // guard (Core) verifies with them, so they cannot sit with the service's
+      // own store and HTTP server in the Adapters ring.
+      'lib/authority/bundle-manifest.js', 'lib/authority/decision-envelope.js', 'lib/authority/keys.js',
+      'lib/authority/sealed-request.js', 'lib/authority/totp.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

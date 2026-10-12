@@ -1728,6 +1728,26 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-MCPFLAT-A"
   },
+  "lib/authority/bundle-manifest.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/decision-envelope.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/keys.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/sealed-request.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/totp.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/mcp-operator-capability.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
