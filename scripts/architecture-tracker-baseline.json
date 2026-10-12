@@ -2566,6 +2566,7 @@
         "lib/experience/array-fold-program.js",
         "lib/experience/array-guarded-fold-program.js",
         "lib/experience/array-map-program.js",
+        "lib/experience/array-map-program.js",
         "lib/experience/array-stateful-fold-program.js"
       ],
       "lib/coder/project-verification.js": [
