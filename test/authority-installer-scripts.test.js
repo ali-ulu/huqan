@@ -60,6 +60,12 @@ test('the operator window is a Start menu shortcut that always asks to elevate',
   assert.match(install, /lib\\authority\\operator-cli\.js/);
 });
 
+test('enrollment children end up owned by SYSTEM before the service starts', () => {
+  const tail = install.slice(install.indexOf('$keyId = Invoke-Enrollment'));
+  assert.match(tail, /\/setowner.*\/T/, 'recursive owner update after enrollment');
+  assert.match(tail, /Lock-State/, 'owner update runs before locking');
+  assert.match(install, /is owned by/, 'Assert-Protected verifies the owner, not only the ACL');
+});
 test('the PowerShell parser accepts both scripts', { skip: process.platform !== 'win32' && 'PowerShell is checked on Windows' }, () => {
   for (const name of SCRIPTS) {
     const command = `$errors = $null; [System.Management.Automation.Language.Parser]::ParseFile('${path.join(DIR, name)}', [ref]$null, [ref]$errors) | Out-Null; $errors.Count`;

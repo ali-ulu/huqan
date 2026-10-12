@@ -29,6 +29,9 @@ if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
   Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
   $serviceExe = Join-Path $ProgramDir 'huqan-authority.exe'
   if (Test-Path -LiteralPath $serviceExe) { & $serviceExe uninstall } else { & 'C:\Windows\System32\sc.exe' delete $ServiceName }
+  # A registered service whose executable is gone is worse than a failed
+  # uninstall: refuse before the pin and program directory are removed.
+  if ($LASTEXITCODE -ne 0) { throw "uninstall-authority: service removal exited $LASTEXITCODE" }
 }
 Remove-Item -LiteralPath $Shortcut -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath (Join-Path $DataDir 'public\authority.json') -Force -ErrorAction SilentlyContinue

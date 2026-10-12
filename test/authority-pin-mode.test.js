@@ -124,8 +124,8 @@ test('without a pin the trust check never runs, so legacy needs no probe', () =>
   assert.equal(calls, 0);
 });
 
-function aclProbe(entries) {
-  return () => ({ error: null, status: 0, stdout: JSON.stringify(entries) });
+function aclProbe(entries, serviceSid = null) {
+  return () => ({ error: null, status: 0, stdout: JSON.stringify({ serviceSid, entries }) });
 }
 
 function lockedEntry(path, owner = 'S-1-5-18') {
@@ -154,6 +154,23 @@ test('a write grant to Users anywhere on the path is refused', () => {
   const entries = PROBE_PATHS.map(p => lockedEntry(p));
   entries[1].access.push({ sid: 'S-1-5-32-545', rights: 'WriteData, Synchronize', type: 'Allow' });
   assert.equal(checkInstallTrust({ spawn: aclProbe(entries) }).reason, 'install_path_untrusted');
+});
+
+test('write grants to CREATOR OWNER, INTERACTIVE or a named user are refused', () => {
+  for (const sid of ['S-1-3-0', 'S-1-5-4', 'S-1-5-21-111-222-333-1001']) {
+    const entries = PROBE_PATHS.map(p => lockedEntry(p));
+    entries[2].access.push({ sid, rights: 'GenericWrite', type: 'Allow' });
+    assert.equal(checkInstallTrust({ spawn: aclProbe(entries) }).reason, 'install_path_untrusted', sid);
+  }
+});
+
+test('a write grant to the service account is allowed', () => {
+  const entries = PROBE_PATHS.map(p => lockedEntry(p));
+  entries[0].access.push({ sid: 'S-1-5-80-1234567890', rights: 'Modify, Synchronize', type: 'Allow' });
+  assert.deepEqual(
+    checkInstallTrust({ spawn: aclProbe(entries, 'S-1-5-80-1234567890') }), { ok: true });
+  assert.equal(
+    checkInstallTrust({ spawn: aclProbe(entries, 'S-1-5-80-999') }).reason, 'install_path_untrusted');
 });
 
 test('a probe that cannot run, or answers garbage, fails closed', () => {

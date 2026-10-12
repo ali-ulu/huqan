@@ -193,6 +193,10 @@ function Assert-Protected {
     $item = Get-Item -LiteralPath $path -Force
     if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { Fail "$path is a link" }
     $acl = Get-Acl -LiteralPath $path
+    # Enrollment created children after the first owner update; a per-user
+    # owner here means the runtime trust check refuses the pin, so fail now.
+    $owner = (New-Object Security.Principal.NTAccount($acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value
+    if ($owner -notin @('S-1-5-18', 'S-1-5-32-544')) { Fail "$path is owned by $($acl.Owner)" }
     foreach ($rule in $acl.Access) {
       $who = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
       $writes = $rule.FileSystemRights -band ([Security.AccessControl.FileSystemRights]'Write, Delete, ChangePermissions, TakeOwnership')
@@ -234,6 +238,10 @@ try {
 Install-ServiceHost
 New-ProtectedTree
 $keyId = Invoke-Enrollment
+# Enrollment created the pin and log children after New-ProtectedTree set the
+# owner, so child paths can still carry the installer's per-user owner, which
+# the runtime trust check refuses. Own everything before locking and starting.
+Invoke-Checked $Icacls @($DataDir, '/setowner', $Sid.System, '/T')
 Lock-State
 Test-Installed $keyId
 Assert-Protected

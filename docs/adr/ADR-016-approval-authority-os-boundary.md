@@ -172,6 +172,14 @@ authority is not installed.
 6. **Untrusted summary.** An approval's `summary` is the registering
    runtime's text and is not covered by the action hash. The operator client
    (P5) shows the arguments, which are, and labels the summary as untrusted.
-7. **Rollback.** The ledger has no external anchor, so an elevated rollback
+7. **Operator client pin.** The elevated operator window parses the installed
+   pin without re-running the runtime owner/DACL check: it cannot, because
+   the check's powershell probe lives outside the service bundle and the
+   bundle forbids child_process. It relies instead on the installer refusing
+   planted ground, on Assert-Protected re-checking owner and ACL after
+   enrollment, and on refusing the service on the port unless it answers
+   under the pinned key. Rewriting the pin or its parents already takes
+   administrator rights, at which point the box is owned anyway.
+8. **Rollback.** The ledger has no external anchor, so an elevated rollback
    is undetectable. TOTP also trusts the system clock, which only an
    elevated process can change.
