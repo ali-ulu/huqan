@@ -1728,6 +1728,86 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-MCPFLAT-A"
   },
+  "lib/authority/authority-client.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/authority-mode.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/authority-pin.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/consume-key.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/decision-guard.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/registration-payload.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/consumption-envelope.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/approval-registration.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/approval-view.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/authority-service.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/http-server.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/ledger-store.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/operator-check.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/service-main.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/state-store.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/bundle-manifest.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/decision-envelope.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/keys.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/sealed-request.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/totp.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/mcp-operator-capability.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -3718,6 +3798,10 @@
   }
  },
  "platform": {
+  "bin/huqan-authority.js": {
+   "kind": "entry",
+   "evidence": "ADR-016 operator view of the approval authority"
+  },
   "bin/huqan-neural-lab.js": {
    "kind": "entry",
    "evidence": "#3474 I6 bounded B7 experiment composition root"
@@ -6834,6 +6918,48 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/authority/registration-payload.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/consume-key.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/mcp-approval-expiry.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/decision-guard.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/authority-client.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
+  },
+  "lib/authority/authority-mode.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
   },
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",

@@ -66,6 +66,24 @@ const ROLES = Object.freeze({
  */
 const CLASSIFIED = Object.freeze({
   // ── the boundary itself ────────────────────────────────────────────────
+  // ── the approval authority service (ADR-016) ───────────────────────────
+  'lib/authority/authority-client.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',
+  }),
+  'lib/authority/consume-key.js': Object.freeze({
+    role: 'persistence',
+    why: 'creates the runtime\'s consume-proof key once, owner-only, at a fixed path under the user\'s home; the path is not taken from agent input',
+  }),
+  'lib/authority/state-store.js': Object.freeze({
+    role: 'persistence',
+    why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',
+  }),
+  'lib/authority/service-main.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'only `init` writes: it is run once by the operator to create the authority state and the pin (ADR-016 plans for the elevated installer to run it and keep the pin admin-only); `serve` writes nothing itself, and the ledger and state writes it reaches are the service\'s own store',
+  }),
+
   'sandboxRunner.js': Object.freeze({
     role: 'enforcement',
     why: 'spawns process.execPath running __filename in CHILD_MODE -- this is the AB6 isolation mechanism, and its argv is fixed in source',

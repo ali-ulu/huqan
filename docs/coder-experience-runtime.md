@@ -78,8 +78,8 @@ their established ownership is preserved.
 
 ## Publication evaluation
 
-The publish workflow runs `scripts/check-release-evaluation.js` before publication.
-It requires these repository variables:
+`scripts/check-release-evaluation.js` is a manual tool; the publish workflow
+does not run it and publication does not wait for it. It reads these variables:
 
 - `HUQAN_RELEASE_EVALUATION_RECORD`: a JSON evaluation record plus `signature`.
 - `HUQAN_RELEASE_EVALUATOR`: the pinned independent evaluator identity.
@@ -87,12 +87,12 @@ It requires these repository variables:
 
 The evaluator builds a record with `buildReleaseEvaluationRecord` and signs the
 UTF-8 `recordId` using Ed25519; `signature` is base64. The signing private key
-belongs to the evaluator and is never supplied to this workflow.
+belongs to the evaluator and is never supplied to the checker.
 `releaseEvaluationInputs(root)` exposes the required live commit and digests of
 the selected security suite, tracked fixtures and lockfile. The evaluator must
 run the evaluation independently and bind those inputs, counts, findings and
-expiry. The gate verifies the signature, pinned identity, version, source,
+expiry. The checker verifies the signature, pinned identity, version, source,
 digests, expiry, positive pass count and absence of failures or critical findings.
 The evaluator must differ from implementation authors since the prior release.
-Missing evaluation configuration blocks publication. This change does not set
-repository variables or publish a release.
+With the evaluation configuration missing, the checker exits non-zero; that
+result is advisory and does not stop a release.
