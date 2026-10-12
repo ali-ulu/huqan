@@ -215,6 +215,10 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'applies a deterministic transform only after ordinary code-change admission or the explicit closed project-initialization permission; initialization uses exclusive creation, and failed writes roll back the files written by this invocation',
   }),
+  'lib/coder/project-method-memory.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'persists bounded candidate-only project ASTs to an explicit external path after native acceptance and sealed verified-source validation; exclusive creation grants no code-write authority and reuse requires fresh project admission and heldouts',
+  }),
   'lib/coder/learned-candidate.js': Object.freeze({
     role: 'operator_tool',
     why: 'explicitly persists candidate-only method bodies in a bounded private coder directory; exclusive creation and fresh sealed-source validation grant no installation or code-write authority',

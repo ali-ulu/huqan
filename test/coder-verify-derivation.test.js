@@ -8,6 +8,41 @@ const path = require('node:path');
 
 const { applyDerivation } = require('../lib/coder/apply-derivation');
 const { VERIFY_REASONS, directoryReader, verifyDerivation } = require('../lib/coder/verify-derivation');
+const { runTask } = require('../lib/deterministic-task-runner');
+const { buildDerivationRecord, TRANSFORM_CATALOG_VERSION } = require('../lib/coder/derivation-record');
+
+describe('catalog-specific replacement replay', () => {
+  for (const sequence of [false, true]) {
+    it(`replays historical and literal metacharacters (${sequence ? 'sequence' : 'single'})`, () => {
+      const replacement = "$$ $& $` $'";
+      const step = { type: 'replace_text', path: 'docs/a.md', find: 'TOKEN', replace: replacement };
+      const operation = sequence ? { type: 'sequence', steps: [step] } : step;
+      const task = { id: 'catalog-replay', level: 'l0', allowedPaths: ['docs/a.md'], operation,
+        files: { 'docs/a.md': 'before TOKEN after' } };
+      const historical = task.files['docs/a.md'].replace('TOKEN', replacement);
+      const literal = 'before ' + replacement + ' after';
+      for (const [catalogVersion, legacyReplacement, expected] of [
+        ['1.0.0', true, historical],
+        ['1.2.0', true, historical],
+        ['1.3.0', true, historical],
+        [TRANSFORM_CATALOG_VERSION, false, literal],
+      ]) {
+        const result = runTask(task, { legacyReplacement });
+        assert.equal(result.files['docs/a.md'], expected);
+        const record = buildDerivationRecord({ catalogVersion, taskId: task.id, operationType: operation.type,
+          operation, allowedPaths: task.allowedPaths, inputFiles: task.files, patch: result.patch,
+          runnerStatus: result.status, runnerReason: result.reason, outcome: 'applied' });
+        assert.equal(verifyDerivation({ record, readBase: p => task.files[p], readHead: () => expected }).ok, true);
+        const foreign = buildDerivationRecord({ ...record, catalogVersion: 'unknown', inputFiles: task.files,
+          patch: result.patch });
+        assert.equal(verifyDerivation({ record: foreign, readBase: p => task.files[p], readHead: () => expected }).reason,
+          VERIFY_REASONS.CATALOG_UNKNOWN_TO_VERIFIER);
+        const wrongHead = legacyReplacement ? literal : historical;
+        assert.equal(verifyDerivation({ record, readBase: p => task.files[p], readHead: () => wrongHead }).ok, false);
+      }
+    });
+  }
+});
 
 const CLEAN_BRANCH = { branch: 'feat/verify', dirty: false, hasUntracked: false };
 const BASE_CONTENT = 'release v1.0.0 shipped\n';

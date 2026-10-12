@@ -1,6 +1,11 @@
 Catalog release notes.
 
-Current transform catalog: v1.3.0.
+Current transform catalog: v1.3.1.
+
+v1.3.1 writes `replace_text` replacement strings literally, including `$&`,
+`$'` and dollar signs in source code. Sequence steps use the same semantics.
+The verifier replays supported older catalogs with their historical replacement
+semantics and refuses catalog versions it does not support.
 
 v1.3.0 adds two transforms; no existing transform changes its output.
 
