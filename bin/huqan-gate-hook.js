@@ -23,6 +23,7 @@ const { writeStructuredLog } = require('../lib/http/structured-log');
 // lib/gate-hook-evaluate.js (#2248); dispatch stays here.
 const { argumentValue } = require('../lib/gate-hook-input');
 const { runHookEvaluation } = require('../lib/gate-hook-evaluate');
+const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
 
 // #3843: the live AURA signal producer. AURA is an external, domain plugin, so
 // core must not require it statically -- the boundary contract keeps the action
@@ -33,7 +34,7 @@ const { runHookEvaluation } = require('../lib/gate-hook-evaluate');
 // detection-only install is unchanged.
 function auraSignalProviderFromEnvironment() {
   const enabled = process.argv.includes('--aura-signals')
-    || /^(1|true|on|yes)$/i.test(String(process.env.HUQAN_GATE_AURA_SIGNALS || ''));
+    || /^(1|true|on|yes)$/i.test(String(readCompatibleEnvironmentVariable('GATE_AURA_SIGNALS') || ''));
   if (!enabled) return {};
   try {
     const { create } = require('../plugins/aura-risk');

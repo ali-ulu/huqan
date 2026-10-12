@@ -181,13 +181,13 @@ GET /graph-data
 Release:
 
 ```text
-1.0.0
+1.0.1
 ```
 
 Expected status endpoint:
 
 ```text
-version=1.0.0
+version=1.0.1
 ```
 
 `GET /v2-status` answers with `version` taken straight from `package.json`
