@@ -69,11 +69,11 @@ const CLASSIFIED = Object.freeze({
   // ── the approval authority service (ADR-016) ───────────────────────────
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
-    why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory the installer created and ACL\'d to the service account; the path comes from the service command line the installer wrote, never from an agent',
+    why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',
   }),
   'lib/authority/service-main.js': Object.freeze({
     role: 'operator_tool',
-    why: 'only `init` writes: the elevated installer runs it once to create the authority state and the admin-only pin; `serve` writes nothing itself, and the ledger and state writes it reaches are the service\'s own store',
+    why: 'only `init` writes: it is run once by the operator to create the authority state and the pin (ADR-016 plans for the elevated installer to run it and keep the pin admin-only); `serve` writes nothing itself, and the ledger and state writes it reaches are the service\'s own store',
   }),
 
   'sandboxRunner.js': Object.freeze({
