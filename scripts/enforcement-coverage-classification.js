@@ -75,6 +75,10 @@ const CLASSIFIED = Object.freeze({
     role: 'persistence',
     why: 'creates the runtime\'s consume-proof key once, owner-only, at a fixed path under the user\'s home; the path is not taken from agent input',
   }),
+  'lib/authority/install-trust.js': Object.freeze({
+    role: 'enforcement',
+    why: 're-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted',
+  }),
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
     why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',

@@ -898,6 +898,7 @@
     "lib/authority/ledger-store.js",
     "lib/authority/operator-check.js",
     "lib/authority/operator-cli.js",
+    "lib/authority/install-trust.js",
     "lib/authority/service-main.js",
     "lib/authority/state-store.js",
     "lib/authority/decision-envelope.js",

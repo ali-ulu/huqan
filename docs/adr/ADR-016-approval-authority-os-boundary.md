@@ -83,7 +83,13 @@ The authority over operator decisions moves into a separate service.
    boundary. The installer (P5) must therefore refuse a pre-existing install
    directory it did not create, give it a SYSTEM owner with Users limited to
    read and execute, and re-check owner, ACL and reparse points after
-   writing the pin.
+   writing the pin. The runtime re-checks the live owner and DACL of the
+   install directory, the public directory and the pin file before trusting a
+   parsed pin (`lib/authority/install-trust.js`): a planted directory parses
+   too, so anything not owned by SYSTEM/Administrators, anything granting
+   write-like rights to a broad identity, or a check that cannot run, resolves
+   to `required_unavailable` with reason `install_path_untrusted`, never to
+   legacy.
 
 ## Phases
 
