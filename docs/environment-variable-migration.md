@@ -17,19 +17,25 @@ strings count as set values; comparison does not trim or normalize secrets.
 ## Supported suffixes
 
 ```text
+A2A_AUTHORITY_FILE
+A2A_REPLAY_DIR
 AGENT_RUNTIME
 AGENT_VERSION
 API_KEY
 BACKUP_DIR
 CLI_READ_ROOTS
+COLLECTOR_SEAL_KEY
+COLLECTOR_SEAL_KEY_ID
 DB_PATH
 DEMO_MODE
 DISABLE_API_AUTH
 DISABLE_API_AUTH_ALLOW_REMOTE
 DISABLE_AUTO_LISTEN
+EXPERIENCE_ENABLED
 EXTERNAL_CLIENT_ENDPOINT_ENABLED
 EXTERNAL_CLIENT_REPLAY_DB_PATH
 EXTERNAL_CLIENT_TRUST_PROFILE_PATH
+GATE_AURA_SIGNALS
 GITHUB_APP_BETA_ENABLED
 GITHUB_APP_HOST
 GITHUB_APP_ID
@@ -38,23 +44,51 @@ GITHUB_APP_PRIVATE_KEY_PATH
 GITHUB_APP_STORE_PATH
 GITHUB_APP_STREAMING_TRUST_ENABLED
 GITHUB_APP_WEBHOOK_SECRET
+GITHUB_TOKEN
+HEADERS_TIMEOUT_MS
 HOST
 HUMAN_APPROVAL_DISABLED
+INGEST_ALLOWED_ROOTS
 INGEST_APPROVAL_LEASE_MS
+ISSUER_SEAL_KEY
+KEEP_ALIVE_TIMEOUT_MS
 KERNEL_VERSION
 LANG
+LLM_PROXY_API_KEY
+LLM_PROXY_TIMEOUT_MS
+LLM_PROXY_UPSTREAM
+MAX_CONCURRENT_REQUESTS
+MAX_QUEUE_DEPTH
+MCP_APPROVAL_TTL_MS
+MCP_CAPABILITY_NONCE_DIR
+MCP_LEGACY_VERIFY_STATUS
+MCP_OPERATOR_TOKEN
 MEMORY_PATH
+NOTIFY_WEBHOOK_SECRET
+NOTIFY_WEBHOOK_URL
+OBSERVABILITY_AUTHZ_POLICY
 PARANOID
 PLUGIN_PRODUCTION_ENFORCEMENT
 PLUGIN_SIGNING_KEY
 PLUGIN_STRICT
 PORT
+RECEIPT_COLLECTOR_ROOT
+RECEIPT_REQUIRE_SIGNATURE
+RECEIPT_TRUSTED_KEYS
+REGISTRY_DIR
+REQUEST_TIMEOUT_MS
+RUN_KNOWN_FAILING_REGRESSIONS
 RUST_BIN
+SUPPLY_CHAIN_ACTIVATION_POLICY
 TRUST_POLICY_ROOTS
 TRUST_PROXY
 USE_SQLITE
 VIEWER_INSECURE_LOOPBACK
 ```
+
+The list above mirrors `ENVIRONMENT_SUFFIXES` in `lib/environment-compat.js`
+(sorted, deduplicated). A suffix not on this list is rejected with
+`HUQAN_ENV_SUFFIX_UNKNOWN`.
 
 `HUQAN_KERNEL_VERSION` and `HUQAN_AGENT_VERSION` are no longer runtime
 switches. KernelV2 and AgentV3 are the canonical runtimes; `kernel.js` and
@@ -70,8 +104,20 @@ the workflow runtime, not between two versions of the same agent.
 
 `HUQAN_PORT` configures the host-side Docker Compose port. The application
 inside the container continues to listen on generic `PORT=3000`. Generic
-provider and platform variables such as `NODE_ENV`, `OPENAI_API_KEY`, and
-`GITHUB_TOKEN` are unchanged.
+provider and platform variables such as `NODE_ENV` and `OPENAI_API_KEY` are
+unchanged.
+
+`HUQAN_GITHUB_TOKEN` is not a generic passthrough: the GitHub connector reads
+it through the compatibility shim, so the legacy `AXIOM_GITHUB_TOKEN`
+fallback and the `HUQAN_ENV_CONFLICT` check apply to it like any other
+supported suffix.
+
+The gate hook's opt-in AURA signal producer is off by default. Passing
+`--aura-signals` or setting `HUQAN_GATE_AURA_SIGNALS` to a truthy value
+(`1`, `true`, `on`, `yes`) loads the external AURA plugin as a bounded signal
+provider; without either, the egress gate path is unchanged. The flag is also
+read through the compatibility shim, so `AXIOM_GATE_AURA_SIGNALS` is accepted
+as the legacy spelling and a conflicting dual configuration refuses startup.
 
 ## Safe rollout
 
