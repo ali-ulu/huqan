@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.0.1
+
+The v1.0.0 publish run ended red at the full-suite gate: the gate hook read
+`HUQAN_GATE_AURA_SIGNALS` straight off `process.env`, bypassing the AXIOM_
+fallback and the conflict check. The flag now reads through
+`readCompatibleEnvironmentVariable`, so `AXIOM_GATE_AURA_SIGNALS` works as a
+legacy alias and a conflicting pair fails closed. Nothing else changed since
+v1.0.0.
+
+### Fixed
+- **Gate-hook AURA flag goes through the environment-compat shim (#3843).**
+  `bin/huqan-gate-hook.js` read the opt-in signal flag directly, which the
+  `environment-compat-bypass` test forbids: one variable silently lost the
+  legacy fallback and the `HUQAN_ENV_CONFLICT` check. `GATE_AURA_SIGNALS` joins
+  the compat inventory, and the hook resolves it through the shim like every
+  other flag.
+
 ## v1.0.0
 
 Released 2026-10-12. The first major release. It marks the point where the MCP
