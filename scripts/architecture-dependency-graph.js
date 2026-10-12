@@ -53,13 +53,15 @@ const RULES = [
   {
     layer: 'UI',
     why: 'Process entrypoints, and the inbound surfaces a caller drives HUQAN through. Nothing may require these; they require everything below.',
-    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js'],
+    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js'],
     dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/workbench/'],
   },
   {
     layer: 'Adapters',
     why: 'The persistence family and the modules that talk to something outside the process -- a file, a database, a socket, a model. They may know Core; Core may not know them.',
-    files: ['storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js', 'sandboxRunner-child.js', 'sandboxRunner-context.js', 'sandboxRunner-limits.js'],
+    // #3860: the approval authority's ledger, state and HTTP server touch disk and sockets.
+    files: ['lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
+      'storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js', 'sandboxRunner-child.js', 'sandboxRunner-context.js', 'sandboxRunner-limits.js'],
     dirs: ['adapters/', 'packages/', 'lib/storage/', 'lib/connectors/', 'lib/interop/', 'lib/llm-proxy/'],
     pattern: /^lib\/(memory|sqlite)-/,
   },
@@ -94,7 +96,8 @@ const RULES = [
       // guard (Core) verifies with them, so they cannot sit with the service's
       // own store and HTTP server in the Adapters ring.
       'lib/authority/bundle-manifest.js', 'lib/authority/decision-envelope.js', 'lib/authority/keys.js',
-      'lib/authority/sealed-request.js', 'lib/authority/totp.js',
+      'lib/authority/sealed-request.js', 'lib/authority/totp.js', 'lib/authority/approval-registration.js',
+      'lib/authority/approval-view.js', 'lib/authority/authority-service.js', 'lib/authority/operator-check.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

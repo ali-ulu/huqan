@@ -101,9 +101,16 @@ operator CLI, P6 detection and the remaining consumers.
    standard user would be a real boundary.
 4. **Enrollment.** Same-user screen capture can read the enrollment QR code
    or seed. Enroll with agents stopped.
-5. **Availability.** An agent can flood registrations or squat the port
-   during a restart. Signed responses limit this to availability, not
-   integrity.
-6. **Rollback.** The ledger has no external anchor, so an elevated rollback
+5. **Availability.** An agent can flood registrations (bounded per minute,
+   per day and by pending count, with a minimum lifetime), squat the port
+   during a restart, or send junk sealed requests to trip the global TOTP
+   lockout every fifteen minutes. The lockout is global on purpose: a
+   per-approval one would let an attacker multiply guesses by registering
+   approvals. All of this denies service and is visible in the ledger
+   (`totp.failed`, `totp.lockout`); none of it yields a decision.
+6. **Untrusted summary.** An approval's `summary` is the registering
+   runtime's text and is not covered by the action hash. The operator client
+   (P5) shows the arguments, which are, and labels the summary as untrusted.
+7. **Rollback.** The ledger has no external anchor, so an elevated rollback
    is undetectable. TOTP also trusts the system clock, which only an
    elevated process can change.
