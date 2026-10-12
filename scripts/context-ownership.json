@@ -1740,6 +1740,22 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/authority/consume-key.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/decision-guard.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/registration-payload.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/consumption-envelope.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/approval-registration.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -6824,6 +6840,34 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/authority/registration-payload.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/consume-key.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/mcp-approval-expiry.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/decision-guard.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
   },
   "lib/authority/authority-client.js": {
    "owner": "AgentAction",

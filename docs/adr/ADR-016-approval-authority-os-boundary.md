@@ -89,9 +89,56 @@ The authority over operator decisions moves into a separate service.
 
 See #3860. P1 (this ADR) ships the pure primitives: TOTP, the decision and
 response envelopes, sealed decision requests, and the bundle manifest.
-P2 adds the service, P3 the
-runtime client and mode, P4 the decision path, P5 the installer and
-operator CLI, P6 detection and the remaining consumers.
+P2 adds the service, P3 the runtime client and mode, P4 the decision path,
+P5 the installer and operator CLI, P6 detection and the remaining consumers.
+
+## The decision path (P4)
+
+`lib/authority/decision-guard.js` runs in `handleMcpApprovalDecision`, after
+the row is loaded and before anything is rejected, claimed or executed. Every
+decision that goes through the handler meets it: CLI `onayla`/`approve`, MCP
+`huqan.approve`, the HTTP learn and memory-approval routes, and MCP ingest
+approvals. In service mode it accepts only:
+
+- the authority's decision envelope for exactly this approval, workspace,
+  tool and verdict, and for the action hash it recomputes from the row's
+  stored arguments. Rejections need one too, so an agent cannot discard what
+  the operator has not seen;
+- for an approval, also the authority's signed consumption envelope
+  (`lib/authority/consumption-envelope.js`) for the same action. Nothing runs
+  without an `approval.consumed` entry in the ledger first.
+
+Both reach the handler only through the in-process runtime.
+`huqan-authority apply <approvalId>`:
+
+1. fetches the decision;
+2. checks it against the local row before spending anything;
+3. consumes it, or reuses a consumption already recorded after a crash;
+4. runs the decision;
+5. records the outcome.
+
+A second `apply` finds the row final and changes nothing.
+`huqan-authority sync` registers pending local approvals with the authority.
+
+Two decision surfaces do not go through the handler, and they cannot carry
+an envelope: the HTTP ingest approval route (`POST /api/ingest/approvals/:id`)
+and PR Guardian's decide route. Where an authority is installed, both refuse
+with `AUTHORITY_DECISION_REQUIRED`.
+
+The guard does not yet cover these, so P6 covers them:
+
+- `huqan.agent_resume`
+- `huqan.emergency_stop`
+- `terfi`
+- the gate hook's `--autonomy-activation`
+
+Executors re-read the row after the guard. A same-user write to the store
+between the two is residual risk 1.
+
+A consequence by design: on a machine where the authority is installed, any
+in-process approval -- the test suite's included -- is refused. If a test
+could approve in-process there, so could an agent. Run the suite where the
+authority is not installed.
 
 ## Residual risks
 

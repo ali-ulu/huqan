@@ -71,6 +71,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',
   }),
+  'lib/authority/consume-key.js': Object.freeze({
+    role: 'persistence',
+    why: 'creates the runtime\'s consume-proof key once, owner-only, at a fixed path under the user\'s home; the path is not taken from agent input',
+  }),
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
     why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory the installer created and ACL\'d to the service account; the path comes from the service command line the installer wrote, never from an agent',
