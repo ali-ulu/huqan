@@ -228,3 +228,70 @@ test('the cancellation record names a workspace-wide stop without inventing an a
   assert.equal(completed.receipt.outcome, 'completed');
   assert.equal(Object.hasOwn(completed.receipt, 'cancellation'), false);
 });
+
+test('a repair whose approval was cancelled is dropped on resume, not left waiting', () => {
+  const { resolvePendingRepair, REPAIR_TOOL } = require('../lib/experience/run-repair');
+  const failed = { id: 'ask-1', status: 'error', result: { ok: false } };
+  const state = {
+    workspaceId: 'w',
+    steps: [],
+    failedAttempts: [failed],
+    pendingRepair: { approvalId: 'r1', repairStepId: 'ask-1-repair', stepId: 'ask-1' },
+  };
+  const queued = [{ id: 'ask-1-repair' }, { id: 'next' }];
+  const agent = {
+    storage: {
+      getToolApprovalById: () => ({ id: 'r1', tool: REPAIR_TOOL, status: 'cancelled', context: { repair: { repairStepId: 'ask-1-repair' } } }),
+    },
+  };
+
+  const decision = resolvePendingRepair({ agent, state, queued, opts: { repairApprovalId: 'r1' } });
+
+  assert.equal(decision.action, 'drop');
+  assert.deepEqual(queued.map((step) => step.id), ['next']);
+  assert.equal(state.pendingRepair, undefined);
+  assert.deepEqual(state.steps, [failed]);
+});
+
+test('an approved repair run carries its approval id, so an approval-scoped stop reaches it', async () => {
+  const { executeApprovedRepair } = require('../lib/mcp-agent-repair-execution');
+  let runOptions = null;
+  const approval = {
+    id: 'r1',
+    tool: 'huqan.agent_repair',
+    status: 'pending',
+    context: { args: { goal: GOAL, workspaceId: 'w', checkpointId: 'cp-1', resumeToken: 'tok' } },
+  };
+  const store = {
+    claimToolApproval: () => ({ claimed: true, approval: { ...approval, status: 'executing' } }),
+    finalizeToolApprovalWithReceipt: (id, options) => ({ finalized: true, approval: { ...approval, status: options.decision, context: { receipt: options.receipt } } }),
+    failToolApproval: () => null,
+    getToolApprovalById: () => approval,
+  };
+  await executeApprovedRepair({
+    kernel: {}, approvalStore: store, approval, approvalId: 'r1', workspaceId: 'w', reason: 'operator_approved',
+    decision: 'approved', fail, tool: 'huqan.agent_repair',
+    createRepairAgent: () => ({ run: (goal, options) => { runOptions = options; return { ok: true, data: { status: 'completed' } }; } }),
+  });
+
+  assert.equal(runOptions.approvalId, 'r1');
+  assert.equal(runOptions.repairApprovalId, 'r1');
+});
+
+test('re-executing a cancelled approval says it was cancelled instead of reporting a claim conflict', () => {
+  const cancelled = { id: 'a1', tool: 'huqan.agent', status: 'cancelled', context: { receipt: { receiptId: 'r-1', outcome: 'cancelled' } } };
+  const result = executeApprovedMcpAgent({
+    kernel: {},
+    approvalStore: {
+      claimToolApproval: () => ({ claimed: false, approval: cancelled }),
+      getToolApprovalById: () => cancelled,
+    },
+    approval: cancelled, approvalId: 'a1', workspaceId: 'default', reason: 'operator_approved', decision: 'approved',
+    cleanArgs: { goal: GOAL }, fail,
+    executeAgent: () => { throw new Error('a cancelled approval must not run again'); },
+  });
+
+  assert.equal(result.error.code, 'APPROVAL_ALREADY_CANCELLED');
+  assert.equal(result.meta.receipt.receiptId, 'r-1');
+  assert.equal(result.meta.retrySafe, false);
+});
