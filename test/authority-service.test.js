@@ -205,3 +205,45 @@ test('re-registering after expiry returns the existing record, and invalid attem
   for (let i = 0; i < 61; i += 1) last = h.service.register({ approvalId: 'bad id!' });
   assert.deepEqual([last.status, last.body.code], [429, 'RATE_LIMITED']);
 });
+
+test('an approved but unconsumed decision can be withdrawn, and consumption is then refused', (t) => {
+  const h = harness(t);
+  h.service.register(ACTION);
+  assert.equal(h.service.decide('apr_1', h.seal()).status, 200);
+  h.clock.now += TOTP_STEP_SECONDS * 1000;
+  const withdrawn = h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn', reason: 'agent compromised' }));
+  assert.equal(withdrawn.status, 200);
+  assert.equal(h.service.show('apr_1').body.approval.status, 'withdrawn');
+  const refused = h.service.consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF });
+  assert.deepEqual([refused.status, refused.body.code], [409, 'WITHDRAWN']);
+  const types = h.service.ledgerEntries().body.entries.map(entry => entry.type);
+  assert.ok(types.includes('approval.withdrawn'));
+  assert.ok(!types.includes('approval.consumed'), 'nothing was consumed');
+  assert.equal(h.service.getDecision('apr_1').body.withdrawal.reason, 'agent compromised');
+  h.clock.now += TOTP_STEP_SECONDS * 1000;
+  assert.equal(h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn' })).body.code, 'ALREADY_WITHDRAWN');
+  assert.equal(h.open().consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF }).body.code, 'WITHDRAWN',
+    'the withdrawal survives a restart');
+});
+
+test('a consumed approval cannot be withdrawn', (t) => {
+  const h = harness(t);
+  h.service.register(ACTION);
+  h.service.decide('apr_1', h.seal());
+  assert.equal(h.service.consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF }).status, 200);
+  h.clock.now += TOTP_STEP_SECONDS * 1000;
+  assert.equal(h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn' })).body.code, 'ALREADY_CONSUMED');
+});
+
+test('withdrawal needs the operator code, a pending approval is not withdrawable, and the two requests do not cross over', (t) => {
+  const h = harness(t);
+  h.service.register(ACTION);
+  assert.equal(h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn' })).body.code, 'NOT_APPROVED');
+  assert.equal(h.service.decide('apr_1', h.seal({ decision: 'withdrawn' })).body.code, 'SEALED_REQUEST_INVALID',
+    'a withdrawal request is not a decision');
+  h.service.decide('apr_1', h.seal());
+  h.clock.now += TOTP_STEP_SECONDS * 1000;
+  assert.equal(h.service.withdraw('apr_1', h.seal()).body.code, 'SEALED_REQUEST_INVALID', 'a decision request is not a withdrawal');
+  assert.equal(h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn', totp: '000000' })).body.code, 'TOTP_INVALID');
+  assert.equal(h.service.show('apr_1').body.approval.status, 'approved');
+});

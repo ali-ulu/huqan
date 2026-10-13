@@ -90,6 +90,19 @@ The authority over operator decisions moves into a separate service.
    write-like rights to a broad identity, or a check that cannot run, resolves
    to `required_unavailable` with reason `install_path_untrusted`, never to
    legacy.
+10. **Withdrawal.** An approved decision stays usable until `validUntil`, so
+    an operator who changes their mind, or learns the agent is compromised,
+    needs a way to stop it (#3877). `withdraw` takes the same sealed operator
+    code as a decision, with decision `withdrawn`, and is allowed only while the
+    approval is `approved` and not consumed. It appends `approval.withdrawn`
+    (approval id, action hash, reason, operator, time) and the approval's status
+    becomes `withdrawn`. Consumption is the runtime's only way to execute, so
+    `consume` then answers `409 WITHDRAWN`, and the decision route returns the
+    withdrawal beside the decision so the runtime can say why. A consumed
+    approval answers `409 ALREADY_CONSUMED`: withdrawal cannot reach an action
+    already running (that is a separate case). The sealed `withdrawn` request
+    cannot be used as a decision, and the reverse. The operator window offers
+    withdrawal; `huqan-authority withdraw` only points to it, like `decide`.
 
 ## Phases
 
