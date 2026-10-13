@@ -101,6 +101,10 @@ const RULES = [
       'lib/authority/approval-view.js', 'lib/authority/authority-service.js', 'lib/authority/operator-check.js',
       'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
       'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js', 'lib/authority/install-trust.js',
+      // #3860 P6: the operational guard mirrors decision-guard for operator
+      // surfaces outside the approval store -- same pure-verify job, so it
+      // belongs beside it in Core rather than with the disk/socket ring.
+      'lib/authority/operational-guard.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

@@ -121,6 +121,59 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' the loop entrypoint and pass the registry in.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/cli-audit.js',
+    to: 'lib/authority/authority-client.js',
+    why: 'The audit --authority detection reads the approval authority ledger through the pinned'
+      + ' client (#3860 P6); the command lives beside the other CLI handlers (Core) while the pinned'
+      + ' client talks to the authority over its socket (Adapters). The follow-up fix is the same as'
+      + ' the coder command: resolve the client behind the cli.js entrypoint and pass it in.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-audit.js',
+    to: 'lib/authority/ledger-store.js',
+    why: 'The audit --authority report derives the LEDGER_GENESIS it prints from the ledger store'
+      + ' contract (#3860 P6); the command is flat in lib/ (Core) while the store is the authority'
+      + ' ledger journal on disk (Adapters). The follow-up fix is to expose the genesis value'
+      + ' beside the client answer and drop the direct require.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-promote.js',
+    to: 'lib/authority/authority-client.js',
+    why: 'The terfi command requests a consumption proof from the pinned authority when it runs in'
+      + ' service mode (#3860 P6); the command lives beside the other CLI handlers (Core) while the'
+      + ' pinned client talks to the authority over its socket (Adapters). Same follow-up as the'
+      + ' audit --authority client edge above.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-promote.js',
+    to: 'lib/authority/consume-key.js',
+    why: 'The terfi command loads the consume key it signs the registration payload with; the key'
+      + ' opener touches disk (Adapters) while the command is flat in lib/ (Core). Same shape as the'
+      + ' cli-coder journal-store edge; follow-up is to open the key behind the cli.js entrypoint and'
+      + ' pass it in.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-receipts.js',
+    to: 'lib/receipt/receipt-chain.js',
+    why: 'The receipts verify command validates the receipt chain the CLI prints; the command lives'
+      + ' beside the other CLI handlers (Core) while the chain lives with receipts (Application) -- the'
+      + ' same shape as the cli-coder verify-ocr edge. Follow-up is the same: resolve the chain behind'
+      + ' the cli.js entrypoint and pass it in.',
+    review_by: '2026-12-31',
+  },
+  {
+    from: 'lib/cli-receipts.js',
+    to: 'lib/receipt/receipt-read-index.js',
+    why: 'The receipts verify command opens the read index the chain resolves from; the index lives'
+      + ' with receipts (Application) while the command is flat in lib/ (Core). Same follow-up as the'
+      + ' chain edge above.',
+    review_by: '2026-12-31',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {

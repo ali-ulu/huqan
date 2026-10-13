@@ -1756,6 +1756,10 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/authority/operational-guard.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/operator-cli.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -4282,6 +4286,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/cli-receipts.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
   "lib/cli-operator-presence.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
@@ -4991,6 +4999,20 @@
   }
  ],
  "publishedPorts": {
+  "lib/authority/ledger-store.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3860 P6 the audit --authority surface derives LEDGER_GENESIS from the ledger contract to seed its append-only comparison"
+  },
+  "lib/authority/operational-guard.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3860 P6 the tool dispatch and the terfi CLI verify operator envelopes against the guard for surfaces outside the approval store"
+  },
   "lib/aura-canary-bridge.js": {
    "owner": "Trust",
    "consumers": [
