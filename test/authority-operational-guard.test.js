@@ -165,6 +165,28 @@ test('legacy lift is unchanged', () => withStopDir((dir) => {
   assert.equal(ledger.lift({ scope: 'workspace', workspaceId: 'ws-1', reason: 'done', actor: 'operator:cli' }).lifted, true);
 }));
 
+test('MCP lift carries the envelopes apply hands it into the guarded ledger', () => withStopDir((dir) => {
+  const { createMcpOperatorCapability } = require('../lib/mcp-operator-capability');
+  const { operatorCapabilityBinding } = require('../lib/mcp/operator-authorization');
+  const ledger = createEmergencyStop({ directory: dir, resolveAuthorityMode: () => SERVICE });
+  ledger.stop({ scope: 'workspace', workspaceId: 'ws-1', reason: 'incident', actor: 'operator:cli' });
+  const server = createServer({ kernel: {} });
+  try {
+    const args = { action: 'lift', scope: 'workspace', workspaceId: 'ws-1', reason: 'incident closed' };
+    const decision = decisionFor(LIFT_BINDING);
+    const lifted = callTool(server.kernel, { name: 'huqan.emergency_stop', arguments: args,
+      operatorCapability: createMcpOperatorCapability({ secret: 'op-3892', ...operatorCapabilityBinding('huqan.emergency_stop', args) }) },
+    { operatorSecret: 'op-3892', operatorCapabilityNonces: new Map(), emergencyStop: ledger, approvalAuthorityMode: SERVICE,
+      authorityApprovalId: decision.approvalId, authorityDecision: decision.envelope, authorityConsumption: decision.consumption });
+    assert.equal(lifted.ok, true, JSON.stringify(lifted.error));
+    assert.equal(lifted.data.lifted, true);
+    assert.equal(ledger.check({ workspaceId: 'ws-1' }).stopped, false);
+  } finally {
+    server.kernel.graph?.close?.();
+    server.approvalStore?.close?.();
+  }
+}));
+
 const RESUME = Object.freeze({ goal: 'resume safely', workspaceId: 'ws-1', checkpointId: 'cp-1', resumeToken: 'cp-1' });
 
 function resumeThroughMcp(runtime) {
