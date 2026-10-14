@@ -153,6 +153,10 @@ const IMPACT_RULES = Object.freeze([
 /** Surfaces that need the impact rules but never the whole suite. */
 const IMPACT_ONLY_PATTERNS = Object.freeze([
   'public/**',
+  // Root documents (README.md first) ship in the package and are pinned by
+  // tests that read them; #3895 changed the README with none of them run and
+  // main went red. docs/** stays documentation-only by design.
+  '*.md',
 ]);
 
 /** Surfaces where a partial selection is not trustworthy, so everything runs. */

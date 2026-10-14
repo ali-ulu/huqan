@@ -76,6 +76,10 @@ const IMPLIED_EXTENSIONS = Object.freeze(['.js', '.json', '.md', '.txt', '.yaml'
 
 /** Documentation paths named in prose far more often than they are used. */
 const PROSE_ONLY_TARGET = /\.(md|txt)$/;
+// A test that reads files is the exception: README.md, an ADR or an audit
+// record named there is a contract it asserts, and #3895 changed the README
+// with every such test unselected and main went red. Prose in lib/ stays out.
+const READS_FILES = /\breadFileSync\s*\(|\breadFile\s*\(/;
 
 /**
  * Files that start processes. Used to decide whether a `.js` named in a string
@@ -217,10 +221,11 @@ function buildDependencyIndex({ root = REPO_ROOT, trackedFiles } = {}) {
     }
 
     const runsProcesses = STARTS_PROCESS.test(source);
+    const readsDocuments = isTestFile(file) && READS_FILES.test(source);
     for (const literal of quotedLiterals(source)) {
       const named = resolveNamedFile(literal, known, basenames);
       if (!named || named === file || edges.has(named)) continue;
-      if (PROSE_ONLY_TARGET.test(named)) continue;
+      if (PROSE_ONLY_TARGET.test(named) && !readsDocuments) continue;
       // A `.js` name is an edge only from a file that runs processes; see the
       // module comment for the measurement behind this restriction.
       if (isJavaScript(named) && !runsProcesses) continue;

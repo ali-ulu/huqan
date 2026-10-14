@@ -167,3 +167,11 @@ test('public UI changes select UI impact tests without forcing the full suite', 
   assert.ok(plan.selectedTests.some((file) => file.startsWith('test/ui-') || file.startsWith('test/v4-wb')));
   assert.equal(validateImpactPlan(plan, knownTests), true);
 });
+
+test('a README-only change runs the tests that pin the README (#3895)', () => {
+  const plan = buildTestImpactPlan({ changedFiles: ['README.md'], runtimeOrTest: false });
+  assert.equal(plan.runTests, true);
+  assert.equal(plan.fullSuite, false);
+  assert.ok(plan.selectedTests.includes('test/readme-inventory-pin.test.js'));
+  assert.ok(plan.selectedTests.includes('test/readme-decision-vocabulary.test.js'));
+});

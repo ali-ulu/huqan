@@ -177,6 +177,26 @@ test('documentation targets are never dependency edges', () => {
   assert.equal(synthetic.graph.get('doc.test.js').includes('scripts/x.js'), true);
 });
 
+test('a test that reads a document depends on it; prose in a source file still does not', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-reads-doc-'));
+  fs.mkdirSync(path.join(root, 'lib'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'README.md'), '# hi\n');
+  fs.writeFileSync(path.join(root, 'pin.test.js'),
+    "const fs = require('node:fs');\nconst readme = fs.readFileSync('README.md', 'utf8');\nmodule.exports = readme;\n");
+  fs.writeFileSync(path.join(root, 'lib', 'helper.js'),
+    "const fs = require('node:fs');\nmodule.exports = () => fs.readFileSync('README.md', 'utf8');\n");
+  const synthetic = buildDependencyIndex({ root, trackedFiles: ['pin.test.js', 'lib/helper.js', 'README.md'] });
+  assert.equal(synthetic.graph.get('pin.test.js').includes('README.md'), true);
+  assert.equal(synthetic.graph.get('lib/helper.js').includes('README.md'), false);
+});
+
+test('a README change selects the tests that pin the README (#3895)', () => {
+  const derived = deriveTestsForChange(['README.md'], index);
+  for (const file of ['test/readme-inventory-pin.test.js', 'test/readme-decision-vocabulary.test.js', 'test/readme-first-screen.test.js']) {
+    assert.ok(derived.has(file), file);
+  }
+});
+
 test('named data fixtures are reachable without an extension', () => {
   // The deterministic-task fixture is loaded as TASK_NAME + '.json' inside the
   // runner, so the test never spells the filename out in full.
