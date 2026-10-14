@@ -23,9 +23,9 @@ HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
 
 The write in line 1 **did not happen**. It was held until line 2 approved it. The quickstart uses a throwaway store.
 
-No install needed: the same flow runs in the browser at [huqan.com](https://huqan.com).
+No install needed: the same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
 
-## One-line integrations
+## Connect your agent in one line
 
 **MCP (Claude, Cursor, any MCP client):**
 
@@ -43,16 +43,12 @@ No install needed: the same flow runs in the browser at [huqan.com](https://huqa
 **Gate (pre-execution guard for other agents):**
 
 ```bash
-npx huqan-gate --before-tool-call
+npx -y --package=huqan huqan-gate install --profile claude-code
 ```
 
-or
+Profiles: `claude-code`, `codex`, `openhands`, `opencode`, `pi`, `hermes`. The gate enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
 
-```bash
-huqan-gate --agent claude-code --policy strict
-```
-
-Operator tools (`huqan.approve`, etc.) are hidden from the model and require `HUQAN_MCP_OPERATOR_TOKEN` — an agent cannot approve its own proposal.
+Operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and require `HUQAN_MCP_OPERATOR_TOKEN` — an agent cannot approve its own proposal.
 
 ## Install
 
@@ -60,7 +56,7 @@ Operator tools (`huqan.approve`, etc.) are hidden from the model and require `HU
 npm install -g huqan     # Node.js 22.13.0 or newer
 ```
 
-Main binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority`.  
+Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.  
 Run `huqan doctor` to see what is configured.
 
 ## How it works
@@ -72,7 +68,11 @@ evidence + provenance + workspace scope
                         → outcome + Trust Receipt
 ```
 
-Outcomes: `ALLOW` / `REVIEW` / `QUARANTINE` / `DRY-RUN ONLY` / `BLOCK` / `REJECT`
+The outcome is one of:
+
+ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
+
+**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated`; that needs a second approver, so it is absent in a single-user install. Decision types: `approve`, `reject`, `expire`, `cancel`, `escalate`, `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
 A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
 
@@ -81,6 +81,7 @@ A passing verification is a result inside one configured boundary, not a certifi
 - HUQAN does **not** eliminate hallucinations. It makes one claim **inspectable and blockable** before it becomes state.
 - Only what is wired is governed. An agent that never calls HUQAN is not covered.
 - Complements IAM, infrastructure security and human governance — it replaces none of them.
+- The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
 - Scale measured up to 10k graph nodes on one machine.
 
 Full details and edge cases: [docs](./docs).
