@@ -62,7 +62,7 @@ const BASELINE_PATH = path.join(__dirname, 'file-size-baseline.json');
 
 // Pure evaluation policy lives in scripts/file-size-policy.js (#2264);
 // re-exported below so existing importers keep working.
-const { THRESHOLD, evaluate } = require('./file-size-policy');
+const { THRESHOLD, MAX_LINE_LENGTH, LONG_LINE_ALLOWED, isLongLineAllowed, evaluate } = require('./file-size-policy');
 // Above this a file owes a decomposition, so its entry comes up for review first.
 const DECOMPOSE_AT = 800;
 
@@ -102,6 +102,20 @@ function countLines(absolutePath) {
   }
   if (!source.endsWith('\n')) lines += 1;
   return lines;
+}
+
+/**
+ * The longest line, in characters, matching what `awk 'length'` reports.
+ * countLines() cannot see a file collapsed onto one line; this can.
+ */
+function countMaxLineLength(absolutePath) {
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  if (source === '') return 0;
+  let max = 0;
+  for (const line of source.split('\n')) {
+    if (line.length > max) max = line.length;
+  }
+  return max;
 }
 
 function readBaseline() {
@@ -170,14 +184,21 @@ function measure(files) {
   return measured;
 }
 
+function measureMaxLineLengths(files) {
+  const measured = {};
+  for (const file of files) measured[file] = countMaxLineLength(path.join(repoRoot, file));
+  return measured;
+}
+
 function main(argv = process.argv.slice(2)) {
   const update = argv.includes('--update');
   const seedNew = argv.includes('--seed-new');
   const files = listSourceFiles();
   const measured = measure(files);
+  const maxLineLengths = measureMaxLineLengths(files);
   const baseline = readBaseline();
   const reviews = readReviews();
-  const { violations, nextBaseline } = evaluate(measured, baseline, THRESHOLD, { seedNew, reviews });
+  const { violations, nextBaseline } = evaluate(measured, baseline, THRESHOLD, { seedNew, reviews, maxLineLengths });
 
   if (update) {
     // An existing ceiling is never raised: a `grew` violation keeps its old,
@@ -189,6 +210,9 @@ function main(argv = process.argv.slice(2)) {
     writeBaseline(nextBaseline, reviews);
     const added = violations.filter((item) => item.kind === 'new-over-threshold');
     const grew = violations.filter((item) => item.kind === 'grew');
+    // Density is never a ledger entry, so --update cannot bless it: a long line
+    // that is not in LONG_LINE_ALLOWED is reported and still fails.
+    const density = violations.filter((item) => item.kind.startsWith('density'));
 
     if (added.length > 0 && seedNew) {
       console.error(`Recorded ${added.length} file(s) newly over ${THRESHOLD} lines:\n`);
@@ -206,6 +230,11 @@ function main(argv = process.argv.slice(2)) {
       for (const item of grew) console.error(`  ${item.message}`);
       return 1;
     }
+    if (density.length > 0) {
+      console.error(`\n${density.length} density violation(s) cannot be recorded by --update:\n`);
+      for (const item of density) console.error(`  ${item.message}`);
+      return 1;
+    }
 
     if (added.length > 0 && !seedNew) return 1;
 
@@ -217,7 +246,8 @@ function main(argv = process.argv.slice(2)) {
     const over = Object.keys(baseline).length;
     console.log(
       `OK: ${files.length} source files within budget `
-      + `(${over} known over ${THRESHOLD} lines, none grew).`,
+      + `(${over} known over ${THRESHOLD} lines, none grew, `
+      + `none over ${MAX_LINE_LENGTH} chars per line).`,
     );
     return 0;
   }
@@ -226,11 +256,19 @@ function main(argv = process.argv.slice(2)) {
   for (const item of violations) console.error(`  ${item.message}`);
 
   const grew = violations.some((item) => item.kind === 'grew' || item.kind === 'new-over-threshold');
+  const density = violations.some((item) => item.kind.startsWith('density'));
   if (grew) {
     console.error(
       `\nFiles at or under ${THRESHOLD} lines must stay there, and files already`
       + '\nover it may not grow further (issue #328). Move the new code into a'
       + '\nmodule of its own rather than extending one of these.',
+    );
+  } else if (density) {
+    console.error(
+      `\nA line longer than ${MAX_LINE_LENGTH} characters is the size a reader`
+      + '\nfaces, and the line-count ratchet cannot see a file collapsed onto one'
+      + '\nline. Break the long line, or record it in LONG_LINE_ALLOWED with a'
+      + '\nreason and a review date (scripts/file-size-policy.js).',
     );
   } else {
     console.error(
@@ -246,10 +284,15 @@ if (require.main === module) process.exit(main());
 
 module.exports = {
   THRESHOLD,
+  MAX_LINE_LENGTH,
+  LONG_LINE_ALLOWED,
+  isLongLineAllowed,
   BASELINE_PATH,
   listSourceFiles,
   countLines,
+  countMaxLineLength,
   measure,
+  measureMaxLineLengths,
   readBaseline,
   writeBaseline,
   evaluate,

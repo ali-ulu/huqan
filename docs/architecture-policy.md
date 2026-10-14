@@ -1,7 +1,9 @@
 # HUQAN — Architecture Policy
 
 **Status:** binding. Supersedes the big-file refactor gate, deleted 2026-09-11.
-**Measured at:** `dc51e65a`, 2026-09-11. 608 runtime files, 123.494 lines.
+**Measured at:** `5031f3f0`, 2026-10-14. 1,419 source files measured by the
+size, cycle and layer gates. Section 1's 608-file / 123,494-line figures are
+that policy's own measurement date and are kept as the record of why it fell.
 
 ---
 
@@ -44,8 +46,11 @@ So the budget is banded:
 
 `scripts/check-file-size.js` enforces the first two rows as a ratchet at 400:
 
-- A file at or under 400 may not cross it. 563 files are held there.
-- A file above it may not grow. 74 are recorded at today's size.
+- A file at or under 400 may not cross it. 1,419 files are measured, and none
+  is over the cap today, so the ledger is empty.
+- A file above it may not grow. There are no recorded entries right now; the
+  first file to cross 400 becomes the first one, added only with
+  `--update --seed-new` and reviewed in the diff.
 - When one shrinks, its recorded ceiling drops to match. Gains are never
   spendable later.
 - At 400 or below, its entry is removed.
@@ -53,6 +58,11 @@ So the budget is banded:
   the gate fails until someone shrinks the file or writes down why it stays and
   sets the next date. An entry with no date at all fails too, so the rule is not
   opt-in.
+- **A line over 400 characters fails the same gate.** The line-count ratchet
+  cannot see a file collapsed onto one line — `public/js/app.js` is 56 KB in 38
+  lines, one of them 39 KB — so density is measured separately. Files where the
+  density is the content carry a recorded exception in `LONG_LINE_ALLOWED`
+  (`scripts/file-size-policy.js`) with the same reason/review-date shape.
 
 That last rule is the half a ratchet is otherwise missing. A ceiling that *may*
 fall is not a ceiling that *must*, and an entry nobody revisits is a decision
@@ -100,8 +110,9 @@ and graph drift past the recorded threshold (`threshold`, 50).
 A module calls another module's public surface only. Reaching into another
 object's `_private` member across a module boundary is not permitted: the
 member is either part of the contract and should be named as such, or it is
-not and should not be called. 110 such calls exist today across 32 files;
-they are debt on the same burn-down terms as line count.
+not and should not be called. No such call exists today, so the ledger in
+`scripts/module-boundary-baseline.json` is empty; a new one fails the gate,
+and any that returns is debt on the same burn-down terms as line count.
 
 ## 5. Refactor rules
 
@@ -123,17 +134,18 @@ gate where it had a freeze.
 
 | Rule | Enforced | By |
 |---|---|---|
-| Line ceiling may not rise | yes | `scripts/check-file-size.js`, 637 files measured |
-| No require cycles | yes | `scripts/check-import-cycles.js`, 637 files measured |
-| Correctness lint | yes | `npm run lint` (`oxlint`, `correctness` at error): 0 findings over 1465 files, run by the `Enforce a lint-clean tree` job in `.github/workflows/architecture.yml` |
-| Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 74 recorded entries |
+| Line ceiling may not rise | yes | `scripts/check-file-size.js`, 1,419 files measured |
+| No require cycles | yes | `scripts/check-import-cycles.js`, 1,419 files measured |
+| Correctness lint | yes | `npm run lint` (`oxlint`, `correctness` at error): 0 findings over 2,824 files, run by the `Enforce a lint-clean tree` job in `.github/workflows/architecture.yml` |
+| Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 0 recorded entries |
+| Line density (400-char cap) | yes | `scripts/check-file-size.js`, 17 recorded exceptions in `LONG_LINE_ALLOWED` |
 | Baseline review dates | yes | both baselines; an expired or missing entry fails the gate |
 | Dependency direction | yes | `scripts/check-layers.js`, 3 dated exceptions |
 | Layer graph and drift | yes | `scripts/architecture-snapshot.js --check` against the `dependencyGraph` section of `scripts/architecture-tracker-baseline.json` (#2641): every module in a ring (`UI`, `Application`, `Adapters`, `Core`), directed import edges, outward edges recorded; a module with no ring, a violation that is neither recorded nor under a dated exception, and drift past the recorded threshold (50) fail the gate |
 | Construction instead of injection (DIP) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new DIP signal fails the baseline evolution check; composition roots are exempt by path; a construction that is not a coupling defect is a dated exception in `DIP_ALLOWED` (4, #2268, #3101), and an expired or stale entry fails the gate |
-| Growing dispatch (OCP) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new OCP signal fails the baseline evolution check; a dispatch over a set the language or a parser closes cannot grow with a feature, so it is a dated exception in `OCP_ALLOWED` (2, #3101), and an expired or stale entry fails the gate |
-| Fan-out (FANOUT) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new FANOUT signal (20 or more distinct requires) fails the baseline evolution check; there is no composition-root exemption, so only an entrypoint whose remaining requires it must own is a dated exception in `FANOUT_ALLOWED` (1, `kernel.js`, #3101) with a ceiling equal to its fan-out; growth past the ceiling brings the signal back, and an expired, stale or loose entry, or one for a non-entrypoint, fails the gate |
-| Module boundary | yes | `scripts/check-module-boundary.js`, ratcheted at 48 calls in 18 files |
+| Growing dispatch (OCP) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new OCP signal fails the baseline evolution check; a dispatch over a set the language or a parser closes cannot grow with a feature, so it is a dated exception in `OCP_ALLOWED` (4, #3101), and an expired or stale entry fails the gate |
+| Fan-out (FANOUT) | yes, as a ratchet | `scripts/architecture-snapshot.js --check`: a new FANOUT signal (20 or more distinct requires) fails the baseline evolution check; there is no composition-root exemption, so only an entrypoint whose remaining requires it must own is a dated exception in `FANOUT_ALLOWED` (3, #3101) with a ceiling equal to its fan-out; growth past the ceiling brings the signal back, and an expired, stale or loose entry, or one for a non-entrypoint, fails the gate |
+| Module boundary | yes | `scripts/check-module-boundary.js`, 0 recorded calls in 0 files |
 | Deterministic review order | yes, on demand | `scripts/architecture-review-queue.js --check` re-parses the committed tracker artifact and fails if it disagrees with the live snapshot (#2924); not run automatically in CI, and picking order itself is a review aid, not a gate |
 
 No row is marked "not yet" any more. Every rule here is checked by a script or

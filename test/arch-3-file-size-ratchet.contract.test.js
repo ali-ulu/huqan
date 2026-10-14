@@ -21,8 +21,11 @@ const test = require('node:test');
 
 const {
   THRESHOLD,
+  MAX_LINE_LENGTH,
+  LONG_LINE_ALLOWED,
   BASELINE_PATH,
   countLines,
+  countMaxLineLength,
   evaluate,
   listSourceFiles,
 } = require('../scripts/check-file-size');
@@ -31,6 +34,16 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 
 function kinds(violations) {
   return violations.map((item) => item.kind).sort();
+}
+
+/**
+ * A longest-line map covering every recorded exception, so a test can change
+ * one entry without the untouched ones reading as stale (a missing entry means
+ * the file is gone, by design).
+ */
+function fullMap(overrides = {}) {
+  const map = Object.fromEntries(LONG_LINE_ALLOWED.map((entry) => [entry.file, MAX_LINE_LENGTH + 1]));
+  return { ...map, ...overrides };
 }
 
 test('a file under the threshold and absent from the baseline is fine', () => {
@@ -218,4 +231,115 @@ test('a recorded ceiling with no review date at all is a violation', () => {
   );
 
   assert.equal(violations.filter((item) => item.kind === 'review-missing').length, 1);
+});
+
+/**
+ * Density: the line-count ratchet cannot see a file collapsed onto one line.
+ * These pin the longest-line budget and its exception ledger directly.
+ */
+test('a line over the character budget fails when the file is not recorded', () => {
+  const { violations } = evaluate(
+    { 'lib/dense.js': 10 },
+    {},
+    THRESHOLD,
+    { maxLineLengths: fullMap({ 'lib/dense.js': MAX_LINE_LENGTH + 1 }) },
+  );
+  const density = violations.filter((item) => item.kind === 'density');
+  assert.equal(density.length, 1);
+  assert.equal(density[0].file, 'lib/dense.js');
+  assert.match(density[0].message, new RegExp(`over the ${MAX_LINE_LENGTH}-character budget`));
+});
+
+test('a line exactly at the character budget passes', () => {
+  const { violations } = evaluate(
+    { 'lib/dense.js': 10 },
+    {},
+    THRESHOLD,
+    { maxLineLengths: fullMap({ 'lib/dense.js': MAX_LINE_LENGTH }) },
+  );
+  assert.deepEqual(violations.filter((item) => item.kind === 'density'), []);
+});
+
+test('a recorded long-line exception passes while its file is still over budget', () => {
+  const file = 'public/js/app.js';
+  const { violations } = evaluate(
+    { [file]: 38 },
+    {},
+    THRESHOLD,
+    { maxLineLengths: fullMap({ [file]: MAX_LINE_LENGTH + 30000 }) },
+  );
+  assert.deepEqual(violations.filter((item) => item.kind.startsWith('density')), []);
+});
+
+test('an expired long-line exception fails', () => {
+  const file = 'public/js/app.js';
+  const { violations } = evaluate(
+    { [file]: 38 },
+    {},
+    THRESHOLD,
+    { maxLineLengths: fullMap({ [file]: MAX_LINE_LENGTH + 30000 }), today: '2099-01-01' },
+  );
+  const expired = violations.filter((item) => item.kind === 'density-exception-expired');
+  // Every recorded entry is past 2099, and the gate reports each one.
+  assert.equal(expired.length, LONG_LINE_ALLOWED.length);
+  assert.equal(expired.some((item) => item.file === file), true);
+});
+
+test('a long-line exception whose file fell under the budget is stale', () => {
+  const file = 'public/js/app.js';
+  const { violations } = evaluate(
+    { [file]: 38 },
+    {},
+    THRESHOLD,
+    { maxLineLengths: fullMap({ [file]: MAX_LINE_LENGTH }) },
+  );
+  const stale = violations.filter((item) => item.kind === 'density-exception-stale');
+  assert.equal(stale.length, 1);
+  assert.equal(stale[0].file, file);
+});
+
+test('a long-line exception whose file is gone is stale', () => {
+  const gone = 'public/js/app.js';
+  const map = fullMap();
+  delete map[gone];
+  const { violations } = evaluate({ 'lib/other.js': 10 }, {}, THRESHOLD, { maxLineLengths: map });
+  const stale = violations.filter((item) => item.kind === 'density-exception-stale');
+  assert.equal(stale.length, 1);
+  assert.equal(stale[0].file, gone);
+});
+
+test('the density budget is inert when maxLineLengths is not supplied', () => {
+  const { violations } = evaluate({ 'lib/big.js': THRESHOLD + 1 }, {});
+  assert.deepEqual(kinds(violations), ['new-over-threshold']);
+});
+
+test('countMaxLineLength matches awk length semantics', (t) => {
+  const root = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'huqan-density-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  const cases = [
+    ['', 0],
+    ['abc\nde\n', 3],
+    ['a\nbbbbbb\n', 6],
+    ['no-trailing-newline', 19],
+  ];
+  for (const [content, expected] of cases) {
+    const file = path.join(root, `case-${Buffer.from(content).toString('hex')}.js`);
+    fs.writeFileSync(file, content);
+    assert.equal(countMaxLineLength(file), expected, JSON.stringify(content));
+  }
+});
+
+test('the committed long-line exceptions are live: each names a tracked file still over budget', () => {
+  const tracked = new Set(listSourceFiles());
+  for (const entry of LONG_LINE_ALLOWED) {
+    assert.equal(tracked.has(entry.file), true, `${entry.file} is recorded but is not a tracked source file`);
+    assert.equal(
+      countMaxLineLength(path.join(REPO_ROOT, entry.file)) > MAX_LINE_LENGTH,
+      true,
+      `${entry.file} is recorded but its longest line is within the budget`,
+    );
+    assert.equal(typeof entry.why, 'string', `${entry.file} must carry a reason`);
+    assert.equal(typeof entry.review_by, 'string', `${entry.file} must carry a review date`);
+  }
 });
