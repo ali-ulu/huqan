@@ -203,11 +203,11 @@ function runs(count, { cost = 10, from = 0 } = {}) {
 
 // The same promotion inputs test/cli-promote.test.js drives; the authority
 // binds the flags and the digest of each file's text.
-function promotionInputs(dir) {
+function promotionInputs(dir, { candidateCost = 5 } = {}) {
   const contents = {
     aday: { kind: 'replace_text', version: 'v2', scope: SCOPE, params: { path: 'a', oldText: 'x', newText: 'y' } },
     bagli: { kind: 'replace_text', version: 'v1', scope: SCOPE, params: { path: 'a', oldText: 'w', newText: 'x' } },
-    deneme: { candidateRuns: runs(12, { cost: 5 }), baselineWindowRuns: runs(12, { cost: 10 }), startAt: T0 },
+    deneme: { candidateRuns: runs(12, { cost: candidateCost }), baselineWindowRuns: runs(12, { cost: 10 }), startAt: T0 },
     gozlem: { currentEvents: runs(12, { cost: 5, from: 100 }) },
   };
   const argv = [];
@@ -255,4 +255,41 @@ test('terfi refuses an applied decision once an input file changed', async (t) =
   assert.equal(applied.report.error, 'EXECUTION_REFUSED');
   assert.match(applied.report.message, /AUTHORITY_DECISION_INVALID/);
   assert.equal(typeof runPromoteCommand, 'function');
+});
+
+test('an applied activation stops verifying once its registration expires', async (t) => {
+  const env = await setup(t);
+  const requested = await request('huqan.autonomy_activation', { workspaceId: 'ws-1', argsJson: '{}' }, env.deps);
+  const { approvalId, expiresAt } = requested.report;
+  await operatorDecides(env, approvalId);
+  assert.equal((await apply(approvalId, {}, env.deps)).code, 0);
+  const at = (instant) => verifyAutonomyActivation({ mode: env.mode, approvalId, workspaceId: 'ws-1', now: () => instant });
+  assert.equal((await at(Date.parse(expiresAt) - 1)).ok, true);
+  assert.equal((await at(Date.parse(expiresAt))).code, 'AUTHORITY_DECISION_EXPIRED');
+});
+
+test('a terfi whose loop refuses is not reported or recorded as executed', async (t) => {
+  const env = await setup(t);
+  // A candidate costlier than its baseline fails the canary: the loop refuses without throwing.
+  const { argv, digests } = promotionInputs(env.dir, { candidateCost: 50 });
+  const requested = await request('terfi', { argsJson: JSON.stringify({ argv, digests }) }, env.deps);
+  await operatorDecides(env, requested.report.approvalId);
+  const applied = await apply(requested.report.approvalId, {}, env.deps);
+  assert.equal(applied.code, 2);
+  assert.equal(applied.report.executed, false);
+  assert.equal(applied.report.error, 'PROMOTION_NOT_MOVED');
+  const outcome = env.ledger.all().find(e => e.type === 'approval.outcome' && e.body.approvalId === requested.report.approvalId);
+  assert.equal(outcome.body.status, 'failed');
+});
+
+test('apply says so when the authority does not record the outcome of an action that ran', async (t) => {
+  const env = await setup(t);
+  const requested = await request('huqan.autonomy_activation', { workspaceId: 'ws-1', argsJson: '{}' }, env.deps);
+  await operatorDecides(env, requested.report.approvalId);
+  const flaky = ({ pin }) => ({ ...createAuthorityClient({ pin }), recordOutcome: async () => ({ status: 503, body: { code: 'LEDGER_CORRUPT' } }) });
+  const applied = await apply(requested.report.approvalId, {}, { ...env.deps, createClient: flaky });
+  assert.equal(applied.code, 2);
+  assert.equal(applied.report.executed, true);
+  assert.equal(applied.report.outcomeRecorded, false);
+  assert.equal(applied.report.outcomeError, 'LEDGER_CORRUPT');
 });

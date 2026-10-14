@@ -91,7 +91,14 @@ const OPERATIONAL_EXECUTORS = Object.freeze({
     const CLI = require('../cli');
     const cli = new CLI();
     try {
-      return { ok: true, data: { output: await cli.execute('terfi', args.argv, { authority }) } };
+      const output = await cli.execute('terfi', args.argv, { authority, json: true });
+      let report = null;
+      try { report = JSON.parse(output); } catch { /* a gate refusal answers in text */ }
+      // terfi refuses inside its loop without throwing; only a promotion or rollback that happened is executed.
+      if (!report || report.ok !== true || report.moved !== true) {
+        return { ok: false, error: { code: 'PROMOTION_NOT_MOVED', message: typeof output === 'string' ? output.slice(0, 512) : 'no report' } };
+      }
+      return { ok: true, data: report };
     } finally {
       // Every store the CLI opened: an open SQLite handle at exit crashes the process on Windows.
       for (const store of [cli.agent?.storage, cli.approvalStore, cli.kernel.graph, cli.kernel.memory]) {
@@ -218,10 +225,22 @@ async function runOperational(approvalId, fetched, { client, mode, consumeProof,
   } catch (error) {
     result = { ok: false, error: { code: error.exitCode ? 'EXECUTION_REFUSED' : 'EXECUTION_THREW', message: error.message } };
   }
-  await client.recordOutcome(approvalId, { status: result.ok ? 'executed' : 'failed',
-    receiptId: String(result.ok ? approvalId : result.error?.code || 'failed'), receiptHash: null, consumeProof });
-  return { code: result.ok ? 0 : 2, report: { approvalId, decision, tool: approval.tool, executed: result.ok === true,
-    ...(result.ok ? {} : { error: result.error?.code, message: result.error?.message }) } };
+  const report = { approvalId, decision, tool: approval.tool, executed: result.ok === true,
+    ...(result.ok ? {} : { error: result.error?.code, message: result.error?.message }) };
+  // The action already ran. Without a recorded outcome a second apply would run
+  // it again, so an unrecorded outcome is its own failure and says so.
+  let recorded;
+  try {
+    recorded = await client.recordOutcome(approvalId, { status: result.ok ? 'executed' : 'failed',
+      receiptId: String(result.ok ? approvalId : result.error?.code || 'failed'), receiptHash: null, consumeProof });
+  } catch (error) {
+    recorded = { status: 0, body: { code: error.code || 'AUTHORITY_UNAVAILABLE' } };
+  }
+  if (recorded.status !== 200) {
+    return { code: 2, report: { ...report, outcomeRecorded: false, outcomeError: recorded.body?.code || `HTTP_${recorded.status}`,
+      note: 'the action ran but the authority did not record its outcome; do not apply again before checking what happened' } };
+  }
+  return { code: result.ok ? 0 : 2, report };
 }
 
 async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps = {}) {

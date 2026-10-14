@@ -190,7 +190,19 @@ prints the exact `request` command. A guard that throws refuses.
   executor does nothing else. The hook reads the decision back on every call
   through the verifier `bin/huqan-gate-hook.js` wires in. It checks the
   decision as of its consumption, since the authority refused to consume an
-  expired decision. Without a verifier, or on any refusal, the hook exits 2.
+  expired decision. The activation lasts until the registration's
+  `expiresAt`, which the operator saw when deciding; then it must be
+  requested again. Without a verifier, or on any refusal, the hook exits 2.
+
+The guard is a code-level check, like P4's re-read of the row. Same-user code
+that already holds a consumed envelope can call the guarded function again,
+just as it can delete a stop record directly (residual risk 1). The authority
+does not prevent that. It makes it detectable: each lift, promotion or resume
+should match exactly one `approval.consumed` entry.
+
+`apply` reports when the authority did not record the outcome
+(`outcomeRecorded: false`). The action has already run at that point, so a
+blind second `apply` would run it again.
 
 Not yet done: recording a *stop* in the authority's ledger. That needs a new
 service route, which means changing the protected bundle and reinstalling it.
