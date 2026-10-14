@@ -118,9 +118,9 @@ function countMaxLineLength(absolutePath) {
   return max;
 }
 
-function readBaseline() {
-  if (!fs.existsSync(BASELINE_PATH)) return {};
-  const parsed = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+function readBaseline(baselinePath = BASELINE_PATH) {
+  if (!fs.existsSync(baselinePath)) return {};
+  const parsed = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
   return parsed && typeof parsed.files === 'object' && parsed.files !== null ? parsed.files : {};
 }
 

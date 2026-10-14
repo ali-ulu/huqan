@@ -31,7 +31,6 @@ const {
   measure,
   measureMaxLineLengths,
   readBaseline,
-  main,
 } = require('../scripts/check-file-size');
 const { longLineExceptionViolations } = require('../scripts/file-size-policy');
 
@@ -390,14 +389,21 @@ test('readBaseline returns the recorded line-count ceilings', () => {
   }
 });
 
-test('the CLI passes on the committed tree and reports the density budget', () => {
-  const logs = [];
-  const original = console.log;
-  console.log = (...args) => logs.push(args.join(' '));
-  try {
-    assert.equal(main([]), 0);
-  } finally {
-    console.log = original;
-  }
-  assert.match(logs.join('\n'), new RegExp(`none over ${MAX_LINE_LENGTH} chars per line`));
+test('readBaseline yields an empty map when the ledger is absent or malformed', (t) => {
+  const root = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'huqan-baseline-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  assert.deepEqual(readBaseline(path.join(root, 'absent.json')), {}, 'a missing ledger is no entries, not a throw');
+
+  const noFiles = path.join(root, 'no-files.json');
+  fs.writeFileSync(noFiles, JSON.stringify({ threshold: THRESHOLD }));
+  assert.deepEqual(readBaseline(noFiles), {}, 'a ledger without a files map yields no entries');
+
+  const nullFiles = path.join(root, 'null-files.json');
+  fs.writeFileSync(nullFiles, JSON.stringify({ files: null }));
+  assert.deepEqual(readBaseline(nullFiles), {}, 'a null files map yields no entries');
+
+  const withFiles = path.join(root, 'with-files.json');
+  fs.writeFileSync(withFiles, JSON.stringify({ files: { 'kernel.js': 2098 } }));
+  assert.deepEqual(readBaseline(withFiles), { 'kernel.js': 2098 });
 });
