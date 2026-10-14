@@ -27,6 +27,9 @@ const DEFAULT_FILE_TIMEOUT_MS = 90_000;
 // runner that crossed the 90s cap intermittently, killing a file that was still
 // working and reddening CI on PRs that never touched it. The other three spawn
 // a full external runner or a browser; they are slow by construction too.
+// coder-project-method-memory restarts the native CLI and runs real HTTP
+// heldouts in each of its ten cases (140s+ locally); on the Windows runner it
+// crossed 90s on main (82c8ff8a) and on unrelated PRs (#3882).
 //
 // The cap stays 90s for everything else: this widens the deadline for exactly
 // the paths that do install-scale work, and leaves the hang detection that
@@ -34,6 +37,7 @@ const DEFAULT_FILE_TIMEOUT_MS = 90_000;
 const HEAVY_FILE_TIMEOUT_MS = 240_000;
 const HEAVY_FILES = Object.freeze(new Set([
   'test/kernel-facade-contract.test.js',
+  'test/coder-project-method-memory.test.js',
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',
