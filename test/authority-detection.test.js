@@ -370,6 +370,37 @@ test('a consumption outside a cut window is counted, not reported as a bypass', 
     ledger: { mode: 'service', truncated: true, corrupt: false,
       entries: ledgerOf([{ type: 'approval.consumed', body: { approvalId: 'old', actionHash: hash } }]) } });
   assert.deepEqual(section.evidence.findings, []);
-  assert.equal(section.evidence.consumptionsOutsideWindow, 1);
+  assert.equal(section.evidence.outsideWindow, 1);
   assert.equal(section.status, 'info');
+});
+
+test('a ledger read that fails part way, or without a head, is reported as unavailable, not compared', async () => {
+  const { fetchAuthorityLedger } = require('../lib/mcp/authority-ledger-provider');
+  const deps = (client) => ({ resolveMode: () => ({ mode: 'service', pin: {} }), createClient: () => client });
+  const page = (fromSeq) => Array.from({ length: 500 }, (_, i) => ({ seq: fromSeq + i, type: 'note', body: {} }));
+  const partial = await fetchAuthorityLedger({}, deps({
+    ledgerHead: async () => ({ status: 200, body: { seq: 1_999 } }),
+    ledgerEntries: async ({ fromSeq }) => (fromSeq === 0 ? { status: 200, body: { entries: page(0) } } : { status: 503, body: { code: 'BUSY' } }),
+  }));
+  assert.equal(partial.error, 'AUTHORITY_UNAVAILABLE');
+  assert.equal(partial.truncated, true);
+  const headless = await fetchAuthorityLedger({}, deps({
+    ledgerHead: async () => ({ status: 503, body: {} }),
+    ledgerEntries: async () => assert.fail('no page is read without a head'),
+  }));
+  assert.equal(headless.error, 'AUTHORITY_UNAVAILABLE');
+  const section = buildAuthoritySection({ workspaceId: WS, getApprovalStore: () => stubStore(rawRow()), ledger: partial });
+  assert.deepEqual(section.evidence.findings.map(f => f.code), ['AUTHORITY_UNAVAILABLE']);
+});
+
+test('with a cut ledger window only rows older than the window are out of view; newer ones are still a bypass', () => {
+  const windowStart = Date.parse('2026-10-14T12:00:00.000Z');
+  const entries = [{ seq: 15_000, type: 'note', at: new Date(windowStart).toISOString(), body: {} }];
+  const section = (updatedAt) => buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(rawRow({ updated_at: updatedAt })),
+    ledger: { mode: 'service', truncated: true, corrupt: false, entries } }).evidence;
+  const old = section(windowStart - 1);
+  assert.deepEqual(old.findings, []);
+  assert.equal(old.outsideWindow, 1);
+  assert.deepEqual(section(windowStart + 1).findings.map(f => f.code), ['EXECUTED_WITHOUT_AUTHORITY']);
 });
