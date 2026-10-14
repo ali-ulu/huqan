@@ -121,7 +121,7 @@ test('generated application passes independent HTTP acceptance in a separate pro
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, content);
   }
-  const output = execFileSync(process.execPath, ['--test', 'test/api.test.js'], { cwd: directory, env, encoding: 'utf8', timeout: 30000 });
+  const output = execFileSync(process.execPath, ['--test', '--test-reporter=tap', 'test/api.test.js'], { cwd: directory, env, encoding: 'utf8', timeout: 30000 });
   assert.match(output, /# fail 0/u);
   const changedAcceptance = projectSpec();
   changedAcceptance.routes[2].acceptanceExamples[0].expected = 123;
@@ -129,7 +129,7 @@ test('generated application passes independent HTTP acceptance in a separate pro
   assert.equal(wrong.ok, true);
   assert.equal(wrong.files['src/logic.js'], result.files['src/logic.js']);
   fs.writeFileSync(path.join(directory, 'test/api.test.js'), wrong.files['test/api.test.js']);
-  assert.throws(() => execFileSync(process.execPath, ['--test', 'test/api.test.js'], {
+  assert.throws(() => execFileSync(process.execPath, ['--test', '--test-reporter=tap', 'test/api.test.js'], {
     cwd: directory, env, encoding: 'utf8', timeout: 30000, stdio: 'pipe'
   }), error => error.status === 1);
 });
