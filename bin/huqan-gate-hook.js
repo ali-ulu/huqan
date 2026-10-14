@@ -135,7 +135,12 @@ async function main() {
       issueIdentityCard();
       return;
     }
-    await runHookEvaluation(command, auraSignalProviderFromEnvironment());
+    await runHookEvaluation(command, {
+      ...auraSignalProviderFromEnvironment(),
+      // #3892: where an approval authority is installed, --autonomy-activation
+      // names its consumed decision; this is what reads it back.
+      verifyAutonomyActivation: (input) => require('../lib/authority/autonomy-activation').verifyAutonomyActivation(input),
+    });
   } catch (error) {
     process.stderr.write(`HUQAN external action guard failed closed: ${error?.message || error}\n`);
     process.exitCode = 2;

@@ -61,7 +61,8 @@ const RULES = [
     layer: 'Adapters',
     why: 'The persistence family and the modules that talk to something outside the process -- a file, a database, a socket, a model. They may know Core; Core may not know them.',
     // #3860: the approval authority's ledger, state and HTTP server touch disk and sockets.
-    files: ['lib/authority/authority-client.js', 'lib/authority/consume-key.js', 'lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
+    // #3892: the gate hook's activation check reads the authority over its socket.
+    files: ['lib/authority/authority-client.js', 'lib/authority/autonomy-activation.js', 'lib/authority/consume-key.js', 'lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
       'storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js', 'sandboxRunner-child.js', 'sandboxRunner-context.js', 'sandboxRunner-limits.js'],
     dirs: ['adapters/', 'packages/', 'lib/storage/', 'lib/connectors/', 'lib/interop/', 'lib/llm-proxy/'],
     pattern: /^lib\/(memory|sqlite)-/,
@@ -101,6 +102,8 @@ const RULES = [
       'lib/authority/approval-view.js', 'lib/authority/authority-service.js', 'lib/authority/operator-check.js',
       'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
       'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js', 'lib/authority/install-trust.js',
+      // #3892: the operational guard verifies with the decision guard, so it sits beside it.
+      'lib/authority/operational-guard.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

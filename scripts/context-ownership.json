@@ -1748,6 +1748,14 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/authority/operational-guard.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/autonomy-activation.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/registration-payload.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -6958,6 +6966,20 @@
     "Platform"
    ],
    "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/operational-guard.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3892 ADR-016: bin/huqan-authority.js, the terfi CLI and the MCP operator dispatch verify operational approvals through the guard"
+  },
+  "lib/authority/autonomy-activation.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3892 ADR-016: bin/huqan-gate-hook.js wires the authority check for --autonomy-activation into the hook evaluation"
   },
   "lib/authority/authority-client.js": {
    "owner": "AgentAction",

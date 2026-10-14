@@ -901,6 +901,8 @@
     "lib/mcp-operator-capability.js",
     "lib/authority/consume-key.js",
     "lib/authority/decision-guard.js",
+    "lib/authority/operational-guard.js",
+    "lib/authority/autonomy-activation.js",
     "lib/authority/registration-payload.js",
     "lib/authority/bundle-manifest.js",
     "lib/authority/consumption-envelope.js",
