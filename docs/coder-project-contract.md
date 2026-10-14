@@ -348,7 +348,8 @@ verified candidate in the requested family, uses no new enumeration, and must
 pass fresh acceptance. A paired native test holds the target spec unchanged:
 fresh bounded search refuses while sealed-method reuse succeeds. This is one
 observed bounded task result, not a general learning-gain estimate.
-# Direct reuse of a verified chain
+
+## Direct reuse of a verified chain
 
 `pipeline: { family, examples, inferFromMemory: true }` may build a new chain
 from verified primitive methods without declaring base routes or stage order.

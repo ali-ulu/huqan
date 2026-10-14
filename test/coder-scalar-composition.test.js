@@ -82,6 +82,33 @@ test('canonicalizes commutative operands instead of refusing equivalent addition
   assert.equal(produced.computation.routes[2].matchingExpressions, 1);
   assert.equal(produced.computation.routes[2].program.expression.operator, '+');
 });
+test('groups exactly equivalent safe additive reassociations at two operations', () => {
+  for (const coefficient of [1, -1]) {
+    const spec = projectSpec();
+    for (const row of [...spec.routes[2].composeScalar.examples, ...spec.routes[2].acceptanceExamples])
+      row.expected = 2 * extremum(row.input, false) + coefficient * extremum(row.input, true);
+    const produced = produceComputedProject(spec);
+    assert.equal(produced.ok, true, produced.reason);
+    assert.equal(produced.computation.routes[2].matchingExpressions, 1);
+    const selected = inspectProjectProgram(produced.computation.routes[2].program);
+    assert.equal(selected.evaluate([-1000000, 1000000]), 2000000 + coefficient * -1000000);
+  }
+});
+test('retains multiplication forms with different signed-zero refusal domains', () => {
+  const a = { source: 0 }, b = { source: 1 };
+  const left = inspectProjectProgram({ type: 'scalar-composition', sources: sources(), expression: {
+    operator: '*', left: { operator: '*', left: a, right: b }, right: b
+  } });
+  const right = inspectProjectProgram({ type: 'scalar-composition', sources: sources(), expression: {
+    operator: '*', left: a, right: { operator: '*', left: b, right: b }
+  } });
+  assert.throws(() => left.evaluate([0, -1]), /RESULT_INVALID/u);
+  assert.equal(right.evaluate([0, -1]), 0);
+  const search = searchScalarCompositions({ sources: sources(), examples: [[2, 3], [-3, -2], [4, 7]].map(input => ({
+    input, expected: extremum(input, false) * extremum(input, true) * extremum(input, true)
+  })) });
+  assert.ok(search.matchingExpressions > 1);
+});
 test('generated application passes independent HTTP acceptance in a separate process', t => {
   const result = produceComputedProject(projectSpec());
   assert.equal(result.ok, true, result.reason);
