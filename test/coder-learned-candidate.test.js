@@ -146,6 +146,31 @@ test('memory selects a sealed method for a new context without method text or a 
   } finally { store.close(); }
 });
 
+test('candidates remain selectable when the root is spelled through a link', t => {
+  // macOS spells its user temp root through /var -> /private/var. The
+  // selection pool must therefore be enumerated through the root spelling the
+  // caller used, not the canonicalized one, or resolveCandidate refuses every
+  // file in the pool as invalid_candidate_path.
+  const f = fixture(t);
+  assert.equal(remember(f).ok, true);
+  const linkedRoot = path.join(f.root, 'linked-root');
+  fs.symlinkSync(f.root, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir');
+  const task = { id: 'linked-root', level: 'l0', allowedPaths: ['docs/a.md'],
+    operation: { type: 'replace_text', path: 'docs/a.md' } };
+  fs.writeFileSync(path.join(f.root, 'docs/a.md'), 'linked context\nbefore\n');
+  const store = f.open();
+  try {
+    const selected = selectCandidate({ task, root: linkedRoot, journal: store.journal,
+      workspaceId: 'default' });
+    assert.equal(selected.ok, true, selected.reason);
+    assert.equal(path.basename(selected.selectedFile), 'candidate.json');
+    const learned = applyDerivation({ task: selected.task, root: f.root, repoState: STATE,
+      journal: store.journal, runId: 'linked-root' });
+    assert.equal(learned.ok, true, learned.reason);
+    assert.equal(fs.readFileSync(path.join(f.root, 'docs/a.md'), 'utf8'), 'linked context\nafter\n');
+  } finally { store.close(); }
+});
+
 test('memory refuses competing verified replacements and corrupted candidates without writing', t => {
   const f = fixture(t);
   assert.equal(remember(f).ok, true);

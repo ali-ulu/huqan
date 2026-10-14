@@ -83,3 +83,14 @@ test('nothing pending is reported plainly', async (t) => {
   await runOperatorSession({ pin: env.pin, ...again });
   assert.match(again.printed.join('\n'), /nothing is waiting/i);
 });
+
+test('the operator can withdraw an approved decision that nothing has consumed', async (t) => {
+  const env = await setup(t);
+  await runOperatorSession({ pin: env.pin, ...scripted(['1', 'a', '', codeNow(env.created), 'q']) });
+  const next = totpAt(env.created.totpSecret, Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS) + 1);
+  const io = scripted(['1', 'w', 'agent compromised', next, 'q']);
+  await runOperatorSession({ pin: env.pin, ...io });
+  assert.match(io.printed.join('\n'), /approved, not yet consumed/);
+  assert.match(io.printed.join('\n'), /withdrawn .*ledger entry/i);
+  assert.equal(env.ledger.all().filter(entry => entry.type === 'approval.withdrawn').length, 1);
+});

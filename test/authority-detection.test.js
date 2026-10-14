@@ -322,3 +322,18 @@ test('audit --authority without a provider degrades instead of throwing', async 
   assert.equal(report.data.articles.authority_detection.status, 'info');
 });
 
+
+test('an operational approval has no local row by design and is checked only for its outcome (#3892)', () => {
+  const hash = 'c'.repeat(64);
+  const registered = { type: 'approval.registered', body: { approvalId: 'ops-1', tool: 'huqan.emergency_stop', workspaceId: WS, actionHash: hash } };
+  const consumed = { type: 'approval.consumed', body: { approvalId: 'ops-1', actionHash: hash } };
+  const section = (pairs) => buildAuthoritySection({ workspaceId: WS, getApprovalStore: () => stubStore([]),
+    ledger: { mode: 'service', entries: ledgerOf(pairs), corrupt: false } }).evidence.findings;
+
+  assert.deepEqual(section([registered, consumed,
+    { type: 'approval.outcome', body: { approvalId: 'ops-1', status: 'executed', receiptId: 'ops-1', receiptHash: null } }]), []);
+  assert.deepEqual(section([registered, consumed]).map(f => f.code), ['OUTCOME_MISSING']);
+  const ghost = { type: 'approval.registered', body: { ...registered.body, approvalId: 'ops-2', tool: 'huqan.learn' } };
+  assert.deepEqual(section([ghost, { type: 'approval.consumed', body: { approvalId: 'ops-2', actionHash: hash } }]).map(f => f.code),
+    ['CONSUMED_UNKNOWN_LOCALLY'], 'an ops- id alone does not exempt a non-operational tool');
+});

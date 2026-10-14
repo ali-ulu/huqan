@@ -142,9 +142,11 @@
       "lib/authority/decision-envelope.js": "Core",
       "lib/authority/decision-guard.js": "Core",
       "lib/authority/http-server.js": "Adapters",
+      "lib/authority/install-trust.js": "Core",
       "lib/authority/keys.js": "Core",
       "lib/authority/ledger-store.js": "Adapters",
       "lib/authority/operator-check.js": "Core",
+      "lib/authority/operator-cli.js": "UI",
       "lib/authority/registration-payload.js": "Core",
       "lib/authority/sealed-request.js": "Core",
       "lib/authority/service-main.js": "UI",
@@ -2034,6 +2036,7 @@
       ],
       "lib/authority/authority-mode.js": [
         "lib/authority/authority-pin.js",
+        "lib/authority/install-trust.js",
         "lib/environment-compat.js"
       ],
       "lib/authority/authority-pin.js": [
@@ -2072,6 +2075,11 @@
       "lib/authority/operator-check.js": [
         "lib/authority/totp.js"
       ],
+      "lib/authority/operator-cli.js": [
+        "lib/authority/authority-client.js",
+        "lib/authority/authority-pin.js",
+        "lib/authority/sealed-request.js"
+      ],
       "lib/authority/registration-payload.js": [
         "lib/json-object.js",
         "lib/mcp-approval-expiry.js",
@@ -2089,6 +2097,7 @@
         "lib/authority/decision-envelope.js",
         "lib/authority/http-server.js",
         "lib/authority/ledger-store.js",
+        "lib/authority/operator-check.js",
         "lib/authority/state-store.js",
         "lib/authority/totp.js"
       ],
@@ -2565,7 +2574,6 @@
         "lib/experience/array-filter-program.js",
         "lib/experience/array-fold-program.js",
         "lib/experience/array-guarded-fold-program.js",
-        "lib/experience/array-map-program.js",
         "lib/experience/array-map-program.js",
         "lib/experience/array-stateful-fold-program.js"
       ],
@@ -4500,10 +4508,12 @@
       ],
       "lib/mcp-approval-learn-execution.js": [
         "lib/approval-execution-evidence.js",
+        "lib/approval-receipts.js",
         "lib/mcp-approval-admission.js",
         "lib/mcp-approval-views.js",
         "lib/mcp-human-oversight-adapter.js",
-        "lib/mcp-input-sanitizers.js"
+        "lib/mcp-input-sanitizers.js",
+        "lib/mcp-tool-names.js"
       ],
       "lib/mcp-approval-store-factory.js": [
         "storage.js"

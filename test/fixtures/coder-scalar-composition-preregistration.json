@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "scope": "new scalar arithmetic composition from frozen maximum/minimum methods",
+  "sourceHead": "1fb06ff99e7853883013040abc27622a6efb19b1",
+  "modelsAllowed": false,
+  "trainedMethods": ["maximum", "minimum"],
+  "excludedTrainingMethods": ["range"],
+  "grammar": { "operands": ["highest", "lowest"], "operators": ["+", "-", "*"], "maxOperations": 2 },
+  "comparison": {
+    "arms": ["existing-system", "new-search", "new-search-with-frozen-memory"],
+    "maxTotalCandidatesPerArm": 65536,
+    "includeCosts": ["source-training", "source-replay", "target-search", "native-verification"],
+    "selectionInputs": "training-only",
+    "oracle": "independently sorted input, last minus first; empty input returns zero",
+    "gainStatus": "NOT_MEASURED"
+  },
+  "sourceTrainingInputs": [[], [2, 5], [5, 2], [3, 1, 4], [-4, -2], [-2, 7, 1]],
+  "training": [
+    { "input": [10, -5], "expected": 15 },
+    { "input": [20, 3], "expected": 17 },
+    { "input": [7, 8], "expected": 1 }
+  ],
+  "holdout": [
+    { "input": [], "expected": 0 },
+    { "input": [42], "expected": 0 },
+    { "input": [-100, -30], "expected": 70 },
+    { "input": [-30, -100], "expected": 70 },
+    { "input": [9, 9, 9], "expected": 0 },
+    { "input": [-1000000, 1000000], "expected": 2000000 },
+    { "input": [1000000, -1000000], "expected": 2000000 }
+  ],
+  "negativeControls": ["reversed-subtraction", "changed-source-hash", "incorrect-acceptance", "unsafe-intermediate"],
+  "requiredRuntimeEvidence": ["native-HTTP-acceptance", "new-process-persistence", "rollback", "unchanged-frozen-source-memory"],
+  "completionStatus": "NOT_RUN"
+}

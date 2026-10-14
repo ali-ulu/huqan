@@ -219,3 +219,55 @@ test('the optional route boundaries mount the emergency stop behind the operator
   assert.equal(handled, true, 'the composite routes the emergency stop path');
   assert.equal(res.status, 403, 'and the route still demands an operator capability');
 });
+
+// #3892: where an approval authority is installed, a lift on any surface is
+// refused until the authority decided it, and says how to register it; the
+// stop it would lift stays in place.
+const AUTHORITY_INSTALLED = () => ({ mode: 'service', boundary: 'os-service', pin: { signingKey: null } });
+
+function guardedLedgerIn(t) {
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-emergency-stop-authority-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const ledger = createEmergencyStop({ directory: dir, resolveAuthorityMode: AUTHORITY_INSTALLED });
+  ledger.stop({ scope: 'workspace', workspaceId: 'w', reason: 'incident', actor: 'operator:test' });
+  return ledger;
+}
+
+test('with an authority installed the HTTP lift answers 403 with the request command and lifts nothing', async (t) => {
+  const ledger = guardedLedgerIn(t);
+  const { routes } = routesWith(t, { emergencyStop: ledger });
+  const body = { action: 'lift', scope: 'workspace', workspaceId: 'w', reason: 'reviewed' };
+  const refused = await call(routes, { method: 'POST', body, capability: capabilityFor(changeArguments(body)) });
+  assert.equal(refused.status, 403);
+  assert.equal(refused.body.error.code, 'AUTHORITY_DECISION_REQUIRED');
+  assert.match(refused.body.error.request, /^huqan-authority request huqan\.emergency_stop --workspace 'w'/);
+  assert.equal(ledger.check({ workspaceId: 'w' }).stopped, true);
+});
+
+test('with an authority installed the CLI lift exits unauthorized and lifts nothing', async (t) => {
+  const ledger = guardedLedgerIn(t);
+  const err = [];
+  const result = await runCliArgv(['lift', '--scope', 'workspace', '--workspace', 'w', '--reason', 'reviewed'],
+    { stderr: (value) => err.push(value) }, { emergencyStop: ledger });
+  assert.equal(result.exitCode, CLI_EXIT_CODES.unauthorized);
+  assert.match(err.join('\n'), /AUTHORITY_DECISION_REQUIRED[\s\S]*huqan-authority request huqan\.emergency_stop/);
+  assert.equal(ledger.check({ workspaceId: 'w' }).stopped, true);
+});
+
+test('with an authority installed the MCP lift is refused while a stop still goes through', async (t) => {
+  const { callTool, createServer } = require('../mcpServer');
+  const ledger = guardedLedgerIn(t);
+  const server = createServer({ kernel: {} });
+  t.after(() => { server.kernel.graph?.close?.(); server.approvalStore?.close?.(); });
+  const run = (args) => callTool(server.kernel, { name: EMERGENCY_STOP_TOOL, arguments: args,
+    operatorCapability: createMcpOperatorCapability({ secret: 'stop-operator', ...operatorCapabilityBinding(EMERGENCY_STOP_TOOL, args) }) },
+  { operatorSecret: 'stop-operator', operatorCapabilityNonces: new Map(), emergencyStop: ledger });
+  const lift = run({ action: 'lift', scope: 'workspace', workspaceId: 'w', reason: 'reviewed' });
+  assert.equal(lift.ok, false);
+  assert.equal(lift.error.code, 'AUTHORITY_DECISION_REQUIRED');
+  assert.match(lift.meta.authority.request, /huqan-authority request huqan\.emergency_stop/);
+  assert.equal(ledger.check({ workspaceId: 'w' }).stopped, true);
+  const stop = run({ action: 'stop', scope: 'agent', workspaceId: 'w', agentId: 'a9', reason: 'contain' });
+  assert.equal(stop.ok, true);
+  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a9' }).stopped, true);
+});

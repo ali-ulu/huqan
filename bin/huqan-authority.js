@@ -9,9 +9,14 @@
  *                                           and whether the pinned service answers
  *   huqan-authority sync [--workspace <id>] register pending local approvals with it
  *   huqan-authority decide                  where the operator decides (it does not open it)
+ *   huqan-authority withdraw <approvalId>   where the operator takes back an approved decision nobody has consumed
  *   huqan-authority apply <approvalId> [--workspace <id>]
  *                                           fetch the operator's signed decision,
  *                                           consume it, carry it out, record the outcome
+ *   huqan-authority request <tool> [--workspace <id>] --args <json>
+ *                                           register an operator action that has no
+ *                                           approval row (agent resume, emergency-stop
+ *                                           lift, terfi, autonomy activation; #3892)
  *
  * Exit 0 on success. Exit 2 when an authority is required or installed but
  * cannot be used, answers as something other than the pinned service, or
@@ -21,13 +26,17 @@
 const crypto = require('node:crypto');
 const { resolveApprovalAuthorityMode } = require('../lib/authority/authority-mode');
 const { createAuthorityClient } = require('../lib/authority/authority-client');
-const { buildRegistration, consumeProofFor, storedArgumentsOf } = require('../lib/authority/registration-payload');
+const { buildRegistration, buildOperationalRegistration, consumeProofFor, storedArgumentsOf } = require('../lib/authority/registration-payload');
+const { OPERATIONAL_TOOLS, isOperationalTool } = require('../lib/authority/operational-guard');
 const { loadOrCreateConsumeKey } = require('../lib/authority/consume-key');
 const { listPersistentApprovals, formatApprovalRecord } = require('../lib/mcp-approval-views');
 const { requireAuthorityDecision } = require('../lib/authority/decision-guard');
 const { resolveMcpApprovalTtlMs } = require('../lib/mcp-approval-expiry');
 
-const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | decide | apply <approvalId> [--workspace <id>]';
+const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | decide | withdraw <approvalId>'
+  + ' | apply <approvalId> [--workspace <id>] | request <tool> [--workspace <id>] --args <json>';
+const OPERATIONAL_PREFIX = 'ops-';
+const OPERATIONAL_ACTOR = 'operator:authority';
 const MAX_SYNC = 500;
 
 function openLocalRuntime() {
@@ -54,9 +63,57 @@ function openLocalRuntime() {
   };
 }
 
+// The executors for operational approvals (#3892). Each gets the authority's
+// envelopes in-process and hands them to the surface, which verifies them
+// against the arguments it acts on: this file never decides on its own.
+const OPERATIONAL_EXECUTORS = Object.freeze({
+  [OPERATIONAL_TOOLS.EMERGENCY_STOP]: ({ args, authority }) => {
+    if (args.action !== 'lift') return { ok: false, error: { code: 'INVALID_ACTION', message: 'only a lift is decided by the authority' } };
+    const { emergencyStopLedger } = require('../lib/emergency-stop');
+    const result = emergencyStopLedger().lift({ scope: args.scope, workspaceId: args.workspaceId, agentId: args.agentId || undefined,
+      reason: args.reason, actor: OPERATIONAL_ACTOR, authority });
+    return result.ok ? { ok: true, data: { lifted: result.lifted } } : { ok: false, error: { code: result.reason } };
+  },
+  [OPERATIONAL_TOOLS.AGENT_RESUME]: async ({ args, authority }) => {
+    const { createServer, callTool } = require('../mcpServer');
+    const server = createServer();
+    const operatorToken = crypto.randomBytes(32).toString('hex');
+    try {
+      return await callTool(server.kernel, { name: OPERATIONAL_TOOLS.AGENT_RESUME, operatorToken, arguments: args },
+        { approvalStore: server.approvalStore, operatorToken, approvalAuthorityMode: authority.mode,
+          authorityApprovalId: authority.approvalId, authorityDecision: authority.envelope, authorityConsumption: authority.consumption });
+    } finally {
+      server.kernel.graph?.close?.();
+      server.approvalStore?.close?.();
+    }
+  },
+  [OPERATIONAL_TOOLS.PROMOTE]: async ({ args, authority }) => {
+    const CLI = require('../cli');
+    const cli = new CLI();
+    try {
+      const output = await cli.execute('terfi', args.argv, { authority, json: true });
+      let report = null;
+      try { report = JSON.parse(output); } catch { /* a gate refusal answers in text */ }
+      // terfi refuses inside its loop without throwing; only a promotion or rollback that happened is executed.
+      if (!report || report.ok !== true || report.moved !== true) {
+        return { ok: false, error: { code: 'PROMOTION_NOT_MOVED', message: typeof output === 'string' ? output.slice(0, 512) : 'no report' } };
+      }
+      return { ok: true, data: report };
+    } finally {
+      // Every store the CLI opened: an open SQLite handle at exit crashes the process on Windows.
+      for (const store of [cli.agent?.storage, cli.approvalStore, cli.kernel.graph, cli.kernel.memory]) {
+        try { store?.close?.(); } catch { /* already closed */ }
+      }
+    }
+  },
+  // The consumption itself is the activation: the gate hook reads it back.
+  [OPERATIONAL_TOOLS.AUTONOMY_ACTIVATION]: () => ({ ok: true, data: { activated: true } }),
+});
+
 function defaults(deps) {
   return { resolveMode: resolveApprovalAuthorityMode, createClient: createAuthorityClient, openRuntime: openLocalRuntime,
-    loadConsumeKey: loadOrCreateConsumeKey, ttlMs: () => resolveMcpApprovalTtlMs(), ...deps };
+    loadConsumeKey: loadOrCreateConsumeKey, ttlMs: () => resolveMcpApprovalTtlMs(), executors: OPERATIONAL_EXECUTORS,
+    now: Date.now, ...deps };
 }
 
 function serviceOrRefusal(mode) {
@@ -116,8 +173,78 @@ async function consumeOnce(client, approvalId, fetched, consumeProof) {
   return { consumption: consumed.body.consumption };
 }
 
+async function request(tool, { workspaceId = 'default', argsJson } = {}, deps = {}) {
+  const { resolveMode, createClient, loadConsumeKey, ttlMs, now } = defaults(deps);
+  if (!isOperationalTool(tool)) {
+    return { code: 1, report: { tool, error: 'NOT_OPERATIONAL', operational: Object.values(OPERATIONAL_TOOLS) } };
+  }
+  let args;
+  try {
+    args = JSON.parse(argsJson);
+  } catch {
+    args = null;
+  }
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return { code: 1, report: { tool, error: 'ARGS_NOT_AN_OBJECT' } };
+  const mode = resolveMode();
+  const refusal = serviceOrRefusal(mode);
+  if (refusal) return refusal;
+  const body = buildOperationalRegistration({ tool, workspaceId, args, consumeKey: loadConsumeKey(), now: now(), ttlMs: ttlMs() });
+  const answer = await createClient({ pin: mode.pin }).register(body);
+  if (answer.status !== 200 && answer.status !== 201) {
+    return { code: 2, report: { tool, error: answer.body?.code || `HTTP_${answer.status}`,
+      ...(answer.body?.reason ? { reason: answer.body.reason } : {}) } };
+  }
+  return { code: 0, report: { approvalId: body.approvalId, tool: body.tool, workspaceId, expiresAt: body.expiresAt,
+    next: `decide it in the HUQAN Authority window, then run huqan-authority apply ${body.approvalId}` } };
+}
+
+async function runOperational(approvalId, fetched, { client, mode, consumeProof, executors, workspaceId: requestedWorkspace }) {
+  const envelope = fetched.body.envelope;
+  const decision = envelope.payload.decision;
+  if (decision !== 'approved') return { code: 0, report: { approvalId, decision, executed: false } };
+  const shown = await client.show(approvalId);
+  const approval = shown.status === 200 ? shown.body?.approval : null;
+  if (!approval || !isOperationalTool(approval.tool)) return { code: 2, report: { approvalId, decision, error: 'NOT_OPERATIONAL' } };
+  if (requestedWorkspace !== undefined && requestedWorkspace !== approval.workspaceId) {
+    return { code: 2, report: { approvalId, decision, error: 'WORKSPACE_MISMATCH' } };
+  }
+  // The recorded outcome is what makes a second apply change nothing; a crash
+  // after consuming and before the outcome leaves it re-runnable, as in P4.
+  if (approval.outcome) return { code: 0, report: { approvalId, decision, alreadyFinal: approval.outcome.status } };
+  // Checked before anything is spent: a decision that does not cover these
+  // arguments is never consumed.
+  const preflight = requireAuthorityDecision({ mode, existing: { tool: approval.tool }, approvalId, workspaceId: approval.workspaceId,
+    decision, storedArgs: approval.arguments, envelope, now: Date.now(), checkConsumption: false });
+  if (!preflight.ok) return { code: 2, report: { approvalId, decision, error: preflight.code } };
+  const once = await consumeOnce(client, approvalId, fetched, consumeProof);
+  if (once.error) return { code: 2, report: { approvalId, decision, error: once.error } };
+  let result;
+  try {
+    result = await executors[approval.tool]({ args: approval.arguments, workspaceId: approval.workspaceId,
+      authority: { mode, approvalId, envelope, consumption: once.consumption } });
+  } catch (error) {
+    result = { ok: false, error: { code: error.exitCode ? 'EXECUTION_REFUSED' : 'EXECUTION_THREW', message: error.message } };
+  }
+  const report = { approvalId, decision, tool: approval.tool, executed: result.ok === true,
+    ...(result.ok ? {} : { error: result.error?.code, message: result.error?.message }) };
+  // The action already ran. Without a recorded outcome a second apply would run
+  // it again, so an unrecorded outcome is its own failure and says so.
+  let recorded;
+  try {
+    recorded = await client.recordOutcome(approvalId, { status: result.ok ? 'executed' : 'failed',
+      receiptId: String(result.ok ? approvalId : result.error?.code || 'failed'), receiptHash: null, consumeProof });
+  } catch (error) {
+    recorded = { status: 0, body: { code: error.code || 'AUTHORITY_UNAVAILABLE' } };
+  }
+  if (recorded.status !== 200) {
+    return { code: 2, report: { ...report, outcomeRecorded: false, outcomeError: recorded.body?.code || `HTTP_${recorded.status}`,
+      note: 'the action ran but the authority did not record its outcome; do not apply again before checking what happened' } };
+  }
+  return { code: result.ok ? 0 : 2, report };
+}
+
 async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps = {}) {
-  const { resolveMode, createClient, openRuntime, loadConsumeKey } = defaults(deps);
+  const { resolveMode, createClient, openRuntime, loadConsumeKey, executors } = defaults(deps);
   const mode = resolveMode();
   const refusal = serviceOrRefusal(mode);
   if (refusal) return refusal;
@@ -125,6 +252,14 @@ async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps 
   const fetched = await client.getDecision(approvalId);
   if (fetched.status !== 200) return { code: 2, report: { approvalId, error: fetched.body?.code || `HTTP_${fetched.status}` } };
   if (!fetched.body.envelope) return { code: 3, report: { approvalId, status: 'pending', next: 'decide it in the HUQAN Authority window' } };
+  if (fetched.body.withdrawal) {
+    return { code: 2, report: { approvalId, error: 'WITHDRAWN', withdrawal: fetched.body.withdrawal,
+      note: 'the operator withdrew this decision before it was consumed; nothing was carried out' } };
+  }
+  if (approvalId.startsWith(OPERATIONAL_PREFIX)) {
+    return runOperational(approvalId, fetched, { client, mode, executors, workspaceId: requestedWorkspace,
+      consumeProof: consumeProofFor(loadConsumeKey(), approvalId) });
+  }
   const envelope = fetched.body.envelope;
   const decision = envelope.payload.decision;
   // The signed envelope names the workspace; preflight still checks it against the row.
@@ -181,9 +316,23 @@ function decide(deps = {}) {
     + 'then run huqan-authority apply <approvalId> here.' } };
 }
 
+// Like decide: the code is typed only in the protected operator window.
+function withdraw(approvalId, deps = {}) {
+  const { resolveMode } = defaults(deps);
+  const mode = resolveMode();
+  if (mode.mode !== 'service') return { code: 2, report: { mode: mode.mode, reason: mode.reason || 'no approval authority is installed' } };
+  return { code: 0, report: { approvalId, next: 'Open "HUQAN Authority" from the Start menu and choose withdraw (w) for this '
+    + 'approval. It works only while the decision is approved and not yet consumed.' } };
+}
+
+function takeFlag(args, flag) {
+  const i = args.indexOf(flag);
+  return i >= 0 ? { value: args[i + 1], rest: args.filter((_, j) => j !== i && j !== i + 1) } : { rest: args };
+}
+
 function parseWorkspace(args) {
-  const i = args.indexOf('--workspace');
-  return i >= 0 ? { workspaceId: args[i + 1], rest: args.filter((_, j) => j !== i && j !== i + 1) } : { rest: args };
+  const { value, rest } = takeFlag(args, '--workspace');
+  return { workspaceId: value, rest };
 }
 
 async function main(argv = process.argv.slice(2), deps = {}) {
@@ -193,7 +342,12 @@ async function main(argv = process.argv.slice(2), deps = {}) {
   if (command === 'status' && args.length === 0) outcome = await status(deps);
   else if (command === 'sync' && rest.length === 0) outcome = await sync({ workspaceId }, deps);
   else if (command === 'decide' && args.length === 0) outcome = decide(deps);
+  else if (command === 'withdraw' && args.length === 1) outcome = withdraw(args[0], deps);
   else if (command === 'apply' && rest.length === 1) outcome = await apply(rest[0], { workspaceId }, deps);
+  else if (command === 'request' && takeFlag(rest, '--args').value !== undefined && takeFlag(rest, '--args').rest.length === 1) {
+    const { value: argsJson, rest: positional } = takeFlag(rest, '--args');
+    outcome = await request(positional[0], { workspaceId: workspaceId ?? 'default', argsJson }, deps);
+  }
   else {
     process.stderr.write(`${USAGE}\n`);
     return 1;
@@ -209,4 +363,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { status, sync, decide, apply, main };
+module.exports = { status, sync, decide, withdraw, apply, request, main };

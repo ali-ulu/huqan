@@ -90,6 +90,19 @@ The authority over operator decisions moves into a separate service.
    write-like rights to a broad identity, or a check that cannot run, resolves
    to `required_unavailable` with reason `install_path_untrusted`, never to
    legacy.
+10. **Withdrawal.** An approved decision stays usable until `validUntil`, so
+    an operator who changes their mind, or learns the agent is compromised,
+    needs a way to stop it (#3877). `withdraw` takes the same sealed operator
+    code as a decision, with decision `withdrawn`, and is allowed only while the
+    approval is `approved` and not consumed. It appends `approval.withdrawn`
+    (approval id, action hash, reason, operator, time) and the approval's status
+    becomes `withdrawn`. Consumption is the runtime's only way to execute, so
+    `consume` then answers `409 WITHDRAWN`, and the decision route returns the
+    withdrawal beside the decision so the runtime can say why. A consumed
+    approval answers `409 ALREADY_CONSUMED`: withdrawal cannot reach an action
+    already running (that is a separate case). The sealed `withdrawn` request
+    cannot be used as a decision, and the reverse. The operator window offers
+    withdrawal; `huqan-authority withdraw` only points to it, like `decide`.
 
 ## Phases
 
@@ -131,13 +144,6 @@ an envelope: the HTTP ingest approval route (`POST /api/ingest/approvals/:id`)
 and PR Guardian's decide route. Where an authority is installed, both refuse
 with `AUTHORITY_DECISION_REQUIRED`.
 
-The guard does not yet cover these, so P6 covers them:
-
-- `huqan.agent_resume`
-- `huqan.emergency_stop`
-- `terfi`
-- the gate hook's `--autonomy-activation`
-
 Executors re-read the row after the guard. A same-user write to the store
 between the two is residual risk 1.
 
@@ -167,6 +173,62 @@ Reads are bounded (500 local rows, 20 ledger pages, 100 receipt re-reads);
 outside service mode the section degrades to an informational note. The
 ledger pages travel through `cli.js` behind the entrypoint, which alone may
 reach the authority client; the comparison itself is pure data.
+
+## Operational approvals (P6b, #3892)
+
+Four operator decisions have no row in the approval store:
+
+- `huqan.agent_resume`;
+- lifting an emergency stop;
+- `terfi`;
+- the gate hook's `--autonomy-activation`.
+
+They take the same path as P4. Only the first step differs:
+
+1. `huqan-authority request <tool> --workspace <id> --args <json>` registers
+   an operational approval (`ops-<random>`) with the arguments to bind.
+2. The operator decides it in the HUQAN Authority window.
+3. `huqan-authority apply <ops-id>` reads the tool and arguments back from
+   the authority's signed answer, checks the decision against them, consumes
+   it, runs the surface in-process with both envelopes, and records the
+   outcome. A recorded outcome makes a second `apply` change nothing.
+
+Each surface verifies the envelopes itself, against the arguments it is about
+to act on, with the P4 decision guard (`lib/authority/operational-guard.js`).
+A surface called without them refuses with `AUTHORITY_DECISION_REQUIRED` and
+prints the exact `request` command. A guard that throws refuses.
+
+- **Emergency stop.** The guard sits in `lift()` in `lib/emergency-stop.js`.
+  The CLI, HTTP and MCP surfaces all lift through it, so none of them can
+  bypass it. **Stopping is not guarded:** it only removes authority, and a
+  missing or broken authority must never hold the brake.
+- **terfi.** The decision binds the flags and the sha256 of each of the four
+  input files as read. It replaces the terminal presence check, because the
+  operator's TOTP is the stronger proof. A changed file is refused.
+- **Agent resume.** The decision binds the tool arguments, including
+  `resumeToken`. The token is stored in the authority's ledger, which only
+  the service account can write. The agent supplying it already held it.
+- **Autonomy activation.** The consumption is the activation, so the `apply`
+  executor does nothing else. The hook reads the decision back on every call
+  through the verifier `bin/huqan-gate-hook.js` wires in. It checks the
+  decision as of its consumption, since the authority refused to consume an
+  expired decision. The activation lasts until the registration's
+  `expiresAt`, which the operator saw when deciding; then it must be
+  requested again. Without a verifier, or on any refusal, the hook exits 2.
+
+The guard is a code-level check, like P4's re-read of the row. Same-user code
+that already holds a consumed envelope can call the guarded function again,
+just as it can delete a stop record directly (residual risk 1). The authority
+does not prevent that. It makes it detectable: each lift, promotion or resume
+should match exactly one `approval.consumed` entry.
+
+`apply` reports when the authority did not record the outcome
+(`outcomeRecorded: false`). The action has already run at that point, so a
+blind second `apply` would run it again.
+
+Not yet done: recording a *stop* in the authority's ledger. That needs a new
+service route, which means changing the protected bundle and reinstalling it.
+`huqan receipts verify` is a separate change.
 
 ## Residual risks
 
