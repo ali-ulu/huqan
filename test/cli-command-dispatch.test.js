@@ -311,7 +311,7 @@ const GOLDEN = {
   'kaydet': 'dafa3520c39a13c9f48f52ff9b3bf154cb34bd5eb5724be2d4e93d4643ce7008',
   'onaylar': '2048237b14c84f833c5745a4c43fec129360537a4c81c7ce1d6834db9703a3dc',
   'onayla': '8e5a19eadc89350ef709bee318dd6488560a342c219ab3d54542d875c3614bbb',
-  'audit': '3fa127914571b0e1ed3f6271f18b9b6c0e292edef413235d407dbec79420f585',
+  'audit': '558b1044c795ac36b43806956a3c9c8e9599ac9781a3790806f49b9a86a7e79a',
   'receipt': '840c7fa4d05cc2e70ca2294f2c22cf559085f96e04203e3941d1bd606f3644a2',
   // Coder now receives the loop collaborator; production wiring is covered
   // by coder-fix-loop.test.js. Other dispatch contracts stay byte-identical.
@@ -344,6 +344,7 @@ const GOLDEN = {
   // The memory record search adds the `memory-query` usage line (one line);
   // diffing the help text against main shows exactly that one added line.
   // #3550 adds the `terfi` usage line (one line) to the same generated help.
+// #3860 P6a adds the `--authority` flag to the audit usage line.
   'yardım': '06dc3272e5ccce97288a91b8109ea8197614d4f56b6a2a93047d1af579f06a84',
   'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',

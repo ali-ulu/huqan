@@ -48,6 +48,18 @@ test('an approved learn that cannot claim reports a decision conflict', () => {
   assert.equal(result.approval.id, 'a9');
 });
 
+test('a row cancelled between load and claim reports cancelled, not conflict', () => {
+  const handle = createMcpApprovalDecisionHandler({ failApprovalDecision: fail });
+  const cancelled = { ...pendingLearn(), status: 'cancelled' };
+  const result = handle(
+    { learn: () => { throw new Error('must not execute a cancelled approval'); } },
+    { approvalId: 'a9', workspaceId: 'w', decision: 'approved' },
+    { approvalStore: { ...unclaimableStore(pendingLearn()), claimToolApproval: () => ({ claimed: false, approval: cancelled }) } },
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'APPROVAL_ALREADY_CANCELLED');
+});
+
 test('executeApprovedLearn is the moved learn tail', () => {
   assert.equal(typeof executeApprovedLearn, 'function');
 });

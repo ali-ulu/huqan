@@ -1,0 +1,324 @@
+'use strict';
+
+// P6 detection (ADR-016): local approvals and execution receipts joined
+// against the authority ledger -- `huqan audit --authority` data comparison,
+// the paged ledger reader, and the outcome receipt binding apply records.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const { canonicalActionHash } = require('../lib/mcp-operator-capability');
+const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
+const { openLedgerStore } = require('../lib/authority/ledger-store');
+const { createAuthorityService } = require('../lib/authority/authority-service');
+const { createAuthorityServer } = require('../lib/authority/http-server');
+const { createAuthorityClient, AuthorityError } = require('../lib/authority/authority-client');
+const { parseAuthorityPin } = require('../lib/authority/authority-pin');
+const { keyIdFor } = require('../lib/authority/decision-envelope');
+const { buildAuthoritySection, expectedReceiptHash, stableStringify, sha256Hex } = require('../lib/cli-audit');
+const { auditCommand } = require('../lib/cli-approval-commands');
+const { apply } = require('../bin/huqan-authority');
+
+const ARGS = Object.freeze({ text: 'detection probe' });
+const WS = 'default';
+
+function actionHash(approvalId, args = ARGS) {
+  return canonicalActionHash({ tool: 'huqan.learn', workspaceId: WS, approvalId, arguments: args });
+}
+
+function rawRow(overrides = {}) {
+  return {
+    id: 'apr_1', tool: 'huqan.learn', input: JSON.stringify(ARGS),
+    workspace_id: WS, status: 'approved', decision: 'approved',
+    created_at: Date.now(), updated_at: Date.now(),
+    context: { workspaceId: WS, args: { ...ARGS } },
+    ...overrides,
+  };
+}
+
+function stubStore(rows) {
+  const list = Array.isArray(rows) ? rows : [rows];
+  return {
+    listDecidedToolApprovals: () => list,
+    listUnresolvedToolApprovals: () => [],
+  };
+}
+
+function ledgerOf(pairs) {
+  // pairs: [{ type, body }] -> entries shaped like the service's ledger page.
+  return pairs.map(({ type, body }, i) => ({ seq: i, type, at: new Date().toISOString(), body, receiptHash: `h${i}` }));
+}
+
+test('expectedReceiptHash prefers a carried hash and otherwise hashes canonically', () => {
+  assert.equal(expectedReceiptHash({ receiptId: 'r', receiptHash: 'a'.repeat(64) }), 'a'.repeat(64));
+  const receipt = { receiptId: 'r1', workspaceId: WS, b: 2, a: 1 };
+  assert.equal(expectedReceiptHash(receipt), sha256Hex(stableStringify(receipt)));
+  assert.equal(expectedReceiptHash({ receiptId: 'r1', receiptHash: 'nope' }), sha256Hex(stableStringify({ receiptId: 'r1', receiptHash: 'nope' })));
+  assert.equal(expectedReceiptHash(null), null);
+  assert.equal(expectedReceiptHash({}), null);
+});
+
+test('a clean authority view passes with no findings', () => {
+  const receipt = { receiptId: 'r-1', workspaceId: WS };
+  const row = rawRow({ context: { workspaceId: WS, args: { ...ARGS }, executionRefs: { receiptId: 'r-1' } } });
+  const hash = actionHash('apr_1');
+  const entries = ledgerOf([
+    { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: hash, decision: 'approved' } },
+    { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: hash } },
+    { type: 'approval.outcome', body: { approvalId: 'apr_1', status: 'executed', receiptId: 'r-1', receiptHash: expectedReceiptHash(receipt) } },
+  ]);
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries, corrupt: false, receipts: { 'r-1': receipt } } });
+  assert.equal(section.status, 'pass');
+  assert.deepEqual(section.evidence.findings, []);
+});
+
+test('an approved row with no ledger consumption is reported, never silent', () => {
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(rawRow()),
+    ledger: { mode: 'service', entries: [], corrupt: false } });
+  assert.equal(section.status, 'fail');
+  assert.deepEqual(section.evidence.findings.map(f => f.code), ['EXECUTED_WITHOUT_AUTHORITY']);
+});
+
+test('a tampered local action is reported as a hash mismatch', () => {
+  const ledgerHash = actionHash('apr_1', { text: 'original' });
+  const row = rawRow({ context: { workspaceId: WS, args: { text: 'edited' } } });
+  const entries = ledgerOf([
+    { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: ledgerHash, decision: 'approved' } },
+    { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: ledgerHash } },
+  ]);
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries, corrupt: false } });
+  assert.ok(section.evidence.findings.some(f => f.code === 'ACTION_HASH_MISMATCH'));
+  assert.equal(section.status, 'fail');
+});
+
+test('a missing outcome and a forged receipt are both reported', () => {
+  const hash = actionHash('apr_1');
+  const base = [
+    { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: hash, decision: 'approved' } },
+    { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: hash } },
+  ];
+  const row = rawRow({ context: { workspaceId: WS, args: { ...ARGS }, executionRefs: { receiptId: 'r-1' } } });
+  const missing = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries: ledgerOf(base), corrupt: false, receipts: {} } });
+  assert.ok(missing.evidence.findings.some(f => f.code === 'OUTCOME_MISSING'));
+
+  const forged = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries: ledgerOf([...base,
+      { type: 'approval.outcome', body: { approvalId: 'apr_1', status: 'executed', receiptId: 'r-1', receiptHash: 'b'.repeat(64) } }]), corrupt: false,
+      receipts: { 'r-1': { receiptId: 'r-1', workspaceId: WS, other: 'real' } } } });
+  assert.ok(forged.evidence.findings.some(f => f.code === 'RECEIPT_HASH_MISMATCH'));
+});
+
+test('ledger consumptions with no local row and a corrupt ledger are reported', () => {
+  const hash = actionHash('ghost');
+  const unknown = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore([]),
+    ledger: { mode: 'service', entries: ledgerOf([{ type: 'approval.consumed', body: { approvalId: 'ghost', actionHash: hash } }]), corrupt: false } });
+  assert.ok(unknown.evidence.findings.some(f => f.code === 'CONSUMED_UNKNOWN_LOCALLY'));
+
+  const corrupt = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore([]),
+    ledger: { mode: 'service', entries: [], corrupt: true } });
+  assert.equal(corrupt.status, 'fail');
+  assert.ok(corrupt.evidence.findings.some(f => f.code === 'LEDGER_CORRUPT'));
+});
+
+test('outside service mode detection degrades to an informational note', () => {
+  for (const ledger of [{ mode: 'legacy', reason: 'no_pin', entries: [], corrupt: false },
+    { mode: 'required_unavailable', reason: 'install_path_untrusted', entries: [], corrupt: false }]) {
+    const section = buildAuthoritySection({ workspaceId: WS,
+      getApprovalStore: () => stubStore(rawRow()), ledger });
+    assert.equal(section.status, 'info');
+    assert.deepEqual(section.evidence.findings, []);
+  }
+});
+
+test('an authority that cannot be reached is reported, not thrown', () => {
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(rawRow()),
+    ledger: { mode: 'service', entries: [], corrupt: false, error: 'AUTHORITY_UNAVAILABLE', receipts: {} } });
+  assert.equal(section.status, 'fail');
+  assert.ok(section.evidence.findings.some(f => f.code === 'AUTHORITY_UNAVAILABLE'));
+});
+
+test('without a local store there is nothing to join, and that is reported', () => {
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => null,
+    ledger: { mode: 'service', entries: [], corrupt: false, receipts: {} } });
+  assert.equal(section.status, 'pass');
+  assert.equal(section.evidence.localRowsCompared, 0);
+  const throwing = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => { throw new Error('store down'); },
+    ledger: { mode: 'service', entries: [], corrupt: false, receipts: {} } });
+  assert.equal(throwing.status, 'pass');
+});
+
+test('an executing row is hash-checked but owes no outcome yet', () => {
+  const hash = actionHash('apr_1');
+  const row = rawRow({ status: 'executing', decision: 'approved' });
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries: ledgerOf([
+      { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: hash, decision: 'approved' } },
+      { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: hash } },
+    ]), corrupt: false, receipts: {} } });
+  assert.ok(!section.evidence.findings.some(f => f.code === 'OUTCOME_MISSING'), JSON.stringify(section.evidence.findings));
+  assert.ok(!section.evidence.findings.some(f => f.code === 'EXECUTED_WITHOUT_AUTHORITY'));
+});
+
+test('a swapped execution receipt is reported by id', () => {
+  const hash = actionHash('apr_1');
+  const row = rawRow({ context: { workspaceId: WS, args: { ...ARGS }, executionRefs: { receiptId: 'r-local' } } });
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries: ledgerOf([
+      { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: hash, decision: 'approved' } },
+      { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: hash } },
+      { type: 'approval.outcome', body: { approvalId: 'apr_1', status: 'executed', receiptId: 'r-other' } },
+    ]), corrupt: false, receipts: {} } });
+  assert.ok(section.evidence.findings.some(f => f.code === 'RECEIPT_ID_MISMATCH'));
+});
+
+test('a truncated ledger view passes with an informational note when clean', () => {
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore([]),
+    ledger: { mode: 'service', entries: [], corrupt: false, truncated: true, receipts: {} } });
+  assert.equal(section.status, 'info');
+  assert.equal(section.evidence.truncated, true);
+});
+
+test('a store that throws still yields a report, not an exception', () => {
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => ({ listDecidedToolApprovals: () => { throw new Error('down'); },
+      listUnresolvedToolApprovals: () => [] }),
+    ledger: { mode: 'service', entries: [], corrupt: false, receipts: {} } });
+  assert.equal(section.status, 'pass');
+});
+
+test('an unhashable local action skips the hash check without failing', () => {
+  const hash = actionHash('apr_1');
+  const row = rawRow({ tool: '', context: { workspaceId: WS, args: { ...ARGS } } });
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries: ledgerOf([
+      { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: hash, decision: 'approved' } },
+      { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: hash } },
+      { type: 'approval.outcome', body: { approvalId: 'apr_1', status: 'executed', receiptId: 'r-1', receiptHash: null } },
+    ]), corrupt: false, receipts: {} } });
+  assert.ok(!section.evidence.findings.some(f => f.code === 'ACTION_HASH_MISMATCH'));
+});
+
+test('runCliAudit with --authority and no provider degrades inside the report', () => {
+  const report = require('../lib/cli-audit').runCliAudit(
+    { contractVersion: 't', graph: { getStats: () => ({}), countAuditEvents: () => 0 } },
+    '--authority', { json: true });
+  assert.equal(report.data.articles.authority_detection.status, 'info');
+});
+
+test('malformed ledger entries are skipped, never trusted', () => {
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore([]),
+    ledger: { mode: 'service', entries: [{ seq: 0 }, { seq: 1, type: 'approval.consumed', body: null },
+      { seq: 2, type: 'approval.consumed', body: { approvalId: 42 } }], corrupt: false, receipts: {} } });
+  assert.deepEqual(section.evidence.findings, []);
+});
+
+test('stableStringify orders keys and handles arrays', () => {
+  const { stableStringify: stable } = require('../lib/cli-audit');
+  assert.equal(stable([3, 1]), '[3,1]');
+  assert.equal(stable({ b: 1, a: [2] }), '{"a":[2],"b":1}');
+});
+test('cancelled rows need no authority outcome entry', () => {
+  const hash = actionHash('apr_1');
+  const row = rawRow({ status: 'cancelled', decision: 'approved' });
+  const section = buildAuthoritySection({ workspaceId: WS,
+    getApprovalStore: () => stubStore(row),
+    ledger: { mode: 'service', entries: ledgerOf([
+      { type: 'approval.decided', body: { approvalId: 'apr_1', actionHash: hash, decision: 'approved' } },
+      { type: 'approval.consumed', body: { approvalId: 'apr_1', actionHash: hash } },
+    ]), corrupt: false } });
+  assert.ok(!section.evidence.findings.some(f => f.code === 'OUTCOME_MISSING'), JSON.stringify(section.evidence.findings));
+});
+
+async function liveClient(t) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-detect-'));
+  const created = createAuthorityState({ dir: path.join(dir, 'state') });
+  const state = openAuthorityState({ dir: path.join(dir, 'state') });
+  const ledger = openLedgerStore({ file: path.join(dir, 'ledger.jsonl') });
+  const server = createAuthorityServer({ service: createAuthorityService({ ledger, state }), signingKey: state.signingKey });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(() => { fs.rmSync(dir, { recursive: true, force: true }); resolve(); })));
+  const pin = parseAuthorityPin(JSON.stringify({ v: 'huqan.authority.pin.v1', port: server.address().port,
+    keyId: keyIdFor(created.signingPublicKeyPem), signingKey: created.signingPublicKeyPem, sealingKey: created.sealingPublicKeyPem })).pin;
+  const { createAuthorityClient: create } = require('../lib/authority/authority-client');
+  return create({ pin });
+}
+
+test('ledgerEntries pages the ledger and rejects bad cursors', async (t) => {
+  const client = await liveClient(t);
+  const empty = await client.ledgerEntries({ fromSeq: 0, limit: 5 });
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body.entries, []);
+  assert.ok(!empty.body.corrupt);
+  const capped = await client.ledgerEntries({ fromSeq: 0, limit: 99999 });
+  assert.equal(capped.status, 200);
+  for (const bad of [{ fromSeq: -1 }, { fromSeq: 'x' }, { limit: 0 }, { limit: 'many' }]) {
+    assert.throws(() => client.ledgerEntries(bad), err => err instanceof AuthorityError, JSON.stringify(bad));
+  }
+});
+
+test('apply records the executed receipt binding in the outcome', async () => {
+  const receipt = { receiptId: 'r-9', workspaceId: WS };
+  let recorded = null;
+  const envelope = { payload: { decision: 'approved', actionHash: actionHash('apr_9'), workspaceId: WS } };
+  const deps = {
+    resolveMode: () => ({ mode: 'service', boundary: 'os-service', pin: {} }),
+    createClient: () => ({
+      getDecision: async () => ({ status: 200, body: { envelope } }),
+      consume: async () => ({ status: 200, body: { consumption: { seq: 3 } } }),
+      recordOutcome: async (id, outcome) => { recorded = { id, outcome }; return { status: 200, body: {} }; },
+    }),
+    openRuntime: () => ({
+      preflight: () => ({ ok: true }),
+      approve: async () => ({ ok: true, data: { executed: true, receipt } }),
+      close: () => {},
+    }),
+    loadConsumeKey: () => 'k'.repeat(32),
+  };
+  const outcome = await apply('apr_9', {}, deps);
+  assert.equal(outcome.code, 0);
+  assert.equal(recorded.id, 'apr_9');
+  assert.equal(recorded.outcome.receiptId, 'r-9');
+  assert.equal(recorded.outcome.receiptHash, expectedReceiptHash(receipt));
+});
+
+function stubKernel() {
+  return { contractVersion: 'test', graph: { getStats: () => ({}), countAuditEvents: () => 0 } };
+}
+
+test('audit --authority joins the ledger through the injected provider', async () => {
+  const cli = { kernel: stubKernel(),
+    approvalRuntime: () => ({ approvalStore: null }),
+    authorityLedger: async () => ({ mode: 'service', entries: [], corrupt: false }) };
+  const report = await auditCommand(cli, '--authority', { json: true });
+  assert.equal(report.status, 'completed');
+  assert.equal(report.data.articles.authority_detection.status, 'pass');
+  assert.equal(report.data.articles.authority_detection.evidence.mode, 'service');
+});
+
+test('audit --authority without a provider degrades instead of throwing', async () => {
+  const cli = { kernel: stubKernel(), approvalRuntime: () => ({ approvalStore: null }) };
+  const report = await auditCommand(cli, '--authority', { json: true });
+  assert.equal(report.data.articles.authority_detection.status, 'info');
+});
+
