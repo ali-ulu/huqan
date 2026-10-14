@@ -28,7 +28,12 @@ const {
   countMaxLineLength,
   evaluate,
   listSourceFiles,
+  measure,
+  measureMaxLineLengths,
+  readBaseline,
+  main,
 } = require('../scripts/check-file-size');
+const { longLineExceptionViolations } = require('../scripts/file-size-policy');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
@@ -342,4 +347,57 @@ test('the committed long-line exceptions are live: each names a tracked file sti
     assert.equal(typeof entry.why, 'string', `${entry.file} must carry a reason`);
     assert.equal(typeof entry.review_by, 'string', `${entry.file} must carry a review date`);
   }
+});
+
+test('a long-line exception with no measure injected is date-checked but not called stale', () => {
+  // The caller that cannot touch the filesystem still gets the review-date
+  // half; only staleness needs a measurement, so it is left to that caller.
+  const entries = [{ file: 'lib/dense.js', why: 'test', review_by: '2027-03-31' }];
+  assert.deepEqual(longLineExceptionViolations(entries, { today: '2026-09-12' }), []);
+});
+
+test('a long-line exception whose file measures over the budget is neither expired nor stale', () => {
+  const entries = [{ file: 'lib/dense.js', why: 'test', review_by: '2027-03-31' }];
+  const violations = longLineExceptionViolations(entries, {
+    today: '2026-09-12',
+    measure: () => MAX_LINE_LENGTH + 1,
+  });
+  assert.deepEqual(violations, []);
+});
+
+test('measure counts the lines of every named file', () => {
+  const measured = measure(['kernel.js', 'graph.js']);
+  assert.deepEqual(Object.keys(measured).sort(), ['graph.js', 'kernel.js']);
+  for (const [file, lines] of Object.entries(measured)) {
+    assert.equal(lines, countLines(path.join(REPO_ROOT, file)), `${file} must match countLines`);
+  }
+});
+
+test('measureMaxLineLengths returns the longest line of every named file', () => {
+  const measured = measureMaxLineLengths(['kernel.js', 'graph.js']);
+  assert.deepEqual(Object.keys(measured).sort(), ['graph.js', 'kernel.js']);
+  for (const [file, longest] of Object.entries(measured)) {
+    assert.equal(longest, countMaxLineLength(path.join(REPO_ROOT, file)), `${file} must match countMaxLineLength`);
+  }
+});
+
+test('readBaseline returns the recorded line-count ceilings', () => {
+  const baseline = readBaseline();
+  assert.equal(typeof baseline, 'object');
+  for (const [file, recorded] of Object.entries(baseline)) {
+    assert.equal(typeof recorded, 'number', `${file} must map to a line count`);
+    assert.equal(recorded > THRESHOLD, true, `${file} is recorded below the threshold and does not need an entry`);
+  }
+});
+
+test('the CLI passes on the committed tree and reports the density budget', () => {
+  const logs = [];
+  const original = console.log;
+  console.log = (...args) => logs.push(args.join(' '));
+  try {
+    assert.equal(main([]), 0);
+  } finally {
+    console.log = original;
+  }
+  assert.match(logs.join('\n'), new RegExp(`none over ${MAX_LINE_LENGTH} chars per line`));
 });
