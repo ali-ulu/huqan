@@ -1,9 +1,19 @@
 # HUQAN
 
-**Add one line. Your agent can no longer write memory or call tools without evidence + optional human approval. Everything is recorded as a Trust Receipt.**
+**The first local trust boundary that actually separates the agent from the operator.**
 
-HUQAN is a local-first gate between an AI agent's output and the state it would change — a memory entry, a repository, or a tool call.  
-No model, no cloud, no API key required.
+Most tools make agents stronger.  
+HUQAN puts a real OS boundary between the agent and the power to approve.
+
+Agents can now write code, delete files, spend money, and change memory.  
+Without a proper trust layer, that power runs as the same user as you.
+
+HUQAN moves approval authority into a separate Windows service protected by TOTP and cryptographic decision envelopes.  
+The agent and the operator are no longer the same security principal.
+
+Every decision is recorded as a Trust Receipt.
+
+No model. No cloud. No API key required for the core gate.
 
 [![npm](https://img.shields.io/npm/v/huqan?logo=npm&color=cb3837)](https://www.npmjs.com/package/huqan)
 [![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -76,6 +86,8 @@ Outcomes: `ALLOW` / `REVIEW` / `QUARANTINE` / `DRY-RUN ONLY` / `BLOCK` / `REJECT
 
 A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
 
+When the Approval Authority is installed, the decision itself moves behind an OS boundary (Windows service + TOTP + cryptographic envelopes). See [ADR-016](./docs/adr/ADR-016-approval-authority-os-boundary.md).
+
 ## Limits (honest)
 
 - HUQAN does **not** eliminate hallucinations. It makes one claim **inspectable and blockable** before it becomes state.
@@ -88,14 +100,20 @@ Full details and edge cases: [docs](./docs).
 ## License
 
 **Open Source:** AGPL-3.0-only  
-Free for open-source use, personal projects, and non-commercial research.
+Free for open-source use, personal projects, research, and non-commercial evaluation.
 
-**Commercial License:** Available  
-For companies, closed-source products, or production use.
+**Commercial License**  
+Required for:
+- Closed-source / proprietary products
+- Production use inside companies
+- Redistribution as part of a commercial offering
+- Multi-user / team deployments with support
+
+Commercial licenses include dual-licensing rights (use HUQAN without AGPL obligations), priority support, and optional future commercial features.
 
 → Request commercial license: [aliulu@ai-ulu.com](mailto:aliulu@ai-ulu.com)
 
-A commercial license is being finalized. Until then this repository grants **no commercial rights**.
+Until a commercial agreement is signed, this repository grants **no commercial rights**.
 
 ---
 
