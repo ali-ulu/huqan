@@ -8,7 +8,8 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
-const { loadedOutsideBundle, parseOptions, serveAuthority, initAuthority, PIN_VERSION } = require('../lib/authority/service-main');
+const { loadedOutsideBundle, parseOptions, serveAuthority, initAuthority, enrollCheck, PIN_VERSION } = require('../lib/authority/service-main');
+const { base32Decode, totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
 const { verifyResponse, requestDigestOf } = require('../lib/authority/decision-envelope');
 
 const ROOT = path.join(__dirname, '..');
@@ -111,4 +112,15 @@ test('a port already in use is reported as fatal with a failing exit code', asyn
     { encoding: 'utf8', env: CHILD_ENV, timeout: 15000 });
   assert.equal(run.status, 1);
   assert.match(run.stderr, /"event":"fatal".*EADDRINUSE/);
+});
+
+test('enroll-check accepts the right code once, so the installer can prove enrollment before starting', (t) => {
+  const dir = tempDir(t);
+  const stateDir = path.join(dir, 'state');
+  const created = initAuthority({ stateDir, publicDir: path.join(dir, 'public'), port: 47821 });
+  const secret = base32Decode(new URL(created.otpauthUri).searchParams.get('secret'));
+  const code = totpAt(secret, Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS));
+  assert.deepEqual(enrollCheck({ stateDir, code }), { ok: true });
+  assert.deepEqual(enrollCheck({ stateDir, code }), { ok: false, code: 'TOTP_REPLAYED' });
+  assert.deepEqual(enrollCheck({ stateDir, code: '000000' }).ok, false);
 });

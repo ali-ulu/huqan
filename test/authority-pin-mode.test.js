@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const { parseAuthorityPin } = require('../lib/authority/authority-pin');
 const { resolveApprovalAuthorityMode, DEFAULT_WINDOWS_PIN_PATH, DEFAULT_WINDOWS_INSTALL_DIR } = require('../lib/authority/authority-mode');
+const { checkInstallTrust } = require('../lib/authority/install-trust');
 const { keyIdFor } = require('../lib/authority/decision-envelope');
 
 function pinText(overrides = {}) {
@@ -33,7 +34,7 @@ test('a pin whose keyId does not match its key, or with the wrong key types, is 
   }
 });
 
-function resolver({ files = {}, env = {}, platform = 'win32' } = {}) {
+function resolver({ files = {}, env = {}, platform = 'win32', trust = { ok: true } } = {}) {
   return resolveApprovalAuthorityMode({
     platform,
     readEnv: name => env[name],
@@ -42,6 +43,7 @@ function resolver({ files = {}, env = {}, platform = 'win32' } = {}) {
       if (!(file in files)) throw Object.assign(new Error('missing'), { code: 'ENOENT' });
       return files[file];
     },
+    checkTrust: () => trust,
   });
 }
 
@@ -96,4 +98,69 @@ test('an installed pin reports an OS boundary; an override pin reports that the 
 
 test('a pin written with a byte-order mark still parses', () => {
   assert.equal(parseAuthorityPin(`﻿${pinText()}`).ok, true);
+});
+
+test('a parsed pin from an untrusted install directory fails closed, never legacy', () => {
+  const mode = resolver({ files: { [DEFAULT_WINDOWS_PIN_PATH]: pinText() }, trust: { ok: false, reason: 'install_path_untrusted' } });
+  assert.deepEqual([mode.mode, mode.reason, mode.pinPath],
+    ['required_unavailable', 'install_path_untrusted', DEFAULT_WINDOWS_PIN_PATH]);
+});
+
+test('a trust check that throws fails closed instead of falling back to legacy', () => {
+  const mode = resolveApprovalAuthorityMode({ platform: 'win32', readEnv: () => undefined,
+    readFile: () => pinText(),
+    lstat: () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
+    checkTrust: () => { throw new Error('probe failed'); } });
+  assert.equal(mode.mode, 'required_unavailable');
+});
+
+test('without a pin the trust check never runs, so legacy needs no probe', () => {
+  let calls = 0;
+  const mode = resolveApprovalAuthorityMode({ platform: 'win32', readEnv: () => undefined,
+    readFile: () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
+    lstat: () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
+    checkTrust: () => { calls += 1; return { ok: true }; } });
+  assert.equal(mode.mode, 'legacy');
+  assert.equal(calls, 0);
+});
+
+function aclProbe(entries) {
+  return () => ({ error: null, status: 0, stdout: JSON.stringify(entries) });
+}
+
+function lockedEntry(path, owner = 'S-1-5-18') {
+  return { path, owner, access: [
+    { sid: 'S-1-5-18', rights: 'FullControl', type: 'Allow' },
+    { sid: 'S-1-5-32-544', rights: 'FullControl', type: 'Allow' },
+    { sid: 'S-1-5-32-545', rights: 'ReadAndExecute, Synchronize', type: 'Allow' },
+  ] };
+}
+
+const PROBE_PATHS = ['C:\\ProgramData\\huqan-authority', 'C:\\ProgramData\\huqan-authority\\public',
+  'C:\\ProgramData\\huqan-authority\\public\\authority.json'];
+
+test('a locked install tree is trusted', () => {
+  const trust = checkInstallTrust({ spawn: aclProbe(PROBE_PATHS.map(p => lockedEntry(p))) });
+  assert.deepEqual(trust, { ok: true });
+});
+
+test('a planted directory owned by the planter is refused', () => {
+  const entries = PROBE_PATHS.map(p => lockedEntry(p));
+  entries[0] = lockedEntry(PROBE_PATHS[0], 'S-1-5-21-111-222-333-1001');
+  assert.equal(checkInstallTrust({ spawn: aclProbe(entries) }).reason, 'install_path_untrusted');
+});
+
+test('a write grant to Users anywhere on the path is refused', () => {
+  const entries = PROBE_PATHS.map(p => lockedEntry(p));
+  entries[1].access.push({ sid: 'S-1-5-32-545', rights: 'WriteData, Synchronize', type: 'Allow' });
+  assert.equal(checkInstallTrust({ spawn: aclProbe(entries) }).reason, 'install_path_untrusted');
+});
+
+test('a probe that cannot run, or answers garbage, fails closed', () => {
+  assert.equal(checkInstallTrust({ spawn: () => ({ error: new Error('no powershell'), status: 1, stdout: '' }) }).reason,
+    'install_path_untrusted');
+  assert.equal(checkInstallTrust({ spawn: () => ({ error: null, status: 0, stdout: 'not json' }) }).reason,
+    'install_path_untrusted');
+  assert.equal(checkInstallTrust({ spawn: () => ({ error: null, status: 0, stdout: '[]' }) }).reason,
+    'install_path_untrusted');
 });

@@ -2,15 +2,15 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 71,
-    "sites": 156,
+    "files": 72,
+    "sites": 157,
     "byCapability": {
-      "process": 21,
+      "process": 22,
       "egress": 5,
       "fs_write": 130
     },
     "byRole": {
-      "enforcement": 36,
+      "enforcement": 37,
       "adapter_read": 7,
       "operator_tool": 50,
       "persistence": 44,
@@ -329,6 +329,21 @@
       ]
     },
     {
+      "file": "lib/authority/install-trust.js",
+      "role": "enforcement",
+      "why": "re-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 69,
+          "capability": "process",
+          "call": "spawn"
+        }
+      ]
+    },
+    {
       "file": "lib/authority/service-main.js",
       "role": "operator_tool",
       "why": "only `init` writes: it is run once by the operator to create the authority state and the pin (ADR-016 plans for the elevated installer to run it and keep the pin admin-only); `serve` writes nothing itself, and the ledger and state writes it reaches are the service's own store",
@@ -337,12 +352,12 @@
       ],
       "sites": [
         {
-          "line": 64,
+          "line": 65,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 65,
+          "line": 66,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
@@ -603,47 +618,47 @@
       ],
       "sites": [
         {
-          "line": 100,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
           "line": 101,
           "capability": "fs_write",
-          "call": "fs.appendFileSync"
-        },
-        {
-          "line": 106,
-          "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 122,
+          "line": 102,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         },
         {
-          "line": 196,
+          "line": 107,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 199,
+          "line": 123,
           "capability": "fs_write",
-          "call": "fs.writeFileSync"
+          "call": "fs.appendFileSync"
         },
         {
-          "line": 211,
+          "line": 197,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 218,
+          "line": 200,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 250,
+          "line": 212,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 219,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 251,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }

@@ -53,7 +53,8 @@ const RULES = [
   {
     layer: 'UI',
     why: 'Process entrypoints, and the inbound surfaces a caller drives HUQAN through. Nothing may require these; they require everything below.',
-    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js'],
+    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js',
+      'lib/authority/operator-cli.js'],
     dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/workbench/'],
   },
   {
@@ -99,7 +100,7 @@ const RULES = [
       'lib/authority/sealed-request.js', 'lib/authority/totp.js', 'lib/authority/approval-registration.js',
       'lib/authority/approval-view.js', 'lib/authority/authority-service.js', 'lib/authority/operator-check.js',
       'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
-      'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js',
+      'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js', 'lib/authority/install-trust.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

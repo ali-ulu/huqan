@@ -1756,6 +1756,14 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/authority/operator-cli.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/install-trust.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/approval-registration.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"

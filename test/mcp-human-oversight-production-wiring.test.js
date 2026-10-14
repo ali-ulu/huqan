@@ -15,6 +15,7 @@ const {
 } = require('../mcpServer');
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-approval-runtime');
+const { identityRecord, identityRuntime } = require('./helpers/mcp-identity-approval-fixture');
 
 function approvalStore() {
   let saved = null;
@@ -102,7 +103,13 @@ function fixture() {
       };
     },
   };
-  return { dir, graph, runtime, kernel, store: approvalStore(), clockState };
+  // Approving an oversight row requires an identity judgment (#3875).
+  const agentIdentityRuntime = identityRuntime({
+    workspaceId: 'workspace-a',
+    clock: () => clockState.now,
+    identities: [{ ref: 'identity:mcp-001', record: identityRecord({ workspace_id: 'workspace-a' }) }],
+  });
+  return { dir, graph, runtime, kernel, store: approvalStore(), clockState, agentIdentityRuntime };
 }
 
 function queueParams() {
@@ -135,6 +142,7 @@ function runtimeOptions(fixture, overrides = {}) {
     humanOversightApprovalRuntime: fixture.runtime,
     humanOversightRequesterContext: { session: 'receiver-owned-mcp-session' },
     humanOversightApproverContext: { identityRef: 'human:operator-a', identityHash: 'hash-operator-a' },
+    agentIdentityRuntime: fixture.agentIdentityRuntime,
     ...overrides,
   };
 }

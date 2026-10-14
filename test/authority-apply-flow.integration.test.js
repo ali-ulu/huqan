@@ -167,3 +167,44 @@ test('a decision that does not match the local row is refused before anything is
   assert.deepEqual([applied.code, applied.report.error], [2, 'AUTHORITY_DECISION_INVALID']);
   assert.ok(!env.ledger.all().some(entry => entry.type === 'approval.consumed'), 'nothing was spent at the authority');
 });
+
+test('approve, withdraw, apply: the action is refused at the authority and never runs', async (t) => {
+  const env = await setup(t);
+  const approvalId = queueLocally('authority flow withdrawn sentinel hayvandir');
+  await sync({}, env.deps);
+  await operatorDecides(env, approvalId);
+  const client = createAuthorityClient({ pin: env.pin });
+  const shown = await client.show(approvalId);
+  const nextStep = Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS) + 1;
+  const sealed = sealDecisionRequest({ approvalId, actionHash: shown.body.approval.actionHash, decision: 'withdrawn',
+    reason: 'changed my mind', totp: totpAt(env.created.totpSecret, nextStep) }, env.created.sealingPublicKeyPem);
+  const withdrawn = await client.withdraw(approvalId, sealed);
+  assert.equal(withdrawn.status, 200, JSON.stringify(withdrawn.body));
+
+  const applied = await apply(approvalId, {}, env.deps);
+  assert.deepEqual([applied.code, applied.report.error], [2, 'WITHDRAWN']);
+  const types = env.ledger.all().map(entry => entry.type);
+  assert.deepEqual(types, ['approval.registered', 'approval.decided', 'approval.withdrawn']);
+
+  const server = createServer();
+  try {
+    assert.equal(server.approvalStore.getToolApprovalById(approvalId).status, 'pending', 'the local action did not run');
+  } finally {
+    server.kernel.graph?.close?.();
+    server.approvalStore?.close?.();
+  }
+});
+
+test('a consumed approval cannot be withdrawn through the client', async (t) => {
+  const env = await setup(t);
+  const approvalId = queueLocally('authority flow consumed sentinel hayvandir');
+  await sync({}, env.deps);
+  await operatorDecides(env, approvalId);
+  assert.equal((await apply(approvalId, {}, env.deps)).code, 0);
+  const client = createAuthorityClient({ pin: env.pin });
+  const shown = await client.show(approvalId);
+  const sealed = sealDecisionRequest({ approvalId, actionHash: shown.body.approval.actionHash, decision: 'withdrawn', reason: '',
+    totp: totpAt(env.created.totpSecret, Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS) + 1) }, env.created.sealingPublicKeyPem);
+  const refused = await client.withdraw(approvalId, sealed);
+  assert.deepEqual([refused.status, refused.body.code], [409, 'ALREADY_CONSUMED']);
+});

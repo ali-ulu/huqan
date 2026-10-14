@@ -8,6 +8,8 @@
  *   huqan-authority status                  which authority this runtime answers to,
  *                                           and whether the pinned service answers
  *   huqan-authority sync [--workspace <id>] register pending local approvals with it
+ *   huqan-authority decide                  where the operator decides (it does not open it)
+ *   huqan-authority withdraw <approvalId>   where the operator takes back an approved decision nobody has consumed
  *   huqan-authority apply <approvalId> [--workspace <id>]
  *                                           fetch the operator's signed decision,
  *                                           consume it, carry it out, record the outcome
@@ -26,7 +28,7 @@ const { listPersistentApprovals, formatApprovalRecord } = require('../lib/mcp-ap
 const { requireAuthorityDecision } = require('../lib/authority/decision-guard');
 const { resolveMcpApprovalTtlMs } = require('../lib/mcp-approval-expiry');
 
-const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | apply <approvalId> [--workspace <id>]';
+const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | decide | withdraw <approvalId> | apply <approvalId> [--workspace <id>]';
 const MAX_SYNC = 500;
 
 function openLocalRuntime() {
@@ -124,6 +126,10 @@ async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps 
   const fetched = await client.getDecision(approvalId);
   if (fetched.status !== 200) return { code: 2, report: { approvalId, error: fetched.body?.code || `HTTP_${fetched.status}` } };
   if (!fetched.body.envelope) return { code: 3, report: { approvalId, status: 'pending', next: 'decide it in the HUQAN Authority window' } };
+  if (fetched.body.withdrawal) {
+    return { code: 2, report: { approvalId, error: 'WITHDRAWN', withdrawal: fetched.body.withdrawal,
+      note: 'the operator withdrew this decision before it was consumed; nothing was carried out' } };
+  }
   const envelope = fetched.body.envelope;
   const decision = envelope.payload.decision;
   // The signed envelope names the workspace; preflight still checks it against the row.
@@ -160,6 +166,27 @@ async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps 
   }
 }
 
+// This tool lives in a user-writable checkout. If it launched the operator
+// window elevated, an agent could edit it to launch anything elevated behind
+// the operator's UAC click. So it only says where the protected window is.
+function decide(deps = {}) {
+  const { resolveMode } = defaults(deps);
+  const mode = resolveMode();
+  if (mode.mode !== 'service') return { code: 2, report: { mode: mode.mode, reason: mode.reason || 'no approval authority is installed' } };
+  return { code: 0, report: { next: 'Open "HUQAN Authority" from the Start menu. It runs elevated from the protected install, '
+    + 'shows each pending approval with the arguments it is bound to, and asks for your authenticator code; '
+    + 'then run huqan-authority apply <approvalId> here.' } };
+}
+
+// Like decide: the code is typed only in the protected operator window.
+function withdraw(approvalId, deps = {}) {
+  const { resolveMode } = defaults(deps);
+  const mode = resolveMode();
+  if (mode.mode !== 'service') return { code: 2, report: { mode: mode.mode, reason: mode.reason || 'no approval authority is installed' } };
+  return { code: 0, report: { approvalId, next: 'Open "HUQAN Authority" from the Start menu and choose withdraw (w) for this '
+    + 'approval. It works only while the decision is approved and not yet consumed.' } };
+}
+
 function parseWorkspace(args) {
   const i = args.indexOf('--workspace');
   return i >= 0 ? { workspaceId: args[i + 1], rest: args.filter((_, j) => j !== i && j !== i + 1) } : { rest: args };
@@ -171,6 +198,8 @@ async function main(argv = process.argv.slice(2), deps = {}) {
   let outcome;
   if (command === 'status' && args.length === 0) outcome = await status(deps);
   else if (command === 'sync' && rest.length === 0) outcome = await sync({ workspaceId }, deps);
+  else if (command === 'decide' && args.length === 0) outcome = decide(deps);
+  else if (command === 'withdraw' && args.length === 1) outcome = withdraw(args[0], deps);
   else if (command === 'apply' && rest.length === 1) outcome = await apply(rest[0], { workspaceId }, deps);
   else {
     process.stderr.write(`${USAGE}\n`);
@@ -187,4 +216,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { status, sync, apply, main };
+module.exports = { status, sync, decide, withdraw, apply, main };
