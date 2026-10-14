@@ -49,6 +49,29 @@ function executingRow(store, id) {
 
 const RECEIPT = Object.freeze({ receiptId: 'r-1', outcome: 'cancelled' });
 
+test('listDecidedToolApprovals pages final rows newest-first', { skip: !HAS_SQLITE }, () => withStore((store) => {
+  assert.deepEqual(store.listDecidedToolApprovals(10, 'default'), []);
+  for (const [id, decide] of [['dec-approved', 'approved'], ['dec-rejected', 'rejected']]) {
+    store.saveToolApproval({ id, approvalKey: `mcp.huqan.learn.${id}`, tool: 'huqan.learn',
+      input: JSON.stringify({ text: id }), context: { source: 'mcp', workspaceId: 'default', args: { text: id } },
+      policy: { gate: {} }, status: 'pending', decision: 'review', reason: 'decided_probe', createdAt: Date.now() });
+    if (decide === 'approved') {
+      assert.equal(store.claimToolApproval(id, 'probe', 'default').claimed, true);
+      const done = store.finalizeToolApprovalWithReceipt(id, { decision: 'approved', reason: 'probe',
+        receipt: { receiptId: `r-${id}` }, contextPatch: {} });
+      assert.equal(done.finalized, true);
+    } else {
+      assert.equal(store.rejectToolApproval(id, 'probe', 'default').rejected, true);
+    }
+  }
+  const rows = store.listDecidedToolApprovals(10, 'default');
+  assert.deepEqual(rows.map(r => r.id).sort(), ['dec-approved', 'dec-rejected']);
+  assert.equal(store.listDecidedToolApprovals(1, 'default').length, 1);
+  assert.deepEqual(store.listDecidedToolApprovals().map(r => r.id).sort(), ['dec-approved', 'dec-rejected']);
+  assert.deepEqual(store.listDecidedToolApprovals(0).map(r => r.id).sort(), ['dec-approved', 'dec-rejected']);
+  assert.deepEqual(store.listDecidedToolApprovals(10).map(r => r.id).sort(), ['dec-approved', 'dec-rejected']);
+}));
+
 test('an executing row finalizes as cancelled with its receipt', { skip: !HAS_SQLITE }, () => withStore((store) => {
   executingRow(store, 'fin-cancel');
   const result = store.finalizeToolApprovalWithReceipt('fin-cancel', {

@@ -31,9 +31,10 @@ function stubKernel() {
 }
 
 test('audit args default to eu-ai-act and the default workspace', () => {
-  assert.deepEqual(parseAuditArgs(''), { framework: 'eu-ai-act', workspaceId: 'default' });
-  assert.deepEqual(parseAuditArgs('--eu-ai-act --workspace tenant-a'), { framework: 'eu-ai-act', workspaceId: 'tenant-a' });
-  assert.deepEqual(parseAuditArgs('--framework eu-ai-act -w tenant-b'), { framework: 'eu-ai-act', workspaceId: 'tenant-b' });
+  assert.deepEqual(parseAuditArgs(''), { framework: 'eu-ai-act', workspaceId: 'default', authority: false });
+  assert.deepEqual(parseAuditArgs('--eu-ai-act --workspace tenant-a'), { framework: 'eu-ai-act', workspaceId: 'tenant-a', authority: false });
+  assert.deepEqual(parseAuditArgs('--framework eu-ai-act -w tenant-b'), { framework: 'eu-ai-act', workspaceId: 'tenant-b', authority: false });
+  assert.deepEqual(parseAuditArgs('--authority').authority, true);
 });
 
 test('audit args reject unknown frameworks, workspaces and flags', () => {

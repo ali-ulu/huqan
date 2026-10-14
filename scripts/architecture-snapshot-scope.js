@@ -203,10 +203,13 @@ const FANOUT_ALLOWED = Object.freeze([
   },
   {
     file: 'cli.js',
-    ceiling: 21,
+    ceiling: 22,
     why: 'Three of the requires wire collaborators the inner rings may not require themselves: the Adapters '
       + 'MemoryLifecycle and its Application receipt chain (#3461), and the Adapters K0/K1 cognition consumer '
-      + 'lib/memory-hypothesis-cognition.js that lib/cli-hypotheses.js (Core) must not require (#3568). cli.js is '
+      + 'lib/memory-hypothesis-cognition.js that lib/cli-hypotheses.js (Core) must not require (#3568). A fourth '
+      + 'wires the UI-ring authority ledger provider that `audit --authority` detection reads through (#3860 P6): '
+      + 'the provider alone may reach the authority HTTP client and the receipt index, so lib/ handlers take its '
+      + 'result as data. cli.js is '
       + 'the only ring allowed to supply them, and the wiring cannot move to a lib/ helper -- a lib/memory-* module '
       + 'is still Adapters, and a lib/cli-* handler is still Core, so either would re-open the same upward edge.',
     review_by: '2027-03-31',

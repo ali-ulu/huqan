@@ -23,6 +23,8 @@ function writeTmp(dir, name, content) {
 describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
   test('a file that installs a package gets more than the default deadline', () => {
     assert.equal(fileTimeoutMs('test/kernel-facade-contract.test.js'), HEAVY_FILE_TIMEOUT_MS);
+    // Restarts the native CLI and runs HTTP heldouts per case; it crossed 90s on Windows.
+    assert.equal(fileTimeoutMs('test/coder-project-method-memory.test.js'), HEAVY_FILE_TIMEOUT_MS);
     assert.ok(HEAVY_FILE_TIMEOUT_MS > DEFAULT_FILE_TIMEOUT_MS);
   });
 

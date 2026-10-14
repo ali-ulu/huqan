@@ -931,6 +931,7 @@
     "lib/mcp/experience-learn-tool.js",
     "lib/mcp/system-status-tool.js",
     "lib/mcp/compliance-audit-tool.js",
+    "lib/mcp/authority-ledger-provider.js",
     "lib/system-status-report.js",
     "lib/mcp/response-builders.js",
     "lib/mcp/server-lifecycle.js",

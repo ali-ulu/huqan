@@ -152,6 +152,28 @@ in-process approval -- the test suite's included -- is refused. If a test
 could approve in-process there, so could an agent. Run the suite where the
 authority is not installed.
 
+## Detection (P6)
+
+The ledger cannot prevent effects in the user's own context (residual risk
+1), so P6 makes the bypass detectable. `huqan audit --authority` joins local
+approval rows and execution receipts against the ledger over the paged
+`/v1/ledger` reads and reports the difference: locally approved or executing
+rows with no ledger consumption (`EXECUTED_WITHOUT_AUTHORITY`), ledger
+consumptions with no local row, missing outcomes, and action-hash or receipt
+mismatches. Cancelled rows need no outcome entry (their terminal receipt
+lives in the emergency-stop ledger); rejected rows are never consumed.
+
+The join is only as good as the outcome linkage: `huqan-authority apply`
+records the executed receipt's binding (its own hash when it carries one,
+else the sha256 of its canonically ordered JSON) in the ledger outcome, and
+audit recomputes the same value. Placeholder outcomes from before this
+binding carry no hash and are reported, not trusted.
+
+Reads are bounded (500 local rows, 20 ledger pages, 100 receipt re-reads);
+outside service mode the section degrades to an informational note. The
+ledger pages travel through `cli.js` behind the entrypoint, which alone may
+reach the authority client; the comparison itself is pure data.
+
 ## Operational approvals (P6b, #3892)
 
 Four operator decisions have no row in the approval store:

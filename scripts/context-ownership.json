@@ -1768,6 +1768,10 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/mcp/authority-ledger-provider.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/install-trust.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -6851,9 +6855,17 @@
   "lib/receipt/receipt-read-index.js": {
    "owner": "Trust",
    "consumers": [
+    "AgentAction",
     "Platform"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; AgentAction via the authority detection ledger provider (#3860 P6)"
+  },
+  "lib/mcp/authority-ledger-provider.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "cli.js fetches the authority detection ledger behind the entrypoint; lib/ handlers take the pages as data (#3860 P6)"
   },
   "lib/observability/notification-adapter.js": {
    "owner": "Observability",

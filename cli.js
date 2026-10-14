@@ -30,6 +30,7 @@ const {
   compareHypothesisFrames, consumeHypothesisCognition,
 } = require('./lib/memory-hypothesis-cognition');
 const { GENESIS_PREVIOUS_HASH, appendReceiptToChain, validateReceiptChain } = require('./lib/receipt/receipt-chain');
+const { fetchAuthorityLedger } = require('./lib/mcp/authority-ledger-provider');
 
 // #3568 (R49): the K0/K1 cognition consumer, wired here for the same layer
 // reason as the receipt collaborators above -- lib/memory-hypothesis-cognition.js
@@ -108,6 +109,7 @@ class CLI {
     }
     const cli = { kernel: this.kernel, agent: this.agent, dream: this.dream, llm: this.llm, mcpOperatorToken: this._mcpOperatorToken,
       approvalRuntime: (...a) => this._approvalRuntime(...a), backupOptions: (...a) => this._backupOptions(...a),
+      authorityLedger: (...a) => this._authorityLedger(...a),
       commitCliMutation: (...a) => this._commitCliMutation(...a), createOperatorCapability: (...a) => this._createOperatorCapability(...a),
       memoryLifecycle: () => this._memoryLifecycle(),
       ensureCompanyCapabilities: (...a) => this._ensureCompanyCapabilities(...a), ensureProductCapabilities: (...a) => this._ensureProductCapabilities(...a),
@@ -132,6 +134,14 @@ class CLI {
       ? commitCliMutation(this.kernel, command, classification, extra)
       : commitCliMutation(this.kernel, command, classification);
     return audit.auditRecorded ? '' : `\nWarning: ${command} completed, but its commit audit record could not be written (${audit.errorCode}).`;
+  }
+
+  // Detection ledger for `audit --authority` (ADR-016 P6). Fetched behind the
+  // CLI entrypoint for the same layer reason as the receipt collaborators
+  // above: only the UI ring may reach the authority HTTP client or the
+  // receipt index, so lib/ command handlers take the result as data.
+  async _authorityLedger(opts) {
+    return fetchAuthorityLedger(opts);
   }
 
   // Builds the MemoryLifecycle the `memory-lifecycle` command drives, or null

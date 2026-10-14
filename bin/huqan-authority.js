@@ -286,8 +286,16 @@ async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps 
       result = { ok: false, error: { code: 'EXECUTION_THREW', message: error.message } };
     }
     if (decision === 'approved') {
+      // Bind the outcome to the executed receipt (P6 detection joins on it).
+      // A receipt's own hash wins when it carries one; otherwise the hash of
+      // its canonically ordered JSON -- the same value audit recomputes.
+      const { expectedReceiptHash } = require('../lib/cli-audit');
+      const receipt = result.ok && result.data && typeof result.data.receipt === 'object' ? result.data.receipt : null;
+      const receiptId = receipt && typeof receipt.receiptId === 'string' && receipt.receiptId
+        ? receipt.receiptId.slice(0, 256)
+        : String(result.ok ? approvalId : result.error?.code || 'failed').slice(0, 256);
       await client.recordOutcome(approvalId, { status: result.ok ? 'executed' : 'failed',
-        receiptId: String(result.ok ? approvalId : result.error?.code || 'failed'), receiptHash: null, consumeProof });
+        receiptId, receiptHash: expectedReceiptHash(receipt), consumeProof });
     }
     return { code: result.ok ? 0 : 2, report: { approvalId, decision,
       executed: result.ok === true && result.data?.executed === true, ...(result.ok ? {} : { error: result.error?.code }) } };
