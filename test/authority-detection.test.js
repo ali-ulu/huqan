@@ -337,3 +337,39 @@ test('an operational approval has no local row by design and is checked only for
   assert.deepEqual(section([ghost, { type: 'approval.consumed', body: { approvalId: 'ops-2', actionHash: hash } }]).map(f => f.code),
     ['CONSUMED_UNKNOWN_LOCALLY'], 'an ops- id alone does not exempt a non-operational tool');
 });
+
+test('the ledger provider reads the newest window and stores receipts, not read wrappers', async () => {
+  const { fetchAuthorityLedger } = require('../lib/mcp/authority-ledger-provider');
+  const asked = [];
+  const client = {
+    ledgerHead: async () => ({ status: 200, body: { seq: 24_999 } }),
+    ledgerEntries: async ({ fromSeq, limit }) => {
+      asked.push(fromSeq);
+      const entries = Array.from({ length: Math.min(limit, 25_000 - fromSeq) }, (_, i) => ({ seq: fromSeq + i, type: 'note', body: {} }));
+      if (fromSeq === 15_000) entries[0] = { seq: 15_000, type: 'approval.outcome', body: { approvalId: 'a', receiptId: 'r-1' } };
+      if (fromSeq === 15_500) entries[0] = { seq: 15_500, type: 'approval.outcome', body: { approvalId: 'b', receiptId: 'r-gone' } };
+      return { status: 200, body: { entries, corrupt: false } };
+    },
+  };
+  const receipt = { receiptId: 'r-1', workspaceId: WS };
+  const fetched = await fetchAuthorityLedger({ resolveReceipts: true }, {
+    resolveMode: () => ({ mode: 'service', pin: {} }), createClient: () => client,
+    readReceipt: (_graph, id) => (id === 'r-1' ? { ok: true, status: 'found', receiptId: id, receipt }
+      : { ok: false, status: 'not_found', receiptId: id }),
+  });
+  assert.equal(asked[0], 15_000, 'the window ends at the head, not at the genesis');
+  assert.equal(fetched.entries.at(-1).seq, 24_999);
+  assert.equal(fetched.truncated, true);
+  assert.deepEqual(fetched.receipts['r-1'], receipt);
+  assert.equal(fetched.receipts['r-gone'], null);
+});
+
+test('a consumption outside a cut window is counted, not reported as a bypass', () => {
+  const hash = actionHash('old');
+  const section = buildAuthoritySection({ workspaceId: WS, getApprovalStore: () => stubStore([]),
+    ledger: { mode: 'service', truncated: true, corrupt: false,
+      entries: ledgerOf([{ type: 'approval.consumed', body: { approvalId: 'old', actionHash: hash } }]) } });
+  assert.deepEqual(section.evidence.findings, []);
+  assert.equal(section.evidence.consumptionsOutsideWindow, 1);
+  assert.equal(section.status, 'info');
+});
