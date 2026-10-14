@@ -61,7 +61,7 @@ jobs:
           # already fetches depth 0; publish.yml was the only one that did not.
           fetch-depth: 0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -269,13 +269,13 @@ jobs:
           cp "${bundle}" "sbom-bundle/huqan-${GITHUB_REF_NAME}.cdx.sigstore.json"
           echo "Exported the Sigstore bundle for the SBOM attestation."
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom-attestation-bundle
           path: sbom-bundle/*.sigstore.json
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom-cyclonedx
           path: huqan-${{ github.ref_name }}.cdx.json
@@ -344,7 +344,7 @@ jobs:
       # upload warns instead of becoming a second failure.
       - name: Upload release verification report
         if: always() && (github.event_name == 'push' || inputs.dry_run == false)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-verification-report
           path: release-verification-${{ github.ref_name }}.json
