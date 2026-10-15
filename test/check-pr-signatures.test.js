@@ -129,8 +129,9 @@ test('package.json exposes the check as a check:* script with an execution path'
 // truncated list that is read as complete would report success while the
 // signature rule still blocks the merge, so the count gap has to fail closed.
 test('a commit list shorter than the pull request fails closed', () => {
-  const file = path.join(os.tmpdir(), `sig-short-${process.pid}.json`);
-  fs.writeFileSync(file, JSON.stringify([rawCommit('a'.repeat(40), { verified: true, reason: 'valid' })]));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sig-short-'));
+  const file = path.join(dir, 'commits.json');
+  fs.writeFileSync(file, JSON.stringify([rawCommit('a'.repeat(40), { verified: true, reason: 'valid' })]), { flag: 'wx' });
   const errors = [];
   const original = process.stderr.write;
   process.stderr.write = (chunk) => { errors.push(String(chunk)); return true; };
@@ -142,5 +143,6 @@ test('a commit list shorter than the pull request fails closed', () => {
   } finally {
     process.stderr.write = original;
     fs.unlinkSync(file);
+    fs.rmdirSync(dir);
   }
 });
