@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 // These guards are script, and #1895 moved the script out of public/index.html
-// into public/js/app.js. The helper follows the <script src>, so this contract
+// out of the page. The helper follows the <script src>, so this contract
 // keeps describing behaviour rather than which file the bytes sit in.
 const { dashboardScript } = require('./helpers/dashboard-source');
 

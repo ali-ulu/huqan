@@ -31,7 +31,7 @@ test('manifest advertises approval detail through its reachable v2 UI route', ()
 });
 
 test('approval detail fills and encodes the manifest route template', () => {
-  const match = source().match(/function routeFor\(c,params\)\{([\s\S]*?)\}const AGENT_ACTIONS/);
+  const match = source().match(/function routeFor\(c,params\)\{\s*([\s\S]*?)\s*\}\s*const AGENT_ACTIONS/);
   assert.ok(match, 'route template helper must be present');
   const routeFor = vm.runInNewContext(`(function routeFor(c,params){${match[1]}})`, {});
   assert.equal(routeFor(capability(), { id: 'approval a/b?' }), '/api/v2/approvals/approval%20a%2Fb%3F');
@@ -42,7 +42,7 @@ test('the approvals list offers an inspect affordance bound to each row', () => 
   assert.match(page, /data-detail="\$\{esc\(x\.id\)\}"/);
   assert.match(page, /data-detail-for="\$\{esc\(x\.id\)\}"/);
   // Decide still wins the click; inspect only handles what decide did not.
-  assert.match(page, /if\(b\)\{decide\(b\.dataset\.id,b\.dataset\.dec\);return\}/);
+  assert.match(page, /if\(b\)\{\s*decide\(b\.dataset\.id,b\.dataset\.dec\);\s*return\s*\}/);
   assert.match(page, /closest\('\[data-detail\]'\)/);
 });
 

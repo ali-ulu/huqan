@@ -18,7 +18,7 @@ test('manifest advertises approval decision only through its reachable v2 UI rou
 });
 
 test('approval decision fills and encodes the manifest route template', () => {
-  const match = source().match(/function routeFor\(c,params\)\{([\s\S]*?)\}const AGENT_ACTIONS/);
+  const match = source().match(/function routeFor\(c,params\)\{\s*([\s\S]*?)\s*\}\s*const AGENT_ACTIONS/);
   assert.ok(match, 'route template helper must be present');
   const routeFor = vm.runInNewContext(`(function routeFor(c,params){${match[1]}})`, {});
   const item = publicWorkflowManifest().workflows.find(entry => entry.workflowId === 'approval-decision');

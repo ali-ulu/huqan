@@ -59,10 +59,13 @@ So the budget is banded:
   sets the next date. An entry with no date at all fails too, so the rule is not
   opt-in.
 - **A line over 400 characters fails the same gate.** The line-count ratchet
-  cannot see a file collapsed onto one line — `public/js/app.js` is 56 KB in 38
-  lines, one of them 39 KB — so density is measured separately. Files where the
-  density is the content carry a recorded exception in `LONG_LINE_ALLOWED`
-  (`scripts/file-size-policy.js`) with the same reason/review-date shape.
+  cannot see a file collapsed onto one line: the former dashboard bundle was
+  56 KB in 38 lines, one of them 39 KB, and the ratchet passed it. That bundle
+  is now split into `public/js/app-*.js` (finding C), and density is measured
+  separately so the next such file cannot hide. Files where the density is the
+  content — a wide object literal, a long innerHTML template — carry a recorded
+  exception in `LONG_LINE_ALLOWED` (`scripts/file-size-policy.js`) with the same
+  reason/review-date shape.
 
 That last rule is the half a ratchet is otherwise missing. A ceiling that *may*
 fall is not a ceiling that *must*, and an entry nobody revisits is a decision
