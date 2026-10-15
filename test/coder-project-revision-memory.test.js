@@ -33,6 +33,13 @@ function methods() {
     programs: teacher.plan.computation.routes.map(route => route.program), methodContexts: [], pipelineContexts: [] };
 }
 
+test('project commands reject candidate files before reading any source or opening a journal', () => {
+  for (const mode of ['create', 'revise']) for (const memory of [[], ['--project-memory', 'source.json']])
+    for (const candidate of [['--candidate-file', 'candidate.json'], ['--candidate-file', '']])
+      assert.throws(() => runCliCoder([mode, 'absent.json', ...memory, '--journal', 'absent-journal.db', ...candidate], {}),
+        /Candidate memory requires a journal, candidate file and a non-project task/u);
+});
+
 test('revision reuses methods for both baseline and new requirements without changing patch bodies', () => {
   const spec = requirements(), memory = methods();
   const cold = produceProjectRevision(spec);
