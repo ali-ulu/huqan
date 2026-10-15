@@ -9,7 +9,7 @@ Agents can now write code, delete files, spend money, and change memory.
 Without a proper trust layer, that power runs as the same user as you.
 
 On Windows, the Approval Authority moves approval into a separate service protected by TOTP and cryptographic decision envelopes.  
-There, the agent and the operator are no longer the same security principal.
+The decision is held by that service's own account, not by your user: an agent running as you cannot sign an approval, though it may still share your user identity with the operator.
 
 Every decision is recorded as a Trust Receipt.
 
