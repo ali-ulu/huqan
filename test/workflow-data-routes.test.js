@@ -282,6 +282,14 @@ describe('canonical workflow data routes', () => {
     assert.match(result.write.json.error.message, /query parameter/);
   });
 
+  it('names the decision surface when a decision request has no workspaceId (#3903)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')]);
+    const decision = await invoke('POST', '/api/v2/approvals/a/decision', { decision: 'approved' });
+    assert.equal(decision.write.json.workflowId, 'approval-decision');
+    const detail = await invoke('GET', '/api/v2/approvals/a');
+    assert.equal(detail.write.json.workflowId, 'approvals');
+  });
+
   it('names the failing surface when workspaceId is absent from other approval reads (#3903)', async () => {
     const { invoke } = fixture([approval('a', 'alpha')]);
     const detail = await invoke('GET', '/api/v2/approvals/a');
