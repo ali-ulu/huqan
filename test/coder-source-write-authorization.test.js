@@ -16,8 +16,24 @@ const os = require('node:os');
 
 const { applyDerivation } = require('../lib/coder/apply-derivation');
 const { classifyChangedFile } = require('../lib/code-change-file-classifier');
+const { evaluateCodeChange } = require('../lib/code-change-gate');
 
 const REPO_STATE = { branch: 'feature/x', dirty: false, hasUntracked: false };
+
+test('source review survives allowed findings and mixed restrictions cannot be authorized away', () => {
+  const evaluate = (paths, authorized) => evaluateCodeChange({ files: paths.map(file => ({ path: file, status: 'modified' })),
+    intent: 'update implementation and tests', operationType: 'write', repoState: REPO_STATE }, { authorized });
+  for (const paths of [['src/a.js', 'test/a.test.js'], ['test/a.test.js', 'zzz/a.js'], ['docs/a.md', 'src/a.js', 'test/a.test.js']]) {
+    const held = evaluate(paths, false);
+    assert.equal(held.decision, 'review');
+    assert.equal(held.reason, 'SOURCE_CHANGE_REQUIRES_REVIEW');
+    assert.equal(evaluate(paths, true).decision, 'allow');
+  }
+  for (const restricted of ['server.js', 'package.json', '.github/workflows/ci.yml', 'scripts/release.js']) {
+    const result = evaluate([restricted, 'zzz/a.js', 'test/a.test.js'], true);
+    assert.notEqual(result.decision, 'allow', restricted);
+  }
+});
 
 function tmpRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-coder-auth-'));
