@@ -36,7 +36,7 @@ function fixture(records = [], overrides = {}) {
     readReceipt: overrides.readReceipt || ((id, filters) => id === 'receipt-1'
       ? { ok: true, receipt: { receiptId: id, workspaceId: filters.workspaceId } }
       : { ok: false, status: 'not_found', error: { message: 'missing' } }),
-    parseJsonRequest: async req => req.body,
+    parseJsonRequest: overrides.parseJsonRequest || (async req => req.body),
     writeJson: (_req, _res, status, json, headers) => writes.push({ status, json, headers }),
     proposeLearn: overrides.proposeLearn || (async () => ({ approval: { id: 'approval-learn', persisted: true, context: {} } })),
     submitIngest: async () => ({}),
@@ -264,6 +264,49 @@ describe('canonical workflow data routes', () => {
     const result = await invoke('POST', '/api/v2/approvals');
     assert.equal(result.write.status, 405);
     assert.equal(result.write.json.error.code, 'METHOD_NOT_ALLOWED');
+  });
+
+  it('names the accepted location when workspaceId is only in the decision body (#3903)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')]);
+    const result = await invoke('POST', '/api/v2/approvals/a/decision', { decision: 'approved', workspaceId: 'alpha' });
+    assert.equal(result.write.status, 400);
+    assert.equal(result.write.json.error.code, 'INVALID_INPUT');
+    assert.equal(result.write.json.error.message, 'body.workspaceId is not allowed; pass workspaceId as a query parameter.');
+  });
+
+  it('still reports a genuinely absent workspaceId as missing (#3903)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')]);
+    const result = await invoke('POST', '/api/v2/approvals/a/decision', { decision: 'approved' });
+    assert.equal(result.write.status, 400);
+    assert.equal(result.write.json.error.code, 'MISSING_WORKSPACE_ID');
+    assert.match(result.write.json.error.message, /query parameter/);
+  });
+
+  it('names the decision surface when a decision request has no workspaceId (#3903)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')]);
+    const decision = await invoke('POST', '/api/v2/approvals/a/decision', { decision: 'approved' });
+    assert.equal(decision.write.json.workflowId, 'approval-decision');
+    const detail = await invoke('GET', '/api/v2/approvals/a');
+    assert.equal(detail.write.json.workflowId, 'approvals');
+  });
+
+  it('names the failing surface when workspaceId is absent from other approval reads (#3903)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')]);
+    const detail = await invoke('GET', '/api/v2/approvals/a');
+    assert.equal(detail.write.json.workflowId, 'approvals');
+    const run = await invoke('GET', '/api/v2/ingest/runs/run-1');
+    assert.equal(run.write.json.workflowId, 'ingest-run-detail');
+    const receipt = await invoke('GET', '/api/v2/trust-receipts/receipt-1');
+    assert.equal(receipt.write.json.workflowId, 'trust-receipt-detail');
+  });
+
+  it('lets the body parser own a malformed decision body (#3903)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')], {
+      parseJsonRequest: async (_req, _res) => null,
+    });
+    const result = await invoke('POST', '/api/v2/approvals/a/decision', { decision: 'approved' });
+    assert.equal(result.handled, true);
+    assert.equal(result.write, undefined);
   });
 
   it('publishes only routes that are actually served', () => {
