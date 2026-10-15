@@ -1,8 +1,10 @@
 const {
   readCompatibleEnvironmentVariable,
+  reportIgnoredBareEnvironment,
   validateEnvironmentCompatibility,
 } = require('./lib/environment-compat');
 validateEnvironmentCompatibility();
+reportIgnoredBareEnvironment(console);
 
 const http = require('http');
 const { createKernel } = require('./lib/kernel-factory');

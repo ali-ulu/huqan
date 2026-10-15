@@ -2,6 +2,7 @@
 
 const {
   assertBootEnvironment, readCompatibleEnvironmentVariable, reportBootConflict,
+  reportIgnoredBareEnvironment,
 } = require('./lib/environment-compat');
 const crypto = require('crypto');
 const { createKernel } = require('./lib/kernel-factory');
@@ -166,6 +167,7 @@ installCliRuntimeMethods(CLI.prototype, {
 
 async function runCliArgv(argv = [], io = {}) {
   assertBootEnvironment();
+  reportIgnoredBareEnvironment(console);
   return runWorkflowCliArgv(argv, io, {
     createCli: options => new CLI(options),
     parseCommand,
