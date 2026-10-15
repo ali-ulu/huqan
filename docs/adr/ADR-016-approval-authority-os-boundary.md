@@ -174,6 +174,41 @@ outside service mode the section degrades to an informational note. The
 ledger pages travel through `cli.js` behind the entrypoint, which alone may
 reach the authority client; the comparison itself is pure data.
 
+### Recording a stop (#3892)
+
+A same-user agent can rewrite the local emergency-stop ledger into a chain
+that still verifies. It can drop a stop entirely, or append a lift the guard
+never saw. The local integrity check cannot catch either, so the authority
+keeps its own record:
+
+- After a stop holds locally, the CLI, HTTP and MCP surfaces send its local
+  ledger entry to `POST /v1/stops`. The authority appends `emergency.stopped`
+  with the entry's scope, actor, reason and hash. A retry with the same hash
+  records nothing new. Stops are limited to 60 a minute.
+- The brake never waits on this. The stop is written locally first, the
+  record is best effort with a 2-second deadline, and in legacy mode nothing
+  is sent. An unreachable authority costs the record, not the stop. The CLI
+  and HTTP answers carry `authorityRecord`; the MCP tool answers before the
+  record is sent.
+- Only entrypoints (`cli.js`, `lib/http`, `lib/mcp`) send the record.
+  `lib/emergency-stop.js` stays in Core and never reaches the client.
+
+`huqan audit --authority` compares both ledgers (`lib/emergency-stop-detection.js`):
+
+- `STOP_MISSING_LOCALLY`: a recorded stop hash the local ledger no longer
+  holds.
+- `LIFT_WITHOUT_AUTHORITY`: more local lifts of a scope since the authority's
+  first entry than consumed lift decisions for that scope. This check needs
+  the whole authority ledger, so it is skipped when the fetched window is
+  cut.
+- `LOCAL_STOP_LEDGER_UNREADABLE`: the local ledger could not be read, so
+  nothing was compared.
+
+Cancelling an approved execution (#3878) is an agent-scope stop on
+`approval:<id>` through the same surfaces, so it is recorded too. The
+integrity-violation auto-containment writes `integrity_violation` entries, not
+stops, and sends nothing.
+
 ## Operational approvals (P6b, #3892)
 
 Four operator decisions have no row in the approval store:

@@ -2112,6 +2112,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/emergency-stop-detection.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/emergency-stop.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -5282,6 +5286,13 @@
     "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/emergency-stop-detection.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md (#3892: audit --authority compares the local stop ledger)"
   },
   "lib/gate-telemetry.js": {
    "owner": "Observability",

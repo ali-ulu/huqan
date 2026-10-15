@@ -233,6 +233,7 @@
     "lib/run-impact.js",
     "lib/emergency-stop.js",
     "lib/emergency-stop-chain.js",
+    "lib/emergency-stop-detection.js",
     "lib/agent-action-firewall.js",
     "lib/agent-action-signals.js",
     "lib/agent-action-decisions.js",
