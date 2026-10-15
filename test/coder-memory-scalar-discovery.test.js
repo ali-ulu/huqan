@@ -224,6 +224,14 @@ test('native CLI discovers from sealed primitives, saves and reopens the method,
   assert.equal(reopenedCombined.child.status, 0, JSON.stringify(reopenedCombined.result));
   assert.equal(reopenedCombined.result.data.attempts[0].test.exitCode, 0);
   assert.ok(reopenedCombined.result.data.plan.computation.routes.every(route => route.enumerated === 0));
+  const wrongCombined = JSON.parse(JSON.stringify(combinedSpec)); wrongCombined.name = 'wrong-statistics';
+  wrongCombined.routes[2].acceptanceExamples[0].expected.squaredRange += 1;
+  const rejectedCombinedFile = path.join(base, 'rejected-statistics.json');
+  const rejectedCombined = run(wrongCombined, methodFile, rejectedCombinedFile);
+  assert.equal(rejectedCombined.child.status, 6, JSON.stringify(rejectedCombined.result));
+  assert.equal(rejectedCombined.result.data.attempts[0].rolledBack, true);
+  assert.deepEqual(fs.readdirSync(rejectedCombined.root), []);
+  assert.equal(fs.existsSync(rejectedCombinedFile), false);
   const squareSpec = targetSpec(); squareSpec.name = 'learned-range-squared';
   squareSpec.routes[0].composeScalar.examples = [[-7, 14], [30, 11], [4, 9]].map(input => ({ input,
     expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
