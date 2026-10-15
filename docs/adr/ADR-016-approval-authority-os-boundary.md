@@ -338,23 +338,31 @@ append-only log that nobody on this machine can take back:
   the Rekor key pinned in `lib/mcp/rekor-anchor-client.js`. That key matched
   the live log and sigstore's TUF root on 2026-10-15; a pinned key, rather
   than TLS alone, is what stops a root CA installed by an elevated process.
-  The newest anchor is enough: the ledger is a hash chain, so if the head it
-  names is still there with the same hash, everything before it is
-  unchanged. Findings (`lib/authority-anchor-detection.js`):
-  - `LEDGER_ROLLED_BACK`: the newest anchored head is not in the ledger.
-  - `LEDGER_CLOCK_SKEW`: the anchored entry is dated more than five minutes
+  Every anchor read is checked, not only the newest. The anchor key sits in
+  the service's state, which an elevated process can read, so it can anchor
+  a rolled-back head after the fact. The honest anchors made before the
+  rollback still name heads the ledger no longer holds, and an anchor made
+  later for an earlier head than the one before it is the trace of such a
+  forgery: an append-only ledger only ever anchors heads that move forward.
+  Findings (`lib/authority-anchor-detection.js`):
+  - `LEDGER_ROLLED_BACK`: anchored heads the ledger no longer holds.
+  - `ANCHOR_ORDER_REGRESSED`: an anchor made later names an earlier head
+    than an anchor before it.
+  - `LEDGER_CLOCK_SKEW`: an anchored entry is dated more than five minutes
     after Rekor's `integratedTime`.
   - `ANCHOR_UNVERIFIED`: a log entry under the anchor key does not verify.
-  - `ANCHOR_SIGNATURE_INVALID`: the newest anchor's signature does not match
-    the anchored entry.
-  - `ANCHOR_UNCHECKED`: the ledger could not be read far enough to find the
-    newest anchor.
-  - `ANCHOR_SEARCH_TRUNCATED`: more than 500 anchors exist.
+  - `ANCHOR_SIGNATURE_INVALID`: an anchor's signature does not match the
+    entry it names.
+  - `ANCHOR_UNCHECKED`: the ledger could not be read far enough to find these
+    anchors.
+  - `ANCHOR_SEARCH_TRUNCATED`: more than 500 anchors exist, so not all were
+    read.
   - `ANCHOR_LOG_UNAVAILABLE`: the log could not be reached, or the pin has no
     anchor key.
 
-  When the newest anchor is older than the fetched window, the ledger is read
-  from its start, bounded to 100,000 entries.
+  The checks are bounded. At most 500 anchors are read. Anchors older than
+  the fetched window are looked up by reading the ledger from its start, up
+  to 100,000 entries.
 
 Rekor v2 is not used: it has no search index and no signed entry timestamp,
 and its shard URLs rotate through TUF. The move is revisited when v1 is

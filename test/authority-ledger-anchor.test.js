@@ -26,7 +26,8 @@ const p256 = () => crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
 
 // A Rekor v1 stand-in: keeps hashedrekord entries, signs each entry timestamp
 // with its own log key and answers the search index by public key.
-function fakeRekor({ now = () => Math.floor(Date.now() / 1000) } = {}) {
+// Its clock moves one second per entry, so a later anchor is always the newer one.
+function fakeRekor({ now } = {}) {
   const log = p256();
   const logID = crypto.createHash('sha256').update(log.publicKey.export({ type: 'spki', format: 'der' })).digest('hex');
   const entries = new Map();
@@ -41,7 +42,7 @@ function fakeRekor({ now = () => Math.floor(Date.now() / 1000) } = {}) {
     if (state.down) throw Object.assign(new Error('down'), { code: 'REKOR_UNAVAILABLE' });
     if (method === 'POST' && route === '/api/v1/log/entries') {
       const uuid = crypto.randomBytes(40).toString('hex');
-      entries.set(uuid, entryFor(body, now(), entries.size));
+      entries.set(uuid, entryFor(body, now ? now() : Math.floor(Date.now() / 1000) + entries.size, entries.size));
       return { status: 201, json: { [uuid]: entries.get(uuid) } };
     }
     if (method === 'POST' && route === '/api/v1/index/retrieve') {
@@ -168,6 +169,39 @@ test('audit reports a ledger rolled back past its newest anchor, or rewritten un
   // It appends again to the old length: the seq is back, its hash is not.
   recordStops(rolled.service, 1, 10);
   assert.deepEqual((await audit(rolled, rekor)).map(f => f.code), ['LEDGER_ROLLED_BACK']);
+});
+
+test('a rolled-back head anchored afterwards with the stolen anchor key does not hide the rollback', async (t) => {
+  const env = await setup(t);
+  const live = await env.start();
+  recordStops(live.service, 3);
+  const rekor = fakeRekor();
+  assert.equal((await anchor({ resolveMode: () => live.mode, createRekorClient: rekor.client })).code, 0);
+
+  // Elevated: cut the ledger back, restart, and anchor the shorter head with the same key.
+  const lines = fs.readFileSync(env.ledgerFile, 'utf8').trim().split('\n');
+  fs.writeFileSync(env.ledgerFile, `${lines.slice(0, 2).join('\n')}\n`);
+  const rolled = await env.start();
+  assert.equal((await anchor({ resolveMode: () => rolled.mode, createRekorClient: rekor.client })).code, 0);
+  assert.deepEqual((await audit(rolled, rekor)).map(f => f.code), ['LEDGER_ROLLED_BACK']);
+
+  // Even if the honest anchor's head came back, the order of the anchors gives the forgery away.
+  const key = p256();
+  const regressed = compareAnchorsWithLedger({ unverified: 0, truncated: false, scanned: true, publicKey: key.publicKey,
+    anchors: [
+      { logIndex: 1, integratedTime: 100, match: { seq: 5, receiptHash: 'a'.repeat(64), at: new Date(0).toISOString() } },
+      { logIndex: 2, integratedTime: 200, match: { seq: 3, receiptHash: 'b'.repeat(64), at: new Date(0).toISOString() } },
+    ].map(a => ({ ...a, signature: signAnchor({ seq: a.match.seq, hash: a.match.receiptHash }, key.privateKey).signature })) });
+  assert.deepEqual(regressed.map(f => [f.code, f.logIndexes]), [['ANCHOR_ORDER_REGRESSED', [2]]]);
+});
+
+test('anchor reports an authority it cannot reach as JSON, not a crash', async () => {
+  const key = p256();
+  const mode = { mode: 'service', pin: { anchorKey: key.publicKey } };
+  const down = await anchor({ resolveMode: () => mode, createClient: () => ({ ledgerAnchor: async () => {
+    throw Object.assign(new Error('refused'), { code: 'AUTHORITY_UNAVAILABLE' });
+  } }), createRekorClient: fakeRekor().client });
+  assert.deepEqual(down, { code: 2, report: { error: 'AUTHORITY_UNAVAILABLE' } });
 });
 
 test('audit reports an anchored entry dated after the log took it', async (t) => {

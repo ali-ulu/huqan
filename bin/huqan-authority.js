@@ -154,7 +154,10 @@ async function anchor(deps = {}) {
   const refusal = serviceOrRefusal(mode);
   if (refusal) return refusal;
   if (!mode.pin.anchorKey) return { code: 2, report: { error: 'ANCHOR_KEY_NOT_PINNED' } };
-  const answer = await createClient({ pin: mode.pin }).ledgerAnchor();
+  let answer;
+  try { answer = await createClient({ pin: mode.pin }).ledgerAnchor(); } catch (error) {
+    return { code: 2, report: { error: error.code || 'AUTHORITY_UNAVAILABLE' } };
+  }
   const signed = answer.status === 200 && answer.body ? answer.body.anchor : null;
   // Signed by the service, but checked against the pin: the digest and the anchor key.
   let checked = false;

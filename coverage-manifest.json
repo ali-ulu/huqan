@@ -1135,7 +1135,7 @@
       ],
       "sites": [
         {
-          "line": 76,
+          "line": 72,
           "capability": "egress",
           "call": "https.request"
         }
