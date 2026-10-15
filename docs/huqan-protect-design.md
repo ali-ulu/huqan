@@ -45,6 +45,11 @@ Policy can later be expressed as a small named preset (`personal`, `strict`, `te
 
 ## Implementation sketch
 
+Start from what exists: `huqan-gate connect` already detects installed agents
+and installs the gate for each (`connectDetectedAgents` in
+`lib/external-action-gate-install.js`), and `huqan-gate connect --detect` is
+its dry run. `huqan protect` should wrap it, not reimplement detection.
+
 1. **Detect**
    - Look for common MCP config locations
    - Inspect process list / environment for known agents
