@@ -20,9 +20,18 @@ The ordinary Coder gate and explicit source authorization apply; initialization
 permissions are not used. `node --test` runs the generated old and new API
 checks and existing discoverable Node tests. A failed test rolls back the
 proposed replacements. Static and computed JSON API recipes are supported;
-initialization and project-memory flags are refused in this mode. Editing or
+initialization and method-output flags are refused in this mode. Editing or
 deleting old routes, arbitrary repository synthesis and learning new methods
 from a revision are outside this initial additive contract.
+
+An optional `--project-memory <source.json>` (repeatable) with `--journal` loads
+sealed methods before regenerating either baseline or target. A missing or
+invalid source refuses without a fresh-search fallback. The ordinary gate still
+decides writes; no initialization permission is granted. The task identity binds
+the loaded source digest, and output reports source replay search separately.
+The sources remain read-only: this mode cannot save a revised method record.
+Memory-backed preview with `--dry-run` is not supported. A declared primitive
+`synthesizeOnMemoryMiss` retains its existing behavior after valid source admission.
 
 ## Computed HTTP project recipe
 
