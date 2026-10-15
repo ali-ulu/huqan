@@ -45,7 +45,7 @@ test('the agent request body the panel builds is the one the route schema accept
   }
 
   const page = html();
-  assert.match(page, /AGENT_ACTIONS\.has\(a\)\)\{p\.goal=text;p\.maxSteps=Number\(\$\('maxsteps'\)\.value\)\|\|4\}/);
+  assert.match(page, /AGENT_ACTIONS\.has\(a\)\)\{\s*p\.goal=text;\s*p\.maxSteps=Number\(\$\('maxsteps'\)\.value\)\|\|4\}/);
   const offered = [...page.matchAll(/<option value="(\d)"[^>]*>\d+ steps?/g)].map(m => Number(m[1]));
   assert.deepEqual(offered, [1, 2, 4, 6, 8]);
 });
@@ -71,7 +71,7 @@ test('a run that pauses, blocks, or stalls is reported as an outcome, not a fail
 
 test('the panel renders the steps an agent response carries', () => {
   const page = html();
-  const match = page.match(/function agentSteps\(d\)\{([\s\S]*?)\}function agentHandoff/);
+  const match = page.match(/function agentSteps\(d\)\{\s*([\s\S]*?)\s*\}\s*function agentHandoff/);
   assert.ok(match, 'the step renderer must be present');
   const agentSteps = vm.runInNewContext(
     `(function agentSteps(d){${match[1]}})`,
@@ -88,7 +88,7 @@ test('the panel renders the steps an agent response carries', () => {
 
 test('the goal field replaces the claim field only for the agent actions', () => {
   const page = html();
-  const match = page.match(/function agentFields\(\)\{([\s\S]*?)\}function ingestFields/);
+  const match = page.match(/function agentFields\(\)\{\s*([\s\S]*?)\s*\}\s*function ingestFields/);
   assert.ok(match, 'the field toggle must be present');
 
   const elements = {
@@ -118,5 +118,5 @@ test('the goal field replaces the claim field only for the agent actions', () =>
   // [hidden] rule that makes that inert-proof (see dashboard-hidden-attribute).
   assert.match(page, /id="stepsfield" hidden/);
   // #1878 added a second field family, so the select drives both toggles.
-  assert.match(page, /function actionFields\(\)\{agentFields\(\);ingestFields\(\)\}\$\('action'\)\.onchange=actionFields;/);
+  assert.match(page, /function actionFields\(\)\{\s*agentFields\(\);\s*ingestFields\(\)\s*\}\s*\$\('action'\)\.onchange=actionFields;/);
 });

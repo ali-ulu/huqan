@@ -51,7 +51,7 @@ test('the ingest request body the panel builds is the one the route schema accep
 
 test('the panel sends the fields each ingest source actually carries', () => {
   const page = html();
-  const match = page.match(/else if\(INGEST_ACTIONS\.has\(a\)\)\{([\s\S]*?)\}else p\.claim=text;/);
+  const match = page.match(/else if\(INGEST_ACTIONS\.has\(a\)\)\{\s*([\s\S]*?)\s*\}\s*else p\.claim=text;/);
   assert.ok(match, 'the ingest body mapping must be present');
 
   const build = (source, values) => {
@@ -103,7 +103,7 @@ test('a queued ingest is reported as an outcome, not a failure', () => {
 
 test('the panel renders the handoff an ingest response carries', () => {
   const page = html();
-  const match = page.match(/function ingestHandoff\(d\)\{([\s\S]*?)\}async function run/);
+  const match = page.match(/function ingestHandoff\(d\)\{\s*([\s\S]*?)\s*\}\s*async function run/);
   assert.ok(match, 'the ingest handoff renderer must be present');
   const ingestHandoff = vm.runInNewContext(
     `(function ingestHandoff(d){${match[1]}})`,
@@ -126,7 +126,7 @@ test('the panel renders the handoff an ingest response carries', () => {
 
 test('the ingest fields appear only for the ingest actions, and the title only for a decision', () => {
   const page = html();
-  const match = page.match(/function ingestFields\(\)\{([\s\S]*?)\}function agentSteps/);
+  const match = page.match(/function ingestFields\(\)\{\s*([\s\S]*?)\s*\}\s*function agentSteps/);
   assert.ok(match, 'the field toggle must be present');
 
   const elements = {

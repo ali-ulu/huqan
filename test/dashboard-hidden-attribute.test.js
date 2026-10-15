@@ -25,7 +25,7 @@ test('the dashboard declares a [hidden] rule that outranks authored display rule
 });
 
 test('elements the dashboard hides are hidden via the hidden property', () => {
-  // #1895 moved this line into public/js/app.js; the helper follows the src.
+  // #1895 moved this line out of the page; the helper follows the <script src>.
   assert.ok(
     dashboardScript().includes("$('keyfield').hidden=open"),
     'the key field is expected to be hidden through el.hidden; update this contract if that changes',

@@ -100,7 +100,7 @@ test('Claim Workspace uses manifest routes, session-only auth, real search, and 
 
 test('Claim Workspace derives all aggregate dashboard status labels from one helper', () => {
   const html = dashboardSource();
-  const match = html.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
+  const match = html.match(/function aggregateStatus\(surfaces\)\{\s*([\s\S]*?)\s*\}\s*function renderHealth/);
   assert.ok(match, 'aggregate status helper must be present');
   // No catalogue in this context, which is the pre-load state in a browser too:
   // T/M return the English fallback compiled into the source (#1957).
@@ -175,7 +175,7 @@ test('Claim Workspace browser script compiles and wires unknown-to-review throug
   // the legacy flat `approvals` array stays readable as a fallback.
   assert.match(script, /d\.data\.approvals/);
   assert.match(script, /state\.approvals=readApprovals\(d\)/);
-  assert.match(script, /await refresh\(\);const failed=/);
+  assert.match(script, /await refresh\(\);\s*const failed=/);
   // #1878: decisions now use the advertised v2 route template and its nested
   // response projection; the panel no longer posts through the legacy alias.
   assert.match(script, /const c=capability\('approval-decision'\)/);
@@ -192,7 +192,7 @@ test('Approval rows keep their source labels after the v2 envelope migration (#1
   // to a bare id and an em dash snapshot -- a silent regression no status
   // assertion would catch. Verified by mutation: dropping the `snap.` fallbacks
   // turns this red.
-  const match = html.match(/function approvalView\(x\)\{([\s\S]*?)\}function readApprovals/);
+  const match = html.match(/function approvalView\(x\)\{\s*([\s\S]*?)\s*\}\s*function readApprovals/);
   assert.ok(match, 'approval view adapter must be present');
   const approvalView = vm.runInNewContext(`(function approvalView(x){${match[1]}})`);
 
@@ -221,7 +221,7 @@ test('Graph view trusts the backend default-workspace contract instead of a pree
   const html = dashboardSource();
   // loadGraph artık key yokken default workspace için /graph-data isteği atar;
   // yalnızca named workspace + key yok kombinasyonu ön kilit (locked) üretir.
-  assert.match(html, /async function loadGraph\(\)\{const isDefaultWorkspace=!state\.ws\|\|state\.ws==='default';if\(state\.authRequired&&!state\.key&&!isDefaultWorkspace\)/);
+  assert.match(html, /async function loadGraph\(\)\{\s*const isDefaultWorkspace=!state\.ws\|\|state\.ws==='default';\s*if\(state\.authRequired&&!state\.key&&!isDefaultWorkspace\)/);
   // 401/403 yanıtında var olan locked hatası korunur (fail-closed davranış).
   assert.match(html, /const locked=r\.status===401\|\|r\.status===403/);
 });

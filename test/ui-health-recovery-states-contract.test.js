@@ -15,7 +15,7 @@ const { dashboardSource, dashboardScript } = require('./helpers/dashboard-source
 const script = dashboardScript();
 const html = dashboardSource();
 
-const match = script.match(/function aggregateStatus\(surfaces\)\{([\s\S]*?)\}function renderHealth/);
+const match = script.match(/function aggregateStatus\(surfaces\)\{\s*([\s\S]*?)\s*\}\s*function renderHealth/);
 assert.ok(match, 'aggregate status helper must be present in the dashboard script');
 // The helper resolves its copy through the catalogue (#1957). This context has
 // no catalogue, which is the same situation as a browser that has not finished
