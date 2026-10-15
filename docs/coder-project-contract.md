@@ -33,6 +33,14 @@ The sources remain read-only: this mode cannot save a revised method record.
 Memory-backed preview with `--dry-run` is not supported. A declared primitive
 `synthesizeOnMemoryMiss` retains its existing behavior after valid source admission.
 
+Memory-backed revisions additionally require the generated target recipe to
+match every generated file, including files outside the changed patch. A native
+HTTP test and repeated full-output comparison run before keeping the revision.
+The sealed closing evidence includes the revision hash, loaded-memory hash and
+generated-output hashes. Unexpected generated-file drift refuses and rolls back
+the patch; pre-existing sidecars and Git metadata are not included in this
+manifest. This attestation does not yet save a learned revision method.
+
 ## Computed HTTP project recipe
 
 Computed routes may declare a `pipeline` of 2-4 computation route paths, for

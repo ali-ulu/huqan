@@ -2656,6 +2656,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/coder/project-revision-verification.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
   "lib/coder/test-execution.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-test-loop"

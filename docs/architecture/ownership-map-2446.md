@@ -328,6 +328,12 @@ before regenerating the baseline and target and delegates writes to the ordinary
 Coder gate. This read-only revision path grants no initialization permission and
 does not call the method-writing exports. The module retains responsibility for
 source-path isolation, sealed-run verification and reconstructed method lineage.
+`lib/coder/project-revision-verification.js` owns full generated-output
+attestation for memory-backed revisions. Before the fix loop keeps and seals a
+revision, it re-derives the bound task, compares all generated files against the
+target recipe, runs native HTTP acceptance, and repeats the file checks. Git
+metadata and sidecars are outside the manifest. Failure takes the existing
+patch rollback path; success enters the same sealed run's closing evidence.
 `lib/coder/project-verification.js` supplies mandatory native HTTP and independent
 re-derivation verification, even for direct calls to `applyDerivation`; caller
 verifiers and injected file systems cannot certify initialization. General gate

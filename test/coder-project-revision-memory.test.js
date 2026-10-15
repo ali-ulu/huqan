@@ -9,6 +9,8 @@ const { produceProject, produceProjectRevision } = require('../lib/coder/project
 const { runCliProjectRevisionMemory } = require('../lib/cli-coder-project-memory');
 const { runCliCoder } = require('../lib/cli-coder');
 const { loadProjectMethods } = require('../lib/coder/project-method-memory');
+const { openCoderJournal } = require('../lib/coder/journal-store');
+const { readSealedRun } = require('../lib/experience/learning-intake');
 
 function requirements() {
   const previous = { kind: 'project_spec', name: 'learned-revision', archetype: 'node_computed_json_api', routes: [{
@@ -142,13 +144,14 @@ test('native sealed memory extends existing projects and preserves authorization
   assert.equal(learned.child.status, 0, JSON.stringify(learned.result));
   const bytes = fs.readFileSync(memory, 'utf8');
   const revisionFile = path.join(base, 'revision.json'); fs.writeFileSync(revisionFile, JSON.stringify(spec));
-  for (const mode of ['success', 'unauthorized', 'failed-old-test']) {
+  for (const mode of ['success', 'unauthorized', 'failed-old-test', 'unchanged-drift']) {
     const root = path.join(base, mode); fs.mkdirSync(root);
     const baseline = produceProject(spec.previous); assert.equal(baseline.ok, true, baseline.reason);
     for (const step of baseline.task.operation.steps) {
       const file = path.join(root, step.path); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, step.content);
     }
     fs.writeFileSync(path.join(root, 'notes.txt'), 'keep');
+    if (mode === 'unchanged-drift') fs.appendFileSync(path.join(root, 'src', 'server.js'), '\n// local customization\n');
     fs.writeFileSync(path.join(root, 'test', 'sidecar.test.js'),
       `require('node:assert/strict').equal(require('node:fs').readFileSync('notes.txt', 'utf8'), '${mode === 'failed-old-test' ? 'different' : 'keep'}');`);
     commit(root);
@@ -161,10 +164,23 @@ test('native sealed memory extends existing projects and preserves authorization
     if (mode === 'success') {
       assert.equal(result.data.attempts[0].test.exitCode, 0);
       assert.equal(result.data.record.observedVerification.ok, true);
+      assert.equal(result.data.projectRevision.ok, true);
+      assert.equal(result.data.projectRevision.outputs.length, baseline.task.operation.steps.length);
+      const store = openCoderJournal(journal);
+      try {
+        const sealed = readSealedRun(store.journal, 'revision-success:c1', 'default');
+        assert.equal(sealed.ok, true, sealed.code);
+        assert.deepEqual(sealed.events.find(event => event.type === 'run_closed').payload.evidence.projectRevision,
+          result.data.projectRevision);
+      } finally { store.close(); }
       assert.ok(JSON.parse(fs.readFileSync(path.join(root, 'routes.json'), 'utf8')).some(route => route.path === '/max'));
     } else {
       for (const [file, text] of originals) assert.equal(fs.readFileSync(path.join(root, file), 'utf8'), text);
       if (mode === 'failed-old-test') assert.equal(result.data.attempts[0].rolledBack, true);
+      if (mode === 'unchanged-drift') {
+        assert.equal(result.data.attempts[0].rolledBack, true);
+        assert.equal(result.data.attempts[0].test.reason, 'PROJECT_REVISION_OUTPUT_MISMATCH');
+      }
     }
     assert.equal(fs.readFileSync(path.join(root, 'notes.txt'), 'utf8'), 'keep');
     assert.equal(fs.readFileSync(memory, 'utf8'), bytes);
