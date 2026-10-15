@@ -64,9 +64,11 @@ test('quickstart leaves no memory.db in the working directory', () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Trust Receipt/);
     assert.match(result.stdout, /throwaway/);
-    // #3902: the printed receiptId belongs to the removed store, so the output
-    // must say `huqan receipt` cannot read it back instead of implying it can.
-    assert.match(result.stdout, /cannot read it back/);
+    // #3902: never print the receiptId bare. Either the store is gone and the
+    // output says it cannot be read back, or it remains and the output says how
+    // to read it. On Windows the removal can fail on an open SQLite handle, so
+    // both are correct here; what must never happen is an unexplained id.
+    assert.match(result.stdout, /(cannot read it back|Read it with HUQAN_MEMORY_PATH=)/);
     // The whole point: the caller's directory is untouched.
     assert.equal(fs.existsSync(path.join(cwd, 'memory.db')), false);
     assert.deepEqual(fs.readdirSync(cwd), []);

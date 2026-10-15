@@ -150,7 +150,10 @@ test('formatQuickstartResult shows how to read the receipt while the demo store 
   }, { storePath: '/tmp/huqan-quickstart-xyz', storeRemoved: false });
 
   assert.match(output, /left on disk/);
-  assert.match(output, /HUQAN_MEMORY_PATH=\/tmp\/huqan-quickstart-xyz\/memory\.json/);
+  // path.join renders separators per platform; escape the whole path so the
+  // Windows backslashes are matched literally instead of as regex escapes.
+  const expectedStore = path.join('/tmp/huqan-quickstart-xyz', 'memory.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(output, new RegExp(`HUQAN_MEMORY_PATH=${expectedStore}`));
   assert.match(output, /huqan receipt abc/);
 });
 
