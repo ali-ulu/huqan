@@ -80,6 +80,42 @@ function targetSpec() {
       expected: extrema(input, false) - extrema(input, true) }))
   }] };
 }
+test('uses a learned intermediate method to solve a new three-operation problem', () => {
+  const range = searchMemoryScalarCompositions({ candidatePrograms: primitives, examples }).candidates[0].program;
+  const squared = examples.map(row => ({ ...row, expected: row.expected ** 2 }));
+  const cold = searchMemoryScalarCompositions({ candidatePrograms: primitives, examples: squared });
+  assert.equal(cold.matchingExpressions, 0);
+  const learned = searchMemoryScalarCompositions({ candidatePrograms: [...primitives, range], examples: squared });
+  assert.equal(learned.matchingExpressions, 1);
+  assert.equal(learned.enumerated, 24);
+  const selected = inspectProjectProgram(learned.candidates[0].program);
+  assert.equal(selected.ok, true);
+  assert.equal(selected.program.sources[0].type, 'scalar-composition');
+  for (const input of [[], [42], [-100, -30], [-1000000, 1000000]])
+    assert.equal(selected.evaluate(input), (extrema(input, false) - extrema(input, true)) ** 2);
+  const spec = targetSpec();
+  spec.routes[0].composeScalar.examples = squared;
+  spec.routes[0].acceptanceExamples = spec.routes[0].acceptanceExamples.map(row => ({ ...row, expected: row.expected ** 2 }));
+  const options = memoryOptions(); options.candidatePrograms = [...options.candidatePrograms, range];
+  options.methodContexts.push({ canonicalExpression: inspectProjectProgram(range).canonicalExpression,
+    trainingInputs: [[11, -7], [30, 2], [9, 12]] });
+  assert.equal(produceProject(spec, options).ok, true);
+  options.methodContexts[0].trainingInputs = [...sourceInputs, spec.routes[0].acceptanceExamples[0].input];
+  assert.equal(produceProject(spec, options).reason, 'PROJECT_COMPUTE_SCALAR_HOLDOUT_OVERLAP');
+  options.methodContexts.shift();
+  assert.equal(produceProject(spec, options).reason, 'PROJECT_COMPUTE_METHOD_CONTEXT_MISSING');
+  const thirdLevel = { type: 'scalar-composition', sources: [selected.program], expression: { source: 0 } };
+  assert.equal(inspectProjectProgram(thirdLevel).ok, false);
+  const unaffected = searchMemoryScalarCompositions({ candidatePrograms: [...primitives, selected.program], examples });
+  assert.equal(unaffected.matchingExpressions, 1);
+  assert.equal(unaffected.candidates[0].canonicalExpression, inspectProjectProgram(range).canonicalExpression);
+  const innerSquare = { type: 'scalar-composition', sources: [primitives[0]],
+    expression: { operator: '*', left: { source: 0 }, right: { source: 0 } } };
+  const outerSquare = inspectProjectProgram({ type: 'scalar-composition', sources: [innerSquare], expression: innerSquare.expression });
+  assert.equal(outerSquare.ok, true);
+  assert.throws(() => outerSquare.evaluate([1000000]), /SCALAR_COMPOSITION_RESULT_INVALID/u);
+  assert.equal(inspectProjectProgram({ type: 'scalar-composition', sources: Array(32).fill(range), expression: { source: 0 } }).ok, false);
+});
 test('produces one declared route using memory-discovered sources, without acceptance selection', () => {
   const spec = targetSpec();
   const result = produceProject(spec, memoryOptions());
@@ -149,6 +185,38 @@ test('native CLI discovers from sealed primitives, saves and reopens the method,
   assert.equal(discovered.result.data.attempts[0].test.exitCode, 0);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(discovered.root, 'routes.json'), 'utf8')), [{ path: '/answer' }]);
   const methodBytes = fs.readFileSync(methodFile, 'utf8');
+  const squareSpec = targetSpec(); squareSpec.name = 'learned-range-squared';
+  squareSpec.routes[0].composeScalar.examples = [[-7, 14], [30, 11], [4, 9]].map(input => ({ input,
+    expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
+  squareSpec.routes[0].acceptanceExamples = [[-80, -20], [51], [-999999, 999998]].map(input => ({ input,
+    expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
+  // Hold requirements and the production search cap fixed: only the sealed
+  // intermediate method differs between these separate-process arms.
+  const withoutIntermediate = run(squareSpec, primitiveFile);
+  assert.equal(withoutIntermediate.child.status, 6, JSON.stringify(withoutIntermediate.result));
+  assert.equal(withoutIntermediate.result.data.reason, 'SCALAR_COMPOSITION_SEARCH_OVER_CAP');
+  assert.deepEqual(fs.readdirSync(withoutIntermediate.root), []);
+  const squaredFile = path.join(base, 'squared.json');
+  const squared = run(squareSpec, methodFile, squaredFile);
+  assert.equal(squared.child.status, 0, JSON.stringify(squared.result));
+  assert.equal(squared.result.data.plan.computation.routes[0].source, 'memory-composition');
+  assert.equal(squared.result.data.attempts[0].test.exitCode, 0);
+  const reopenedSquare = JSON.parse(JSON.stringify(squareSpec)); reopenedSquare.name = 'reopened-square';
+  reopenedSquare.routes[0].composeScalar.examples = [[-9, 18], [40, 13], [5, 11]].map(input => ({ input,
+    expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
+  const replayedSquare = run(reopenedSquare, squaredFile);
+  assert.equal(replayedSquare.child.status, 0, JSON.stringify(replayedSquare.result));
+  assert.equal(replayedSquare.result.data.plan.computation.routes[0].enumerated, 0);
+  const searchWork = response => response.result.data.plan.computation.routes.reduce((sum, route) => sum + route.enumerated, 0)
+    + response.result.data.projectMemory.replaySearch;
+  const costs = { sharedPrimitiveTraining: searchWork(trained), intermediateTraining: searchWork(discovered),
+    learnedTarget: searchWork(squared), reopenedTarget: searchWork(replayedSquare) };
+  for (const cost of Object.values(costs)) assert.ok(Number.isSafeInteger(cost) && cost >= 0);
+  assert.equal(costs.reopenedTarget, 0);
+  t.diagnostic(JSON.stringify({ experiment: 'learned-intermediate-native-transfer', costs,
+    chargedLearnedTotal: costs.sharedPrimitiveTraining + costs.intermediateTraining + costs.learnedTarget,
+    coldOutcome: withoutIntermediate.result.data.reason, learnedOutcome: squared.result.data.outcome,
+    generalLearningGain: 'NOT_MEASURED' }));
   const reusedSpec = targetSpec(); reusedSpec.name = 'reopened-discovery'; reusedSpec.routes[0].path = '/spread';
   reusedSpec.routes[0].inputField = 'values';
   reusedSpec.routes[0].composeScalar.examples = [[-7, 14], [30, 11], [4, 9]].map(input => ({ input,
