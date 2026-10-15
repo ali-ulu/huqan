@@ -445,3 +445,15 @@ The original scalar preregistration is insufficient: its empty-input holdout ove
 `composeScalar: { inferFromMemory: true, examples: [...] }` accepts a single target route without declared source routes. Verified primitive proposals are deduplicated and sorted by canonical program identity. The existing two-operation grammar searches the scalar pool by increasing operation count. Each complete depth must fit the remaining 4,000-candidate budget before that depth is generated or evaluated; a unique shorter solution does not require enumerating deeper expressions. `array-map` and `array-filter` methods, plus whole pipeline/composition proposals, are excluded from fresh primitive search. Over-budget depths are refused rather than partially searched. Unused sources are removed from the selected AST and indices are rewritten, so unrelated pool entries do not change method identity.
 
 An already saved scalar composition can match target training without new enumeration. Every selected primitive requires reconstructed training provenance; cached reuse additionally requires the composition's own provenance. Acceptance inputs are checked against target and ancestor training after selection; failed independent acceptance does not select a replacement. Native CLI tests cover discovery from a sealed scalar primitive record without a stored composition, a generated single HTTP route, parent-bound persistence, new-process reuse and rollback with unchanged source records. This remains bounded method discovery and does not establish unrestricted coding or general learning gains.
+
+Verified scalar compositions can also serve as sources for a new composition.
+For example, a learned difference can support learning its square without a
+built-in range or square operator. Each expression still has at most two new
+arithmetic operations; programs permit at most two scalar composition layers
+and 64 method nodes in total, including primitive sources. Arithmetic preserves
+the stored evaluation order and safe-integer checks at every intermediate.
+Methods at the nesting limit remain eligible for whole-method reuse and are
+excluded from fresh source discovery. Every selected method and its recursive
+sources require training provenance; their training inputs remain excluded
+from target acceptance. This adds bounded reuse of learned intermediate
+solutions, not arbitrary algorithm synthesis or a measured general gain.
