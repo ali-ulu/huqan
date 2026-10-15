@@ -321,6 +321,13 @@ the latter previews or delegates the resulting task to the existing fix loop.
 `lib/coder/project-initialization.js` coordinates the default-off explicit
 initialization. `lib/coder/project-initialization-permission.js` binds live source
 and empty-target state to a single-use fixed recipe permission.
+`lib/coder/project-method-memory.js` is an AgentAction port consumed by the
+Platform composition root for memory-backed existing-project revisions. The
+composition injects `loadProjectMethods`; the CLI loads sealed source records
+before regenerating the baseline and target and delegates writes to the ordinary
+Coder gate. This read-only revision path grants no initialization permission and
+does not call the method-writing exports. The module retains responsibility for
+source-path isolation, sealed-run verification and reconstructed method lineage.
 `lib/coder/project-verification.js` supplies mandatory native HTTP and independent
 re-derivation verification, even for direct calls to `applyDerivation`; caller
 verifiers and injected file systems cannot certify initialization. General gate

@@ -6734,6 +6734,13 @@
    ],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/coder/project-method-memory.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
   "lib/coder/verify-ocr.js": {
    "owner": "AgentAction",
    "consumers": [
