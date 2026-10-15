@@ -65,6 +65,19 @@ node server.js
 # Open http://localhost:3000
 ```
 
+`server.js` binds `127.0.0.1` by default, which is reachable only from the
+same machine. Inside a container, on a remote host or behind a reverse proxy,
+set the bind explicitly so the UI and HTTP API answer from outside:
+
+```bash
+HUQAN_HOST=0.0.0.0 node server.js
+```
+
+`HOST` is the same variable through the legacy alias path; `HUQAN_HOST` is the
+canonical spelling. `huqan doctor` reports the resolved bind and fails when a
+loopback bind sits inside a container, because that combination cannot serve
+the surfaces this page documents.
+
 Static demo note:
 - `public/index.html` is the canonical local backend-connected UI served by `node server.js`.
 - `docs/index.html` is only a docs/demo chooser and does not replace the local UI.
