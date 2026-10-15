@@ -25,6 +25,7 @@ const { shellQuote, mapCliCommandToMcpTool } = require('./lib/cli-helpers');
 const { runCliRepl } = require('./lib/cli-repl');
 const { installCliRuntimeMethods } = require('./lib/cli-runtime-methods');
 const { evaluateCliGate } = require('./lib/cli-gate-evaluation');
+const { cliEmergencyStopRefusal, formatCliEmergencyStopRefusal } = require('./lib/cli-emergency-stop');
 const { createCliCommandHandlers } = require('./lib/coder/cli-composition');
 const { MemoryLifecycle } = require('./lib/memory-lifecycle');
 const {
@@ -63,9 +64,13 @@ class CLI {
    * @param {Kernel|KernelV2} [opts.kernelInstance]
    * @param {object} [opts.kernel]
    * @param {'v2'|'v3'} [opts.agentVersion]
+   * @param {object} [opts.emergencyStop] injected stop ledger (tests); when
+   *   absent the ambient ledger is read -- the same directory `huqan stop`
+   *   writes to.
    */
   constructor(opts = {}) {
     this.kernel = opts.kernelInstance || createKernel(opts.kernel || {});
+    this._emergencyStop = Object.hasOwn(opts, 'emergencyStop') ? opts.emergencyStop : null;
     this.dream = new Dream(this.kernel);
     this.agent = createAgent({
       kernel: this.kernel,
@@ -85,6 +90,13 @@ class CLI {
   }
 
   execute(command, args, opts = {}) {
+    // #3905: the workspace stop is consulted before anything else -- before
+    // the mutation gate, which would otherwise queue a learn review as a side
+    // effect, and before any kernel read. MCP and HTTP refuse the same stop
+    // with the same code; the CLI answers it here so argv, REPL and
+    // in-process callers share one decision.
+    const stopRefusal = cliEmergencyStopRefusal({ emergencyStop: this._emergencyStop, command });
+    if (stopRefusal) return formatCliEmergencyStopRefusal(stopRefusal, { json: opts.json === true });
     const gateResult = Object.prototype.hasOwnProperty.call(opts, 'gateResult')
       ? opts.gateResult
       : this.evaluateCliGate(command, args);
