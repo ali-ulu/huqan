@@ -109,3 +109,73 @@ test('CLI executes learn -> review -> approve -> verify -> original receipt with
     assert.equal(listMaterializedReceiptEntries(cli.kernel.graph, { workspaceId: 'default' }).length, 1);
   });
 });
+
+// #3892: `receipt verify` reports the verdict on the chain the receipt sits
+// in (workspace + family, genesis to recorded tip), never on the receipt alone.
+test('CLI parses receipt verify and receipts verify', async () => {
+  await withCli(async cli => {
+    for (const line of ['receipt verify receipt-123 --workspace workspace-a', 'receipts verify receipt-123 --workspace workspace-a']) {
+      assert.deepEqual(cli.parse(line), {
+        command: 'receipt-verify', args: { receiptId: 'receipt-123', workspaceId: 'workspace-a' }, workflowId: 'trust-receipt-detail',
+      });
+    }
+    // Reading a receipt is unchanged.
+    assert.equal(cli.parse('receipt receipt-123').command, 'receipt');
+  });
+});
+
+function distinctAdmission(tag) {
+  const admission = approvedAdmission();
+  return { ...admission, approvalId: `approval-cli-verify-${tag}`, provenance: { ...admission.provenance, provenanceId: `provenance-cli-verify-${tag}` } };
+}
+
+async function runVerify(cli, receiptId) {
+  const stdout = [];
+  const result = await CLI.runCliArgv(['receipt', 'verify', receiptId, '--workspace', 'default', '--json'], {
+    cli, stdout: value => stdout.push(value), stderr: value => stdout.push(value),
+  });
+  return { exitCode: result.exitCode, envelope: JSON.parse(stdout[0]) };
+}
+
+test('receipt verify accepts a receipt whose chain is intact past the first link', async () => {
+  await withCli(async cli => {
+    cli.kernel.learn('cli verify first chained claim', distinctAdmission('a1'));
+    const second = cli.kernel.learn('cli verify second chained claim', distinctAdmission('a2')).data.admission.receipt;
+    const { exitCode, envelope } = await runVerify(cli, second.receiptId);
+    assert.equal(exitCode, 0);
+    assert.equal(envelope.data.verdict, 'valid');
+    assert.equal(envelope.data.chain.valid, true);
+    assert.ok(envelope.data.receiptHash);
+    // The second receipt links to the first, not to genesis: a one-receipt
+    // validation (#3881) would have called this chain broken.
+    assert.notEqual(envelope.data.previousReceiptHash, 'genesis:v4-receipt-chain');
+  });
+});
+
+test('receipt verify refuses a receipt whose predecessor was tampered with', async () => {
+  await withCli(async cli => {
+    const first = cli.kernel.learn('cli verify tamper first claim', distinctAdmission('t1')).data.admission.receipt;
+    const second = cli.kernel.learn('cli verify tamper second claim', distinctAdmission('t2')).data.admission.receipt;
+    const db = cli.kernel.graph._db;
+    const row = db.prepare('SELECT canonical_payload FROM mutation_receipts WHERE receipt_id = ?').get(first.receiptId);
+    assert.ok(row, 'the first receipt is committed to the durable chain');
+    const payload = JSON.parse(row.canonical_payload);
+    payload.status = payload.status === 'rejected' ? 'approved' : 'rejected';
+    db.prepare('UPDATE mutation_receipts SET canonical_payload = ? WHERE receipt_id = ?').run(JSON.stringify(payload), first.receiptId);
+
+    const { exitCode, envelope } = await runVerify(cli, second.receiptId);
+    assert.notEqual(exitCode, 0);
+    assert.equal(envelope.ok, false);
+    assert.equal(envelope.error.meta.verdict, 'invalid');
+    assert.equal(envelope.error.meta.chain.valid, false);
+    assert.equal(envelope.error.meta.chain.brokenAt, 0, 'the break is reported at the tampered first link');
+  });
+});
+
+test('receipt verify reports an unknown receipt as not found', async () => {
+  await withCli(async cli => {
+    const { exitCode, envelope } = await runVerify(cli, 'receipt-does-not-exist');
+    assert.notEqual(exitCode, 0);
+    assert.equal(envelope.error.meta.verdict, 'not_found');
+  });
+});
