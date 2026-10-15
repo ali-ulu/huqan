@@ -496,6 +496,7 @@
     "lib/command-policy-editor.js",
     "lib/http/command-policy-route.js",
     "lib/http/deployment-gated-route-auth.js",
+    "lib/http/emergency-stop-gate.js",
     "lib/http/emergency-stop-routes.js",
     "lib/http/experience-read-route.js",
     "lib/http/memory-query-route.js",
