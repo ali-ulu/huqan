@@ -1,5 +1,29 @@
 # Model-free Coder project contract — proposed
 
+## Extending an existing project
+
+`huqan coder revise revision.json --root <repo> --authorize --journal <journal>`
+plans and applies an additive revision in an existing clean feature-branch Git
+repository. Preview it with `--dry-run`. The request has exactly three fields:
+`kind: "project_revision"`, `previous`, and `next`; the latter two are complete
+project specifications accepted by `coder create`.
+
+The name and archetype must match. All previous routes must remain unchanged
+and in their existing order, followed by at least one new route. The producer
+regenerates both recipes and proposes replacements only for changed files.
+The existing runner's `expectedPatch` binds the full old and new contents of
+those files: local customizations in a changed file refuse before any write.
+Unchanged files and user sidecars retain their current contents. This is not
+an exact-baseline check of the entire repository.
+
+The ordinary Coder gate and explicit source authorization apply; initialization
+permissions are not used. `node --test` runs the generated old and new API
+checks and existing discoverable Node tests. A failed test rolls back the
+proposed replacements. Static and computed JSON API recipes are supported;
+initialization and project-memory flags are refused in this mode. Editing or
+deleting old routes, arbitrary repository synthesis and learning new methods
+from a revision are outside this initial additive contract.
+
 ## Computed HTTP project recipe
 
 Computed routes may declare a `pipeline` of 2-4 computation route paths, for
