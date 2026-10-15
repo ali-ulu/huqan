@@ -207,6 +207,16 @@ test('native CLI discovers from sealed primitives, saves and reopens the method,
   const replayedSquare = run(reopenedSquare, squaredFile);
   assert.equal(replayedSquare.child.status, 0, JSON.stringify(replayedSquare.result));
   assert.equal(replayedSquare.result.data.plan.computation.routes[0].enumerated, 0);
+  const searchWork = response => response.result.data.plan.computation.routes.reduce((sum, route) => sum + route.enumerated, 0)
+    + response.result.data.projectMemory.replaySearch;
+  const costs = { sharedPrimitiveTraining: searchWork(trained), intermediateTraining: searchWork(discovered),
+    learnedTarget: searchWork(squared), reopenedTarget: searchWork(replayedSquare) };
+  for (const cost of Object.values(costs)) assert.ok(Number.isSafeInteger(cost) && cost >= 0);
+  assert.equal(costs.reopenedTarget, 0);
+  t.diagnostic(JSON.stringify({ experiment: 'learned-intermediate-native-transfer', costs,
+    chargedLearnedTotal: costs.sharedPrimitiveTraining + costs.intermediateTraining + costs.learnedTarget,
+    coldOutcome: withoutIntermediate.result.data.reason, learnedOutcome: squared.result.data.outcome,
+    generalLearningGain: 'NOT_MEASURED' }));
   const reusedSpec = targetSpec(); reusedSpec.name = 'reopened-discovery'; reusedSpec.routes[0].path = '/spread';
   reusedSpec.routes[0].inputField = 'values';
   reusedSpec.routes[0].composeScalar.examples = [[-7, 14], [30, 11], [4, 9]].map(input => ({ input,
