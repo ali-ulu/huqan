@@ -253,6 +253,10 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'mandatory native fixed HTTP verification for explicitly approved closed initialization; its process adapter runs only after the existing command-exec gate admits the fixed command',
   }),
+  'lib/coder/project-revision-verification.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'native fixed HTTP acceptance for an explicitly authorized memory-backed project revision after ordinary code-change admission; the command-exec gate admits the fixed test command and full generated-output checks surround its execution before sealed retention',
+  }),
   'lib/coder/project-initialization-permission.js': Object.freeze({
     role: 'operator_tool',
     why: 'reads live Git identity/status/head to bind a single-use recipe permission; removes only empty src/test directories created by an initialization whose rollback already removed its files',
