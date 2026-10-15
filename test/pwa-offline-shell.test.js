@@ -13,11 +13,11 @@ function serviceWorkerHarness({ online = false } = {}) {
   const listeners = new Map();
   const shellEntries = new Map([
     ['/', new Response('cached shell')],
-    ['/js/app.js', new Response('cached script')],
+    ['/js/app-core.js', new Response('cached script')],
   ]);
   const unrelatedEntries = new Map([
     ['/', new Response('poisoned shell')],
-    ['/js/app.js', new Response('poisoned script')],
+    ['/js/app-core.js', new Response('poisoned script')],
   ]);
   const stores = new Map([
     ['huqan-shell-v1', shellEntries],
@@ -183,12 +183,12 @@ test('activation deterministically removes old HUQAN shell caches only', async (
 
 test('shell fetches revalidate online and fall back only to the named HUQAN cache', async () => {
   const online = serviceWorkerHarness({ online: true });
-  const fresh = await dispatchFetch(online.listeners.get('fetch'), '/js/app.js');
-  assert.equal(await fresh.text(), 'network:/js/app.js');
-  assert.equal(await (await online.stores.get('huqan-shell-v1').get('/js/app.js')).text(), 'network:/js/app.js');
+  const fresh = await dispatchFetch(online.listeners.get('fetch'), '/js/app-core.js');
+  assert.equal(await fresh.text(), 'network:/js/app-core.js');
+  assert.equal(await (await online.stores.get('huqan-shell-v1').get('/js/app-core.js')).text(), 'network:/js/app-core.js');
 
   const offline = serviceWorkerHarness();
-  const cached = await dispatchFetch(offline.listeners.get('fetch'), '/js/app.js');
+  const cached = await dispatchFetch(offline.listeners.get('fetch'), '/js/app-core.js');
   const cachedText = await cached.text();
   assert.equal(cachedText, 'cached script');
   assert.notEqual(cachedText, 'poisoned script');

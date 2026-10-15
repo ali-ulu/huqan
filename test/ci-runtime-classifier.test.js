@@ -130,7 +130,7 @@ describe('CI runtime classifier is fail-closed (#752)', {
     for (const file of [
       'public/index.html',
       'public/css/app.css',
-      'public/js/app.js',
+      'public/js/app-core.js',
       'public/viewer/app.mjs',
     ]) {
       assert.strictEqual(isRuntime(file), true, `${file} is a shipped surface with contract tests`);

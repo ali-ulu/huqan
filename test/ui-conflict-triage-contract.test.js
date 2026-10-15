@@ -37,7 +37,7 @@ function region(from, to) {
 }
 
 const sandbox = vm.runInNewContext([
-  region('const endId=', ';async function json('),
+  region('const endId=', 'async function json('),
   ';',
   region('function rel(v){', 'const CONFLICT_PAGE='),
   region('function nodeLabel(n){', 'function mesh()'),
@@ -171,16 +171,16 @@ test('the signal list is rendered as a bounded page, never as the whole set', ()
     'the conflict list must never render the unpaged result set');
   // Changing a filter must not leave the user scrolled into a page of a
   // different result set.
-  assert.match(script, /function setConflictFilter\(key,value\)\{state\.conflicts\.filters\[key\]=value\|\|'';state\.conflicts\.limit=CONFLICT_PAGE;renderConflicts\(\)\}/);
+  assert.match(script, /function setConflictFilter\(key,value\)\{\s*state\.conflicts\.filters\[key\]=value\|\|'';\s*state\.conflicts\.limit=CONFLICT_PAGE;\s*renderConflicts\(\)\s*\}/);
 });
 
 test('the conflict view exposes counts and an explicit path to the rest of the set', () => {
   for (const id of ['ctriage', 'csummary', 'clistmeta', 'cstatus', 'clist', 'cmore', 'cless', 'cclear']) {
     assert.ok(html.includes(`id="${id}"`), `conflict view must render #${id}`);
   }
-  assert.match(script, /const more=\$\('cmore'\);more\.hidden=remaining<=0/);
+  assert.match(script, /const more=\s*\$\('cmore'\);\s*more\.hidden=remaining<=0/);
   assert.match(script, /remaining=Math\.max\(0,shown\.length-limit\)/);
-  assert.match(script, /\$\('cmore'\)\.onclick=\(\)=>\{state\.conflicts\.limit\+=CONFLICT_PAGE;renderConflicts\(\)\}/);
+  assert.match(script, /\$\('cmore'\)\.onclick=\(\)=>\{\s*state\.conflicts\.limit\+=CONFLICT_PAGE;\s*renderConflicts\(\)\s*\}/);
 });
 
 test('the filters are labelled and keyboard reachable', () => {
@@ -210,7 +210,7 @@ test('empty, loading and error states are distinct and name a next step', () => 
   assert.match(script, /\$\{esc\(T\('conflicts\.triageState',`Conflict triage is \$\{label\.toLowerCase\(\)\}\.`,\{state:label\.toLowerCase\(\)\}\)\)\}<\/b><br>\$\{esc\(Tx\(s\.reason\)\)\}<div class="actions">\$\{surfaceCta\('graph'\)\}/);
   // A refresh has to repaint the conflict view, or the loading state is a
   // state the user can never see.
-  assert.match(script, /forEach\(k=>surface\(k,'checking'\)\);renderGraph\(\);await Promise\.allSettled/);
+  assert.match(script, /forEach\(k=>surface\(k,'checking'\)\);\s*renderGraph\(\);\s*await Promise\.allSettled/);
 });
 
 test('the patched dashboard still compiles and the triage CSS ships', () => {

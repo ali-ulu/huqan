@@ -977,14 +977,14 @@ describe('Server - API', () => {
     // kendi kendine yeten light UI: betik yalniz kendi kaynagimizdan gelir,
     // harici (CDN) betik sarmalanmaz
     assert.doesNotMatch(html, /<script[^>]*\ssrc=["']?(?:https?:)?\/\//);
-    assert.match(html, /<script[^>]*\ssrc="\/js\/app\.js"/);
+    assert.match(html, /<script[^>]*\ssrc="\/js\/app-(?:core|wiring)\.js"/);
     assert.ok(html.includes('Content-Security-Policy'));
   });
 
   it('served dashboard script keeps the API key in sessionStorage only', async () => {
     // Sayfanin betigi ayri bir varliga tasindi (#1895); iddia betigin kendisine
     // tasinmazsa HTML uzerinden bakan bu kontrol sessizce hicbir sey olcmez.
-    const r = await request(`${BASE}/js/app.js`);
+    const r = await request(`${BASE}/js/app-core.js`);
     assert.strictEqual(r.status, 200);
     const js = await r.text();
     assert.ok(js.includes("sessionStorage.getItem('huqan-api-key'"));

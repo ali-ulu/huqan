@@ -88,7 +88,7 @@ const event = (patch = {}) => ({
 
 test('an ordinary change is allowed and the job passes', async () => {
   const { stdout, summary } = await withFilesApi(
-    [{ filename: 'public/js/app.js', patch: '+const greeting = "hello";' }],
+    [{ filename: 'public/js/app-core.js', patch: '+const greeting = "hello";' }],
     api => runScript({ api, event: event() }),
   );
   assert.match(stdout, /\*\*Decision:\*\* `allow`/);

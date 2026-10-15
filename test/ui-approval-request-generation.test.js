@@ -8,7 +8,7 @@ const vm = require('node:vm');
 
 for (const outcome of ['success', 'rejection']) {
   test(`old approval ${outcome} cannot overwrite a cleared session`, async () => {
-    const source = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
+    const source = fs.readFileSync(path.join(__dirname, '../public/js/app-approvals.js'), 'utf8');
     const start = source.indexOf('let approvalRequestGeneration=0;');
     const end = source.indexOf("$('alist').onclick", start);
     assert.ok(start >= 0 && end > start);
@@ -36,7 +36,7 @@ for (const outcome of ['success', 'rejection']) {
 }
 
 test('a newer request with the same key wins over an older response', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../public/js/app.js'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/app-approvals.js'), 'utf8');
   const start = source.indexOf('let approvalRequestGeneration=0;');
   const end = source.indexOf("$('alist').onclick", start);
   assert.ok(start >= 0 && end > start);

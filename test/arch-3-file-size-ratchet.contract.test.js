@@ -265,7 +265,7 @@ test('a line exactly at the character budget passes', () => {
 });
 
 test('a recorded long-line exception passes while its file is still over budget', () => {
-  const file = 'public/js/app.js';
+  const file = 'public/js/app-approvals.js';
   const { violations } = evaluate(
     { [file]: 38 },
     {},
@@ -276,7 +276,7 @@ test('a recorded long-line exception passes while its file is still over budget'
 });
 
 test('an expired long-line exception fails', () => {
-  const file = 'public/js/app.js';
+  const file = 'public/js/app-approvals.js';
   const { violations } = evaluate(
     { [file]: 38 },
     {},
@@ -290,7 +290,7 @@ test('an expired long-line exception fails', () => {
 });
 
 test('a long-line exception whose file fell under the budget is stale', () => {
-  const file = 'public/js/app.js';
+  const file = 'public/js/app-approvals.js';
   const { violations } = evaluate(
     { [file]: 38 },
     {},
@@ -303,7 +303,7 @@ test('a long-line exception whose file fell under the budget is stale', () => {
 });
 
 test('a long-line exception whose file is gone is stale', () => {
-  const gone = 'public/js/app.js';
+  const gone = 'public/js/app-approvals.js';
   const map = fullMap();
   delete map[gone];
   const { violations } = evaluate({ 'lib/other.js': 10 }, {}, THRESHOLD, { maxLineLengths: map });
