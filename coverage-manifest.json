@@ -513,7 +513,7 @@
       ],
       "sites": [
         {
-          "line": 292,
+          "line": 324,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }

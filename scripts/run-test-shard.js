@@ -38,6 +38,9 @@ const HEAVY_FILE_TIMEOUT_MS = 240_000;
 const HEAVY_FILES = Object.freeze(new Set([
   'test/kernel-facade-contract.test.js',
   'test/coder-project-method-memory.test.js',
+  // Nine native CLI restarts plus HTTP acceptance, sealed replay and tamper
+  // refusals took 84s locally, approaching the ordinary 90s per-file cap.
+  'test/coder-revision-method-learning.test.js',
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',
