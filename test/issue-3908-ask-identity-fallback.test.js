@@ -54,6 +54,20 @@ test('an unparseable question does not answer from the identity node (#3908)', (
   }
 });
 
+test('a reason question whose subject normalises away is unanswered (#3908)', () => {
+  const kernel = makeKernel('empty-subject');
+  try {
+    seedIdentity(kernel);
+    for (const question of ['neden !!!', 'niçin ???', 'niye ...']) {
+      const answer = kernel.ask(question);
+      assert.equal(answer.data.unknown, true, `${question} must be unanswered`);
+      assert.equal(answer.data.answer, 'Bilmiyorum', `${question} must not return the identity node's edges`);
+    }
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
 test('a question that names the identity node still resolves it (#3908)', () => {
   const kernel = makeKernel('names-identity');
   try {
