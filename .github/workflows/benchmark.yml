@@ -307,8 +307,26 @@ jobs:
           # conflicting paths -- and leave the worktree clean, so the red check
           # is not read as a test result. The branch still has to be brought up
           # to date; nothing below can run on a conflicted tree.
+          #
+          # `git merge` can also fail before it records a conflict (a dirty
+          # tree, a missing object). Only an unmerged path list proves a
+          # conflict, so the two conditions are reported differently and
+          # neither is labelled a test result.
           conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
           git merge --abort || true
+          if [ -z "${conflicted}" ]; then
+            echo "::error title=Merge with origin/main failed::git merge origin/main failed without recording a conflict; this is a merge failure, not a test failure."
+            {
+              echo "### Merge with origin/main failed"
+              echo
+              echo "This job stopped on a failed merge, not a test failure; the live"
+              echo "Git validation cannot run on an unfinished merge."
+              echo
+              echo "No unmerged paths were recorded, so this is not a content conflict."
+              echo "Re-run once the branch is up to date with current main."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
           echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
           {
             echo "### Merge conflict with origin/main"
@@ -520,8 +538,26 @@ jobs:
           # conflicting paths -- and leave the worktree clean, so the red check
           # is not read as a test result. The branch still has to be brought up
           # to date; nothing below can run on a conflicted tree.
+          #
+          # `git merge` can also fail before it records a conflict (a dirty
+          # tree, a missing object). Only an unmerged path list proves a
+          # conflict, so the two conditions are reported differently and
+          # neither is labelled a test result.
           conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
           git merge --abort || true
+          if [ -z "${conflicted}" ]; then
+            echo "::error title=Merge with origin/main failed::git merge origin/main failed without recording a conflict; this is a merge failure, not a test failure."
+            {
+              echo "### Merge with origin/main failed"
+              echo
+              echo "This job stopped on a failed merge, not a test failure; the live"
+              echo "Git validation cannot run on an unfinished merge."
+              echo
+              echo "No unmerged paths were recorded, so this is not a content conflict."
+              echo "Re-run once the branch is up to date with current main."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
           echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
           {
             echo "### Merge conflict with origin/main"
@@ -1077,8 +1113,26 @@ jobs:
           # conflicting paths -- and leave the worktree clean, so the red check
           # is not read as a test result. The branch still has to be brought up
           # to date; nothing below can run on a conflicted tree.
+          #
+          # `git merge` can also fail before it records a conflict (a dirty
+          # tree, a missing object). Only an unmerged path list proves a
+          # conflict, so the two conditions are reported differently and
+          # neither is labelled a test result.
           conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
           git merge --abort || true
+          if [ -z "${conflicted}" ]; then
+            echo "::error title=Merge with origin/main failed::git merge origin/main failed without recording a conflict; this is a merge failure, not a test failure."
+            {
+              echo "### Merge with origin/main failed"
+              echo
+              echo "This job stopped on a failed merge, not a test failure; the live"
+              echo "Git validation cannot run on an unfinished merge."
+              echo
+              echo "No unmerged paths were recorded, so this is not a content conflict."
+              echo "Re-run once the branch is up to date with current main."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
           echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
           {
             echo "### Merge conflict with origin/main"

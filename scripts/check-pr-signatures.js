@@ -74,10 +74,26 @@ function formatFailures(unsigned) {
 function main(argv = process.argv.slice(2)) {
   const file = argv[0];
   if (!file) {
-    process.stderr.write('usage: check-pr-signatures.js <commits.json>\n');
+    process.stderr.write('usage: check-pr-signatures.js <commits.json> [expected-commit-count]\n');
     return 2;
   }
-  const unsigned = unsignedCommits(JSON.parse(fs.readFileSync(file, 'utf8')));
+  const expected = argv[1] === undefined ? null : Number(argv[1]);
+  const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const retrieved = Array.isArray(payload) ? payload.flat().length : null;
+  // GitHub caps `/pulls/{n}/commits` at 250 commits even with --paginate, so a
+  // large pull request can hand back fewer commits than it has. Reading only
+  // those and reporting success would let an unverified commit hide past the
+  // check while the ruleset still blocks the merge. Fail closed on the gap.
+  if (expected !== null && Number.isFinite(expected) && retrieved !== null && retrieved < expected) {
+    process.stderr.write(
+      `Commit signature check failed: the pull request has ${expected} commits but only `
+      + `${retrieved} were retrieved, so every commit could not be verified.\n`
+      + 'GitHub caps this endpoint at 250 commits; split the pull request, or verify the '
+      + 'remaining commits another way before merging.\n',
+    );
+    return 1;
+  }
+  const unsigned = unsignedCommits(payload);
   if (unsigned.length > 0) {
     process.stderr.write(`${formatFailures(unsigned)}\n`);
     return 1;

@@ -44,8 +44,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_COMMIT_COUNT: ${{ github.event.pull_request.commits }}
         run: |
           set -euo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100" --paginate --slurp \
             > commits.json
-          node scripts/check-pr-signatures.js commits.json
+          node scripts/check-pr-signatures.js commits.json "${PR_COMMIT_COUNT}"

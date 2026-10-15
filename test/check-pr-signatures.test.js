@@ -124,3 +124,23 @@ test('package.json exposes the check as a check:* script with an execution path'
   assert.ok(pkg.scripts['check:pr-signatures'], 'check:pr-signatures must be declared');
   assert.match(pkg.scripts['check:pr-signatures'], /scripts\/check-pr-signatures\.js/);
 });
+
+// GitHub caps `/pulls/{n}/commits` at 250 commits even with --paginate. A
+// truncated list that is read as complete would report success while the
+// signature rule still blocks the merge, so the count gap has to fail closed.
+test('a commit list shorter than the pull request fails closed', () => {
+  const file = path.join(os.tmpdir(), `sig-short-${process.pid}.json`);
+  fs.writeFileSync(file, JSON.stringify([rawCommit('a'.repeat(40), { verified: true, reason: 'valid' })]));
+  const errors = [];
+  const original = process.stderr.write;
+  process.stderr.write = (chunk) => { errors.push(String(chunk)); return true; };
+  try {
+    assert.equal(main([file, '2']), 1, 'two commits reported but one retrieved must fail');
+    assert.match(errors.join(''), /only 1 were retrieved/);
+    assert.equal(main([file, '1']), 0, 'a matching count still passes');
+    assert.equal(main([file, '0']), 0, 'no expected count means no completeness claim');
+  } finally {
+    process.stderr.write = original;
+    fs.unlinkSync(file);
+  }
+});
