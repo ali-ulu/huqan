@@ -62,3 +62,5 @@ d502a110ce7e0795b7b60c186c83bbf0ef841a49:test/secret-and-sourceref-redaction.tes
 b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:20
 b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:23
 b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:26
+# #3940: Rekor's public log key, PEM-armored in the PR's first commit only; a public key, not a secret.
+60b8a042c56d17b585c9c8c185b02f9838f31609:lib/mcp/rekor-anchor-client.js:generic-api-key:25
