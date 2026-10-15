@@ -130,12 +130,15 @@
       "lib/audit-query.js": "Core",
       "lib/aura-canary-bridge.js": "Core",
       "lib/aura-signal-pack.js": "Core",
+      "lib/authority-anchor-detection.js": "Core",
+      "lib/authority/anchor-statement.js": "Core",
       "lib/authority/approval-registration.js": "Core",
       "lib/authority/approval-view.js": "Core",
       "lib/authority/authority-client.js": "Adapters",
       "lib/authority/authority-mode.js": "Core",
       "lib/authority/authority-pin.js": "Core",
       "lib/authority/authority-service.js": "Core",
+      "lib/authority/autonomy-activation.js": "Adapters",
       "lib/authority/bundle-manifest.js": "Core",
       "lib/authority/consume-key.js": "Adapters",
       "lib/authority/consumption-envelope.js": "Core",
@@ -145,6 +148,7 @@
       "lib/authority/install-trust.js": "Core",
       "lib/authority/keys.js": "Core",
       "lib/authority/ledger-store.js": "Adapters",
+      "lib/authority/operational-guard.js": "Core",
       "lib/authority/operator-check.js": "Core",
       "lib/authority/operator-cli.js": "UI",
       "lib/authority/registration-payload.js": "Core",
@@ -204,6 +208,7 @@
       "lib/cli-backup-commands.js": "Core",
       "lib/cli-capabilities.js": "Core",
       "lib/cli-capability-commands.js": "Core",
+      "lib/cli-coder-format.js": "Core",
       "lib/cli-coder-project-memory.js": "Core",
       "lib/cli-coder-propose.js": "Core",
       "lib/cli-coder-verify.js": "Core",
@@ -368,6 +373,7 @@
       "lib/dream-hypothesis-scoring.js": "Core",
       "lib/dream-hypothesis-semantics.js": "Core",
       "lib/emergency-stop-chain.js": "Core",
+      "lib/emergency-stop-detection.js": "Core",
       "lib/emergency-stop.js": "Core",
       "lib/entity-resolution.js": "Core",
       "lib/environment-compat.js": "Core",
@@ -811,6 +817,7 @@
       "lib/mcp-tool-names.js": "Core",
       "lib/mcp-tool-policy.js": "Core",
       "lib/mcp/approval-detail-tool.js": "UI",
+      "lib/mcp/authority-ledger-provider.js": "UI",
       "lib/mcp/compliance-audit-tool.js": "UI",
       "lib/mcp/experience-learn-tool.js": "UI",
       "lib/mcp/experience-read-tool.js": "UI",
@@ -823,6 +830,7 @@
       "lib/mcp/output-conformance-gate.js": "UI",
       "lib/mcp/output-schema-conformance.js": "UI",
       "lib/mcp/read-workflow-tools.js": "UI",
+      "lib/mcp/rekor-anchor-client.js": "UI",
       "lib/mcp/response-builders.js": "UI",
       "lib/mcp/self-evolve-tool.js": "UI",
       "lib/mcp/server-lifecycle.js": "UI",
@@ -1076,6 +1084,7 @@
       "lib/semantic-model-text-features.js": "Core",
       "lib/semantic-score.js": "Core",
       "lib/semantic-signals.js": "Core",
+      "lib/server-bind-doctor.js": "Core",
       "lib/server-graph-data.js": "Core",
       "lib/server-response-helpers.js": "Core",
       "lib/session-impact.js": "Core",
@@ -1234,18 +1243,18 @@
       "public/control-room/js/control-room-data.js": "UI",
       "public/control-room/js/control-room-overview.js": "UI",
       "public/control-room/js/control-room-receipts.js": "UI",
+      "public/js/app-activity.js": "UI",
+      "public/js/app-approvals.js": "UI",
+      "public/js/app-core.js": "UI",
+      "public/js/app-evidence.js": "UI",
+      "public/js/app-graph.js": "UI",
+      "public/js/app-health.js": "UI",
+      "public/js/app-net.js": "UI",
       "public/js/app-observability-readiness.js": "UI",
       "public/js/app-observability-render.js": "UI",
       "public/js/app-observability-stream.js": "UI",
       "public/js/app-observability.js": "UI",
-      "public/js/app-core.js": "UI",
-      "public/js/app-net.js": "UI",
-      "public/js/app-health.js": "UI",
-      "public/js/app-graph.js": "UI",
-      "public/js/app-approvals.js": "UI",
       "public/js/app-verify.js": "UI",
-      "public/js/app-activity.js": "UI",
-      "public/js/app-evidence.js": "UI",
       "public/js/app-wiring.js": "UI",
       "public/js/command-policy.js": "UI",
       "public/js/home-navigation.js": "UI",
@@ -1532,13 +1541,19 @@
         "lib/storage/backup-restore-restore.js"
       ],
       "bin/huqan-authority.js": [
+        "cli.js",
+        "lib/authority/anchor-statement.js",
         "lib/authority/authority-client.js",
         "lib/authority/authority-mode.js",
         "lib/authority/consume-key.js",
         "lib/authority/decision-guard.js",
+        "lib/authority/operational-guard.js",
         "lib/authority/registration-payload.js",
+        "lib/cli-audit.js",
+        "lib/emergency-stop.js",
         "lib/mcp-approval-expiry.js",
         "lib/mcp-approval-views.js",
+        "lib/mcp/rekor-anchor-client.js",
         "mcpServer.js"
       ],
       "bin/huqan-causal-lab.js": [
@@ -1556,6 +1571,7 @@
         "lib/cognitive-lab-comparison-store.js"
       ],
       "bin/huqan-gate-hook.js": [
+        "lib/authority/autonomy-activation.js",
         "lib/browser-session-observer.js",
         "lib/context-canary.js",
         "lib/environment-compat.js",
@@ -1604,6 +1620,7 @@
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
         "lib/kernel-factory.js",
+        "lib/mcp/authority-ledger-provider.js",
         "lib/memory-hypothesis-cognition.js",
         "lib/memory-lifecycle.js",
         "lib/receipt/receipt-chain.js",
@@ -2036,6 +2053,9 @@
         "lib/context-canary.js",
         "lib/experience/canary.js"
       ],
+      "lib/authority-anchor-detection.js": [
+        "lib/authority/anchor-statement.js"
+      ],
       "lib/authority/approval-registration.js": [
         "lib/mcp-operator-capability.js"
       ],
@@ -2048,16 +2068,22 @@
         "lib/environment-compat.js"
       ],
       "lib/authority/authority-pin.js": [
+        "lib/authority/anchor-statement.js",
         "lib/authority/decision-envelope.js",
         "lib/authority/keys.js"
       ],
       "lib/authority/authority-service.js": [
+        "lib/authority/anchor-statement.js",
         "lib/authority/approval-registration.js",
         "lib/authority/approval-view.js",
         "lib/authority/consumption-envelope.js",
         "lib/authority/decision-envelope.js",
         "lib/authority/operator-check.js",
         "lib/authority/sealed-request.js"
+      ],
+      "lib/authority/autonomy-activation.js": [
+        "lib/authority/authority-client.js",
+        "lib/authority/operational-guard.js"
       ],
       "lib/authority/consumption-envelope.js": [
         "lib/authority/decision-envelope.js",
@@ -2079,6 +2105,10 @@
       ],
       "lib/authority/ledger-store.js": [
         "lib/hash-chain.js"
+      ],
+      "lib/authority/operational-guard.js": [
+        "lib/authority/decision-guard.js",
+        "lib/mcp-tool-names.js"
       ],
       "lib/authority/operator-check.js": [
         "lib/authority/totp.js"
@@ -2285,9 +2315,16 @@
         "lib/cli-operator-presence.js",
         "lib/cli-trust-receipt.js",
         "lib/command-parser.js",
+        "lib/emergency-stop-detection.js",
         "lib/mcp-approval-views.js"
       ],
       "lib/cli-audit.js": [
+        "lib/authority-anchor-detection.js",
+        "lib/authority/operational-guard.js",
+        "lib/authority/registration-payload.js",
+        "lib/emergency-stop-detection.js",
+        "lib/mcp-approval-views.js",
+        "lib/mcp-operator-capability.js",
         "lib/trust-score-aggregator.js"
       ],
       "lib/cli-backup-commands.js": [
@@ -2296,6 +2333,9 @@
       ],
       "lib/cli-capability-commands.js": [
         "lib/cli-helpers.js"
+      ],
+      "lib/cli-coder-format.js": [
+        "lib/coder/derivation-record.js"
       ],
       "lib/cli-coder-project-memory.js": [
         "lib/cli-helpers.js"
@@ -2309,12 +2349,12 @@
         "lib/coder/verify-derivation.js"
       ],
       "lib/cli-coder.js": [
+        "lib/cli-coder-format.js",
         "lib/cli-coder-project-memory.js",
         "lib/cli-coder-propose.js",
         "lib/cli-coder-verify.js",
         "lib/cli-helpers.js",
         "lib/coder/apply-derivation.js",
-        "lib/coder/derivation-record.js",
         "lib/coder/journal-store.js",
         "lib/coder/verify-ocr.js",
         "lib/repo-artifacts.js"
@@ -2350,6 +2390,7 @@
       "lib/cli-doctor.js": [
         "lib/api-auth-opt-out.js",
         "lib/environment-compat.js",
+        "lib/server-bind-doctor.js",
         "lib/sqlite-availability.js",
         "lib/storage/schema.js",
         "lib/unexpected-egress-doctor.js",
@@ -2423,6 +2464,8 @@
         "lib/command-parser.js"
       ],
       "lib/cli-promote.js": [
+        "lib/authority/authority-mode.js",
+        "lib/authority/operational-guard.js",
         "lib/cli-helpers.js",
         "lib/cli-operator-presence.js",
         "lib/experience/canary.js",
@@ -2977,7 +3020,13 @@
       "lib/emergency-stop-chain.js": [
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/emergency-stop-detection.js": [
+        "lib/emergency-stop-chain.js",
+        "lib/emergency-stop.js"
+      ],
       "lib/emergency-stop.js": [
+        "lib/authority/authority-mode.js",
+        "lib/authority/operational-guard.js",
         "lib/emergency-stop-chain.js",
         "lib/huqan-state-root.js",
         "lib/receipt/canonical-receipt.js",
@@ -3501,6 +3550,7 @@
         "lib/text-utils.js"
       ],
       "lib/gate-hook-evaluate.js": [
+        "lib/authority/authority-mode.js",
         "lib/autonomy-receipt-history.js",
         "lib/browser-hook-outcome.js",
         "lib/bypass-response.js",
@@ -3901,6 +3951,7 @@
         "lib/environment-compat.js",
         "lib/mcp-capability-nonce-store.js",
         "lib/mcp-operator-capability.js",
+        "lib/mcp/authority-ledger-provider.js",
         "lib/mcp/operator-authorization.js"
       ],
       "lib/http/experience-read-route.js": [
@@ -4699,6 +4750,13 @@
         "lib/mcp-input-sanitizers.js",
         "lib/mcp/response-builders.js"
       ],
+      "lib/mcp/authority-ledger-provider.js": [
+        "lib/authority-anchor-detection.js",
+        "lib/authority/authority-client.js",
+        "lib/authority/authority-mode.js",
+        "lib/mcp/rekor-anchor-client.js",
+        "lib/receipt/receipt-read-index.js"
+      ],
       "lib/mcp/compliance-audit-tool.js": [
         "lib/cli-audit.js",
         "lib/mcp-input-sanitizers.js",
@@ -4792,6 +4850,8 @@
         "lib/system-status-report.js"
       ],
       "lib/mcp/tool-dispatch.js": [
+        "lib/authority/authority-mode.js",
+        "lib/authority/operational-guard.js",
         "lib/emergency-stop.js",
         "lib/gate-telemetry.js",
         "lib/human-approval-toggle.js",
@@ -4802,6 +4862,7 @@
         "lib/mcp-call-binding.js",
         "lib/mcp-gate-adapter.js",
         "lib/mcp-tool-names.js",
+        "lib/mcp/authority-ledger-provider.js",
         "lib/mcp/gate-refusal.js",
         "lib/mcp/operator-authorization.js",
         "lib/mcp/output-conformance-gate.js",
@@ -5783,6 +5844,9 @@
         "lib/risk-rules.js",
         "lib/semantic-model-port.js",
         "lib/text-utils.js"
+      ],
+      "lib/server-bind-doctor.js": [
+        "lib/api-auth-opt-out.js"
       ],
       "lib/server-response-helpers.js": [
         "lib/environment-compat.js",
@@ -7026,6 +7090,12 @@
         "toLayer": "Adapters"
       },
       {
+        "from": "lib/cli-coder-format.js",
+        "to": "lib/coder/derivation-record.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
         "from": "lib/cli-coder-verify.js",
         "to": "lib/coder/verify-derivation.js",
         "fromLayer": "Core",
@@ -7034,12 +7104,6 @@
       {
         "from": "lib/cli-coder.js",
         "to": "lib/coder/apply-derivation.js",
-        "fromLayer": "Core",
-        "toLayer": "Application"
-      },
-      {
-        "from": "lib/cli-coder.js",
-        "to": "lib/coder/derivation-record.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },

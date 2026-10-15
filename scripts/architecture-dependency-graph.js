@@ -104,6 +104,8 @@ const RULES = [
       'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js', 'lib/authority/install-trust.js',
       // #3892: the operational guard verifies with the decision guard, so it sits beside it.
       'lib/authority/operational-guard.js',
+      // #3940: the anchor statement is verified by the Core detection, so it sits here too.
+      'lib/authority/anchor-statement.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,

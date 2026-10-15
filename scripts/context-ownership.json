@@ -1772,6 +1772,10 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/mcp/rekor-anchor-client.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/install-trust.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -1817,6 +1821,10 @@
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
   "lib/authority/keys.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority/anchor-statement.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
@@ -2113,6 +2121,10 @@
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
   "lib/emergency-stop-detection.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+  "lib/authority-anchor-detection.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
@@ -5293,6 +5305,27 @@
     "Platform"
    ],
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md (#3892: audit --authority compares the local stop ledger)"
+  },
+  "lib/authority-anchor-detection.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3940 ADR-016: audit --authority compares the ledger with its newest Rekor anchor"
+  },
+  "lib/authority/anchor-statement.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3940 ADR-016: bin/huqan-authority.js anchor puts the signed ledger head into Rekor; audit --authority checks it"
+  },
+  "lib/mcp/rekor-anchor-client.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3940 ADR-016: bin/huqan-authority.js anchor puts the signed ledger head into Rekor; audit --authority checks it"
   },
   "lib/gate-telemetry.js": {
    "owner": "Observability",
