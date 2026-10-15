@@ -91,13 +91,14 @@ test('missing or invalid source refuses before proposal or loop and always close
   assert.equal(h.closes(), 1);
 });
 
-test('CLI refuses memory revision modes that could initialize or save methods before reading a spec', () => {
+test('CLI refuses initialization and method output without an input source before reading a spec', () => {
   for (const flags of [[], ['--journal', 'journal.db', '--dry-run']])
     assert.throws(() => runCliCoder(['revise', 'absent.json', '--project-memory', 'source.json', ...flags], {}),
       /Project revision memory requires --journal without --dry-run/u);
-  for (const flags of [['--initialize-project'], ['--project-memory-out', 'new.json']])
-    assert.throws(() => runCliCoder(['revise', 'absent.json', ...flags], {}),
-      /Project revision uses the existing repository gate and does not save project methods/u);
+  assert.throws(() => runCliCoder(['revise', 'absent.json', '--initialize-project'], {}),
+    /Project revision uses the existing repository gate without initialization/u);
+  assert.throws(() => runCliCoder(['revise', 'absent.json', '--project-memory-out', 'new.json'], {}),
+    /--project-memory-out requires --project-memory/u);
 });
 
 test('real loader reaches record validation and preserves the existing repository boundary', t => {

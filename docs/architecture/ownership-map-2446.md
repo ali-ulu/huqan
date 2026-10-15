@@ -325,8 +325,11 @@ and empty-target state to a single-use fixed recipe permission.
 Platform composition root for memory-backed existing-project revisions. The
 composition injects `loadProjectMethods`; the CLI loads sealed source records
 before regenerating the baseline and target and delegates writes to the ordinary
-Coder gate. This read-only revision path grants no initialization permission and
-does not call the method-writing exports. The module retains responsibility for
+Coder gate. Revision writes grant no initialization permission. With an explicit
+method output, composition also injects the output preflight and persistence
+ports; saving requires a successful sealed revision with full generated-output
+and patch-hash evidence. The distinct revision record replays its original parent
+selection and validates that evidence when loaded. The module retains responsibility for
 source-path isolation, sealed-run verification and reconstructed method lineage.
 `lib/coder/project-revision-verification.js` owns full generated-output
 attestation for memory-backed revisions. Before the fix loop keeps and seals a

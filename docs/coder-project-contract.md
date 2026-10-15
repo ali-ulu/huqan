@@ -20,16 +20,16 @@ The ordinary Coder gate and explicit source authorization apply; initialization
 permissions are not used. `node --test` runs the generated old and new API
 checks and existing discoverable Node tests. A failed test rolls back the
 proposed replacements. Static and computed JSON API recipes are supported;
-initialization and method-output flags are refused in this mode. Editing or
-deleting old routes, arbitrary repository synthesis and learning new methods
-from a revision are outside this initial additive contract.
+initialization flags are refused in this mode. Editing or deleting old routes
+and arbitrary repository synthesis remain outside the additive contract.
 
 An optional `--project-memory <source.json>` (repeatable) with `--journal` loads
 sealed methods before regenerating either baseline or target. A missing or
 invalid source refuses without a fresh-search fallback. The ordinary gate still
 decides writes; no initialization permission is granted. The task identity binds
 the loaded source digest, and output reports source replay search separately.
-The sources remain read-only: this mode cannot save a revised method record.
+The input sources remain read-only. An explicit `--project-memory-out <new.json>`
+may save a new revision method after successful native verification and sealing.
 Memory-backed preview with `--dry-run` is not supported. A declared primitive
 `synthesizeOnMemoryMiss` retains its existing behavior after valid source admission.
 
@@ -39,7 +39,25 @@ HTTP test and repeated full-output comparison run before keeping the revision.
 The sealed closing evidence includes the revision hash, loaded-memory hash and
 generated-output hashes. Unexpected generated-file drift refuses and rolls back
 the patch; pre-existing sidecars and Git metadata are not included in this
-manifest. This attestation does not yet save a learned revision method.
+manifest.
+
+With an explicit output path, a successful revision saves a distinct
+`huqan-project-revision-method` version-1 record. Existing
+`huqan-project-method` records keep their format and version. The new record
+contains the previous/next requirements, selected programs, parent references,
+loaded-memory hash and sealed source identity. Loading it validates every parent,
+reproduces the revision from its original parent methods, compares the sealed
+patch hashes and complete generated-output manifest, and validates the selected
+programs against the target recipe. Source replay search remains separate from
+the new target's search counter. An explicitly declared primitive
+`synthesizeOnMemoryMiss` can discover a new method during a revision; after
+successful persistence a new process may reuse it without target enumeration.
+
+The output path must be outside the repository and must not already exist.
+Failed tests, unauthorized writes and invalid source records do not produce a
+method file. A persistence refusal after a kept revision is reported as partial;
+it does not undo an already verified code change. Existing ancestry and record
+size bounds still apply. No initialization permission is created for revisions.
 
 ## Computed HTTP project recipe
 
