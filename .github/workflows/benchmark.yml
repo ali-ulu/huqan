@@ -291,13 +291,36 @@ jobs:
       # GitHub can materialize the pull-request merge ref before a newer main
       # commit lands. Merge the fetched baseline into this ephemeral test
       # branch so the live guard measures the same current ancestry that CI
-      # fetched, while still failing on a real merge conflict.
+      # fetched. A real merge conflict is reported as a conflict, never as a
+      # failing test.
       - name: Materialize current baseline ancestry for live Git validation
         if: github.event_name == 'pull_request'
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git merge --no-edit origin/main
+          if git merge --no-edit origin/main; then
+            exit 0
+          fi
+          # A conflict here means the branch is stale against current main, not
+          # that a test failed. Report it as that distinct condition -- with the
+          # conflicting paths -- and leave the worktree clean, so the red check
+          # is not read as a test result. The branch still has to be brought up
+          # to date; nothing below can run on a conflicted tree.
+          conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+          git merge --abort || true
+          echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
+          {
+            echo "### Merge conflict with origin/main"
+            echo
+            echo "This job stopped on a merge conflict, not a test failure; the live"
+            echo "Git validation cannot run on a conflicted tree."
+            echo
+            echo "Conflicting paths: ${conflicted}"
+            echo
+            echo "Merge or rebase current main into the branch and push again."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -481,14 +504,36 @@ jobs:
         run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
       # GitHub can materialize the pull-request merge ref before a newer main
       # commit lands. Merge the fetched baseline into this ephemeral test
-      # branch so the live guard measures the same current ancestry, while a
-      # real merge conflict still fails the job.
+      # branch so the live guard measures the same current ancestry. A real
+      # merge conflict is reported as a conflict, never as a failing test.
       - name: Materialize current baseline ancestry for live Git validation
         if: github.event_name == 'pull_request'
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git merge --no-edit origin/main
+          if git merge --no-edit origin/main; then
+            exit 0
+          fi
+          # A conflict here means the branch is stale against current main, not
+          # that a test failed. Report it as that distinct condition -- with the
+          # conflicting paths -- and leave the worktree clean, so the red check
+          # is not read as a test result. The branch still has to be brought up
+          # to date; nothing below can run on a conflicted tree.
+          conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+          git merge --abort || true
+          echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
+          {
+            echo "### Merge conflict with origin/main"
+            echo
+            echo "This job stopped on a merge conflict, not a test failure; the live"
+            echo "Git validation cannot run on a conflicted tree."
+            echo
+            echo "Conflicting paths: ${conflicted}"
+            echo
+            echo "Merge or rebase current main into the branch and push again."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
@@ -1021,9 +1066,31 @@ jobs:
       - name: Materialize current baseline ancestry for live Git validation
         if: github.event_name == 'pull_request'
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git merge --no-edit origin/main
+          if git merge --no-edit origin/main; then
+            exit 0
+          fi
+          # A conflict here means the branch is stale against current main, not
+          # that a test failed. Report it as that distinct condition -- with the
+          # conflicting paths -- and leave the worktree clean, so the red check
+          # is not read as a test result. The branch still has to be brought up
+          # to date; nothing below can run on a conflicted tree.
+          conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+          git merge --abort || true
+          echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
+          {
+            echo "### Merge conflict with origin/main"
+            echo
+            echo "This job stopped on a merge conflict, not a test failure; the live"
+            echo "Git validation cannot run on a conflicted tree."
+            echo
+            echo "Conflicting paths: ${conflicted}"
+            echo
+            echo "Merge or rebase current main into the branch and push again."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
