@@ -32,7 +32,9 @@ for (const name of ['app.mjs', 'receipt-view-model.mjs']) {
 }
 const markup = ['index.html', path.join('viewer', 'index.html')]
   .map(file => norm(fs.readFileSync(path.join(PUBLIC_ROOT, file), 'utf8')));
-const appScript = scripts.get('app.js');
+const APP_MODULES = ['app-core.js', 'app-net.js', 'app-health.js', 'app-graph.js', 'app-approvals.js',
+  'app-verify.js', 'app-activity.js', 'app-evidence.js', 'app-wiring.js'];
+const appScript = APP_MODULES.map(name => scripts.get(name)).join('\n');
 
 const { unkeyedCopy } = require('./helpers/unkeyed-copy');
 

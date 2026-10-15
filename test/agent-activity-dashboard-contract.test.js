@@ -12,7 +12,7 @@ const script = dashboardScript(dashboard);
 
 describe('Agent Activity dashboard contract', () => {
   it('references the extracted dashboard script from index.html', () => {
-    assert.match(dashboard, /<script src="\/js\/app\.js"><\/script>/);
+    assert.match(dashboard, /<script src="\/js\/app-core\.js"><\/script>/);
     assert.doesNotMatch(dashboard, /<script>'use strict'/);
   });
 

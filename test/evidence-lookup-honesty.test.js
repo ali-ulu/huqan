@@ -28,16 +28,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { describe, it } = require('node:test');
 
-const APP_JS = path.join(__dirname, '..', 'public', 'js', 'app.js');
+const { dashboardScript } = require('./helpers/dashboard-source');
 const LOCALES = path.join(__dirname, '..', 'public', 'locales');
 
 function appSource() {
-  return fs.readFileSync(APP_JS, 'utf8');
+  return dashboardScript();
 }
 
 /** The predicate itself, lifted out of the bundle so it can be exercised. */
 function loadNoEvidence() {
-  const match = appSource().match(/function noEvidence\(detail,x\)\{.*?\}\r?\n/s);
+  const match = appSource().match(/function noEvidence\(detail\s*,\s*x\)\{[\s\S]*?\}/);
   assert.ok(match, 'app.js must define the noEvidence predicate');
   // eslint-disable-next-line no-new-func
   return new Function(`${match[0]}; return noEvidence;`)();

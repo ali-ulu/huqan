@@ -8,7 +8,7 @@ const path = require('node:path');
 const { createRuntimeStatusHandlers } = require('../lib/http/runtime-status');
 
 // The key field is markup, but reading the auth mode and hiding the field are
-// script -- and #1895 moved the script into public/js/app.js. Each half is read
+// script -- and #1895 moved the script out of the page. Each half is read
 // from where the browser gets it.
 const { readHtml, dashboardScript } = require('./helpers/dashboard-source');
 

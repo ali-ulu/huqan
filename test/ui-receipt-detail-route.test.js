@@ -53,7 +53,7 @@ test('the manifest advertises the receipt detail route to the UI as a template',
 });
 
 test('the route template is filled per parameter, not by string concatenation', () => {
-  const match = extract(/function routeFor\(c,params\)\{([\s\S]*?)\}const AGENT_ACTIONS/, 'the substitution helper');
+  const match = extract(/function routeFor\(c,params\)\{\s*([\s\S]*?)\s*\}\s*const AGENT_ACTIONS/, 'the substitution helper');
   const routeFor = vm.runInNewContext(`(function routeFor(c,params){${match[1]}})`, {});
 
   const detail = publicWorkflowManifest().workflows.find(entry => entry.workflowId === 'trust-receipt-detail');
@@ -88,7 +88,7 @@ test('the panel reads the projection the detail route actually returns', async (
   assert.equal(written.json.receiptId, 'receipt-1');
   assert.equal(written.json.data.receiptId, undefined, 'the receipt is not at the top of data');
 
-  const match = extract(/const data=detail\?([\s\S]*?);if\(!data\)throw Error\('receipt_projection_missing'\)/,
+  const match = extract(/const data=detail\?([\s\S]*?);\s*if\(!data\)throw Error\('receipt_projection_missing'\)/,
     'the projection choice');
   const pick = vm.runInNewContext(`(function(detail,d){return detail?${match[1]}})`, {});
 
