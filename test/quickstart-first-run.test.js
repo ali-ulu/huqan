@@ -130,6 +130,30 @@ test('formatQuickstartResult surfaces the failure code on failure', () => {
   assert.doesNotMatch(output, /Trust Receipt\n {2}receiptId/);
 });
 
+test('formatQuickstartResult says a removed demo store cannot read its receipt back (#3902)', () => {
+  const output = formatQuickstartResult({
+    ok: true,
+    steps: [{ step: 'receipt', ok: true, detail: 'receiptId abc (status canonical)' }],
+    receipt: { receiptId: 'abc', claim: 'x', status: 'canonical', workspaceId: 'default', provenance: {}, auditTrail: [1] },
+  }, { storePath: '/tmp/huqan-quickstart-xyz', storeRemoved: true });
+
+  assert.match(output, /receiptId\s+: abc/);
+  assert.match(output, /cannot read it back/);
+  assert.doesNotMatch(output, /HUQAN_MEMORY_PATH=/);
+});
+
+test('formatQuickstartResult shows how to read the receipt while the demo store remains (#3902)', () => {
+  const output = formatQuickstartResult({
+    ok: true,
+    steps: [{ step: 'receipt', ok: true, detail: 'receiptId abc (status canonical)' }],
+    receipt: { receiptId: 'abc', claim: 'x', status: 'canonical', workspaceId: 'default', provenance: {}, auditTrail: [1] },
+  }, { storePath: '/tmp/huqan-quickstart-xyz', storeRemoved: false });
+
+  assert.match(output, /left on disk/);
+  assert.match(output, /HUQAN_MEMORY_PATH=\/tmp\/huqan-quickstart-xyz\/memory\.json/);
+  assert.match(output, /huqan receipt abc/);
+});
+
 test('the seeded statement uses a supported relation marker', () => {
   // A statement HUQAN's NLP layer cannot parse would demo a failure, so the
   // default must stay within the explicit relation markers that are supported.
