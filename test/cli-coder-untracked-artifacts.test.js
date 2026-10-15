@@ -145,3 +145,31 @@ describe('coder end to end on a tree it dirtied itself', () => {
     assert.doesNotMatch(text, /memory\.db\b/);
   });
 });
+
+describe('coder refused output does not read as completed (#3901)', () => {
+  it('leads with REFUSED and withholds the applied-run evidence', () => {
+    const root = makeGitRoot();
+    fs.writeFileSync(path.join(root, 'scratch.js'), 'console.log(1)\n', 'utf8');
+    const taskFile = writeTask(root, docsTask());
+
+    const text = runCliCoder([taskFile, '--root', root], {});
+    assert.match(text, /^Outcome: {4}refused — GATE_REFUSED/m);
+    assert.match(text, /Detail: {5}DIRTY_REPO_REVIEW_REQUIRED/);
+    // The refusal is the first line: an operator reading top-down sees the
+    // outcome before any field that could be mistaken for success.
+    assert.equal(text.split('\n')[0], 'Outcome:    refused — GATE_REFUSED');
+    assert.doesNotMatch(text, /Files that would change/);
+    assert.doesNotMatch(text, /Files written/);
+    assert.doesNotMatch(text, /Derivation:/);
+    assert.doesNotMatch(text, /Record:/);
+  });
+
+  it('keeps the would-change preview for a dry run, which never claims to write', () => {
+    const root = makeGitRoot();
+    const taskFile = writeTask(root, docsTask());
+
+    const text = runCliCoder([taskFile, '--root', root, '--dry-run'], {});
+    assert.match(text, /Outcome: {4}dry_run/);
+    assert.match(text, /Files that would change:/);
+  });
+});
