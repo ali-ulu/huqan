@@ -131,6 +131,27 @@ test('produces one declared route using memory-discovered sources, without accep
   assert.equal(wrong.ok, true, wrong.reason);
   assert.deepEqual(wrong.plan.computation.routes, result.plan.computation.routes);
 });
+test('combines learned scalar outputs while keeping aggregate acceptance independent', () => {
+  const spec = targetSpec();
+  spec.routes.push({ path: '/stats', compose: { range: '/answer', spread: '/answer' },
+    acceptanceExamples: [[-80, -20], [51], [-999999, 999998]].map(input => ({ input,
+      expected: { range: extrema(input, false) - extrema(input, true), spread: extrema(input, false) - extrema(input, true) } })) });
+  const produced = produceProject(spec, memoryOptions());
+  assert.equal(produced.ok, true, produced.reason);
+  assert.equal(produced.plan.computation.compositions.length, 1);
+  const invalidSources = JSON.parse(JSON.stringify(spec)); invalidSources.routes[0].composeScalar.sources = 42;
+  assert.equal(produceProject(invalidSources, memoryOptions()).reason, 'PROJECT_COMPUTE_COMPOSITION_INVALID');
+  for (const invalidExamples of [42, [null]]) {
+    const malformed = JSON.parse(JSON.stringify(spec));
+    malformed.routes[0].composeScalar.sources = ['/base'];
+    malformed.routes.push({ path: '/base', compute: { family: 'array-stateful-fold', examples: invalidExamples } });
+    assert.equal(produceProject(malformed, memoryOptions()).reason, 'PROJECT_COMPUTE_COMPOSITION_INVALID');
+  }
+  spec.routes[1].acceptanceExamples[0].input = sourceInputs[1];
+  assert.equal(produceProject(spec, memoryOptions()).reason, 'PROJECT_COMPUTE_COMPOSITION_HOLDOUT_OVERLAP');
+  spec.routes[1].acceptanceExamples[0].input = examples[0].input;
+  assert.equal(produceProject(spec, memoryOptions()).reason, 'PROJECT_COMPUTE_COMPOSITION_INVALID');
+});
 test('refuses missing ancestry and source-training holdout leakage after discovery', () => {
   const missing = { candidatePrograms: primitives, methodContexts: [] };
   assert.equal(produceProject(targetSpec(), missing).reason, 'PROJECT_COMPUTE_METHOD_CONTEXT_MISSING');
@@ -185,6 +206,32 @@ test('native CLI discovers from sealed primitives, saves and reopens the method,
   assert.equal(discovered.result.data.attempts[0].test.exitCode, 0);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(discovered.root, 'routes.json'), 'utf8')), [{ path: '/answer' }]);
   const methodBytes = fs.readFileSync(methodFile, 'utf8');
+  const combinedSpec = targetSpec(); combinedSpec.name = 'learned-statistics';
+  const squareRoute = JSON.parse(JSON.stringify(combinedSpec.routes[0])); squareRoute.path = '/squared';
+  squareRoute.composeScalar.examples = squareRoute.composeScalar.examples.map(row => ({ ...row, expected: row.expected ** 2 }));
+  squareRoute.acceptanceExamples = squareRoute.acceptanceExamples.map(row => ({ ...row, expected: row.expected ** 2 }));
+  combinedSpec.routes.push(squareRoute, { path: '/stats', compose: { range: '/answer', squaredRange: '/squared' },
+    acceptanceExamples: [[-80, -20], [51], [-999999, 999998]].map(input => {
+      const range = extrema(input, false) - extrema(input, true);
+      return { input, expected: { range, squaredRange: range ** 2 } };
+    }) });
+  const combinedFile = path.join(base, 'statistics.json');
+  const combined = run(combinedSpec, methodFile, combinedFile);
+  assert.equal(combined.child.status, 0, JSON.stringify(combined.result));
+  assert.equal(combined.result.data.attempts[0].test.exitCode, 0);
+  combinedSpec.name = 'reopened-statistics';
+  const reopenedCombined = run(combinedSpec, combinedFile);
+  assert.equal(reopenedCombined.child.status, 0, JSON.stringify(reopenedCombined.result));
+  assert.equal(reopenedCombined.result.data.attempts[0].test.exitCode, 0);
+  assert.ok(reopenedCombined.result.data.plan.computation.routes.every(route => route.enumerated === 0));
+  const wrongCombined = JSON.parse(JSON.stringify(combinedSpec)); wrongCombined.name = 'wrong-statistics';
+  wrongCombined.routes[2].acceptanceExamples[0].expected.squaredRange += 1;
+  const rejectedCombinedFile = path.join(base, 'rejected-statistics.json');
+  const rejectedCombined = run(wrongCombined, methodFile, rejectedCombinedFile);
+  assert.equal(rejectedCombined.child.status, 6, JSON.stringify(rejectedCombined.result));
+  assert.equal(rejectedCombined.result.data.attempts[0].rolledBack, true);
+  assert.deepEqual(fs.readdirSync(rejectedCombined.root), []);
+  assert.equal(fs.existsSync(rejectedCombinedFile), false);
   const squareSpec = targetSpec(); squareSpec.name = 'learned-range-squared';
   squareSpec.routes[0].composeScalar.examples = [[-7, 14], [30, 11], [4, 9]].map(input => ({ input,
     expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
