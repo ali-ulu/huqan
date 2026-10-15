@@ -457,3 +457,12 @@ excluded from fresh source discovery. Every selected method and its recursive
 sources require training provenance; their training inputs remain excluded
 from target acceptance. This adds bounded reuse of learned intermediate
 solutions, not arbitrary algorithm synthesis or a measured general gain.
+
+Object `compose` routes may reference scalar-composition routes as well as
+base computation routes. This lets learned methods supply named fields in one
+HTTP response. Each aggregate field retains the referenced method's numeric
+result bounds. Aggregate acceptance must remain independent of the referenced
+route's training, its declared primitive source training, and reconstructed
+training of every selected ancestor method. Aggregates cannot reference other
+object aggregates or pipelines. Persisted methods retain their sealed source
+bindings and are rechecked before new-process reuse.
