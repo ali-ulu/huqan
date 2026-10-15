@@ -190,6 +190,12 @@ test('native CLI discovers from sealed primitives, saves and reopens the method,
     expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
   squareSpec.routes[0].acceptanceExamples = [[-80, -20], [51], [-999999, 999998]].map(input => ({ input,
     expected: (extrema(input, false) - extrema(input, true)) ** 2 }));
+  // Hold requirements and the production search cap fixed: only the sealed
+  // intermediate method differs between these separate-process arms.
+  const withoutIntermediate = run(squareSpec, primitiveFile);
+  assert.equal(withoutIntermediate.child.status, 6, JSON.stringify(withoutIntermediate.result));
+  assert.equal(withoutIntermediate.result.data.reason, 'SCALAR_COMPOSITION_SEARCH_OVER_CAP');
+  assert.deepEqual(fs.readdirSync(withoutIntermediate.root), []);
   const squaredFile = path.join(base, 'squared.json');
   const squared = run(squareSpec, methodFile, squaredFile);
   assert.equal(squared.child.status, 0, JSON.stringify(squared.result));
