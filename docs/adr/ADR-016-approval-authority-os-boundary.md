@@ -261,8 +261,9 @@ should match exactly one `approval.consumed` entry.
 (`outcomeRecorded: false`). The action has already run at that point, so a
 blind second `apply` would run it again.
 
-Not yet done: recording a *stop* in the authority's ledger. That needs a new
-service route, which means changing the protected bundle and reinstalling it.
+A *stop* is recorded in the authority's ledger after it holds (see
+"Recording a stop" under Detection). The route lives in the protected bundle,
+so an installed authority is reinstalled to get it.
 
 ## Receipt verification (P6, #3892)
 
