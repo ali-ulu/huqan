@@ -18,10 +18,12 @@ describe('nlp/lang-en normalize', () => {
 
   it('still strips a trailing plural/verb suffix after folding diacritics', () => {
     assert.strictEqual(en.normalize('running'), 'runn');
-    // 'cafés' -> NFKD-folded to 'cafes', which (like the pre-existing,
-    // unrelated 'boxes' -> 'box' behavior) matches the 'es' suffix before 's'.
-    assert.strictEqual(en.normalize('cafés'), 'caf');
-    assert.strictEqual(en.normalize('résumés'), 'resum');
+    // #3899: the `-es` suffix is only a real plural after a sibilant. `cafés`
+    // folds to `cafes`, whose stem ends in `e`, so only the `s` is dropped
+    // (café). The old code stripped the whole `es` and produced `caf`, which
+    // silently corrupted the taught concept's identity.
+    assert.strictEqual(en.normalize('cafés'), 'cafe');
+    assert.strictEqual(en.normalize('résumés'), 'resume');
   });
 
   it('plain ASCII words are unaffected', () => {

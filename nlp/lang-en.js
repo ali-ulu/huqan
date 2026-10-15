@@ -5,6 +5,41 @@ const STOP_WORDS = new Set([
   'is', 'are', 'was', 'were', 'be', 'been', 'being',
 ]);
 
+// Concepts whose trailing `s`/`es` belongs to the word, not to an inflection.
+// No rule separates them from a real plural -- `series` and `plates` have the
+// same shape -- so they are listed. Without this, `learn:` sealed a corrupted
+// node identity into the graph (`kubernetes` -> `kubernet`) that no later
+// ask/verify/search could find (#3899). Growing this list is the intended
+// seam; every entry is a concept a user may teach verbatim.
+const UNINFLECTED = new Set([
+  'kubernetes', 'series', 'species', 'https', 'news', 'analytics', 'devops',
+  'jenkins', 'postgres', 'pandas', 'keras', 'centos', 'macos', 'nodejs',
+  'grafana', 'prometheus', 'kafka', 'nginx', 'terraform', 'ansible', 'splunk',
+]);
+
+// Root endings that are never plural markers, so the `s` stays: `class`,
+// `process` (-ss), `status`, `virus` (-us), `redis`, `analysis` (-is). The
+// old code stripped the `s` off every one of them (#3899).
+const S_ROOT_ENDINGS = /(?:ss|us|is)$/;
+
+// A real `-es` plural follows a sibilant: boxes, buses, watches, dishes.
+// Elsewhere the `s` is the whole suffix, so only it is dropped
+// (notes -> note, cafes -> cafe) instead of the old `es` (notes -> not).
+const SIBILANT_ES_ENDING = /(?:[sxz]|ch|sh)es$/;
+
+function stripInflection(w) {
+  // Length guards are the historical `w.length > suffix.length + 2`: they
+  // keep `king`, `red` and `bus` intact.
+  if (w.endsWith('ing') && w.length >= 6) return w.slice(0, -3);
+  if (w.endsWith('ed') && w.length >= 5) return w.slice(0, -2);
+  if (w.endsWith('s') && w.length >= 4) {
+    if (UNINFLECTED.has(w) || S_ROOT_ENDINGS.test(w)) return w;
+    if (SIBILANT_ES_ENDING.test(w)) return w.slice(0, -2);
+    return w.slice(0, -1);
+  }
+  return w;
+}
+
 function normalize(word) {
   let w = String(word || '').toLowerCase().trim();
   // NFKD + strip diacritics turns accented Latin letters into their base
@@ -12,13 +47,7 @@ function normalize(word) {
   // silently deleting the accented letter outright (café -> caf, #443).
   w = w.normalize('NFKD').replace(/\p{Diacritic}/gu, '');
   w = w.replace(/[^a-z0-9-]/g, '');
-  for (const suf of ['ing', 'ed', 'es', 's']) {
-    if (w.endsWith(suf) && w.length > suf.length + 2) {
-      w = w.slice(0, -suf.length);
-      break;
-    }
-  }
-  return w;
+  return stripInflection(w);
 }
 
 function tokenize(text) {
