@@ -2,11 +2,11 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 72,
-    "sites": 157,
+    "files": 73,
+    "sites": 158,
     "byCapability": {
       "process": 22,
-      "egress": 5,
+      "egress": 6,
       "fs_write": 130
     },
     "byRole": {
@@ -14,7 +14,7 @@
       "adapter_read": 7,
       "operator_tool": 50,
       "persistence": 44,
-      "evidence": 14,
+      "evidence": 15,
       "egress_operator_gated": 2,
       "unguarded": 3
     }
@@ -1123,6 +1123,21 @@
           "line": 117,
           "capability": "fs_write",
           "call": "fileSystem.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/mcp/rekor-anchor-client.js",
+      "role": "evidence",
+      "why": "the external witness of the approval authority ledger (#3940): it posts only a signed sha256 digest of the ledger head with the anchor public key to the fixed rekor.sigstore.dev endpoint, and reads back entries under that key, accepting only those signed by the Rekor key pinned in source. No ledger content, approval or workspace leaves the machine, and the endpoint is not taken from input",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 72,
+          "capability": "egress",
+          "call": "https.request"
         }
       ]
     },

@@ -71,6 +71,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',
   }),
+  'lib/mcp/rekor-anchor-client.js': Object.freeze({
+    role: 'evidence',
+    why: 'the external witness of the approval authority ledger (#3940): it posts only a signed sha256 digest of the ledger head with the anchor public key to the fixed rekor.sigstore.dev endpoint, and reads back entries under that key, accepting only those signed by the Rekor key pinned in source. No ledger content, approval or workspace leaves the machine, and the endpoint is not taken from input',
+  }),
   'lib/authority/consume-key.js': Object.freeze({
     role: 'persistence',
     why: 'creates the runtime\'s consume-proof key once, owner-only, at a fixed path under the user\'s home; the path is not taken from agent input',

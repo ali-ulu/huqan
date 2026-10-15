@@ -31,7 +31,7 @@ const {
   compareHypothesisFrames, consumeHypothesisCognition,
 } = require('./lib/memory-hypothesis-cognition');
 const { GENESIS_PREVIOUS_HASH, appendReceiptToChain, validateReceiptChain } = require('./lib/receipt/receipt-chain');
-const { fetchAuthorityLedger } = require('./lib/mcp/authority-ledger-provider');
+const { fetchAuthorityLedger, recordAuthorityStop } = require('./lib/mcp/authority-ledger-provider');
 
 // #3568 (R49): the K0/K1 cognition consumer, wired here for the same layer
 // reason as the receipt collaborators above -- lib/memory-hypothesis-cognition.js
@@ -172,6 +172,8 @@ async function runCliArgv(argv = [], io = {}) {
     createCli: options => new CLI(options),
     parseCommand,
     version: require('./package.json').version,
+    // #3892: a stop is recorded with the approval authority after it holds locally.
+    recordAuthorityStop,
   });
 }
 

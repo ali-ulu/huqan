@@ -17,6 +17,8 @@
  *                                           register an operator action that has no
  *                                           approval row (agent resume, emergency-stop
  *                                           lift, terfi, autonomy activation; #3892)
+ *   huqan-authority anchor                  put the signed ledger head into the public
+ *                                           Rekor log (#3940); audit --authority checks it
  *
  * Exit 0 on success. Exit 2 when an authority is required or installed but
  * cannot be used, answers as something other than the pinned service, or
@@ -32,9 +34,11 @@ const { loadOrCreateConsumeKey } = require('../lib/authority/consume-key');
 const { listPersistentApprovals, formatApprovalRecord } = require('../lib/mcp-approval-views');
 const { requireAuthorityDecision } = require('../lib/authority/decision-guard');
 const { resolveMcpApprovalTtlMs } = require('../lib/mcp-approval-expiry');
+const { anchorDigest, verifyAnchorSignature } = require('../lib/authority/anchor-statement');
+const { REKOR_URL, createRekorAnchorClient } = require('../lib/mcp/rekor-anchor-client');
 
 const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | decide | withdraw <approvalId>'
-  + ' | apply <approvalId> [--workspace <id>] | request <tool> [--workspace <id>] --args <json>';
+  + ' | apply <approvalId> [--workspace <id>] | request <tool> [--workspace <id>] --args <json> | anchor';
 const OPERATIONAL_PREFIX = 'ops-';
 const OPERATIONAL_ACTOR = 'operator:authority';
 const MAX_SYNC = 500;
@@ -113,6 +117,7 @@ const OPERATIONAL_EXECUTORS = Object.freeze({
 function defaults(deps) {
   return { resolveMode: resolveApprovalAuthorityMode, createClient: createAuthorityClient, openRuntime: openLocalRuntime,
     loadConsumeKey: loadOrCreateConsumeKey, ttlMs: () => resolveMcpApprovalTtlMs(), executors: OPERATIONAL_EXECUTORS,
+    createRekorClient: createRekorAnchorClient,
     now: Date.now, ...deps };
 }
 
@@ -139,6 +144,30 @@ async function status(deps = {}) {
     return { code: 0, report: { ...base, answering: true } };
   } catch (error) {
     return { code: 2, report: { ...base, answering: false, error: error.code || 'STATUS_FAILED' } };
+  }
+}
+
+// #3940: puts the signed ledger head where no process on this machine can take it back.
+async function anchor(deps = {}) {
+  const { resolveMode, createClient, createRekorClient } = defaults(deps);
+  const mode = resolveMode();
+  const refusal = serviceOrRefusal(mode);
+  if (refusal) return refusal;
+  if (!mode.pin.anchorKey) return { code: 2, report: { error: 'ANCHOR_KEY_NOT_PINNED' } };
+  let answer;
+  try { answer = await createClient({ pin: mode.pin }).ledgerAnchor(); } catch (error) {
+    return { code: 2, report: { error: error.code || 'AUTHORITY_UNAVAILABLE' } };
+  }
+  const signed = answer.status === 200 && answer.body ? answer.body.anchor : null;
+  // Signed by the service, but checked against the pin: the digest and the anchor key.
+  let checked = false;
+  try { checked = signed.digest === anchorDigest(signed) && verifyAnchorSignature(signed, signed.signature, mode.pin.anchorKey); } catch { checked = false; }
+  if (!checked) return { code: 2, report: { error: (answer.body && answer.body.code) || 'ANCHOR_UNVERIFIED' } };
+  try {
+    const { uuid, logIndex, integratedTime } = await createRekorClient().submitAnchor(signed, mode.pin.anchorKey);
+    return { code: 0, report: { seq: signed.seq, hash: signed.hash, log: REKOR_URL, uuid, logIndex, integratedTime } };
+  } catch (error) {
+    return { code: 2, report: { seq: signed.seq, error: error.code || 'REKOR_UNAVAILABLE' } };
   }
 }
 
@@ -340,6 +369,7 @@ async function main(argv = process.argv.slice(2), deps = {}) {
   const { workspaceId, rest } = parseWorkspace(args);
   let outcome;
   if (command === 'status' && args.length === 0) outcome = await status(deps);
+  else if (command === 'anchor' && args.length === 0) outcome = await anchor(deps);
   else if (command === 'sync' && rest.length === 0) outcome = await sync({ workspaceId }, deps);
   else if (command === 'decide' && args.length === 0) outcome = decide(deps);
   else if (command === 'withdraw' && args.length === 1) outcome = withdraw(args[0], deps);
@@ -363,4 +393,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { status, sync, decide, withdraw, apply, request, main };
+module.exports = { status, sync, decide, withdraw, apply, request, anchor, main };

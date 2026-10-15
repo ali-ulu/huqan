@@ -106,7 +106,7 @@ stubExports('../lib/cli-helpers', {
 stubExports('../lib/cli-audit', {
   runCliAudit: (kernel, args, opts, deps) => `audit ${JSON.stringify(args)} store=${JSON.stringify(deps.getApprovalStore())}`,
 });
-stubExports('../lib/cli-trust-receipt', { runCliTrustReceipt: 'receipt ran' });
+stubExports('../lib/cli-trust-receipt', { runCliTrustReceipt: 'receipt ran', runCliVerifyReceipt: 'receipt verify ran' });
 stubExports('../lib/cli-coder', { runCliCoder: 'coder ran' });
 stubExports('../lib/sqlite-restore', {
   storageWasOpen: (storage) => Boolean(storage && storage.open),
@@ -188,7 +188,7 @@ function makeCli({ kernel = {}, dream = [], storage } = {}) {
 
 const COMMANDS = [
   'öğret', 'verify', 'sor', 'neden', 'karşılaştır', 'mri', 'tartis', 'celiski', 'llm-sor', 'plan', 'ajan', 'yükle',
-  'company-ingest', 'company-query', 'ingest-status', 'backup', 'kaydet', 'onaylar', 'onayla', 'audit', 'receipt',
+  'company-ingest', 'company-query', 'ingest-status', 'backup', 'kaydet', 'onaylar', 'onayla', 'audit', 'receipt', 'receipt-verify',
   'coder', 'restore', 'düşün', 'optimize', 'konsolide', 'evolve', 'quickstart', 'durum', 'rüya', 'hypotheses',
   'memory-lifecycle',
   'terfi',
@@ -225,7 +225,7 @@ const CASES = [
   ['onayla', { approvalId: 'async-fail', decision: 'approved' }, operatorAt('async-fail')],
   ['onayla', { approvalId: 'async-fail', decision: 'approved' }, { throwOnError: true, ...operatorAt('async-fail') }],
   ['onayla', { approvalId: 'no-code', decision: 'approved' }, { throwOnError: true, ...operatorAt('no-code') }],
-  ['audit', { limit: 5 }], ['receipt', 'show r1'], ['coder', 'spec'],
+  ['audit', { limit: 5 }], ['receipt', 'show r1'], ['receipt-verify', { receiptId: 'r1', workspaceId: 'w' }, { json: true }], ['coder', 'spec'],
   ['restore', ''], ['restore', 'dry'], ['restore', { backupDir: 'backups/b1' }, { json: true }], ['restore', 'broken'],
   ['restore', '', {}, { storage: { open: true } }],
   ['düşün', 'dur'], ['düşün', 'başla'],
@@ -313,6 +313,8 @@ const GOLDEN = {
   'onayla': '8e5a19eadc89350ef709bee318dd6488560a342c219ab3d54542d875c3614bbb',
   'audit': '558b1044c795ac36b43806956a3c9c8e9599ac9781a3790806f49b9a86a7e79a',
   'receipt': '840c7fa4d05cc2e70ca2294f2c22cf559085f96e04203e3941d1bd606f3644a2',
+  // #3892: `receipt verify` is a command of its own, so `receipt` stays as recorded.
+  'receipt-verify': 'f125aff894eeef2c9dd65246079b651ea0ebf965ca06222b9f17799d252c2542',
   // Coder now receives the loop collaborator; production wiring is covered
   // by coder-fix-loop.test.js. Other dispatch contracts stay byte-identical.
   'coder': '44514841e59586aec7907b313b9aabffb235df4cc7eaa9d41e870f00e1b892ef',
@@ -345,7 +347,8 @@ const GOLDEN = {
   // diffing the help text against main shows exactly that one added line.
   // #3550 adds the `terfi` usage line (one line) to the same generated help.
 // #3860 P6a adds the `--authority` flag to the audit usage line.
-  'yardım': '06dc3272e5ccce97288a91b8109ea8197614d4f56b6a2a93047d1af579f06a84',
+  // #3892 adds the `receipt verify <id> [--workspace <id>]` usage line (one line).
+  'yardım': 'd63bf98777b235f0f9278d2b51b6b442a73e8df92c48578a32cb0c89bee99afd',
   'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
