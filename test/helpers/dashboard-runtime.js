@@ -24,7 +24,15 @@ function fakeNode(id) {
     appendChild(c) { this.children.push(c); return c; }, append() {}, after() {}, before() {},
     setAttribute() {}, getAttribute() { return null; }, removeAttribute() {},
     addEventListener() {}, removeEventListener() {},
-    querySelectorAll() { return []; }, querySelector() { return fakeNode(''); },
+    // A stable sub-node per selector: the dashboard writes inspect output into a
+    // per-row node it looks up by attribute, and a fresh node each call would
+    // make that write unreadable to a test.
+    _sub: new Map(),
+    querySelectorAll() { return []; },
+    querySelector(sel) {
+      if (!this._sub.has(sel)) this._sub.set(sel, fakeNode(`${this.id}${sel}`));
+      return this._sub.get(sel);
+    },
     closest() { return null; }, click() {}, focus() {}, remove() {},
   };
   node.parentElement = { setAttribute() {}, style: {}, querySelectorAll() { return []; } };
@@ -37,7 +45,7 @@ function scriptRefs(html) {
 }
 
 /** Execute the given same-origin src refs (defaults to index.html's order). */
-async function run({ scripts = null, files = null, ticks = 5 } = {}) {
+async function run({ scripts = null, files = null, ticks = 5, fetch: fetchImpl = null } = {}) {
   const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
   const refs = scripts || scriptRefs(html);
   const nodes = new Map();
@@ -62,7 +70,8 @@ async function run({ scripts = null, files = null, ticks = 5 } = {}) {
   };
   const ctx = {
     window, document, sessionStorage: store, localStorage: store, navigator,
-    fetch: async () => ({ ok: true, status: 200, json: async () => ({}) }),
+    fetch: fetchImpl || (async () => ({ ok: true, status: 200, json: async () => ({}) })),
+    CSS: { escape: (value) => String(value).replace(/["\\]/g, '\\$&') },
     // A pinned clock: the dashboard renders `new Date()` into the footer, and a
     // harness that leaks wall time cannot compare two assemblies.
     Date: class extends Date {
@@ -106,7 +115,11 @@ async function run({ scripts = null, files = null, ticks = 5 } = {}) {
       onkeydown: node.onkeydown ? typeof node.onkeydown : null,
     };
   }
-  return { errors, refs, snapshot };
+  // `nodes` exposes the fake DOM for behavioural tests (read a node after a
+  // click, call a handler directly); `evaluate` runs a snippet in the shared
+  // dashboard scope so a test can drive the page the way a user would.
+  const evaluate = (expression) => vm.runInContext(expression, ctx);
+  return { errors, refs, snapshot, nodes, evaluate };
 }
 
 module.exports = { run, scriptRefs, fakeNode, PUBLIC };
