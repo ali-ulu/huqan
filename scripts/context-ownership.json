@@ -4206,6 +4206,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/server-bind-doctor.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cli-ephemeral-boot.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
