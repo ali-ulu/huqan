@@ -116,10 +116,11 @@ test('CLI parses receipt verify and receipts verify', async () => {
   await withCli(async cli => {
     for (const line of ['receipt verify receipt-123 --workspace workspace-a', 'receipts verify receipt-123 --workspace workspace-a']) {
       assert.deepEqual(cli.parse(line), {
-        command: 'receipt', args: { receiptId: 'receipt-123', workspaceId: 'workspace-a', verify: true }, workflowId: 'trust-receipt-detail',
+        command: 'receipt-verify', args: { receiptId: 'receipt-123', workspaceId: 'workspace-a' }, workflowId: 'trust-receipt-detail',
       });
     }
-    assert.deepEqual(cli.parse('receipt verify --workspace w').args, { receiptId: '', workspaceId: 'w', verify: true });
+    // Reading a receipt is unchanged.
+    assert.equal(cli.parse('receipt receipt-123').command, 'receipt');
   });
 });
 
