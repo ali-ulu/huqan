@@ -92,6 +92,16 @@ The list above mirrors `ENVIRONMENT_SUFFIXES` in `lib/environment-compat.js`
 (sorted, deduplicated). A suffix not on this list is rejected with
 `HUQAN_ENV_SUFFIX_UNKNOWN`.
 
+A listed suffix is only ever read under its canonical `HUQAN_X` or legacy
+`AXIOM_X` name. The *bare* suffix (`DB_PATH`, `MEMORY_PATH`, `BACKUP_DIR`, ...)
+is **not** read by the runtime. Setting a bare name does not configure HUQAN:
+it is ignored, and before #3913 the ignore was silent, so `DB_PATH=/tmp/x.db`
+quietly opened the default shared `memory.db` instead. The runtime now reports
+an ignored bare name at boot (`HUQAN ignores DB_PATH: that bare name is not
+read. Use HUQAN_DB_PATH instead ...`). The warning is suppressed when the name
+is a generic host variable (`PORT`, `HOST`, `LANG`, `API_KEY`, `GITHUB_TOKEN`,
+`TRUST_PROXY`) or when the canonical/legacy spelling is present too.
+
 `HUQAN_KERNEL_VERSION` and `HUQAN_AGENT_VERSION` are no longer runtime
 switches. KernelV2 and AgentV3 are the canonical runtimes; `kernel.js` and
 `agent.js` remain only as the internal implementations they wrap. Both
