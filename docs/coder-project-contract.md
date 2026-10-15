@@ -4,11 +4,11 @@
 
 `huqan coder revise revision.json --root <repo> --authorize --journal <journal>`
 plans and applies an additive revision in an existing clean feature-branch Git
-repository. Preview it with `--dry-run`. The request has exactly three fields:
+repository. Preview it with `--dry-run`. The default request has three fields:
 `kind: "project_revision"`, `previous`, and `next`; the latter two are complete
 project specifications accepted by `coder create`.
 
-The name and archetype must match. All previous routes must remain unchanged
+The name and archetype must match. By default all previous routes remain unchanged
 and in their existing order, followed by at least one new route. The producer
 regenerates both recipes and proposes replacements only for changed files.
 The existing runner's `expectedPatch` binds the full old and new contents of
@@ -20,8 +20,24 @@ The ordinary Coder gate and explicit source authorization apply; initialization
 permissions are not used. `node --test` runs the generated old and new API
 checks and existing discoverable Node tests. A failed test rolls back the
 proposed replacements. Static and computed JSON API recipes are supported;
-initialization flags are refused in this mode. Editing or deleting old routes
-and arbitrary repository synthesis remain outside the additive contract.
+initialization flags are refused in this mode. Deleting old routes and arbitrary
+repository synthesis remain outside the revision contract.
+
+An explicit fourth field, `mode: "update_routes"`, permits changes to existing
+route requirements, including replacing a computed route's behavior using a
+learned method. Every previous route path must remain at the same index; route
+removal, renaming, reordering and name/archetype changes still refuse. New routes
+may also be appended. An unchanged generated recipe refuses as
+`PROJECT_REVISION_NO_CHANGE`. Without this mode, changing an existing route still
+refuses as `PROJECT_REVISION_CONTRACT_CHANGED`.
+
+Updates use the same exact before/after replacement binding and ordinary
+authorization gate. Existing authored tests are preserved and run with the new
+generated acceptance suite; a client test requiring the old behavior can veto
+the update and cause rollback. Memory-backed updates use the same full-output
+attestation and sealed revision-method persistence as additive revisions. The
+mode is included in the requirements hash, so saved update records replay the
+explicit update decision rather than treating it as an additive request.
 
 An optional `--project-memory <source.json>` (repeatable) with `--journal` loads
 sealed methods before regenerating either baseline or target. A missing or
