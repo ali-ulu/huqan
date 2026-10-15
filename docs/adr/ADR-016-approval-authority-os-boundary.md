@@ -228,7 +228,19 @@ blind second `apply` would run it again.
 
 Not yet done: recording a *stop* in the authority's ledger. That needs a new
 service route, which means changing the protected bundle and reinstalling it.
-`huqan receipts verify` is a separate change.
+
+## Receipt verification (P6, #3892)
+
+`huqan receipt verify <id> [--workspace <id>]` (also spelled `receipts
+verify`) checks the chain the receipt sits in: its workspace and receipt
+family, rebuilt from genesis and compared with the tip recorded at commit
+time. It reuses the read path of `huqan receipt <id>` and reports the verdict
+instead of the payload. A broken chain exits non-zero and names the reason and
+the first broken link. A receipt is never validated on its own: past the first
+link, its predecessor is part of what makes it valid.
+
+It does not compare receipts with the authority ledger. `huqan audit
+--authority` already does that.
 
 ## Residual risks
 

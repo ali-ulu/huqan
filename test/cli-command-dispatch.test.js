@@ -106,7 +106,7 @@ stubExports('../lib/cli-helpers', {
 stubExports('../lib/cli-audit', {
   runCliAudit: (kernel, args, opts, deps) => `audit ${JSON.stringify(args)} store=${JSON.stringify(deps.getApprovalStore())}`,
 });
-stubExports('../lib/cli-trust-receipt', { runCliTrustReceipt: 'receipt ran' });
+stubExports('../lib/cli-trust-receipt', { runCliTrustReceipt: 'receipt ran', runCliVerifyReceipt: 'receipt verify ran' });
 stubExports('../lib/cli-coder', { runCliCoder: 'coder ran' });
 stubExports('../lib/sqlite-restore', {
   storageWasOpen: (storage) => Boolean(storage && storage.open),
@@ -225,7 +225,7 @@ const CASES = [
   ['onayla', { approvalId: 'async-fail', decision: 'approved' }, operatorAt('async-fail')],
   ['onayla', { approvalId: 'async-fail', decision: 'approved' }, { throwOnError: true, ...operatorAt('async-fail') }],
   ['onayla', { approvalId: 'no-code', decision: 'approved' }, { throwOnError: true, ...operatorAt('no-code') }],
-  ['audit', { limit: 5 }], ['receipt', 'show r1'], ['coder', 'spec'],
+  ['audit', { limit: 5 }], ['receipt', 'show r1'], ['receipt', { receiptId: 'r1', workspaceId: 'w', verify: true }, { json: true }], ['coder', 'spec'],
   ['restore', ''], ['restore', 'dry'], ['restore', { backupDir: 'backups/b1' }, { json: true }], ['restore', 'broken'],
   ['restore', '', {}, { storage: { open: true } }],
   ['düşün', 'dur'], ['düşün', 'başla'],
@@ -312,7 +312,9 @@ const GOLDEN = {
   'onaylar': '2048237b14c84f833c5745a4c43fec129360537a4c81c7ce1d6834db9703a3dc',
   'onayla': '8e5a19eadc89350ef709bee318dd6488560a342c219ab3d54542d875c3614bbb',
   'audit': '558b1044c795ac36b43806956a3c9c8e9599ac9781a3790806f49b9a86a7e79a',
-  'receipt': '840c7fa4d05cc2e70ca2294f2c22cf559085f96e04203e3941d1bd606f3644a2',
+  // #3892 adds one `receipt verify` case; the existing `receipt` case's result
+  // is unchanged, the digest moves only because the case list grew.
+  'receipt': '2005ace786ca68a0ee1a7dabbe0b46f360af51b883f8aaf554f9ff638ccc0113',
   // Coder now receives the loop collaborator; production wiring is covered
   // by coder-fix-loop.test.js. Other dispatch contracts stay byte-identical.
   'coder': '44514841e59586aec7907b313b9aabffb235df4cc7eaa9d41e870f00e1b892ef',
@@ -345,7 +347,9 @@ const GOLDEN = {
   // diffing the help text against main shows exactly that one added line.
   // #3550 adds the `terfi` usage line (one line) to the same generated help.
 // #3860 P6a adds the `--authority` flag to the audit usage line.
-  'yardım': '06dc3272e5ccce97288a91b8109ea8197614d4f56b6a2a93047d1af579f06a84',
+  // #3892 rewrites the receipt usage line to `receipt [verify] <id> ...`; the
+  // help diff against main is that one line.
+  'yardım': '79b6ad8f1445b01badce7af957988c18c87930ed2a6587a63fa5b9721e891be7',
   'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
