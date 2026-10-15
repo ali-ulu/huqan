@@ -27,7 +27,8 @@ describe('the CLI command table lives in lib/ (#3101)', () => {
     const handlers = createCliCommandHandlers({ callMcpTool: () => null, createApprovalStoreFromKernel: () => null });
     assert.ok(Object.isFrozen(handlers));
     assert.equal(Object.getPrototypeOf(handlers), null);
-    assert.equal(Object.keys(handlers).length, 43);
+    // 44 since #3892 added `receipt-verify`.
+    assert.equal(Object.keys(handlers).length, 44);
     assert.equal(typeof handlers.inference, 'function');
     assert.equal(handlers['yardım'](), require('../lib/cli-help').cliHelpText());
   });
