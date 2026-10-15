@@ -233,3 +233,29 @@ test('audit --authority carries the stop findings into its detection section', (
     localStopEntries: [{ seq: 0, hash, action: 'stop', scope: 'workspace', workspaceId: 'default', agentId: null, createdAt: at }] });
   assert.deepEqual(held.evidence.findings, []);
 });
+
+test('a second report under a recorded hash with a different claim is a conflict', async (t) => {
+  const env = await setup(t);
+  const stopped = env.stops.stop({ scope: 'workspace', workspaceId: 'ws-11', reason: 'incident', actor: 'operator:cli' });
+  assert.equal((await env.record(stopped.ledgerEntry)).recorded, true);
+  const conflicting = await env.client.recordStop({ workspaceId: 'ws-12', scope: 'workspace', agentId: null, reason: 'incident',
+    actor: 'operator:cli', localSeq: stopped.ledgerEntry.seq, localHash: stopped.ledgerEntry.hash, stoppedAt: stopped.ledgerEntry.createdAt });
+  assert.deepEqual([conflicting.status, conflicting.body.code], [409, 'CONFLICT']);
+  assert.equal(stopEntries(env).length, 1);
+});
+
+test('a lift with no decision is reported even when the authority holds no stop records', () => {
+  const at = '2026-10-15T10:00:00.000Z';
+  const unrelated = [{ seq: 0, at, type: 'approval.registered', body: { approvalId: 'apr_1', tool: 'huqan.learn', workspaceId: 'w' } }];
+  // The stop predates the authority; the lift after its first entry needed a decision.
+  const local = [
+    { seq: 0, hash: 'd'.repeat(64), action: 'stop', scope: 'workspace', workspaceId: 'w', agentId: null, createdAt: '2026-10-15T09:00:00.000Z' },
+    { seq: 1, hash: 'e'.repeat(64), action: 'lift', scope: 'workspace', workspaceId: 'w', agentId: null, createdAt: '2026-10-15T11:00:00.000Z' },
+  ];
+  assert.deepEqual(compareStopsWithAuthority({ authorityEntries: unrelated, localEntries: local, workspaceId: 'w', truncated: false })
+    .map(f => f.code), ['LIFT_WITHOUT_AUTHORITY']);
+  assert.deepEqual(compareStopsWithAuthority({ authorityEntries: unrelated, localEntries: local, workspaceId: 'w', truncated: true }), [],
+    'a cut window cannot count lifts');
+  assert.deepEqual(compareStopsWithAuthority({ authorityEntries: unrelated, localEntries: null, workspaceId: 'w', truncated: false }), [],
+    'nothing about stops and an unreadable ledger is no finding');
+});
