@@ -214,6 +214,19 @@ function validateHttpContracts(config, options = {}) {
       if (stop.enforced !== true) {
         errors.push(`route ${item.routeId} emergencyStop declaration must set enforced: true`);
       }
+      // The refusal is a fixed contract, not a free-form field: every gated
+      // surface answers 423 EMERGENCY_STOPPED for the whole workspace, so a
+      // declaration that drifts (200, a different code, an agent scope) would
+      // promise callers something the gate never sends.
+      if (stop.status !== 423) {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set status: 423`);
+      }
+      if (stop.code !== 'EMERGENCY_STOPPED') {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set code: EMERGENCY_STOPPED`);
+      }
+      if (stop.scope !== 'workspace') {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set scope: workspace`);
+      }
       const gateOwner = ownerPath(stop.owner);
       if (!gateOwner || !fs.existsSync(gateOwner)) {
         errors.push(`route ${item.routeId} emergencyStop owner does not exist: ${stop.owner || '<missing>'}`);

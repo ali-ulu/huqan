@@ -204,6 +204,35 @@ test('the legacy /llm-sor surface is refused while stopped, before the LLM is ca
   assert.equal(responses[0].body.errorCode, EMERGENCY_STOPPED_CODE);
 });
 
+test('the /v2/verify surface is refused while stopped, before the kernel verifies', async (t) => {
+  const ledger = ledgerIn(t);
+  ledger.stop({ scope: 'workspace', workspaceId: 'default', reason: 'probe', actor: 'test' });
+  const responses = [];
+  const res = {
+    writeHead(status) { this._status = status; },
+    end(bytes) { responses.push({ status: this._status, body: JSON.parse(bytes) }); },
+  };
+  const kernel = countingKernel();
+  const handleCore = createCoreHttpRoutes({
+    kernel,
+    getGraphData: () => ({}),
+    getV2StatusData: () => ({}),
+    getHealthData: () => ({}),
+    handleAnswerRoute: () => false,
+    parseJsonRequest: async () => ({ claim: 'tcp handshake uses syn', workspaceId: 'default' }),
+    denyIfUnauthorized: () => true,
+    writeJson: () => assert.fail('a stop must not reach the verify envelope'),
+    writeApiError: () => assert.fail('a stop must not use the generic api error'),
+    ...LEGACY_HELPERS,
+    emergencyStop: ledger,
+  });
+  const handled = await handleCore({ method: 'POST', headers: {} }, res, new URL('http://localhost/v2/verify'), {});
+  assert.equal(handled, true);
+  assert.equal(responses[0].status, EMERGENCY_STOPPED_STATUS);
+  assert.equal(responses[0].body.errorCode, EMERGENCY_STOPPED_CODE);
+  assert.equal(kernel.reads.verify, 0, 'the stop must answer before the kernel verifies');
+});
+
 test('the /answer surface is refused while stopped', async (t) => {
   const ledger = ledgerIn(t);
   ledger.stop({ scope: 'workspace', workspaceId: 'default', reason: 'probe', actor: 'test' });

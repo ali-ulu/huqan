@@ -137,6 +137,31 @@ test('an emergency-stop declaration without enforced: true fails the check', () 
   );
 });
 
+test('an emergency-stop declaration with a drifted refusal shape fails the check', () => {
+  const cases = [
+    { status: 200, field: 'status: 423' },
+    { code: 'STOPPED', field: 'code: EMERGENCY_STOPPED' },
+    { scope: 'agent', field: 'scope: workspace' },
+  ];
+  for (const { field, ...drift } of cases) {
+    const config = structuredClone(loadConfig());
+    const family = config.contracts.find((item) => item.routeIds.includes('workflow-ask'));
+    family.response.emergencyStop = {
+      enforced: true,
+      status: 423,
+      code: 'EMERGENCY_STOPPED',
+      scope: 'workspace',
+      owner: 'lib/http/emergency-stop-gate.js',
+      ...drift,
+    };
+    const errors = validateHttpContracts(config);
+    assert.ok(
+      errors.some((error) => error.includes(`workflow-ask emergencyStop declaration must set ${field}`)),
+      `${field} drift must be rejected, got: ${errors.join('\n')}`,
+    );
+  }
+});
+
 test('the shipped inventory declares the emergency stop on every HTTP read surface', () => {
   const config = loadConfig();
   const gated = [];
