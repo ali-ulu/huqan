@@ -1,5 +1,11 @@
 # AXIOM Trust Protocol (ATP) v0.1
 
+> **Superseded compatibility version.** The canonical protocol name is HUQAN
+> Trust Protocol (HTP), with the current publication at
+> `specs/huqan-trust-protocol/0.2/`. These 0.1 bytes remain frozen for negotiated
+> downgrade compatibility. This lineage receives compatibility and security
+> fixes only; new protocol work belongs in a new HTP version.
+
 ATP is the portable trust layer for AXIOM.
 
 It defines how claims, provenance, audit history, conflicts, verification results, and exportable trust state should be represented without tying the protocol to one storage engine or one UI.

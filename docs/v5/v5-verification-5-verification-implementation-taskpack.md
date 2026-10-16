@@ -1,5 +1,7 @@
 # V5-VERIFICATION-5 - Verification Implementation Task-Pack
 
+**Status:** `implementation`
+
 **Mode:** Task-pack definition only
 **Current checkpoint:** `V5-VERIFICATION-4_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

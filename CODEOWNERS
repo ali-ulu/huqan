@@ -1,111 +1,53 @@
-/*
- * CODEOWNERS for AXIOM / HUQAN repository.
- *
- * This file defines the primary owners and approvers for different
- * components of the project. Changes to these components require
- * review by the listed owners.
- *
- * Owners are GitHub usernames and can be teams (e.g., @owner/team-name).
- * Use a slash to indicate a team within an organization.
- *
- * For more information, see:
- * https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/
- *    naming-conventions-for-protecting-sensitive-repository-information
- */
+# CODEOWNERS for HUQAN.
+#
+# @ali-ulu is the sole owner of every file in this repository. Every rule
+# below names an owner: in CODEOWNERS the last matching pattern wins, and a
+# pattern with no owner leaves the files it matches with none.
+#
+# The explicit entries after the catch-all do not change who owns a file.
+# They record which paths are security-sensitive, so a new module split out
+# of one of them is added here in the same pull request.
+#
+# Check after editing:
+#   gh api repos/ali-ulu/huqan/codeowners/errors   (expects "errors": [])
+#
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
-# Code and Runtime
-* @agiulucom42-del
+* @ali-ulu
 
-# Kernel, Graph, and Core Logic
-*.js
-*.json
-*.yaml
-*.yml
+# Gates and security decisions
+lib/action-risk-classifier.js @ali-ulu
+lib/agent-action-firewall.js @ali-ulu
+lib/automation-safety-gate/ @ali-ulu
+lib/code-change-*.js @ali-ulu
+lib/memory-mutation-gate/ @ali-ulu
+lib/risk-rules.js @ali-ulu
+lib/sandbox-*.js @ali-ulu
+lib/tool-call-gate.js @ali-ulu
+sandboxRunner.js @ali-ulu
 
-# Sandbox and Security
-lib/sandbox-isolation.js
-lib/tool-call-gate.js
-lib/action-risk-classifier.js
-lib/memory-mutation-gate.js
-lib/automation-safety-gate.js
-lib/audit-log.js
-lib/provenance*.js
-lib/conflict-detector.js
-lib/semantic*.js
-lib/contradiction-rules.js
-lib/risk-rules.js
+# Evidence, provenance and trust
+lib/audit-log.js @ali-ulu
+lib/conflict-detector.js @ali-ulu
+lib/contradiction-rules.js @ali-ulu
+lib/memory-store*.js @ali-ulu
+lib/provenance*.js @ali-ulu
+lib/receipt/ @ali-ulu
+lib/semantic*.js @ali-ulu
+lib/verify.js @ali-ulu
 
-# Memory and Trust
-lib/memory-package.js
-lib/memory-store*.js
-lib/trust-manager.js
-lib/trust-kernel.js
+# Entry points
+/server.js @ali-ulu
+/mcpServer.js @ali-ulu
+/cli.js @ali-ulu
+/bin/ @ali-ulu
 
-# API and REST
-/server.js
-mcpServer.js
+# Supply chain and release
+/package.json @ali-ulu
+/package-lock.json @ali-ulu
+/.github/ @ali-ulu
 
-# CI/CD Pipeline
-.github/workflows/
-
-# Governance and Security
-SECURITY.md
-THREAT_MODEL.md
-CODEOWNERS
-README.md
-
-# Documentation and Specs
-docs/
-*.md
-
-# Package Distribution
-*.tar.gz
-*.zip
-
-# Any other critical files
-*.md
-*.rst
-*.txt
-
-# Exclude the following from CODEOWNERS checks
-.artifacts/
-components/
-node_modules/
-.vscode/
-.DS_Store
-Thumbs.db
-
-# Designated reviewers for specific files
-# Package changes
-package.json
-  - @agiulucom42-del
-
-# Core agent functionality
-lib/tool-call-gate.js
-lib/action-risk-classifier.js
-  - @agiulucom42-del
-
-# Memory management
-lib/memory-package.js
-  - @agiulucom42-del
-
-# Sandbox security
-lib/sandbox-isolation.js
-  - @agiulucom42-del
-
-# Trust and verification
-lib/trust-kernel.js
-lib/trust-manager.js
-lib/verify.js
-  - @agiulucom42-del
-
-# Policy and governance
-SECURITY.md
-THREAT_MODEL.md
-CODEOWNERS
-  - @agiulucom42-del
-
-# Documentation
-README.md
-docs/
-  - @agiulucom42-del
+# Governance
+/CODEOWNERS @ali-ulu
+/SECURITY.md @ali-ulu
+/THREAT_MODEL.md @ali-ulu

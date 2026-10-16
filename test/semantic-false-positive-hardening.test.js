@@ -6,10 +6,7 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-semantic-hardening-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -68,6 +65,24 @@ function seedPharma(kernel) {
 }
 
 describe('semantic false-positive hardening', () => {
+  it('returns unknown for an unrelated predicate about a known subject (#1076)', () => {
+    const kernel = makeKernel('predicate-drift');
+    kernel.graph.addNode('kedi', 'kedi');
+    kernel.graph.addNode('hayvan', 'hayvan');
+    kernel.graph.addEdge('kedi', 'hayvan', 'tür');
+
+    assert.strictEqual(unwrap(kernel.verify('kedi hayvandir')).status, 'verified');
+    for (const claim of ['kedi uyuyor', 'kedi bahcede', 'kedi sut icer']) {
+      const result = unwrap(kernel.verify(claim));
+      assert.strictEqual(result.status, 'unknown', `${claim} has no contradictory evidence`);
+      assert.strictEqual(result.confidence, 0);
+    }
+
+    const typeConflict = unwrap(kernel.verify('kedi bitkidir'));
+    assert.strictEqual(typeConflict.status, 'contradicted');
+    assert.ok(typeConflict.confidence >= 0.9);
+  });
+
   it('downgrades aviation false claims away from dogrulandi', () => {
     const kernel = makeKernel('aviation');
     seedAviation(kernel);
@@ -89,8 +104,8 @@ describe('semantic false-positive hardening', () => {
       const raw = kernel.verify(claim, { workspaceId: 'default' });
       const result = unwrap(raw);
 
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-      assert.notStrictEqual(result.status, 'dogrulandi', `aviation false claim was incorrectly verified: ${claim}`);
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+      assert.notStrictEqual(result.status, 'verified', `aviation false claim was incorrectly verified: ${claim}`);
       assert.ok(raw.meta && raw.meta.semanticTrust, 'semantic trust metadata should be present');
     }
   });
@@ -108,8 +123,8 @@ describe('semantic false-positive hardening', () => {
       const raw = kernel.verify(claim, { workspaceId: 'default' });
       const result = unwrap(raw);
 
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-      assert.notStrictEqual(result.status, 'dogrulandi', `pharma/negation claim was incorrectly verified: ${claim}`);
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+      assert.notStrictEqual(result.status, 'verified', `pharma/negation claim was incorrectly verified: ${claim}`);
     }
   });
 
@@ -120,8 +135,8 @@ describe('semantic false-positive hardening', () => {
     const raw = kernel.verify('EDDF is in Paris', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.notStrictEqual(result.status, 'dogrulandi', 'location conflict must not be verified');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.notStrictEqual(result.status, 'verified', 'location conflict must not be verified');
     assert.ok(raw.meta && raw.meta.semanticTrust && raw.meta.semanticTrust.meta.fuzzy, 'fuzzy metadata should be attached');
     assert.strictEqual(raw.meta.semanticTrust.meta.fuzzy.isWeak, true);
   });
@@ -140,8 +155,8 @@ describe('semantic false-positive hardening', () => {
       'sigara her zaman kanser yapar',
     ]) {
       const result = unwrap(kernel.verify(claim, { workspaceId: 'default' }));
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-      assert.notStrictEqual(result.status, 'dogrulandi', `adversarial claim was incorrectly verified: ${claim}`);
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+      assert.notStrictEqual(result.status, 'verified', `adversarial claim was incorrectly verified: ${claim}`);
     }
   });
 });

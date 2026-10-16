@@ -6,10 +6,7 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-kernel-concurrency-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -90,7 +87,7 @@ describe('kernel concurrency and path safety', () => {
     const raw = kernel.verify('alpha is delta', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     kernel.learn('gadget is device', { workspaceId: 'default', ...TEST_FIXTURE_LEARN_BYPASS });
     assert.ok(kernel.graph.getNode(kernel.normalizeWord('gadget'), 'default'));
   });
@@ -125,8 +122,23 @@ describe('kernel concurrency and path safety', () => {
     const raw = kernel.verify(undefined, { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(raw.meta && raw.meta.semanticTrust, 'semantic trust metadata should still be present');
+  });
+
+  it('does not let a dead-end branch poison a later valid path (#1243)', () => {
+    const kernel = makeKernel('path-visited-backtracking');
+    for (const id of ['start', 'dead', 'shared', 'target']) {
+      kernel.graph.addNode(id, id, null, { workspaceId: 'default' });
+    }
+    kernel.graph.addEdge('start', 'dead', 'linked', { workspaceId: 'default' });
+    kernel.graph.addEdge('dead', 'shared', 'linked', { workspaceId: 'default' });
+    kernel.graph.addEdge('start', 'shared', 'linked', { workspaceId: 'default' });
+    kernel.graph.addEdge('shared', 'target', 'linked', { workspaceId: 'default' });
+
+    const result = kernel._findPathWithTimeout('start', 'target', 100, 'default', 3);
+    assert.deepStrictEqual(result.path, ['start', 'shared', 'target']);
+    assert.strictEqual(result.stoppedReason, 'maxDepth');
   });
 
   it('reports path timeout and maxDepth when traversals are bounded', () => {
@@ -153,7 +165,7 @@ describe('kernel concurrency and path safety', () => {
     const result = unwrap(raw);
     const pathSearch = raw.meta && raw.meta.semanticTrust && raw.meta.semanticTrust.meta && raw.meta.semanticTrust.meta.pathSearch;
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.ok(pathSearch, 'verify should surface path search metadata');
     assert.ok(Array.isArray(pathSearch.path), 'path search should include the resolved path');
     assert.strictEqual(pathSearch.stoppedReason, null);

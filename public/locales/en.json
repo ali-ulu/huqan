@@ -1,0 +1,835 @@
+{
+  "pageScroll": {
+    "top": "Back to top",
+    "up": "Scroll up one screen",
+    "down": "Scroll down one screen"
+  },
+  "commandPolicy": {
+    "variables": "Environment variables: HUQAN_POLICY_EDITOR_TOKEN / HUQAN_EXTERNAL_GUARD_POLICY",
+    "title": "Rules",
+    "nav": "Command permissions",
+    "intro": "Manage the shell commands that may pass the command classifier without repeated review.",
+    "scope": "Workspace scope: these commands may skip review only for hooks using this workspace policy. The denylist and classifier still govern every command.",
+    "limits": "This editor manages command permissions only. It does not create file-access prohibitions or verify that an agent hook is installed.",
+    "setup": "Enable policy editing",
+    "setupHelp": "The server operator must configure a separate editor token of at least 32 characters and a policy file in an existing protected directory. Use the same policy path for the server and the hooks. Keep the editor token separate from the agent API key.",
+    "token": "Operator token",
+    "tokenHelp": "Used only for these requests; never saved in browser storage. Lock the editor when finished.",
+    "load": "Load saved rules",
+    "lock": "Lock editor",
+    "commands": "Allowed commands — one per line",
+    "prefix": "An entry also permits extra arguments: npm test matches npm test -- --watch. Broad entries such as node grant broad command permissions. Built-in safety gates still apply.",
+    "confirm": "I approve this change for every hook using this workspace policy.",
+    "save": "Save rules",
+    "command": "Command to classify",
+    "preview": "Classify saved rules",
+    "previewHelp": "Nothing is executed. This is the saved policy's command classification, not a final allow/block decision or proof of agent enforcement.",
+    "waiting": "Enter operator credentials and load the saved policy.",
+    "working": "Checking…",
+    "loaded": "Saved rules loaded. Agent enforcement has not been verified.",
+    "saved": "Rules saved. Hooks reading this same file will see the update; agent enforcement has not been verified.",
+    "previewed": "Saved policy classified the command. Nothing was executed.",
+    "unsaved": "Unsaved changes. Save before classifying a command.",
+    "notConfigured": "Policy editing is not configured on this server. Open the setup instructions above.",
+    "apiRequired": "Connect with your API key in Settings first.",
+    "operatorRequired": "Operator authorization was refused. The agent API key alone cannot edit rules.",
+    "conflict": "The policy changed elsewhere. Load the latest rules before saving again.",
+    "failed": "The operation failed. No success is confirmed; load the policy again to inspect its state.",
+    "category": "Classification",
+    "matched": "Permission entry used"
+  },
+  "app": {
+    "title": "HUQAN — Trust Command Center",
+    "subtitle": "Trust Command Center"
+  },
+  "nav": {
+    "overview": "Overview",
+    "overviewDesc": "Command Center",
+    "verify": "Verify",
+    "verifyDesc": "Claim Verification",
+    "approvals": "Approvals",
+    "approvalsDesc": "Review & Decisions",
+    "evidence": "Evidence",
+    "evidenceDesc": "Trust Receipts",
+    "observability": "Observability",
+    "observabilityDesc": "Agent Telemetry",
+    "activity": "Activity",
+    "activityDesc": "Agent Audit Trail",
+    "graph": "Graph",
+    "graphDesc": "Trust Network",
+    "conflicts": "Conflicts",
+    "conflictsDesc": "Issue Detection",
+    "integrations": "Integrations",
+    "integrationsDesc": "Runtime Surfaces",
+    "settings": "Settings",
+    "settingsDesc": "Local Session"
+  },
+  "header": {
+    "systemStatus": "System Status",
+    "searchPlaceholder": "Search: receipt ID, claim, source…",
+    "searchLabel": "Search receipts, claims, and sources",
+    "node": "NODE",
+    "time": "TIME"
+  },
+  "secure": {
+    "title": "SECURE CHANNEL",
+    "apiKeyRequired": "API key required",
+    "connected": "Secure channel connected for this session",
+    "notConnected": "Secure channel not connected"
+  },
+  "overview": {
+    "eyebrow": "HUQAN Runtime",
+    "description": "Real runtime surfaces, evidence flow, and trust infrastructure in one command center.",
+    "refresh": "↻ Refresh",
+    "metrics": {
+      "graphNodes": "Graph Nodes",
+      "graphNodesDesc": "live graph-data",
+      "relations": "Relations",
+      "relationsDesc": "source-backed graph",
+      "pendingReview": "Pending Review",
+      "pendingReviewDesc": "human approval queue",
+      "kernel": "Kernel",
+      "version": "version —"
+    },
+    "mesh": {
+      "title": "GLOBAL TRUST NETWORK",
+      "subtitle": "Loading graph data…",
+      "badgeState": "● CHECKING",
+      "badgeDesc": "runtime sync"
+    },
+    "activeNodes": {
+      "title": "ACTIVE GRAPH NODES",
+      "viewAll": "View all",
+      "empty": "Waiting for graph data."
+    },
+    "health": {
+      "title": "SYSTEM HEALTH"
+    },
+    "activityPulse": {
+      "title": "AGENT ACTIVITY"
+    }
+  },
+  "verify": {
+    "eyebrow": "Verification",
+    "description": "Run verify, ask, advocate, or memory search via the current workflow contract.",
+    "workflowState": "LOADING",
+    "console": {
+      "title": "VERIFICATION CONSOLE",
+      "contract": "loading manifest"
+    },
+    "form": {
+      "workflowLabel": "Workflow",
+      "workflows": {
+        "ask": "Ask",
+        "advocate": "Advocate",
+        "memorySearch": "Memory Search",
+        "agentPlan": "Agent Plan",
+        "agentRun": "Agent Run"
+      },
+      "promptLabel": "Claim / Query",
+      "promptPlaceholder": "Enter a claim or question to verify…",
+      "stepsLabel": "Step budget",
+      "steps": {
+        "1": "1 step",
+        "2": "2 steps",
+        "4": "4 steps (default)",
+        "6": "6 steps",
+        "8": "8 steps (max)"
+      },
+      "actions": {
+        "run": "Run",
+        "fileBtn": "Choose file",
+        "review": "Send for review"
+      },
+      "status": "Waiting for manifest.",
+      "rationaleLabel": "Rationale",
+      "noteLabel": "Note text",
+      "rationalePlaceholder": "Why this was decided…",
+      "notePlaceholder": "The note to queue for review…",
+      "goalPlaceholder": "Describe the goal the agent should pursue…"
+    },
+    "result": {
+      "title": "VERIFICATION RESULT",
+      "subtitle": "source-backed response",
+      "empty": "No query run yet."
+    },
+    "manifestReady": "Capability manifest ready.",
+    "manifestUnavailable": "Capability manifest unavailable.",
+    "workflowReady": "READY",
+    "errors": {
+      "goalRequired": "Enter a goal first.",
+      "ingestRequired": "Enter the text to ingest first.",
+      "claimRequired": "Enter a claim or query first.",
+      "fileType": "Only .txt and .md files are supported."
+    }
+  },
+  "approvals": {
+    "eyebrow": "Human Review",
+    "title": "Approval Queue",
+    "description": "Resolve pending ingest candidates through the real approval endpoint.",
+    "pending": {
+      "title": "PENDING APPROVALS",
+      "subtitle": "loading",
+      "empty": "Loading queue."
+    },
+    "actions": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "inspect": "Inspect"
+    },
+    "none": "No pending approvals.",
+    "queueState": "Approval queue is {state}."
+  },
+  "evidence": {
+    "title": "Trust Receipt Explorer",
+    "description": "Read receipt, provenance, and audit data from the existing trust-receipt API.",
+    "lookup": {
+      "title": "RECEIPT LOOKUP",
+      "subtitle": "read-only",
+      "modeLabel": "Lookup Mode",
+      "modes": {
+        "targetId": "targetId",
+        "receiptId": "receiptId",
+        "sourceRef": "sourceRef",
+        "provenanceId": "provenanceId"
+      },
+      "inputLabel": "Receipt / Source",
+      "inputPlaceholder": "receipt ID or sourceRef",
+      "loadBtn": "Load evidence",
+      "status": "Waiting for query.",
+      "summary": {
+        "status": "Status"
+      }
+    },
+    "raw": {
+      "title": "RAW RECEIPT",
+      "subtitle": "immutable read view",
+      "empty": "Query a receipt."
+    },
+    "loading": "Loading evidence…",
+    "found": "Receipt found.",
+    "noEvidence": "No evidence is recorded for this target. If this is a receipt id, switch Lookup Mode to receiptId.",
+    "enterId": "Enter a receipt or sourceRef.",
+    "noReceipt": "No receipt",
+    "defaultLabel": "Trust Receipt",
+    "openReceipt": "Open receipt",
+    "rows": {
+      "status": "Status",
+      "receiptId": "Receipt ID",
+      "workspace": "Workspace",
+      "target": "Target",
+      "confidence": "Confidence",
+      "canonical": "Canonical",
+      "policy": "Policy"
+    },
+    "values": {
+      "yes": "yes",
+      "no": "no"
+    }
+  },
+  "observability": {
+    "title": "Observability & Queue",
+    "description": "Live event stream, persistent run history, performance metrics, alert rules, and a guarded agent queue.",
+    "windowFilter": "Time window",
+    "windows": {
+      "1h": "Last hour",
+      "24h": "Last 24 hours",
+      "7d": "Last 7 days",
+      "31d": "Last 31 days"
+    },
+    "metrics": {
+      "totalRuns": "Total Runs",
+      "totalRunsDesc": "selected window",
+      "successRate": "Success Rate",
+      "successRateDesc": "terminal runs",
+      "p95Latency": "P95 Latency",
+      "p95LatencyDesc": "milliseconds",
+      "tokens": "Tokens",
+      "tokensDesc": "reported when unavailable",
+      "cost": "Cost",
+      "costDesc": "configured rate",
+      "queueDepth": "Queue Depth",
+      "queueDepthDesc": "queued + running"
+    },
+    "toolUsage": {
+      "title": "TOOL USAGE MIX",
+      "subtitle": "workspace-scoped · {window}",
+      "total": "tool calls",
+      "totalMismatch": "total mismatch",
+      "empty": "No tool calls yet.",
+      "breakdownUnavailable": "Tool usage breakdown unavailable.",
+      "breakdownUnavailableAria": "Tool usage breakdown unavailable: {total} calls",
+      "distributionAria": "Tool usage distribution: {total} calls",
+      "breakdownIncomplete": "; breakdown incomplete",
+      "unattributedName": "Unattributed"
+    },
+    "events": {
+      "loading": "Loading event history…",
+      "loadingNext": "Loading next event page…",
+      "loadError": "Event history could not be loaded: {message}",
+      "summary": "Showing {count} events · {window}{eventType}{runId}",
+      "nextPage": "next page available",
+      "boundedPage": "bounded page",
+      "empty": "No matching events in this window.",
+      "meta": "{count} rows · {state}",
+      "runLabel": "Run:",
+      "toolLabel": "Tool:",
+      "durationLabel": "Duration:",
+      "runPrefix": "run"
+    },
+    "runs": {
+      "empty": "No persistent runs yet.",
+      "toolText": "no tools used",
+      "nextPage": "next page available",
+      "boundedPage": "bounded page",
+      "loadError": "Run history could not be loaded: {message}",
+      "meta": "{count} rows · {state}",
+      "toolsLabel": "Tools:",
+      "calls": "{count} calls",
+      "tokens": "{tokens} token"
+    },
+    "queue": {
+      "empty": "Queue is empty.",
+      "attempts": "{attempts}/{maxAttempts} attempts",
+      "goalChars": "{length} characters",
+      "error": "Could not queue: {message}"
+    },
+    "alerts": {
+      "empty": "No active alerts.",
+      "error": "Could not create alert rule: {message}"
+    },
+    "forms": {
+      "alertMetric": "Metric",
+      "createAlert": "Create alert",
+      "queue": "Queue"
+    },
+    "status": "Waiting for observability query.",
+    "notMeasured": "not measured",
+    "selectedWindow": "selected window",
+    "unknownError": "unknown error",
+    "costUnits": "{amount} units"
+  },
+  "graph": {
+    "description": "Inspect nodes and relations from the live graph-data surface.",
+    "relations": {
+      "title": "RELATIONS",
+      "count": "—"
+    },
+    "emptyInWorkspace": "No graph data in this workspace",
+    "nodeLabel": "Graph node",
+    "dataEmpty": "Graph data is empty.",
+    "isEmpty": "Graph is empty.",
+    "noRelations": "No relations yet.",
+    "dataState": "Graph data is {state}.",
+    "isState": "Graph is {state}.",
+    "relationsState": "Relations are {state}."
+  },
+  "conflicts": {
+    "eyebrow": "Graph Signals",
+    "title": "Conflict Detection",
+    "description": "Derive multi-type, negation, low-confidence, and stale signals from current graph data.",
+    "triage": {
+      "title": "TRIAGE SUMMARY",
+      "summary": "graph data pending",
+      "filterAria": "Filter signals by severity"
+    },
+    "signals": {
+      "title": "DETECTED SIGNALS",
+      "meta": "graph data pending",
+      "status": "Waiting for graph data.",
+      "filtersAria": "Conflict signal filters"
+    },
+    "severity": {
+      "label": "Severity",
+      "all": "All severities",
+      "high": "High priority",
+      "medium": "Needs review",
+      "low": "Informational"
+    },
+    "signalType": {
+      "label": "Signal type",
+      "all": "All signal types",
+      "multiType": "Conflicting types",
+      "negation": "Negation conflict",
+      "lowConfidence": "Low confidence",
+      "stale": "Stale evidence"
+    },
+    "clearFilters": "Clear filters",
+    "showMore": "Show more",
+    "showTop": "Show top 10",
+    "noSignals": "No conflict signals in current graph data.",
+    "noMatch": "No signals match the selected filters.",
+    "blankWorkspace": "No graph data in this workspace yet.",
+    "nothingToTriage": "No graph data in this workspace yet, so there is nothing to triage.",
+    "detail": {
+      "negation": "Negation and positive relation coexist."
+    },
+    "triageState": "Conflict triage is {state}.",
+    "noSignalsHint": "Signals appear here when the graph carries conflicting types, negations, low confidence, or stale evidence."
+  },
+  "integrations": {
+    "eyebrow": "Runtime",
+    "title": "Integration Surfaces",
+    "description": "HTTP surfaces actually reached by this Web UI, not a fabricated connector list."
+  },
+  "settings": {
+    "description": "The API key is stored only in this browser tab's sessionStorage.",
+    "workspace": {
+      "title": "WORKSPACE SESSION",
+      "subtitle": "browser-local",
+      "apiKeyLabel": "API Key",
+      "apiKeyPlaceholder": "HUQAN API key",
+      "workspaceLabel": "Workspace",
+      "saveBtn": "Save & Connect",
+      "clearBtn": "Clear Session"
+    },
+    "connected": "Connected.",
+    "connectionFailed": "Connection failed.",
+    "keyNotSet": "API key not set.",
+    "keyLoaded": "Session API key loaded.",
+    "connecting": "Connecting…",
+    "authDisabledNotice": "This server does not require an API key.",
+    "authenticatedSession": "authenticated session",
+    "authDisabled": "API auth disabled on this server",
+    "surfacesLocked": "API key required for one or more surfaces."
+  },
+  "footer": {
+    "status": "CHECKING · Checking surfaces — results have not come back yet.",
+    "lastSync": "Last sync: —",
+    "workspace": "Workspace: default",
+    "tagline": "HUQAN · Trust is verifiable.",
+    "workspaceNamed": "Workspace: {workspace}"
+  },
+  "common": {
+    "retry": "Retry",
+    "filter": "Filter",
+    "refresh": "Refresh"
+  },
+  "status": {
+    "checking": "CHECKING",
+    "offline": "OFFLINE",
+    "degraded": "DEGRADED",
+    "healthy": "HEALTHY",
+    "live": "LIVE",
+    "locked": "LOCKED",
+    "error": "ERROR",
+    "empty": "EMPTY",
+    "partial": "PARTIAL",
+    "unavailable": "UNAVAILABLE"
+  },
+  "emptyStates": {
+    "noGraphData": "No graph data",
+    "noToolCalls": "No tool calls yet"
+  },
+  "onboarding": {
+    "eyebrow": "First run",
+    "title": "Get to your first verified answer",
+    "description": "Three steps. Each completes when the action actually succeeds, not when you click it.",
+    "progress": "{done} of {total} done",
+    "reset": "Reset",
+    "skip": "Skip",
+    "reopen": "Show onboarding checklist",
+    "steps": {
+      "session": {
+        "title": "Connect your workspace session",
+        "hint": "Save the API key and workspace, then reach the runtime surfaces.",
+        "cta": "Open Settings"
+      },
+      "read": {
+        "title": "Run one read workflow",
+        "hint": "Verify a claim or ask a question and get a source-backed answer.",
+        "cta": "Open Verify"
+      },
+      "evidence": {
+        "title": "Open the evidence behind an answer",
+        "hint": "Look up the Trust Receipt that records how the answer was reached.",
+        "cta": "Open Evidence"
+      }
+    }
+  },
+  "viewer": {
+    "title": "HUQAN Receipt Terminal",
+    "eyebrow": "HUQAN / TRUST LAYER",
+    "lede": "Inspect one canonical trust receipt without exposing operator credentials.",
+    "access": {
+      "title": "Session access",
+      "apiKeyLabel": "Operator API key",
+      "workspaceLabel": "Workspace ID",
+      "workspaceHint": "optional, defaults to \"default\"",
+      "submitBtn": "Open session",
+      "logoutBtn": "Close session"
+    },
+    "lookup": {
+      "title": "Receipt lookup",
+      "receiptIdLabel": "Receipt ID",
+      "workspaceLabel": "Workspace ID",
+      "workspaceHint": "optional, must match the session's workspace",
+      "submitBtn": "Inspect evidence"
+    },
+    "result": {
+      "title": "Observed state",
+      "ready": "Ready for a bounded lookup."
+    },
+    "messages": {
+      "unauthorized": "Open a viewer session to inspect receipts.",
+      "invalidRequest": "Enter a valid receipt identifier.",
+      "notFound": "No receipt was found for this bounded lookup.",
+      "chainInvalid": "Receipt chain integrity failed. This receipt is not authoritative and its fields are withheld.",
+      "unverified": "This receipt carries no trust status. Its fields are shown as read; nothing here is a canonical observation.",
+      "readError": "The receipt could not be read safely.",
+      "found": "Canonical receipt observed.",
+      "sessionOpened": "Viewer session opened. Enter a receipt identifier."
+    },
+    "heading": {
+      "line1": "Receipt",
+      "line2": "Terminal"
+    }
+  },
+  "surfaces": {
+    "status": {
+      "label": "Runtime Status",
+      "reason": "Waiting for runtime status.",
+      "nextAction": "Refresh"
+    },
+    "workflows": {
+      "label": "Workflow Contract",
+      "reason": "Waiting for capability manifest.",
+      "nextAction": "Refresh"
+    },
+    "graph": {
+      "label": "Graph Data",
+      "reason": "Waiting for graph data.",
+      "nextAction": "Refresh"
+    },
+    "approvals": {
+      "label": "Approval Queue",
+      "reason": "Waiting for approval queue.",
+      "nextAction": "Refresh"
+    },
+    "activity": {
+      "label": "Agent Activity",
+      "reason": "Waiting for activity.",
+      "nextAction": "Refresh"
+    }
+  },
+  "observabilityStatus": {
+    "checking": "CHECKING - confirming observability is available for this workspace.",
+    "loading": "Loading observability…",
+    "ready": "Live and persistent observability ready.",
+    "error": "Observability could not be loaded: {message}",
+    "reconnect": "Reconnecting live stream in {delay} ms…",
+    "unavailable": {
+      "notConfigured": "NOT CONFIGURED · Observability authorization is unavailable. Set OBSERVABILITY_AUTHZ_POLICY on the server and reconnect.",
+      "workspaceForbidden": "UNAVAILABLE · This session has no observability membership for {workspace}. Ask an administrator for access.",
+      "authRequired": "UNAVAILABLE · Observability requires an authenticated session. Save an API key in Settings.",
+      "generic": "UNAVAILABLE · Observability could not be reached: {message}"
+    }
+  },
+  "locale": {
+    "selector": {
+      "tr": "Türkçe",
+      "en": "English"
+    },
+    "label": "Language"
+  },
+  "pwa": {
+    "install": "Install app",
+    "dismissed": "Installation was dismissed. Use the browser menu when you are ready.",
+    "incomplete": "Installation was not completed. Use the browser menu to try again.",
+    "unsupported": "Offline mode is unavailable in this browser session."
+  },
+  "navGroup": {
+    "start": "Start",
+    "work": "Work",
+    "monitor": "Monitor",
+    "system": "System"
+  },
+  "home": {
+    "eyebrow": "Local-first AI governance",
+    "title": "Verify what AI knows. Review what it changes.",
+    "description": "Run evidence-backed checks, approve guarded actions, and inspect the Trust Receipts that connect every decision.",
+    "actionsAria": "Primary actions",
+    "verify": "Verify a claim",
+    "review": "Review decisions",
+    "navLabel": "Home",
+    "claimsActions": "Claims & Actions",
+    "node": "HUQAN LOCAL"
+  },
+  "offline": {
+    "title": "Offline shell",
+    "body": "Navigation is available; live data and actions are unavailable until HUQAN reconnects."
+  },
+  "rail": {
+    "approvalQueue": "APPROVAL QUEUE",
+    "trustMatrix": "TRUST STATUS MATRIX",
+    "thisSession": "this session",
+    "surfacesOnline": "surfaces online",
+    "recentReceipts": "RECENT TRUST RECEIPTS",
+    "noReceipts": "No receipts yet."
+  },
+  "pulse": {
+    "pageEvents": "page events",
+    "actors": "actors",
+    "receipts": "receipts",
+    "loading": "Loading activity.",
+    "meta": "workspace scoped · waiting",
+    "open": "Open Activity",
+    "locked": "Activity access is locked. Add an API key in Settings.",
+    "error": "Activity could not be loaded. Try again.",
+    "empty": "No agent actions in this workspace yet."
+  },
+  "workflows": {
+    "learnReview": "Learn (review required)",
+    "ingestPreview": "Ingest Preview",
+    "ingestExecute": "Ingest Execute",
+    "sourceType": "Source type",
+    "sourceRef": "Source reference",
+    "sourceTitle": "Source title",
+    "ingestSource": "Ingest source",
+    "manualNote": "Manual note",
+    "decisionRecord": "Decision record",
+    "decisionTitle": "Decision title",
+    "recordedBy": "Recorded by"
+  },
+  "obs": {
+    "toolUsageEmpty": "Waiting for tool usage.",
+    "runHistory": "RUN HISTORY",
+    "firstPage": "workspace-scoped · first page",
+    "next": "Next",
+    "noRuns": "No runs loaded yet.",
+    "liveStream": "LIVE EVENT STREAM",
+    "sse": "SSE · redacted payload",
+    "waitingEvents": "Waiting for live events.",
+    "queue": "AGENT QUEUE",
+    "lease": "worker lease status",
+    "goal": "Goal",
+    "maxSteps": "Max steps",
+    "queueEmpty": "Queue not loaded.",
+    "alertRule": "ALERT RULE",
+    "thresholdCooldown": "threshold + cooldown",
+    "name": "Name",
+    "operatorThreshold": "Operator / threshold",
+    "windowMs": "Window (ms)",
+    "alertsEmpty": "Alerts not loaded.",
+    "eventHistory": "EVENT HISTORY",
+    "event": "Event",
+    "allEvents": "All events",
+    "runId": "Run ID",
+    "waitingHistory": "Waiting for event history query.",
+    "noHistory": "No event history loaded yet."
+  },
+  "activity": {
+    "eyebrow": "Audit Trail",
+    "title": "Agent Activity & Trust Receipts",
+    "description": "Monitor agent actions within the workspace using bounded audit pages and linked Trust Receipts.",
+    "timeline": "AGENT ACTION TIMELINE",
+    "meta": "read-only · waiting",
+    "actor": "Actor",
+    "waiting": "Waiting for activity query.",
+    "empty": "No activity loaded yet.",
+    "detail": "ACTIVITY DETAIL",
+    "noRow": "No row selected",
+    "selectRow": "Select an activity row.",
+    "loading": "Loading activity…",
+    "updated": "Activity updated.",
+    "noneForFilters": "No activity found for these filters.",
+    "auditOnly": "audit only",
+    "receiptLinked": "receipt linked",
+    "rows": {
+      "event": "Event",
+      "action": "Action",
+      "actor": "Actor",
+      "target": "Target",
+      "timestamp": "Timestamp",
+      "source": "Source",
+      "provenance": "Provenance",
+      "receipt": "Receipt",
+      "decision": "Decision",
+      "destination": "Page",
+      "browserTool": "Browser operation",
+      "reportedOutcome": "Reported outcome",
+      "browserSession": "Browser session",
+      "browserEvent": "Browser event",
+      "networkMethod": "Network method",
+      "networkStatus": "Network status",
+      "consoleType": "Console type",
+      "boundOutcome": "Bound outcome"
+    },
+    "externalAdmission": "Agent operation admitted",
+    "externalOutcome": "Agent operation result",
+    "externalRejection": "Agent operation blocked",
+    "externalReview": "Agent operation awaiting review",
+    "browserSessionEvent": "Browser session event",
+    "observationOnly": "observation-only",
+    "observed": "OBSERVED"
+  },
+  "ingestRun": {
+    "eyebrow": "Ingest",
+    "title": "Ingest Run Detail",
+    "description": "Read a workspace-scoped ingest run, its progress, recovery guidance, and final Trust Receipt.",
+    "lookup": "RUN LOOKUP",
+    "load": "Load run",
+    "waiting": "Waiting for a run ID.",
+    "projection": "RUN PROJECTION",
+    "query": "Query an ingest run.",
+    "nav": {
+      "label": "Ingest Runs",
+      "desc": "Progress & Receipts"
+    },
+    "enterId": "Enter a run ID.",
+    "loading": "Loading ingest run…",
+    "viewRun": "View ingest run",
+    "rows": {
+      "status": "Status",
+      "phase": "Phase",
+      "runId": "Run ID",
+      "approval": "Approval",
+      "workspace": "Workspace",
+      "source": "Source",
+      "digest": "Digest",
+      "idempotencyKey": "Idempotency key",
+      "progress": "Progress",
+      "nextAction": "Next action",
+      "retry": "Retry",
+      "resume": "Resume",
+      "receipt": "Receipt",
+      "evidence": "Evidence"
+    },
+    "values": {
+      "unknown": "unknown",
+      "none": "none",
+      "allowed": "allowed",
+      "notAllowed": "not allowed",
+      "notEmitted": "not emitted",
+      "phaseUnknown": "phase unknown"
+    }
+  },
+  "placeholders": {
+    "goal": "Goal for the agent to execute safely",
+    "alertName": "High latency",
+    "sourceTitle": "Human-readable source title",
+    "sourceRef": "URL, document id, or local reference",
+    "decisionTitle": "What was decided",
+    "recordedBy": "Who is recording this",
+    "actor": "agent or actor",
+    "approvalRunId": "approval/run ID",
+    "sourceType": "manual, document, conversation…",
+    "runId": "run ID"
+  },
+  "aria": {
+    "primaryNav": "Primary navigation",
+    "secureChannel": "Secure channel not connected",
+    "toolUsage": "Tool usage distribution"
+  },
+  "runtime": {
+    "notChecked": "not checked",
+    "reason": {
+      "locked": "API key required to read this surface.",
+      "error": "The surface could not be loaded.",
+      "graphEmpty": "The graph endpoint returned no nodes or relations.",
+      "empty": "No records are available in this workspace.",
+      "checking": "Waiting for the first response.",
+      "ok": "Response received from the runtime surface."
+    },
+    "health": {
+      "locked": "Some surfaces are locked — an API key is required.",
+      "error": "At least one surface failed to load.",
+      "offline": "No surfaces responded.",
+      "checking": "Checking surfaces — results have not come back yet.",
+      "partial": "Some surfaces are not live yet.",
+      "ok": "All surfaces are live."
+    },
+    "next": {
+      "locked": "Open Settings and add your API key.",
+      "error": "Retry the failed surfaces.",
+      "offline": "Retry all surfaces.",
+      "checking": "Wait a moment, then refresh.",
+      "partial": "Open Surfaces to review each one.",
+      "ok": "Refresh anytime.",
+      "wait": "Wait"
+    },
+    "openSurfaces": "Open Surfaces",
+    "surfaceDesc": {
+      "status": "Reads kernel, version, and runtime status.",
+      "workflows": "UI workflow capability manifest and route contract.",
+      "graph": "Workspace-scoped graph node/relation surface.",
+      "approvals": "Authenticated human-review ingest queue.",
+      "activity": "Workspace-scoped bounded agent activity read surface."
+    },
+    "field": {
+      "status": "Status:",
+      "reason": "Reason:",
+      "lastChecked": "Last checked:",
+      "next": "Next:"
+    },
+    "fetched": {
+      "status": "Runtime status fetched.",
+      "manifest": "Capability manifest fetched.",
+      "graph": "Graph data fetched for this workspace.",
+      "approvals": "Approval queue fetched for this workspace.",
+      "activity": "Activity fetched for this workspace."
+    },
+    "failed": {
+      "status": "Runtime status request failed.",
+      "manifest": "Capability manifest request failed.",
+      "graphHttp": "Graph request failed with HTTP {status}.",
+      "graphNoResponse": "Graph request failed before a response was received.",
+      "approvalsHttp": "Approval request failed with HTTP {status}.",
+      "approvalsNoResponse": "Approval request failed before a response was received.",
+      "activityHttp": "Activity request failed with HTTP {status}.",
+      "activityDetail": "Activity request failed: {message}"
+    },
+    "locked": {
+      "graph": "API key required to read graph data.",
+      "approvals": "API key required to read pending approvals.",
+      "activity": "API key required to read activity."
+    },
+    "empty": {
+      "approvals": "No pending approvals exist in this workspace.",
+      "activity": "No activity exists in this workspace."
+    },
+    "loading": {
+      "activity": "Loading activity."
+    }
+  },
+  "learnReview": {
+    "promptLabel": "Fact to propose",
+    "promptPlaceholder": "Describe the fact to send for human review…",
+    "submit": "Send for human review",
+    "enterFact": "Enter a fact to propose first.",
+    "pending": "Pending human approval",
+    "notCanonical": "not canonical until a human approves"
+  },
+  "webResearch": {
+    "title": "Web Research",
+    "provider": "Search provider",
+    "keyHelp": "Configure the selected provider API key on the server. Free allowances vary by provider and operation.",
+    "search": "Search the web",
+    "searching": "Researching…",
+    "external": "External sources; not yet verified. Nothing was saved to memory.",
+    "empty": "No results found.",
+    "prepare": "Prepare for learning review",
+    "prompt": "Research question",
+    "failed": "Research could not be completed.",
+    "missingKey": "The selected provider API key is not configured on the server.",
+    "prepared": "Source prepared. Review the information before submitting for human approval.",
+    "limit": "Results",
+    "snippetLength": "Snippet length",
+    "summarize": "Summarize with HUQAN",
+    "costNote": "Note: more results and longer snippets cost more and take longer.",
+    "summaryTitle": "HUQAN summary (unverified)",
+    "summaryUnavailable": "Summary unavailable; showing sources only.",
+    "evidenceLadder": "Evidence ladder",
+    "evidence": {
+      "external_research": "External research",
+      "review_candidate": "Review candidate",
+      "canonical_evidence": "Canonical evidence",
+      "verified_claim": "Verified claim"
+    },
+    "openCandidates": "Open pending research candidates",
+    "candidateNote": "External results stay unverified and require human review; research never writes canonical memory.",
+    "externalCandidates": "External sources remain unverified. Pending review candidates were opened; canonical memory was not changed.",
+    "candidatesOpened": "Pending research candidates opened",
+    "contradictionsFound": "contradictions found"
+  }
+}

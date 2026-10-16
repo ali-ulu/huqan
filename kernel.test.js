@@ -1,21 +1,28 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
+const { isolatedKernelOptions } = require('./test/helpers/isolated-persistence');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 // Test için temiz kernel — memory.json yüklemez
 function freshKernel(opts = {}) {
-  const kernel = new Kernel({ noLoad: true, ...opts });
+  const kernel = new Kernel(isolatedKernelOptions('kernel', opts));
   const learn = kernel.learn.bind(kernel);
   kernel.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
   return kernel;
 }
 
 describe('Kernel - Öğrenme', () => {
+  it('restriction words match exact Turkish forms without wildcard false positives', () => {
+    const k = freshKernel();
+
+    assert.strictEqual(k._parsePredicate('yalnızca süt içer').kistlama, true);
+    assert.strictEqual(k._parsePredicate('sırf süt içer').kistlama, true);
+    assert.strictEqual(k._parsePredicate('yalnXzca süt içer').kistlama, undefined);
+    assert.strictEqual(k._parsePredicate('sXrf süt içer').kistlama, undefined);
+  });
+
   it('learn: basit cümleyi parse edip grafiğe ekler', () => {
     const k = freshKernel();
     k.learn('Köpek hayvandır');
@@ -93,11 +100,26 @@ describe('Kernel - Çıkarım', () => {
     assert.ok(cevap.includes('hayvan'));
   });
 
+  it('ask: bir afterAsk plugin\'inin cevabı yerinde değiştirmesi asıl yanıta yansır', () => {
+    const k = freshKernel();
+    k.learn('Köpek hayvandır');
+    k.plugins.register({
+      name: 'redactor-test',
+      requires: [],
+      optional: [],
+      afterAsk(_kernel, data) {
+        data.answer = 'REDACTED';
+      },
+    });
+    const cevap = k.ask('Köpek nedir').data.answer;
+    assert.strictEqual(cevap, 'REDACTED');
+  });
+
   it('verify: explicit negation conflicts with known fact', () => {
     const k = freshKernel();
     k.learn('Kedi hayvandır');
     const result = k.verify('Kedi hayvan değildir');
-    assert.strictEqual(result.data.status, 'celiski');
+    assert.strictEqual(result.data.status, 'contradicted');
     assert.ok(result.evidence.length > 0);
   });
 
@@ -106,9 +128,9 @@ describe('Kernel - Çıkarım', () => {
     const trueComparison = k.verify('9 != 8');
     const falseComparison = k.verify('9 = 8');
 
-    assert.strictEqual(trueComparison.data.status, 'dogrulandi');
+    assert.strictEqual(trueComparison.data.status, 'verified');
     assert.ok(trueComparison.evidence.length > 0);
-    assert.strictEqual(falseComparison.data.status, 'celiski');
+    assert.strictEqual(falseComparison.data.status, 'contradicted');
     assert.ok(falseComparison.evidence.length > 0);
   });
 
@@ -183,14 +205,27 @@ describe('Kernel - Çelişki Tespiti', () => {
   it('detectContradictions: çoklu-tür çelişkisini bulur', () => {
     const k = freshKernel();
     k.graph.addNode('a', 'a');
-    k.graph.addNode('b', 'b');
-    k.graph.addNode('c', 'c');
-    k.graph.addEdge('a', 'b', 'tür');
-    k.graph.addEdge('a', 'c', 'tür');
+    k.graph.addNode('hayvan', 'hayvan');
+    k.graph.addNode('bitki', 'bitki');
+    k.graph.addEdge('a', 'hayvan', 'tür');
+    k.graph.addEdge('a', 'bitki', 'tür');
     const cons = k.detectContradictions();
     const multiType = cons.find(c => c.type === 'çoklu-tür');
     assert.ok(multiType);
     assert.strictEqual(multiType.node, 'a');
+  });
+
+  it('learn: uyumlu çoklu türler alternatif çatışmasına dönüşmez', () => {
+    const k = freshKernel();
+    k.learn('Kedi hayvandır');
+    k.learn('Kedi memelidir');
+
+    const edges = k.graph.getEdges('kedi');
+    assert.ok(edges.some(e => e.relation === 'tür' && e.to === 'hayvan'));
+    assert.ok(edges.some(e => e.relation === 'tür' && e.to === 'memeli'));
+    assert.equal(edges.some(e => e.relation === 'benzer' && e.to === 'memeli'), false);
+    assert.equal(k.detectContradictions().length, 0);
+    assert.equal(k.verify('Kedi memelidir').data.status, 'verified');
   });
 
   it('detectContradictions: döngü çelişkisini bulur', () => {
@@ -276,7 +311,7 @@ describe('Kernel - Core API Contract', () => {
     assert.throws(() => k._validateResult({ ok: 'yes', evidence: [] }), /ok must be boolean/);
     assert.throws(() => k._validateResult({ ok: true, evidence: null }), /evidence must be array/);
     assert.throws(() => k._validateResult({ ok: true, type: 'verify', data: { status: 'bad', confidence: 0 }, evidence: [] }), /Invalid verify status/);
-    assert.throws(() => k._validateResult({ ok: true, type: 'verify', data: { status: 'dogrulandi', confidence: 2 }, evidence: [] }), /Invalid confidence/);
+    assert.throws(() => k._validateResult({ ok: true, type: 'verify', data: { status: 'verified', confidence: 2 }, evidence: [] }), /Invalid confidence/);
   });
 
   it('normalizes Istanbul dotted and dotless variants to one node', () => {
@@ -305,6 +340,10 @@ describe('Kernel - Core API Contract', () => {
   it('paranoidMode blocks learnFromLLM with a typed error', () => {
     const k = freshKernel({ paranoidMode: true });
     const result = k.learnFromLLM('kedi hayvandir');
+    assert.strictEqual(
+      result.error.message,
+      'Paranoid mode is active: outbound LLM calls and automatic learning are blocked.',
+    );
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error.code, Kernel.AXIOM_ERROR.LLM_DISABLED);
     assert.strictEqual(result.learned, 0);
@@ -347,11 +386,27 @@ describe('Kernel - Capability System', () => {
 });
 
 describe('Kernel - Dream hypothesis regressions', () => {
+  it('auto-think reports the exact UTF-8 connection summary', () => {
+    const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    const logs = [];
+    kernel.graph.addNode('kaynak', 'kaynak', null, { workspaceId: 'default' });
+    kernel.graph.addNode('hedef', 'hedef', null, { workspaceId: 'default' });
+    kernel._dreamer = {
+      dream: () => [{ from: 'kaynak', to: 'hedef', type: 'benzerlik', confidence: 0.9 }],
+    };
+    kernel._commitBackgroundEdge = () => ({ decision: 'allow', edge: {} });
+    kernel._autoThinkLog = message => logs.push(message);
+
+    kernel._autoThinkTick();
+
+    assert.deepStrictEqual(logs, ['1 new connections - 2 nodes total']);
+  });
+
   it('selfEvolve maps vektör-benzerlik to benzer without a relation field', () => {
     const kernel = freshKernel({ useSQLite: false, loadPlugins: false });
     const Dream = require('./dream');
     const originalDream = Dream.prototype.dream;
-    const originalCommit = kernel._commitBackgroundEdge;
+    const originalCommit = kernel.commitBackgroundEdge;
     const proposedRelations = [];
 
     Dream.prototype.dream = function () {
@@ -362,7 +417,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
         confidence: 0.9,
       }];
     };
-    kernel._commitBackgroundEdge = function (from, to, relation) {
+    kernel.commitBackgroundEdge = function (from, to, relation) {
       proposedRelations.push({ from, to, relation });
       return { decision: 'review', edge: null };
     };
@@ -378,7 +433,7 @@ describe('Kernel - Dream hypothesis regressions', () => {
       assert.strictEqual(result.deferredDetails[0].relation, 'benzer');
     } finally {
       Dream.prototype.dream = originalDream;
-      kernel._commitBackgroundEdge = originalCommit;
+      kernel.commitBackgroundEdge = originalCommit;
     }
   });
 
@@ -391,5 +446,178 @@ describe('Kernel - Dream hypothesis regressions', () => {
     assert.strictEqual(result.ok, true);
     assert.deepStrictEqual(result.data.ozBilgi.rüya, { var: true, kenar: 0 });
     assert.strictEqual(Object.hasOwn(result.data.ozBilgi, 'r?ya'), false);
+  });
+
+  it('introspect returns exact UTF-8 weak and strong point strings', () => {
+    const isolatedKernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    isolatedKernel.graph.addNode('yalnız', 'yalnız', null, { workspaceId: 'default' });
+    const isolated = isolatedKernel.introspect();
+    assert.ok(isolated.data.zayifNoktalar.includes('1 isolated nodes'));
+
+    const connectedKernel = freshKernel({ useSQLite: false, loadPlugins: false });
+    for (let index = 0; index < 7; index++) {
+      connectedKernel.graph.addNode(`n${index}`, `n${index}`, null, { workspaceId: 'default' });
+    }
+    for (let index = 1; index < 7; index++) {
+      connectedKernel.graph.addEdge('n0', `n${index}`, 'benzer', { workspaceId: 'default' });
+    }
+    const connected = connectedKernel.introspect();
+    assert.ok(connected.data.gucluNoktalar.includes('an active similarity network'));
+  });
+});
+
+describe('Kernel - admission bypass unforgeability (#357)', () => {
+  // The admission bypass used to be gated on two plain, string-keyed opts
+  // fields (`admissionRequired === false` + a non-empty
+  // `admissionBypassReason`). Any caller of the public learn() method --
+  // including code that spreads decoded, untrusted JSON straight into opts
+  // -- could produce that exact shape and walk past the memory-admission
+  // gate entirely. It is now gated on a module-private Symbol that only
+  // kernel.js can mint, exposed exclusively through
+  // Kernel.createAdmissionBypassOpts(reason).
+
+  it('the exact pre-fix literal shape no longer bypasses admission', () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const result = kernel.learn('kopek hayvandir', {
+      workspaceId: 'default',
+      admissionRequired: false,
+      admissionBypassReason: 'anything, even a very convincing reason',
+    });
+
+    assert.strictEqual(result.data.learned, 0);
+    assert.strictEqual(result.data.admission.outcome, 'review');
+    assert.deepStrictEqual(Object.keys(kernel.graph.getNodes('default')), []);
+  });
+
+  it('an object claiming a different Symbol under the same key name does not bypass', () => {
+    // Guards against a caller trying to defeat the check by shipping its own
+    // Symbol('...') with a similar description string. Symbol identity, not
+    // description text, is what the check requires.
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const forgedToken = Symbol('huqan-kernel-internal-admission-bypass');
+    const result = kernel.learn('kus ucmaz', {
+      workspaceId: 'default',
+      [forgedToken]: true,
+      admissionBypassReason: 'forged',
+    });
+
+    assert.strictEqual(result.data.learned, 0);
+    assert.strictEqual(result.data.admission.outcome, 'review');
+  });
+
+  it('surviving a JSON round-trip strips the bypass authority', () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const genuine = Kernel.createAdmissionBypassOpts('genuinely internal');
+    const overWire = JSON.parse(JSON.stringify({ workspaceId: 'default', ...genuine }));
+
+    const result = kernel.learn('balik yuzer', overWire);
+
+    assert.strictEqual(result.data.learned, 0);
+    assert.strictEqual(result.data.admission.outcome, 'review');
+  });
+
+  it('Object.assign/spread of a genuine bypass object still bypasses (own callers keep working)', () => {
+    const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+    const genuine = Kernel.createAdmissionBypassOpts('legit internal caller');
+    const result = kernel.learn('deniz mavidir', { workspaceId: 'default', ...genuine });
+
+    assert.strictEqual(result.ok, true);
+    assert.ok(result.data.learned > 0);
+    assert.strictEqual(result.data.admission, null);
+  });
+
+  it('createAdmissionBypassOpts requires a non-empty string reason', () => {
+    assert.throws(() => Kernel.createAdmissionBypassOpts(), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts(''), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts('   '), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts(42), TypeError);
+    assert.throws(() => Kernel.createAdmissionBypassOpts(null), TypeError);
+  });
+
+  it('reasonSandbox (the one legitimate internal-bootstrap bypass) still works', async () => {
+    const kernel = new Kernel(isolatedKernelOptions('kernel', { noLoad: true, useSQLite: false, loadPlugins: false }));
+    const { backend, answers } = await kernel.reasonSandbox({
+      learn: ['kedi hayvandir'],
+      ask: ['kedi nedir'],
+    });
+    assert.ok(['rust', 'js'].includes(backend));
+    assert.strictEqual(answers.length, 1);
+    // The sandbox graph is ephemeral and never touches kernel.graph, so this
+    // only proves the bypass still functions for its one legitimate
+    // caller -- not that anything was written to the canonical graph.
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #368: the async wrappers are not the "concurrency-safe" variants
+// ---------------------------------------------------------------------------
+// learnAsync()/verifyAsync() were documented as adding a lock the synchronous
+// forms lacked. They never did -- learn() and verify() enter the critical
+// section themselves, and the wrappers just delegate. These tests pin the
+// real contract so the comments cannot drift back into the old claim.
+describe('Kernel - concurrency contract (#368)', () => {
+  it('learn() is guarded on its own, not only via learnAsync()', () => {
+    const kernel = freshKernel();
+    kernel._lockAcquired = true;
+    assert.throws(
+      () => kernel.learn('Kedi hayvandır'),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+  });
+
+  it('learnAsync() offers exactly the same guard, no stronger', async () => {
+    const kernel = freshKernel();
+    kernel._lockAcquired = true;
+    await assert.rejects(
+      () => kernel.learnAsync('Kedi hayvandır', TEST_FIXTURE_LEARN_BYPASS),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+  });
+
+  it('verify() and verifyAsync() are likewise equally guarded', async () => {
+    const kernel = freshKernel();
+    kernel._lockAcquired = true;
+    assert.throws(
+      () => kernel.verify('Kedi hayvandır'),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+    await assert.rejects(
+      () => kernel.verifyAsync('Kedi hayvandır'),
+      (err) => err.code === 'LOCK_BUSY'
+    );
+  });
+
+  it('the busy-wait lock helpers #368 called dead are in fact gone', () => {
+    const kernel = freshKernel();
+    for (const symbol of ['_acquireLock', '_lockQueue', '_lockTimeoutMs']) {
+      assert.equal(
+        kernel[symbol],
+        undefined,
+        `${symbol} was removed as dead code; reintroducing it means there are two lock mechanisms again`
+      );
+    }
+  });
+});
+
+describe('Kernel - Türkçe durum ekli ask özneleri (#1206)', () => {
+  it('resolves case-marked subjects instead of returning Bilmiyorum', () => {
+    const k = freshKernel({ useSQLite: false });
+    k.learn('kedi hayvandır');
+
+    const questions = [
+      'kedinin özelliği nedir',
+      'kediyi anlat',
+      'kediye ne olur',
+      'kedide ne var',
+      'kediden ne çıkar',
+    ];
+
+    for (const question of questions) {
+      const result = k.ask(question);
+      assert.equal(result.ok, true, question);
+      assert.equal(result.data.subject, 'kedi', question);
+      assert.equal(result.data.unknown, false, question);
+      assert.match(result.data.answer, /hayvan/, question);
+    }
   });
 });

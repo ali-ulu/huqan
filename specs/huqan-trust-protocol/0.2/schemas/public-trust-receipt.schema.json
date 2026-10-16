@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huqan.dev/specs/huqan-trust-protocol/0.2/schemas/public-trust-receipt.schema.json",
+  "title": "V5-C4 Public-Safe Trust Receipt",
+  "description": "A shareable summary of an internal trust receipt. It is a DISTINCT artifact that references an internal receipt by hash, not a redacted copy of one: canonical receipt content including metadata participates in the internal hash semantics, so a subset of an internal receipt would fail internal chain validation. Construction is governed by public-receipt-redaction-policy.json.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "publicReceiptId",
+    "issuedAt",
+    "disclosure",
+    "binding",
+    "integrity"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "v5-public-trust-receipt-v1",
+      "description": "Deliberately distinct from v4-receipt-v1/v2 so a public receipt can never be validated as an internal one, or the reverse."
+    },
+    "publicReceiptId": {
+      "$ref": "#/$defs/sha256Hex",
+      "description": "sha256Hex of the internal receiptId. Stable and therefore correlatable across disclosures; see receiptIdDecision in the redaction policy. This format does not offer unlinkability."
+    },
+    "issuedAt": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "disclosure": {
+      "type": "object",
+      "description": "The allowlisted fields. These carry decision shape rather than content. Any field not listed here is withheld by construction, so an internal field added later cannot leak by default.",
+      "required": [
+        "receiptKind",
+        "decision",
+        "verdict",
+        "status",
+        "riskScore",
+        "trustPolicyVersion",
+        "createdAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "receiptKind": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "decision": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "review",
+            "block",
+            "dry_run_only",
+            "quarantine",
+            "disabled"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "riskScore": {
+          "type": "number"
+        },
+        "trustPolicyVersion": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "createdAt": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "description": "Hashes binding this summary to an internal receipt. The receipt CLAIMS this correspondence; a hash carried inside the public artifact does not by itself prove the internal receipt exists. It becomes independently verifiable only when compared against a receipt or bundle hash the recipient obtained separately.",
+      "required": [
+        "internalReceiptHash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "internalReceiptHash": {
+          "$ref": "#/$defs/sha256Hex"
+        },
+        "bundleHash": {
+          "$ref": "#/$defs/sha256Hex",
+          "description": "bundleHash of a receipt bundle containing the internal receipt, when the discloser has one."
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "description": "Self-consistency and authorship for this document. The checksum is keyless: it detects corruption and accidental modification, but anyone who edits the document can recompute it. A D3 Ed25519 signature authenticates the explicit domain-separated projection defined by the runtime; verified exchange additionally requires an independently supplied internal receipt or bundle hash.",
+      "required": [
+        "checksumAlgorithm",
+        "checksum",
+        "signed",
+        "signature"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "checksumAlgorithm": {
+          "type": "string",
+          "const": "sha256-canonical-json-v1"
+        },
+        "checksum": {
+          "$ref": "#/$defs/sha256Hex",
+          "description": "sha256Hex over this document with integrity.checksum removed, serialized by the canonicalJson rule in specs/huqan-trust-protocol/0.2/RECEIPT-BUNDLE.md. That rule is reused, never redefined. Keyless: detects corruption and self-inconsistency, not a capable editor."
+        },
+        "signed": {
+          "type": "boolean",
+          "description": "Structural, not inferred from absence, and coupled to signature by the oneOf below: signed false requires signature null, signed true requires an ed25519-v1 signature object. Neither combination can be expressed accidentally."
+        },
+        "signature": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "profileId",
+                "keyId",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "profileId": {
+                  "type": "string",
+                  "const": "ed25519-v1"
+                },
+                "keyId": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "value": {
+                  "$ref": "#/$defs/ed25519Signature"
+                }
+              }
+            }
+          ],
+          "description": "Null when signed is false. D3 export emits a real Ed25519 signature; the signature covers a domain-separated canonical projection that excludes checksum and signature value but includes the signature profile and keyId. Unsigned C4 artifacts remain schema-valid but are not accepted as verified D3 exchange artifacts."
+        }
+      },
+      "oneOf": [
+        {
+          "title": "unsigned",
+          "properties": {
+            "signed": {
+              "const": false
+            },
+            "signature": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "signed",
+            "signature"
+          ]
+        },
+        {
+          "title": "signed",
+          "properties": {
+            "signed": {
+              "const": true
+            },
+            "signature": {
+              "type": "object",
+              "required": [
+                "profileId",
+                "keyId",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "profileId": {
+                  "type": "string",
+                  "const": "ed25519-v1"
+                },
+                "keyId": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "value": {
+                  "$ref": "#/$defs/ed25519Signature"
+                }
+              }
+            }
+          },
+          "required": [
+            "signed",
+            "signature"
+          ]
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ed25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$",
+      "description": "Canonical unpadded base64url encoding of exactly 64 Ed25519 signature bytes."
+    }
+  }
+}

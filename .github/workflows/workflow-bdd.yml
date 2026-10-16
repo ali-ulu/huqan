@@ -1,0 +1,42 @@
+name: Workflow BDD Contract
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-bdd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: true
+  NPM_CONFIG_AUDIT: false
+  NPM_CONFIG_FUND: false
+
+jobs:
+  bdd-contract:
+    name: Validate BDD/Gherkin contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate workflow feature files
+        run: python3 scripts/validate_workflow_gherkin.py
+
+      - name: Report BDD scenario inventory
+        run: |
+          echo "Feature files:"
+          find test/bdd/workflows -maxdepth 1 -type f -name '*.feature' -print | sort
+          echo "Scenario count:"
+          grep -Rho '^  Scenario\( Outline\)\?:' test/bdd/workflows/*.feature | wc -l
+          echo "Acceptance-tag count:"
+          grep -Rho '@ac-[0-9-]*' test/bdd/workflows/*.feature | sort -u | wc -l

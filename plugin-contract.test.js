@@ -24,7 +24,14 @@ test('plugin contract: optional capability missing logs warning but plugin loads
   }
 
   assert.equal(k.plugins.plugins.some(p => p.name === 'optional-check'), true);
-  assert.equal(warnings.some(line => line.includes('optional capability disabled: llm')), true);
+  // #1694: the notice is recorded for `huqan status`, not written to the
+  // console -- five of these on every command made a correct default
+  // configuration look like a broken install.
+  assert.equal(warnings.length, 0, 'capability notices must not be printed');
+  assert.deepEqual(
+    k.plugins.capabilitySummary().degraded,
+    [{ plugin: 'optional-check', capability: 'llm' }],
+  );
 });
 
 test('plugin contract: kernel.runCapability requires pluginCapabilities gate', async () => {

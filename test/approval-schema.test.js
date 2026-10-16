@@ -76,7 +76,8 @@ describe('approval-schema', () => {
     assert.strictEqual(built.request.status, 'pending');
     assert.strictEqual(built.request.requestedVerdict, 'review');
     assert.strictEqual(built.request.riskScore, 0);
-    assert.match(built.request.approvalId, /^apr_[a-f0-9]{16}$/);
+    // 32 hex chars (128-bit, sha256-derived) instead of 16 (64-bit, sha1-derived) — #385
+    assert.match(built.request.approvalId, /^apr_[a-f0-9]{32}$/);
     assert.ok(Date.parse(built.request.createdAt));
     assert.deepStrictEqual(built.request.metadata, {});
   });

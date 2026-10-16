@@ -1,0 +1,232 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const selfHealerAudit = require('./self-healer-audit');
+const {
+  ensureAuditState,
+  unclassifiedModuleFinding,
+  runBehavioralObservation,
+  runReachabilityAudit,
+} = selfHealerAudit._test;
+
+function fakeKernel() { return {}; }
+
+test('self-healer-audit: unclassifiedModuleFinding produces a schema-valid finding', () => {
+  const { validateFinding, normalizeFinding } = require('../lib/self-healer/finding-schema');
+  const raw = unclassifiedModuleFinding('lib/some-orphan.js', 'default');
+  const normalized = normalizeFinding(raw, { workspaceId: 'default' });
+  const validation = validateFinding(normalized);
+  assert.equal(validation.ok, true, `expected a valid finding, got errors: ${JSON.stringify(validation.errors)}`);
+  assert.equal(normalized.kind, 'release_hygiene');
+  assert.deepEqual(normalized.affectedFiles, ['lib/some-orphan.js']);
+});
+
+test('self-healer-audit: runReachabilityAudit against a fixture repo with one orphan module produces one proposal', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'cli.js'), "require('./used');\n");
+    fs.writeFileSync(path.join(dir, 'used.js'), 'module.exports = {};\n');
+    fs.writeFileSync(path.join(dir, 'orphan.js'), 'module.exports = {};\n');
+    const result = runReachabilityAudit(fakeKernel(), { root: dir, workspaceId: 'default' });
+    assert.equal(result.ok, true);
+    assert.equal(result.unacknowledgedCount, 1);
+    assert.equal(result.findingCount, 1);
+    assert.equal(result.applied, false);
+    assert.equal(result.proposals.length, 1);
+    assert.equal(result.proposals[0].applied, false);
+    assert.ok(result.proposals[0].receiptSummary);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: a fixture repo with no orphans produces zero findings and zero proposals', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-clean-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'cli.js'), "require('./used');\n");
+    fs.writeFileSync(path.join(dir, 'used.js'), 'module.exports = {};\n');
+    const result = runReachabilityAudit(fakeKernel(), { root: dir, workspaceId: 'default' });
+    assert.equal(result.unacknowledgedCount, 0);
+    assert.equal(result.proposals.length, 0);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: never applies anything, regardless of finding count', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-noapply-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'cli.js'), 'module.exports = {};\n');
+    for (let i = 0; i < 5; i += 1) fs.writeFileSync(path.join(dir, `orphan${i}.js`), 'module.exports = {};\n');
+    const result = runReachabilityAudit(fakeKernel(), { root: dir, workspaceId: 'default' });
+    assert.equal(result.applied, false);
+    for (const proposal of result.proposals) assert.equal(proposal.applied, false);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: AB10 budget accumulates across calls and eventually blocks', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-budget-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'cli.js'), 'module.exports = {};\n');
+    fs.writeFileSync(path.join(dir, 'orphan.js'), 'module.exports = {};\n');
+    const kernel = fakeKernel();
+    const opts = { root: dir, workspaceId: 'default', maxIterationsPerWindow: 2 };
+    assert.equal(runReachabilityAudit(kernel, opts).blockedByBudget, false);
+    assert.equal(runReachabilityAudit(kernel, opts).blockedByBudget, false);
+    assert.equal(runReachabilityAudit(kernel, opts).blockedByBudget, true);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: run() scan action end to end', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-run-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'cli.js'), 'module.exports = {};\n');
+    fs.writeFileSync(path.join(dir, 'orphan.js'), 'module.exports = {};\n');
+    const result = selfHealerAudit.run(fakeKernel(), { action: 'scan', root: dir });
+    assert.equal(result.ok, true);
+    assert.equal(result.unacknowledgedCount, 1);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: simulate routes a Dream candidate through approval and receipt without apply', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-selfheal-sim-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'entry.js'), "module.exports = require('./middle');\n");
+    fs.writeFileSync(path.join(dir, 'middle.js'), "module.exports = require('./leaf');\n");
+    fs.writeFileSync(path.join(dir, 'leaf.js'), 'module.exports = 1;\n');
+    const result = await selfHealerAudit.run(fakeKernel(), { action: 'simulate', root: dir, targetPath: 'entry.js', workspaceId: 'default' });
+    assert.equal(result.ok, true);
+    assert.equal(result.applied, false);
+    assert.equal(result.findingCount, 1);
+    assert.equal(result.proposals.length, 1);
+    assert.equal(result.proposals[0].decision, 'require_review');
+    assert.equal(result.proposals[0].requiresApproval, true);
+    assert.ok(result.proposals[0].approvalRequest);
+    assert.ok(result.proposals[0].receiptSummary);
+    assert.equal(result.simulation.candidate.patchIncluded, false);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('self-healer-audit: run() rejects an unsupported action', () => {
+  assert.equal(selfHealerAudit.run(fakeKernel(), { action: 'nonsense' }).ok, false);
+});
+
+test('self-healer-audit: propose-fix turns a finding + verified record into a concrete task without apply', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'propose-fix',
+    workspaceId: 'default',
+    finding: {
+      kind: 'stale_docs',
+      severity: 'low',
+      title: 'stale docs',
+      summary: 'a doc is stale',
+      evidence: [{ type: 'file', ref: 'docs/notes.md', detail: 'stale' }],
+      affectedFiles: ['docs/notes.md'],
+      suggestedFix: { summary: 'update doc', allowedFiles: ['docs/notes.md'], forbiddenFiles: [], risk: 'low' },
+    },
+    failure: {
+      kind: 'failure_record',
+      schemaVersion: '1.0.0',
+      failureId: 'failure-plugin-1',
+      verificationStatus: 'verified',
+      action: { operation: 'replace_text', path: 'docs/notes.md' },
+      observed: 'old line\n',
+      expected: 'new line\n',
+      evidence: [],
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied, false);
+  assert.equal(result.decision, 'propose');
+  assert.equal(result.proposal.operation.type, 'replace_text');
+  assert.equal(result.proposal.operation.path, 'docs/notes.md');
+  assert.equal(result.refusal, null);
+});
+
+test('self-healer-audit: propose-fix without a record names the refusal rather than guessing', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'propose-fix',
+    workspaceId: 'default',
+    finding: {
+      kind: 'stale_docs',
+      severity: 'low',
+      title: 'stale docs',
+      summary: 'a doc is stale',
+      evidence: [{ type: 'file', ref: 'docs/notes.md', detail: 'stale' }],
+      affectedFiles: ['docs/notes.md'],
+      suggestedFix: { summary: 'update doc', allowedFiles: ['docs/notes.md'], forbiddenFiles: [], risk: 'low' },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.applied, false);
+  assert.equal(result.proposal, null);
+  assert.equal(result.refusal.reason, 'NO_FAILURE_RECORD');
+});
+
+test('self-healer-audit: the real repo root does not throw and produces a well-formed result', () => {
+  const result = selfHealerAudit.run(fakeKernel(), { action: 'scan' });
+  assert.equal(result.ok, true);
+  assert.equal(typeof result.unacknowledgedCount, 'number');
+  assert.equal(result.applied, false);
+});
+
+
+test('self-healer-audit: behavior action creates scoped quarantine and governed proposal without apply', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'behavior',
+    workspaceId: 'ws-alpha',
+    baseline: {
+      agentId: 'agent-data',
+      goal: 'produce a bounded report',
+      capabilities: ['read', 'verify'],
+      tools: ['verify'],
+      connectors: ['local'],
+      targetClasses: ['workspace_file'],
+      egressClasses: ['none'],
+      delegation: ['none'],
+    },
+    observation: {
+      agentId: 'agent-data',
+      tool: 'learn',
+      action: 'verify',
+      connector: 'local',
+      targetClass: 'workspace_file',
+      egressClass: 'none',
+      delegationClass: 'none',
+      sequenceLength: 2,
+      sequenceTools: ['learn'],
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.action, 'behavior');
+  assert.equal(result.behavior.deviationCode, 'unexpected_tool');
+  assert.equal(result.behavior.decision, 'quarantine');
+  assert.equal(result.containment.action, 'quarantine');
+  assert.equal(result.containment.executorSuppressed, true);
+  assert.equal(result.containment.applied, false);
+  assert.equal(result.applied, false);
+  assert.equal(result.findingCount, 1);
+  assert.equal(result.proposals.length, 1);
+  assert.equal(result.proposals[0].decision, 'quarantine');
+  assert.ok(result.proposals[0].approvalRequest);
+  assert.equal(result.proposals[0].approvalRequest.requestedVerdict, 'review');
+  assert.equal(result.receiptSummary.receiptKind, 'asi10_behavioral_containment_summary');
+});
+
+test('self-healer-audit: behavior action fails closed when no complete baseline is supplied', () => {
+  const result = selfHealerAudit.run(fakeKernel(), {
+    action: 'behavior',
+    workspaceId: 'ws-alpha',
+    observation: {
+      agentId: 'agent-data',
+      tool: 'verify',
+      action: 'verify',
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.behavior.deviationCode, 'baseline_missing');
+  assert.equal(result.containment.action, 'quarantine');
+  assert.equal(result.containment.executorSuppressed, true);
+  assert.equal(result.applied, false);
+});

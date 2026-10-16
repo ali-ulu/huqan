@@ -1,5 +1,7 @@
 # V5-IMPL-3C - Runtime Reader Test Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-3B_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

@@ -6,6 +6,7 @@ const test = require('node:test');
 
 const Kernel = require('../kernel');
 const KernelV2 = require('../kernel.v2');
+const { withoutNestedMember, kernelClassBody } = require('./helpers/kernel-declaration');
 
 const MAPPINGS = Object.freeze([
   ['kaydet', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
@@ -13,10 +14,10 @@ const MAPPINGS = Object.freeze([
   ['cikis', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
   ['backup', 'export', 'EXPORTED', 'allow', true, 'cli_backup_export_local'],
   ['restore', 'state_replace', 'IMPORTED', 'allow', true, 'cli_restore_state_replace_local'],
-  ['optimize', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['evolve', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['konsolide', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['dusun', 'automation', 'REVIEW', 'review', false, 'cli_automation_requires_review'],
+  ['optimize', 'canonical', 'BLOCKED', 'block', false, 'cli_canonical_mutation_unavailable'],
+  ['evolve', 'canonical', 'BLOCKED', 'block', false, 'cli_canonical_mutation_unavailable'],
+  ['konsolide', 'canonical', 'BLOCKED', 'block', false, 'cli_canonical_mutation_unavailable'],
+  ['dusun', 'automation', 'BLOCKED', 'block', false, 'cli_automation_unavailable'],
 ]);
 
 const FAILURE = Object.freeze({
@@ -77,6 +78,9 @@ function expectedRawEvent(intent) {
       decision: intent.decision,
       executed: intent.executionEligible,
       reason: intent.reason,
+      // `executed` records eligibility, decided before the command ran; phase
+      // is what separates an admitted mutation from a completed one (#760).
+      phase: intent.phase || 'attempted',
       ...(intent.approvalState === undefined ? {} : { approvalState: intent.approvalState }),
       ...(intent.receiptReference === undefined ? {} : { receiptId: intent.receiptReference.trim() }),
     },
@@ -100,7 +104,7 @@ test('Kernel v1 and KernelV2 expose a synchronous CLI audit seam', () => {
   }
 });
 
-test('accepts only the nine exact mappings and appends each bounded event once', () => {
+test('accepts only the exact mappings and appends each bounded event once', () => {
   const managed = makeKernel('mappings');
   const originalAppend = managed.kernel.graph.appendAuditEvent;
   const calls = [];
@@ -399,11 +403,22 @@ test('does not expose a generic public audit append surface', () => {
   const v2Declaration = fs.readFileSync(path.join(__dirname, '..', 'kernel.v2.d.ts'), 'utf8');
 
   try {
+    // The runtime guarantee: the Kernel exposes no public append, only the
+    // private seam.
     assert.equal(managed.kernel.appendAuditEvent, undefined);
     assert.equal(typeof managed.kernel._appendAuditEvent, 'function');
-    assert.doesNotMatch(kernelDeclaration, /\bappendAuditEvent\s*\(/);
-    assert.doesNotMatch(kernelDeclaration, /\b_appendAuditEvent\s*\(/);
-    assert.doesNotMatch(v2Declaration, /\bappendAuditEvent\s*\(/);
+
+    // The declaration guarantee, stated per surface. kernel.graph
+    // .appendAuditEvent is a real method (graph.js defines it, agent.v3.js
+    // calls it), so the graph typing describes it on purpose; asserting over
+    // the whole file conflated the graph's surface with the Kernel's own.
+    const kernelOwnSurface = withoutNestedMember(kernelClassBody(kernelDeclaration), 'graph');
+    assert.doesNotMatch(kernelOwnSurface, /\bappendAuditEvent\s*\(/,
+      'Kernel itself must not declare a public audit append');
+    assert.doesNotMatch(kernelDeclaration, /\b_appendAuditEvent\s*\(/,
+      'the private seam must never be declared as API');
+    assert.doesNotMatch(withoutNestedMember(v2Declaration, 'graph'), /\bappendAuditEvent\s*\(/,
+      'KernelV2 must not declare one either');
   } finally {
     managed.dispose();
   }

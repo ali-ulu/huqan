@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "env": { "node": true, "es2024": true },
+  "ignorePatterns": [
+    "node_modules",
+    "graphify-out",
+    "obsidian-plugin/dist",
+    "coverage"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "plugins": [],
+  "rules": {
+    "no-unused-vars": ["error", {
+      "args": "after-used",
+      "argsIgnorePattern": "^_*",
+      "varsIgnorePattern": "^_*",
+      "caughtErrorsIgnorePattern": "^_*"
+    }]
+  }
+}

@@ -60,6 +60,188 @@ A plugin may propose facts, relations, labels, or candidates, but it must not:
 
 If a plugin cannot satisfy the boundary, the result must fail closed or remain non-canonical.
 
+## MCP gate evidence hook
+
+`beforeGateDecision(kernel, { tool, args, metadata })` runs synchronously on
+known MCP tools before their core gates, including approved-agent
+revalidation. Each registered handler receives its own deep copy of the
+evaluated input; text is available in the tool's normal argument field
+(`args.question`, `args.text`, `args.claim`, or `args.goal`). Mutating this
+copy does not rewrite the call or another handler's input.
+
+The second argument's `metadata` is receiver-owned policy context, not a
+caller-controlled field. The host runtime fixes `source`, `actor`, `runner`,
+and `sourceTrust`, then spreads the receiver's `gateMetadata` (passed only
+through `callTool` options, never derived from the `tools/call` params) over
+them. The caller's `tools/call` parameters do not enter this context; in
+particular `args.workspaceId` is the target workspace, not evidence of the
+caller's workspace or grants.
+
+A handler may return `undefined` for no evidence, or
+`{ decision: 'allow' | 'review' | 'dry_run_only' | 'block' }`. Core records
+each signal with its plugin name in `findings` and merges it using the
+existing MCP precedence: `block > dry_run_only > review > allow`.
+Signals cannot lower core decisions or erase earlier plugin evidence.
+Other returned fields are ignored. A handler that throws, returns a Promise
+result, or returns an invalid signal produces fail-closed `block` evidence
+without exposing exception text. This is one of two fail-closed outcomes at
+the gate; the kernel signal provider below fails closed to `review`, not
+`block`, and the two must not be conflated.
+
+`afterGateDecision` remains an observation-only hook; its return value does
+not affect the decision. Raw evaluated text is not added to telemetry.
+Existing operator authorization and the explicit human-approval toggle remain
+core policy. This hook does not run for operator tools that bypass the MCP
+gate, malformed/unknown tools, or unrelated memory/agent-budget gates.
+
+```js
+beforeGateDecision(kernel, { args }) {
+  if (needsDomainReview(args.question)) return { decision: 'review' };
+}
+```
+
+## Kernel signal provider
+
+The `beforeGateDecision` handler above is only one of two ways a signal reaches
+the gate. On calls that hold a kernel, the MCP gate adapter also consults a
+**signal provider** before deciding. The adapter resolves it from a caller
+override (`options.signalProvider`) or, when the caller passed
+`options.kernel`, from `gateSignalProviderForKernel` (`lib/mcp-gate-adapter.js`,
+`lib/gate-signal-provider.js`). The call sites that hold a kernel are the tool
+dispatch path (`lib/mcp/tool-dispatch.js`) and the agent approval path
+(`lib/mcp-agent-approval-execution.js`), both passing
+`{ plugins: kernel?.plugins, kernel }`, plus the CLI gate
+(`lib/cli-gate-evaluation.js`).
+
+The provider folds two sources into one bounded verdict: each loaded plugin's
+`gateSignal(kernel, input)` return value, and the kernel's own **active
+error-prevention rules** (`listRules` on the kernel's error-prevention engine,
+`lib/gate-signal-provider.js`). `plugins/aura-risk.js` is the reference
+implementation of a `gateSignal` producer: it returns a bounded signal (a
+decision plus the signal ids that produced it), never a payload mutation, and
+never a canonical write. A plugin that throws or returns a thenable the
+synchronous seam cannot await is not evidence of safety: it floors the verdict
+at `review` (`lib/gate-signal-provider.js`).
+
+The provider proposes, it does not decide. Its `decision` is merged into the
+existing most-restrictive precedence `block > dry_run_only > review > allow`
+(`lib/mcp-gate-adapter-decisions.js`); merging can only raise the decision, so a
+provider can escalate a call the gates would have allowed but can never lower
+one they would have stopped. When the provider raises the decision, the gate
+reason is `gate_signal_review`
+(`MCP_GATE_REASONS.SIGNAL_REVIEW`, `lib/mcp-gate-adapter-contract.js`), or the
+provider's own `reason` when it supplies one.
+
+The two fail-closed outcomes differ. An invalid `beforeGateDecision` handler
+signal produces `block` (above). A provider or plugin-throwing error produces
+`review` with reason `signal_provider_error`
+(`lib/gate-signal-provider.js`); the provider floors at `review`, never
+`block`, and never `allow`.
+
+A caller that does not hold a kernel never sees the provider: the adapter uses
+its own gates only, exactly as before. The seam therefore adds a way to
+escalate a decision, never a new way to reach `allow`. No canonical write is
+performed on this path.
+
+The AURA rule promotion that rides this seam is bounded: an AURA-derived rule
+cannot skip the bounded canary trial, so a rule learned from a blind spot is
+refused with `aura_rule_requires_canary_trial` rather than hardened on the live
+gate before the trial passes (`lib/error-prevention/admission.js`, #3788).
+
+## Input-transform hook annotations
+
+`beforeLearn` and `beforeAsk` may return a partial input payload. The
+recognized input fields are `text` and `opts` for `beforeLearn`, and
+`question` and `workspaceId` for `beforeAsk`. Any other returned field is
+exposed under `result.data.annotations[plugin.name]`. Omitted input fields
+and annotations added by earlier hooks survive: `annotations` is reserved for
+this accumulated output, so a later hook does not overwrite an earlier
+plugin's entry and a field echoed unchanged from the input is not attributed
+to every plugin that returns the full payload.
+
+Annotation values must be JSON-serializable, because learn's durable replay
+preserves `annotations` through admission. They are advisory: they do not
+become gate decisions or signed receipt data, and they grant no authority.
+
+## Enforcement Boundary: Signed Is Not Sandboxed
+
+The Boundary Rule above is a **contract**, not a runtime confinement.
+
+`plugin.js` loads every plugin with `require(filePath)`. A loaded plugin is
+ordinary in-process Node code: it shares the process with the kernel and holds
+the same privileges the host process holds — `fs`, `child_process`, `net`,
+`https`, `process.env`, and direct access to kernel internals. Nothing in the
+loader restricts what a plugin may call.
+
+What plugin verification actually proves:
+
+| Verification status | Proves | Does **not** prove |
+| --- | --- | --- |
+| `unverified` | nothing | — |
+| `verified` (hash) | the file matches its adjacent manifest `sha256` | that the file is safe, or that the manifest was not rewritten alongside it |
+| `verified-signed` | the hash is HMAC-signed with the deployment's signing key | anything about plugin *behavior* |
+
+So: **a signature attests authenticity and integrity, never confinement.** A
+correctly signed plugin can still call `require('child_process')`, read secrets
+out of `process.env`, or write graph state without going through admission.
+Signing answers "is this the code the operator approved?", not "is this code
+allowed to do that?".
+
+### Operational consequence
+
+Installing a plugin is equivalent to granting that code full host privileges.
+Treat the plugins directory as a **trusted code path**: only place plugins there
+that you would be willing to run as a direct `node` script on the same machine,
+and review plugin source with the same care as core source. Filesystem write
+access to the plugins directory is, by construction, code execution — the
+manifest hash raises the bar for silent tampering only, since an attacker who
+can rewrite the plugin can rewrite the manifest beside it.
+
+### Why there is no sandbox
+
+Node's `vm` module is explicitly **not** a security mechanism (see the "vm —
+Executing JavaScript" section of the Node.js documentation). Code inside a `vm`
+context reaches the host realm through ordinary prototype access, for example
+`this.constructor.constructor('return process')()`. Wrapping the loader in `vm`
+would therefore not confine a hostile plugin; it would advertise a guarantee
+this project cannot keep, which is worse than a documented status quo.
+
+Real confinement needs an OS- or runtime-level boundary — a separate process
+with dropped privileges, a container, or a WASM isolate with an explicit
+host-call surface — and is a product decision with a real cost, not a loader
+tweak. Until such a boundary exists, this section is the honest statement of
+where the trust boundary sits (#362).
+
+A future `permissions` manifest field gating plugin `require()` calls would be
+
+defense-in-depth and an audit aid — a declared, reviewable capability list — but
+it would remain bypassable from in-process code, and must not be described as a
+sandbox either.
+
+## Supply-chain activation gate
+
+When `PLUGIN_PRODUCTION_ENFORCEMENT=1` or `NODE_ENV=production`, dynamic plugin
+loading requires `SUPPLY_CHAIN_ACTIVATION_POLICY`; a signing key alone is not an
+allowlist. The policy binds the exact component type, name, version, content
+hash, issuer, workspace and declared capabilities. The adjacent plugin
+manifest must declare capabilities that exactly match the loaded descriptor;
+missing, malformed or mismatched declarations are rejected before registration.
+
+Activation is re-attested immediately before every `runCapability()` call. A
+loaded plugin can be revoked by its exact component identity through the bounded
+`PluginManager.revokePlugin(name, reason)` seam, and the revocation is rechecked
+before execution. The activation receipt contains only bounded component
+identity/provenance fields, decision and reason; it does not contain plugin
+payloads, signing keys or environment secrets.
+
+The gate provides the implemented provenance, allowlist, pinning, expiry,
+hash-drift and component-specific revocation checks. It does not generate a full
+SBOM/AIBOM, issue credentials, sandbox in-process code, enforce external IAM or
+network egress, or prove registry publication/deployment. Those remain explicit
+non-claims until separately implemented and evidenced. This bounded gate is
+separate from #1103 registry publication, #1119 package/release work and #1182
+A2A agent-card/exchange availability.
+
 ## Verify Status Contract
 
 `verify.status` remains a core contract, not a plugin-specific invention.

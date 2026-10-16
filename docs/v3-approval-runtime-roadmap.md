@@ -2,6 +2,10 @@
 
 Branch: `docs/v3-approval-runtime-blueprint`
 
+> Historical blueprint. The implementation has progressed beyond this docs-only
+> sequence; use [Current Operating Roadmap](./current-operating-roadmap.md)
+> for live execution order and current boundaries.
+
 Base: `main / 2ae8b49`
 
 ## Purpose

@@ -273,10 +273,10 @@ block
 Required behavior:
 
 ```
-axiom.ask      → allow / responds
-axiom.verify   → allow / responds
-axiom.learn    → review / mutating_requires_review
-axiom.agent    → dry_run_only / agent_loop_dry_run_only
+huqan.ask      → allow / responds
+huqan.verify   → allow / responds
+huqan.learn    → review / mutating_requires_review
+huqan.agent    → dry_run_only / agent_loop_dry_run_only
 unknown tool   → block / unknown-tool-blocked
 malformed call → block or fail-closed
 null params    → explicit fail-closed response, no crash
@@ -299,10 +299,10 @@ V2 may start when:
 V2 cannot close unless:
 
 ```
-[ ] axiom.ask allow/responds
-[ ] axiom.verify allow/responds
-[ ] axiom.learn review
-[ ] axiom.agent dry_run_only
+[ ] huqan.ask allow/responds
+[ ] huqan.verify allow/responds
+[ ] huqan.learn review
+[ ] huqan.agent dry_run_only
 [ ] unknown tools block
 [ ] malformed params fail-closed
 [ ] null/invalid params do not crash runtime

@@ -43,11 +43,26 @@ function expectedReasonIsPresent(fixture) {
   return typeof fixture.expected_reason_code === 'string' && fixture.expected_reason_code.trim() !== '';
 }
 
+/**
+ * A declared reason code the validator does not recognize.
+ *
+ * Without this, a misspelled discriminator still conformed: the declared code
+ * is echoed into errors by validateExpectedInvalidState, so
+ * hasErrorCode(errors, expected_reason_code) matched the typo itself while
+ * every shape rule keyed on that code had been skipped (#1537). The check that
+ * was supposed to prove the fixture encodes its violation instead proved only
+ * that it names one.
+ */
+function hasUnusableReasonCode(errors) {
+  return hasErrorCode(errors, 'unknown_reason_code') || hasErrorCode(errors, 'enum_value_not_allowed');
+}
+
 function isInvalidFixtureConformant(fixture, validation) {
   return validation.valid === false &&
     INVALID_EXPECTED_STATUSES.has(fixture.expected_status) &&
     expectedReasonIsPresent(fixture) &&
     hasStructuredErrors(validation.errors) &&
+    !hasUnusableReasonCode(validation.errors) &&
     hasErrorCode(validation.errors, fixture.expected_reason_code);
 }
 

@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use HUQAN in research, evaluation, or technical work, please cite this repository."
+title: "HUQAN"
+type: software
+authors:
+  - family-names: "Ulu"
+    given-names: "Ali"
+repository-code: "https://github.com/ali-ulu/huqan"
+url: "https://huqan.com"
+license: "AGPL-3.0-only"

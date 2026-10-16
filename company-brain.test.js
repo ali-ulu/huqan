@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -6,7 +7,7 @@ const createRepoMemoryPlugin = require('./plugins/repo-memory').create;
 const createCompanyBrainPlugin = require('./plugins/company-brain').create;
 
 function makeKernel() {
-  return new Kernel({
+  return new Kernel(isolatedKernelOptions('company-brain', {
     noLoad: true,
     useSQLite: false,
     loadPlugins: false,
@@ -16,7 +17,7 @@ function makeKernel() {
       evidenceRanking: true,
       temporal: true,
     },
-  });
+  }));
 }
 
 function makeResponse({ ok = true, status = 200, json, text, headers = {} }) {
@@ -77,6 +78,11 @@ test('company-brain: repo-memory ingests github markdown and updates ingest stat
   k.usePlugin(createCompanyBrainPlugin());
 
   const fetchImpl = async (url) => {
+    if (/\/commits\/[^/?]+$/.test(url)) {
+      // github-adapter resolves the ref to a commit before reading anything, so
+      // a stub that does not answer this is not standing in for GitHub.
+      return makeResponse({ json: { sha: 'd'.repeat(40) } });
+    }
     if (url.includes('/git/trees/')) {
       return makeResponse({
         json: {
@@ -107,6 +113,49 @@ test('company-brain: repo-memory ingests github markdown and updates ingest stat
   const status = await k.runCapability('ingestStatus', {});
   assert.equal(status.ok, true);
   assert.equal(status.distribution.repo > 0, true);
+});
+
+test('company-brain: ingest status distribution reports api ingests and separates decision from manual (#1314)', async () => {
+  const k = makeKernel();
+  k.usePlugin(createCompanyBrainPlugin());
+
+  for (let i = 0; i < 3; i++) {
+    // eslint-disable-next-line no-await-in-loop
+    await k.runCapability('companyBrain', {
+      action: 'api',
+      sourceRef: `jira:PROJ-${i}`,
+      text: 'Musteri X gecikmeden sikayet etti.',
+    });
+  }
+  await k.runCapability('companyBrain', {
+    action: 'decision',
+    title: 'Bir karar',
+    rationale: 'gerekce',
+    date: '2026-08-23',
+    decidedBy: 'ali',
+  });
+  await k.runCapability('companyBrain', {
+    action: 'manual',
+    author: 'ali',
+    date: '2026-08-23',
+    text: 'serbest not',
+  });
+
+  const status = await k.runCapability('ingestStatus', {});
+  assert.equal(status.ok, true);
+  assert.equal(status.distribution.api, 3);
+  assert.equal(status.distribution.decision, 1);
+  // The manual note writes two edges (the extracted fact plus the note ->
+  // subject support edge) and `added` now counts both.
+  assert.equal(status.distribution.manual, 2);
+});
+
+test('company-brain: ingest status distribution reports all known source types as zero on a fresh kernel (#1314)', async () => {
+  const k = makeKernel();
+  k.usePlugin(createCompanyBrainPlugin());
+
+  const status = await k.runCapability('ingestStatus', {});
+  assert.deepEqual(status.distribution, { repo: 0, markdown: 0, manual: 0, decision: 0, api: 0 });
 });
 
 test('company-brain: graph-backed query returns source refs', async () => {

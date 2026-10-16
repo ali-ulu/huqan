@@ -1,3 +1,13 @@
+const { localMcpToolName } = require('./lib/mcp-tool-names');
+
+/**
+ * Tools the agent loop may invoke directly, by bare name.
+ *
+ * agent.js aliases this as ALLOWED_TOOLS, so this set is the agent's capability
+ * boundary as well as this module's internal/external split. Adding a name here
+ * grants the agent a new step; it is not the place to record that some other
+ * surface advertises a tool.
+ */
 const INTERNAL_TOOLS = new Set(['learn', 'ask', 'verify', 'reason', 'compare', 'dream']);
 const DEFAULT_SANDBOX = Object.freeze({
   runner: 'node:vm',
@@ -25,6 +35,25 @@ function normalizeToolName(tool) {
   return String(tool || '').trim().toLowerCase();
 }
 
+/**
+ * The name this policy decides on, with a HUQAN MCP namespace resolved away.
+ *
+ * `huqan.learn` is `learn`. Without this the two spellings of one tool
+ * disagreed: `learn` classified internal/allow while `huqan.learn` — the name
+ * mcpServer.js actually advertises — fell through to the unknown-external
+ * branch and came back blocked at risk 70, labelled `unknown-tool-blocked`.
+ * The huqan.policy tool therefore reported HUQAN's own canonical tools as
+ * unknown third-party tools it refused to run.
+ *
+ * Resolution is delegated to lib/mcp-tool-names.js, which allows exactly the
+ * declared suffixes. An unrecognised namespaced string keeps its full name and
+ * reaches the external branch unchanged, so nothing is unwrapped into a
+ * classification it did not earn.
+ */
+function policyToolName(normalizedTool) {
+  return localMcpToolName(normalizedTool) || normalizedTool;
+}
+
 function matchesAny(text, patterns = []) {
   const value = String(text || '');
   return patterns.some(pattern => pattern.test(value));
@@ -49,7 +78,7 @@ function scoreRisk({ blocked, review, input = '', tool = '' } = {}) {
 function buildReasons({ category, tool, input, context, blocked, review }) {
   const reasons = [];
   if (category === 'internal') {
-    reasons.push('Internal AXIOM tool.');
+    reasons.push('Internal HUQAN tool.');
     return reasons;
   }
   reasons.push(`External tool request: ${tool || 'unknown'}.`);
@@ -74,7 +103,9 @@ function evaluateToolPolicy({ tool, input = '', context = {}, internalTools = IN
   const normalizedInput = String(input || '');
   const internalSet = internalTools instanceof Set ? internalTools : new Set(Array.isArray(internalTools) ? internalTools : []);
 
-  if (internalSet.has(normalizedTool)) {
+  // Membership is tested on the resolved name; every field below still reports
+  // normalizedTool, so a caller sees an answer about the name it asked about.
+  if (internalSet.has(policyToolName(normalizedTool))) {
     return {
       tool: normalizedTool,
       category: 'internal',
@@ -86,7 +117,7 @@ function evaluateToolPolicy({ tool, input = '', context = {}, internalTools = IN
       riskScore: 0,
       confidence: 1,
       labels: ['internal-tool'],
-      reasons: ['Internal AXIOM tool.'],
+      reasons: ['Internal HUQAN tool.'],
       suggestedNextStep: 'No additional action required.',
       source: 'toolPolicy',
       executionMode: 'direct',
@@ -121,7 +152,7 @@ function evaluateToolPolicy({ tool, input = '', context = {}, internalTools = IN
     labels,
     reasons: buildReasons({ category: 'external', tool: normalizedTool, input: normalizedInput, context, blocked, review }),
     suggestedNextStep: blocked
-      ? 'Refine the request or use a safe internal AXIOM tool.'
+      ? 'Refine the request or use a safe internal HUQAN tool.'
       : 'Ask for approval or route through a sandboxed executor.',
     source: 'toolPolicy',
     context: context && typeof context === 'object' ? { ...context } : {},

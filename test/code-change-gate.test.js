@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -53,6 +56,15 @@ function makeInput(overrides = {}) {
   };
 }
 
+it('uses code-point order for canonical file findings', () => {
+  const normalized = normalizeCodeChangeInput({
+    files: ['docs/äpfel.md', 'docs/zebra.md', 'docs/Index.md', 'docs/index.md'].map((path) => ({ path })),
+  });
+  assert.deepEqual(normalized.files.map((file) => file.path), [
+    'docs/Index.md', 'docs/index.md', 'docs/zebra.md', 'docs/äpfel.md',
+  ]);
+});
+
 function makeResult(overrides = {}) {
   return evaluateCodeChange(makeInput(overrides));
 }
@@ -99,6 +111,54 @@ describe('AB3 code change gate core decisions', () => {
 
     const summary = summarizeFileFindings([finding]);
     assert.equal(summary.decision, CODE_CHANGE_GATE_DECISIONS.ALLOW);
+  });
+
+  it('requires exact paths before allowing docs or helpers', () => {
+    const allowedDocs = [
+      'README.md',
+      'docs/architecture.txt',
+      'LICENSE',
+    ];
+    for (const path of allowedDocs) {
+      const finding = classifyChangedFile({ path, status: 'modified', changeType: 'docs' });
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.ALLOW, path);
+      assert.equal(finding.category, 'docs', path);
+    }
+
+    const riskySourcePaths = [
+      'lib/graph-record-utils.js',
+      'lib/license-manager.js',
+      'lib/readme-builder.js',
+      'lib/utils/crypto-signer.js',
+    ];
+    for (const path of riskySourcePaths) {
+      const finding = classifyChangedFile({ path, status: 'modified', changeType: 'source' });
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW, path);
+      assert.equal(finding.category, 'source', path);
+    }
+
+    for (const path of riskySourcePaths) {
+      const mislabeledHelper = classifyChangedFile({ path, status: 'modified', changeType: 'helper' });
+      assert.equal(mislabeledHelper.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW, path);
+      assert.equal(mislabeledHelper.category, 'source', path);
+    }
+  });
+
+  it('does not read a directory hint as a suffix of an unrelated segment', () => {
+    // `test/` is a path hint, but it must sit on a segment boundary: `src/latest/a.js`
+    // contains the `test/` suffix of `latest/` and was misread as tests-only and
+    // allowed, letting an ordinary source change bypass source review.
+    for (const path of ['src/latest/a.js', 'lib/protest/x.js', 'my-tests/x.js']) {
+      const finding = classifyChangedFile({ path, status: 'modified' });
+      assert.equal(finding.category, 'source', path);
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW, path);
+    }
+
+    for (const path of ['test/foo.test.js', 'tests/unit/a.js', 'src/foo.test.js', '__tests__/a.js']) {
+      const finding = classifyChangedFile({ path, status: 'modified' });
+      assert.equal(finding.category, 'tests', path);
+      assert.equal(finding.decision, CODE_CHANGE_GATE_DECISIONS.ALLOW, path);
+    }
   });
 
   it('policy override can raise a narrow helper change to review', () => {
@@ -309,6 +369,27 @@ describe('AB3 code change gate core decisions', () => {
     assert.ok(result.warnings.every(warning => !warning.includes(token)));
   });
 
+  it('safe secret and deploy names do not hard-block by substring', () => {
+    for (const path of ['lib/secret-scrub-gate.js', '.env.example', 'id_rsa.pub', 'lib/tokenizer.js', 'docs/deployment.md']) {
+      const result = makeResult({
+        files: [{ path, status: 'modified', changeType: 'source' }],
+        intent: 'refresh the auth token logic',
+        diffSummary: 'update deployment documentation',
+      });
+      assert.notEqual(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK, path);
+      assert.notEqual(result.reason, CODE_CHANGE_GATE_REASONS.SECRET_CHANGE_BLOCKED, path);
+      assert.notEqual(result.reason, CODE_CHANGE_GATE_REASONS.RELEASE_OR_DEPLOY_CHANGE_BLOCKED, path);
+    }
+  });
+  it('exact sensitive filenames remain blocked', () => {
+    for (const path of ['.env', 'id_rsa']) {
+      const result = makeResult({
+        files: [{ path, status: 'modified', changeType: 'source' }],
+      });
+      assert.equal(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK, path);
+      assert.equal(result.reason, CODE_CHANGE_GATE_REASONS.SECRET_CHANGE_BLOCKED, path);
+    }
+  });
   it('main branch write attempt returns block', () => {
     const result = evaluateCodeChange(makeInput({
       repoState: {
@@ -583,13 +664,16 @@ describe('AB3 code change gate core decisions', () => {
       'risk',
       'requiredReview',
       'dryRunOnly',
+      'operatorAuthorized',
       'fileFindings',
       'warnings',
       'metadata',
     ]);
     assert.deepEqual(Object.keys(result.risk), ['level', 'score', 'categories']);
-    assert.deepEqual(Object.keys(result.metadata), ['policyVersion', 'workspaceId']);
+    assert.deepEqual(Object.keys(result.metadata), ['policyVersion', 'workspaceId', 'blastRadius']);
     assert.equal(result.metadata.policyVersion, CODE_CHANGE_POLICY_VERSION);
+    assert.equal(result.metadata.blastRadius.version, 'huqan-code-blast-radius-v1');
+    assert.equal(result.metadata.blastRadius.enforced, false);
     assert.deepEqual(Object.keys(result.fileFindings[0]), [
       'ok',
       'path',
@@ -639,5 +723,81 @@ describe('AB3 code change gate core decisions', () => {
     assert.equal(normalized.metadata.workspaceId, 'ws-a');
     assert.equal(normalized.metadata.policyVersion, 'AB3-v9.9.9');
     assert.equal(normalized.fileFindings[0].decision, CODE_CHANGE_GATE_DECISIONS.ALLOW);
+  });
+});
+
+describe('code-change blast radius recording (#2505 A)', () => {
+  const { summarizeCodeChangeBlastRadius } = require('../lib/code-change-blast-radius');
+
+  function fixtureRoot(t) {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-code-fanin-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    fs.writeFileSync(path.join(directory, 'a.js'), "require('./b');\n");
+    fs.writeFileSync(path.join(directory, 'b.js'), "module.exports = 1;\n");
+    fs.mkdirSync(path.join(directory, 'sub'));
+    fs.writeFileSync(path.join(directory, 'sub', 'c.js'), "require('../b');\n");
+    return directory;
+  }
+
+  it('counts dependents from the require graph, not file counts', (t) => {
+    const root = fixtureRoot(t);
+    const summary = summarizeCodeChangeBlastRadius([{ path: 'b.js' }, { path: 'a.js' }], { repoRoot: root });
+    assert.equal(summary.status, 'computed');
+    assert.equal(summary.enforced, false);
+    assert.equal(summary.maxFanIn, 2);
+    const byPath = new Map(summary.files.map((entry) => [entry.path, entry]));
+    assert.equal(byPath.get('b.js').fanIn, 2);
+    assert.deepEqual(byPath.get('b.js').dependents, ['a.js', 'sub/c.js']);
+    assert.equal(byPath.get('a.js').fanIn, 0);
+  });
+
+  it('unknown is never 0: outside-graph files are unknown with a reason', (t) => {
+    const root = fixtureRoot(t);
+    const summary = summarizeCodeChangeBlastRadius(
+      [{ path: 'b.js' }, { path: 'docs/notes.md' }, { path: 'missing.js' }],
+      { repoRoot: root },
+    );
+    assert.equal(summary.status, 'partial');
+    assert.equal(summary.maxFanIn, 2);
+    const byPath = new Map(summary.files.map((entry) => [entry.path, entry]));
+    assert.equal(byPath.get('docs/notes.md').fanIn, null);
+    assert.equal(byPath.get('missing.js').fanIn, null);
+    assert.ok(summary.reasons.length >= 2);
+  });
+
+  it('an unreadable root degrades to unknown instead of throwing', () => {
+    const summary = summarizeCodeChangeBlastRadius(
+      [{ path: 'b.js' }],
+      { repoRoot: path.join(os.tmpdir(), 'huqan-no-such-root-xyz') },
+    );
+    assert.equal(summary.status, 'unknown');
+    assert.equal(summary.maxFanIn, null);
+    assert.equal(summary.enforced, false);
+  });
+
+  it('the gate records fan-in next to the decision without changing it', (t) => {
+    const root = fixtureRoot(t);
+    const input = makeInput({
+      files: [{ path: 'b.js', status: 'modified', changeType: 'source', additions: 1, deletions: 0 }],
+      intent: 'touch shared module',
+      patchMetadata: { fileCount: 1, totalAdditions: 1, totalDeletions: 0 },
+    });
+    const recorded = evaluateCodeChange(input, { repoRoot: root });
+    const unrecorded = evaluateCodeChange(input);
+    assert.equal(recorded.decision, unrecorded.decision, 'recording must not move the decision');
+    assert.equal(recorded.metadata.blastRadius.files[0].fanIn, 2);
+    assert.equal(recorded.metadata.blastRadius.enforced, false);
+  });
+
+  it('a malformed blastRadius never reaches the receipt', () => {
+    const normalized = normalizeCodeChangeDecision({
+      decision: 'ALLOW',
+      reason: 'LOW_RISK_DOCS_ONLY',
+      risk: { level: 'LOW', score: 0.1, categories: ['docs'] },
+      metadata: { blastRadius: { version: 'bogus', files: ['x'] } },
+      fileFindings: [],
+      warnings: [],
+    });
+    assert.ok(!('blastRadius' in normalized.metadata));
   });
 });

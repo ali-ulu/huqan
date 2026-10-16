@@ -1,12 +1,16 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const { EventEmitter } = require('node:events');
 const { Readable } = require('node:stream');
+const crypto = require('node:crypto');
 
 const {
   checkRateLimit,
   clearExpiredRateLimitEntries,
+  constantTimeEqual,
   DEFAULT_RATE_LIMIT_MAX_ENTRIES,
   enforceRateLimitCap,
+  extractApiKey,
   isAllowedPublicCommand,
   isUnsafePublicApiCommand,
   readJsonBody,
@@ -85,30 +89,96 @@ describe('Request Guards', () => {
     assert.strictEqual(oversized.status, 413);
   });
 
+  it('readJsonBody decodes multi-byte UTF-8 split across chunk boundaries (#1023)', async () => {
+    // `body += chunk` decoded each chunk on its own, so a character straddling
+    // a chunk boundary became two U+FFFD replacements. JSON.parse still
+    // succeeded — U+FFFD is valid inside a JSON string — so the body was
+    // corrupted with no error code anywhere on the POST surface.
+    const text = 'ğüşiöçĞÜŞİÖÇ'.repeat(2000);
+    const payload = Buffer.from(JSON.stringify({ t: text }), 'utf8');
+
+    const req = new EventEmitter();
+    req.headers = { 'content-type': 'application/json' };
+    req.destroy = () => {};
+
+    const pending = readJsonBody(req, { maxBytes: 2_000_000 });
+    // 1023 is deliberately coprime with the 2- and 3-byte character widths, so
+    // boundaries land mid-character.
+    for (let off = 0; off < payload.length; off += 1023) {
+      req.emit('data', payload.subarray(off, Math.min(off + 1023, payload.length)));
+    }
+    req.emit('end');
+
+    const result = await pending;
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.data.t, text);
+    assert.strictEqual(result.data.t.length, text.length);
+    assert.ok(!result.data.t.includes('\uFFFD'), 'body must not contain replacement characters');
+  });
+
+  it('readJsonBody bounds maxBytes by bytes, not by decoded characters (#1023)', async () => {
+    // A 2-byte character must count as 2 against the limit; counting decoded
+    // characters would let a Turkish body pass a byte budget it exceeds.
+    const req = new EventEmitter();
+    req.headers = { 'content-type': 'application/json' };
+    req.destroy = () => {};
+
+    const pending = readJsonBody(req, { maxBytes: 8 });
+    req.emit('data', Buffer.from('ğüşiö', 'utf8')); // 10 bytes, 5 characters
+    const result = await pending;
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.status, 413);
+  });
+
+  it('streaming JSON overflow returns 413 without destroying the request (#713)', async () => {
+    const req = new EventEmitter();
+    req.headers = { 'content-type': 'application/json' };
+    let destroyed = false;
+    req.destroy = () => {
+      destroyed = true;
+    };
+
+    const pending = readJsonBody(req, { maxBytes: 4 });
+    req.emit('data', '1234');
+    req.emit('data', '5');
+    const result = await pending;
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.status, 413);
+    assert.strictEqual(result.error.error, 'Payload too large');
+    assert.strictEqual(destroyed, false);
+  });
+
   it('requireApiKey fails closed when configured key is missing, empty, or whitespace', () => {
     resetRateLimitState();
     // Hardened: error message MUST be the same generic 'Unauthorized' regardless
     // of whether the server has no key configured or the caller mismatched.
     // Leaking configuration state ('API key not configured') let attackers
     // enumerate deployment posture.
+    // One envelope, shared with the viewer gateway (#1994). Asserting the whole
+    // body rather than one field also pins the non-disclosure above: every
+    // rejection must be byte-identical, whatever the deployment's real state.
+    const UNAUTHORIZED = { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } };
+
     const missing = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '');
     assert.strictEqual(missing.ok, false);
     assert.strictEqual(missing.status, 401);
     assert.strictEqual(missing.headers['WWW-Authenticate'], 'Bearer');
-    assert.strictEqual(missing.error.error, 'Unauthorized');
+    assert.deepStrictEqual(missing.error, UNAUTHORIZED);
 
     const undefinedKey = requireApiKey({ headers: { 'x-api-key': 'anything' } }, undefined);
     assert.strictEqual(undefinedKey.ok, false);
     assert.strictEqual(undefinedKey.status, 401);
-    assert.strictEqual(undefinedKey.error.error, 'Unauthorized');
+    assert.deepStrictEqual(undefinedKey.error, UNAUTHORIZED);
 
     const whitespace = requireApiKey({ headers: { authorization: 'Bearer anything' } }, '   \t\n  ');
     assert.strictEqual(whitespace.ok, false);
     assert.strictEqual(whitespace.status, 401);
-    assert.strictEqual(whitespace.error.error, 'Unauthorized');
+    assert.deepStrictEqual(whitespace.error, UNAUTHORIZED);
 
     const mismatched = requireApiKey({ headers: { authorization: 'Bearer wrong' } }, 'secret');
-    assert.strictEqual(mismatched.error.error, 'Unauthorized');
+    assert.deepStrictEqual(mismatched.error, UNAUTHORIZED);
   });
 
   it('isUnsafePublicApiCommand blocks public mutating command variants', () => {
@@ -219,17 +289,42 @@ describe('Request Guards', () => {
     assert.doesNotThrow(() => clearExpiredRateLimitEntries(0));
   });
 
-  it('many unique keys do not grow the map beyond the configured cap', () => {
+  it('many unique keys do not evict live entries or grow beyond the configured cap', () => {
     resetRateLimitState();
     const now = 1_000;
     const cap = 3;
 
-    for (const key of ['k1', 'k2', 'k3', 'k4', 'k5']) {
+    for (const key of ['k1', 'k2', 'k3']) {
       assert.strictEqual(checkRateLimit(key, now, 60_000, 2, cap), true);
       assert.ok(rateLimitMap.size <= cap);
     }
 
-    assert.deepStrictEqual([...rateLimitMap.keys()].sort(), ['k3', 'k4', 'k5']);
+    for (const spoofedKey of ['k4', 'k5']) {
+      assert.strictEqual(checkRateLimit(spoofedKey, now, 60_000, 2, cap), false);
+      assert.ok(rateLimitMap.size <= cap);
+    }
+
+    assert.deepStrictEqual([...rateLimitMap.keys()].sort(), ['k1', 'k2', 'k3']);
+    assert.strictEqual(checkRateLimit('k1', now + 1, 60_000, 2, cap), true);
+    assert.strictEqual(checkRateLimit('k1', now + 2, 60_000, 2, cap), false);
+  });
+
+  it('missing identities fail closed without creating a shared unknown bucket', () => {
+    resetRateLimitState();
+
+    for (const missingIdentity of [undefined, null, '', 0, false]) {
+      assert.strictEqual(checkRateLimit(missingIdentity, 1_000, 60_000, 2, 3), false);
+    }
+
+    assert.strictEqual(rateLimitMap.size, 0);
+    assert.strictEqual(rateLimitMap.has('unknown'), false);
+  });
+
+  it('a zero entry cap rejects new identities without retaining state', () => {
+    resetRateLimitState();
+
+    assert.strictEqual(checkRateLimit('new-key', 1_000, 60_000, 2, 0), false);
+    assert.strictEqual(rateLimitMap.size, 0);
   });
 
   it('expired entries are removed before cap eviction', () => {
@@ -258,5 +353,59 @@ describe('Request Guards', () => {
   it('default cap constant stays positive', () => {
     resetRateLimitState();
     assert.ok(DEFAULT_RATE_LIMIT_MAX_ENTRIES >= 1);
+  });
+
+  it('constantTimeEqual matches only on identical values', () => {
+    assert.strictEqual(constantTimeEqual('secret', 'secret'), true);
+    assert.strictEqual(constantTimeEqual('secret', 'secreT'), false);
+    assert.strictEqual(constantTimeEqual('', ''), true);
+    assert.strictEqual(constantTimeEqual(null, ''), true);
+    assert.strictEqual(constantTimeEqual('', null), true);
+    assert.strictEqual(constantTimeEqual(undefined, undefined), true);
+    assert.strictEqual(constantTimeEqual('secret', 'much-longer-secret-value'), false);
+  });
+
+  it('extractApiKey handles header casing, precedence, and malformed values', () => {
+    assert.strictEqual(extractApiKey(), '');
+    assert.strictEqual(extractApiKey({ Authorization: 'bEaReR  bearer-key ' }), 'bearer-key');
+    assert.strictEqual(extractApiKey({ 'X-API-Key': ' header-key ' }), 'header-key');
+    assert.strictEqual(extractApiKey({ authorization: 'Bearer primary', 'x-api-key': 'secondary' }), 'primary');
+    assert.strictEqual(extractApiKey({ authorization: ['Bearer ignored'], 'x-api-key': [' first ', 'second'] }), 'first');
+    assert.strictEqual(extractApiKey({ authorization: 'Basic ignored', 'x-api-key': ' fallback ' }), 'fallback');
+    for (const header of [[], ['', 'second'], 42, {}]) {
+      assert.strictEqual(extractApiKey({ 'x-api-key': header }), '');
+    }
+  });
+
+  it('requireApiKey rejects requests without headers with the generic auth envelope', () => {
+    assert.deepStrictEqual(requireApiKey({}, 'configured-key'), {
+      ok: false,
+      status: 401,
+      headers: { 'WWW-Authenticate': 'Bearer' },
+      error: { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } },
+    });
+  });
+
+  it('constantTimeEqual does not short-circuit on length mismatch', () => {
+    // Regression for #384: a length check leaked the configured key length.
+    const original = crypto.timingSafeEqual;
+    let calls = 0;
+    crypto.timingSafeEqual = (a, b) => {
+      calls += 1;
+      assert.strictEqual(a.length, b.length);
+      return original(a, b);
+    };
+    try {
+      assert.strictEqual(constantTimeEqual('a', 'a'.repeat(64)), false);
+      assert.strictEqual(calls, 1, 'comparison must reach timingSafeEqual');
+    } finally {
+      crypto.timingSafeEqual = original;
+    }
+  });
+
+  it('requireApiKey rejects wrong-length keys without leaking timing', () => {
+    const res = requireApiKey({ headers: { authorization: 'Bearer x' } }, 'a-much-longer-configured-key');
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.status, 401);
   });
 });

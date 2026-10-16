@@ -1,0 +1,3030 @@
+{
+  "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+  "datasetVersion": "contradiction-eval-v1",
+  "records": [
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:00c4b1726ecd61ba",
+      "pairDigest": "sha256:00c4b1726ecd61ba10055431a4714cd771509cd714a73b5f44b7d4259b378d20",
+      "pairGroupId": "group:storage-backend",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-006",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the storage backend is SQLite",
+        "subject": "svc:storage-backend",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the storage backend is PostgreSQL",
+        "subject": "svc:storage-backend",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:02663e44c15fe6a4",
+      "pairDigest": "sha256:02663e44c15fe6a4fbf595281f8e2fffd8fd820c471a9b215126d90e340628b9",
+      "pairGroupId": "group:version-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-062",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in v1 the default workspace is default",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in v2 the default workspace is staging",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:03b9a2fecb2f7bed",
+      "pairDigest": "sha256:03b9a2fecb2f7bede5b68adb5e3e16fe5c143fd05a4e31e012160d276c474d90",
+      "pairGroupId": "group:queue-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-039",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the scheduler owns the queue",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the workers own the queue",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:05b4ac72cb11a2cc",
+      "pairDigest": "sha256:05b4ac72cb11a2ccf8600fc19c7060a533775d04c45edf09cae43961fe784650",
+      "pairGroupId": "group:recall-ranking",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-018",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "recall ranks on semantic similarity",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "recall ranks on word overlap",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:07e167535b313d49",
+      "pairDigest": "sha256:07e167535b313d498392bd5882832b746dba5f797d4814d648bcd7dc3a59eee3",
+      "pairGroupId": "group:time-quota",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-103",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in 2025 the quota was 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in 2026 the quota is 5000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:09698179908cf66a",
+      "pairDigest": "sha256:09698179908cf66a0003a640c7c6e8596d90eaf5ff32ca91680cc9e8a96ac712",
+      "pairGroupId": "group:uncertain-quota",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-109",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the quota is generous",
+        "subject": "policy:quota",
+        "relation": "size",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the quota is tight",
+        "subject": "policy:quota",
+        "relation": "size",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "train",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:0971131c102b837c",
+      "pairDigest": "sha256:0971131c102b837c88ffa80c186b7c14babfa3a47f942ecff38d08cf9576ec2f",
+      "pairGroupId": "group:malformed-number",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-114",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "8",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "malformed_pair"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:0cb6175906177836",
+      "pairDigest": "sha256:0cb617590617783634aece7236be35914d9ed5e1102feaac282253a2bd63b36b",
+      "pairGroupId": "group:frame-doctor",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-055",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in the CI frame the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:ci"
+      },
+      "incoming": {
+        "text": "in the production frame the doctor only reports quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:ci"
+      },
+      "split": "calibration",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:0e114a3776749a1b",
+      "pairDigest": "sha256:0e114a3776749a1b26ac3c205df81d59ce8caacba71f70e3229072f6183db27f",
+      "pairGroupId": "group:doctor-pass",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-013",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "indexing causes the doctor check to pass",
+        "subject": "job:doctor",
+        "relation": "affects",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "indexing prevents the doctor check from passing",
+        "subject": "job:doctor",
+        "relation": "affects",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:0e12cdc35aa48bac",
+      "pairDigest": "sha256:0e12cdc35aa48bacf6469f9c0ab48f3cce897b67779bbc08a9df8a8c50a84aac",
+      "pairGroupId": "group:malformed-logline",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-073",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "INFO doctor: 12 rows quarantined, 0 repaired",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "malformed_pair"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:17adb5848ae939ca",
+      "pairDigest": "sha256:17adb5848ae939ca6acefb10b3225e18171cab245d4cc8255a0e58fc65bb8bbe",
+      "pairGroupId": "group:default-workspace",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-026",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the default workspace is default",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the default workspace is default in v1",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:17bc90147a7aac02",
+      "pairDigest": "sha256:17bc90147a7aac02b06aefa21a1f470ddbcf9c618c561bbe7eb766845f1f8882",
+      "pairGroupId": "group:subject-scope-volatile",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-056",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "the bootstrap cache is volatile",
+        "subject": "svc:cache",
+        "relation": "volatility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the recall cache is persistent",
+        "subject": "svc:cache",
+        "relation": "volatility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:19cdf857233b86a4",
+      "pairDigest": "sha256:19cdf857233b86a4042d08d788f4e8b7fcb6dec12bea1493a1dc2b74d3a89ded",
+      "pairGroupId": "group:viewer-auth",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-009",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the viewer requires authentication",
+        "subject": "svc:viewer",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the viewer does not require authentication",
+        "subject": "svc:viewer",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:1af2da2b132dd7b3",
+      "pairDigest": "sha256:1af2da2b132dd7b35c48b8849f4e6d08c2861fac1b7de180fa7a6b9d58b4662e",
+      "pairGroupId": "group:license-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-036",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the license of the core is Apache-2.0",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the license of the docs is CC-BY-4.0",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:1bd8d2390e120a1e",
+      "pairDigest": "sha256:1bd8d2390e120a1eb3d24654deafdef5a0e0b44c99e7a3da5adcd1bf0a52d2a9",
+      "pairGroupId": "group:malformed-question",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-072",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "what is the retry limit?",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "malformed_pair"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:1c72b126e2c74777",
+      "pairDigest": "sha256:1c72b126e2c747775739e3af050dfb3d2e857bbcd4132b664af94a55e6ec5503",
+      "pairGroupId": "group:lease-hold",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-011",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the approval lease is held for 2 minutes",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the approval lease is held for 2 milliseconds",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:1f41a96b7cd89919",
+      "pairDigest": "sha256:1f41a96b7cd89919c9f9f8dcf9145b6c519f7ff82c5946f1447c8021edd76274",
+      "pairGroupId": "group:corpus-size",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-020",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the eval corpus holds 72 pairs",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the eval corpus holds 96 pairs",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:1fb1b4f40d4a9f44",
+      "pairDigest": "sha256:1fb1b4f40d4a9f44d10fd8975c6001c4ec06a19d27ea474136deddd2b24c14c1",
+      "pairGroupId": "group:uncertain-frame",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-069",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the policy is permissive in some frames",
+        "subject": "policy:retention",
+        "relation": "policy",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the policy is strict overall",
+        "subject": "policy:retention",
+        "relation": "policy",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "calibration",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:20ff43f2adfe4ab4",
+      "pairDigest": "sha256:20ff43f2adfe4ab453342f3109069c78b0aed3d95be08753dfa1e96a50a95650",
+      "pairGroupId": "group:uncertain-scale",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-070",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the score improved",
+        "subject": "metric:score",
+        "relation": "improved",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the score regressed",
+        "subject": "metric:score",
+        "relation": "improved",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "train",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:259857f9cae049ee",
+      "pairDigest": "sha256:259857f9cae049ee3117740dca52933aa660ceb8f12a8905cfe5284cdb6be61d",
+      "pairGroupId": "group:slot-mode",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-107",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "the memory store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the journal store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:25c29bd7bdd2554d",
+      "pairDigest": "sha256:25c29bd7bdd2554dd5c3c729a341452cdabd3bd68013253c81e12532e3947acf",
+      "pairGroupId": "group:frame-visibility",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-104",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in the internal frame the receipt endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the public frame the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:2b18718f26416a7b",
+      "pairDigest": "sha256:2b18718f26416a7bdf0f062337fb7ed8c5ff4f2c8b96873819927ccda75f5ea9",
+      "pairGroupId": "group:journal-mode",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-082",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the store runs in rollback journal mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:2f09afa2877a40c4",
+      "pairDigest": "sha256:2f09afa2877a40c4601ccd56490a0a2a0d0fe3dc144fb07beb66f6e665dcd1d5",
+      "pairGroupId": "group:temporal-order",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-058",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in run 12 the index was rebuilt before the release",
+        "subject": "job:index",
+        "relation": "ordering",
+        "sourceType": "log",
+        "frameId": "frame:ci"
+      },
+      "incoming": {
+        "text": "in run 13 the index was rebuilt after the release",
+        "subject": "job:index",
+        "relation": "ordering",
+        "sourceType": "log",
+        "frameId": "frame:ci"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:30eec1c9ded9ffc5",
+      "pairDigest": "sha256:30eec1c9ded9ffc5d4dd19650fb47e7d4e236ca22dbf5a7d55ca86b5c5d2a9c7",
+      "pairGroupId": "group:uncertain-access",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-112",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the endpoint is accessible",
+        "subject": "api:receipt-endpoint",
+        "relation": "access",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the endpoint is inaccessible",
+        "subject": "api:receipt-endpoint",
+        "relation": "access",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "train",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:322351cd0b79fac6",
+      "pairDigest": "sha256:322351cd0b79fac6d0d3c26948d7350bdfcccc45d6760e891a8eabc49cfe4cff",
+      "pairGroupId": "group:unit-frame",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-059",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in the legacy frame the backup interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the current frame the backup interval is 86400 seconds",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:3287f14c80f8195c",
+      "pairDigest": "sha256:3287f14c80f8195cd68fdbbbfbf4bc693ad6a99317ee7f3586355a52054594c1",
+      "pairGroupId": "group:write-lock-effect",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-024",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the lock prevents concurrent writes",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the lock causes concurrent writes",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:34934be9ce460025",
+      "pairDigest": "sha256:34934be9ce46002542f95024fd4f2abc0aa4b993f02ddddd8bdd2584e7fd5e83",
+      "pairGroupId": "group:ingest-enabled",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-008",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the ingest path is enabled by default",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the ingest path is not enabled by default",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:351e3587f0e17b31",
+      "pairDigest": "sha256:351e3587f0e17b31b9de38716651b83cb53057b540104546cf9d5a3bc60ff18b",
+      "pairGroupId": "group:approval-lifetime",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-083",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the approval lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the approval lifetime is 15 hours",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:3724dcfb4c968859",
+      "pairDigest": "sha256:3724dcfb4c968859a4027637fcf55712af5df14d08c8b65119340c20b9de298d",
+      "pairGroupId": "group:malformed-fragment",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-113",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "malformed_pair"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:39e898a383561d58",
+      "pairDigest": "sha256:39e898a383561d58005bb83bc3c1f6aafc4763f685cb02333aca9b9a4c013cb8",
+      "pairGroupId": "group:write-admission",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-015",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the memory write is admitted",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the memory write is rejected",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:3cd83ca5cce65785",
+      "pairDigest": "sha256:3cd83ca5cce65785c8dfee6fd9cf907a47b5289d6eed25f3a5398b7038b08acc",
+      "pairGroupId": "group:uncertain-latency",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-110",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the store is fast",
+        "subject": "svc:store",
+        "relation": "speed",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the store is slow",
+        "subject": "svc:store",
+        "relation": "speed",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "holdout",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:3ec627d1c22c3c27",
+      "pairDigest": "sha256:3ec627d1c22c3c27f656fca27f7c41ab79b1f7ee39f4294866bca430ffe7b1f9",
+      "pairGroupId": "group:quota-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-099",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the audit limit is 1000 rows per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:4272581a8d4230cd",
+      "pairDigest": "sha256:4272581a8d4230cdc82b476712de1169ba8f4262fe71a721c5f54ff979041c71",
+      "pairGroupId": "group:doctor-quarantine",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-019",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the doctor drops quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:43013c508fac712f",
+      "pairDigest": "sha256:43013c508fac712f332992a44901c6348ece277f01ace8b0f405239eb8a52823",
+      "pairGroupId": "group:license-core",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-004",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the license of the core is Apache-2.0",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the license of the core is MIT",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:44e611684688531a",
+      "pairDigest": "sha256:44e611684688531aa7a88586327778eb1c4a762bedd89fcc8cdd24007c9872f4",
+      "pairGroupId": "group:tenant-workers",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-101",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "for tenant A the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "for tenant B the worker pool runs 8 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:4533f82bb426b331",
+      "pairDigest": "sha256:4533f82bb426b3316cdba87c6236bb30d2af0c1b93d7751f21650c3ae191efc2",
+      "pairGroupId": "group:time-flag",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-054",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "the ingest path was disabled in v1",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the ingest path is enabled in v2",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:46c5aaaaa0a87949",
+      "pairDigest": "sha256:46c5aaaaa0a87949b3925f26b0c0d8d3b266452c8e28016b27fbe297f9e83ec9",
+      "pairGroupId": "group:doctor-quarantine",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-043",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the doctor quarantines broken rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:4b0840e06f13d0f7",
+      "pairDigest": "sha256:4b0840e06f13d0f790af132bc7b8cb5b30c931c5611c255a62e07be105327824",
+      "pairGroupId": "group:cache-fastpath",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-012",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the cache enables the fast path",
+        "subject": "svc:cache",
+        "relation": "enables",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache prevents the fast path",
+        "subject": "svc:cache",
+        "relation": "enables",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:4cd90be2ce91fcd0",
+      "pairDigest": "sha256:4cd90be2ce91fcd0b0d879d58a58faa26ad99407665dc0f28f5d50485dd48ae7",
+      "pairGroupId": "group:worker-count",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-079",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the worker pool runs 8 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:4d2c4b5cde30e151",
+      "pairDigest": "sha256:4d2c4b5cde30e151eef8e1a0885881222cedc354d9ae643c79a9fa4544c115c4",
+      "pairGroupId": "group:request-timeout-doc",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-031",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the request timeout is 30 seconds",
+        "subject": "cfg:request-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the request timeout is documented in the README",
+        "subject": "cfg:request-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:5b6e28e79a5911a1",
+      "pairDigest": "sha256:5b6e28e79a5911a15dc8d31086df57fa908fb3bd5a0ca113f69eace61e97128c",
+      "pairGroupId": "group:uncertain-version",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-111",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the version changed",
+        "subject": "",
+        "relation": "version",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the version stayed the same",
+        "subject": "",
+        "relation": "version",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "train",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:5f5018d8f3669e97",
+      "pairDigest": "sha256:5f5018d8f3669e979df60ddb14e6981f6be047f2f305edf577e8754a5dc0fd5e",
+      "pairGroupId": "group:embed-mode",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-086",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the embedder runs in hash mode",
+        "subject": "svc:embedder",
+        "relation": "runs_in",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the embedder runs in semantic mode",
+        "subject": "svc:embedder",
+        "relation": "runs_in",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:6117681e296bd0cb",
+      "pairDigest": "sha256:6117681e296bd0cb9fcc24efbfe11841dffdd128861d570bf8dbe788687bef2f",
+      "pairGroupId": "group:trust-root-pinning",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-021",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the trust root is pinned by digest",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the trust root is pinned by file path",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:654ce85d355fb786",
+      "pairDigest": "sha256:654ce85d355fb7866952174cda842af0a942113b58fa9c1fd1a1726df4d173bf",
+      "pairGroupId": "group:workspace-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-051",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in workspace alpha the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in workspace beta the retry limit is 5 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:69cb89ddadaa7588",
+      "pairDigest": "sha256:69cb89ddadaa7588576ab8d28c8f920f0d0781ac4702110509f2e870b7ef2087",
+      "pairGroupId": "group:version-visibility",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-108",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in v1 the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in v2 the receipt endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:69d821fde0828ffb",
+      "pairDigest": "sha256:69d821fde0828ffb16a992b3991c85de33bca4d60cc34ebcf7dd8f17e46c13a6",
+      "pairGroupId": "group:mode-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-096",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache runs in memory mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:71d2b43a634382d6",
+      "pairDigest": "sha256:71d2b43a634382d60e775d63492ee02ae137b647db081ecc1f270ac9cab39206",
+      "pairGroupId": "group:uncertain-timeout",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-065",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the timeout is short",
+        "subject": "svc:api-gateway",
+        "relation": "latency",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the timeout is long",
+        "subject": "svc:api-gateway",
+        "relation": "latency",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "train",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:73aec75a19c2db85",
+      "pairDigest": "sha256:73aec75a19c2db8513b3d7007b2d19a772a561675b7e7eca4b5e6d043c1458b3",
+      "pairGroupId": "group:uncertain-entity",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-068",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "it was admitted",
+        "subject": "",
+        "relation": "verdict",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "it was rejected",
+        "subject": "",
+        "relation": "verdict",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "calibration",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:74f043e11ecaa7dc",
+      "pairDigest": "sha256:74f043e11ecaa7dcd1f9def4c97f145242c63e4fc4ce761a9ed239296f40a051",
+      "pairGroupId": "group:ingest-enabled",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-032",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the ingest path is enabled by default",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:local-dev"
+      },
+      "incoming": {
+        "text": "the ingest path is enabled by default in the local profile",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:local-dev"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:776538d4931761ce",
+      "pairDigest": "sha256:776538d4931761ce9471f3baf53825652e50849dbe5101fc1f868db8c5166e74",
+      "pairGroupId": "group:write-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-037",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the memory write is admitted",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the hypothesis write is rejected",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:7a0b2cbfdf738c94",
+      "pairDigest": "sha256:7a0b2cbfdf738c9497e50a9011611de10513b2b1d47b5d80a07951feafc41608",
+      "pairGroupId": "group:quantifier-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-057",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "all writes require approval in the enterprise profile",
+        "subject": "policy:approval",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "no approval is required for reads",
+        "subject": "policy:approval",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:7d75ad9f6d97e73a",
+      "pairDigest": "sha256:7d75ad9f6d97e73a2d4f6fbde31b77eb6a4aa971979c8006c668672847f52f04",
+      "pairGroupId": "group:determinism-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-045",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the ingest pipeline is deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the dream pipeline is non-deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:801d16c71d4f60eb",
+      "pairDigest": "sha256:801d16c71d4f60ebffc47f109170d1f02dbecc0f32223b60dcfc62c81fe24bca",
+      "pairGroupId": "group:limit-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-035",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the audit limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:84187bd071d239ec",
+      "pairDigest": "sha256:84187bd071d239ec989d8c897b36aac50189b5ef48ab2dca0805458e4745a89f",
+      "pairGroupId": "group:visibility-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-097",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the admin endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:85ca3bee0b8542e8",
+      "pairDigest": "sha256:85ca3bee0b8542e87e71ee8eeb006f50045766187e931ebccd74864f9d0b76b5",
+      "pairGroupId": "group:retention-window",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-023",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the retention window is 7 days",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retention window is 7 weeks",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:8fab67c8e3b6a24e",
+      "pairDigest": "sha256:8fab67c8e3b6a24e9e6e224a1910bd990296e093f852ea4e2d8d661195d8adcf",
+      "pairGroupId": "group:endpoint-visibility",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-087",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the receipt endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:9161fb7f346a8d22",
+      "pairDigest": "sha256:9161fb7f346a8d22edd820b4ae87c3afa21053a124daf729eac41ca799bbc31c",
+      "pairGroupId": "group:cache-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-047",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the cache enables the fast path",
+        "subject": "svc:cache",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache is disabled for the debug profile",
+        "subject": "svc:cache",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:92011a6cc56e1d79",
+      "pairDigest": "sha256:92011a6cc56e1d790f4dd0a41e318962a04b281f8fbf581c51419ce12c90ade9",
+      "pairGroupId": "group:slot-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-052",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "the api gateway timeout is 30 seconds",
+        "subject": "cfg:api-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the worker timeout is 30 seconds",
+        "subject": "cfg:api-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:953f3a16b4f69ed0",
+      "pairDigest": "sha256:953f3a16b4f69ed047c86fc7c9995c0868f3671ab705f6efb7b9ef6404fc6ae9",
+      "pairGroupId": "group:uncertain-change",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-067",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "recently the limit changed",
+        "subject": "cfg:rate-limit",
+        "relation": "changes",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the limit has not changed",
+        "subject": "cfg:rate-limit",
+        "relation": "changes",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "train",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:9ba5eb1e20a0562f",
+      "pairDigest": "sha256:9ba5eb1e20a0562f18040d836ad630004d8d1285cf415f4a75f41b8a81f28cca",
+      "pairGroupId": "group:gateway-auth-delegation",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-016",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the gateway delegates authentication to the auth service",
+        "subject": "svc:api-gateway",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the auth service delegates authentication to the gateway",
+        "subject": "svc:api-gateway",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:9d11cad7bc33b9d6",
+      "pairDigest": "sha256:9d11cad7bc33b9d67ac940726463836f1a8b3541c060b0e4dcf3b865d9053340",
+      "pairGroupId": "group:default-workspace",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-005",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the default workspace is default",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the default workspace is staging",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:9e484bb01a59f105",
+      "pairDigest": "sha256:9e484bb01a59f1056be310fc96fcc9916a1f195ac0b9aaf04557f849f95464ba",
+      "pairGroupId": "group:recall-ranking",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-027",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "recall ranks on semantic similarity",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "recall also exposes a lexical score",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:9e55e428e52d3af6",
+      "pairDigest": "sha256:9e55e428e52d3af6d68c83c054fa9bf003a6e2cc7b211edd6e781b8fd1dd55d3",
+      "pairGroupId": "group:version-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-098",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the package version is 0.9.1",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a148389a80cca920",
+      "pairDigest": "sha256:a148389a80cca9209bc709f6b8a71d6534bd4bac3715e96882c2e32d09b33962",
+      "pairGroupId": "group:uncertain-subject",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-066",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the service is degraded",
+        "subject": "",
+        "relation": "state",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the service is healthy",
+        "subject": "",
+        "relation": "state",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "split": "calibration",
+      "samplingStratum": "measurement_uncertain"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a165d5f0fe898981",
+      "pairDigest": "sha256:a165d5f0fe8989810bbf697f3bc98c269675ca6f6335136752dff9b259ff8daa",
+      "pairGroupId": "group:lock-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-044",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the lock prevents concurrent writes",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the lock prevents concurrent reads",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a26c47b0d9de756b",
+      "pairDigest": "sha256:a26c47b0d9de756b7d636366af9ee113e354a0ae23df4d555cde0d0681c19a22",
+      "pairGroupId": "group:quota-window",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-091",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the quota can be raised per tenant",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a29dae2cb01cc60c",
+      "pairDigest": "sha256:a29dae2cb01cc60cbb84eb62b4df61bc58f9fb0c2c5d91cc9707e5d966d31bcf",
+      "pairGroupId": "group:lifetime-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-100",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the approval lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the session lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a3de337119578792",
+      "pairDigest": "sha256:a3de337119578792d4ef879a5ba169fa4198fc0c4e2597ce8cc289a1591fba9b",
+      "pairGroupId": "group:backup-interval",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-010",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the backup interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the backup interval is 24 seconds",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a60ab8cba8a9bba5",
+      "pairDigest": "sha256:a60ab8cba8a9bba585a7e1a072cdad6bdf854a17738c74031db0bded1142a796",
+      "pairGroupId": "group:port-8080",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-001",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 9090",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a6ef9bf4e0e37d5d",
+      "pairDigest": "sha256:a6ef9bf4e0e37d5deae2eb15dc4974a7b39bd2024bdbd50d75e8da1ac435666e",
+      "pairGroupId": "group:window-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-041",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the retention window is 7 days",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache window is 7 days",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:a7592cdaa37df7e0",
+      "pairDigest": "sha256:a7592cdaa37df7e008a21c1661c877d716770df788ad76676f172020a48160b5",
+      "pairGroupId": "group:tenant-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-063",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "for tenant A the trust root is pinned by digest",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "for tenant B the trust root is pinned by file path",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:aad5b1bf4ebc526f",
+      "pairDigest": "sha256:aad5b1bf4ebc526f11e6c83e94f87f8941607c1d2ccc16330df426c844e2cae0",
+      "pairGroupId": "group:pipeline-determinism",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-030",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the pipeline is deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the pipeline is bounded",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:ad436eda197d8983",
+      "pairDigest": "sha256:ad436eda197d898399ec3e3769f5abb667b2bd2b70e7c335beb301cc81b189e0",
+      "pairGroupId": "group:retention-period",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-029",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the retention period is 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retention period is configurable",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:af43c0e9206f72d8",
+      "pairDigest": "sha256:af43c0e9206f72d86670a1ddc712f53044ed46e9f5bdbc77f07677d44f1b504b",
+      "pairGroupId": "group:stage-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-064",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in the shadow stage the detector output is ignored",
+        "subject": "gate:action-firewall",
+        "relation": "mode",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the on stage the detector output is advisory",
+        "subject": "gate:action-firewall",
+        "relation": "mode",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:b3fd225b7ce24338",
+      "pairDigest": "sha256:b3fd225b7ce243383c6f9b8ca757949d365af2364f460e54501c4eba6b71ac65",
+      "pairGroupId": "group:delegation-chain",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-038",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the gateway delegates authentication to the auth service",
+        "subject": "svc:auth",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the auth service delegates authentication to the identity provider",
+        "subject": "svc:auth",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:b430df258a89c02f",
+      "pairDigest": "sha256:b430df258a89c02f56ea6bc0637a4ec04aa9c4b84215f12a0593949b32f6a943",
+      "pairGroupId": "group:backup-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-046",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the backup interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the snapshot interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:b4a2ef8a6cff7b7a",
+      "pairDigest": "sha256:b4a2ef8a6cff7b7aeab890d537fc917788940c9a23117b61335cfa653770e12c",
+      "pairGroupId": "group:pipeline-determinism",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-014",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the pipeline is deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the pipeline is non-deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:b6899037d5de1463",
+      "pairDigest": "sha256:b6899037d5de1463b355fb473fffe9908fa1b0399d2a3192ceda8af86ad70d1d",
+      "pairGroupId": "group:api-version",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-092",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the API version is recorded in the manifest",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:b782224c0798bfb6",
+      "pairDigest": "sha256:b782224c0798bfb605531bc88f0886848d02c153af3c03d9569cd5a7400ebd33",
+      "pairGroupId": "group:stage-lifetime",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-105",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in the shadow stage the approval lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the on stage the approval lifetime is 60 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:b7dcaf66d4b20ece",
+      "pairDigest": "sha256:b7dcaf66d4b20ece017f2b143e7da62db8862fd55b42f9278b02e21f99f5d27f",
+      "pairGroupId": "group:hash-algorithm",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-081",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the receipt chain uses sha256",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the receipt chain uses sha1",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:c065cc640ac1146b",
+      "pairDigest": "sha256:c065cc640ac1146bb55b340cb35800a8e3057e3cba0c0b8e3c22f9021984f10b",
+      "pairGroupId": "group:2025-vs-2026-retention",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-050",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in 2025 the retention period was 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in 2026 the retention period is 60 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:c0f15a90392373b4",
+      "pairDigest": "sha256:c0f15a90392373b4f2b8edc5d30c8752a2950c4f4abd74a49eb6256ec303f29d",
+      "pairGroupId": "group:flag-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-034",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the alpha path is disabled",
+        "subject": "cfg:alpha-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the beta path is enabled",
+        "subject": "cfg:alpha-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:c4ba914f0b369aca",
+      "pairDigest": "sha256:c4ba914f0b369aca11dc862f91d139ff0f92cd287dca47489ff486d6d60b3247",
+      "pairGroupId": "group:beta-release",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-003",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the beta release shipped in March 2025",
+        "subject": "mem:beta-release",
+        "relation": "shipped_in",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the beta release shipped in August 2025",
+        "subject": "mem:beta-release",
+        "relation": "shipped_in",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:c89ee2493e707cb4",
+      "pairDigest": "sha256:c89ee2493e707cb4b528be04d41ddba068417e1516b33bfd81ea453ebb5496f3",
+      "pairGroupId": "group:queue-ownership",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-017",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the scheduler owns the queue",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the queue owns the scheduler",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:cb980a1f20783e4a",
+      "pairDigest": "sha256:cb980a1f20783e4ae7faa215724e01dcd820eda88ecedf5ce58822e271cd7b27",
+      "pairGroupId": "group:retry-limit",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-002",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retry limit is 5 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:cfc168fe8f055ecf",
+      "pairDigest": "sha256:cfc168fe8f055ecf8e99cba4231b2aeb583819ff47e44756db1d9428b72021b5",
+      "pairGroupId": "group:role-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-060",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "the operator approves MCP calls in production",
+        "subject": "policy:mcp-approval",
+        "relation": "acted_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the model proposes MCP calls in production",
+        "subject": "policy:mcp-approval",
+        "relation": "acted_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:d1cdbb81cfccd5ec",
+      "pairDigest": "sha256:d1cdbb81cfccd5ec88353a7e708820fcdfd624b19df290b0c01048d4342b91e2",
+      "pairGroupId": "group:malformed-crosswal",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-074",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the retention period is 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "le stockage est PostgreSQL",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "malformed_pair"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:d3be52ee49757d57",
+      "pairDigest": "sha256:d3be52ee49757d573dbaa5d84b7885238879bb067dc9c44d5c8151eee28a99a5",
+      "pairGroupId": "group:port-8080",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-025",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:staging"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 8080 on the staging host",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:staging"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:da6638955fa82e7a",
+      "pairDigest": "sha256:da6638955fa82e7a3ccc8c74d630edb3d09351acd549b9010e5e0e06044606a9",
+      "pairGroupId": "group:endpoint-visibility",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-094",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the public endpoint is rate limited",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:dbbb6229bf8f8a9c",
+      "pairDigest": "sha256:dbbb6229bf8f8a9ce3a0c185cd3c689d19ef10e1a10ba77ff574fcf405f93ee5",
+      "pairGroupId": "group:gate-order",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-080",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the firewall runs before the admission gate",
+        "subject": "gate:action-firewall",
+        "relation": "runs_before",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the admission gate runs before the firewall",
+        "subject": "gate:action-firewall",
+        "relation": "runs_before",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:dd9f384931c623e9",
+      "pairDigest": "sha256:dd9f384931c623e97ed122aabbfb735aec14e89d27871a163a8b84ef4d3ac6c8",
+      "pairGroupId": "group:hash-algorithm",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-093",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the receipt chain uses sha256",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the receipt chain hashes with sha256 in the bundle",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:de62af3e979a5fbf",
+      "pairDigest": "sha256:de62af3e979a5fbfb74dfe892854eed9c522c7eafd23bfa14eba1fc21a6b01c4",
+      "pairGroupId": "group:retention-period",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-007",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the retention period is 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retention period is monthly",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e00993501633eb0b",
+      "pairDigest": "sha256:e00993501633eb0b5c408e1f4af5747746b6582094870d5168f07749aafc8256",
+      "pairGroupId": "group:quota-window",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-085",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the quota is 1000 requests per hour",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e2a548a3761c74bb",
+      "pairDigest": "sha256:e2a548a3761c74bbd32cc179f3e8dce4b31949c8f8f73dbfc6a1e77c0d372c27",
+      "pairGroupId": "group:malformed-self",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-071",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "malformed_pair"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e3215addf8018fdb",
+      "pairDigest": "sha256:e3215addf8018fdb0c04d73d40ee0f11cb15fd5bc9efc25368c27a5b6c27bdb8",
+      "pairGroupId": "group:store-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-033",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the core store uses SQLite",
+        "subject": "svc:core-store",
+        "relation": "uses",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the analytics store uses PostgreSQL",
+        "subject": "svc:core-store",
+        "relation": "uses",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e50679a7ca79e6ea",
+      "pairDigest": "sha256:e50679a7ca79e6ea211e4d9c6c6238689cbeab999f3e82a53b511beab38ec8cd",
+      "pairGroupId": "group:worker-count",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-089",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the worker pool runs at most 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e520ad3d3b2add65",
+      "pairDigest": "sha256:e520ad3d3b2add659847f3513a4951f436c7e5e2c937f37c62a3e57304420092",
+      "pairGroupId": "group:pinning-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-040",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the trust root is pinned by digest",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the endpoint is pinned by IP address",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e819bad18a9c367d",
+      "pairDigest": "sha256:e819bad18a9c367d5c50a7eebeee57709cd1e5f4df1da541049d1b9ad82af713",
+      "pairGroupId": "group:env-version",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-102",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in staging the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in production the public API version is 0.1",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:e98ca15030129b09",
+      "pairDigest": "sha256:e98ca15030129b09ce883498f5c403e9eef7eee7ad7c52876b01f57dbd5e0fb1",
+      "pairGroupId": "group:env-license",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-053",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in the enterprise profile the license is commercial",
+        "subject": "doc:product-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the community profile the license is Apache-2.0",
+        "subject": "doc:product-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:ec77c9dfc67b04bb",
+      "pairDigest": "sha256:ec77c9dfc67b04bbc9213e4b5a68c48da7ad7ca62e015705dca6e9f760d09d46",
+      "pairGroupId": "group:region-quota",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-106",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in EU the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in US the quota is 5000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:eccb28052302dfa4",
+      "pairDigest": "sha256:eccb28052302dfa4c97bb366e280df45aa81863cded1dc4641bd3666f1a904ba",
+      "pairGroupId": "group:journal-mode",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-090",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the store runs in WAL mode by default",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:ee97c0fe1ab1af68",
+      "pairDigest": "sha256:ee97c0fe1ab1af6820c8843f350ee8627293c590ed8520e7ae54abf47c05be23",
+      "pairGroupId": "group:prod-vs-staging-port",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-049",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in production the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in staging the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:f0f1d6823053bdc3",
+      "pairDigest": "sha256:f0f1d6823053bdc39cdbc0b5378cbdb55946a42099647adcbfe2d2c12f3e6e23",
+      "pairGroupId": "group:doctor-quarantine",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-028",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the doctor reports quarantined rows to the operator",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "representative"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:f3dda64f092a4966",
+      "pairDigest": "sha256:f3dda64f092a49663bde1cb4f96b800b5f550f4d48ce8f5afa6ac08829997bf7",
+      "pairGroupId": "group:corpus-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-048",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the eval corpus holds 72 pairs",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the fixture manifest holds 72 digests",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "split": "calibration",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:f4ac6de3169f3c07",
+      "pairDigest": "sha256:f4ac6de3169f3c0731cec06b1aae199ec59577c3b789269dd69a69807d8c3edf",
+      "pairGroupId": "group:region-scope",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-061",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "ingest_candidate"
+      },
+      "stored": {
+        "text": "in EU the data is retained for 30 days",
+        "subject": "policy:data-residency",
+        "relation": "retains",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in US the data is retained for 90 days",
+        "subject": "policy:data-residency",
+        "relation": "retains",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "scope_shift"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:f5c7c59b485a3043",
+      "pairDigest": "sha256:f5c7c59b485a30433d2d5f888e36f0b59fd1dc1858ca9140091a88c48fc261d5",
+      "pairGroupId": "group:ttl-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-042",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the approval lease is held for 2 minutes",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the access token is valid for 2 minutes",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "train",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:f60696bb95242bc9",
+      "pairDigest": "sha256:f60696bb95242bc9cf424b40aa1ced39def232219cf3221b861ae361c3484bb5",
+      "pairGroupId": "group:pool-split",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-095",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "review_candidate"
+      },
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the agent pool runs 8 agents",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "calibration",
+      "samplingStratum": "lexical_opposition_only"
+    },
+    {
+      "schemaVersion": "huqan-contradiction-eval-corpus-v1",
+      "pairId": "pair:fd816322f04dd6ed",
+      "pairDigest": "sha256:fd816322f04dd6ed871324c046f7007f2913cee759e645f43de08caba711494c",
+      "pairGroupId": "group:learn-write",
+      "source": {
+        "system": "levh",
+        "candidateId": "cand-088",
+        "snapshotDigest": "sha256:25e7d93994e92121452663550522614335fe499fe31238a9819be849eec6ca65",
+        "triggerKind": "contradiction_candidate"
+      },
+      "stored": {
+        "text": "learning writes to the store",
+        "subject": "svc:learn",
+        "relation": "writes",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "learning never writes to the store",
+        "subject": "svc:learn",
+        "relation": "writes",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "split": "holdout",
+      "samplingStratum": "representative"
+    }
+  ]
+}

@@ -1,15 +1,21 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const Kernel = require('./kernel');
 const Dream = require('./dream');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function fresh() {
-  const k = new Kernel({ noLoad: true });
+  // Isolated journal per test: dream tests mutate the durable JSON mutation
+  // journal, and sharing the repo's real memory.json/memory.mutations.json
+  // would both pollute user data and let stale locks from an aborted run
+  // wedge every subsequent test (see lib/mutation-journal-lock.js).
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-dream-test-'));
+  const iso = path.join(root, 'memory.json');
+  const k = new Kernel({ noLoad: true, memoryPath: iso });
   const learn = k.learn.bind(k);
   k.learn = (text, learnOpts = {}) => learn(text, { ...learnOpts, ...TEST_FIXTURE_LEARN_BYPASS });
   return { k, d: new Dream(k) };
@@ -32,7 +38,7 @@ describe('Dream - Hayal Kurma', () => {
 });
 
 describe('Dream - Amplifikasyon', () => {
-  it('amplify: doğru cevabın weighti en yüksek olur', () => {
+  it('amplify: ranks verified candidates and leaves the graph untouched', () => {
     const { k, d } = fresh();
     k.learn('Köpek hayvandır');
     k.learn('Köpek havlar');
@@ -44,7 +50,11 @@ describe('Dream - Amplifikasyon', () => {
 
     assert.ok(result.length > 0);
     assert.strictEqual(result[0], 'hayvan');
-    assert.ok(after >= before);
+    // The old loop wrote `edge.weight` onto the clone `getEdge()` returns, so it
+    // reported reinforcement while the graph never changed. Until there is a
+    // receipted edge-weight write port the weight must stay put, and the ranking
+    // is the whole contract.
+    assert.strictEqual(after, before);
   });
 });
 
@@ -123,6 +133,15 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.strictEqual(d.embedding(), null);
   });
 
+  it('projection weights cover both signs within the documented range (#1046)', () => {
+    const { d } = fresh();
+    const weights = [];
+    for (let i = 0; i < 512; i++) weights.push(d._projectionWeight(`node-${i}`, i % 64, 64));
+    assert.ok(weights.every((weight) => weight >= -1 && weight < 1));
+    assert.ok(weights.some((weight) => weight < 0));
+    assert.ok(weights.some((weight) => weight > 0));
+  });
+
   it('embedding: düğümlere vektör atar', () => {
     const { k, d } = fresh();
     k.learn('Köpek memelidir');
@@ -150,6 +169,26 @@ describe('Dream - Node2Vec Gömmeler', () => {
     d.embedding({ walksPerNode: 8, walkLength: 15 });
     const sim = d.nodeSimilarity('köpek', 'kedi');
     assert.ok(sim > 0, `köpek-kedi similarity: ${sim}`);
+  });
+
+  it('embedding: varsayılan random walk aynı graph için deterministiktir', () => {
+    const { k, d } = fresh();
+    k.learn('Köpek memelidir');
+    k.learn('Kedi memelidir');
+    k.learn('Köpek havlar');
+    k.learn('Kedi miyavlar');
+
+    const options = { walksPerNode: 8, walkLength: 15 };
+    d.embedding(options);
+    const first = Object.fromEntries(
+      Object.entries(k.graph._nodes).map(([id, node]) => [id, Array.from(node.embedding)]),
+    );
+    d.embedding(options);
+    const second = Object.fromEntries(
+      Object.entries(k.graph._nodes).map(([id, node]) => [id, Array.from(node.embedding)]),
+    );
+
+    assert.deepStrictEqual(second, first);
   });
 
   it('nodeSimilarity: ilgisiz kavramlar düşük skor', () => {
@@ -227,24 +266,27 @@ describe('Dream - Node2Vec Gömmeler', () => {
     ]);
   });
 
-  it('embedding: processes all workspace nodes in global storage insertion order', () => {
+  it('embedding: walks every node of the requested workspace by bare id', () => {
     const { d } = fresh();
     d.graph.addNode('shared', 'first', null, { workspaceId: 'one' });
-    d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
-    const storageOrder = Object.keys(d.graph._nodes);
+    d.graph.addNode('other', 'second', null, { workspaceId: 'one' });
+    d.graph.addNode('foreign', 'third', null, { workspaceId: 'two' });
     const walkStarts = [];
     d._biasedWalk = start => {
       walkStarts.push(start);
       return [start];
     };
 
-    const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
+    const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1, workspaceId: 'one' });
 
+    // Walk starts are the bare ids `getEdges` accepts, not the scope-prefixed
+    // storage keys -- passing a storage key made every non-default walk stop
+    // at length 1 (#1189).
     assert.strictEqual(result.nodes, 2);
-    assert.deepStrictEqual(walkStarts, storageOrder);
-    for (const storageKey of storageOrder) {
-      assert.ok(d.graph._nodes[storageKey].embedding instanceof Float64Array);
-    }
+    assert.deepStrictEqual(walkStarts.slice().sort(), ['other', 'shared']);
+    assert.ok(d.graph._nodes['one::shared'].embedding instanceof Float64Array);
+    assert.ok(d.graph._nodes['one::other'].embedding instanceof Float64Array);
+    assert.strictEqual(d.graph._nodes['two::foreign'].embedding, undefined);
   });
 
   it('embedding: preserves node identity, replaces embedding, and avoids graph access', () => {
@@ -337,34 +379,71 @@ describe('Dream - Node2Vec Gömmeler', () => {
     assert.deepStrictEqual(events, ['beforeEmbedding']);
   });
 
-  it('embedding: delegates each computed vector once in storage-key order', () => {
+  it('embedding: assigns each computed vector once, under its storage key', () => {
     const { d } = fresh();
-    d.graph.addNode('shared', 'first', null, { workspaceId: 'one' });
-    d.graph.addNode('shared', 'second', null, { workspaceId: 'two' });
-    const storageOrder = Object.keys(d.graph._nodes);
+    d.graph.addNode('shared', 'first');
+    d.graph.addNode('other', 'second');
+    d.graph.addNode('foreign', 'third', null, { workspaceId: 'two' });
     const assignments = [];
-    d.graph._assignEmbedding = (storageKey, embedding) => {
+    d.graph.assignEmbedding = (storageKey, embedding) => {
       assignments.push({ storageKey, embedding });
     };
 
     const result = d.embedding({ dimensions: 4, walksPerNode: 1, walkLength: 1 });
 
-    assert.deepStrictEqual(assignments.map(({ storageKey }) => storageKey), storageOrder);
-    assert.strictEqual(assignments.length, storageOrder.length);
+    // Vectors are written under the scope-prefixed storage key, and only for
+    // the requested workspace's nodes.
+    assert.deepStrictEqual(assignments.map(({ storageKey }) => storageKey).sort(), ['other', 'shared']);
+    assert.strictEqual(assignments.length, 2);
     for (const { embedding } of assignments) {
       assert.ok(embedding instanceof Float64Array);
       assert.strictEqual(embedding.length, 4);
     }
-    assert.deepStrictEqual(result, { dimensions: 4, nodes: storageOrder.length });
+    assert.deepStrictEqual(result, { dimensions: 4, nodes: 2 });
   });
 });
 
 describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
+  it('dream: markdown table and CI execution nodes never become hypotheses', () => {
+    const { k, d } = fresh();
+    k.detectContradictions = () => [
+      { node: '|', targets: ['pr | #2 |', 'pr | #4 |'], confidence: 0.95 },
+      {
+        node: 'npm test job 93172327986 success',
+        targets: ['npm test job 93172328153 success'],
+        confidence: 0.9,
+      },
+      { node: 'agent identity', targets: ['delegated authority'], confidence: 0.7 },
+    ];
+    k.learn('agent identity supports delegated authority');
+
+    const results = d.dream();
+
+    assert.ok(results.some(result => result.node === 'agent identity'));
+    assert.ok(results.every(result => {
+      const values = [result.from, result.to, result.node, result.via, ...(result.targets || [])]
+        .filter(Boolean);
+      return values.every(value => !value.includes('|') && !/\bjob\s+\d{5,}\b/i.test(value));
+    }));
+  });
+
+  it('dream: node quality differentiates otherwise equal composite scores', () => {
+    const { d } = fresh();
+    d.graph.addNode('a', 'a');
+    d.graph.addNode('agent identity', 'agent identity');
+
+    const short = d._calculateCompositeScore({ from: 'a', confidence: 0.5 });
+    const meaningful = d._calculateCompositeScore({ from: 'agent identity', confidence: 0.5 });
+
+    assert.ok(meaningful.quality > short.quality);
+    assert.ok(meaningful.score > short.score);
+  });
+
   it('dream: çelişkiler her zaman en üstte yer alır', () => {
     const { k, d } = fresh();
     // Bir çelişki üretmek için kernel.detectContradictions'ı mock'layalım
     k.detectContradictions = () => [
-      { node: 'A', targets: ['B'], confidence: 0.1 } // Çok düşük confidence
+      { node: 'armut', targets: ['bal'], confidence: 0.1 } // Çok düşük confidence
     ];
     
     // Çok yüksek confidence'lı diğer hipotezleri üretmek için veri ekleyelim
@@ -374,24 +453,29 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     const results = d.dream();
     
     assert.strictEqual(results[0].type, 'çelişki', 'İlk sonuç mutlaka çelişki olmalı');
-    assert.strictEqual(results[0].node, 'A');
+    assert.strictEqual(results[0].node, 'armut');
   });
 
   it('dream: novelty (yenilik) skoru sıralamayı etkiler', () => {
     const { k, d } = fresh();
     
-    // 1. a ve b: Ortak komşuları var ama aralarında zaten bağ var (Novelty = 0)
-    k.learn('a cdir');
-    k.learn('b cdir');
-    k.learn('a bdir'); 
-    
-    // 2. d ve e: Ortak komşuları var ve aralarında bağ yok (Novelty = 1)
-    k.learn('d fdir');
-    k.learn('e fdir');
-    
+    // Yuklemler gercek Turkce kopula tasiyor: "cdir" gibi tek harfli koku olan
+    // sentetik bicimler artik `tur` kenari uretmiyor, cunku kopula soyma bir
+    // asgari kok uzunlugu ariyor (#1195). Testin kurgusu ayni: iki cift, ikisi
+    // de ortak komsu paylasiyor, biri kendi arasinda zaten bagli.
+    //
+    // 1. ali ve ayse: Ortak komşuları var ama aralarında zaten bağ var (Novelty = 0)
+    k.learn('ali cevizdir');
+    k.learn('ayse cevizdir');
+    k.learn('ali aysedir');
+
+    // 2. deniz ve emre: Ortak komşuları var ve aralarında bağ yok (Novelty = 1)
+    k.learn('deniz gemidir');
+    k.learn('emre gemidir');
+
     const results = d.dream();
-    const hypAB = results.find(h => (h.from === 'a' && h.to === 'b') || (h.from === 'b' && h.to === 'a'));
-    const hypDE = results.find(h => (h.from === 'd' && h.to === 'e') || (h.from === 'e' && h.to === 'd'));
+    const hypAB = results.find(h => (h.from === 'ali' && h.to === 'ayse') || (h.from === 'ayse' && h.to === 'ali'));
+    const hypDE = results.find(h => (h.from === 'deniz' && h.to === 'emre') || (h.from === 'emre' && h.to === 'deniz'));
     
     assert.ok(hypAB, 'A-B hipotezi üretilmeli');
     assert.ok(hypDE, 'D-E hipotezi üretilmeli');
@@ -404,16 +488,17 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
   it('dream: usefulness (degree) skoru sıralamayı etkiler', () => {
     const { k, d } = fresh();
     
-    // 1. a -> b -> c (a düşük degree: sadece 1 çıkış)
-    k.learn('a bdir');
-    k.learn('b cdir');
-    
-    // 2. x -> y -> z (x yüksek degree: 4 çıkış)
-    k.learn('x ydir');
-    k.learn('y zdir');
-    k.learn('x pdir');
-    k.learn('x qdir');
-    k.learn('x rdir');
+    // Sentetik tek harfli kokler yerine gercek kopula tasiyan yuklemler (#1195).
+    // 1. ali -> ayse -> ceviz (ali düşük degree: sadece 1 çıkış)
+    k.learn('ali aysedir');
+    k.learn('ayse cevizdir');
+
+    // 2. ozan -> selin -> gemi (ozan yüksek degree: 4 çıkış)
+    k.learn('ozan selindir');
+    k.learn('selin gemidir');
+    k.learn('ozan kalemdir');
+    k.learn('ozan yesimdir');
+    k.learn('ozan denizdir');
     
     // Ortalama degree'i yükseltmek için ek düğümler
     for (let i = 0; i < 20; i++) {
@@ -422,9 +507,9 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     
     const results = d.dream();
     
-    // Zincir hipotezleri: a->c (transitive via b) ve x->z (transitive via y)
-    const hypAC = results.find(h => h.from === 'a' && h.to === 'c' && h.type === 'zincir');
-    const hypXZ = results.find(h => h.from === 'x' && h.to === 'z' && h.type === 'zincir');
+    // Zincir hipotezleri: ali->ceviz (ayse uzerinden) ve ozan->gemi (selin uzerinden)
+    const hypAC = results.find(h => h.from === 'ali' && h.to === 'ceviz' && h.type === 'zincir');
+    const hypXZ = results.find(h => h.from === 'ozan' && h.to === 'gemi' && h.type === 'zincir');
     
     assert.ok(hypAC, 'A->C zincir hipotezi üretilmeli');
     assert.ok(hypXZ, 'X->Z zincir hipotezi üretilmeli');
@@ -451,6 +536,42 @@ describe('Dream - Gelişmiş Skorlama ve Sıralama', () => {
     }
     const results = d.dream();
     assert.strictEqual(results.length, 10);
+  });
+
+  it('dream: adversarial empty comparisons stay within the fixed work budget', () => {
+    const { k, d } = fresh();
+    for (let i = 0; i < 500; i++) d.graph.addNode(`isolated-${i}`, `isolated-${i}`);
+
+    const calls = { getEdges: 0, getInEdges: 0, cosineSimilarity: 0 };
+    for (const method of Object.keys(calls)) {
+      const original = d.graph[method].bind(d.graph);
+      d.graph[method] = (...args) => {
+        calls[method]++;
+        return original(...args);
+      };
+    }
+    k.detectGaps = () => [];
+    k.detectContradictions = () => [];
+
+    assert.deepStrictEqual(d.dream(), []);
+    assert.ok(calls.cosineSimilarity <= 10_000, `cosine calls exceeded budget: ${calls.cosineSimilarity}`);
+    assert.ok(calls.getEdges <= 500, `out-edge reads were not pre-indexed: ${calls.getEdges}`);
+    assert.ok(calls.getInEdges <= 500, `in-edge reads were not pre-indexed: ${calls.getInEdges}`);
+  });
+
+  it('dream: indexed execution preserves deterministic hypothesis output', () => {
+    const { k, d } = fresh();
+    k.learn('a cdir');
+    k.learn('b cdir');
+    k.learn('a ddir');
+    k.learn('d edir');
+    k.detectGaps = () => [];
+    k.detectContradictions = () => [];
+
+    const first = d.dream();
+    const second = d.dream();
+
+    assert.deepStrictEqual(second, first);
   });
 });
 

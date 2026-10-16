@@ -1,0 +1,111 @@
+{
+  "description": "Static Turkish demo corpus for scripts/knowledge-graph-demo.js, in learning order. Texts are byte-identical to the original egitim.js.",
+  "groups": [
+    {
+      "group": "Mantik",
+      "facts": [
+        "her A Bdir",
+        "bazı A Bdir",
+        "hiçbir A B değildir",
+        "mantık doğru düşünme yöntemidir",
+        "önerme doğru veya yanlış olabilir",
+        "çıkarım önermelerden sonuç bulmaktır",
+        "tümdengelim genelden özele gider",
+        "tümevarım özelden genele gider",
+        "sebep sonuç ilişkisine neden denir",
+        "A ise B ve A doğruysa B doğrudur",
+        "A ise B ve B yanlışsa A yanlıştır",
+        "çelişki aynı anda hem doğru hem yanlış olamaz"
+      ]
+    },
+    {
+      "group": "Felsefe",
+      "facts": [
+        "felsefe bilgelik sevgisidir",
+        "bilgi güçtür",
+        "merak öğrenmenin temelidir",
+        "şüphe düşüncenin başlangıcıdır",
+        "soru cevaptan değerlidir",
+        "her cevap yeni soru doğurur",
+        "düşünce soyut kavramlar üretir",
+        "kavram düşüncenin yapı taşıdır",
+        "bağlantı kavramlar arası köprüdür",
+        "anlamak bağlantıları görmektir",
+        "gerçek kanıtlanabilir olgudur",
+        "hipotez test edilebilir varsayımdır",
+        "teori kanıtlanmış hipotezler bütünüdür",
+        "paradoks kendisiyle çelişen ifadedir",
+        "bilinmezlik öğrenme fırsatıdır"
+      ]
+    },
+    {
+      "group": "Ogrenme",
+      "facts": [
+        "öğrenmek yeni bağlantılar kurmaktır",
+        "öğrenme tekrarla güçlenir",
+        "gözlem veri toplamaktır",
+        "veri ham bilgidir",
+        "bilgi işlenmiş veridir",
+        "deneyim öğrenmenin en iyi yoludur",
+        "hata öğrenme fırsatıdır",
+        "benzerlik yeni kavramları anlamayı kolaylaştırır",
+        "farklılık kavramları ayırt etmeyi sağlar",
+        "kategorize etmek bilgiyi düzenlemektir",
+        "karşılaştırma analizin temelidir",
+        "sınıflandırma bilgiyi hiyerarşik düzenler"
+      ]
+    },
+    {
+      "group": "Bilim",
+      "facts": [
+        "bilim gözlemle başlar",
+        "deney hipotezi test eder",
+        "veri analizi pattern bulur",
+        "pattern düzenli tekrardır",
+        "model gerçeğin basitleştirilmiş halidir",
+        "simülasyon modelin çalıştırılmasıdır",
+        "doğrulama teorinin test edilmesidir",
+        "yanlışlama bilimsel ilerlemenin motorudur",
+        "sebep sonuca neden olur",
+        "sonuç sebebin etkisidir"
+      ]
+    },
+    {
+      "group": "Matematik",
+      "facts": [
+        "küme nesneler topluluğudur",
+        "Venn şeması kümeleri görselleştirir",
+        "kesişim ortak özellikleri bulur",
+        "birleşim tüm özellikleri toplar",
+        "fonksiyon girdiyi çıktıya dönüştürür",
+        "vektör yön ve büyüklük içerir",
+        "matris sayıların dikdörtgen dizisidir",
+        "dönüşüm bir şeyi başka şeye çevirir",
+        "entropi düzensizlik ölçüsüdür",
+        "olasılık belirsizlik ölçüsüdür",
+        "eğilim olası en kısa yoldur"
+      ]
+    },
+    {
+      "group": "Sistem",
+      "facts": [
+        "AXIOM bilgi grafiği motorudur",
+        "düğüm kavramı temsil eder",
+        "kenar ilişkiyi temsil eder",
+        "weight ilişkinin gücünü gösterir",
+        "rüya hipotez üretmektir",
+        "doğruluk hipotezi test eder",
+        "amplifikasyon doğru cevabı güçlendirir",
+        "simülasyon hipotezleri karşılaştırır",
+        "gömme vektör kavramı sayılarla temsil eder",
+        "benzerlik vektörler arası açıdır",
+        "unutma eğrisi zamanla zayıflamayı modeller",
+        "budama gereksiz bağlantıları temizler",
+        "plugin sistemi genişletilebilirlik sağlar",
+        "Rust hızlandırıcı büyük grafikler için",
+        "Bilmiyorum bilinmeyeni kabul etmektir",
+        "bilinmeyeni kabul etmek öğrenmenin başlangıcıdır"
+      ]
+    }
+  ]
+}

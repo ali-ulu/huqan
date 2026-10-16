@@ -38,6 +38,28 @@ describe('risk-rules', () => {
     assert.ok(HIGH_RISK_DOMAINS.aviation.length > 0);
   });
 
+  it('does not flag an absolute term as a substring of an unrelated word (#1284)', () => {
+    const cases = [
+      'you should install this package',
+      'this is a small ball we can throw',
+      'the tumor and tumevarim topics are unrelated to absolutes',
+    ];
+    for (const text of cases) {
+      assert.equal(detectAbsoluteClaim(text), null, text);
+    }
+  });
+
+  it('does not flag a high-risk domain term as a substring of an unrelated word (#1284)', () => {
+    // 'para' (financial domain) inside 'paragraf'/'paralel'.
+    const signal = detectHighRiskDomain('read the paragraph carefully, it runs in parallel');
+    assert.equal(signal, null);
+  });
+
+  it('still detects an absolute/domain term at a real word boundary next to punctuation (#1284)', () => {
+    assert.ok(detectAbsoluteClaim('always, without exception, wins'));
+    assert.ok(detectHighRiskDomain('(para) is the topic today'));
+  });
+
   it('detects scope expansion', () => {
     const signal = detectScopeExpansion(
       { text: 'aşı bazı hastalıkları önlemeye yardımcı olabilir', subject: 'aşı' },

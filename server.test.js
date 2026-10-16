@@ -5,6 +5,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const Graph = require('./graph');
+const { rateLimitMap } = require('./requestGuards');
+const { CANONICAL_AGENT_VERSION } = require('./agentRuntime');
+const { CANONICAL_KERNEL_VERSION } = require('./lib/kernel-factory');
+const { ACTION_OUTCOMES } = require('./lib/workbench/ingest-approval-action');
+const { NON_QUEUED_APPROVAL_STATUS } = require('./lib/http/upload-admission-contract');
 
 let PORT;
 let BASE;
@@ -74,10 +79,22 @@ async function ingestManualFact(text) {
       text,
     }),
   });
-  assert.strictEqual(response.status, 200);
-  const body = await response.json();
+  assert.ok([200, 202].includes(response.status));
+  const queued = await response.json();
+  assert.strictEqual(queued.ok, true);
+  if (response.status === 200) {
+    assert.strictEqual(queued.status, 'approved');
+    return queued;
+  }
+  const approved = await request(`${BASE}/api/ingest/approvals/${encodeURIComponent(queued.approval.id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision: 'approved' }),
+  });
+  assert.strictEqual(approved.status, 200);
+  const body = await approved.json();
   assert.strictEqual(body.ok, true);
-  return body;
+  return body.result;
 }
 
 async function assertUploadReviewOnly(pathname, payload) {
@@ -89,11 +106,16 @@ async function assertUploadReviewOnly(pathname, payload) {
   });
   assert.strictEqual(response.status, 200);
   const body = await response.json();
-  assert.strictEqual(body.ok, true);
+  // Nothing was written and nothing was queued, so the envelope must not read
+  // as a completed upload (#1990).
+  assert.strictEqual(body.ok, false);
+  assert.strictEqual(body.status, NON_QUEUED_APPROVAL_STATUS);
   assert.strictEqual(body.learned, 0);
   assert.ok(body.admission);
   assert.strictEqual(body.admission.outcome, 'review');
-  assert.strictEqual(body.admission.approvalStatus, 'pending');
+  assert.strictEqual(body.admission.approvalStatus, NON_QUEUED_APPROVAL_STATUS);
+  assert.equal(body.admission.receipt.approvalStatus, 'pending');
+  assert.equal(body.admission.receipt.approvalId, '');
   assert.deepStrictEqual(await getGraphCounts(), before);
   return body;
 }
@@ -127,7 +149,7 @@ before(async () => {
 after(async () => {
   server.closeAllConnections?.();
   server.closeIdleConnections?.();
-  server.closeAxiom?.();
+  server.closeHuqan?.();
   await new Promise(resolve => server.close(() => resolve()));
   server.closeAllConnections?.();
   server.closeIdleConnections?.();
@@ -139,6 +161,30 @@ after(async () => {
   delete process.env.AXIOM_TEST_STATUS;
   await new Promise(resolve => setTimeout(resolve, 25));
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
+});
+
+describe('Server - index page cache (#420)', () => {
+  it('reads public/index.html once and reuses the cached bytes', () => {
+    const first = server.getHtmlPage();
+    const second = server.getHtmlPage();
+    // Same object identity, so no second readFileSync happened.
+    assert.strictEqual(first, second);
+    assert.ok(Buffer.isBuffer(first));
+    assert.deepStrictEqual(first, fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+  });
+
+  it('GET / serves the cached page on repeated requests', async () => {
+    const first = await request(`${BASE}/`);
+    assert.strictEqual(first.status, 200);
+    assert.match(first.headers.get('content-type'), /text\/html/);
+    assert.strictEqual(first.headers.get('cache-control'), 'no-cache');
+    const firstBody = await first.text();
+
+    const second = await request(`${BASE}/`);
+    assert.strictEqual(second.status, 200);
+    assert.strictEqual(await second.text(), firstBody);
+    assert.strictEqual(firstBody, server.getHtmlPage().toString('utf8'));
+  });
 });
 
 describe('Server - API', () => {
@@ -202,6 +248,40 @@ describe('Server - API', () => {
     assert.strictEqual(j.error, 'Method not allowed');
   });
 
+  it('the verify routes refuse every method except POST (#1035)', async () => {
+    // The guards used to admit GET and then fall through to an unconditional
+    // 405 at the end of the block, so the routes read as though GET were
+    // served while it never was. The externally visible answer is unchanged;
+    // what these pin is that it stays a single, deliberate refusal.
+    //
+    // This sweep spends enough of the shared rate-limit budget to starve later
+    // suites, so it is cleared the way the allowlist tests below do.
+    rateLimitMap.clear();
+    for (const path of ['/v2/verify', '/dogrula', '/verify']) {
+      for (const method of ['GET', 'PUT', 'DELETE', 'PATCH', 'HEAD']) {
+        const r = await request(`${BASE}${path}?claim=kedi+hayvandir`, { method });
+        assert.strictEqual(r.status, 405, `${method} ${path}`);
+      }
+    }
+    rateLimitMap.clear();
+  });
+
+  it('POST /v2/verify still reads workspaceId from the query when the body omits it (#1035)', async () => {
+    // This fallback was reported as GET-only dead code. It is not: /llm-sor,
+    // /dogrula and /yukle all read workspaceId body-then-query the same way,
+    // and POST reaches it whenever the body leaves the field out.
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/v2/verify?workspaceId=ws-1035`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim: 'kedi hayvandir' }),
+    });
+    assert.strictEqual(r.status, 200);
+    const body = await r.json();
+    assert.strictEqual(body.ok, true);
+    rateLimitMap.clear();
+  });
+
   it('OPTIONS preflight returns safe CORS headers', async () => {
     const r = await request(`${BASE}/v2/verify`, {
       method: 'OPTIONS',
@@ -241,7 +321,9 @@ describe('Server - API', () => {
     const j = await r.json();
     assert.strictEqual(j.ok, true);
     assert.strictEqual(j.type, 'verify');
-    assert.strictEqual(j.data.status, 'celiski');
+    // The HTTP boundary emits the canonical English vocabulary; `celiski` is
+    // what KernelV2 still says internally. See docs/verify-status-vocabulary-migration.md.
+    assert.strictEqual(j.data.status, 'contradicted');
     assert.strictEqual(j.data.contradictionReason, 'opposite_predicate_conflict');
     assert.ok(Array.isArray(j.evidence));
     assert.ok(j.evidence.length >= 1);
@@ -257,7 +339,7 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 200);
     const j = await r.json();
-    assert.ok(['dogrulandi', 'bilinmiyor', 'celiski'].includes(j.data.status));
+    assert.ok(['verified', 'unknown', 'contradicted'].includes(j.data.status));
   });
 
   it('PUT /v2/verify returns method not allowed', async () => {
@@ -294,7 +376,8 @@ describe('Server - API', () => {
     });
     assert.strictEqual(r.status, 200);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
+    assert.strictEqual(j.ok, false);
+    assert.strictEqual(j.status, NON_QUEUED_APPROVAL_STATUS);
     assert.strictEqual(j.learned, 0);
     assert.ok(j.admission);
     assert.strictEqual(j.admission.outcome, 'review');
@@ -329,7 +412,6 @@ describe('Server - API', () => {
       provenance: {
         sourceType: 'upload',
         sourceRef: 'test:nested-approval',
-        actor: 'rest-review-actor',
         workspaceId: 'rest-review-workspace',
         approvalRequired: false,
         approvalStatus: 'approved',
@@ -338,8 +420,8 @@ describe('Server - API', () => {
         admissionBypassReason: 'nested-caller-controlled',
       },
     });
-    assert.strictEqual(body.admission.workspaceId, 'rest-review-workspace');
-    assert.strictEqual(body.admission.receipt.actor, 'rest-review-actor');
+    assert.strictEqual(body.admission.workspaceId, 'default');
+    assert.strictEqual(body.admission.receipt.actor, 'http-api');
     assert.strictEqual(body.admission.receipt.approvalId, '');
   });
 
@@ -352,6 +434,20 @@ describe('Server - API', () => {
       admissionRequired: false,
       admissionBypassReason: 'caller-controlled',
     });
+  });
+  it('POST /upload reports no queue candidate for a review-only admission', async () => {
+    const sourceRef = 'test:upload-not-queued';
+    const body = await assertUploadReviewOnly('/upload', {
+      text: 'upload not queued contract sentinel hayvandir',
+      sourceRef,
+    });
+    assert.equal(body.admission.approvalStatus, NON_QUEUED_APPROVAL_STATUS);
+
+    const candidates = await request(`${BASE}/api/candidate-claims?sourceRef=${encodeURIComponent(sourceRef)}`);
+    assert.equal(candidates.status, 200);
+    const payload = await candidates.json();
+    assert.deepEqual(payload.data.items, []);
+    assert.equal(payload.data.total, 0);
   });
   it('POST /upload alias preserves empty and malformed request errors', async () => {
     const empty = await request(`${BASE}/upload`, {
@@ -388,10 +484,75 @@ describe('Server - API', () => {
         text: 'axiom motordur',
       }),
     });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 202);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.sourceType, 'manual');
+    assert.strictEqual(j.approval.sourceType, 'manual');
+  });
+
+  it('POST /api/ingest queues immutable manual snapshots and reject emits an approval receipt', async () => {
+    const payload = {
+      sourceType: 'manual', author: 'queue-test', date: '2026-07-28',
+      text: 'queue reject sentinel hayvandir', idempotencyKey: 'queue-reject-sentinel',
+    };
+    const queued = await request(`${BASE}/api/ingest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    assert.strictEqual(queued.status, 202);
+    const queuedJson = await queued.json();
+    assert.match(queuedJson.approval.snapshotHash, /^sha256:/);
+
+    const listed = await request(`${BASE}/api/ingest/approvals`);
+    assert.strictEqual(listed.status, 200);
+    const listedJson = await listed.json();
+    assert.ok(listedJson.approvals.some((item) => item.id === queuedJson.approval.id && item.status === 'pending'));
+
+    const rejected = await request(`${BASE}/api/ingest/approvals/${encodeURIComponent(queuedJson.approval.id)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'rejected' }),
+    });
+    assert.strictEqual(rejected.status, 200);
+    const rejectedJson = await rejected.json();
+    assert.equal(rejectedJson.approval.status, 'rejected');
+    assert.equal(rejectedJson.receipt.receiptKind, 'blocked_action_receipt');
+    assert.equal(rejectedJson.receipt.metadata.snapshotHash, queuedJson.approval.snapshotHash);
+    assert.ok(rejectedJson.auditRef);
+  });
+
+  // V4-B2B scope amendment: this case previously pinned the superseded
+  // `plugin_execution_returned` / `state_transition_not_asserted` labels. The
+  // bounded action owner now derives a real outcome from the admission summary
+  // and observed Graph evidence, so only those two labels change here. The
+  // receipt-kind, snapshot-hash, result-ref and idempotent-replay coverage is
+  // unchanged.
+  it('POST /api/ingest persists an approved receipt with a bounded action outcome', async () => {
+    const payload = {
+      sourceType: 'manual', author: 'queue-test', date: '2026-07-28',
+      text: 'queue approved sentinel hayvandir', idempotencyKey: 'queue-approved-sentinel',
+    };
+    const queued = await request(`${BASE}/api/ingest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    assert.strictEqual(queued.status, 202);
+    const queuedJson = await queued.json();
+    const approved = await request(`${BASE}/api/ingest/approvals/${encodeURIComponent(queuedJson.approval.id)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: 'approved' }),
+    });
+    assert.strictEqual(approved.status, 200);
+    const approvedJson = await approved.json();
+    assert.equal(approvedJson.receipt.receiptKind, 'reviewed_action_receipt');
+    assert.equal(approvedJson.receipt.actionExecution, 'ingest_capability_executed');
+    assert.ok(ACTION_OUTCOMES.includes(approvedJson.receipt.actionOutcome));
+    assert.notEqual(approvedJson.receipt.actionOutcome, 'execution_outcome_unknown');
+    assert.equal(approvedJson.receipt.metadata.snapshotHash, queuedJson.approval.snapshotHash);
+    assert.match(approvedJson.receipt.metadata.pluginResultRef, /^sha256:/);
+
+    const replay = await request(`${BASE}/api/ingest`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    assert.strictEqual(replay.status, 200);
+    const replayJson = await replay.json();
+    assert.equal(replayJson.idempotent, true);
+    assert.equal(replayJson.approval.receipt.receiptId, approvedJson.receipt.receiptId);
   });
 
   it('POST /api/ingest decision writes decision log payload', async () => {
@@ -407,13 +568,13 @@ describe('Server - API', () => {
         links: ['repo:ai-ulu/axiom:README.md'],
       }),
     });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 202);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(typeof j.decisionId, 'string');
+    assert.strictEqual(j.approval.sourceType, 'decision');
   });
 
-  it('POST /api/ingest markdown ingests local markdown recursively', async () => {
+  it('POST /api/ingest fails closed for markdown until INGEST-SNAPSHOT-0 exists', async () => {
     const mdDir = path.join(tempDir, 'md-source');
     fs.mkdirSync(mdDir, { recursive: true });
     const mdFile = path.join(mdDir, 'notes.md');
@@ -428,11 +589,30 @@ describe('Server - API', () => {
         rootPath: mdDir,
       }),
     });
-    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.status, 409);
     const j = await r.json();
-    assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.sourceType, 'markdown');
-    assert.ok(j.files >= 1);
+    assert.strictEqual(j.ok, false);
+    assert.strictEqual(j.error.code, 'INGEST_SNAPSHOT_REQUIRED');
+    assert.strictEqual(j.approval, undefined);
+    assert.strictEqual(j.result, undefined);
+  });
+
+  it('POST /api/ingest fails closed for github until INGEST-SNAPSHOT-0 exists', async () => {
+    const r = await request(`${BASE}/api/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceType: 'github',
+        repository: 'ali-ulu/huqan',
+        ref: 'main',
+      }),
+    });
+    assert.strictEqual(r.status, 409);
+    const j = await r.json();
+    assert.strictEqual(j.ok, false);
+    assert.strictEqual(j.error.code, 'INGEST_SNAPSHOT_REQUIRED');
+    assert.strictEqual(j.approval, undefined);
+    assert.strictEqual(j.result, undefined);
   });
 
   it('GET /api/ingest/status returns ingest distribution and errors list', async () => {
@@ -488,7 +668,7 @@ describe('Server - API', () => {
     assert.strictEqual(provenanceJson.ok, false);
     assert.strictEqual(provenanceJson.error.code, 'INVALID_QUERY');
 
-    const trustRes = await request(`${BASE}/api/trust-receipt`);
+    const trustRes = await request(`${BASE}/api/trust-receipt?workspaceId=default`);
     assert.strictEqual(trustRes.status, 400);
     const trustJson = await trustRes.json();
     assert.strictEqual(trustJson.ok, false);
@@ -514,6 +694,30 @@ describe('Server - API', () => {
     }
   });
 
+  // #1994: the same rejection had two shapes depending on which half of the
+  // server a client reached. A client cannot be expected to parse one envelope
+  // for /viewer and another for everything else.
+  it('the viewer branch and the main branch reject with the same envelope', async () => {
+    const viewer = await request(`${BASE}/viewer/api/trust-receipt/abc`, { skipAuth: true });
+    const main = await request(`${BASE}/api/provenance?targetId=kedi&workspaceId=default`, { skipAuth: true });
+
+    assert.strictEqual(viewer.status, 401);
+    assert.strictEqual(main.status, 401);
+
+    const viewerBody = await viewer.json();
+    const mainBody = await main.json();
+
+    // Same shape, same code. The message may differ -- the viewer names the
+    // session it wants -- but the fields a client reads must not.
+    assert.strictEqual(viewerBody.ok, false);
+    assert.strictEqual(mainBody.ok, false);
+    assert.strictEqual(viewerBody.error.code, 'unauthorized');
+    assert.strictEqual(mainBody.error.code, 'unauthorized');
+    assert.deepStrictEqual(Object.keys(viewerBody).sort(), Object.keys(mainBody).sort());
+    assert.deepStrictEqual(Object.keys(viewerBody.error).sort(), Object.keys(mainBody.error).sort());
+    assert.strictEqual(typeof mainBody.error.message, 'string');
+  });
+
   it('GUV-1 fail-closed: AXIOM_API_KEY unset ise authenticated endpoint 401 dondurur', async () => {
     const previousApiKey = process.env.AXIOM_API_KEY;
     delete process.env.AXIOM_API_KEY;
@@ -524,8 +728,9 @@ describe('Server - API', () => {
       assert.strictEqual(res.status, 401);
       const body = await res.json();
       // Hardened: server no longer leaks 'API key not configured' state.
-      // Same 'Unauthorized' message regardless of config posture.
-      assert.strictEqual(body.error, 'Unauthorized');
+      // Same 'Unauthorized' message regardless of config posture -- now in the
+      // one envelope the viewer branch already used (#1994).
+      assert.deepStrictEqual(body, { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } });
       assert.strictEqual(res.headers.get('WWW-Authenticate'), 'Bearer');
     } finally {
       if (previousApiKey === undefined) delete process.env.AXIOM_API_KEY;
@@ -580,9 +785,31 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 401);
   });
 
-  it('SEC: GET /graph-data with default workspaceId works without auth (public scope)', async () => {
+  it('SEC: GET /graph-data with default workspaceId is public', async () => {
     const r = await request(`${BASE}/graph-data?workspaceId=default`, { skipAuth: true });
     assert.strictEqual(r.status, 200);
+  });
+
+  it('SEC: the graph export is not stored or content-sniffed', async () => {
+    // /graph-data returns the whole knowledge graph for a workspace, and was
+    // the least hardened JSON route on this server: no X-Content-Type-Options
+    // at all, and `no-cache`, which only forces revalidation and still lets an
+    // intermediary or the browser write the export to disk. Neighbouring routes
+    // (/api, /api/v2/workflows, the viewer) already set both headers, so the
+    // endpoint with the most sensitive payload was the one outside the rule.
+    const r = await request(`${BASE}/graph-data?workspaceId=default`);
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+    assert.strictEqual(r.headers.get('cache-control'), 'no-store');
+  });
+
+  it('SEC: /health is not content-sniffed', async () => {
+    // Public, and it reports node/edge counts. Its cache directive is left as
+    // `no-cache` on purpose: it is a liveness probe, and tightening that is a
+    // separate call from stopping MIME sniffing.
+    const r = await request(`${BASE}/health`, { skipAuth: true });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
   });
 
   it('GET /graph-data dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
@@ -603,7 +830,9 @@ describe('Server - API', () => {
       assert.ok('target' in j.links[0]);
     }
     assert.notStrictEqual(r.headers.get('access-control-allow-origin'), '*');
-    assert.strictEqual(r.headers.get('cache-control'), 'no-cache');
+    // `no-store` since the graph export stopped being merely revalidated; the
+    // dedicated header test above owns that contract and explains it.
+    assert.strictEqual(r.headers.get('cache-control'), 'no-store');
     // PR-C3: additive memory fields
     assert.ok(Array.isArray(j.memoryNodes), 'memoryNodes must be an array');
     assert.ok(Array.isArray(j.memoryLinks), 'memoryLinks must be an array');
@@ -662,9 +891,9 @@ describe('Server - API', () => {
       assert.deepStrictEqual(second.nodes, first.nodes);
       assert.deepStrictEqual(second.links, first.links);
       assert.strictEqual(getNodeCalls, 0);
-      assert.strictEqual(first.nodes.length, 150);
+      assert.strictEqual(first.nodes.length, 151);
       assert.equal(first.nodes.some(node => node.id === 'graphread-150'), true);
-      assert.equal(first.nodes.some(node => node.id === 'graphread-149'), false);
+      assert.equal(first.nodes.some(node => node.id === 'graphread-149'), true);
       assert.ok(first.nodes.every(node => node.workspaceId === workspaceId));
       assert.ok(first.links.every(link => link.workspaceId === workspaceId));
       const nodeIds = new Set(first.nodes.map(node => node.id));
@@ -695,7 +924,8 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const j = await r.json();
     assert.strictEqual(j.ok, true);
-    assert.strictEqual(j.service, 'axiom');
+    assert.strictEqual(j.service, 'huqan');
+    assert.strictEqual(j.legacyService, 'axiom');
     assert.strictEqual(j.kernelVersion, 'v2');
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
@@ -716,9 +946,12 @@ describe('Server - API', () => {
     assert.strictEqual(j.remainingPhases, 1);
     assert.strictEqual(typeof j.currentFocus, 'string');
     assert.strictEqual(j.currentFocus, 'v3.0 Agent Workflow');
-    assert.strictEqual(j.agentRuntime, 'v2');
-    assert.strictEqual(j.checkpointBackend, 'json');
-    assert.strictEqual(j.activeKernel, 'v2');
+    // Asserted against the canonical constants, not duplicated literals: the
+    // old expectations ('v2'/'json') were the #755 defect, where status
+    // advertised a runtime the process was not actually running.
+    assert.strictEqual(j.agentRuntime, CANONICAL_AGENT_VERSION);
+    assert.strictEqual(j.checkpointBackend, 'sqlite');
+    assert.strictEqual(j.activeKernel, CANONICAL_KERNEL_VERSION);
     assert.ok(['sqlite', 'json'].includes(j.backend));
     assert.ok(Number.isInteger(j.nodes));
     assert.ok(Number.isInteger(j.edges));
@@ -739,12 +972,23 @@ describe('Server - API', () => {
     const r = await request(`${BASE}`);
     assert.strictEqual(r.status, 200);
     const html = await r.text();
-    assert.ok(html.includes('AXIOM'));
-    assert.ok(html.includes('d3@7.9.0'));
-    assert.ok(html.includes('integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"'));
+    assert.ok(html.includes('HUQAN'));
+    assert.ok(html.includes('Trust Command Center'));
+    // kendi kendine yeten light UI: betik yalniz kendi kaynagimizdan gelir,
+    // harici (CDN) betik sarmalanmaz
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=["']?(?:https?:)?\/\//);
+    assert.match(html, /<script[^>]*\ssrc="\/js\/app-(?:core|wiring)\.js"/);
     assert.ok(html.includes('Content-Security-Policy'));
-    assert.ok(html.includes('forceSimulation'));
-    assert.ok(html.includes('Trust Dashboard'));
+  });
+
+  it('served dashboard script keeps the API key in sessionStorage only', async () => {
+    // Sayfanin betigi ayri bir varliga tasindi (#1895); iddia betigin kendisine
+    // tasinmazsa HTML uzerinden bakan bu kontrol sessizce hicbir sey olcmez.
+    const r = await request(`${BASE}/js/app-core.js`);
+    assert.strictEqual(r.status, 200);
+    const js = await r.text();
+    assert.ok(js.includes("sessionStorage.getItem('huqan-api-key'"));
+    assert.ok(!js.includes('localStorage.setItem'));
   });
 
   it('bilinmeyen rota 404 dÃƒÂ¶ndÃƒÂ¼rÃƒÂ¼r', async () => {
@@ -902,13 +1146,288 @@ describe('Server - Public API Allowlist Lockdown', () => {
     }
   });
 
-  it('fallback queries (hello, hi, ?) preserve existing behavior (200 + Anlamadım)', async () => {
-    const fallbackQueries = ['hello', 'hi', 'selamlar', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'yardim', 'nasil', 'nicin'];
+  it('unrecognized queries preserve existing behavior (200 + Anlamadım)', async () => {
+    rateLimitMap.clear();
+    // `yardim` used to sit in this list: the fixed-word command lists held
+    // 'yardım' and compared against the raw input, so the folded spelling --
+    // the one compatibilityHelpText() prints -- fell through to the fallback.
+    // It is a recognized command in both spellings now, the same way `hello`
+    // and `hi` stopped being the odd ones out in the test below. Bare `sor`
+    // stays here on purpose: it is only accepted as `sor: <soru>`.
+    const fallbackQueries = ['selamlar', 'unknown multi word text', '?', 'h', 'sor', 'neden', 'kim', 'ne', 'nasil', 'nicin'];
     for (const query of fallbackQueries) {
       const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
       assert.strictEqual(r.status, 200, `Expected 200 for fallback query: ${query}`);
       const j = await r.json();
       assert.ok(j.result.includes('Anlamadım') || j.result.includes('Anlamadim'), `Expected 'Anlamadım' variant for: ${query}, got: ${j.result}`);
+    }
+  });
+
+  it('English greetings answer like their Turkish spellings, not as unrecognized', async () => {
+    // `selam` and `merhaba` always reached the greeting; `hello` and `hi` fell
+    // through to Anlamadım only because the parser did not know them. This
+    // widens no allowlist -- the greeting is already an unauthenticated
+    // compatibility command -- it just stops the English spellings being the
+    // odd ones out.
+    rateLimitMap.clear();
+    const turkish = await (await request(`${BASE}/api?q=selam`)).json();
+    for (const query of ['hello', 'hi']) {
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`);
+      assert.strictEqual(r.status, 200, `Expected 200 for greeting: ${query}`);
+      const j = await r.json();
+      assert.strictEqual(j.result, turkish.result, `${query} must answer exactly like selam`);
+    }
+  });
+
+  it('folded spellings answer like their Turkish originals, including the one the help prints', async () => {
+    // RFC-001 decision 7 is "a reader accepts both spellings". The fixed-word
+    // command lists compared against the raw lowercased input while holding
+    // diacritic entries, so only the Turkish spelling arrived -- and `yardim`,
+    // the spelling compatibilityHelpText() and the /api/v2/workflows manifest
+    // both print, was among the rejected ones. The help was advertising a
+    // command the reader refused.
+    rateLimitMap.clear();
+    for (const [turkishSpelling, foldedSpelling] of [['yardım', 'yardim'], ['durum', 'durum']]) {
+      const expected = await (await request(`${BASE}/api?q=${encodeURIComponent(turkishSpelling)}`)).json();
+      const actual = await (await request(`${BASE}/api?q=${encodeURIComponent(foldedSpelling)}`)).json();
+      assert.strictEqual(
+        actual.result,
+        expected.result,
+        `${foldedSpelling} must answer exactly like ${turkishSpelling}`,
+      );
+      assert.ok(
+        !actual.result.includes('Anlamadim') && !actual.result.includes('Anlamadım'),
+        `${foldedSpelling} must be recognized, got: ${actual.result}`,
+      );
+    }
+  });
+});
+
+describe('Server - /api/audit is bounded and paginated (#729)', () => {
+  const TARGET = 'audit-pagination-target';
+
+  before(() => {
+    rateLimitMap.clear();
+    // Seeding goes through the live kernel graph the server serves from.
+    const target = require('./server').kernel?.graph;
+    assert.ok(target, 'server must expose its kernel graph for seeding');
+    for (let i = 0; i < 130; i++) {
+      target.appendAuditEvent({
+        eventType: 'APPROVAL_APPROVED',
+        targetType: 'node',
+        targetId: TARGET,
+        workspaceId: 'default',
+        actor: 'reviewer',
+      });
+    }
+  });
+
+  it('caps a page and advertises continuation', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}`);
+    assert.strictEqual(r.status, 200);
+    const { data } = await r.json();
+    assert.strictEqual(data.items.length, 100);
+    assert.strictEqual(data.limit, 100);
+    assert.strictEqual(data.hasMore, true);
+    assert.ok(data.nextCursor);
+    assert.strictEqual(data.total, data.items.length);
+  });
+
+  it('honours an explicit limit and clamps an oversized one', async () => {
+    rateLimitMap.clear();
+    const small = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=10`);
+    assert.strictEqual((await small.json()).data.items.length, 10);
+
+    rateLimitMap.clear();
+    const huge = await request(`${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=100000`);
+    const { data } = await huge.json();
+    assert.ok(data.items.length <= 500, `page was not clamped: ${data.items.length}`);
+    assert.strictEqual(data.limit, 500);
+  });
+
+  it('walks every event through the cursor without duplicates', async () => {
+    const seen = new Set();
+    let cursor = '';
+    let pages = 0;
+    do {
+      rateLimitMap.clear();
+      const url = `${BASE}/api/audit?workspaceId=default&targetId=${TARGET}&limit=40`
+        + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
+      const r = await request(url);
+      assert.strictEqual(r.status, 200);
+      const { data } = await r.json();
+      for (const event of data.items) seen.add(event.auditId);
+      cursor = data.nextCursor || '';
+      pages += 1;
+      assert.ok(pages < 20, 'pagination did not terminate');
+    } while (cursor);
+
+    assert.strictEqual(seen.size, 130);
+  });
+});
+
+describe('Server - unauthenticated /api knowledge disclosure (#727)', () => {
+  // A fact only reachable through kernel.ask(); if an unauthenticated `sor`
+  // ever answers, this token shows up in the response body.
+  const SECRET_SUBJECT = 'zeplinograf';
+  const SECRET_FACT = `${SECRET_SUBJECT} gizlidir`;
+
+  before(async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/dogrula`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: SECRET_FACT }),
+    });
+    assert.ok(r.status === 200 || r.status === 202, `seed failed with ${r.status}`);
+  });
+
+  it('unauthenticated sor is rejected and discloses no learned answer', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api?q=${encodeURIComponent(`${SECRET_SUBJECT} nedir`)}`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+    assert.strictEqual(r.headers.get('www-authenticate'), 'Bearer');
+    const body = await r.text();
+    assert.ok(!body.includes(SECRET_SUBJECT), `unauthenticated response leaked knowledge: ${body}`);
+    assert.ok(!body.includes('Cevap:'), `unauthenticated response returned an answer: ${body}`);
+  });
+
+  it('unauthenticated durum is rejected and enumerates no graph state', async () => {
+    rateLimitMap.clear();
+    const r = await request(`${BASE}/api?q=durum`, { skipAuth: true });
+    assert.strictEqual(r.status, 401);
+    const body = await r.text();
+    assert.ok(!body.includes('Durum:'), `unauthenticated status leaked graph stats: ${body}`);
+    assert.ok(!body.includes('dugum') && !body.includes('düğüm'), `unauthenticated status leaked node counts: ${body}`);
+  });
+
+  it('fixed-response commands stay public', async () => {
+    for (const query of ['selam', 'yardım', 'hello']) {
+      rateLimitMap.clear();
+      const r = await request(`${BASE}/api?q=${encodeURIComponent(query)}`, { skipAuth: true });
+      assert.strictEqual(r.status, 200, `expected 200 for public command: ${query}`);
+    }
+  });
+
+  it('authenticated sor and durum retain intended behavior', async () => {
+    rateLimitMap.clear();
+    const ask = await request(`${BASE}/api?q=${encodeURIComponent(`${SECRET_SUBJECT} nedir`)}`);
+    assert.strictEqual(ask.status, 200);
+    assert.ok((await ask.json()).result.length > 0);
+
+    rateLimitMap.clear();
+    const status = await request(`${BASE}/api?q=durum`);
+    assert.strictEqual(status.status, 200);
+    assert.ok((await status.json()).result.startsWith('Durum:'));
+  });
+});
+
+describe('X-Forwarded-For rate limit keying (#390)', () => {
+  it('only grants API-key rate-limit identity to the configured key', () => {
+    const originalKey = process.env.AXIOM_API_KEY;
+    process.env.AXIOM_API_KEY = 'legitimate-key';
+    try {
+      const { getRateLimitKey } = require('./server');
+      const legitimate = {
+        headers: { authorization: 'Bearer legitimate-key' },
+        socket: { remoteAddress: '10.0.0.1' },
+      };
+      const spoofed = {
+        headers: { authorization: 'Bearer attacker-controlled-key' },
+        socket: { remoteAddress: '10.0.0.2' },
+      };
+
+      assert.match(getRateLimitKey(legitimate), /^key:[a-f0-9]{16}$/);
+      assert.strictEqual(getRateLimitKey(spoofed), 'ip:10.0.0.2');
+    } finally {
+      if (originalKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = originalKey;
+    }
+  });
+
+  it('does not create a shared unknown rate-limit identity', () => {
+    const originalKey = process.env.AXIOM_API_KEY;
+    delete process.env.AXIOM_API_KEY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      assert.strictEqual(getRateLimitKey({ headers: {}, socket: {} }), '');
+      assert.strictEqual(getRateLimitKey({ headers: {} }), '');
+    } finally {
+      if (originalKey === undefined) delete process.env.AXIOM_API_KEY;
+      else process.env.AXIOM_API_KEY = originalKey;
+    }
+  });
+
+  it('uses socket.remoteAddress when AXIOM_TRUST_PROXY is not set', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    delete process.env.AXIOM_TRUST_PROXY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('uses LAST XFF entry when AXIOM_TRUST_PROXY=1, not the client-supplied first one (#1295)', async () => {
+    // #1295: TRUST_PROXY=1 asserts exactly one trusted hop sits directly in
+    // front of us. That hop appends what it saw onto the *end* of the
+    // list, so the trustworthy value is the last entry -- the first entry
+    // is whatever the original client claimed and is fully attacker
+    // controlled (trusting it let an attacker mint a fresh rate-limit key
+    // on every request by varying the header -- #390's original "use the
+    // first entry" behavior was the bug this test now guards against).
+    const original = process.env.AXIOM_TRUST_PROXY;
+    process.env.AXIOM_TRUST_PROXY = "1";
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': 'attacker-controlled-value, 5.6.7.8' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:5.6.7.8");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('rejects an invalid-looking IP in the last XFF entry instead of accepting any character-set match (#1295)', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    process.env.AXIOM_TRUST_PROXY = "1";
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': '1.2.3.4, ::::' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('ignores malformed last XFF entry and falls back to remoteAddress', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    process.env.AXIOM_TRUST_PROXY = "1";
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': '5.6.7.8, not-an-ip' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
+    }
+  });
+
+  it('ignores XFF entirely when AXIOM_TRUST_PROXY is not set (spoofed last entry cannot bypass)', async () => {
+    const original = process.env.AXIOM_TRUST_PROXY;
+    delete process.env.AXIOM_TRUST_PROXY;
+    try {
+      const { getRateLimitKey } = require('./server');
+      const req = { headers: { 'x-forwarded-for': 'real-client, spoofed-attacker' }, socket: { remoteAddress: '10.0.0.1' } };
+      assert.strictEqual(getRateLimitKey(req), "ip:10.0.0.1");
+    } finally {
+      if (original) process.env.AXIOM_TRUST_PROXY = original;
+      else delete process.env.AXIOM_TRUST_PROXY;
     }
   });
 });

@@ -1,0 +1,150 @@
+#!/usr/bin/env node
+'use strict';
+
+const { queryIdentityLog } = require('../lib/gate-hook-identity');
+const { issueIdentityCard } = require('../lib/external-action-identity-issue');
+const {
+  runSealsCommand,
+  runFleetCommand,
+  runResidencyCommand,
+  runCommandProposalsCommand,
+} = require('../lib/gate-hook-reports');
+const {
+  runShipCommand,
+  runAdapterCommand,
+  runOverviewCommand,
+  runAgentsCommand,
+  runConnectCommand,
+  runGateCommand,
+} = require('../lib/gate-hook-management');
+const { createProcessFailureHandlers, failureCodeFor } = require('../lib/http/process-failure-handlers');
+const { writeStructuredLog } = require('../lib/http/structured-log');
+// Input parsing lives in lib/gate-hook-input.js, hook evaluation in
+// lib/gate-hook-evaluate.js (#2248); dispatch stays here.
+const { argumentValue } = require('../lib/gate-hook-input');
+const { runHookEvaluation } = require('../lib/gate-hook-evaluate');
+const { readCompatibleEnvironmentVariable } = require('../lib/environment-compat');
+
+// #3843: the live AURA signal producer. AURA is an external, domain plugin, so
+// core must not require it statically -- the boundary contract keeps the action
+// gate in core and domain interpretation in plugins. This composition root is
+// the one place that may pull the plugin in and hand its bounded signals to the
+// hook path as an opt-in provider. Off by default: with no `--aura-signals`
+// (or HUQAN_GATE_AURA_SIGNALS), the egress gate is exactly as before, so a
+// detection-only install is unchanged.
+function auraSignalProviderFromEnvironment() {
+  const enabled = process.argv.includes('--aura-signals')
+    || /^(1|true|on|yes)$/i.test(String(readCompatibleEnvironmentVariable('GATE_AURA_SIGNALS') || ''));
+  if (!enabled) return {};
+  try {
+    const { create } = require('../plugins/aura-risk');
+    const { gateSignalProviderForPlugins } = require('../lib/gate-signal-provider');
+    return { signalProvider: gateSignalProviderForPlugins({ plugins: [create()] }) };
+  } catch (err) {
+    // A signal source that cannot load is not evidence of safety, but it also
+    // must not turn every hook call into a failure. Report and fall through to
+    // the unchanged path; the operator asked for signals and did not get them.
+    writeStructuredLog(console, 'error', 'gate_hook.aura_signals_unavailable', null, {
+      runtime: 'gate-hook', error: err && err.message,
+    });
+    return {};
+  }
+}
+
+createProcessFailureHandlers({
+  logError: (kind, cause) => writeStructuredLog(console, 'error', kind === 'uncaughtException' ? 'process.uncaught_exception' : 'process.unhandled_rejection', null, {
+    runtime: 'gate-hook',
+    errorCode: failureCodeFor(kind, cause),
+  }),
+}).bind();
+
+// Input helpers live in lib/gate-hook-input.js, the identity reader in
+// lib/gate-hook-identity.js (#2248).
+
+async function main() {
+  try {
+    const command = process.argv[2];
+    // Read-only report commands live in lib/gate-hook-reports.js (#2248).
+    // `seals` asks the one question a stored receipt cannot answer for itself:
+    // has anything been removed from this store since it was received. A break
+    // exits non-zero, because a silent audit is not an audit (#1882).
+    if (command === 'seals') {
+      runSealsCommand();
+      return;
+    }
+    if (command === 'fleet') {
+      runFleetCommand();
+      return;
+    }
+    // `residency` reads the trail this gate already wrote and reports the rule
+    // its own decisions imply. It proposes and stops: applying it means editing
+    // external-action-policy.json by hand, which is what keeps the resulting
+    // boundary something a receipt can attest to (docs/what-huqan-learns.md).
+    if (command === 'residency') {
+      runResidencyCommand();
+      return;
+    }
+    // `command-proposals` is the same shape pointed the other way: the commands
+    // a person keeps approving, proposed as allowedCommands and never applied.
+    if (command === 'command-proposals') {
+      runCommandProposalsCommand();
+      return;
+    }
+    // Management commands live in lib/gate-hook-management.js (#2248).
+    if (command === 'ship') {
+      await runShipCommand();
+      return;
+    }
+    if (command === 'adapter') {
+      runAdapterCommand();
+      return;
+    }
+    if (command === 'overview') {
+      runOverviewCommand();
+      return;
+    }
+    if (command === 'agents') {
+      runAgentsCommand();
+      return;
+    }
+    if (command === 'connect') {
+      runConnectCommand();
+      return;
+    }
+    if (command === 'browser-session') {
+      const { runBrowserSessionCommand } = require('../lib/browser-session-observer');
+      await runBrowserSessionCommand();
+      return;
+    }
+    // `canary` issues a context canary to plant in a prompt, document or
+    // memory entry; AB14 blocks any action that carries it. Nothing is stored:
+    // the id verifies itself, and the fingerprint is what receipts will name.
+    if (command === 'canary') {
+      const { issueContextCanary } = require('../lib/context-canary');
+      process.stdout.write(`${JSON.stringify(issueContextCanary())}\n`);
+      return;
+    }
+    if (['install', 'uninstall', 'status'].includes(command)) {
+      runGateCommand(command);
+      return;
+    }
+    if (argumentValue('--identity-log')) return queryIdentityLog();
+    // `identity issue` mints the capability card a gate call needs; without it
+    // the only issuance path was hand-written JSON (#2505).
+    if (command === 'identity') {
+      issueIdentityCard();
+      return;
+    }
+    await runHookEvaluation(command, {
+      ...auraSignalProviderFromEnvironment(),
+      // #3892: where an approval authority is installed, --autonomy-activation
+      // names its consumed decision; this is what reads it back.
+      verifyAutonomyActivation: (input) => require('../lib/authority/autonomy-activation').verifyAutonomyActivation(input),
+    });
+  } catch (error) {
+    process.stderr.write(`HUQAN external action guard failed closed: ${error?.message || error}\n`);
+    process.exitCode = 2;
+  }
+}
+
+main();

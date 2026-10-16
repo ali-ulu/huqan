@@ -1,0 +1,1090 @@
+# HUQAN external action guard
+
+**Durum:** v1, production entry point (`huqan-gate`)
+
+Bu guard HUQAN'ın kendi ajanı için değil, HUQAN dışında çalışan ajanların araç
+çağrıları içindir. Politika çekirdeği ajan markası bilmez. Bir istemci
+uyarlayıcısı yalnızca kendi hook event'ini ortak zarfa çevirir ve HUQAN kararını
+istemcinin çalıştırma-öncesi durdurma mekanizmasına geri yansıtır.
+
+## Ortak zarf
+
+Yeni veya adı önceden bilinmeyen bir ajan şu sözleşmeye çevrilebildiği anda aynı
+çekirdeği kullanır:
+
+```json
+{
+  "schemaVersion": "huqan.external-action.v1",
+  "invocationId": "tool-call-123",
+  "agentName": "future-agent-2035",
+  "agentVersion": "1.0.0",
+  "sessionId": "session-9",
+  "turnId": "turn-4",
+  "toolName": "shell",
+  "kind": "shell",
+  "args": { "command": "git status" },
+  "cwd": "C:/work/repo",
+  "workspaceRoot": "C:/work/repo",
+  "workspaceId": "default"
+}
+```
+
+`kind` şu değerlerden biri olabilir: `shell`, `file_read`, `file_write`,
+`network`, `memory`, `deployment`, `permission`, `automation`, `tool`. Alan
+verilmezse araç adı ve argümanlardan türetilir. Eksik ajan, oturum veya araç
+kimliği fail-closed `block` olur. Bilinmeyen araç ya da shell komutu otomatik
+`allow` olmaz; en az `review` ister.
+
+## Agent identity (capability card)
+
+Zarftaki `agentName`/`sessionId` bir taşıma alanıdır: "bir şey oldu" der, "hangi
+kimlik, hangi yetkiyle, kimin adına yaptı" demez. Faz C (#1769) bunun için
+`huqan.agent-identity-card.v1` kartını ekler ve kararı **her** receipt'e yazar.
+
+```json
+{
+  "schemaVersion": "huqan.agent-identity-card.v1",
+  "agentId": "future-agent-2035",
+  "agentName": "future-agent-2035",
+  "agentVersion": "1.4.0",
+  "ownerActorId": "actor:ali",
+  "onBehalfOf": "actor:ali",
+  "workspaceId": "default",
+  "capabilities": ["file_read", "shell"],
+  "delegationChain": ["orchestrator", "future-agent-2035"],
+  "issuedAt": "2026-10-06T09:00:00.000Z",
+  "expiresAt": "2026-10-06T21:00:00.000Z"
+}
+```
+
+`expiresAt` zorunludur ve kartın ömrü en fazla 24 saattir
+(`identity_card_expires_at_missing` / `identity_card_lifetime_exceeded`).
+`issuedAt` ile `expiresAt` arasındaki pencere gerçek saate göre değerlendirilir;
+süresi geçmiş bir kart `block` olur. Örnekteki tarihler yalnız biçimi gösterir;
+kendi kartınızı `huqan-gate identity issue` ile üretin (aşağıda), çünkü sabit
+tarihli bir kart kısa süre sonra süresi geçmiş olur.
+
+`capabilities` zarfın `kind` sözlüğünden değer alır; `*` hepsini kapsar.
+`delegationChain` verilirse son eleman `agentId` olmak zorundadır. Kart
+zarfın `identity` alanında ya da CLI'da `--identity-card <dosya>` ile verilir —
+CLI'dan gelen kart ajanın kendi payload'ındaki kartı geçersiz kılar, çünkü bir
+ajan kendi yetkisini kendisi beyan edemez.
+
+Kart **verildiğinde** enforcement fail-closed'dır: geçersiz şema, workspace veya
+ajan adı uyuşmazlığı, süresi geçmiş/henüz geçerli olmayan kart ve kartın
+vermediği bir capability `block` olur. Karar `identity` gate finding'i olarak
+kararın içine, kimlik de `metadata.identity` olarak receipt'e yazılır — yani
+canonical receipt hash'inin kapsamındadır.
+
+Kart **verilmediğinde** eylem yine attribute edilir (`attested: false`,
+`ownerActorId: "unattested"`) ama karar **varsayılan olarak `block`**'tur:
+`#2505 C` sahibi kararı, imzasız kimliği üretimde kabul etmemektir. Yani kart
+taşımayan bir ajanın zararsız bir komutu bile `agent_identity_card_required` ile
+bloklanır — bu, OpenHands'a özel değil, bütün profillerin ortak fail-closed
+davranışıdır.
+
+Kimlik zorunluluğunu gevşetmek **açık bir deployment kararıdır**:
+`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow` (library'de
+`requireIdentityCard: false`). Aynı değişken `review` değeriyle `allow` yerine
+inceleme ister. `NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu
+bir bayrakla gevşetilemez. Kart vermenin kolay yolu `huqan-gate identity issue`
+(bkz. aşağıda).
+
+### Kart imzası (ed25519)
+
+`lib/external-action-identity-signing.js` kartın kanonik serileştirmesi
+üzerine detached bir ed25519 imzası üretir ve doğrular. İmza, kartın yanında
+zarfın `identityCardSignature` alanında (CLI'da
+`--identity-card-signature <dosya>`) taşınır; kanonik serileştirme
+kullanıldığı için anahtar sırası imzayı bozmaz, ama herhangi bir alan
+değişikliği bozar.
+
+Doğrulama, deployment'ın verdiği `trustedPublicKeys` ile yapılır (CLI'da
+`--trusted-identity-keys <dosya>` — PEM'ler `-----END PUBLIC KEY-----`
+satırıyla ayrılır). Anahtar dağıtımı bu modülün işi değildir ve şu an hiçbir
+modülün işi değildir — registry, iptal yayını ve federasyon #1787'de açık
+iştir; bugün anahtarı deployment elle taşır. Modül yalnız
+doğrular ve her türden bozuk girdide fail-closed `false` döner.
+
+Üretim dışında imza zorunluluğu opt-in bir deployment kararıdır:
+`--require-signed-identity`, library'de
+`requireSignedIdentityCard: true | 'review'`, ya da
+`HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY=1|review`. Zorunlu kılındığında
+imzasız veya doğrulama başarısız bir kart `block`/`review` olur. İmza
+sonucu `identity.signatureVerified` alanına ve makbuza yazılır; `attested:
+true` hâlâ yalnız "geçerli biçimli kart sunuldu" demektir —
+`signatureVerified: true` olmadan makbuz kriptografik olarak doğrulanmış bir
+fleet kimliğine bağlanmış sayılmaz. Merkezi makbuz toplamanın (#1781)
+önkoşulu budur.
+
+### Kart verme (`huqan-gate identity issue`)
+
+Kartı elle JSON yazmak yerine operatör üretir; üretilen kart guard'ın kabul
+ettiği biçimdedir ve var olan bir dosyanın üzerine yazılmaz.
+
+```bash
+# 1) İmza anahtar çifti (kartı imzalayacaksanız bir kez)
+huqan-gate identity issue --generate-keypair ./keys
+
+# 2) Kart: agent-id hook profilinin agentName'iyle eşleşmeli (ör. openhands)
+huqan-gate identity issue \
+  --agent-id openhands --owner actor:ali \
+  --capabilities shell,file_read \
+  --out card.json \
+  --sign-key ./keys/identity-card-private.pem
+
+# 3) Kartı gate çağrısına ver (CLI bayrakları)
+... | huqan-gate --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+`--capabilities` zarfın `kind` sözlüğünden virgülle ayrılır (`*` hepsi).
+`--lifetime-hours` verilmezse ömür 12 saat; şema tavanı 24 saat. `--issued-at`
+ve `--expires-at` sabit değerler için, `--agent-name`/`--on-behalf-of`
+`--agent-id`/`--owner`'dan farklı olması gerektiğinde kullanılır. Çıktı
+`ok`, `cardPath`, `identityRef` ve (imzalandıysa) `signaturePath` alanlarını
+içerir; bir hata durumunda `ok: false` ve `errors` döner, exit kodu 1'dir.
+
+### Kartı kurulu hook komutuna bağlama (`install`)
+
+Bir dağıtımda gate zaten kuruluysa, ajanın her çağrıda kartı elle taşımasını
+beklemek yerine kartı kaydedilen hook komutuna bağlayabilirsin. `install`
+`--identity-card`, `--identity-card-signature` ve `--trusted-identity-keys`
+seçeneklerini alır ve bunları hook komutuna ekler:
+
+```bash
+huqan-gate install --profile openhands \
+  --identity-card card.json \
+  --identity-card-signature card.json.sig.json \
+  --trusted-identity-keys ./keys/identity-card-public.pem
+```
+
+`install`, komutu kaydetmeden önce kartın zararsız bir eylemi gerçekten kabul
+ettiğini çalıştırarak kanıtlar; süresi geçmiş, yanlış ajan adına düzenlenmiş,
+güvenilmeyen anahtarla imzalanmış veya gerekli capability'yi vermeyen bir kart
+kurulumu reddettirir. Bu adım olmadan `rm -rf /` sentinel'i kart ölü olsa bile
+denylist üzerinden bloklar ve kurulum yanlışlıkla yeşil görünürdü. Kimlik yolları
+kaydedilen komuta tırnaksız gömüldüğü için boşluk, glob, kabuk operatörü veya
+Windows `%`/`^` içeren bir yol okunmadan önce reddedilir. Kartı
+değiştirmek için yeni kartla yeniden `install` çalıştır: sahiplenilen girdi
+ikinci kopya eklemeden yerinde güncellenir. Bu seçenekler yalnız JSON hook
+profillerinde (Claude Code, Codex, OpenHands) kullanılabilir; OpenCode, Pi ve
+Hermes artifact'ları kendi config'inden okur. OpenHands için tam senaryo:
+`docs/automations/openhands.md` § Kimlik kartını hook'a bağlama.
+
+### Üretimde insan sponsor zorunluluğu (#1889)
+
+`NODE_ENV=production` olduğunda guard kartsız veya imzasız eylemi engeller.
+`requireIdentityCard: false` ve `requireSignedIdentityCard: false` bunu
+gevşetmez. İmza, `ownerActorId` ile eşleşen aktif **human** kaydının açık
+anahtarıyla doğrulanır; başka bir insana ait güvenilir anahtar yeterli değildir.
+`onBehalfOf` aynı insanı belirtmelidir. Workspace ve eylem capability'si hem
+kart hem sponsor kapsamında olmalıdır. Sponsor kapsamında wildcard yoktur.
+
+Operatör, `HUQAN_HUMAN_SPONSOR_AUTHORITY` ortam değişkenini aşağıdaki yapıda
+bir JSON dosyasına yönlendirir. Dosya ajan tarafından yazılamayan, operatörün
+kontrol ettiği bir konumda tutulmalıdır. Anahtarın bir insana ait olduğunun
+kayıt sırasında doğrulanması operatörün sorumluluğudur; bu yerel kayıt harici
+IAM, kimlik belgesi doğrulaması veya federasyon hizmeti değildir.
+
+```json
+{
+  "schemaVersion": "huqan.human-sponsor-authority.v1",
+  "principals": [
+    {
+      "actorId": "human:alice",
+      "kind": "human",
+      "status": "active",
+      "workspaceIds": ["default"],
+      "capabilities": ["file_read", "memory_mutation"],
+      "publicKeys": ["<ed25519 PUBLIC KEY PEM>"]
+    }
+  ],
+  "background": [
+    {"source": "dream", "workspaceId": "default", "actorId": "human:alice"},
+    {
+      "source": "_autoThinkTick",
+      "workspaceId": "default",
+      "mode": "unattended",
+      "justification": "Operatör tarafından tanımlanmış periyodik yerel bakım"
+    }
+  ]
+}
+```
+
+`publicKeys` alanına gerçek PEM yazılır; özel anahtar bu dosyaya konmaz.
+CLI kartı ve detached imzayı mevcut `--identity-card` ve
+`--identity-card-signature` seçenekleriyle alır. Üretimde genel
+`--trusted-identity-keys` listesi sponsor kaydının yerine geçmez. Library
+çağrıcısı aynı yapıyı güvenilir `humanSponsorAuthority` seçeneğinde verebilir;
+eylem payload'undaki kayıt okunmaz. Dosya her kararda yeniden okunur:
+`status` değerini `revoked` yapmak sonraki eylemi engeller. Eksik, bozuk veya
+64 KiB üzerindeki kayıtla doğrulama başarılı sayılmaz.
+
+Kabul edilen eylemin `metadata.identity.humanSponsor` alanı doğrulanan insanı,
+workspace'i ve capability'yi kaydeder. Bu alan host'un doğrulama sonucudur;
+uzak okuyucu kendi güven kaydıyla yeniden doğrulama yapmalıdır.
+
+Üretimde arka plan edge yazıları ve plugin node yazıları için `background`
+kaydı tam `source`/`workspaceId` eşleşmesi gerektirir. İnsan sponsorunun
+`memory_mutation` yetkisi olmalıdır. Tam gözetimsiz çalışmada operatörün açık
+`mode: unattended` kaydı ve boş olmayan gerekçesi gerekir. Provenance içindeki
+`humanSponsor` alanı bu bilgiyi taşır; plugin'in sunduğu sahte alan üzerine
+yazılır. Kayıt yoksa yazıdan önce `background_human_sponsor_required` hatası
+verilir; normal admission bypass bu kontrolü atlatmaz. Geçerli sponsor normal
+admission/approval kontrolünü ortadan kaldırmaz.
+
+Üretim dışındaki mevcut davranış korunur. Bu değişiklik external-action guard
+ve belirtilen kernel background/plugin yollarını kapsar; bütün HUQAN
+mutasyonlarının veya hook dışında çalışan alt süreçlerin sponsor doğrulaması
+iddia edilmez. Üretime geçmeden önce kullanılan her background source için
+operatör kaydı hazırlanmalıdır.
+
+> Bu, external-action guard'a özgü basit capability card sözleşmesidir ve
+> `lib/agent-identity-runtime.js` ile kablolanmış değildir. V5 Agent Identity
+> runtime'ı artık kodda vardır: receiver-owned workspace authority snapshot'ı,
+> canonical identity hash'i, süre/revocation alanları, delegation zinciri ve
+> capability/tool/connector/risk sınırlarını fail-closed değerlendirir. Ancak
+> bu runtime kriptografik capability-card imzası doğrulamaz, anahtar dağıtmaz ve
+> harici bir identity provider'dan attestation almaz. CLI, HTTP/workflow, MCP
+> approval ve external-client mutation yollarındaki kullanımı da explicit
+> opt-in dilimlerdir; bütün runtime yüzeyleri için global enforcement değildir.
+> Dolayısıyla V5 runtime'ın varlığı, bu guard kartını imzalı veya V5 tarafından
+> doğrulanmış yapmaz.
+
+### Bir kimliğin tüm eylemlerini listelemek
+
+Receipt trail'i salt-okunur sorgulanır — ne graph açar ne de bir admission
+sink'ine yazar:
+
+```powershell
+huqan-gate --identity-log agent:default:future-agent-2035 --receipt-log C:\logs\receipts.jsonl
+huqan-gate --identity-log future-agent-2035 --owner actor:ali --since 2026-01-01T00:00:00.000Z --limit 50
+```
+
+`--identity-log` `agent:` ile başlıyorsa `identityRef`, aksi halde `agentId`
+olarak yorumlanır. Çıktı eşleşen action'ları ve bir özet (karar/araç kırılımı,
+`attested` sayısı, ilk/son zaman) döner; `truncated` alanı `limit`'in cevabı
+kesip kesmediğini söyler. Aynı sorgu library'den
+`queryExternalActionsByIdentity()` ile de yapılır. Kimlik kalıcılığından önce
+yazılmış receipt'ler cevaptan düşürülmez; `legacy: true` ve `attested: false`
+ile işaretlenir.
+
+## Graduated autonomy (T1 / T2 / T3)
+
+Faz D (#1770) dış action receipt geçmişinden identity-bazlı bir güven skoru
+hesaplar: başarılı outcome, ihlal (`block`/`failed`) ve insan review oranları
+ayrı tutulur. Yalnız canonical `receiptHash`'i doğrulanan receipt'ler pozitif
+kanıt olabilir; eksik veya değiştirilmiş satırlar promotion üretemez.
+
+| Tier | Yetki tavanı |
+|---|---|
+| `T1` | Salt-okuma ve sandbox simulation |
+| `T2` | T1 + workspace-bounded filesystem/memory write |
+| `T3` | Genişletilmiş action sınıfları; mevcut güvenlik gate'leri yine geçerli |
+
+Promotion yavaştır: T2 için en az 10 action, 75 skor ve 5 kesintisiz başarı;
+T3 için 30 action, 90 skor ve 10 kesintisiz başarı gerekir. İlk T1→T2 geçişi
+`approved` bir insan activation kaydı olmadan yapılmaz. Demotion bekleme serisi
+kullanmaz: yeni `failed` outcome bir tier, yeni `block` doğrudan T1 düşürür;
+demotion eşikleri T2 için 60, T3 için 80'dir. Tier bir **yetki tavanıdır**;
+AB1–AB11'den gelen `review` veya `block` kararını asla `allow`'a yükseltmez.
+Promotion ayrıca `attested: true` capability-card kimliği ister; yalnız ajan
+adından türetilen unattested kimlik geçmişi devralamaz ve T1'den çıkamaz.
+
+Özellik (#2157) varsayılan olarak **observe modunda aktiftir**: her dış action'da tier
+tavanı değerlendirilir ve yetki tavanının üstündeki eylem `review` (insan kararı
+olmadan çalışmaz) üretir; tam promotion için yine `approved` insan activation'ı
+gerekir. Eskisini (ceiling olmadan) isteyen deployment açıkça kapatabilir:
+Library seçeneğinde `graduatedAutonomy: { enabled: false }`, deployment
+ortamında `HUQAN_EXTERNAL_GUARD_GRADUATED_AUTONOMY=0|false|off` ile.
+`graduatedAutonomy: { enabled: true, receipts?, receiptPath?, activation? }` ve
+`HUQAN_EXTERNAL_GUARD_GRADUATED_AUTONOMY=1` önceki davranışı korur. Hesaplanan
+tier, skor, oranlar, transition ve ilk activation kanıtı admission receipt'in
+`metadata.autonomy` alanına hash kapsamında yazılır; outcome aynı kararı
+admission receipt'ten miras alır. Promotion/demotion receipt'i kalıcı
+yazılamazsa geçiş fail-closed `block` olur; yalnız bellekte yetki artışı yoktur.
+
+## Continuous post-action monitoring (Faz E)
+
+Pre-execution gate tek başına runtime sonucunu göremez. Host, eylem bittikten
+sonra `recordExternalActionOutcome()` çağrısına `continuousMonitoring` vererek
+bounded behavioral signal toplar. Bu yüzey yeni bir self-healer runner açmaz;
+mevcut `behavioral-containment` değerlendirmesini ve finding classifier'ı
+kullanır.
+
+```js
+recordExternalActionOutcome(invocation, admission.receipt, {
+  status: 'success',
+  durationMs: 42,
+  sideEffectCount: 0,
+  behavioralObservation: {
+    tool: 'Read',
+    action: 'read',
+    connector: 'local',
+    targetClass: 'workspace_path',
+    egressClass: 'none',
+    delegationClass: 'none',
+  },
+}, {
+  receiptWriter,
+  continuousMonitoring: {
+    enabled: true,
+    activation: {
+      status: 'approved',
+      approvalId: 'approval-123',
+      actor: 'actor:operator',
+      actorType: 'human',
+      approvedAt: '2026-01-01T00:00:00.000Z',
+    },
+    baseline: {
+      goal: 'bounded external action monitoring',
+      capabilities: ['read'],
+      tools: ['read'],
+      connectors: ['local'],
+      targetClasses: ['workspace_path'],
+      egressClasses: ['none'],
+      delegation: ['none'],
+    },
+  },
+});
+```
+
+İlk kurulumda onaylı ve geleceğe tarihlenmemiş bir insan aktivasyonu
+zorunludur. Aktivasyon yoksa sinyal (#2157, default **observe**) yine toplanır
+ve baseline sapması, `policyViolation`, `unexpectedSideEffect` veya açık
+`anomaly` sinyali **algılanıp** outcome receipt'in `metadata.monitoring` alanına
+`anomaly: true` ve `quarantine.applied: false` / `decision:
+observe_quarantine_required` olarak yazılır; yani anomali görünür olur ama
+otomatik containment devreye girmez. Aktif bir izinsiz eylemle:
+
+- mevcut self-healer finding şemasında sınıflanır;
+- yalnız `approved` insan activation'ı varken `quarantine.applied: true` olur;
+- quarantine durable yazılmışsa identity'yi karantinaya alır ve Faz D için
+  kritik ihlal sayılarak bir sonraki kararda T1'e demote eder;
+- durable receipt yoksa quarantine fail-closed uygulanmaz, `ok:false` döner.
+
+Continuous monitoring default-observe'dan kapatılmak istendiğinde
+`continuousMonitoring: { enabled: false }` veya
+`HUQAN_EXTERNAL_GUARD_CONTINUOUS_MONITORING=0|false|off` kullanılır. Açıkken Faz
+D autonomy tavanı aynı receipt kaynağıyla otomatik etkinleşir; çağıranın ikinci
+bir feature flag vermesi gerekmez. `continuousMonitoring.receipts` veya
+`receiptPath` açıkça verilebilir, aksi halde durable writer yolu kullanılır.
+
+## Karar ve enforcement
+
+Çekirdek mevcut HUQAN risk, tool-call, command, memory, automation, egress ve
+cross-workspace gate'lerini yeniden kullanır. En sert karar kazanır:
+
+| Çekirdek kararı | Executor |
+|---|---|
+| `allow` | Çalışabilir |
+| `review` | İnsan kararı olmadan çalışmaz |
+| `block` | Çalışmaz |
+
+### Alan-düzeyi kanıt (`metadata.fieldEvidence`)
+
+Guard, kararın şeklini bounded tutarken hangi alanın kırpıldığını göstermek
+için `metadata.fieldEvidence` taşır (`lib/external-action-guard-gates.js:90,108`).
+Allowlist'li komut, çözümlenmiş hedef (`target.path` → `target.resolvedPath`) ve
+komut şekli için `{propertyPath, valueBefore, valueAfter}` satırları üretilir.
+Bu alan **audit-only**'dir: hashed admission receipt'e dahil değildir ve yalnız
+en az bir satır varsa eklenir, aksi halde kararın şekli değişmez.
+
+### Codex hook sözleşmesi (ölçüldü, codex-cli 0.151.0)
+
+Codex ikilisi hook giriş/çıkış şemalarını kendi içinde taşıyor; aşağıdakiler
+oradan çıkarıldı, tahmin değil.
+
+`PreToolUse` **girdisi** şu alanların hepsini zorunlu tutar: `session_id`,
+`tool_use_id`, `turn_id`, `tool_name`, `tool_input`, `cwd`, `model`,
+`permission_mode` (`default | acceptEdits | plan | dontAsk |
+bypassPermissions`), `agent_id`, `agent_type`, `transcript_path`. Adaptör
+bunlardan `agent_id`, `agent_type`, `model` ve `permission_mode`'u makbuza
+`metadata.host` altında **`attested: false`** ile yazar — host'un kendisi
+hakkında söylediği şey, deployment'ın doğruladığı kimlik değil; `identity`
+bloğuyla karıştırılmaz.
+
+`PreToolUse` **çıktısında** şema `allow | deny | ask` listeler ama bu sürüm
+üçünden ikisini reddediyor; ikilinin kendi hata metinleri: *"PreToolUse hook
+returned unsupported permissionDecision:ask"* ve *"...:allow"*. Reddedilen bir
+çıktı yok sayılan bir çıktıdır, yani `ask` göndermek `review`'ü **sessiz bir
+allow'a** çevirirdi. Bu yüzden `review` de `deny` olarak uygulanır ve farkı
+`permissionDecisionReason` taşır: "human decision pending, not a denylist
+block", ayrıca makbuz kimliği. `deny` gönderirken gerekçe zorunludur (*"...
+returned permissionDecision:deny without a non-empty permissionDecisionReason"*).
+
+Ayrı bir `PermissionRequest` olayı da var; çıktısı `behavior: allow | deny` +
+`message` kabul ediyor (`interrupt`, `updatedInput`, `updatedPermissions`
+şimdilik fail-closed). Codex kullanıcıya onay sorduğunda HUQAN'ın gerekçesini
+oraya iliştirmek mümkün — henüz bağlanmadı, çünkü PreToolUse zaten reddettiği
+bir çağrı için onay istemi hiç oluşmuyor.
+
+### OpenHands hook sözleşmesi
+
+OpenHands hook'ları depo içinde `.openhands/hooks.json` dosyasından okur ve
+Claude Code biçimiyle uyumludur; olay anahtarları snake_case'tir (`pre_tool_use`)
+ve `{"hooks": {...}}` sarmalayıcısı da kabul edilir. `PreToolUse` **girdisi**
+stdin'den flat bir JSON olarak gelir: `event_type`, `tool_name`, `tool_input`,
+`session_id`, `working_dir` (ek alanlar olay tipine göre değişir; ortam
+değişkenleri `OPENHANDS_EVENT_TYPE`, `OPENHANDS_TOOL_NAME`,
+`OPENHANDS_PROJECT_DIR`, `OPENHANDS_SESSION_ID` da set edilir).
+
+Çıktı sözleşmesi exit kodu + stdout JSON'dur: `0` geçirir, `2` engeller, diğer
+kodlar hatadır (işlem devam eder, hata loglanır). stdout'taki
+`{"decision": "allow" | "deny", "reason": ..., "additionalContext": ...}`
+exit kodunu geçersiz kılar. Şema yalnız `allow`/`deny` tanır — `ask` yok — bu
+yüzden `review` de `deny` olarak uygulanır ve farkı `reason` taşır ("human
+decision pending, not a denylist block", ayrıca makbuz kimliği); gerekçe
+`receiptId`'yi içerdiğinden makbuzla eşleştirilebilir. Girdi `working_dir`
+alanını taşıdığı için adaptör `cwd`'yi oradan çözer, workspace kökü de aynı
+değerdir.
+
+### Shell komutları hangi kategoriye düşer
+
+Sırayla: deployment (`git push`, `npm publish`, …) → izin değişikliği (`chmod`,
+`sudo`, …) → dosya yazma (`cp`, `rm`, `mkdir`, …) → **kompozisyon** → salt
+okunur → geri kalan her şey `TOOL_CHAIN_EXECUTION`, yani `review`.
+
+**Kompozisyon** ayrı bir adım: içinde yönlendirme, boru, zincirleme veya
+ikame (`>`, `>>`, `<`, `|`, `;`, `&`, `` ` ``, `$(`, `${`) geçen bir komut asla
+salt okunur sayılmaz. Sebebi ölçüldü: `ls -la > out.txt` bir dosya yazma,
+`type gizli.json > disari` bir kopyalama; güvenli liste yalnız baştaki fiili
+tanıdığı için ikisi de `allow` alıyordu (#1799).
+
+Salt okunur liste yan etkisiz komutları kapsar (`ls`, `pwd`, `git status|diff|
+log|show|branch|rev-parse|remote`, `rg`, `grep`, `find`, `type`, `cat`, `head`,
+`tail`, `wc`, `echo`, `stat`, `date`, `du`, `df`, `Get-*`) ve `<komut>
+--version` biçimindeki sürüm sorgularını.
+
+### Deployment komut listesi
+
+Geri kalan her şeyin `review` alması bilinçli ("bilinmeyen sessizce
+geçmez") ama ayarlanabilir olmalı; yoksa `npm test` için her turda onay isteyen
+bir kapı kapatılır ve elde ne engelleme ne makbuz kalır. Bunun için bir dosya:
+
+```jsonc
+// varsayılan: receipt trail'in yanında external-action-policy.json
+// (HUQAN_EXTERNAL_GUARD_POLICY ile ya da --policy <dosya> ile değiştirilir)
+{ "allowedCommands": ["npm test", "npm run lint", "node"] }
+```
+
+Kural: bir girdi komutun tamamıyla ya da **tam argüman sınırında** eşleşir —
+`npm test`, `npm test -- --watch`'ı kapsar, `npm testify`'ı kapsamaz. Liste
+yalnızca sınıflandırıcının "bilinmeyen tool-chain" diyeceği bir komutu salt
+okunura yükseltebilir: deployment, izin ve yazma kategorileri ile denylist
+**değişmez**, kompozisyon içeren komut hiç yükseltilmez. Bir izin listesi
+kararının makbuzunda `metadata.allowlistedCommand` hangi girdinin geçirdiğini
+yazar; okunamayan bir politika dosyası sessiz `allow` değil fail-closed hatadır.
+
+Listeyi elle tahmin etmek zorunda değilsiniz (#3025). Hook, `review`'a
+gönderdiği her shell komutunun baştaki düz kelimelerini (`npm test`; argümanlar,
+yollar, flag'ler asla) admission id'siyle birlikte trail'in yanındaki yerel
+`external-action-command-shapes.jsonl` dosyasına yazar; makbuz yine komut
+içermez. `huqan-gate command-proposals` bu dosyayı trail'deki insan
+kararlarıyla birleştirir ve workspace başına bir `allowedCommands` önerisi
+basar: en az üç kez onaylanmış (`--min-observations`), hiç reddedilmemiş,
+tek kelimeden uzun ve listenin yükseltebileceği kategoride olan komutlar. Komut
+hiçbir dosya yazmaz; öneri ancak biri bu dosyayı elle düzenlediğinde geçerli
+olur.
+
+Dosya çağrı anında okunur (mtime ile önbelleklenir), yani uzun ömürlü bir
+editörde kurulumu ya da hook komutunu değiştirmeden düzenlenebilir — hook
+komutunun değişmesi host'un güven kaydını düşürdüğü için bu önemli.
+
+#### Rules ekranı için operator token
+
+`/api/command-policy` Rules ekranı, `HUQAN_POLICY_EDITOR_TOKEN` ile ayrıca
+korunur. Bu token, ajan API anahtarından ayrıdır: API anahtarına sahip olmak
+policy düzenleme yetkisi vermez ve iki değer aynı olamaz. Token en az 32
+karakter olmalı; üretimde rastgele ve uzun bir değer üretip deployment'ın
+secret store'unda tutun, repository'ye veya loglara yazmayın. Örneğin:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+İsteklerde token `X-HUQAN-Policy-Token` başlığıyla gönderilir. Değer eksik,
+çok kısa, bozuk veya API anahtarıyla aynıysa ekran `403 OPERATOR_REQUIRED`
+döner. `HUQAN_POLICY_EDITOR_TOKEN` hiç ayarlanmamışsa Rules route'u
+`404 NOT_CONFIGURED` olarak yoktur; bu, yalnızca oturum açılmamış anlamına
+gelmez. Token'ı workspace policy dosyalarıyla aynı deployment sınırında
+rotasyona tabi tutun.
+
+Guard yalnızca yürütmeden **önce** çağrıldığında enforcement sağlar. Bir ajan
+pre-tool hook sunmuyorsa komutu yalnızca log'dan sonradan görmek yetmez; ajanı
+`huqan-gate` kararına uyan bir wrapper, MCP gateway veya OS sandbox içinde
+çalıştırmak gerekir. Bu bağlantı kurulmadan HUQAN o ajanın eylemini durdurduğunu
+iddia etmez.
+
+## Guard'ın kendi kontrol düzlemi
+
+Her profil, koruduğu workspace'in **içinde** duran bir config dosyasıyla
+bağlanır. Bu dosya guard'ın çalışıp çalışmayacağına karar verir, dolayısıyla
+sıradan bir kaynak dosyayla aynı kefeye konamaz: Claude Code profilinde
+`review` → `ask` demektir ve her yazma zaten `ask` ürettiği için, alışkanlıkla
+verilen tek bir onay guard'ı sonraki tüm eylemler için kaldırır.
+
+Bu yollara yazma, silme veya yeniden yazma `block`'tur — profilden bağımsız:
+
+| Profil | Korunan yol |
+|---|---|
+| Claude Code | `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks.json`, `.claude/hooks/**` |
+| Codex | `.codex/hooks.json`, `.codex/hooks/**` |
+| OpenHands | `.openhands/hooks.json`, `.openhands/hooks/**` |
+| OpenCode | `.opencode/plugin/**` |
+| Pi | `.pi/extensions/**` |
+| Hermes | `.hermes/plugins/**` |
+| HUQAN | `adapters/external-action/**` |
+
+Config'i **okumak** kısıtlanmaz. `cat`, `grep` ve `git diff` bir operatörün
+guard'ın bağlı olduğunu doğrulama yoludur; bunları da işaretlemek insanları
+kontrol düzlemi uyarılarını onaylamaya alıştırırdı.
+
+Bakım gerçek bir ihtiyaç olduğu için blok mutlak değil: `--allow-control-plane`
+bayrağı muafiyeti verir. Bayrak, hook'u kuran deployment'tan gelir ve
+invocation payload'ından **okunmaz** — ajan muafiyeti kendi kendine
+isteyemez. Bu, capability card'ın `evaluateHookInvocation` içinde options'tan
+bağlanmasıyla aynı gerekçedir.
+
+Bu bir sandbox değildir. Ajan config'i bu gate'in görmediği bir yoldan
+değiştirebiliyorsa (guard'ın hiç bağlı olmadığı bir istemci, onaylanmış bir alt
+süreç, doğrudan dosya sistemi erişimi) blok geçerli değildir.
+
+## CLI ve genel uyarlayıcı
+
+Paket kurulunca `huqan-gate` stdin'den native veya generic JSON event okur:
+
+```powershell
+$event | huqan-gate --profile generic --workspace-root C:\work\repo
+```
+
+Generic exit sözleşmesi `allow=0`, `review=3`, `block=2`'dir. Wrapper yalnızca
+exit `0` olduğunda gerçek executor'ı çağırmalıdır. Parse, gate veya receipt
+kalıcılık hatası exit `2` ile fail-closed döner. Input 1 MiB, her receipt satırı
+64 KiB ile sınırlıdır.
+
+Her karar için canonical admission receipt üretilir. Ham komut ve secret receipt'e
+yazılmaz; input SHA-256 digest'i ve bounded finding alanları tutulur. Defaultta
+receipt hem append-only JSONL trail'e hem de SQLite kullanılabiliyorsa HUQAN
+`audit_log` tablosuna yazılır. Yollar gerektiğinde `--receipt-log`,
+`--memory-path` ve `--db-path` ile sabitlenebilir. Receipt yazılamazsa eylem
+çalışmaz.
+
+**State root.** Guard'ın kendisi için tuttuğu durum — receipt trail ve yanındaki
+komut politikası — tek bir dizinde durur: Windows'ta `%LOCALAPPDATA%\huqan`,
+diğerlerinde `~/.local/state/huqan`. `HUQAN_STATE_ROOT` bu dizinin tamamını
+başka yere alır; `HUQAN_EXTERNAL_GUARD_RECEIPTS` ve `HUQAN_EXTERNAL_GUARD_POLICY`
+tek tek dosyaları adlandırır ve state root'a göre önceliklidir. Test suiti
+`scripts/run-tests.js` üzerinden koşulur: her koşuma tek kullanımlık bir state
+root verilir ve bu iki dar değişken ortamdan düşürülür, böylece bir test
+operatörün gerçek politikasını okuyamaz ve gerçek makbuz zincirine sentetik bir
+karar ekleyemez (#1846).
+
+Executor tamamlandığında library API ile ayrı outcome receipt yazılır:
+
+```js
+const {
+  evaluateExternalAction,
+  recordExternalActionOutcome,
+} = require('huqan');
+
+const admission = evaluateExternalAction(invocation, { receiptWriter });
+if (!admission.canExecute) return admission;
+const output = await executor();
+recordExternalActionOutcome(invocation, admission.receipt, {
+  status: 'success',
+  output,
+}, { receiptWriter });
+```
+
+## Mevcut uyarlayıcı profilleri
+
+| İstemci | Bağlantı | `review` davranışı | Kapsam |
+|---|---|---|---|
+| Claude Code | `PreToolUse` command hook, `--profile claude-code` | `ask` | Hook'a gelen araç çağrıları |
+| Codex | `PreToolUse` command hook, `--profile codex` | Güvenli varsayımla `deny` | Hook'a gelen araç çağrıları; devam eden bir `write_stdin` aynı tool call için yeniden hook üretmez |
+| OpenHands | `pre_tool_use` command hook, `--profile openhands` | Güvenli varsayımla `deny` | Hook'a gelen araç çağrıları; hook yalnız `allow`/`deny` bilir, `ask` yok |
+| OpenCode | `createOpenCodeGuardPlugin()` | exception ile durdurur | `tool.execute.before` event'leri |
+| Pi | `registerPiGuard(pi)` | `{ block: true }` | `tool_call` event'leri |
+| Hermes | `--profile hermes` | `{ action: "block" }` | `pre_tool_call` hook event'leri |
+| Gelecekteki/özel ajan | `generic` profil veya doğrudan library API | exit `3` / host kararı | Ortak zarfa çevrilip pre-execution bağlanan çağrılar |
+
+### Tek komutla bağlama
+
+Kullanıcının profil adını bilmesi gerekmez; sürtünme oradaydı. `connect`
+makinedeki ajanları kendisi bulur ve her birine kapıyı kurar:
+
+```powershell
+npx huqan-gate connect
+npx huqan-gate connect --detect   # yalnız tespit, hiçbir şey yazmaz
+```
+
+Tespit, ajanın **config dosyasına değil varlığına** bakar — üç bağımsız sinyal:
+projede ajan dizini (`project`), home'da ajan dizini (`home`), PATH'te ajanın
+başlatıcısı (`path`). Bunlardan biri yeterlidir. `.claude/settings.json` bir şey
+onu yazana kadar yoktur; dosyayı şart koşmak tam da ilk kez kuran kullanıcıyı
+reddederdi, oysa kurulum o dosyayı zaten yaratır.
+
+Bulunan her ajan, kendini sentinel ile kanıtlayan aynı `install` yolundan
+geçer. Yani buradaki `connected`, orada ne anlama geliyorsa onu anlatır:
+bilinen yıkıcı bir eylem, o ajanın kendi sözleşmesi üzerinden gerçekten
+`block` almıştır. Kurulumu reddedilen ajan **sebebiyle birlikte** raporlanır,
+sessizce atlanmaz — gizlenen bir başarısızlık, kullanıcıya korunduğunu
+sandırır. Hiçbir ajana bağlanılamazsa çıkış kodu `1`'dir: bir betik
+"korunuyor" ile "korunacak bir şey bulunamadı" arasını ayırabilmelidir.
+
+Tespit edilen ajan yoksa bu bir hata değildir; kullanıcı kendi ajanını
+çalıştırıyor olabilir. Çıktıdaki `customAgent` alanı o yolu gösterir.
+
+### Kurulum, durum ve kaldırma
+
+Kurulum komutu profil ile hedef şemayı birlikte doğrular, mevcut hook'ları
+koruyarak yalnız HUQAN girişini ekler ve aynı komut tekrarlandığında ikinci bir
+giriş üretmez:
+
+```powershell
+npx huqan-gate install --profile codex
+npx huqan-gate install --profile opencode
+npx huqan-gate status
+npx huqan-gate uninstall --profile codex
+```
+
+### Hangi ajanlar ne yaptı
+
+`--identity-log` **bildiğin** bir kimliği sorgular. Hangi ajanların var olduğunu
+ise roster söyler:
+
+```powershell
+npx huqan-gate agents
+npx huqan-gate agents --workspace-id team-a --since 2026-09-01T00:00:00.000Z
+```
+
+Her satır bir **kimliktir** (`identityRef`), bir ad değil. Doğrulanmamış bir
+`agentName` zarfın taşıdığı bir *iddiadır*; iki ayrı kimlik aynı adı iddia
+edebilir. Roster bunları birleştirmez, `nameCollision: true` ile görünür kılar —
+birleştirmek bir ajanın kaydının diğerininkini yutması demektir ve izleme
+ekranının var olma sebebi tam olarak bunu önlemektir.
+
+`attestation` alanı kimlik başınadır ve üç değer alır: `attested`,
+`unattested`, `mixed`. `mixed`, aynı kimliğin hem geçerli capability card ile
+hem de kartsız eylem yaptığı anlamına gelir; bunu tek bir boolean'a indirmek
+doğrulanmamış yarıyı — yani okuyucunun görmesi gereken yarıyı — gizlerdi.
+
+Kimliği olmayan makbuz hiçbir satıra yazılmaz; tahmin edilen bir ada
+iliştirilmez.
+
+### Bağlı ajanlar ve eylemleri tek listede
+
+`connect` neyi kurduğunu bilir, roster neyin eylem yaptığını. İkisini birleştiren
+görünüm:
+
+```powershell
+npx huqan-gate overview
+npx huqan-gate overview --workspace-id team-a
+```
+
+Bu birleştirme olmadan, yeni bağlanmış bir ajan hiçbir listede görünmez —
+kullanıcı her şeyi koruma altına aldığı anda ekran boş çıkar ve "hiçbir şey
+korunmuyor" diye okunur.
+
+Birleştirme üç durum üretir; asıl değerli olan ortadaki:
+
+| durum | anlamı |
+|---|---|
+| `connected` + `active` | çalışıyor, ve yaptıkları burada |
+| **`connected` + `silent`** | kapı kurulu ama içinden hiçbir şey geçmemiş |
+| `connected:false` + `active` | generic yoldan geçmiş, ya da kurulum sonradan kaldırılmış |
+
+Ortadaki satır ya yeni bir kurulumdur ya da #2048'in tespit ettiği arıza:
+artefakt yerinde ama ajan onu hiç çağırmıyor. Hangisi olduğu buradan
+**türetilemez**, o yüzden satır `installedAt` ve `lastInvocationAt` değerlerini
+yan yana taşır ve sebebi iddia etmez.
+
+İki kaynak arasında hiçbir şey çıkarsanmaz: eylem yapmamış bağlı ajan
+"çalışıyor" diye raporlanmaz, bağlı olmadan eylem yapan ajan gizlenmez. Özel
+ajanın `connected` değeri `false` değil `null`'dır — inceleyecek artefakt yok,
+yani bilinemez.
+
+### Kendi ajanı olan kullanıcı (`generic`)
+
+Kurulacak bir artefakt yoktur: HUQAN özel bir ajanın yapılandırmasının nerede
+durduğunu bilmez, hatta bir yapılandırması olup olmadığını da bilmez. Bu yüzden
+`install --profile generic` reddeder ve bunun yerine bağlanma yolunu söyler:
+ajan kendi pre-tool hook'undan `huqan.external-action.v1` zarfını
+`huqan-gate --profile generic` komutuna gönderir.
+
+Adaptörü elle yazmak gerekmez; HUQAN üretir:
+
+```powershell
+npx huqan-gate adapter --agent-name my-agent
+```
+
+Bu komut projeye `huqan-adapter.js` yazar ve çağrı yerini basar. İçine gömülen
+gate komutu **tahmin edilmez**: her aday, gerçek bir `huqan.external-action.v1`
+zarfıyla denylist'teki bir komuta karşı çalıştırılır ve `block` +
+`DENYLISTED_COMMAND_BLOCKED` yanıtı vermeden dosyaya yazılmaz. Yalnızca "block
+verdi" yetmez — yanlış şekilli bir yük de bloklanır ama `malformed` gerekçesiyle,
+yani denylist'i değil başka bir yolu kanıtlamış olurdu.
+
+Üretilen adaptör **fail-closed**'dır. Kapı başlatılamazsa, çıktısı
+ayrıştırılamazsa ya da tanımadığı bir karar şeması dönerse eylem çalışmaz.
+Hatasını yutan bir adaptör, kullanıcıya zorlama gibi görünen ama olmayan bir
+dosya vermek olurdu.
+
+Kullanım:
+
+```js
+const { huqanCheck } = require('./huqan-adapter.js');
+
+// ajan aracı çalıştırmadan hemen önce:
+huqanCheck({ agentName: 'my-agent', toolName: 'shell', kind: 'shell', args: { command }, cwd });
+// review veya block'ta HuqanBlocked fırlatır; yakalamayın.
+```
+
+Bağlantının kurulup kurulmadığı ancak **gözlemlenebilir**:
+
+```powershell
+npx huqan-gate status --profile generic
+npx huqan-gate status --profile generic --agent-name my-agent
+```
+
+Yanıttaki `custom.state` iki değer alır:
+
+| `state` | Anlamı |
+|---|---|
+| `no-invocation` | Bu ajandan hiç zarf gelmemiş; ajan HUQAN'ı çağırmıyor |
+| `envelope-observed` | Zarflar geliyor; çağrı yolu canlı |
+
+Kurulu profillerin (`codex`, `claude-code`, ...) çağrıları bu sayıma **dahil
+edilmez**; çalışan bir Codex kapısı, kullanıcının kendi ajanının bağlı olduğuna
+kanıt değildir.
+
+Üçüncü bir durum — *"zarf geliyor ama gerçek çalıştırıcıya bağlanmamış"* —
+**türetilemez** ve iddia edilmez: bir `block` sonrası ajanın komutu yine de
+çalıştırıp çalıştırmadığını HUQAN'a bildiren hiçbir şey yoktur. Çıktıdaki
+`observationLimit` alanı bunu açıkça söyler. Gelen zarf, ajanın HUQAN'ı
+çağırdığını kanıtlar; kararına uyduğunu kanıtlamaz.
+
+`claude-code`, `codex`, `opencode` ve `pi` varsayılan olarak mevcut çalışma
+dizinine; `hermes` kullanıcı home dizinindeki plugin yoluna kurulur. İzole
+deployment veya test için hedefler `--target-root` ve `--home` ile verilebilir.
+JSON config bozuksa ya da HUQAN'a ait hedef dosya yerel olarak değiştirilmişse
+komut üzerine yazmaz. `uninstall` da yalnız HUQAN hook girişini veya içeriği
+paket şablonuyla birebir aynı HUQAN dosyasını kaldırır.
+
+`opencode` ve `pi` için kurulan dosya `huqan` paketini **adıyla** import eder.
+Node bu adı kurulan dosyanın bulunduğu dizinden yukarı doğru arar ve **global
+npm kurulumu bu aramaya görünmez**. Bu yüzden kurulum, hedeften paketin
+çözülüp çözülmediğini önceden kontrol eder; çözülemiyorsa hiçbir şey yazmadan
+reddeder. Çözüm, paketi hedef çalışma alanına kurmaktır (`npm install huqan`).
+
+Başarılı `install` çıktısındaki `sentinel`, seçilen profil üzerinden bilinen
+yıkıcı bir eylemin gerçekten `block` aldığını gösterir. `via` alanı bunun
+**neyle** kanıtlandığını söyler:
+
+- `via: "artifact"` (`opencode`, `pi`): kurulan dosya ayrı bir süreçte, kendi
+  dizininden çözülerek yüklenir ve host'un sözleşmesiyle (`tool.execute.before`
+  / `tool_call`) çağrılır. Yüklenemeyen, guard API'sine erişemeyen ya da
+  engellerken makbuz bırakmayan bir artefakt kurulumu **başarısız eder**; o
+  çağrının yazdığı dosya geri alınır (#1792).
+- `via: "command"` (`claude-code`, `codex`): config'e **yazılmış olan** komut —
+  bu süreçte yeniden çözülen değil — sentinel payload'ıyla ve **host'un
+  kullanabileceği her kabukta** (Windows'ta cmd.exe *ve* PowerShell, POSIX'te
+  sh) çalıştırılır. Başlatılamayan, herhangi bir kabukta farklı karar veren ya
+  da makbuz bırakmayan komut kurulumu **başarısız eder**; o çağrının eklediği
+  hook girişi geri alınır. Çıktıdaki `command` neyin kaydedildiğini, `shells`
+  ise iddianın hangi yorumlayıcılarda sınandığını söyler.
+- `via: "evaluator"` (`hermes`): Hermes'in Python plugin'i gate
+  çalıştırılabilirini kendi içinde PATH ya da `HUQAN_GATE_PATH` üzerinden
+  çözüyor — kurulumun host adına ayarlayabileceği bir şey değil — bu yüzden
+  doğrulama yalnızca karar yolunun kurulumu yapan süreç içinde engellediğini
+  gösterir. Kapının o istemcide canlı olduğunun ucu uca kanıtı değildir.
+
+Hook komutu kurulum anında **çalıştırılarak** seçilir. Adaylar taşınabilir
+olandan başlayarak sırayla denenir — `HUQAN_GATE_PATH` → PATH üzerindeki
+`huqan-gate` → çalışma alanının `node_modules/.bin` shim'i → `node <mutlak
+giriş>` → mutlak Node ikilisi — ve **her kabukta sentinel'i engelleyen ilk
+aday** kaydedilir. Hiçbiri geçmezse kurulum, neyi denediğini söyleyerek
+reddeder.
+
+Komut **tırnaksız** yazılır; boşluklu yollar Windows kısa adına (`PROGRA~1`)
+çevrilir, çevrilemezse o aday elenir. Sebebi: tırnaklı yol PowerShell'de
+`& ` olmadan sözdizimi hatası, `&` ile başlayan komut ise cmd.exe'de hata —
+yani her iki kabukta çalışan tırnaklı bir yazım yok. Şablonlardaki düz
+`huqan-gate --profile X` de yalnız o ad PATH'te olduğunda çalışıyordu (#1792);
+kaydedilen mutlak tırnaklı biçim ise Codex'in kabuğunda hiç başlamıyor, hook
+`exit 1` veriyor ve **Codex komutu yine de çalıştırıyordu** (#1797) — fail-closed
+bir guard'ın host tarafından fail-open'a çevrilmesi.
+
+### Makbuzu üreten makineden çıkarmak
+
+Makbuza bakması gereken kişi ajanı çalıştıran kişi değil; kanıt yerel bir
+`jsonl`'de kaldığı sürece hiçbir soruya cevap vermiyor (#1781). `ship` komutu
+trail'i bir toplayıcıya gönderir:
+
+```powershell
+npx huqan-gate ship --endpoint https://collector.example/batches --token <jeton>
+npx huqan-gate ship --dry-run            # ne gideceğini gösterir, ağa dokunmaz
+```
+
+Üç özellik etrafında kurulu:
+
+- **Guard'ın karar yoluna hiç dokunmaz.** Gönderim ayrı bir komut, olaydan
+  sonra. Toplayıcının kapalı, yavaş ya da hatalı olması bir ajanın neye izinli
+  olduğunu değiştiremez ve araç çağrısına ağ gecikmesi ekleyemez.
+- **Kuyruk zaten trail'in kendisi.** Ekleme-yalnızca dosya olduğu için ayrı bir
+  spool gerekmiyor: başarısız gönderim imleci yerinde bırakır, sonraki koşum
+  aynı yerden devam eder. Toplayıcı kabul edene kadar diskteki kayıt tek
+  doğrudur; hiçbir makbuz gönderim uğruna silinmez.
+- **Kiracı kaynağında ayrılır.** Gruplama workspace + owner bazında ve trail
+  sırasını bozmadan yapılır, yani bir batch iki kiracıyı asla karıştırmaz.
+
+İmleç (`<trail>.shipped.json`) ekleme-yalnızca dosyadaki bir konumdur; dosya
+döndürülür ya da kısaltılırsa durduğu makbuz tutmaz, o zaman son gönderilen
+zaman damgasından sonrası yeniden gönderilir ve rapor `resynced: true` der —
+sessiz bir yeniden senkron, toplayıcının sessizce kopya alması demek olurdu.
+
+Toplayıcı ucu aynı pakette, **self-hosted öncelikli**: mağaza bir servis değil,
+ekleme-yalnızca JSONL dosyalarından oluşan bir dizin — ajan eylem logları bir
+kurumun dışarı en zor verdiği veri türlerinden, kendi çalıştıramadığı bir
+toplayıcıyı kullanmaz. HTTP'ye hiç ihtiyaç duymadan da çalışır:
+
+```powershell
+npx huqan-gate ship --store D:\huqan-collector          # dogrudan magazaya yaz
+npx huqan-gate fleet --store D:\huqan-collector          # filo gorunumu
+npx huqan-gate fleet --store D:\huqan-collector --workspace team-b --since 2026-09-01
+```
+
+Mağaza kiracıya göre ayrılır (`<workspaceId>/<ownerActorId>/receipts.jsonl`).
+Kiracı adları uzak bir host'tan geldiği için hem muhafazakâr bir slug'a
+indirgenir hem de çözülen yol köke karşı doğrulanır; ikisi ayrı ayrı yeterli
+değil. Aynı `batchId` ikinci kez gelirse `duplicate` denir ve hiçbir şey iki
+kez yazılmaz — gönderici, kabul edilmeyen her şeyi yeniden yolladığı için bu
+istisna değil normal durum. Kiracısı karışık bir batch **reddedilir**: yanlış
+sahibin altına kanıt yazmak, kanıtı kaybetmekten kötüdür.
+
+`fleet` makbuz başına değil **ajan kimliği başına** cevap verir: karar dağılımı,
+ilk/son eylem, son engelleme ve `attested` — bu son alan ancak o kimlik altındaki
+**bütün** eylemler doğrulanmışsa `true` olur; doğrulanmamış bir satırı
+doğrulanmış sanmak tam olarak bu katmanın engellemek için var olduğu hata.
+
+Batch zarfı `huqan.receipt-batch.v1`: `batchId`, `tenant`, `source`, `count`,
+`contentHash` (kopya eleme ve bozuk aktarım tespiti için — imza **değildir**) ve
+`bundleSignature`.
+
+### Batch imzası: kanıtı kimin ürettiği
+
+Makbuzu guard'ın kendisi yazıyor, yani kanıtı üreten makine ile kanıtın hakkında
+olduğu makine aynı. `contentHash` gelen baytların gönderilen baytlar olduğunu
+gösterir ve kopyayı eler; **kimin gönderdiğini göstermez**, çünkü makbuzları
+düzenleyen kişi onu da yeniden hesaplar. Batch imzası bu boşluğu kapatır (#1859):
+
+```powershell
+$env:HUQAN_RECEIPT_SIGNING_KEY    = "C:\huqan\keys\host.pem"   # ed25519 ozel anahtar
+$env:HUQAN_RECEIPT_SIGNING_KEY_ID = "laptop-ali"               # imzada gorunecek ad
+npx huqan-gate ship --endpoint https://collector.example/batches --token <jeton>
+```
+
+İmza `batchId`, `createdAt`, kiracı, `count` ve `contentHash` üzerine atılır —
+yani bir kararı `block`'tan `allow`'a çevirmek, tek bir makbuzu silmek ya da
+batch'i başka bir kiracıya yazmak imzayı bozar. Anahtar adlandırılmış ama
+okunamıyorsa koşum **hata verir**: imzalamayı açtığını sanan bir operatörün
+imzasız kanıt toplaması, hiç açmamış olmasından kötüdür.
+
+Toplayıcı tarafında dört cevap var ve aradaki fark önemli:
+
+| durum | anlamı |
+| --- | --- |
+| `unsigned` | gönderici imza sunmadı — saklanır, damgalanır |
+| `unverified` | imzalı, ama bu kurulumun güvenmesi söylenmemiş bir anahtarla |
+| `verified` | bu mağaza imzayı, güvendiği anahtara karşı **kendisi** doğruladı |
+| `invalid` | imza kendi adlandırdığı anahtara karşı düştü → **reddedilir** |
+
+Sadece `verified` kanıttır. `invalid` bir eksiklik değil çelişkidir, o yüzden
+kurulum ne isterse istesin saklanmaz. Güvenilen anahtarlar dizin olarak verilir
+(`HUQAN_RECEIPT_TRUSTED_KEYS`), dosya adı `keyId` olur — anahtar eklemek dosya
+kopyalamak, iptal etmek silmektir. `HUQAN_RECEIPT_REQUIRE_SIGNATURE=1` diyen bir
+kurulum yalnız `verified` kabul eder. `fleet` çıktısındaki `byBatchSignature`
+hangi satırın hangi kategoride olduğunu sayar; `signatureVerified` ile
+karıştırılmamalı — o, gönderen host'un kendi kimlik kartı hakkındaki **iddiası**,
+`byBatchSignature` ise bu mağazanın **bulgusu**.
+
+### Kimlik malzemesi: iddia değil, doğrulanabilir kanıt
+
+Makbuz `metadata.identity.signatureVerified` taşıyor — ama bu, **gönderen
+host'un kendi kartı hakkında verdiği karar**. `true` okuyan bir toplayıcı,
+makbuzun ortadan kaldırması gereken varsayımı yapmış oluyor. Bu yüzden makbuz
+artık kararın dayandığı malzemeyi de taşıyor: `metadata.identity.cardSignature`
+(ayrık ed25519 imza zarfı). Kartın kendisini ayrıca taşımaya gerek yok — imzanın
+kapsadığı bütün alanlar zaten kimlik bloğunda duruyor, dolayısıyla trail'de
+değiştirilmiş bir blok, doğrulanan bir karta geri kurulamıyor.
+
+Host imzayı doğrulayamasa bile (o anahtar onda yok diye) zarf yine taşınıyor:
+anahtar toplayıcıda olabilir. Toplayıcı her makbuz için kendi cevabını veriyor:
+`unattested` (kart yok), `none` (kart var, imza yok), `unverified` (güvenilen
+hiçbir anahtar tutmuyor), `verified` (bu mağaza kendisi doğruladı). `fleet`
+çıktısında `byIdentitySignature` bunları sayıyor. Gönderenin iddiası ile
+toplayıcının bulgusu **çelişebilir** ve okuyanın bunu görebilmesi gerekiyor —
+kartı sonradan genişletip `signatureVerified: true` bırakan bir host, toplayıcı
+tarafında `unverified` görünür.
+
+### Karşı-mühür: operatörün üretemeyeceği kanıt
+
+Yukarıdaki iki imza da **denetlenen makinedeki** anahtarlarla atılıyor. O
+anahtara erişen bir operatör trail'i düzenleyip yeniden imzalayabilir; her imza
+doğrulanır, çünkü anahtar zaten onundur. Ya da koşumu hiç göndermez ve aşağı
+akıştaki kimse sessiz bir haftayı silinmiş bir haftadan ayıramaz.
+
+Karşı-mühür bunu kapatır: toplayıcı, aldığı şeyi **gönderen host'un
+erişemediği** bir anahtarla imzalar (#1882).
+
+```powershell
+$env:HUQAN_COLLECTOR_SEAL_KEY    = "D:\collector\seal.pem"
+$env:HUQAN_COLLECTOR_SEAL_KEY_ID = "collector-1"
+# veya HTTP'siz: npx huqan-gate ship --store D:\store --seal-key ... --seal-key-id ...
+npx huqan-gate seals --store D:\store --trusted-keys D:\keys   # zinciri denetle
+```
+
+Mühür `batchId`, kiracı, `contentHash`, adet, `receivedAt` ve **bir önceki
+mührün özetini** kapsıyor. İki sonucu var:
+
+- Toplayıcı ne aldığını kanıtlıyor; gönderen de aldığı mührü trail'in yanında
+  (`<trail>.seals.jsonl`) saklıyor, yani elinde kendi üretemeyeceği bir kanıt
+  oluyor: "bu batch şu toplayıcıya şu anda ulaştı".
+- Mühürler **zincir** oluşturuyor. Mağazadan bir batch silinirse kalan mühürler
+  tek tek geçerli kalır ama zincir kopar — `seals` komutu kopmanın sırasını ve
+  sebebini söyler, çıkış kodu 1 verir. Mühürsüz bir kiracı `unsealed` diye
+  raporlanır; "kimse mühürlememiş" ile "mühürler tutuyor" asla aynı görünmez.
+
+Mühürleme istenip yapılamazsa batch **saklanmaz**: sessizce mühürsüz saklamak,
+sonraki her okuyucuya mağazayı mühürlüymüş gibi gösterirdi.
+
+**Bunun da sınırı var, ve kuruluma bağlı:** karşı-mühür ancak toplayıcı, ajanı
+çalıştıran operatörün yönetmediği bir yerdeyse üçüncü taraf kanıtıdır (uyum
+sunucusu ya da bizim işlettiğimiz bulut). İki anahtar da aynı dizüstündeyse aynı
+kişi iki ucu da tutuyor demektir; o zaman mühür yalnızca kazara bozulmayı
+yakalar. Ayrıca `receivedAt` toplayıcının kendi saati — mühür onu sonradan
+değiştirilemez yapar, doğru yapmaz; dış zaman çıpası ayrı bir iş.
+
+**Neyi kanıtlamaz:** anahtar denetlenen makinede duruyor. Geçerli bir imza
+"bu batch o kurulumdan değişmeden çıktı" der; "operatör imzalamadan önce
+kayıtla oynamadı" demez. Operatöre karşı kanıt, toplayıcının aldığını kendi
+anahtarıyla karşı-mühürlemesini gerektirir — toplayıcı ayrı bir host'ta
+(uyum sunucusu ya da barındırılan kurulum) olduğunda anlamlı, ikisi aynı
+dizüstünde olduğunda hiçbir şey. Mekanizma iki kurulumda da aynı; değişen,
+kurulmasına izin verilen iddia.
+
+### Host güveni: kurulmak devrede olmak değil
+
+Codex, gördüğü her hook için `config.toml` içinde bir `trusted_hash` tutar ve
+kaydı olmayan hook'u **sessizce atlar** (CLI'daki
+`--dangerously-bypass-hook-trust` bayrağı tam da bunun için). Yani hook girişini
+yazmak, kullanıcı etkileşimli bir turda onaylayana kadar kapıyı devre dışı
+bırakır — ölçüldü: yeni komuttan sonra PreToolUse hiç çalışmadı ve hiçbir şey
+bunu söylemedi (#1797).
+
+Bu yüzden `install` ve `status` çıktıları `hostTrust` taşır:
+
+```json
+{"host":"codex","store":"...\\.codex\\config.toml","record":"present",
+ "reapprovalRequired":true,
+ "reason":"this install wrote the hook entry, so the stored trusted_hash is for the previous one; ..."}
+```
+
+Hash yeniden hesaplanmaz — girdisi Codex'in işi, tahmin etmek arkasında
+duramayacağımız bir iddia olurdu. Yalnız iki şey okunur: bu hook için bir kayıt
+var mı, ve girişi bu kurulum mu yazdı (komutun değişmesinin tek yolu bu).
+Güven davranışı ölçülmemiş host'lar için alan `null` kalır; olmayan bir şey
+hakkında iddia üretilmez.
+
+Sentinel gerçek eylemi çalıştırmaz; doğrulamanın ürettiği makbuz ve (CLI
+yolunda) açılan graph geçici bir dizine yazılır, deployment'ın receipt trail'ine
+dokunulmaz. `status`, her
+profilin hedefini/bağlılık durumunu ve varsa varsayılan ya da `--receipt-log`
+ile seçilen trail'deki son receipt'in zaman, karar ve kimliğini döndürür.
+
+Bu yönetim yolu guard kontrol düzlemine kasıtlı deployment yazımıdır. Library
+API'si `deploymentAuthorized: true` olmadan install/uninstall/status çalıştırmaz;
+bu yetki hook payload'ından okunmaz ve ajanın kendi eylemine taşıyabileceği
+`--allow-control-plane` muafiyeti değildir.
+
+Kurulabilir başlangıç şablonları paketin `adapters/external-action/` dizinindedir:
+
+- Claude Code: `claude-code-hooks.json` içeriğini proje `.claude/settings.json`
+  dosyasındaki `hooks` alanına birleştir.
+- Codex: `codex-hooks.json` dosyasını proje `.codex/hooks.json` konumuna kopyala
+  veya mevcut hook dosyasına birleştir.
+- OpenCode: `opencode-plugin.mjs` dosyasını `.opencode/plugin/huqan.mjs`
+  konumuna koy.
+- Pi: `pi-extension.js` dosyasını proje `.pi/extensions/huqan.js` konumuna koy.
+- Hermes: `hermes/` dizinini `~/.hermes/plugins/huqan-external-action-guard/`
+  konumuna koy. `huqan-gate` PATH üzerinde değilse mutlak executable yolunu
+  `HUQAN_GATE_PATH` ile ver; ardından
+  `hermes plugins enable huqan-external-action-guard` ile etkinleştir.
+
+Şablonlar npm paketindeki HUQAN library/CLI'ını çağırır; kaynak checkout'a
+bağımlı değildir. İstemcilerin hook şemaları zamanla değişebileceğinden kurulumda
+güncel resmi hook belgeleriyle doğrulanmalıdır.
+
+Referanslar: [Claude Code hooks](https://code.claude.com/docs/en/hooks),
+[Codex hooks](https://learn.chatgpt.com/docs/hooks),
+[OpenCode plugins](https://opencode.ai/docs/plugins/),
+[Pi extensions](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/extensions.md),
+[Hermes plugin hooks](https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks).
+
+Yeni bir ajan eklemek için çekirdeğe ajan adı eklenmez. Yapılacak iş üç adımdır:
+
+1. Native event'i ortak zarfa normalize et.
+2. Guard'ı gerçek executor'dan önce bekle.
+3. `review` ve `block` kararlarında executor'ın çağrılmadığını bir sentinel
+   entegrasyon testiyle kanıtla.
+
+## Bilinen sınırlar
+
+- Bu v1 OS seviyesinde evrensel bir güvenlik çekirdeği veya IAM yerine geçmez.
+- Cline, Kilocode ve JCode için bu sürümde doğrulanmış native pre-tool adapter
+  yoktur; generic wrapper ile bağlanabilirler, aksi halde coverage iddia edilmez.
+- Ağ erişimi, credential scope, branch protection ve container/sandbox
+  yetkileri ayrıca enforce edilmelidir.
+- Guard, onayladığı bir komutun **başlattığı** sürecin kendi tool çağrılarını
+  görmez. `node my-agent.js` tek bir shell eylemi olarak değerlendirilir; o
+  sürecin sonradan yaptıkları hook'tan geçmez.
+- Kontrol düzlemi bloğu, guard'ın çağrıldığı yolları kapsar. Guard'ın hiç
+  bağlı olmadığı bir istemci aynı dosyayı serbestçe değiştirebilir.
+- Admission receipt eylemin değerlendirildiğini kanıtlar; eylemin çalıştığını
+  outcome receipt olmadan kanıtlamaz.
+- Guard capability card'ının imza ve sponsor güvencesi profile bağlıdır. Kartı
+  guard'a veren süreç (hook config veya wrapper) deployment sınırındadır;
+  üretimde ayrıca kayıtlı insan sponsorun imzası zorunludur. `lib/agent-identity-runtime.js` receiver-owned authority ve
+  canonical hash üzerinden ayrı bir opt-in runtime doğrulaması yapar, fakat o
+  da kriptografik kart imzası veya anahtar dağıtımı sağlamaz. External-action
+  guard bu runtime'ı çağırmadığı için iki güven modeli birbirinin yerine
+  kullanılamaz. Bu nedenle farklı makinelerden toplanan guard receipt'leri,
+  yalnız `attested: true` alanına bakılarak kriptografik olarak doğrulanmış bir
+  fleet kimliğine bağlanmış sayılamaz. Kart için ayrı bir ed25519 imza
+  katmanı vardır (yukarıda "Kart imzası"): `signatureVerified: true` bir
+  makbuzu imzalayan anahtarın deployment'ın güvenilir anahtarlarından birine
+  bağlar. Üretimde sponsor kaydına bağlı imza zorunludur; üretim dışında
+  zorunlu kılınmadıkça imzasız makbuzlar bu sınıra takılır.
+- Anahtar **dağıtımı** hiçbir katmanda çözülmüş değildir. Kart imzasını
+  doğrulayan taraf güvenilir açık anahtarları deployment'tan alır
+  (`--trusted-identity-keys`); A2A tarafında da authority tek bir yerel
+  dosyadan okunur (`A2A_AUTHORITY_FILE`) ve agent card trust-root yayınlamayı
+  kasten reddeder. Yani iki yabancı taraf birbirinin anahtarını protokol içinden
+  öğrenemez; registry, iptal yayını ve federasyon açık iştir (#1787).
+- Bu bölüm external-action guard kartı hakkındadır; "kriptografik doğrulama
+  yok" diye okunmamalıdır. A2A yüzeyi imzalı çalışır:
+  `lib/a2a/bounded-exchange.js` her hop'u ed25519 ile doğrular, imzalı
+  delegasyon zincirini (`delegation_signature_invalid`) ve
+  `expires_at`/`revoked_at` alanlarını fail-closed değerlendirir. Farklı olan
+  şey doğrulamanın varlığı değil, hangi yüzeyde zorunlu olduğudur.
+- `attested: true` yalnız "geçerli biçimli capability card sunuldu, normalize
+  edildi ve bu çağrıya bağlandı" demektir. İmza doğrulandı, kart güvenilir bir
+  issuer'dan geldi veya eylem kabul edildi demek değildir. Süresi geçmiş,
+  henüz geçerli olmayan ya da kapsam dışı bir kart yine `attested: true` olur
+  ve `block` alır. Kabul kararı `identity` gate finding'i ile receipt `decision`
+  alanındadır. `attested: false` kimliğin zarftan türetildiğini gösterir; iki
+  durum log sorgusunda ayrıştırılabilir.

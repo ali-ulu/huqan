@@ -1,0 +1,19 @@
+{
+  "name": "observability-local-load-smoke-v1",
+  "workspaceId": "observability-load-smoke",
+  "eventWrites": 500,
+  "listReads": 100,
+  "summaryReads": 50,
+  "ssePublishes": 200,
+  "sseSubscribers": 32,
+  "queueJobs": 100,
+  "targets": {
+    "eventWriteP95Ms": 25,
+    "listP95Ms": 25,
+    "summaryP95Ms": 25,
+    "sseFanoutP95Ms": 25,
+    "queueClaimP95Ms": 25,
+    "maxDbFileBytes": 5000000,
+    "maxQueueLagMs": 1000
+  }
+}

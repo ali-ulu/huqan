@@ -197,20 +197,24 @@ test('cycle_detected maps to cycle_blocked', () => {
   assert.ok(result.verdict.riskFlags.includes('circular_reasoning_risk'));
 });
 
-test('PREVENTS does not automatically contradict', () => {
+test('PREVENTS-only traversal is contradictory and separated from support evidence', () => {
   const result = buildCausalVerdict(traversalFixture({
     traversalOrder: [
       edge('e1', 'A', 'B', 'PREVENTS'),
     ],
   }));
 
-  assert.equal(result.verdict.status, 'supports');
+  assert.equal(result.verdict.status, 'contradicts');
+  assert.equal(result.verdict.trace.supportingEdges.length, 0);
+  assert.equal(result.verdict.trace.preventingEdges.length, 1);
+  assert.equal(result.verdict.trace.preventingEdges[0].edgeId, 'e1');
   assert.ok(result.verdict.warnings.includes('PREVENTS_SIGNAL'));
   assert.ok(result.verdict.riskFlags.includes('prevents_signal'));
-  assert.equal(result.verdict.reasons.includes('EXPLICIT_CONTRADICTION_SIGNAL'), false);
+  assert.ok(result.verdict.reasons.includes('PREVENTS_ONLY_SIGNAL'));
+  assert.equal(result.verdict.reasons.includes('CAUSAL_PATH_FOUND'), false);
 });
 
-test('explicit contradiction metadata can produce contradicts', () => {
+test('explicit contradiction metadata preserves its reason and produces contradicts', () => {
   const result = buildCausalVerdict(
     traversalFixture({
       traversalOrder: [
@@ -219,9 +223,9 @@ test('explicit contradiction metadata can produce contradicts', () => {
     }),
     {
       contradictionSignal: {
-        reason: 'explicit_contradiction',
+        reason: 'observed_counterexample_in_2024_audit',
         confidence: 0.95,
-        edges: [edge('c1', 'A', 'B', 'PREVENTS')],
+        edges: [],
       },
     },
   );
@@ -230,6 +234,24 @@ test('explicit contradiction metadata can produce contradicts', () => {
   assert.ok(result.verdict.warnings.includes('EXPLICIT_CONTRADICTION_SIGNAL'));
   assert.ok(result.verdict.riskFlags.includes('explicit_contradiction_signal'));
   assert.equal(result.verdict.trace.contradictingEdges.length, 1);
+  assert.equal(result.verdict.trace.contradictingEdges[0].reason, 'observed_counterexample_in_2024_audit');
+  assert.ok(result.verdict.reasons.includes('observed_counterexample_in_2024_audit'));
+});
+
+test('contradiction confidence scales the contradicts score', () => {
+  const weak = buildCausalVerdict(
+    traversalFixture(),
+    { contradictionSignal: { reason: 'weak_signal', confidence: 0.01 } },
+  );
+  const strong = buildCausalVerdict(
+    traversalFixture(),
+    { contradictionSignal: { reason: 'strong_signal', confidence: 0.99 } },
+  );
+
+  assert.equal(weak.verdict.status, 'contradicts');
+  assert.equal(strong.verdict.status, 'contradicts');
+  assert.ok(weak.verdict.confidence < strong.verdict.confidence);
+  assert.ok(weak.verdict.confidence < 1);
 });
 
 test('confidence is deterministic and clamped to [0, 1]', () => {

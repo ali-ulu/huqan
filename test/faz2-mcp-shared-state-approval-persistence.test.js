@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createServer } = require('../mcpServer');
+const { createServer, createMcpOperatorCapability, operatorCapabilityBinding } = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 
 function restoreEnv(saved) {
   for (const [key, value] of Object.entries(saved)) {
@@ -21,11 +22,13 @@ async function withTempAxiomEnv(fn) {
     AXIOM_DB_PATH: process.env.AXIOM_DB_PATH,
     AXIOM_KERNEL_VERSION: process.env.AXIOM_KERNEL_VERSION,
     AXIOM_USE_SQLITE: process.env.AXIOM_USE_SQLITE,
+    HUQAN_MCP_OPERATOR_TOKEN: process.env.HUQAN_MCP_OPERATOR_TOKEN,
   };
   process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
   process.env.AXIOM_DB_PATH = path.join(tempDir, 'memory.db');
   process.env.AXIOM_KERNEL_VERSION = '';
   delete process.env.AXIOM_USE_SQLITE;
+  process.env.HUQAN_MCP_OPERATOR_TOKEN = 'test-operator';
 
   try {
     return await fn({ tempDir });
@@ -43,11 +46,20 @@ function closeServer(server) {
 }
 
 function callTool(server, name, args = {}) {
+  const canonicalName = canonicalMcpToolName(name);
+  const operator = ['huqan.approve', 'huqan.approvals', 'huqan.agent_resume'].includes(canonicalName)
+    ? {
+        operatorCapability: createMcpOperatorCapability({
+          secret: 'test-operator',
+          ...operatorCapabilityBinding(canonicalName, args),
+        }),
+      }
+    : {};
   const response = server.handleRequest({
     jsonrpc: '2.0',
     id: Math.floor(Math.random() * 1_000_000),
     method: 'tools/call',
-    params: { name, arguments: args },
+    params: { name, ...operator, arguments: args },
   });
 
   assert.equal(response.jsonrpc, '2.0');
@@ -110,7 +122,7 @@ test('FAZ2-5: rejecting a persisted MCP approval does not execute the mutation',
     assert.equal(rejected.data.approval.status, 'rejected');
 
     const verify = callTool(server, 'axiom.verify', { statement: text });
-    assert.equal(verify.data.status, 'bilinmiyor');
+    assert.equal(verify.data.status, 'unknown');
     assert.ok(!pendingApprovalIds(server).includes(approvalId));
     closeServer(server);
   });
@@ -125,7 +137,7 @@ test('FAZ2-5: approving a persisted MCP approval executes once through admission
     closeServer(server);
 
     server = createServer();
-    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'bilinmiyor');
+    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'unknown');
 
     const approved = callTool(server, 'axiom.approve', {
       approvalId,
@@ -139,10 +151,14 @@ test('FAZ2-5: approving a persisted MCP approval executes once through admission
     assert.equal(approved.data.approval.status, 'approved');
     assert.equal(approved.data.result.data.admission.outcome, 'allow');
     assert.equal(approved.data.result.data.admission.approvalStatus, 'approved');
+    assert.equal(approved.data.result.meta.durableMutation, true);
+    assert.equal(approved.data.result.meta.replayed, false);
+    assert.ok(approved.data.result.meta.committedReceiptId);
+    assert.ok(approved.data.result.meta.committedReceiptHash);
 
     const auditCountAfterApprove = learnAuditCount(server, text);
     assert.ok(auditCountAfterApprove >= 1, 'approved execution must emit LEARN audit');
-    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'dogrulandi');
+    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'verified');
 
     const duplicate = callTool(server, 'axiom.approve', {
       approvalId,
@@ -157,10 +173,172 @@ test('FAZ2-5: approving a persisted MCP approval executes once through admission
   });
 });
 
+test('FAZ2-5: an atomic approval claim blocks a competing executor before mutation', async () => {
+  await withTempAxiomEnv(async () => {
+    const text = 'faz2 mcp competing approval sentinel hayvandir';
+    const first = createServer();
+    const queued = callTool(first, 'axiom.learn', { text });
+    const approvalId = queued.approval.id;
+
+    const second = createServer();
+    const claim = first.approvalStore.claimToolApproval(approvalId, 'competing executor');
+    assert.equal(claim.claimed, true);
+    assert.equal(claim.approval.status, 'executing');
+
+    const competingRejection = callTool(second, 'axiom.approve', {
+      approvalId,
+      decision: 'rejected',
+      reason: 'must not reject an executing approval',
+    });
+    assert.equal(competingRejection.ok, false);
+    assert.equal(competingRejection.error.code, 'APPROVAL_DECISION_CONFLICT');
+    assert.equal(competingRejection.meta.approval.status, 'executing');
+
+    const competing = callTool(second, 'axiom.approve', {
+      approvalId,
+      decision: 'approved',
+      reason: 'must not execute twice',
+    });
+    assert.equal(competing.ok, false);
+    assert.equal(competing.error.code, 'APPROVAL_EXECUTION_IN_PROGRESS');
+    assert.equal(competing.meta.approval.status, 'executing');
+    assert.equal(callTool(second, 'axiom.verify', { statement: text }).data.status, 'unknown');
+    assert.equal(learnAuditCount(second, text), 0);
+
+    closeServer(second);
+    closeServer(first);
+  });
+});
+
+test('FAZ2-5: execution exceptions become visible failed approvals without automatic retry', async () => {
+  await withTempAxiomEnv(async () => {
+    const text = 'faz2 mcp failed execution sentinel hayvandir';
+    const server = createServer();
+    const queued = callTool(server, 'axiom.learn', { text });
+    const approvalId = queued.approval.id;
+    server.kernel.learn = () => {
+      const error = new Error('forced execution failure');
+      error.code = 'FORCED_FAILURE';
+      throw error;
+    };
+
+    const failed = callTool(server, 'axiom.approve', {
+      approvalId,
+      decision: 'approved',
+      reason: 'forced failure test',
+    });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.error.code, 'APPROVAL_EXECUTION_FAILED');
+    assert.equal(failed.meta.retrySafe, false);
+    assert.equal(failed.meta.approval.status, 'failed');
+    assert.equal(failed.meta.approval.decision, 'execution_outcome_unknown');
+
+    const approvals = callTool(server, 'axiom.approvals', { limit: 20 });
+    assert.equal(approvals.pendingCount, 0);
+    assert.equal(approvals.unresolvedCount, 1);
+    assert.ok(
+      approvals.approvals.some((approval) => approval.id === approvalId && approval.status === 'failed'),
+      'failed execution must remain visible for manual reconciliation'
+    );
+
+    const retry = callTool(server, 'axiom.approve', {
+      approvalId,
+      decision: 'approved',
+      reason: 'unsafe automatic retry',
+    });
+    assert.equal(retry.ok, false);
+    assert.equal(retry.error.code, 'APPROVAL_RECONCILIATION_REQUIRED');
+    assert.equal(retry.meta.approval.status, 'failed');
+    closeServer(server);
+  });
+});
+
+test('FAZ2-5: finalization exceptions are structured and leave a visible unresolved approval', async () => {
+  await withTempAxiomEnv(async () => {
+    const text = 'faz2 mcp finalization failure sentinel hayvandir';
+    const server = createServer();
+    const queued = callTool(server, 'axiom.learn', { text });
+    server.approvalStore.finalizeToolApprovalWithReceipt = () => {
+      const error = new Error('forced finalization failure');
+      error.code = 'FORCED_FINALIZATION_FAILURE';
+      throw error;
+    };
+
+    const failed = callTool(server, 'axiom.approve', {
+      approvalId: queued.approval.id,
+      decision: 'approved',
+    });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.error.code, 'APPROVAL_FINALIZATION_FAILED');
+    assert.equal(failed.meta.retrySafe, false);
+    assert.equal(failed.meta.finalizationError, 'FORCED_FINALIZATION_FAILURE');
+    assert.equal(failed.meta.approval.status, 'executing');
+    assert.equal(callTool(server, 'axiom.verify', { statement: text }).data.status, 'verified');
+
+    const approvals = callTool(server, 'axiom.approvals', { limit: 20 });
+    assert.equal(approvals.pendingCount, 0);
+    assert.equal(approvals.unresolvedCount, 1);
+    assert.ok(approvals.approvals.some((approval) => (
+      approval.id === queued.approval.id && approval.status === 'executing'
+    )));
+    closeServer(server);
+  });
+});
+
+test('FAZ2-5: approval persists canonical receipt and idempotent repeats preserve all execution refs', async () => {
+  await withTempAxiomEnv(async () => {
+    const server = createServer();
+    const queued = callTool(server, 'huqan.learn', { text: 'approval receipt parity sentinel hayvandir' });
+    const first = callTool(server, 'huqan.approve', {
+      approvalId: queued.approval.id,
+      decision: 'approved',
+    });
+    closeServer(server);
+    const restarted = createServer();
+    const repeat = callTool(restarted, 'huqan.approve', {
+      approvalId: queued.approval.id,
+      decision: 'approved',
+    });
+
+    assert.equal(first.ok, true);
+    assert.equal(first.data.executed, true);
+    assert.ok(first.data.receipt.receiptId);
+    assert.equal(first.data.refs.receiptId, first.data.receipt.receiptId);
+    assert.ok(first.data.refs.auditId);
+    assert.ok(first.data.refs.candidateId);
+    assert.ok(first.data.refs.provenanceId);
+    assert.equal(repeat.data.idempotent, true);
+    assert.equal(repeat.data.executed, false);
+    assert.deepEqual(repeat.data.receipt, first.data.receipt);
+    assert.deepEqual(repeat.data.refs, first.data.refs);
+    assert.equal(repeat.receiptId, first.receiptId);
+    closeServer(restarted);
+  });
+});
+
+test('FAZ2-5: non-ok execution results persist the current failed state', async () => {
+  await withTempAxiomEnv(async () => {
+    const server = createServer();
+    const queued = callTool(server, 'axiom.learn', { text: 'faz2 mcp non-ok execution sentinel hayvandir' });
+    server.kernel.learn = () => ({ ok: false, error: { code: 'FORCED_NON_OK' } });
+
+    const failed = callTool(server, 'axiom.approve', {
+      approvalId: queued.approval.id,
+      decision: 'approved',
+    });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.error.code, 'APPROVAL_EXECUTION_FAILED');
+    assert.equal(failed.meta.approval.status, 'failed');
+    assert.equal(failed.meta.result.error.code, 'FORCED_NON_OK');
+    closeServer(server);
+  });
+});
+
 test('FAZ2-5: createServer can use an injected shared kernel instance', () => {
   const injectedKernel = {
     learn() { return { ok: true, type: 'learn', data: {}, evidence: [], error: null, meta: {} }; },
-    ask() { return { ok: true, type: 'ask', data: { answer: 'injected' }, evidence: [], error: null, meta: {} }; },
+    // Kernel-shaped ask data: MCP withholds results that miss their declared schema (#3483).
+    ask() { return { ok: true, type: 'ask', data: { answer: 'injected', subject: 'shared', unknown: false, alternatives: 0 }, evidence: [], error: null, meta: {} }; },
     verify() { return { ok: true, type: 'verify', data: { status: 'bilinmiyor', confidence: 0 }, evidence: [], error: null, meta: {} }; },
   };
 

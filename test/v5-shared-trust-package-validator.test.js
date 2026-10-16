@@ -114,6 +114,19 @@ test('V5 shared trust package validator rejects missing route receipt metadata',
   );
 });
 
+test('V5 shared trust package schema.json required list agrees with the validator on receipt.routeReceipt.metadata (#1311)', () => {
+  // The validator hand-codes this rule (schema.json's required arrays are
+  // only consulted for the root object, not nested ones -- see
+  // shared-trust-package-validator.js), so nothing enforces schema/validator
+  // agreement automatically. Assert it explicitly so the two cannot drift
+  // apart again the way they did before #1311: the validator rejected a
+  // schema-conformant package (routeReceipt without metadata) because the
+  // schema listed metadata as optional while the validator required it.
+  const schema = require('../schemas/v5/shared-trust-package.schema.json');
+  const routeReceiptSchema = schema.properties.receipt.properties.routeReceipt;
+  assert.deepEqual([...routeReceiptSchema.required].sort(), ['hopCount', 'metadata', 'routeId']);
+});
+
 test('V5 shared trust package validator rejects malformed route receipt metadata', () => {
   const fixture = clone(readFixture('valid-with-route-receipt.json'));
   fixture.receipt.routeReceipt.metadata.transport = { nested: true };
@@ -199,4 +212,60 @@ test('V5 shared trust package validator stays isolated from runtime and signing 
 
   assert.equal(forbiddenImportPattern.test(source), false);
   assert.equal(forbiddenRuntimeWords.test(source), false);
+});
+
+
+test('V5 shared trust package validator rejects unknown subject types and validates supplied routeReceipt independently', () => {
+  const fixture = clone(readFixture('valid-minimal.json'));
+  fixture.subject.type = 'other';
+  fixture.routeReceipt = {
+    hops: 'not-an-array',
+    arbitrary: { nested: true },
+  };
+
+  const result = validateSharedTrustPackage(fixture);
+
+  assert.equal(result.valid, false);
+  assertStructuredResult(result);
+  assert.equal(
+    result.errors.some((error) => error.code === 'invalid_enum_value' && error.path === 'subject.type'),
+    true
+  );
+  assert.equal(
+    result.errors.some((error) => error.code === 'unknown_field' && error.path === 'routeReceipt.arbitrary'),
+    true
+  );
+  assert.equal(
+    result.errors.some((error) => error.code === 'missing_required_field' && error.path === 'routeReceipt.hops'),
+    true
+  );
+});
+
+test('V5 shared trust package validator keeps route_receipt receipt route required', () => {
+  const fixture = clone(readFixture('valid-minimal.json'));
+  fixture.subject.type = 'route_receipt';
+
+  const result = validateSharedTrustPackage(fixture);
+
+  assert.equal(result.valid, false);
+  assert.equal(
+    result.errors.some((error) => error.code === 'missing_required_field' && error.path === 'receipt.routeReceipt'),
+    true
+  );
+});
+
+test('V5 shared trust package validator rejects empty and non-array nonClaims', () => {
+  for (const nonClaims of [[], 'not-an-array', [42]]) {
+    const fixture = clone(readFixture('valid-minimal.json'));
+    fixture.nonClaims = nonClaims;
+
+    const result = validateSharedTrustPackage(fixture);
+
+    assert.equal(result.valid, false);
+    assertStructuredResult(result);
+    assert.equal(
+      result.errors.some((error) => error.path === 'nonClaims' || error.path.startsWith('nonClaims[')),
+      true
+    );
+  }
 });

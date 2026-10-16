@@ -15,6 +15,13 @@ test('lang-ar extractFacts splits simple copula statements', () => {
   assert.equal(facts[0].predicate, 'حيوان');
 });
 
+test('lang-ar extractFacts preserves normalized multi-word subjects (#1116)', () => {
+  assert.deepEqual(ar.extractFacts('مدينة برلين هي العاصمة'), [{
+    subject: 'مدينة برلين',
+    predicate: 'العاصمة',
+  }]);
+});
+
 test('lang-ar extractFacts handles coordinated subjects', () => {
   const facts = ar.extractFacts('القط والكلب هو حيوان');
   assert.equal(facts.length, 2);

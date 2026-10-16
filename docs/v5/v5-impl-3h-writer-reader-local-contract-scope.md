@@ -1,5 +1,7 @@
 # V5-IMPL-3H - Writer/Reader Local Contract Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-3G_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

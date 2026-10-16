@@ -2,6 +2,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const Kernel = require('./kernel');
 const { createWorkflowRuntime } = require('./workflow-runtime');
+const WorkflowAgent = require('./workflow-agent');
+const { ToolRegistry } = WorkflowAgent;
 
 function createKernel() {
   return {
@@ -9,7 +11,7 @@ function createKernel() {
       return {
         ok: true,
         data: {
-          status: 'dogrulandi',
+          status: 'verified',
           confidence: 0.91,
           answer: `verified:${statement}`,
         },
@@ -112,6 +114,37 @@ function createKernel() {
 }
 
 describe('workflow-runtime', () => {
+  it('enforces ToolRegistry block, review and unforgeable approval policy', async () => {
+    const registry = new ToolRegistry();
+    let reviewCalls = 0; let blockedCalls = 0;
+    registry.registerTool({ name: 'fetch-data', kind: 'external', run: () => { reviewCalls += 1; return { ok: true, data: { fetched: true } }; } });
+    registry.registerTool({ name: 'delete-files', kind: 'external', run: () => { blockedCalls += 1; return { ok: true, data: { deleted: true } }; } });
+    const runtime = createWorkflowRuntime(createKernel(), { registry, registerDefaultTools: false });
+
+    const review = await runtime.runTool('fetch-data', { goal: 'read remote data' });
+    assert.strictEqual(review.error.code, 'TOOL_REVIEW_REQUIRED');
+    assert.strictEqual(review.status, 'review');
+    assert.strictEqual(reviewCalls, 0);
+
+    const forged = await runtime.runTool('fetch-data', {}, { approval: { approved: true } });
+    assert.strictEqual(forged.error.code, 'TOOL_REVIEW_REQUIRED');
+    assert.strictEqual(reviewCalls, 0);
+
+    const approved = await runtime.runTool('fetch-data', {}, {
+      approval: WorkflowAgent.createExternalReviewApproval('operator approved this scoped execution'),
+    });
+    assert.strictEqual(approved.ok, true);
+    assert.strictEqual(reviewCalls, 1);
+
+    const blocked = await runtime.runTool('delete-files', { path: 'important' }, {
+      approval: WorkflowAgent.createExternalReviewApproval('approval cannot override block'),
+    });
+    assert.strictEqual(blocked.error.code, 'TOOL_BLOCKED');
+    assert.strictEqual(blockedCalls, 0);
+
+    const unknown = await runtime.runTool('missing-tool', {});
+    assert.strictEqual(unknown.error.code, 'UNKNOWN_TOOL');
+  });
   it('creates a runtime with default workflow tools registered', () => {
     const runtime = createWorkflowRuntime(createKernel());
 
@@ -137,7 +170,7 @@ describe('workflow-runtime', () => {
     assert.strictEqual(plan.ok, true);
     assert.ok(plan.steps.length >= 1);
 
-    const run = runtime.run('verify graph and rank evidence', {
+    const run = await runtime.run('verify graph and rank evidence', {
       plan: {
         goal: 'verify graph and rank evidence',
         objective: 'verify',
@@ -186,7 +219,9 @@ describe('workflow-runtime', () => {
   });
 
   it('runs runCapability through the workflow tool adapter', async () => {
-    const runtime = createWorkflowRuntime(createKernel());
+    const runtime = createWorkflowRuntime(createKernel(), {
+      runCapabilityPolicy: ({ name }) => name === 'demo',
+    });
     const result = await runtime.runTool('runCapability', {
       name: 'demo',
       input: { foo: 'bar' },
@@ -369,5 +404,37 @@ describe('workflow-runtime', () => {
     assert.strictEqual(experiment.data.capability, 'experimentPlanner');
     assert.strictEqual(analysis.data.capability, 'resultAnalyzer');
     assert.strictEqual(replication.data.capability, 'replicationChecker');
+  });
+
+  // Unit-level companions to the parity contract test added with #1992, which
+  // exercises the same surface against a real HuqanStorage. These two cover
+  // what that one cannot: the no-storage fallback, and that the workspace and
+  // limit arguments are forwarded rather than dropped. From PR #2053.
+  it('returns 0/[] for pending tool approvals when storage is unavailable', () => {
+    const runtime = createWorkflowRuntime(createKernel());
+    assert.strictEqual(runtime.countPendingToolApprovals(), 0);
+    assert.strictEqual(runtime.countPendingToolApprovals('workspace-a'), 0);
+    assert.deepStrictEqual(runtime.listPendingToolApprovals(), []);
+    assert.deepStrictEqual(runtime.listPendingToolApprovals(20, 'workspace-a'), []);
+  });
+
+  it('delegates pending tool approvals to storage when available', () => {
+    const approvals = [{ id: 'a1', tool: 'test-tool' }];
+    let countedWorkspace;
+    const storage = {
+      countPendingToolApprovals(workspaceId) {
+        countedWorkspace = workspaceId;
+        return 3;
+      },
+      listPendingToolApprovals(limit, workspaceId) {
+        assert.strictEqual(limit, 10);
+        assert.strictEqual(workspaceId, 'team-b');
+        return approvals;
+      },
+    };
+    const runtime = createWorkflowRuntime(createKernel(), { storage });
+    assert.strictEqual(runtime.countPendingToolApprovals('team-a'), 3);
+    assert.strictEqual(countedWorkspace, 'team-a');
+    assert.deepStrictEqual(runtime.listPendingToolApprovals(10, 'team-b'), approvals);
   });
 });

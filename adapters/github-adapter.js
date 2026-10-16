@@ -1,64 +1,71 @@
-function toError(message, code, status) {
-  const err = new Error(message);
-  if (code) err.code = code;
-  if (typeof status === 'number') err.status = status;
-  return err;
-}
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
+const { buildGitHubBlobUrl, buildGitHubRawUrl } = require('../lib/github-url');
+const {
+  GITHUB_LIMITS,
+  githubLimits,
+  toError,
+  parseRepoUrl,
+  buildHeaders,
+  normalizePath,
+  isMarkdownPath,
+  includePath,
+  parseRateLimitError,
+} = require('./github-adapter-utils');
+const {
+  resolveCommitSha,
+  fetchTreePayload,
+  treeBlobPaths,
+  walkTreeBlobPaths,
+} = require('./github-tree');
+const { projectLearnOutcome } = require('./utils/learn-entries');
 
-function parseRepoUrl(repoUrl) {
-  const raw = String(repoUrl || '').trim();
-  if (!raw) {
-    throw toError('repoUrl is required', 'REPO_URL_REQUIRED');
-  }
-
-  const match = raw.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/?#]+?)(?:\.git)?(?:[\/?#].*)?$/i);
-  if (!match) {
-    throw toError('Invalid GitHub repository URL', 'REPO_URL_INVALID');
-  }
-
-  return {
-    owner: decodeURIComponent(match[1]),
-    repo: decodeURIComponent(match[2].replace(/\.git$/i, '')),
-  };
-}
-
-function buildHeaders(token) {
-  const headers = {
-    Accept: 'application/vnd.github+json',
-    'User-Agent': 'axiom-company-brain',
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
-}
-
-function normalizePath(filePath) {
-  return String(filePath || '').replace(/\\/g, '/');
-}
-
-function includePath(filePath) {
-  const normalized = normalizePath(filePath);
-  const lower = normalized.toLowerCase();
-  if (!lower.endsWith('.md')) return false;
-
-  if (lower === 'readme.md' || lower === 'contributing.md' || lower === 'roadmap.md') return true;
-  if (lower.startsWith('.github/')) return true;
-  if (!normalized.includes('/')) return true;
-
-  return false;
-}
-
-function parseRateLimitError(res, fallbackMessage) {
-  if (res.status === 403 || res.status === 429) {
-    return toError('GitHub rate limit exceeded', 'GITHUB_RATE_LIMIT', res.status);
-  }
-  return toError(fallbackMessage, 'GITHUB_REQUEST_FAILED', res.status);
-}
+const DEFAULT_FETCH_TIMEOUT_MS = 30000;
 
 async function defaultFetch(url, options) {
   if (typeof fetch !== 'function') {
     throw toError('Global fetch is not available', 'FETCH_UNAVAILABLE');
   }
-  return fetch(url, options);
+  const withTimeout = options && options.signal
+    ? options
+    : { ...options, signal: AbortSignal.timeout(DEFAULT_FETCH_TIMEOUT_MS) };
+  return fetch(url, withTimeout);
+}
+
+async function readBoundedText(response, filePath, maxFileBytes, remainingBytes) {
+  const contentLength = Number(response.headers?.get?.('content-length') || 0);
+  const allowed = Math.min(maxFileBytes, remainingBytes);
+  if (Number.isFinite(contentLength) && contentLength > allowed) {
+    const code = contentLength > maxFileBytes ? 'GITHUB_FILE_BYTES_LIMIT' : 'GITHUB_TOTAL_BYTES_LIMIT';
+    throw toError(`GitHub content byte limit exceeded: ${filePath}`, code);
+  }
+  if (response.body && typeof response.body.getReader === 'function') {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > allowed) {
+          await reader.cancel();
+          const code = bytes > maxFileBytes ? 'GITHUB_FILE_BYTES_LIMIT' : 'GITHUB_TOTAL_BYTES_LIMIT';
+          throw toError(`GitHub content byte limit exceeded: ${filePath}`, code);
+        }
+        chunks.push(Buffer.from(value));
+      }
+    } finally {
+      reader.releaseLock?.();
+    }
+    return { content: Buffer.concat(chunks, bytes).toString('utf8'), bytes };
+  }
+  const content = await response.text();
+  const bytes = Buffer.byteLength(content, 'utf8');
+  if (bytes > allowed) {
+    const code = bytes > maxFileBytes ? 'GITHUB_FILE_BYTES_LIMIT' : 'GITHUB_TOTAL_BYTES_LIMIT';
+    throw toError(`GitHub content byte limit exceeded: ${filePath}`, code);
+  }
+  return { content, bytes };
 }
 
 async function fetchRepoFiles(repoUrl, opts = {}) {
@@ -67,45 +74,55 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
   const token = opts.token || '';
   const fetchImpl = opts.fetchImpl || defaultFetch;
   const explicitPaths = Array.isArray(opts.paths) ? opts.paths.map(normalizePath).filter(Boolean) : null;
+  const limits = githubLimits(opts);
+  const budget = { limits, treeRequests: 0, treeEntries: 0 };
 
-  const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
-  const treeRes = await fetchImpl(treeUrl, {
-    method: 'GET',
-    headers: buildHeaders(token),
-  });
+  const commitSha = await resolveCommitSha(owner, repo, branch, token, fetchImpl);
 
-  if (!treeRes.ok) {
-    throw parseRateLimitError(treeRes, `Failed to fetch repository tree (${treeRes.status})`);
-  }
-
-  const treePayload = await treeRes.json();
-  const tree = Array.isArray(treePayload.tree) ? treePayload.tree : [];
-  let paths = tree
-    .filter(item => item && item.type === 'blob' && typeof item.path === 'string')
-    .map(item => normalizePath(item.path));
+  const treePayload = await fetchTreePayload(owner, repo, commitSha, token, fetchImpl, { recursive: true, budget });
+  let paths = treePayload && treePayload.truncated === true
+    ? await walkTreeBlobPaths(owner, repo, commitSha, token, fetchImpl, explicitPaths, budget)
+    : treeBlobPaths(treePayload);
 
   if (explicitPaths && explicitPaths.length > 0) {
     const allowSet = new Set(explicitPaths.map(pathItem => pathItem.toLowerCase()));
-    paths = paths.filter(item => allowSet.has(item.toLowerCase()));
+    paths = paths.filter(item => allowSet.has(item.toLowerCase()) && isMarkdownPath(item));
   } else {
     paths = paths.filter(includePath);
   }
 
   const dedupedPaths = [...new Set(paths)];
+  if (dedupedPaths.length > limits.maxFiles) throw toError('GitHub selected file limit exceeded', 'GITHUB_FILE_COUNT_LIMIT');
   const files = [];
+  let totalBytes = 0;
   for (const filePath of dedupedPaths) {
-    const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch)}/${filePath}`;
+    // Segment-encoded through the shared helper: interpolating the tree path
+    // raw let a '#' or '?' in a filename cut the URL short, so the adapter
+    // fetched a different resource than the one the tree named -- a 404 the
+    // loop below swallows, or worse, bytes hashed under the wrong path (#690).
+    const rawUrl = buildGitHubRawUrl({ owner, repo, ref: commitSha, path: filePath });
     const fileRes = await fetchImpl(rawUrl, {
       method: 'GET',
       headers: buildHeaders(token),
     });
 
     if (!fileRes.ok) {
-      if (fileRes.status === 404) continue;
+      if (fileRes.status === 404) {
+        const error = toError(
+          `GitHub tree-listed file is missing at pinned commit ${commitSha}: ${filePath}`,
+          'GITHUB_TREE_FILE_MISSING',
+          404,
+        );
+        error.commitSha = commitSha;
+        error.path = filePath;
+        throw error;
+      }
       throw parseRateLimitError(fileRes, `Failed to fetch file content (${fileRes.status}): ${filePath}`);
     }
 
-    const content = await fileRes.text();
+    const read = await readBoundedText(fileRes, filePath, limits.maxFileBytes, limits.maxTotalBytes - totalBytes);
+    totalBytes += read.bytes;
+    const content = read.content;
     const lastModified = fileRes.headers && typeof fileRes.headers.get === 'function'
       ? (fileRes.headers.get('last-modified') || '')
       : '';
@@ -114,6 +131,7 @@ async function fetchRepoFiles(repoUrl, opts = {}) {
       owner,
       repo,
       branch,
+      commitSha,
       path: filePath,
       content,
       lastModified: lastModified || new Date().toISOString(),
@@ -127,17 +145,31 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
   const files = await fetchRepoFiles(repoUrl, opts);
   const results = [];
   for (const file of files) {
+    // Canonical https URL rather than a compact `owner/repo/path@branch`
+    // string: evidence-validator's reachability gate only inspects sourceRef
+    // values that look like http(s) URLs, so the compact form meant remote
+    // GitHub content slipped past preIngest untouched even with
+    // evidenceReachability on (#591). The URL carries the same four facts.
     const provenance = {
       provenanceId: `github-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
       source: 'github-adapter',
-      sourceRef: `${file.owner}/${file.repo}/${file.path}@${file.branch}`,
-      sourceType: 'markdown',
+      // Built from the resolved commit, not the branch the caller asked for.
+      sourceRef: buildGitHubBlobUrl({ ...file, branch: file.commitSha || file.branch }),
+      sourceType: 'github',
+      sourceSubType: 'blob',
+      sourceVersion: file.commitSha || '',
+      sourceVersionKind: file.commitSha ? 'commit_sha' : '',
+      contentHash: contentHash(file.content),
+      contentHashAlgorithm: CONTENT_HASH_ALGORITHM,
       actor: opts.actor || 'github-adapter',
       timestamp: new Date().toISOString(),
     };
     try {
-      const r = kernel.learn(file.content, { provenance, sourceType: 'markdown', sourceRef: provenance.sourceRef });
-      results.push({ path: file.path, learned: r.data.learned, ok: true });
+      // learnAsync: this is remote-sourced content too, so preIngest gates
+      // must get a look at it (#348). No `typeof` fallback to the sync path,
+      // for the same reason as http-adapter -- a silent skip is the bug.
+      const r = await kernel.learnAsync(file.content, { provenance, sourceType: 'github', sourceSubType: 'blob', sourceRef: provenance.sourceRef });
+      results.push({ path: file.path, ...projectLearnOutcome(r) });
     } catch (e) {
       results.push({ path: file.path, error: e.message, ok: false });
     }
@@ -146,8 +178,10 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
 }
 
 module.exports = {
+  GITHUB_LIMITS,
   fetchRepoFiles,
   fetchAndLearn,
   parseRepoUrl,
   includePath,
+  isMarkdownPath,
 };

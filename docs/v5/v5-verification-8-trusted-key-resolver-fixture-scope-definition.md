@@ -1,5 +1,7 @@
 # V5-VERIFICATION-8 - Trusted-Key Resolver Fixture Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Fixture scope definition only
 **Current checkpoint:** `V5-VERIFICATION-7_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

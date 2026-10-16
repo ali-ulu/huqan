@@ -6,7 +6,11 @@ const path = require('node:path');
 const test = require('node:test');
 
 const PackageKernel = require('..');
+const KernelV2 = require('../kernel.v2');
 const Kernel = require('../kernel');
+const { withoutNestedMember, nestedMemberBody } = require('./helpers/kernel-declaration');
+const { spawnSyncWindowsAware } = require('../scripts/spawn-windows-aware');
+const { retainedDeepImportSpecifiers } = require('../scripts/retained-deep-imports');
 
 const FACADE_METHODS = Object.freeze([
   'learn', 'ask', 'verify', 'reason', 'compare', 'dream',
@@ -19,7 +23,7 @@ const FACADE_METHODS = Object.freeze([
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 function makeKernel() {
-  const root = path.join(os.tmpdir(), `huqan-kernel-facade-${process.pid}-${Date.now()}`);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-kernel-facade-'));
   return new PackageKernel({
     noLoad: true, loadPlugins: false, useSQLite: false, memoryStoreUseSQLite: false,
     memoryPath: path.join(root, 'memory.json'), dbPath: path.join(root, 'memory.db'),
@@ -32,10 +36,30 @@ function makeKernel() {
 // Existing facade contract tests
 // =========================================================================
 
-test('package entry resolves to the canonical Kernel constructor', () => {
-  assert.equal(PackageKernel, Kernel);
+test('package entry resolves to the canonical kernel constructor', () => {
+  // #329: the canonical runtime is KernelV2, and the package root export now
+  // matches it. Before this, every entry point built a KernelV2 while
+  // require('huqan') handed out the v1 Kernel -- one runtime, two public
+  // kernel surfaces.
+  assert.equal(PackageKernel, KernelV2);
+  assert.notEqual(PackageKernel, Kernel);
   assert.equal(typeof PackageKernel, 'function');
-  assert.equal(PackageKernel.name, 'Kernel');
+  assert.equal(PackageKernel.name, 'KernelV2');
+});
+
+test('the v1 kernel stays reachable under an explicitly deprecated name', () => {
+  assert.equal(PackageKernel.KernelV2, KernelV2);
+  assert.equal(PackageKernel.KernelV1, Kernel, 'v1 must not disappear abruptly');
+});
+
+test('the package entry keeps the static contract markers it published as v1', () => {
+  // These were reachable as require('huqan').X while main pointed at
+  // kernel.js. Forwarding the same objects keeps `err instanceof
+  // require('huqan').ProvenanceError` true for errors the kernel throws.
+  assert.equal(PackageKernel.ProvenanceError, Kernel.ProvenanceError);
+  assert.equal(PackageKernel.createAdmissionBypassOpts, Kernel.createAdmissionBypassOpts);
+  assert.equal(PackageKernel.AXIOM_ERROR, Kernel.AXIOM_ERROR);
+  assert.equal(PackageKernel.CONTRACT_VERSION, Kernel.CONTRACT_VERSION);
 });
 
 test('Kernel exposes the documented static contract markers', () => {
@@ -77,6 +101,16 @@ test('kernel.d.ts aligned with graph/memory surfaces', () => {
   const kd = declaration.slice(classStart);
   assert.match(kd, /\bgraph\s*:\s*\{[\s\S]*?\bload\(\)\s*:\s*void\s*;[\s\S]*?\bsave\(\)\s*:\s*void\s*;[\s\S]*?\}\s*;/);
   assert.match(kd, /\bmemory\s*:\s*\{[\s\S]*?\bclose\(\)\s*:\s*void\s*;[\s\S]*?\}\s*;/);
+  // Presence of close() alone was a floor, not a ceiling: it could not tell
+  // that server.js reaches kernel.memory.list() and .queryLinks() through a
+  // declaration naming neither, which is exactly how that gap survived this
+  // gate. Pinned positively now, the same way the graph surface is above, so
+  // narrowing the memory types back is caught rather than passing quietly.
+  const memberBody = nestedMemberBody(kd, 'memory');
+  assert.match(memberBody, /\blist\(/,
+    'the memory surface must keep declaring list(); server.js calls it');
+  assert.match(memberBody, /\bqueryLinks\(/,
+    'the memory surface must keep declaring queryLinks(); server.js calls it');
   assert.match(kd, /\bgetPersistenceDescriptor\(\)\s*:\s*Readonly<\{\s*memoryPath\s*:\s*string\s*;\s*dbPath\s*:\s*string\s*;\s*\}>\s*;/);
   assert.match(kd, /\breload\(\)\s*:\s*void\s*;/);
   assert.match(kd, /\bpersist\(\)\s*:\s*void\s*;/);
@@ -84,12 +118,46 @@ test('kernel.d.ts aligned with graph/memory surfaces', () => {
   assert.match(declaration, /export type CliMutationAuditIntent\s*=\s*Readonly<\{/);
   assert.match(declaration, /export interface NormalizedAuditEvent\s*\{/);
   assert.match(declaration, /export type CliMutationAuditResult\s*=\s*Readonly<\{/);
-  assert.match(kd, /\brecordCliMutationAudit\(intent\s*:\s*CliMutationAuditIntent\)\s*:\s*CliMutationAuditResult\s*;/);
-  assert.doesNotMatch(kd, /\bappendAuditEvent\s*\(/);
-  assert.doesNotMatch(kd, /\b_appendAuditEvent\s*\(/);
+  assert.match(kd, /\brecordCliMutationAudit\(intent\s*:\s*Kernel\.CliMutationAuditIntent\)\s*:\s*Kernel\.CliMutationAuditResult\s*;/);
+
+  // The guarantee is about the Kernel's own surface. kernel.graph
+  // .appendAuditEvent is a real runtime method (graph.js defines it,
+  // agent.v3.js calls it), so the widened graph typing legitimately declares
+  // it; matching the bare substring over the whole class body conflated the
+  // two objects. Assert on each surface separately instead.
+  const kernelOwnSurface = withoutNestedMember(kd, 'graph');
+  assert.doesNotMatch(kernelOwnSurface, /\bappendAuditEvent\s*\(/,
+    'Kernel itself must not expose a public audit append');
+  assert.doesNotMatch(kd, /\b_appendAuditEvent\s*\(/,
+    'the private seam must not be declared as API anywhere');
+  assert.match(nestedMemberBody(kd, 'graph'), /\bappendAuditEvent\s*\(/,
+    'the graph surface must keep describing its real method, so narrowing the types back is caught');
   const seams = kd.slice(kd.indexOf('getPersistenceDescriptor'), kd.indexOf('paranoidMode'));
   assert.doesNotMatch(seams, /\bPromise\b|\bany\b|\bRecord\s*</);
   assert.doesNotMatch(seams, /\w+\?\s*\(/);
+});
+
+test('the canonical declaration exposes the forwarding members it forwards', () => {
+  // kernel.v2.js forwards `graph` and `memory` to the wrapped Kernel through
+  // getters. `graph` was declared from the start; `memory` was not, so
+  // require('huqan') -- which resolves to KernelV2 -- had no typed memory
+  // surface at all while server.js was calling kernel.memory.list(). A getter
+  // is an instance member, which arch-4's parity contract deliberately leaves
+  // out ("Instance fields, getters and type declarations are intentionally
+  // outside this contract"), so nothing else covers this.
+  const v2 = fs.readFileSync(path.join(REPO_ROOT, 'kernel.v2.d.ts'), 'utf8');
+  for (const member of ['graph', 'memory']) {
+    assert.match(
+      v2,
+      new RegExp(`readonly ${member}\\s*:\\s*Kernel\\['${member}'\\]\\s*;`),
+      `kernel.v2.d.ts must declare ${member}; kernel.v2.js forwards it at runtime`,
+    );
+    assert.equal(
+      typeof Object.getOwnPropertyDescriptor(KernelV2.prototype, member)?.get,
+      'function',
+      `kernel.v2.js must still forward ${member}; the declaration promises it`,
+    );
+  }
 });
 
 test('Kernel declarations preserve sync learn return variants', () => {
@@ -98,11 +166,23 @@ test('Kernel declarations preserve sync learn return variants', () => {
   assert.match(kd, /export interface LearnDocumentResult\s*\{/);
   assert.match(kd, /export interface LearnFromLLMResult\s*\{/);
   assert.match(kd, /learnDocument\(text:\s*string\):\s*number;/);
-  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*LearnOptions\s*&\s*\{\s*returnDetails:\s*true\s*\}\):\s*LearnDocumentResult;/);
-  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*LearnOptions\s*&\s*\{\s*returnDetails\?:\s*false\s*\}\):\s*number;/);
-  assert.match(kd, /learnFromLLM\(text:\s*string,\s*opts\?:\s*LearnOptions\):\s*LearnFromLLMResult;/);
+  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*Kernel\.LearnOptions\s*&\s*\{\s*returnDetails:\s*true\s*\}\):\s*Kernel\.LearnDocumentResult;/);
+  assert.match(kd, /learnDocument\(text:\s*string,\s*opts:\s*Kernel\.LearnOptions\s*&\s*\{\s*returnDetails\?:\s*false\s*\}\):\s*number;/);
+  assert.match(kd, /learnFromLLM\(text:\s*string,\s*opts\?:\s*Kernel\.LearnOptions\):\s*Kernel\.LearnFromLLMResult;/);
   assert.doesNotMatch(kd, /learn(?:Document|FromLLM)[^;]*\bPromise\b/);
   assert.match(v2d, /type KernelV2LearnFromLLMResult\s*=/);
+});
+
+test('Kernel declarations preserve runtime workspace signatures (#1074)', () => {
+  const kd = fs.readFileSync(path.join(REPO_ROOT, 'kernel.d.ts'), 'utf8');
+  const v2d = fs.readFileSync(path.join(REPO_ROOT, 'kernel.v2.d.ts'), 'utf8');
+  for (const declaration of [kd, v2d]) {
+    assert.match(declaration, /entropy\(workspaceId\?:\s*string\):\s*number;/);
+    assert.match(declaration, /detectGaps\(workspaceId\?:\s*string\):\s*string\[\];/);
+    assert.match(declaration, /detectContradictions\(subject\?:\s*string,\s*workspaceId\?:\s*string\)/);
+  }
+  assert.match(kd, /reason\(subject:\s*string,\s*opts\?:\s*Record<string, unknown>\s*\|\s*string\)/);
+  assert.match(kd, /compare\(left:\s*string,\s*right:\s*string,\s*opts\?:\s*Record<string, unknown>\s*\|\s*string\)/);
 });
 
 // =========================================================================
@@ -111,10 +191,19 @@ test('Kernel declarations preserve sync learn return variants', () => {
 
 test('4C1: package.json manifest', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-  assert.equal(pkg.main, 'kernel.js');
-  assert.equal(pkg.types, 'kernel.d.ts');
+  // #329: main/types point at the root export module, which resolves to the
+  // canonical KernelV2 rather than the internal v1 implementation.
+  assert.equal(pkg.main, 'index.js');
+  assert.equal(pkg.types, 'index.d.ts');
+  assert.ok(pkg.files.includes('index.js'), 'the root export must ship');
+  assert.ok(pkg.files.includes('index.d.ts'), 'the root declaration must ship');
+  assert.ok(pkg.files.includes('kernel.js'), 'the deprecated v1 export must still resolve');
   assert.equal(typeof pkg.bin, 'object');
   assert.equal(pkg.bin.huqan, './cli.js');
+  // The MCP server is reachable by name, not only by absolute path: this is
+  // what lets a Claude Desktop config say `npx -y --package=huqan huqan-mcp`.
+  assert.equal(pkg.bin['huqan-mcp'], './bin/huqan-mcp.js');
+  assert.ok(pkg.files.includes('bin/huqan-mcp.js'), 'the MCP executable must ship');
   assert.ok(Array.isArray(pkg.files), 'files allowlist must be present');
   assert.ok(pkg.files.length > 0, 'files allowlist must not be empty');
 });
@@ -136,8 +225,8 @@ test('4C1: no forbidden entries in allowlist', () => {
   const forbidden = pkg.files.filter(e => {
     const bn = path.basename(e);
     return e.startsWith('test/') || e.startsWith('.github/') || e.startsWith('evidence/') ||
-      e.startsWith('demo/') || (e.startsWith('docs/') && e !== 'docs/seed/axiom-identity.seed.json') ||
-      e.startsWith('fixtures/') || e.startsWith('obsidian-plugin/') || e.startsWith('axiom-core/') ||
+      e.startsWith('demo/') || (e.startsWith('docs/') && e !== 'docs/seed/huqan-identity.seed.json') ||
+      e.startsWith('fixtures/') || e.startsWith('obsidian-plugin/') || e.startsWith('huqan-core/') ||
       e.startsWith('schemas/') || e.startsWith('lib/v5/') || e.startsWith('.kiro/') ||
       bn.endsWith('.test.js') || bn === 'results.json' || bn === 'memory.json' ||
       bn.startsWith('memory.db') || bn === 'agent.memory.json' || bn.endsWith('.agent.json') ||
@@ -155,10 +244,14 @@ test('4C1: required closure paths in allowlist', () => {
     'lib/memory-store.js', 'lib/verify.js', 'lib/learn-use-case.js',
     'lib/provenance-ingest.js', 'lib/memory-admission-gate.js',
     'lib/conflict-detector.js', 'lib/kernel-read-use-cases.js',
-    'lib/sdk.js', 'lib/atp-conformance.js', 'lib/axiom-package-format.js',
+    'lib/sdk.js', 'lib/atp-conformance.js',
+    // Both names ship: the canonical implementation, and the AXIOM-era
+    // re-export an external consumer may already require by path.
+    'lib/huqan-package-format.js', 'lib/axiom-package-format.js',
     'graph.js', 'dream.js', 'plugin.js', 'nlp/index.js',
     'config/trust-policy.default.json',
     'packages/axiom-verify/index.js', 'packages/axiom-verify/package.json',
+    'packages/huqan-verify/index.js', 'packages/huqan-verify/package.json',
   ];
   for (const entry of required) assert.ok(fileSet.has(entry), `required: ${entry}`);
 });
@@ -242,6 +335,22 @@ function runPack() {
   return files;
 }
 
+test('4C1: verifier license metadata matches the packed root license', () => {
+  const root = require('../package.json');
+  const canonical = require('../packages/huqan-verify/package.json');
+  const legacy = require('../packages/axiom-verify/package.json');
+  assert.equal(root.license, 'AGPL-3.0-only');
+  assert.equal(canonical.license, root.license);
+  assert.equal(legacy.license, root.license);
+
+  const packedPaths = new Set(runPack().map(file => file.path));
+  assert.ok(packedPaths.has('LICENSE'), 'packed tarball must contain the root license text');
+  assert.ok(packedPaths.has('packages/huqan-verify/package.json'),
+    'packed tarball must contain canonical verifier metadata');
+  assert.ok(packedPaths.has('packages/axiom-verify/package.json'),
+    'packed tarball must contain legacy verifier metadata');
+});
+
 test('4C1: packed manifest — correct tarball structure', () => {
   const files = runPack();
   assert.ok(files.length > 0, 'packed files array must not be empty');
@@ -250,14 +359,18 @@ test('4C1: packed manifest — correct tarball structure', () => {
   const packedPaths = new Set(files.map(f => f.path));
   assert.ok(packedPaths.has('kernel.js'), 'kernel.js must be in tarball');
   assert.ok(packedPaths.has('kernel.d.ts'), 'kernel.d.ts must be in tarball');
+  assert.ok(packedPaths.has('packages/huqan-verify/index.js'), 'canonical verifier must be in tarball');
+  assert.ok(packedPaths.has('packages/huqan-verify/package.json'), 'canonical verifier manifest must be in tarball');
+  assert.ok(packedPaths.has('packages/axiom-verify/index.js'), 'legacy verifier re-export must be in tarball');
+  assert.ok(packedPaths.has('packages/axiom-verify/package.json'), 'legacy verifier manifest must be in tarball');
 });
 
 test('4C1: packed manifest — zero forbidden entries', () => {
   const files = runPack();
   const forbiddenPatterns = [
     /^test\//, /^\.github\//, /^evidence\//, /^demo\//,
-    /^docs\/(?!seed\/axiom-identity\.seed\.json)/, /^fixtures\//,
-    /^obsidian-plugin\//, /^axiom-core\//, /^schemas\//, /^lib\/v5\//,
+    /^docs\/(?!seed\/huqan-identity\.seed\.json)/, /^fixtures\//,
+    /^obsidian-plugin\//, /^huqan-core\//, /^schemas\//, /^lib\/v5\//,
     /^\.kiro\//, /\.test\.js$/,
   ];
   const forbidden = [];
@@ -276,11 +389,38 @@ test('4C1: packed manifest — zero forbidden entries', () => {
 
 let INSTALL_DIR = null;
 let TARBALL_PATH = null;
+let INSTALL_READY = false;
+let INSTALL_ERROR = null;
+
+const DEFAULT_INSTALL_TIMEOUT_MS = 120_000;
+const WINDOWS_INSTALL_TIMEOUT_MS = 180_000;
+// A single registry stall used to abort the whole install and redden the shard.
+// "spawnSync ETIMEDOUT" is reported when the timeout kills the child, so the
+// successful first attempt is what keeps output captured and the retry only
+// runs when the first attempt did not install.
+const MAX_INSTALL_ATTEMPTS = 2;
+
+function installTimeoutMs(platform = process.platform) {
+  return platform === 'win32' ? WINDOWS_INSTALL_TIMEOUT_MS : DEFAULT_INSTALL_TIMEOUT_MS;
+}
 
 function setupTarballInstall() {
-  if (INSTALL_DIR) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
-  INSTALL_DIR = path.join(os.tmpdir(), `huqan-4c1-smoke-${Date.now()}`);
-  fs.mkdirSync(INSTALL_DIR, { recursive: true });
+  if (INSTALL_ERROR) throw INSTALL_ERROR;
+  if (INSTALL_READY) return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
+  try {
+    const info = createTarballInstall();
+    INSTALL_READY = true;
+    return info;
+  } catch (error) {
+    // Preserve the setup failure instead of running consumers against a partial
+    // node_modules tree or retrying the same expensive install for every test.
+    INSTALL_ERROR = error;
+    throw error;
+  }
+}
+
+function createTarballInstall(platform = process.platform) {
+  INSTALL_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4c1-smoke-'));
   const packResult = cp.spawnSync('npm', ['pack', '--json', '--ignore-scripts', `--pack-destination=${INSTALL_DIR}`], {
     cwd: REPO_ROOT, timeout: 60000, encoding: 'utf8', shell: true,
     env: { ...process.env, NO_COLOR: '1' },
@@ -302,13 +442,41 @@ function setupTarballInstall() {
 
   // npm init + install in temp project
   cp.spawnSync('npm', ['init', '-y'], { cwd: INSTALL_DIR, encoding: 'utf8', shell: true, timeout: 15000 });
-  const installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', TARBALL_PATH], {
-    cwd: INSTALL_DIR, encoding: 'utf8', timeout: 120000, shell: true,
-    env: { ...process.env, NO_COLOR: '1' },
-  });
-  if (installResult.error) assert.fail(`npm install error: ${installResult.error.message}`);
-  if (installResult.status !== 0) assert.fail(`npm install exit ${installResult.status}: ${installResult.stderr?.slice(0, 300)}`);
-  assert.ok(fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan')), 'huqan must be installed');
+  // --foreground-scripts + --loglevel=http: a timeout must name the step and
+  // the last registry URL it was waiting on (spawnSync returns captured output
+  // even when it kills the child). Keep the 120s budget everywhere except
+  // Windows, where hosted runners have now crossed that boundary while still
+  // making registry progress (#2803). A bounded retry absorbs a transient
+  // registry stall so one slow attempt does not redden the whole shard (#3372).
+  // The file-level shard deadline remains the outer hang guard.
+  const installTimeout = installTimeoutMs(platform);
+  let installResult;
+  let installOutput = '';
+  let lastFailure;
+  for (let attempt = 1; attempt <= MAX_INSTALL_ATTEMPTS; attempt += 1) {
+    installResult = cp.spawnSync('npm', ['install', '--no-audit', '--no-fund', '--foreground-scripts', '--loglevel=http', TARBALL_PATH], {
+      cwd: INSTALL_DIR, encoding: 'utf8', timeout: installTimeout, shell: true,
+      env: { ...process.env, NO_COLOR: '1' },
+    });
+    installOutput = `${installResult.stdout || ''}\n${installResult.stderr || ''}`.slice(-4000);
+    if (installResult.error) {
+      lastFailure = `npm install error after ${installTimeout / 1000}s (attempt ${attempt}/${MAX_INSTALL_ATTEMPTS}): ${installResult.error.message}\n${installOutput}`;
+      continue;
+    }
+    if (installResult.status !== 0) {
+      lastFailure = `npm install exit ${installResult.status} (attempt ${attempt}/${MAX_INSTALL_ATTEMPTS}): ${installOutput}`;
+      continue;
+    }
+    // A zero exit is not proof the package landed; the retry loop keys off the
+    // installed tree so a silently partial install is retried, not trusted.
+    if (fs.existsSync(path.join(INSTALL_DIR, 'node_modules', 'huqan'))) {
+      lastFailure = null;
+      break;
+    }
+    lastFailure = `npm install exited 0 but left no huqan package (attempt ${attempt}/${MAX_INSTALL_ATTEMPTS}): ${installOutput}`;
+  }
+  // assert.fail() throws, so reaching here with a failure is the exhausted case.
+  if (lastFailure) assert.fail(lastFailure);
   return { installDir: INSTALL_DIR, tarballPath: TARBALL_PATH };
 }
 
@@ -330,31 +498,60 @@ function cleanupTarballInstall() {
   if (INSTALL_DIR) {
     try { fs.rmSync(INSTALL_DIR, { recursive: true, force: true }); } catch {}
     INSTALL_DIR = null; TARBALL_PATH = null;
+    INSTALL_READY = false; INSTALL_ERROR = null;
   }
 }
 
+// All 4C1 checks are read-only against the same installed package. Reusing the
+// installation removes repeated npm pack/install work while the file-level
+// teardown still guarantees cleanup when the suite finishes.
+test.after(() => {
+  cleanupTarballInstall();
+});
+
 test('4C1: installed tarball smoke — all retained deep imports load', () => {
-  const imports = [
-    'huqan', 'huqan/kernel', 'huqan/kernel.js',
-    'huqan/kernel.v2', 'huqan/kernel.v2.js',
-    'huqan/cli', 'huqan/cli.js',
-    'huqan/lib/sdk', 'huqan/lib/sdk.js',
-    'huqan/mcpServer', 'huqan/mcpServer.js',
-    'huqan/server', 'huqan/server.js',
-  ];
+  // Read from the same declaration check:package-closure walks, so a surface
+  // cannot be smoke-tested without also being closure-checked, or the other way
+  // round -- which is exactly how huqan/server's subtree went unpublished.
+  const imports = retainedDeepImportSpecifiers();
 
   for (const imp of imports) {
     const code = `
       const mod = require('${imp}');
       if (!mod) process.exit(1);
-      if (typeof mod.closeAxiom === 'function') mod.closeAxiom();
+      if (typeof mod.closeHuqan === 'function') mod.closeHuqan();
       if (mod.graph && typeof mod.graph.close === 'function') mod.graph.close();
     `;
     const result = runInstalledNode(code, { timeout: 20000 });
     assert.equal(result.status, 0, `deep import "${imp}" failed. stderr: ${result.stderr?.slice(0, 400)}`);
   }
 
-  cleanupTarballInstall();
+  const compatibility = runInstalledNode(`
+    const canonical = require('huqan/packages/huqan-verify');
+    const legacy = require('huqan/packages/axiom-verify');
+    if (canonical !== legacy || canonical.packageName !== 'huqan-verify' || canonical.status !== 'skeleton') process.exit(1);
+  `);
+  assert.equal(compatibility.status, 0,
+    `verifier compatibility failed. stderr: ${compatibility.stderr?.slice(0, 400)}`);
+
+});
+
+test('4C1: installed tarball CLI exposes the stable JSON workflow contract', () => {
+  const result = runInstalledNode(`
+    const CLI = require('huqan/cli');
+    const output = [];
+    const cli = {
+      parse: () => ({ command: 'sor', args: 'cat nedir', workflowId: 'ask' }),
+      evaluateCliGate: () => null,
+      execute: () => 'Cevap: cat',
+    };
+    CLI.runCliArgv(['--json', 'ask:', 'cat', 'nedir'], { cli, stdout: value => output.push(value) })
+      .then(result => {
+        const envelope = JSON.parse(output[0]);
+        if (result.exitCode !== 0 || envelope.workflowId !== 'ask' || envelope.status !== 'completed') process.exit(2);
+      });
+  `);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('4C1: installed CLI help smoke', () => {
@@ -367,7 +564,77 @@ test('4C1: installed CLI help smoke', () => {
     env: { ...process.env, AXIOM_USE_SQLITE: 'false', NO_COLOR: '1' },
   });
   assert.equal(result.status, 0, `CLI help exit ${result.status}: ${(result.stderr || result.stdout || '').slice(0, 300)}`);
-  cleanupTarballInstall();
+});
+
+test('4C1: installed MCP executable answers over stdio', () => {
+  // The CLI smoke above runs cli.js through node. This one runs the *installed
+  // bin* the way a client launches it, so a missing shebang or a wrong bin path
+  // fails here rather than in someone's Claude Desktop config.
+  const info = setupTarballInstall();
+  const binName = process.platform === 'win32' ? 'huqan-mcp.cmd' : 'huqan-mcp';
+  const binPath = path.join(info.installDir, 'node_modules', '.bin', binName);
+  assert.ok(fs.existsSync(binPath), `installed MCP bin not found: ${binPath}`);
+
+  const requests = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'tarball-smoke', version: '1' } } },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} },
+  ].map((r) => JSON.stringify(r)).join('\n') + '\n';
+
+  // Through the shared shim: on Windows this bin is a .cmd, which Node will not
+  // launch directly, and a raw spawnSync answers `status: null` with an empty
+  // stderr -- indistinguishable from a crashed child.
+  const result = spawnSyncWindowsAware(binPath, [], {
+    cwd: info.installDir, input: requests, timeout: 60000, encoding: 'utf8',
+    env: {
+      ...process.env,
+      NO_COLOR: '1',
+      HUQAN_DB_PATH: path.join(info.installDir, 'mcp-smoke.sqlite'),
+      HUQAN_MEMORY_PATH: path.join(info.installDir, 'mcp-smoke.json'),
+    },
+  });
+
+  assert.equal(result.status, 0, `MCP bin exit ${result.status}: ${(result.stderr || '').slice(0, 300)}`);
+
+  const messages = String(result.stdout || '').split('\n').filter(Boolean).map((line) => {
+    try {
+      return JSON.parse(line);
+    } catch (_) {
+      return null;
+    }
+  }).filter(Boolean);
+
+  const initialized = messages.find((m) => m.id === 1);
+  const listed = messages.find((m) => m.id === 2);
+  assert.ok(initialized, 'MCP bin did not answer initialize');
+  assert.equal(initialized.result.serverInfo.name, 'huqan');
+  assert.ok(listed && Array.isArray(listed.result.tools), 'MCP bin did not answer tools/list');
+  assert.ok(listed.result.tools.length > 0, 'installed MCP bin advertised no tools');
+});
+
+test('4C1: installed tarball CLI JSON is non-TTY and stable across locale and terminal width', () => {
+  const info = setupTarballInstall();
+  const cliPath = path.join(info.installDir, 'node_modules', 'huqan', 'cli.js');
+  const run = (lang, columns) => cp.spawnSync(process.execPath, [cliPath, '--version', '--json'], {
+    cwd: info.installDir,
+    timeout: 20000,
+    encoding: 'utf8',
+    input: '',
+    env: { ...process.env, LANG: lang, LC_ALL: lang, COLUMNS: columns, AXIOM_USE_SQLITE: 'false', NO_COLOR: '1' },
+  });
+  const narrow = run('tr_TR.UTF-8', '20');
+  const wide = run('en_US.UTF-8', '240');
+  assert.equal(narrow.status, 0, narrow.stderr || narrow.stdout);
+  assert.equal(wide.status, 0, wide.stderr || wide.stdout);
+  const project = output => {
+    const body = JSON.parse(output.trim());
+    delete body.traceId;
+    if (body.trace) delete body.trace.traceId;
+    return body;
+  };
+  assert.deepEqual(project(narrow.stdout), project(wide.stdout));
+  assert.equal(project(narrow.stdout).workflowId, 'cli-version');
+  assert.doesNotMatch(narrow.stdout, /huqan> /);
+  assert.doesNotMatch(wide.stdout, /huqan> /);
 });
 
 test('4C1: installed dependency resolution', () => {
@@ -383,19 +650,17 @@ test('4C1: installed dependency resolution', () => {
     env: { ...process.env, NO_COLOR: '1' },
   });
   assert.equal(result.status, 0, `installed better-sqlite3 resolution failed. stderr: ${result.stderr?.slice(0, 400)}`);
-  cleanupTarballInstall();
 });
 
 test('4C1: installed server require smoke', () => {
   const code = `
     const server = require('huqan/server');
     if (!server) process.exit(1);
-    if (typeof server.closeAxiom === 'function') server.closeAxiom();
+    if (typeof server.closeHuqan === 'function') server.closeHuqan();
   `;
   const result = runInstalledNode(code, {
     timeout: 15000,
     env: { AXIOM_DISABLE_AUTO_LISTEN: '1', AXIOM_USE_SQLITE: 'false' },
   });
   assert.equal(result.status, 0, `installed server require failed. stderr: ${result.stderr?.slice(0, 400)}`);
-  cleanupTarballInstall();
 });

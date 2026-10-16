@@ -4,22 +4,29 @@ const path = require('node:path');
 const test = require('node:test');
 
 const axiomVerify = require('./index');
+const huqanVerify = require('../huqan-verify');
 
 const trustSpecDir = path.join(__dirname, '..', '..', 'specs', 'axiom-trust-protocol', '0.1', 'examples');
 const packageSpecDir = path.join(__dirname, '..', '..', 'specs', 'axiom-package-format', '0.1', 'examples');
+const huqanPackageFixture = path.join(
+  __dirname, '..', '..', 'specs', 'huqan-package-format', '0.2', 'examples',
+  'package.empty.huqan.json',
+);
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-test('axiom-verify exposes supported protocol metadata', () => {
+test('legacy path re-exports canonical supported protocol metadata', () => {
   const protocols = axiomVerify.getSupportedProtocols();
-  assert.equal(axiomVerify.packageName, 'axiom-verify');
+  assert.strictEqual(axiomVerify, huqanVerify);
+  assert.equal(axiomVerify.packageName, 'huqan-verify');
   assert.equal(axiomVerify.packageVersion, '0.1.0');
   assert.equal(axiomVerify.status, 'skeleton');
   assert.equal(protocols.atp, '0.1');
   assert.equal(protocols.avp, '0.1');
   assert.equal(protocols.axiomPackageFormat, '0.1');
+  assert.equal(protocols.huqanPackageFormat, '0.2');
 });
 
 test('valid provenance fixture passes', () => {
@@ -73,9 +80,21 @@ test('axiom package file validation passes', () => {
   assert.equal(result.ok, true);
 });
 
+test('canonical HUQAN package validation and writer are available through the legacy alias', () => {
+  const canonical = readJson(huqanPackageFixture);
+  assert.equal(axiomVerify.verifyHuqanPackage(canonical).ok, true);
+  assert.equal(axiomVerify.verifyAxiomPackage(canonical).ok, true);
+
+  const legacy = readJson(path.join(packageSpecDir, 'package.trust-receipt-bundle.axiom.json'));
+  const written = axiomVerify.createHuqanPackage(legacy);
+  assert.equal(written.manifest.format, 'huqan-package');
+  assert.equal(written.manifest.protocolVersion, '0.1');
+  assert.equal(Object.hasOwn(written.manifest, 'atpVersion'), false);
+});
+
 test('createVerifier binds helpers', () => {
   const verifier = axiomVerify.createVerifier({ strict: true });
-  assert.equal(verifier.packageName, 'axiom-verify');
+  assert.equal(verifier.packageName, 'huqan-verify');
   assert.equal(verifier.packageVersion, '0.1.0');
   assert.equal(verifier.status, 'skeleton');
   assert.equal(verifier.supportedProtocols.atp, '0.1');

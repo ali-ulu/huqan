@@ -3,8 +3,51 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const http = require('http');
+const { execFileSync } = require('child_process');
 
 const repoMemory = require('./repo-memory');
+
+function initGitRepo(dir) {
+  execFileSync('git', ['init', '-q'], { cwd: dir });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
+  execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: dir });
+}
+
+function gitCommit(dir, fileName, content, message) {
+  fs.writeFileSync(path.join(dir, fileName), content, 'utf8');
+  execFileSync('git', ['add', fileName], { cwd: dir });
+  execFileSync('git', ['commit', '-q', '-m', message], { cwd: dir });
+}
+
+function writeMinimalPdf(filePath, text) {
+  const stream = `BT /F1 18 Tf 20 100 Td (${text.replace(/([()\\])/g, '\\$1')}) Tj ET`;
+  const pdf = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 300 144] /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length ${stream.length} >>
+stream
+${stream}
+endstream
+endobj
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+0
+%%EOF`;
+  fs.writeFileSync(filePath, pdf, 'latin1');
+}
 
 function makeKernel() {
   const edges = [];
@@ -98,6 +141,264 @@ test('repo-memory markdown ingest requires an explicit root and stays inside it'
   }
 });
 
+test('repo-memory json ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-json-root-'));
+  const nestedDir = path.join(rootDir, 'config');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-json-outside-'));
+  const insideFile = path.join(nestedDir, 'safe.json');
+  const outsideFile = path.join(outsideDir, 'secret.json');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  fs.writeFileSync(insideFile, JSON.stringify({ claim: 'inside text' }), 'utf8');
+  fs.writeFileSync(outsideFile, JSON.stringify({ claim: 'outside text' }), 'utf8');
+
+  try {
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'json',
+      path: insideFile,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'JSON_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'json',
+      path: insideFile,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.files, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.actor === 'repo-bot'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'json',
+      path: path.join(rootDir, '..', path.basename(outsideFile)),
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory yaml ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-yaml-root-'));
+  const nestedDir = path.join(rootDir, 'config');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-yaml-outside-'));
+  const insideFile = path.join(nestedDir, 'safe.yaml');
+  const outsideFile = path.join(outsideDir, 'secret.yaml');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  fs.writeFileSync(insideFile, 'claim: inside text\n', 'utf8');
+  fs.writeFileSync(outsideFile, 'claim: outside text\n', 'utf8');
+
+  try {
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'yaml',
+      path: insideFile,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'YAML_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'yaml',
+      path: insideFile,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.files, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.actor === 'repo-bot'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'yaml',
+      path: path.join(rootDir, '..', path.basename(outsideFile)),
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory git-log ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-gitlog-root-'));
+  const repoDir = path.join(rootDir, 'repo');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-gitlog-outside-'));
+  fs.mkdirSync(repoDir);
+
+  try {
+    initGitRepo(repoDir);
+    gitCommit(repoDir, 'claim.txt', 'x', 'A bounded claim');
+    initGitRepo(outsideDir);
+    gitCommit(outsideDir, 'secret.txt', 'x', 'Outside secret');
+
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'git-log',
+      path: repoDir,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'GIT_LOG_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'git-log',
+      path: repoDir,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.commits, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'git-log',
+      path: outsideDir,
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory pdf ingest requires an explicit root and stays inside it', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-pdf-root-'));
+  const nestedDir = path.join(rootDir, 'docs');
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-pdf-outside-'));
+  const insideFile = path.join(nestedDir, 'safe.pdf');
+  const outsideFile = path.join(outsideDir, 'secret.pdf');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  writeMinimalPdf(insideFile, 'inside text');
+  writeMinimalPdf(outsideFile, 'outside text');
+
+  try {
+    const missingRoot = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'pdf',
+      path: insideFile,
+    });
+    assert.equal(missingRoot.ok, false);
+    assert.equal(missingRoot.code, 'PDF_ROOT_REQUIRED');
+
+    const safe = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'pdf',
+      path: insideFile,
+      rootPath: rootDir,
+      workspaceId: 'workspace-a',
+      actor: 'repo-bot',
+    });
+    assert.equal(safe.ok, true);
+    assert.equal(safe.admission.outcome, 'admitted');
+    assert.ok(Array.isArray(safe.admission.entries));
+    assert.ok(safe.admission.entries.every((entry) => entry.outcome === 'admitted'));
+    assert.equal(safe.files, 1);
+    assert.ok(safe.added >= 1);
+    assert.ok(kernel.nodes.some((node) => node.provenance
+      && node.provenance.sourceType === 'import'
+      && node.provenance.actor === 'repo-bot'
+      && node.provenance.workspaceId === 'workspace-a'));
+
+    const beforeEdges = kernel.edges.length;
+    const escaped = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'pdf',
+      path: path.join(rootDir, '..', path.basename(outsideFile)),
+      rootPath: rootDir,
+    });
+    assert.equal(escaped.ok, false);
+    assert.equal(escaped.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+    assert.equal(kernel.edges.length, beforeEdges);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory http ingest requires a url', async () => {
+  const kernel = makeKernel();
+  const missing = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'http',
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.code, 'HTTP_URL_REQUIRED');
+});
+
+test('repo-memory http ingest never exposes the SSRF test bypass through the plugin dispatch path', async () => {
+  // This is the integration-level version of the guarantee lib/ssrf-guard.js
+  // enforces at the unit level: even a real local server (necessarily a
+  // private address) must be rejected when reached through the ordinary
+  // repoMemory/CLI ingest path, because allowPrivateAddresses is
+  // deliberately never forwarded from plugin input into adapters/http-adapter.js.
+  const server = http.createServer((req, res) => { res.end('should never be reached'); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+
+  try {
+    const kernel = makeKernel();
+    const result = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'http',
+      url: `http://127.0.0.1:${port}/`,
+      workspaceId: 'workspace-a',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.added, 0);
+    assert.equal(result.fetchErrors.length, 1);
+    assert.equal(result.fetchErrors[0].code, 'SSRF_PRIVATE_ADDRESS_BLOCKED');
+    assert.equal(kernel.nodes.length, 0);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('repo-memory github ingest preserves provenance on nodes and edges', async () => {
   const kernel = makeKernel();
   const result = await repoMemory.run(kernel, {
@@ -133,4 +434,240 @@ test('repo-memory github ingest preserves provenance on nodes and edges', async 
     && edge.meta.provenance.actor === 'connector-bot'
     && edge.meta.provenance.workspaceId === 'workspace-b'));
   assert.ok(kernel.edges.some((edge) => /repo:owner\/repo:docs\/claim\.md/.test(edge.meta?.provenance?.sourceRef || '')));
+});
+
+test('repo-memory GitHub connector firewall blocks malformed target before fetch', async () => {
+  const kernel = makeKernel();
+  let fetchCalls = 0;
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    enforceConnectorFirewall: true,
+    fetchRepoFiles: async () => {
+      fetchCalls += 1;
+      return [];
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'CONNECTOR_TARGET_REQUIRED');
+  assert.equal(result.connectorFirewall.decision, 'block');
+  assert.equal(fetchCalls, 0);
+  assert.equal(kernel.nodes.length, 0);
+});
+
+test('repo-memory GitHub connector firewall blocks preview before fetch', async () => {
+  const kernel = makeKernel();
+  let fetchCalls = 0;
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo',
+    enforceConnectorFirewall: true,
+    preview: true,
+    fetchRepoFiles: async () => {
+      fetchCalls += 1;
+      return [];
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'CONNECTOR_ACTION_FIREWALL_BLOCKED');
+  assert.equal(result.connectorFirewall.decision, 'allow');
+  assert.equal(fetchCalls, 0);
+  assert.equal(kernel.nodes.length, 0);
+});
+
+test('repo-memory GitHub connector firewall allows bounded read before graph ingest', async () => {
+  const kernel = makeKernel();
+  let fetchCalls = 0;
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo',
+    enforceConnectorFirewall: true,
+    workspaceId: 'workspace-firewall',
+    actor: 'connector-test',
+    fetchRepoFiles: async () => {
+      fetchCalls += 1;
+      return [{
+        owner: 'owner',
+        repo: 'repo',
+        branch: 'main',
+        path: 'README.md',
+        content: '# Guarded',
+        lastModified: '2026-08-01T00:00:00.000Z',
+      }];
+    },
+    parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.connectorFirewall.decision, 'allow');
+  assert.equal(result.connectorFirewall.metadata.surface, 'connector');
+  assert.equal(fetchCalls, 1);
+  assert.equal(result.admission.outcome, 'admitted');
+});
+
+test('repo-memory does not persist GitHub URL credentials or selectors', async () => {
+  const kernel = makeKernel();
+  const result = await repoMemory.run(kernel, {
+    action: 'ingest',
+    sourceType: 'github',
+    repoUrl: 'https://github.com/owner/repo.git?token=secret#fragment',
+    fetchRepoFiles: async () => [{
+      owner: 'owner', repo: 'repo', branch: 'main', path: 'README.md', content: '# Safe',
+      lastModified: '2026-07-31T00:00:00.000Z',
+    }],
+    parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.repoUrl, 'https://github.com/owner/repo');
+  const stored = JSON.stringify({ result, nodes: kernel.nodes, edges: kernel.edges });
+  assert.equal(stored.includes('token=secret'), false);
+  assert.equal(stored.includes('#fragment'), false);
+});
+
+test('repo-memory forwards proposal receipts without generating connector audit or operation ids', async () => {
+  const kernel = makeKernel();
+  let receiptSequence = 0;
+  let auditCalls = 0;
+  kernel.appendAuditEvent = () => {
+    auditCalls += 1;
+  };
+  kernel._appendAuditEvent = () => {
+    auditCalls += 1;
+  };
+  kernel.proposeNode = (id, label, provenance, opts) => {
+    kernel.nodes.push({ id, label, provenance, opts });
+    receiptSequence += 1;
+    return {
+      decision: 'allow',
+      node: { id },
+      admission: { receiptId: `receipt-node-${receiptSequence}` },
+    };
+  };
+  kernel.proposeEdge = (from, to, relation, opts) => {
+    const edge = { from, to, relation, meta: opts };
+    kernel.edges.push(edge);
+    return {
+      decision: 'allow',
+      edge,
+      admission: { receiptId: 'receipt-edge-1' },
+    };
+  };
+
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-receipt-'));
+  const file = path.join(rootDir, 'claim.md');
+  fs.writeFileSync(file, '# Claim\nreceipt forwarding', 'utf8');
+
+  try {
+    const result = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'markdown',
+      path: file,
+      rootPath: rootDir,
+      workspaceId: 'workspace-receipt',
+      timestamp: '2026-07-31T00:00:00.000Z',
+    });
+    const githubResult = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'github',
+      repoUrl: 'https://github.com/owner/repo',
+      workspaceId: 'workspace-receipt',
+      actor: 'connector-test',
+      fetchRepoFiles: async () => [{
+        path: 'README.md',
+        content: '# Repository\nreceipt forwarding',
+        lastModified: '2026-07-31T00:00:00.000Z',
+      }],
+      parseRepoUrl: () => ({ owner: 'owner', repo: 'repo' }),
+    });
+
+    assert.equal(result.admission.outcome, 'admitted');
+    assert.equal(githubResult.admission.outcome, 'admitted');
+    assert.ok(result.admissions.some((entry) => /^receipt-node-/.test(entry.receiptId || '')));
+    assert.ok(result.admissions.some((entry) => entry.receiptId === 'receipt-edge-1'));
+    assert.ok(githubResult.admissions.some((entry) => /^receipt-node-/.test(entry.receiptId || '')));
+    assert.ok(githubResult.admissions.some((entry) => entry.receiptId === 'receipt-edge-1'));
+    assert.ok([...result.admissions, ...githubResult.admissions]
+      .every((entry) => !Object.hasOwn(entry, 'mutationOperationId')));
+    assert.equal(Object.hasOwn(result, 'mutationOperationId'), false);
+    assert.equal(Object.hasOwn(githubResult, 'mutationOperationId'), false);
+    assert.equal(auditCalls, 0);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+
+test('repo-memory opt-in connector firewall blocks every non-GitHub source before source read', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-firewall-root-'));
+  const markdownPath = path.join(rootDir, 'source.md');
+  const jsonPath = path.join(rootDir, 'source.json');
+  const yamlPath = path.join(rootDir, 'source.yaml');
+  const pdfPath = path.join(rootDir, 'source.pdf');
+  const gitPath = path.join(rootDir, 'repo');
+  fs.writeFileSync(markdownPath, '# Safe\ncontent', 'utf8');
+  fs.writeFileSync(jsonPath, JSON.stringify({ claim: 'safe' }), 'utf8');
+  fs.writeFileSync(yamlPath, 'claim: safe\n', 'utf8');
+  writeMinimalPdf(pdfPath, 'safe');
+  fs.mkdirSync(gitPath);
+  initGitRepo(gitPath);
+  gitCommit(gitPath, 'claim.txt', 'safe', 'Safe commit');
+
+  try {
+    const cases = [
+      { sourceType: 'markdown', path: markdownPath },
+      { sourceType: 'json', path: jsonPath },
+      { sourceType: 'yaml', path: yamlPath },
+      { sourceType: 'git-log', path: gitPath },
+      { sourceType: 'pdf', path: pdfPath },
+      { sourceType: 'http', url: 'https://example.com/docs' },
+    ];
+    for (const input of cases) {
+      const result = await repoMemory.run(kernel, {
+        action: 'ingest',
+        ...input,
+        rootPath: rootDir,
+        enforceConnectorFirewall: true,
+        preview: true,
+      });
+      assert.equal(result.ok, false, input.sourceType);
+      assert.equal(result.code, 'CONNECTOR_ACTION_FIREWALL_BLOCKED', input.sourceType);
+      assert.equal(result.connectorFirewall.decision, 'allow', input.sourceType);
+      assert.equal(result.error, 'CONNECTOR_PREVIEW_ONLY', input.sourceType);
+    }
+    assert.equal(kernel.nodes.length, 0);
+    assert.equal(kernel.edges.length, 0);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('repo-memory opt-in markdown connector allows bounded read before graph ingest', async () => {
+  const kernel = makeKernel();
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-repo-firewall-allow-'));
+  const markdownPath = path.join(rootDir, 'source.md');
+  fs.writeFileSync(markdownPath, '# Guarded\ncontent', 'utf8');
+  try {
+    const result = await repoMemory.run(kernel, {
+      action: 'ingest',
+      sourceType: 'markdown',
+      path: markdownPath,
+      rootPath: rootDir,
+      enforceConnectorFirewall: true,
+      workspaceId: 'workspace-firewall',
+      actor: 'connector-test',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.connectorFirewall.decision, 'allow');
+    assert.equal(result.connectorFirewall.metadata.surface, 'connector');
+    assert.equal(result.admission.outcome, 'admitted');
+    assert.ok(kernel.nodes.length > 0);
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+  }
 });

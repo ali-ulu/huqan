@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "huqan.external-event.v1",
+  "agent_id": "demo-agent",
+  "run_id": "run-001",
+  "step_id": "step-001",
+  "action": "tool.requested",
+  "target": "shell:git status",
+  "input_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "observed_state": "cwd inside workspace, read-only intent",
+  "decision": "unknown",
+  "receipt_id": null
+}

@@ -21,6 +21,18 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, auto_merge_enabled, auto_merge_disabled]
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+# A new push to the same PR supersedes stale classification/test work.
+concurrency:
+  # Only supersede stale runs for the same PR. Every non-PR run (including
+  # each push to main) gets its own run-id lane so rapid merges cannot cancel
+  # a pending main validation before any job starts.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -37,8 +49,10 @@ jobs:
       runtime_or_test: ${{ steps.classify.outputs.runtime_or_test }}
       perf: ${{ steps.classify.outputs.perf }}
       docker: ${{ steps.classify.outputs.docker }}
+      nightly: ${{ steps.classify.outputs.nightly }}
+      source_only: ${{ steps.classify.outputs.source_only }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -59,55 +73,132 @@ jobs:
           # Trim and de-duplicate
           CHANGED=$(echo "${CHANGED}" | sed '/^[[:space:]]*$/d' | sort -u)
 
+          # CI_CLASSIFIER_FUNCTIONS_START
           is_runtime_file() {
-            # Files whose change requires `npm test` AND triggers benchmark.
-            # Includes runtime entry points, plugin/, lib/, nlp/, packages/,
-            # migrations/, schemas/, and plugin manifests (manifest sha change
-            # implies plugin source change).
-            echo "$1" | grep -qE '^(\
-              kernel\.js|kernel\.v2\.js|\
-              graph\.js|storage\.js|plugin\.js|\
-              cli\.js|server\.js|mcpServer\.js|\
-              agent\.js|agent\.v3\.js|agentRuntime\.js|\
-              workflow-agent\.js|workflow-runtime\.js|workflow-tools\.js|\
-              finalizer\.js|dream\.js|llmAdapter\.js|\
-              causalSimulator\.js|rustGraph\.js|sandboxRunner\.js|\
-              requestGuards\.js|toolPolicy\.js|\
-              persistencePaths\.js|backupRestore\.js|evidence-ranker\.js|\
-              plugins/.*|lib/.*|nlp/.*|packages/.*|migrations/.*|schemas/.*\
-            )$' || return 1
+            # Runtime files whose change requires the full npm test suite.
+            #
+            # Deny-by-default (#752). The previous form was a hand-maintained
+            # allowlist, and it had already drifted: adapters/* is published by
+            # package.json#files and is on the production ingest path, and
+            # github-app-server.js is a declared production entry point in
+            # lib/module-reachability.js. A PR touching only those left
+            # runtime_or_test=no, so branch protection saw the required
+            # npm test check satisfied by the NOT_APPLICABLE skip job while a
+            # shipped surface changed untested.
+            #
+            # scripts/* and benchmarks/* are here because package.json#files
+            # publishes backup.js, restore.js, egitim-demo.js, bench.js and
+            # verifBench.js; the exclusions above are matched first so
+            # benchmarks/fixtures/* stays out. bin/* is here because
+            # package.json#bin ships it: it is what an installed consumer
+            # executes, so a change there is a change to a shipped surface.
+            #
+            # public/* was excluded while it held one self-contained HTML page.
+            # #1894 and #1895 moved the dashboard's CSS and its ~370-line script
+            # into public/css/app.css and public/js/app.js, and every file under
+            # public/ is now listed in package.json#files -- these are shipped
+            # surfaces with contract tests, not static decoration. Excluding them
+            # meant a PR that only changed the dashboard script satisfied the
+            # required npm test check through the NOT_APPLICABLE skip job.
+            #
+            # The final `*.js` arm is what makes it fail closed: a new root
+            # production file counts as runtime until someone classifies it
+            # otherwise, rather than being silently exempt.
+            case "$1" in
+              docs/*|specs/*|test/*|benchmarks/fixtures/*|fixtures/*|examples/*)
+                return 1
+                ;;
+              public/*|package.json|package-lock.json|plugins/*|lib/*|nlp/*|packages/*|migrations/*|schemas/*|adapters/*|scripts/*|benchmarks/*|bin/*)
+                return 0
+                ;;
+              */*)
+                # Other nested artifacts, including examples, are not runtime surfaces.
+                return 1
+                ;;
+              *.js)
+                # Unclassified root-level JavaScript: treat as production.
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
 
           is_test_file() {
-            # Test files themselves — must run npm test to verify new tests
-            # pass, but do NOT trigger benchmark (test-only PRs are
-            # performance-neutral by policy).
-            echo "$1" | grep -qE '^(test/.*|.*\.test\.js|.*\.spec\.js)$' || return 1
+            # Test-only changes run npm test but do not trigger benchmark.
+            case "$1" in
+              test/*|*.test.js|*.spec.js)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
 
           is_perf_file() {
-            # Strict subset of runtime files whose change is performance-
-            # sensitive and must trigger the benchmark regression check.
-            echo "$1" | grep -qE '^(\
-              benchmarks/(bench|check-regression|bench-memory-scale|snapshot-memory|verifBench)\.js|\
-              benchmarks/results\.json|\
-              benchmarks/fixtures/.*|\
-              graph\.js|kernel\.js|kernel\.v2\.js|storage\.js|\
-              causalSimulator\.js|finalizer\.js|rustGraph\.js|\
-              lib/memory-store\.js|lib/ingest\.js|lib/causal/.*|lib/provenance-.*\.js|lib/receipt/.*\
-            )$' || return 1
+            # Performance-sensitive files trigger the benchmark regression gate.
+              case "$1" in
+               benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
+               benchmarks/bench-graph-save.js|benchmarks/check-graph-save.js|\
+               benchmarks/bench-sqlite-write-contention.js|benchmarks/bench-capacity-envelope.js|\
+               benchmarks/bench-memory-store-open.js|benchmarks/bench-memory-query-page.js|\
+              benchmarks/snapshot-memory.js|benchmarks/verifBench.js|benchmarks/results.json|\
+              benchmarks/fixtures/*|graph.js|kernel.js|kernel.v2.js|storage.js|causalSimulator.js|\
+              finalizer.js|rustGraph.js|lib/memory-store.js|lib/ingest.js|lib/causal/*|\
+              lib/provenance-*.js|lib/receipt/*)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
 
           is_docker_file() {
-            echo "$1" | grep -qE '^(\
-              Dockerfile|docker-compose\.yml|\.dockerignore|\
-              package\.json|package-lock\.json\
-            )$' || return 1
+            case "$1" in
+              Dockerfile|docker-compose.yml|.dockerignore|package.json|package-lock.json)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
           }
+
+          is_source_file() {
+            # A file the coverage ratchet scores. It reads the same lib/,
+            # scripts/ and root-JavaScript surfaces lib/module-reachability.js
+            # publishes, so a change to a measured module is what triggers a
+            # new measurement. Test-only edits do not: the ratio is of the
+            # source, and re-measuring the whole suite for one assertion is
+            # cost without signal.
+            case "$1" in
+              lib/*|scripts/*|packages/*)
+                return 0
+                ;;
+              */*)
+                return 1
+                ;;
+              *.js)
+                return 0
+                ;;
+              *)
+                return 1
+                ;;
+            esac
+          }
+          # CI_CLASSIFIER_FUNCTIONS_END
 
           runtime_or_test=no
           perf=no
           docker=no
+          nightly=no
+          source_only=no
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            nightly=yes
+          fi
 
           while IFS= read -r f; do
             [ -z "${f}" ] && continue
@@ -117,9 +208,20 @@ jobs:
             if is_docker_file   "${f}"; then docker=yes; fi
           done <<< "${CHANGED}"
 
+          # The ratchet runs when any measured source changed. `git ls-files`
+          # on an empty diff (a scheduled run has no parent change) would mark
+          # every tracked file and always run it, which is the wanted behavior
+          # on the nightly full-suite pass.
+          while IFS= read -r f; do
+            [ -z "${f}" ] && continue
+            if is_source_file "${f}"; then source_only=yes; fi
+          done <<< "${CHANGED}"
+
           echo "runtime_or_test=${runtime_or_test}" >> "${GITHUB_OUTPUT}"
           echo "perf=${perf}"                         >> "${GITHUB_OUTPUT}"
           echo "docker=${docker}"                     >> "${GITHUB_OUTPUT}"
+          echo "nightly=${nightly}"                   >> "${GITHUB_OUTPUT}"
+          echo "source_only=${source_only}"           >> "${GITHUB_OUTPUT}"
 
           {
             echo "## CI change classification"
@@ -135,40 +237,433 @@ jobs:
             echo "| runtime/test (npm test) | ${runtime_or_test} |"
             echo "| perf-sensitive (benchmark) | ${perf} |"
             echo "| docker/package (docker build) | ${docker} |"
+            echo "| nightly/full selection | ${nightly} |"
             echo ""
             echo "Security Checks always runs (separate workflow, not conditionalized)."
           } >> "${GITHUB_STEP_SUMMARY}"
 
   # ---------------------------------------------------------------------
-  # npm test — mandatory on runtime OR test changes.
+  # Fast feedback — static checks and a small contract smoke run in parallel
+  # with the weighted full-suite shards. This is advisory; runtime-test-gate
+  # below remains the stable required check for the complete test surface.
   # ---------------------------------------------------------------------
-  runtime-test:
-    name: npm test (runtime/test)
-    needs: classify
-    if: needs.classify.outputs.runtime_or_test == 'yes'
+  fast-contract:
+    name: Fast contract checks
+    needs: [classify, test-impact-plan]
+    # PRs get fast feedback before merge. A protected main commit already
+    # passed the same merge-ref checks, so do not spend another runner here.
+    if: needs['test-impact-plan'].outputs.run_tests == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 20
+          fetch-depth: 0
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A push, nightly or manual run checks out the baseline branch at the
+      # commit that triggered it, then fetches whatever tip main has reached by
+      # fetch time. When main moves in between -- an ordinary burst of merges --
+      # HEAD sits on the triggering commit while origin/main has moved past it,
+      # and the live Git guard read that as a baseline HEAD trailing its remote
+      # and failed closed on an unchanged tree (#2616, run 35284470491).
+      # The guard's baseline-branch rule is about a local clone sitting behind
+      # its remote; a CI checkout is deliberately at the triggering commit. On a
+      # non-pull-request run the baseline this run validates is therefore pinned
+      # to the commit under test, which keeps the ancestry and identity checks
+      # measuring that commit instead of a moving ref. Pull-request runs keep
+      # the fetched tip, because there the branch must descend from current main.
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
+      # actions/checkout intentionally leaves pull-request worktrees detached.
+      # The live Git guard requires branch identity as evidence; name the
+      # checked-out commit without changing the commit or weakening ancestry.
+      #
+      # -C, not --create: on a push to main the checkout already has a local
+      # `main`, and --create fails with "a branch named 'main' already exists",
+      # which turned every post-merge run of this workflow red. -C points the
+      # branch at $GITHUB_SHA whether or not it exists, which is the intent
+      # either way.
+      - name: Name checked-out branch for live Git validation
+        env:
+          HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
+      # GitHub can materialize the pull-request merge ref before a newer main
+      # commit lands. Merge the fetched baseline into this ephemeral test
+      # branch so the live guard measures the same current ancestry that CI
+      # fetched. A real merge conflict is reported as a conflict, never as a
+      # failing test.
+      - name: Materialize current baseline ancestry for live Git validation
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git merge --no-edit origin/main; then
+            exit 0
+          fi
+          # A conflict here means the branch is stale against current main, not
+          # that a test failed. Report it as that distinct condition -- with the
+          # conflicting paths -- and leave the worktree clean, so the red check
+          # is not read as a test result. The branch still has to be brought up
+          # to date; nothing below can run on a conflicted tree.
+          #
+          # `git merge` can also fail before it records a conflict (a dirty
+          # tree, a missing object). Only an unmerged path list proves a
+          # conflict, so the two conditions are reported differently and
+          # neither is labelled a test result.
+          conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+          git merge --abort || true
+          if [ -z "${conflicted}" ]; then
+            echo "::error title=Merge with origin/main failed::git merge origin/main failed without recording a conflict; this is a merge failure, not a test failure."
+            {
+              echo "### Merge with origin/main failed"
+              echo
+              echo "This job stopped on a failed merge, not a test failure; the live"
+              echo "Git validation cannot run on an unfinished merge."
+              echo
+              echo "No unmerged paths were recorded, so this is not a content conflict."
+              echo "Re-run once the branch is up to date with current main."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+          echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
+          {
+            echo "### Merge conflict with origin/main"
+            echo
+            echo "This job stopped on a merge conflict, not a test failure; the live"
+            echo "Git validation cannot run on a conflicted tree."
+            echo
+            echo "Conflicting paths: ${conflicted}"
+            echo
+            echo "Merge or rebase current main into the branch and push again."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
-      - name: Run full test suite
-        run: npm test
+      - name: Run package-closure check
+        # Architecture Checks and Workflow Governance already own file-size,
+        # control-char, doc-status and workflow-governance validation.
+        run: npm run check:package-closure
+      - name: Run fast contract tests
+        run: >-
+          node --test --test-concurrency=2
+          test/agent-context.test.js
+          test/quickstart-first-run.test.js
+          test/agent-activity-dashboard-contract.test.js
+
+  # ---------------------------------------------------------------------
+  # Deterministic impact plan. The plan is always produced on PRs and on
+  # nightly/manual runs. Agent additions, when supplied by a trusted caller,
+  # are validated as add-only; the selector itself owns the mandatory union.
+  # ---------------------------------------------------------------------
+  test-impact-plan:
+    name: Test impact plan
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      run_tests: ${{ steps.plan.outputs.run_tests }}
+      full_suite: ${{ steps.plan.outputs.full_suite }}
+      artifact_id: ${{ steps.upload-plan.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Generate and validate impact plan
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUNTIME_OR_TEST: ${{ needs.classify.outputs.runtime_or_test }}
+          NIGHTLY: ${{ needs.classify.outputs.nightly }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          mode=pr
+          if [ "${NIGHTLY}" = "yes" ]; then mode=nightly; fi
+          agent_args=()
+          if [ -f .huqan/agent-test-plan.json ]; then
+            agent_args+=(--agent-plan=.huqan/agent-test-plan.json)
+          fi
+          node scripts/ci-impact-plan.js \
+            --base="${BASE_SHA}" \
+            --head="${HEAD_SHA}" \
+            --mode="${mode}" \
+            --runtime-or-test="${RUNTIME_OR_TEST}" \
+            "${agent_args[@]}" \
+            --output=artifacts/test-impact-plan.json
+          node -e "const fs=require('node:fs'); const p=require('./scripts/ci-impact-plan'); const plan=JSON.parse(fs.readFileSync('artifacts/test-impact-plan.json','utf8')); p.validateImpactPlan(plan,p.discoverKnownTests());"
+          node -e "const p=JSON.parse(require('node:fs').readFileSync('artifacts/test-impact-plan.json','utf8')); console.log(JSON.stringify({runTests:p.runTests,fullSuite:p.fullSuite,changedFiles:p.changedFiles.length,selectedTests:p.selectedTestCount,knownTests:p.knownTestCount,matchedImpactRules:p.matchedImpactRules,agent:p.agent},null,2));"
+          run_tests="$(node -p 'JSON.parse(require("node:fs").readFileSync("artifacts/test-impact-plan.json", "utf8")).runTests')"
+          full_suite="$(node -p 'JSON.parse(require("node:fs").readFileSync("artifacts/test-impact-plan.json", "utf8")).fullSuite')"
+          echo "run_tests=${run_tests}" >> "${GITHUB_OUTPUT}"
+          echo "full_suite=${full_suite}" >> "${GITHUB_OUTPUT}"
+      - name: Publish impact plan summary
+        if: always()
+        run: |
+          if [ -f artifacts/test-impact-plan.json ]; then
+            {
+              echo "## Test impact plan"
+              echo ""
+              node -e "const p=JSON.parse(require('node:fs').readFileSync('artifacts/test-impact-plan.json','utf8')); console.log('| Field | Value |'); console.log('|---|---|'); console.log('| Mode | '+p.mode+' |'); console.log('| Changed files | '+p.changedFiles.length+' |'); console.log('| Selected tests | '+p.selectedTestCount+' / '+p.knownTestCount+' |'); console.log('| Full suite fallback | '+p.fullSuite+' |'); console.log('| Impact rules | '+(p.matchedImpactRules.join(', ') || 'none')+' |'); console.log('| Agent status | '+p.agent.status+' |');"
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+      - name: Upload impact plan
+        id: upload-plan
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-impact-plan-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-impact-plan.json
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------
+  # npm test — the impact plan selects the PR surface and the three shard legs
+  # distribute that plan across independent CI runners. Nightly/manual modes
+  # select the complete discovered test-file set.
+  # ---------------------------------------------------------------------
+  runtime-test:
+    name: npm test (runtime/test selected, ${{ matrix.os }}, Node ${{ matrix.node-version }}, shard ${{ matrix.shard }})
+    needs: [classify, test-impact-plan]
+    # Replay the selected suite on a main push too. The shard matrix used to be
+    # skipped there, on the assumption that "main is protected and strict, so the
+    # merge-ref already passed it". #3177 disproved that: its whole matrix was
+    # red -- ten failed checks, including the required "npm test gate" -- and it
+    # still landed on main. The push run then showed every shard `skipped`,
+    # `runtime-test-skip` reported success, and `main-ci-watch` counts a skipped
+    # run as green, so a broken main was invisible until the next PR tripped over
+    # it. Replaying here is the only post-merge signal that does not depend on
+    # the merge having been gated.
+    if: needs['test-impact-plan'].outputs.run_tests == 'true'
+    runs-on: ${{ matrix.os }}
+    # A shard finishes in two to four minutes. Without a cap it inherits the
+    # six-hour default, and a shard that hangs — the browser smokes in shard 2
+    # have twice now — leaves the pull request reporting "pending" for the rest
+    # of the day instead of failing where someone can see it.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      # Every leg starts at once. max-parallel was 2 (#2450) because the
+      # artifact service rejected bursts of impact-plan downloads with
+      # transient 403s; that serialized the ten PR legs, so the last Windows
+      # shard started seven minutes into the run. The download below retries
+      # once instead, which is what the cap was standing in for.
+      max-parallel: 10
+      matrix:
+        # PRs and main pushes exercise the supported Node 22 and Node 24
+        # packages on Linux and Windows. `engines` is >=22.13.0, so Node 24 is a
+        # supported runtime; leaving it to the nightly alone let a Node-24-only
+        # regression merge and surface a day later. Only scheduled/manual
+        # runs still widen to macOS.
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
+        node-version: [22, 24]
+        shard: [1, 2, 3, 4, 5]
+        # Pull requests run Windows on Node 24 only; Linux keeps both Node
+        # versions, and main pushes, the nightly and manual runs keep the
+        # Windows x Node 22 legs. Measured over 3-5 Oct (1700 runs): Windows
+        # shards were 47% of all runner time and every PR started 20 test jobs,
+        # enough on its own to fill the hosted concurrency pool -- the likely
+        # cause of the "job was not acquired by Runner" cancellations on main.
+        # This drops five PR jobs (20 -> 15). A Node-22-only Windows break now
+        # surfaces on the main push replay instead of the PR. The required
+        # check is the "npm test gate" aggregate, not a per-leg name, so no
+        # ruleset context moves.
+        exclude: ${{ fromJSON(github.event_name == 'pull_request' && '[{"os":"windows-latest","node-version":22}]' || '[]') }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # The agent-context guard validates live Git state against origin/main,
+      # so fetch the baseline explicitly after checkout.
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # A push, nightly or manual run checks out the baseline branch at the
+      # commit that triggered it, then fetches whatever tip main has reached by
+      # fetch time. When main moves in between -- an ordinary burst of merges --
+      # HEAD sits on the triggering commit while origin/main has moved past it,
+      # and the live Git guard read that as a baseline HEAD trailing its remote
+      # and failed closed on an unchanged tree (#2616, run 35284470491).
+      # The guard's baseline-branch rule is about a local clone sitting behind
+      # its remote; a CI checkout is deliberately at the triggering commit. On a
+      # non-pull-request run the baseline this run validates is therefore pinned
+      # to the commit under test, which keeps the ancestry and identity checks
+      # measuring that commit instead of a moving ref. Pull-request runs keep
+      # the fetched tip, because there the branch must descend from current main.
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
+      # Pull-request checkouts are detached by design. Name the checked-out
+      # commit so live Git validation has branch identity as evidence; this
+      # does not alter the commit or weaken the ancestry check.
+      #
+      # -C, not --create: on a push to main the checkout already has a local
+      # `main`, and --create fails with "a branch named 'main' already exists",
+      # which turned every post-merge run of this workflow red. -C points the
+      # branch at $GITHUB_SHA whether or not it exists, which is the intent
+      # either way.
+      - name: Name checked-out branch for live Git validation
+        env:
+          HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
+      # GitHub can materialize the pull-request merge ref before a newer main
+      # commit lands. Merge the fetched baseline into this ephemeral test
+      # branch so the live guard measures the same current ancestry. A real
+      # merge conflict is reported as a conflict, never as a failing test.
+      - name: Materialize current baseline ancestry for live Git validation
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git merge --no-edit origin/main; then
+            exit 0
+          fi
+          # A conflict here means the branch is stale against current main, not
+          # that a test failed. Report it as that distinct condition -- with the
+          # conflicting paths -- and leave the worktree clean, so the red check
+          # is not read as a test result. The branch still has to be brought up
+          # to date; nothing below can run on a conflicted tree.
+          #
+          # `git merge` can also fail before it records a conflict (a dirty
+          # tree, a missing object). Only an unmerged path list proves a
+          # conflict, so the two conditions are reported differently and
+          # neither is labelled a test result.
+          conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+          git merge --abort || true
+          if [ -z "${conflicted}" ]; then
+            echo "::error title=Merge with origin/main failed::git merge origin/main failed without recording a conflict; this is a merge failure, not a test failure."
+            {
+              echo "### Merge with origin/main failed"
+              echo
+              echo "This job stopped on a failed merge, not a test failure; the live"
+              echo "Git validation cannot run on an unfinished merge."
+              echo
+              echo "No unmerged paths were recorded, so this is not a content conflict."
+              echo "Re-run once the branch is up to date with current main."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+          echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
+          {
+            echo "### Merge conflict with origin/main"
+            echo
+            echo "This job stopped on a merge conflict, not a test failure; the live"
+            echo "Git validation cannot run on a conflicted tree."
+            echo
+            echo "Conflicting paths: ${conflicted}"
+            echo
+            echo "Merge or rebase current main into the branch and push again."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      # windows-latest ships Visual Studio 18 (VS 2026); the node-gyp bundled
+      # with Node 22 (11.5.0) cannot detect it, so any npm ci step that reaches
+      # "node-gyp rebuild" (e.g. better-sqlite3 after a dependabot lockfile
+      # regen drops its "gypfile": false marker, #3527) fails all Windows
+      # shards. npm 11.6.3 bundles node-gyp ^12.1.0, which supports VS 2026.
+      - name: Upgrade npm for Visual Studio 2026 support (node-gyp >= 12.1.0)
+        if: runner.os == 'Windows' && matrix.node-version == 22
+        run: npm install -g npm@11.6.3
+      - run: npm ci --include=optional
+      # A failed-jobs rerun retains the successful producer's outputs. Its
+      # artifact belongs to that producer attempt, not github.run_attempt here.
+      - name: Require impact plan artifact
+        env:
+          PLAN_ARTIFACT_ID: ${{ needs['test-impact-plan'].outputs.artifact_id }}
+        run: test -n "$PLAN_ARTIFACT_ID"
+      - name: Download validated impact plan
+        id: plan-download
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs['test-impact-plan'].outputs.artifact_id }}
+          merge-multiple: true
+          path: artifacts
+      # A burst of parallel legs can draw a transient 403 from the artifact
+      # service (#2450). Back off and try once more; a second failure fails
+      # the leg as before.
+      - name: Back off before retrying the impact plan download
+        if: steps.plan-download.outcome == 'failure'
+        run: sleep 15
+      - name: Retry impact plan download
+        if: steps.plan-download.outcome == 'failure'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs['test-impact-plan'].outputs.artifact_id }}
+          merge-multiple: true
+          path: artifacts
+      - name: Run selected weighted test shard
+        run: >-
+          node scripts/run-test-shard.js
+          --selection=artifacts/test-impact-plan.json
+          --shard=${{ matrix.shard }}
+          --total=5
+          --concurrency=1
+          --report=artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}.xml
+        env:
+          # A browser smoke that skips silently is not evidence; the runner
+          # image is expected to provide Chrome and global WebSocket support.
+          # Shards provide process-level CI parallelism. Keep each shard serial
+          # because legacy JSON tests share default persistence within a runner.
+          # windows-latest: browser smokes are not required. The runner renders
+          # empty panels for smokes that pass on a local Windows machine, so a red
+          # there says nothing about the product. Linux and macOS still require them.
+          HUQAN_REQUIRE_BROWSER_SMOKE: ${{ matrix.os == 'windows-latest' && '0' || '1' }}
+          HUQAN_SKIP_BROWSER_SMOKE: ${{ matrix.os == 'windows-latest' && 'not required on the windows-latest runner (#2450)' || '' }}
+      - name: Upload JUnit timing report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-timings-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}.xml
+          if-no-files-found: warn
+      # The alarm reads this, not the JUnit report above. That report is merged
+      # from <testsuite> blocks, so a file declaring only top-level `test(...)`
+      # calls contributes nothing to it: on 2026-09-05 shard 5 exited non-zero
+      # on test/enforcement-coverage.test.js and still uploaded failures="0".
+      # `always()`, because the shard the alarm needs is the one that failed.
+      - name: Upload shard failure sidecar
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: shard-failures-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
+          path: artifacts/test-${{ matrix.os }}-node-${{ matrix.node-version }}-shard-${{ matrix.shard }}-failures.json
+          if-no-files-found: warn
 
   runtime-test-skip:
     name: npm test (runtime/test)
-    needs: classify
-    if: needs.classify.outputs.runtime_or_test != 'yes'
+    # Only reachable when the plan says there is nothing to run. A push now runs
+    # the real shards too (see runtime-test), so this job no longer masks a main
+    # push behind a NOT_APPLICABLE.
+    needs: [classify, test-impact-plan]
+    if: needs['test-impact-plan'].outputs.run_tests != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Report NOT_APPLICABLE
         run: |
           echo "## npm test: NOT_APPLICABLE" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
-          echo "No runtime or test files changed in this PR." >> "${GITHUB_STEP_SUMMARY}"
-          echo "Full npm test suite skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "No runtime or test files changed, so the impact plan selected no tests." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Selected impact test plan skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "If your change intentionally touches a runtime surface" >> "${GITHUB_STEP_SUMMARY}"
           echo "(kernel.js, graph.js, plugins/**, lib/**, nlp/**, test/**, etc.)," >> "${GITHUB_STEP_SUMMARY}"
@@ -183,19 +678,36 @@ jobs:
     if: needs.classify.outputs.perf == 'yes'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci --include=optional
 
       - name: Run benchmark
         run: node benchmarks/bench.js --json --quick > benchmarks/current-results.json
-
       - name: Check regression
         run: node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5
-
+      - name: Run observability load smoke
+        run: node benchmarks/observability-load-smoke.js > benchmarks/observability-load-current.json
+      - name: Run observability bounded soak
+        run: node --expose-gc benchmarks/observability-soak.js > benchmarks/observability-soak-current.json
+      - name: Upload observability load-smoke artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: observability-load-smoke-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/observability-load-current.json
+          if-no-files-found: warn
+      - name: Upload observability soak artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: observability-soak-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/observability-soak-current.json
+          if-no-files-found: warn
       - name: Publish benchmark summary
         if: always()
         run: |
@@ -203,6 +715,20 @@ jobs:
             echo "## Benchmark Summary"
             echo ""
             node benchmarks/check-regression.js benchmarks/results.json benchmarks/current-results.json --multiplier=2.5
+            echo ""
+            echo "## Observability Load Smoke"
+            if [ -f benchmarks/observability-load-current.json ]; then
+              cat benchmarks/observability-load-current.json
+            else
+              echo "Load-smoke report was not produced."
+            fi
+            echo ""
+            echo "## Observability Bounded Soak"
+            if [ -f benchmarks/observability-soak-current.json ]; then
+              cat benchmarks/observability-soak-current.json
+            else
+              echo "Soak report was not produced."
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
   benchmark-skip:
@@ -219,13 +745,112 @@ jobs:
           echo "Benchmark regression check skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "Perf-sensitive file groups:" >> "${GITHUB_STEP_SUMMARY}"
-          echo "- benchmarks/** (bench, check-regression, fixtures, results.json)" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- benchmarks/** (bench, check-regression, bench-graph-save, check-graph-save, fixtures, results.json)" >> "${GITHUB_STEP_SUMMARY}"
           echo "- graph.js, kernel.js, kernel.v2.js, storage.js" >> "${GITHUB_STEP_SUMMARY}"
           echo "- causalSimulator.js, finalizer.js, rustGraph.js" >> "${GITHUB_STEP_SUMMARY}"
           echo "- lib/memory-store.js, lib/ingest.js, lib/causal/*, lib/provenance-*.js, lib/receipt/*" >> "${GITHUB_STEP_SUMMARY}"
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "If you intentionally touched a perf-sensitive surface and need benchmark validation," >> "${GITHUB_STEP_SUMMARY}"
           echo "rerun the Benchmark workflow manually from the Actions tab." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Graph incremental-save regression (#3011).
+  #
+  # The per-PR `benchmark` job above runs bench.js with --quick. This nightly
+  # pass is deliberately different: it runs the FULL incremental-save benchmark
+  # at the 10k scale the issue names, with no --quick shortcut and no reduced
+  # iteration count, and it enforces the pinned threshold with --strict-timing.
+  #
+  # Why nightly rather than every PR: the pinned floors combine a
+  # machine-independent row-count ratio (blocking) with absolute timing
+  # (strict only here). A shared CI runner is noisier than a developer machine,
+  # so the absolute-timing half is a nightly signal, not a merge gate that
+  # flakes on a busy runner. The row-count half is deterministic and would fail
+  # on any runner if the full rewrite returned.
+  # ---------------------------------------------------------------------
+  graph-save-nightly:
+    name: Graph incremental-save (nightly, 10k)
+    needs: classify
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      - name: Run the full 10k incremental-save benchmark
+        # No --quick: the pinned threshold is calibrated against the full save
+        # path and the declared 10k fixture, so the shortened run is not used.
+        run: node benchmarks/bench-graph-save.js --json > benchmarks/graph-save-current.json
+      - name: Check the pinned threshold
+        run: node benchmarks/check-graph-save.js benchmarks/graph-save-baseline.json benchmarks/graph-save-current.json --strict-timing
+      - name: Upload the benchmark report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: graph-save-benchmark-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/graph-save-current.json
+          if-no-files-found: warn
+      - name: Publish the benchmark summary
+        if: always()
+        run: |
+          {
+            echo "## Graph incremental-save (#3011)"
+            echo ""
+            if [ -f benchmarks/graph-save-current.json ]; then
+              node benchmarks/check-graph-save.js benchmarks/graph-save-baseline.json benchmarks/graph-save-current.json --strict-timing
+            else
+              echo "Benchmark report was not produced."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # Capacity envelope (#3503). Nightly measurement of the R46 E3 envelope:
+  # raw store contention at 1/4/16 writers (reused from the contention
+  # bench), kernel learn+query legs, open/RSS, WAL sidecars and the cold
+  # restart split. Measured-only by design: the report carries an `slo`
+  # field with the observed numbers but no threshold, so this job records
+  # the envelope instead of gating on it.
+  # ---------------------------------------------------------------------
+  capacity-envelope-nightly:
+    name: Capacity envelope (nightly)
+    needs: classify
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      - name: Run the capacity envelope benchmark
+        run: node benchmarks/bench-capacity-envelope.js > benchmarks/capacity-envelope-current.json
+      - name: Upload the benchmark report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capacity-envelope-benchmark-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: benchmarks/capacity-envelope-current.json
+          if-no-files-found: warn
+      - name: Publish the benchmark summary
+        if: always()
+        run: |
+          {
+            echo "## Capacity envelope (#3503)"
+            echo ""
+            if [ -f benchmarks/capacity-envelope-current.json ]; then
+              node -e "const r=require('./benchmarks/capacity-envelope-current.json'); console.log('backend: '+r.backend); for (const leg of r.learn.perN) console.log('learn n='+leg.children+' p50='+leg.p50Ms+' p95='+leg.p95Ms+' p99='+leg.p99Ms+' busy='+leg.sqliteBusyFailures+' queueLag='+leg.queueLagMs); console.log('rssSlopeBytesPerWrite: '+r.open.rss.slopeBytesPerWrite); console.log('wal: '+JSON.stringify(r.wal)); console.log('restart: '+JSON.stringify(r.restart)); console.log('slo: '+JSON.stringify(r.slo));"
+            else
+              echo "Benchmark report was not produced."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   # ---------------------------------------------------------------------
   # Docker build — only when Docker / package / deploy surfaces change.
@@ -238,9 +863,59 @@ jobs:
     if: needs.classify.outputs.docker == 'yes'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build Docker image
-        run: docker build -t huqan:test .
+        run: |
+          set -euo pipefail
+          build_log="$(mktemp)"
+          trap 'rm -f "${build_log}"' EXIT
+          for attempt in 1 2 3; do
+            if docker build --progress=plain -t huqan:test . >"${build_log}" 2>&1; then
+              cat "${build_log}"
+              exit 0
+            else
+              status=$?
+            fi
+            cat "${build_log}"
+            # Registry token-service outages can outlast BuildKit's own retry.
+            # Retry only that transient failure; never hide a broken build.
+            if [ "${attempt}" -eq 3 ] || ! grep -Eq 'failed to fetch (oauth|anonymous) token:.*(502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout)' "${build_log}"; then
+              exit "${status}"
+            fi
+            delay=$((attempt * 15))
+            echo "Registry token service unavailable; retrying Docker build in ${delay}s (attempt ${attempt}/3)."
+            sleep "${delay}"
+          done
+
+      - name: Run Docker runtime smoke
+        run: |
+          set -euo pipefail
+          container_id="$(docker run -d --rm \
+            --name "huqan-smoke-${GITHUB_RUN_ID}" \
+            -e HUQAN_API_KEY=ci-smoke-only \
+            -p 127.0.0.1:18080:3000 \
+            huqan:test)"
+          cleanup() {
+            docker logs "${container_id}" || true
+            docker rm -f "${container_id}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          health_status="starting"
+          for _ in $(seq 1 45); do
+            health_status="$(docker inspect --format '{{.State.Health.Status}}' "${container_id}" 2>/dev/null || true)"
+            if [ "${health_status}" = "healthy" ]; then break; fi
+            if [ "${health_status}" = "unhealthy" ]; then
+              echo "Container healthcheck reported unhealthy." >&2
+              exit 1
+            fi
+            sleep 2
+          done
+          test "${health_status}" = "healthy"
+
+          curl --fail --silent --show-error http://127.0.0.1:18080/health
+          docker exec "${container_id}" sh -c \
+            '! command -v python3 && ! command -v g++ && test "$(id -u)" -ne 0 && test -w /app/data'
 
   docker-build-skip:
     name: Docker build
@@ -254,3 +929,352 @@ jobs:
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "No Dockerfile / docker-compose / .dockerignore / package.json / package-lock.json changes." >> "${GITHUB_STEP_SUMMARY}"
           echo "Docker build skipped (NOT_APPLICABLE)." >> "${GITHUB_STEP_SUMMARY}"
+
+  # ---------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # Nightly alarm. The scheduled run is the only one that executes every known
+  # test -- a pull request runs the *selected* shards -- so it is the only
+  # place a test nobody's change touched can be caught. It was already
+  # catching things: three of the twelve nightly runs before 2026-09-08 were
+  # red (2026-09-07, 2026-09-05, 2026-08-29) and none was noticed, because the
+  # workflow had no failure path at all. A run that fails where nobody looks
+  # is not a safety net, so the failure now files an issue.
+  # ---------------------------------------------------------------------
+  nightly-failure-alarm:
+    name: Nightly failure alarm
+    needs: [runtime-test]
+    # failure() on its own would also fire for every red pull request; the
+    # schedule guard keeps this to the nightly full-suite run.
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Download shard failure sidecars
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: shard-failures-*-attempt-${{ github.run_attempt }}
+          path: artifacts
+          merge-multiple: true
+      - name: File or update one alarm issue per failing file
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh issue list --state open --limit 100 --json number,title,state > open-issues.json
+          node scripts/nightly-failure-alarm.js artifacts open-issues.json > alarm.json
+          count="$(jq 'length' alarm.json)"
+          for index in $(seq 0 $((count - 1))); do
+            jq -r ".[${index}].body" alarm.json > alarm-body.md
+            kind="$(jq -r ".[${index}].kind" alarm.json)"
+            if [ "${kind}" = comment ]; then
+              gh issue comment "$(jq -r ".[${index}].number" alarm.json)" --body-file alarm-body.md
+            else
+              gh issue create --title "$(jq -r ".[${index}].title" alarm.json)" --body-file alarm-body.md --label ci-cd
+            fi
+          done
+
+  # ---------------------------------------------------------------------
+  # Shard-weight feedback. The nightly run measures every file's real wall
+  # time; without this job nothing read it back, so the weights drifted and
+  # the "weighted" shards balanced file counts instead. This refreshes
+  # config/shard-weights.json and opens a PR when the numbers move.
+  #
+  # First attempt only: a re-run of failed shards uploads sidecars for those
+  # shards alone, so weights computed from it would describe a fraction of
+  # the suite (30.09 found none, 01.10 rebuilt the file from one shard).
+  # ---------------------------------------------------------------------
+  refresh-shard-weights:
+    name: Refresh shard weights
+    needs: [runtime-test]
+    if: ${{ always() && github.event_name == 'schedule' && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Download shard failure sidecars
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: shard-failures-*-attempt-${{ github.run_attempt }}
+          path: artifacts
+          merge-multiple: true
+      - name: Regenerate the weights from the measured timings
+        run: node scripts/update-shard-weights.js artifacts --min=1.0
+      - name: Open a refresh pull request when the weights moved
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- config/shard-weights.json; then
+            echo "shard weights are already current" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          branch="ci/shard-weights-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The nightly checkout is the scheduled commit, often hours behind
+          # main by now. A branch cut from it differs from main in every file
+          # main changed since, and when one of those is a workflow GitHub
+          # refuses the push. Cut the branch from current main and carry over
+          # the weights file only. Restore the tracked copy before switching:
+          # if main changed it too, the local edit would stop `git switch`.
+          cp config/shard-weights.json "${RUNNER_TEMP}/shard-weights.json"
+          git restore -- config/shard-weights.json
+          git fetch --depth=1 origin main
+          git switch --create "$branch" FETCH_HEAD
+          cp "${RUNNER_TEMP}/shard-weights.json" config/shard-weights.json
+          if git diff --quiet -- config/shard-weights.json; then
+            echo "shard weights already match current main" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          git commit -m "chore(ci): refresh shard weights from the latest nightly timings" config/shard-weights.json
+          git push --set-upstream origin "$branch"
+          body="$(printf '%s\n\n%s\n' \
+            'The nightly full-suite run measured every test file, and the shard weights moved.' \
+            'This is generated by `scripts/update-shard-weights.js` from `config/shard-weights.json`; review the new spread before merging.')"
+          {
+            echo "$body"
+            echo
+            echo "---"
+            echo
+            git --no-pager show --stat --oneline HEAD
+          } > pr-body.md
+          # Opening the PR needs the repository setting "Allow GitHub Actions
+          # to create and approve pull requests". Without it the pushed branch
+          # still needs a PR: fail the refresh and keep a manual recovery link.
+          if ! gh pr create --title "chore(ci): refresh shard weights from nightly timings" --body-file pr-body.md --base main --head "$branch"; then
+            compare="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${branch}"
+            echo "::error::shard weights pushed to ${branch} but the PR could not be opened; open it from ${compare}"
+            echo "Shard weights pushed to \`${branch}\`; open the PR manually: ${compare}" >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------------
+  # Numeric coverage ratchet (#3077). Measured once, on ubuntu / Node 22,
+  # against main. The gate is a stable name so branch protection can require
+  # it without depending on the matrix.
+  # ---------------------------------------------------------------------
+  coverage:
+    name: Coverage
+    needs: [classify]
+    if: ${{ needs.classify.outputs.source_only == 'yes' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The suite's live Git validation inspects the checkpoint's ancestry
+          # against origin/main, so this job needs the same full history and
+          # fetched baseline the other test jobs take (#3368). A shallow,
+          # single-branch checkout left origin/main absent, the checkpoint
+          # commit unresolvable and the live tests either red or skipped --
+          # skipping them removed scripts/agent-context-*.js from the measured
+          # set and dropped those files below their ratchet floors.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch baseline branch for live Git validation
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      # The full suite runs test/agent-context.test.js, whose live Git guard
+      # needs a named branch and an origin/main the checked-out commit descends
+      # from. actions/checkout leaves pull-request worktrees detached, so the
+      # guard fails closed on branch identity alone -- the same root cause
+      # #2616 fixed for the shard and fast-contract jobs, which the coverage
+      # job never received. The four live Git tests therefore failed only in
+      # this job while a parallel job on the identical commit stayed green
+      # (#3426, run 37132172227).
+      - name: Pin the baseline ref to the commit under test
+        if: github.event_name != 'pull_request'
+        run: git update-ref refs/remotes/origin/main "$GITHUB_SHA"
+      - name: Name checked-out branch for live Git validation
+        env:
+          HUQAN_CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git switch -C "$HUQAN_CI_BRANCH" "$GITHUB_SHA"
+      - name: Materialize current baseline ancestry for live Git validation
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git merge --no-edit origin/main; then
+            exit 0
+          fi
+          # A conflict here means the branch is stale against current main, not
+          # that a test failed. Report it as that distinct condition -- with the
+          # conflicting paths -- and leave the worktree clean, so the red check
+          # is not read as a test result. The branch still has to be brought up
+          # to date; nothing below can run on a conflicted tree.
+          #
+          # `git merge` can also fail before it records a conflict (a dirty
+          # tree, a missing object). Only an unmerged path list proves a
+          # conflict, so the two conditions are reported differently and
+          # neither is labelled a test result.
+          conflicted="$(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+          git merge --abort || true
+          if [ -z "${conflicted}" ]; then
+            echo "::error title=Merge with origin/main failed::git merge origin/main failed without recording a conflict; this is a merge failure, not a test failure."
+            {
+              echo "### Merge with origin/main failed"
+              echo
+              echo "This job stopped on a failed merge, not a test failure; the live"
+              echo "Git validation cannot run on an unfinished merge."
+              echo
+              echo "No unmerged paths were recorded, so this is not a content conflict."
+              echo "Re-run once the branch is up to date with current main."
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
+          echo "::error title=Merge conflict with origin/main::the pull request conflicts with current main: ${conflicted}"
+          {
+            echo "### Merge conflict with origin/main"
+            echo
+            echo "This job stopped on a merge conflict, not a test failure; the live"
+            echo "Git validation cannot run on a conflicted tree."
+            echo
+            echo "Conflicting paths: ${conflicted}"
+            echo
+            echo "Merge or rebase current main into the branch and push again."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --include=optional
+      # The full suite needs the same browser and global-WebSocket support the
+      # runtime shards require; a smoke that skips silently would measure a
+      # different (and lower) coverage set than the one the baseline records.
+      - name: Install Chromium for the browser smokes
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+      - name: Measure the suite under c8
+        env:
+          HUQAN_REQUIRE_BROWSER_SMOKE: '1'
+        # The npm test gate owns test correctness; this job owns the ratio. A
+        # single flaky test must not turn the ratchet red, but a run that never
+        # produced a summary must, so the summary is the pass condition here.
+        run: |
+          set +e
+          npm run coverage
+          status=$?
+          set -e
+          test -f coverage/coverage-summary.json || { echo "c8 produced no coverage summary" >&2; exit 1; }
+          if [ "${status}" -ne 0 ]; then
+            echo "::warning::the suite had failures while measuring coverage; the npm test gate owns correctness, the ratchet below owns the ratio"
+          fi
+      - name: Enforce the coverage ratchet
+        run: npm run check:coverage
+      - name: Upload the coverage summary
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          if-no-files-found: warn
+
+  coverage-skip:
+    name: Coverage (NOT_APPLICABLE)
+    needs: [classify]
+    if: ${{ needs.classify.outputs.source_only == 'no' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "no source change; coverage ratchet not applicable"
+
+  # ---------------------------------------------------------------------
+  # Stable required checks. These aggregate the run/skip pairs so branch
+  # protection does not depend on matrix-generated or conditional job names.
+  # ---------------------------------------------------------------------
+  runtime-test-gate:
+    name: npm test gate
+    needs: [classify, test-impact-plan, runtime-test, runtime-test-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable test path to pass
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          AUTO_MERGE_ENABLED: ${{ github.event.pull_request.auto_merge != null }}
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          PLAN_RESULT: ${{ needs['test-impact-plan'].result }}
+          TEST_RESULT: ${{ needs['runtime-test'].result }}
+          SKIP_RESULT: ${{ needs['runtime-test-skip'].result }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ "${AUTO_MERGE_ENABLED}" = "true" ]; then
+            echo "Auto-merge is forbidden by repository policy; pull requests must be merged manually." >&2
+            exit 1
+          fi
+          test "${CLASSIFY_RESULT}" = success
+          test "${PLAN_RESULT}" = success
+          if [ "${TEST_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the test job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi
+
+  coverage-gate:
+    name: Coverage gate
+    needs: [classify, coverage, coverage-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable coverage path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          SOURCE_ONLY: ${{ needs.classify.outputs.source_only }}
+          COVERAGE_RESULT: ${{ needs.coverage.result }}
+          SKIP_RESULT: ${{ needs['coverage-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          case "${SOURCE_ONLY}" in
+            yes) test "${COVERAGE_RESULT}" = success ;;
+            no) test "${SKIP_RESULT}" = success ;;
+            *) echo "Invalid source classification: coverage cannot be skipped." >&2; exit 1 ;;
+          esac
+
+  benchmark-gate:
+    name: Benchmark gate
+    needs: [classify, benchmark, benchmark-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable benchmark path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
+          SKIP_RESULT: ${{ needs['benchmark-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${BENCHMARK_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the benchmark job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi
+
+  docker-build-gate:
+    name: Docker build gate
+    needs: [classify, docker-build, docker-build-skip]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the applicable Docker path to pass
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          DOCKER_RESULT: ${{ needs['docker-build'].result }}
+          SKIP_RESULT: ${{ needs['docker-build-skip'].result }}
+        run: |
+          set -euo pipefail
+          test "${CLASSIFY_RESULT}" = success
+          if [ "${DOCKER_RESULT}" != success ] && [ "${SKIP_RESULT}" != success ]; then
+            echo "Neither the Docker job nor its NOT_APPLICABLE job passed." >&2
+            exit 1
+          fi

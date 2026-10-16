@@ -1,0 +1,22 @@
+{
+  "id": "l1-mcp-tool-registration",
+  "level": "L1",
+  "description": "Register one MCP tool beside the existing deterministic tool list.",
+  "operation": {
+    "type": "insert_after",
+    "path": "mcp/tools.js",
+    "anchor": "  { name: 'axiom.verify' },\n",
+    "insert": "  { name: 'axiom.trace' },\n"
+  },
+  "allowedPaths": ["mcp/tools.js"],
+  "files": {
+    "mcp/tools.js": "'use strict';\n\nmodule.exports = [\n  { name: 'axiom.ask' },\n  { name: 'axiom.verify' },\n];\n"
+  },
+  "expectedPatch": [
+    {
+      "path": "mcp/tools.js",
+      "before": "'use strict';\n\nmodule.exports = [\n  { name: 'axiom.ask' },\n  { name: 'axiom.verify' },\n];\n",
+      "after": "'use strict';\n\nmodule.exports = [\n  { name: 'axiom.ask' },\n  { name: 'axiom.verify' },\n  { name: 'axiom.trace' },\n];\n"
+    }
+  ]
+}

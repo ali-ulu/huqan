@@ -1,0 +1,27 @@
+{
+  "name": "observability-bounded-resource-soak-v2",
+  "workspaceId": "observability-soak",
+  "cycles": 20,
+  "eventWritesPerCycle": 100,
+  "queueJobsPerCycle": 10,
+  "longLivedSubscribers": 8,
+  "reconnectingSubscribersPerCycle": 4,
+  "logicalCycleMs": 250,
+  "targets": {
+    "eventWriteP95Ms": 25,
+    "maxHeapGrowthBytes": 16777216,
+    "maxCpuTimeMs": 15000,
+    "maxCpuRatio": 1.5,
+    "maxDbFileBytes": 12500000,
+    "maxDbBytesPerEvent": 5000,
+    "maxQueueLagMs": 10000,
+    "maxSubscriberCountAfter": 0,
+    "maxHeapSlopeBytesPerCycle": 65536,
+    "maxRssSlopeBytesPerCycle": 1048576,
+    "maxOpenFileDescriptorDeltaAfterCleanup": 0,
+    "maxActiveResourceDeltaAfterCleanup": 0,
+    "maxActiveHandleDeltaAfterCleanup": 0,
+    "maxTimerDeltaAfterCleanup": 0,
+    "maxChildProcessDeltaAfterCleanup": 0
+  }
+}

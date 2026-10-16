@@ -1,0 +1,1 @@
+{"caseId":"RTR-022-V4-DOES-NOT-RELABEL-NON-V4","description":"V4 validation does not relabel other families","input":{"family":"reviewed-external-graph"},"expected":{"mode":"futureV2Structural","relabel":false},"nonClaims":["universal dispatch"]}

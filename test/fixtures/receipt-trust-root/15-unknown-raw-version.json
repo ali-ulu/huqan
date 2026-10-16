@@ -1,0 +1,1 @@
+{"caseId":"RTR-015-V2-UNKNOWN-RAW-DISCRIMINATOR","description":"Unknown raw version fails closed","input":{"canonicalReceiptSchemaVersion":"v4-receipt-v99","trustRoot":"local_operator"},"expected":{"mode":"futureV2Structural","valid":false},"nonClaims":["version downgrade"]}

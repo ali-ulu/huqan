@@ -1,0 +1,109 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const DEFAULT_CONFIG = require('../benchmarks/fixtures/observability-soak-targets.json');
+const { assertSoakTargets, resourceSnapshot, runSoak } = require('../benchmarks/observability-soak');
+
+const TEST_CONFIG = {
+  ...DEFAULT_CONFIG,
+  name: 'observability-bounded-soak-test',
+  cycles: 3,
+  eventWritesPerCycle: 10,
+  queueJobsPerCycle: 2,
+  longLivedSubscribers: 2,
+  reconnectingSubscribersPerCycle: 1,
+  targets: {
+    ...DEFAULT_CONFIG.targets,
+    maxCpuRatio: Number.POSITIVE_INFINITY,
+    maxHeapSlopeBytesPerCycle: Number.POSITIVE_INFINITY,
+    maxRssSlopeBytesPerCycle: Number.POSITIVE_INFINITY,
+  },
+};
+
+test('bounded soak proves queue growth, reconnect completeness, and subscriber cleanup', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
+  assert.equal(report.workload.eventWrites, 30);
+  assert.equal(report.workload.queueJobs, 6);
+  assert.equal(report.resources.queueDepth, 6);
+  assert.equal(report.resources.queueLagMs, 750);
+  assert.equal(report.reconnect.peakSubscriberCount, 3);
+  assert.equal(report.reconnect.subscriberCountAfter, 0);
+  assert.equal(report.reconnect.longLivedDeliveries, 72);
+  assert.equal(report.reconnect.reconnectedDeliveries, 36);
+  assert.equal(report.resources.databaseTiming.calls > 0, true);
+});
+
+test('bounded soak publishes sampled process-resource and cleanup evidence', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
+  assert.equal(report.schemaVersion, 2);
+  assert.equal(report.resources.samples.length, TEST_CONFIG.cycles);
+  assert.equal(report.resources.curve.sampleCount, TEST_CONFIG.cycles);
+  assert.equal(Number.isFinite(report.resources.curve.heapSlopeBytesPerCycle), true);
+  assert.equal(Number.isFinite(report.resources.curve.rssSlopeBytesPerCycle), true);
+  assert.equal(report.resources.lifecycle.sqliteConnectionOpenBeforeClose, true);
+  assert.equal(report.resources.lifecycle.sqliteConnectionOpenAfterClose, false);
+  assert.equal(report.resources.lifecycle.beforeCleanup.subscriberCount, 0);
+  assert.equal(report.resources.lifecycle.afterCleanup.subscriberCount, 0);
+  assert.equal(report.resources.lifecycle.afterCleanup.childProcessCount >= 0, true);
+  assert.equal(report.resources.lifecycle.afterCleanup.timerCount >= 0, true);
+  assert.equal(typeof report.resources.lifecycle.afterCleanup.activeResources, 'object');
+  assert.equal(typeof report.resources.lifecycle.afterCleanup.activeHandles, 'object');
+});
+
+test('bounded soak gate fails closed on an exceeded resource target', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
+  assert.throws(
+    () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxDbFileBytes: 0 }),
+    /OBSERVABILITY_SOAK_TARGET_FAILED:.*dbFileBytes=/,
+  );
+});
+
+test('bounded soak gate fails closed on leaked process resources', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
+  report.resources.lifecycle.activeHandleDeltaAfterCleanup = 1;
+  assert.throws(
+    () => assertSoakTargets(report, TEST_CONFIG.targets),
+    /OBSERVABILITY_SOAK_TARGET_FAILED:.*activeHandleDeltaAfterCleanup=1/,
+  );
+});
+
+test('bounded soak gate fails closed if SQLite is not closed', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
+  report.resources.lifecycle.sqliteConnectionOpenAfterClose = true;
+  assert.throws(
+    () => assertSoakTargets(report, TEST_CONFIG.targets),
+    /OBSERVABILITY_SOAK_TARGET_FAILED:.*sqliteConnectionOpenAfterClose=true/,
+  );
+});
+
+test('the gate still enforces cpuRatio, which this config only declines to measure', async () => {
+  const report = await runSoak({ config: TEST_CONFIG });
+
+  assert.throws(
+    () => assertSoakTargets(report, { ...TEST_CONFIG.targets, maxCpuRatio: -1 }),
+    /OBSERVABILITY_SOAK_TARGET_FAILED:.*cpuRatio=/,
+  );
+  assert.equal(
+    Number.isFinite(DEFAULT_CONFIG.targets.maxCpuRatio),
+    true,
+    'the shipped fixture must keep a real CPU budget for the full benchmark',
+  );
+});
+
+// The closed SQLite driver leaves a one-shot Immediate that drains on the next
+// loop turn. It must not read as a leaked resource, or the gate flaps; a
+// leaked Timeout must still be seen.
+test('the leak gate ignores one-shot Immediates and still counts Timeouts', async () => {
+  const before = resourceSnapshot();
+  const immediate = setImmediate(() => {});
+  const withImmediate = resourceSnapshot();
+  clearImmediate(immediate);
+  assert.equal(withImmediate.timerCount, before.timerCount);
+  assert.equal(withImmediate.activeResourceCount, before.activeResourceCount);
+  const timeout = setTimeout(() => {}, 60_000);
+  const withTimeout = resourceSnapshot();
+  clearTimeout(timeout);
+  assert.equal(withTimeout.timerCount, before.timerCount + 1);
+  assert.equal(withTimeout.activeResourceCount, before.activeResourceCount + 1);
+});

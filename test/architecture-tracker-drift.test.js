@@ -1,0 +1,148 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const test = require('node:test');
+
+const {
+  TRACKER_PATH,
+  BASELINE_PATH,
+  baselineEvolutionViolations,
+  checkTrackerArtifact,
+  classify,
+  renderMarkdown,
+  snapshot,
+  trackedEntries,
+} = require('../scripts/architecture-snapshot');
+
+test('committed architecture tracker matches the generated snapshot', () => {
+  const expected = renderMarkdown(classify(snapshot()));
+  const actual = fs.readFileSync(TRACKER_PATH, 'utf8');
+  assert.equal(checkTrackerArtifact(expected, actual), null);
+});
+
+test('a stale tracker count fails the drift comparison', () => {
+  const expected = renderMarkdown({
+    structural: [],
+    recorded: [],
+    decompose: [{ file: 'kernel.js', lines: 1000, signals: [] }],
+  });
+  const stale = expected.replace('Tracked in total: **1**', 'Tracked in total: **2**');
+
+  assert.match(checkTrackerArtifact(expected, stale), /Architecture tracker drift/);
+});
+
+test('the real CLI exits non-zero for a mutated tracker artifact', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-architecture-tracker-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const stalePath = path.join(root, 'architecture-trackers.md');
+  const stale = fs.readFileSync(TRACKER_PATH, 'utf8').replace(
+    /Tracked in total: \*\*(\d+)\*\*/,
+    (_, count) => `Tracked in total: **${Number(count) + 1}**`,
+  );
+  fs.writeFileSync(stalePath, stale);
+
+  const result = spawnSync(process.execPath, [
+    path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
+    `--check=${stalePath}`,
+  ], { encoding: 'utf8' });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Architecture tracker drift/);
+});
+
+test('CRLF checkout content does not create false tracker drift', () => {
+  // Normalize first: on a CRLF checkout the file on disk already carries
+  // \r\n, so building the CRLF variant from the raw read would double it.
+  const expected = fs.readFileSync(TRACKER_PATH, 'utf8').replace(/\r\n/g, '\n');
+  assert.equal(checkTrackerArtifact(expected, expected.replace(/\n/g, '\r\n')), null);
+});
+
+test('baseline evolution permits only monotonic per-file improvement', () => {
+  const previous = { schemaVersion: 2, entries: {
+    'a.js': { band: 'decompose', lines: 900, signals: ['DIP'] },
+  } };
+  assert.deepEqual(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': { band: 'recorded', lines: 700, signals: [] },
+  } }), []);
+  assert.match(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': previous.entries['a.js'],
+    'b.js': { band: 'structural', lines: 200, signals: ['DIP'] },
+  } })[0], /newly tracked/);
+});
+
+test('numeric signal decreases are improvements while increases are rejected', () => {
+  const previous = { schemaVersion: 2, entries: {
+    'a.js': { band: 'structural', lines: 200, signals: ['FANOUT:35', 'ISP:6', 'OCP:10'] },
+  } };
+  assert.deepEqual(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': { band: 'structural', lines: 200, signals: ['FANOUT:34', 'ISP:5', 'OCP:9'] },
+  } }), []);
+  assert.match(baselineEvolutionViolations(previous, { schemaVersion: 2, entries: {
+    'a.js': { band: 'structural', lines: 200, signals: ['FANOUT:36'] },
+  } })[0], /worsened signal/);
+});
+
+// `previousEntries` stands in for the base ref's tracked files when a fixture
+// needs some: the live tracker can be empty (#3101), and churn needs a file to replace.
+function runFixtureGate(t, mutateGroups, previousEntries = null) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-architecture-state-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const groups = classify(snapshot());
+  mutateGroups(groups);
+  const trackerPath = path.join(root, 'tracker.md');
+  const baselinePath = path.join(root, 'baseline.json');
+  const snapshotPath = path.join(root, 'snapshot.json');
+  const graphPath = path.join(root, 'graph.json');
+  // The graph half of the artifact is compared too (#2641). An empty recorded
+  // graph keeps these fixtures about the size tracker and nothing else.
+  const emptyGraph = { threshold: 10, layers: {}, edges: {}, violations: [], unassigned: [] };
+  let previousPath = BASELINE_PATH;
+  if (previousEntries) {
+    previousPath = path.join(root, 'previous.json');
+    fs.writeFileSync(previousPath, JSON.stringify({ schemaVersion: 3, entries: previousEntries, dependencyGraph: emptyGraph }));
+  }
+  fs.writeFileSync(trackerPath, renderMarkdown(groups));
+  fs.writeFileSync(baselinePath, JSON.stringify({
+    schemaVersion: 3, entries: trackedEntries(groups), dependencyGraph: emptyGraph,
+  }));
+  fs.writeFileSync(snapshotPath, JSON.stringify(groups));
+  fs.writeFileSync(graphPath, JSON.stringify(emptyGraph));
+  return spawnSync(process.execPath, [
+    path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
+    `--check=${trackerPath}`,
+    `--baseline=${baselinePath}`,
+    `--previous-baseline=${previousPath}`,
+    `--snapshot=${snapshotPath}`,
+    `--graph-snapshot=${graphPath}`,
+  ], { encoding: 'utf8' });
+}
+
+test('real CLI rejects count and baseline increased together', (t) => {
+  const result = runFixtureGate(t, (groups) => groups.decompose.push({
+    file: 'lib/new-debt.js', lines: 901, signals: [],
+  }));
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /baseline cannot add debt/);
+});
+
+test('real CLI rejects same-count tracked-file churn', (t) => {
+  const tracked = { band: 'structural', lines: 200, signals: ['FANOUT:25'] };
+  const result = runFixtureGate(t, (groups) => {
+    groups.structural.push({ file: 'lib/replacement-debt.js', lines: tracked.lines, signals: tracked.signals });
+  }, { 'lib/old-debt.js': tracked });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /replacement-debt\.js is newly tracked/);
+});
+
+test('real CLI fails closed when base ref cannot be resolved', () => {
+  const result = spawnSync(process.execPath, [
+    path.resolve(__dirname, '../scripts/architecture-snapshot.js'),
+    '--check',
+    '--base-ref=not-a-real-ref',
+  ], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+});

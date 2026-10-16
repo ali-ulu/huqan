@@ -43,8 +43,12 @@ test('V5 agent identity coverage report counts valid and invalid fixtures from c
 
   assert.equal(report.fixtureSummary.valid, valid);
   assert.equal(report.fixtureSummary.invalid, invalid);
-  assert.equal(report.fixtureSummary.valid, 1);
-  assert.equal(report.fixtureSummary.invalid, 5);
+  // Ratchet bump 2/6 -> 2/11 (validator extension for Gate 7's remaining classes, #846):
+  // +invalid.identity_claim, delegation_scope_exceeded, delegation_chain,
+  //   connector_context, unresolvable_lifecycle
+  // Computed count above stays dynamic; static assertion updated to match.
+  assert.equal(report.fixtureSummary.valid, 2);
+  assert.equal(report.fixtureSummary.invalid, 11);
 });
 
 test('V5 agent identity coverage chain flags only completed identity layers', () => {

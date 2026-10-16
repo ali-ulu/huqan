@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "huqan.external-event.v1",
+  "agent_id": "coder-agent",
+  "run_id": "run-003",
+  "step_id": "step-007",
+  "action": "shell.executed",
+  "target": "shell:npm test",
+  "input_hash": "5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5",
+  "observed_state": "exit 0, 12 tests passed",
+  "decision": "allow",
+  "receipt_id": null
+}

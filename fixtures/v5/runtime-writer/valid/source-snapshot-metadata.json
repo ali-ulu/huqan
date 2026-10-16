@@ -1,0 +1,35 @@
+{
+  "caseId": "v5-runtime-writer-valid-source-snapshot-metadata",
+  "description": "Valid writer input carrying an immutable source snapshot binding. The writer carries the snapshot as-is under the single writable shape (receipt.sourceSnapshot): no re-hashing, no re-versioning, no field correction. Carried or rejected, fail-closed. Contract: docs/v5/v5-immutable-source-snapshot-contract.md (Section 2).",
+  "writerInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "stp-fixture-valid-snapshot-001",
+    "issuer": {
+      "agentId": "agent-fixture-writer-001",
+      "workspaceId": "workspace-fixture-001"
+    },
+    "subject": {
+      "type": "source_binding",
+      "id": "source-binding-fixture-001"
+    },
+    "verdict": {
+      "status": "allow",
+      "reason": "fixture_source_snapshot_metadata_valid"
+    },
+    "sourceSnapshot": {
+      "snapshotId": "snapshot-fixture-001",
+      "snapshotVersion": "huqan.external-source-snapshot.v1",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "algorithm": "sha256"
+    },
+    "nonClaims": [
+      "no_runtime_exchange",
+      "no_a2a_transport",
+      "no_connector_enforcement"
+    ]
+  },
+  "expected": {
+    "verdict": "ACCEPT",
+    "reason_category": "valid_source_snapshot_metadata"
+  }
+}

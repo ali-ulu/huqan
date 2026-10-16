@@ -6,10 +6,7 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-aviation-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -83,9 +80,6 @@ describe('Stress Aviation Regression', () => {
     'VR is decision speed',
   ];
 
-  const runKnownFailing = process.env.AXIOM_RUN_KNOWN_FAILING_REGRESSIONS === '1';
-  const knownFailingIt = runKnownFailing ? it : it.skip;
-
   it('keeps aviation seed facts valid and status contract stable', () => {
     const kernel = makeKernel('aviation-smoke');
     withMutedConsole(() => {
@@ -96,12 +90,12 @@ describe('Stress Aviation Regression', () => {
 
     const result = unwrap(kernel.verify('B737 has 2 engines', { workspaceId: 'default' }));
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.strictEqual(result.status, 'dogrulandi', 'seed fact should remain verified');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.strictEqual(result.status, 'verified', 'seed fact should remain verified');
   });
 
   for (const [index, claim] of falseClaims.entries()) {
-    knownFailingIt(`TODO(v0.9-semantic-gate): aviation false claim #${index + 1} stays false-positive today: ${claim}`, () => {
+    it(`aviation false claim #${index + 1} is not verified: ${claim}`, () => {
       const kernel = makeKernel(`aviation-${index + 1}`);
       withMutedConsole(() => {
         for (const seed of seeds) {
@@ -112,15 +106,15 @@ describe('Stress Aviation Regression', () => {
       const result = unwrap(kernel.verify(claim, { workspaceId: 'default' }));
 
       assert.ok(result && typeof result === 'object', 'verify result should be an object');
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
       assert.notStrictEqual(
         result.status,
-        'dogrulandi',
+        'verified',
         `aviation false claim was incorrectly verified: ${claim}`,
       );
 
       if (result.classification !== undefined) {
-        assert.notStrictEqual(result.classification, 'dogrulandi', 'classification must not replace core status');
+        assert.notStrictEqual(result.classification, 'verified', 'classification must not replace core status');
       }
     });
   }

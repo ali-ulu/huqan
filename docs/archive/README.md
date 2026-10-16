@@ -34,15 +34,27 @@ For architecture decisions, also see the `docs/ADR-*.md` files.
   bug report, technical analysis, root review report). Most issues documented
   here were resolved by the v0.9.1 line. Kept as historical evidence of the
   bug surface and the decisions taken.
-- `archive/sandbox-v0.8/` — Sandbox runner smoke test report from the v0.8
-  cycle (35 PASS / 4 FAIL). Current sandbox behavior is covered by the test
-  suite in `test/`.
 - `archive/self-analyze-v0.8/` — One-shot kernel self-analysis snapshot from
   the v0.8 cycle. Not deterministic; do not use for runtime decisions.
 - `archive/strategy-2026/` — Strategic paths document considered for the
   v0.9.1 → v1.0 transition. The decision date has passed and the strategy
   itself is being re-evaluated for the v1.0 forward-compatibility phase. Kept
   as historical context only.
+
+## Tarihsel sürüm doğrulama planları
+
+2026-10-09 tarihinde arşivlenen aşağıdaki belgeler güncel sürüm doğrulama
+prosedürü değildir. Eski içerikleri, arşiv notu dışında korunmuştur:
+
+- [v0.8 RC smoke](release-smoke-2026-10-09/v0.8-rc-smoke.md): v0.8.0'a özgü
+  sürüm ve test beklentileri içerir; atıf yaptığı paket formatı testi artık yoktur.
+- [V3 Core smoke checklist](release-smoke-2026-10-09/v3-smoke-checklist.md):
+  V3 kapsamını ve o dönemdeki MCP kurulum durumunu kaydeder.
+- [Memory Core smoke](release-smoke-2026-10-09/memory-core-smoke.md):
+  v0.9.1 doğrulama planını ve tarihsel 682+ senaryo beklentisini kaydeder.
+
+Güncel yerel kurulum ve test adımları için [CONTRIBUTING.md](../../CONTRIBUTING.md)
+belgesine bakın.
 
 ## Templates
 

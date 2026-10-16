@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0759ae">
+<title>HUQAN Control Room</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
+<link rel="icon" href="/icons/huqan-192.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/control-room/css/control-room.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="#e3b46c" stroke-opacity=".45"/><circle cx="16" cy="16" r="9" fill="none" stroke="#e3b46c" stroke-width="3.2"/><path d="M12.2 15.8l3.1 3 6.6-7.2" fill="none" stroke="#f1d6a4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 20.5l4.5 5" stroke="#e3b46c" stroke-width="3.2" stroke-linecap="round"/></svg>
+      <div><b>HUQAN</b><small>Control Room</small></div>
+    </div>
+    <nav class="nav" aria-label="Sections">
+      <button data-go="overview" aria-current="page"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</button>
+      <button data-go="activity"><svg viewBox="0 0 16 16"><path d="M1.5 8h3l2-5 3 10 2-5h3"/></svg>Agent activity</button>
+      <button data-go="approvals"><svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></svg>Approvals<span class="count num" id="nav-approvals-count" hidden>0</span></button>
+      <button data-go="receipts"><svg viewBox="0 0 16 16"><path d="M4 1.5h8v13l-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M6 5.5h4M6 8.5h4"/></svg>Receipts</button>
+      <button data-go="agents"><svg viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14.5c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5"/></svg>Agents</button>
+      <button data-go="errors" data-role-hide="approver viewer"><svg viewBox="0 0 16 16"><path d="M8 1.8l6.5 12H1.5z"/><path d="M8 6.5v3.2M8 11.8v.2"/></svg>Errors<span class="count warn num" id="nav-errors-count" hidden>0</span></button>
+      <button data-go="customize"><svg viewBox="0 0 16 16"><path d="M2 4h7M12 4h2M2 12h2M7 12h7"/><circle cx="10.5" cy="4" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/></svg>Customize</button>
+      <button data-go="soon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.5 1.5"/></svg>Coming soon</button>
+    </nav>
+    <div class="grow"></div>
+    <div class="side-foot">
+      <div class="live" id="gate-live"><i></i><span>Checking gate&hellip;</span></div>
+      <form id="session-form" class="session-form" hidden>
+        <span class="session-note" id="session-note"></span>
+        <label for="session-key">API key<input type="password" id="session-key" autocomplete="off" placeholder="HUQAN API key"></label>
+        <label for="session-ws">Workspace<input type="text" id="session-ws" value="default"></label>
+        <div class="session-actions"><button class="btn" type="submit">Connect</button></div>
+      </form>
+      <button class="side-edit" data-go="customize">Drag items to reorder, or edit here</button>
+      <label for="role">View as
+        <select id="role">
+          <option value="admin">Admin</option>
+          <option value="approver">Approver</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </label>
+      <label for="theme">Theme
+        <select id="theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </div>
+  </aside>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section class="view" data-view="overview">
+      <div class="topbar">
+        <div><h1>Is HUQAN doing its job?</h1><p>Everything your agents tried in the selected window, what HUQAN decided, and what is waiting on you.</p></div>
+        <div class="tools">
+          <div class="seg" role="group" aria-label="Time window" id="ov-window">
+            <button aria-pressed="false" data-win="3600000">1h</button>
+            <button aria-pressed="true" data-win="86400000">24h</button>
+            <button aria-pressed="false" data-win="604800000">7d</button>
+          </div>
+        </div>
+      </div>
+      <div class="ibanner" id="ibanner" hidden role="alert"></div>
+      <div class="status" id="ov-status" hidden></div>
+
+      <article class="panel first-run" id="first-run" aria-labelledby="first-run-title" data-complete="false">
+        <div class="panel-head">
+          <div>
+            <h2 id="first-run-title">First run</h2>
+            <span class="hint">Three live outcomes, not three clicks.</span>
+          </div>
+          <button class="btn" id="first-run-check" type="button">Check again</button>
+        </div>
+        <ol class="first-run-steps">
+          <li data-first-run-step="connect">
+            <span class="first-run-mark" aria-hidden="true">1</span>
+            <div><b>Connect this workspace</b><span>HUQAN must accept a real authenticated activity read.</span></div>
+            <span class="chip c-muted" data-first-run-state>Waiting</span>
+            <button class="link" id="first-run-connect" type="button">Connect</button>
+          </li>
+          <li data-first-run-step="decision">
+            <span class="first-run-mark" aria-hidden="true">2</span>
+            <div><b>Observe a real decision</b><span>A recorded allow, review or block with a receipt must exist.</span></div>
+            <span class="chip c-muted" data-first-run-state>Waiting</span>
+            <button class="link" type="button" data-go="activity">Open activity</button>
+          </li>
+          <li data-first-run-step="receipt">
+            <span class="first-run-mark" aria-hidden="true">3</span>
+            <div><b>Open its receipt</b><span>Opening the action only counts after the live receipt endpoint verifies it.</span></div>
+            <span class="chip c-muted" data-first-run-state>Waiting</span>
+            <button class="link" type="button" data-go="activity">Find the action</button>
+          </li>
+        </ol>
+        <p class="first-run-summary" id="first-run-summary" role="status" aria-live="polite"></p>
+      </article>
+
+      <div class="grid" id="ov-grid">
+        <article class="panel verdict span-12" data-widget="verdict">
+          <div class="verdict-top">
+            <span class="big num" id="ov-total">&mdash;</span>
+            <span class="lbl" id="ov-total-label">agent actions watched</span>
+            <div class="ring-wrap">
+              <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+                <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--pass)"/></linearGradient></defs>
+                <circle cx="32" cy="32" r="26" class="ring-bg"/>
+                <circle cx="32" cy="32" r="26" class="ring-fg" id="ring-fg"/>
+              </svg>
+              <div><b class="num" id="ov-ring-pct">&ndash;</b><span>decided by policy,<br>no person needed</span></div>
+            </div>
+          </div>
+          <div class="vbar" aria-hidden="true" id="ov-vbar">
+            <span data-bar="pass" hidden></span>
+            <span data-bar="approved" hidden></span>
+            <span data-bar="auto" hidden></span>
+            <span data-bar="review" hidden></span>
+            <span data-bar="block" hidden></span>
+          </div>
+          <div class="vlegend" id="ov-vlegend"></div>
+          <p class="counting-since" id="ov-since"></p>
+        </article>
+
+        <article class="panel chart span-7" data-widget="trend">
+          <div class="panel-head"><h2>Last 7 days</h2><span class="hint">actions per day, by decision</span></div>
+          <div id="ov-chart"></div>
+        </article>
+
+        <article class="panel span-5" data-widget="approvals">
+          <div class="panel-head"><h2>Waiting on you</h2><button class="link" data-go="approvals">All approvals</button></div>
+          <div class="rows" id="ov-approvals"><div class="empty">Loading.</div></div>
+        </article>
+
+        <article class="panel span-5" data-widget="agents">
+          <div class="panel-head"><h2>Connected agents</h2><button class="link" data-go="agents">Manage</button></div>
+          <div class="rows" id="ov-agents"><div class="empty">Loading.</div></div>
+        </article>
+
+        <article class="panel span-7" data-widget="recent">
+          <div class="panel-head"><h2>Just now</h2><button class="link" data-go="activity">Full activity</button></div>
+          <div class="rows" id="ov-recent"><div class="empty">Loading.</div></div>
+        </article>
+
+        <article class="panel span-12 health" data-widget="health">
+          <div class="health-text"><span class="chip c-pass" id="ov-health-chip">No system errors</span><span>HUQAN's own problems are kept off this page so they never read as agent decisions.</span></div>
+          <button class="btn" data-go="errors" data-role-hide="approver viewer">Open Errors</button>
+        </article>
+      </div>
+    </section>
+
+    <!-- ACTIVITY -->
+    <section class="view" data-view="activity" hidden>
+      <div class="topbar"><div><h1>Agent activity</h1><p>Every action an agent tried, read from the workbench activity log. Select a row for the full receipt.</p></div><button class="btn" id="act-refresh">&#8635; Refresh</button></div>
+      <div class="filters">
+        <label class="sr" for="act-q" hidden>Search</label>
+        <input id="act-q" type="search" placeholder="Search actions, tools, receipt IDs, actors">
+        <select id="act-agent" aria-label="Agent"><option value="">All agents</option></select>
+        <select id="act-tool" aria-label="Tool"><option value="">All tools</option></select>
+        <select id="act-verdict" aria-label="Decision">
+          <option value="">All decisions</option>
+          <option value="allow">Passed</option>
+          <option value="review">Waiting for review</option>
+          <option value="block">Blocked</option>
+        </select>
+        <button class="btn" id="act-save" type="button">Save view</button>
+        <span class="result num" id="act-count"></span>
+      </div>
+      <div class="status" id="act-status"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Actor</th><th>Tool</th><th>What it tried</th><th>Decision</th><th>Receipt</th></tr></thead>
+          <tbody id="act-body"></tbody>
+        </table>
+      </div>
+      <button class="btn" id="act-more" hidden>Load more</button>
+    </section>
+
+    <!-- APPROVALS -->
+    <section class="view" data-view="approvals" hidden>
+      <div class="topbar">
+        <div><h1>Approvals</h1><p>Actions HUQAN paused for a person. Approving lets the action run; rejecting stops it for good.</p></div>
+        <button class="btn" id="appr-refresh">&#8635; Refresh</button>
+      </div>
+      <p class="note-role" id="appr-decided-note">Decisions you make here are real and sent to the approval endpoint. "Decided" below only lists approvals resolved in this browser session &mdash; the runtime does not yet expose a full history of past decisions.</p>
+      <div class="seg" role="group" aria-label="Show" id="appr-tabs">
+        <button aria-pressed="true" data-qfilter="open">Open</button>
+        <button aria-pressed="false" data-qfilter="done">Decided this session</button>
+      </div>
+      <div class="status" id="appr-status"></div>
+      <div class="queue" id="appr-queue"></div>
+    </section>
+
+    <!-- RECEIPTS -->
+    <section class="view" data-view="receipts" hidden>
+      <div class="topbar"><div><h1>Trust Receipts</h1><p>The record behind every decision. "Unverifiable" is shown separately from "verified" on purpose: a receipt that can't be checked is never counted as a pass.</p></div><button class="btn" id="rcpt-refresh">&#8635; Refresh</button></div>
+      <div class="grid" style="margin-bottom:16px">
+        <div class="panel span-4"><span class="chip c-pass">Verified</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-verified">0</b><span>hash chain checks out</span></div></div>
+        <div class="panel span-4"><span class="chip c-review">Awaiting approval</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-pending">0</b><span>sealed once someone decides</span></div></div>
+        <div class="panel span-4"><span class="chip c-err">Unverifiable</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-bad">0</b><span>chain broken</span></div></div>
+      </div>
+      <div class="filters">
+        <select id="rcpt-filter" aria-label="Filter">
+          <option value="">All</option>
+          <option value="verified">Verified</option>
+          <option value="pending">Awaiting approval</option>
+          <option value="unverifiable">Unverifiable</option>
+          <option value="checking">Checking&hellip;</option>
+        </select>
+        <span class="result num" id="rcpt-count"></span>
+      </div>
+      <div class="status" id="rcpt-status"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Receipt</th><th>Action</th><th>Decision</th><th>Actor</th><th>State</th></tr></thead>
+          <tbody id="rcpt-body"></tbody>
+        </table>
+      </div>
+      <button class="btn" id="rcpt-more" hidden>Load more</button>
+    </section>
+
+    <!-- AGENTS -->
+    <section class="view" data-view="agents" hidden>
+      <div class="topbar"><div><h1>Agents</h1><p>HUQAN has no agent registry or heartbeat today. This is a best-effort view: every distinct actor seen in recent gate decisions, and when it was last seen. An actor absent here may simply not have made a request recently.</p></div><button class="btn" id="agents-refresh">&#8635; Refresh</button></div>
+      <div class="status" id="agents-status"></div>
+      <div class="agents" id="agents-list"></div>
+    </section>
+
+    <!-- ERRORS -->
+    <section class="view" data-view="errors" hidden>
+      <div class="topbar"><div><h1>Errors</h1><p>Problems with HUQAN itself: connections, storage, receipt checks. Kept apart from agent decisions.</p></div></div>
+      <div class="rows panel" id="errors"></div>
+      <div class="panel integrity">
+        <div class="panel-head"><h2>Emergency-stop integrity</h2><span class="hint">Operator only &middot; one check per capability</span></div>
+        <div class="integrity-form">
+          <input type="password" id="ib-cap" autocomplete="off" placeholder="Operator capability" aria-label="Operator capability for a single integrity check">
+          <button class="btn" id="ib-check" type="button">Check integrity</button>
+        </div>
+      </div>
+      <a class="side-edit" id="bug-report-link" href="https://github.com/ali-ulu/huqan/issues/new" target="_blank" rel="noopener">Report a bug</a>
+    </section>
+
+    <!-- CUSTOMIZE -->
+    <section class="view" data-view="customize" hidden>
+      <div class="topbar"><div><h1>Customize</h1><p>Put things in the order you work. Drag a row or use the arrows; untick to hide. Saved in this browser only.</p></div><button class="btn" id="reset-layout" type="button">Reset to default</button></div>
+      <div class="grid">
+        <div class="panel span-6"><div class="panel-head"><h2>Sidebar</h2><span class="hint">You can also drag items in the sidebar itself</span></div><ul class="order" id="order-nav"></ul></div>
+        <div class="panel span-6"><div class="panel-head"><h2>Overview</h2><span class="hint">Top to bottom</span></div><ul class="order" id="order-widgets"></ul></div>
+      </div>
+      <h2 class="saved-head">Saved views</h2>
+      <div class="rows panel" id="saved"></div>
+    </section>
+
+    <!-- SOON -->
+    <section class="view" data-view="soon" hidden>
+      <div class="topbar"><div><h1>Coming soon</h1><p>Planned, not built. Listed here so they never appear as locked panels on the pages you use.</p></div></div>
+      <div class="roadmap">
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Roles (Admin / Approver / Viewer)</h3><p>Needs an authorization model before approve buttons can be role-gated for real.</p></div>
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Chat notifications</h3><p>Slack, Telegram, Microsoft Teams and email adapters behind the existing signed webhook boundary.</p></div>
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Approve from chat</h3><p>Decide on a paused action without opening the Control Room. Requires an authenticated, signed callback first.</p></div>
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Per-policy auto-approve</h3><p>Switch human approval off per policy, with the lock enforced by the runtime and the switch itself producing a receipt.</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Action detail" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/control-room/js/control-room-data.js"></script>
+<script src="/control-room/js/control-room-app.js"></script>
+<script src="/control-room/js/control-room-overview.js"></script>
+<script src="/control-room/js/control-room-activity.js"></script>
+<script src="/control-room/js/control-room-approvals.js"></script>
+<script src="/control-room/js/control-room-receipts.js"></script>
+<script src="/control-room/js/control-room-agents.js"></script>
+</body></html>

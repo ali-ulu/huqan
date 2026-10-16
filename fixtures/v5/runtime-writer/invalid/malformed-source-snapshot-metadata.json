@@ -1,0 +1,35 @@
+{
+  "caseId": "v5-runtime-writer-invalid-malformed-source-snapshot-metadata",
+  "description": "Writer input with a malformed immutable source snapshot: the claimed hash is not a valid sha256 hex digest. The snapshot is rejected whole at write time (carry or reject — no re-hashing, no re-versioning, no field correction, no stored correction). Absent input stays absent. Contract: docs/v5/v5-immutable-source-snapshot-contract.md (Section 2).",
+  "writerInput": {
+    "schemaVersion": "v5.shared_trust_package.writer_input.v1",
+    "packageId": "stp-fixture-invalid-snapshot-001",
+    "issuer": {
+      "agentId": "agent-fixture-writer-001",
+      "workspaceId": "workspace-fixture-001"
+    },
+    "subject": {
+      "type": "source_binding",
+      "id": "source-binding-fixture-002"
+    },
+    "verdict": {
+      "status": "allow",
+      "reason": "fixture_source_snapshot_metadata_invalid"
+    },
+    "sourceSnapshot": {
+      "snapshotId": "snapshot-fixture-002",
+      "snapshotVersion": "huqan.external-source-snapshot.v1",
+      "hash": "not-a-valid-hex-digest",
+      "algorithm": "sha256"
+    },
+    "nonClaims": [
+      "no_runtime_exchange",
+      "no_a2a_transport",
+      "no_connector_enforcement"
+    ]
+  },
+  "expected": {
+    "verdict": "BLOCK",
+    "reason_category": "malformed_source_snapshot"
+  }
+}

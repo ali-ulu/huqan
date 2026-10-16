@@ -11,7 +11,7 @@
  *
  *   F-006: MCP approval requests must not live in a process-local array.
  *          Pending approvals are stored in the existing SQLite tool_approvals
- *          queue and axiom.approve provides an approve/reject execution path.
+ *          queue and huqan.approve provides an approve/reject execution path.
  *
  * This contract intentionally does NOT require kernel._commitMutation or a
  * Universal Mutation Boundary. Approved MCP learn execution must go through the
@@ -121,7 +121,7 @@ describe('FAZ2-PR5 contract: F-005 MCP shared state', () => {
       const mcpKernel = createKernelFromEnv();
       const verify = mcpKernel.verify(text);
       assert.equal(verify.ok, true);
-      assert.equal(verify.data.status, 'dogrulandi');
+      assert.equal(verify.data.status, 'verified');
       mcpKernel.graph.close?.();
     });
   });
@@ -133,30 +133,152 @@ describe('FAZ2-PR5 contract: F-006 MCP approval persistence and execution path',
     assert.equal(src.includes('const _pendingApprovals = []'), false);
   });
 
-  it('axiom.approve is exposed as the MCP approval execution handler', () => {
-    const approveTool = TOOL_SCHEMAS.find((tool) => tool.name === 'axiom.approve');
-    assert.ok(approveTool, 'axiom.approve must be present in tools/list schema');
+  it('huqan.approve is exposed as the MCP approval execution handler', () => {
+    const approveTool = TOOL_SCHEMAS.find((tool) => tool.name === 'huqan.approve');
+    assert.ok(approveTool, 'huqan.approve must be present in tools/list schema');
     assert.equal(approveTool.annotations.idempotentHint, true);
+  });
+
+  it('keeps approval authority out of model discovery and requires a separate operator capability (#723)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer({ operatorToken: 'operator-secret' });
+      const listed = server.handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+      const names = listed.result.tools.map((tool) => tool.name);
+      assert.equal(names.includes('huqan.approvals'), false);
+      assert.equal(names.includes('huqan.approve'), false);
+
+      const queued = callTool(server.kernel, {
+        name: 'huqan.learn',
+        arguments: { text: 'faz2 operator authority sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'operator-secret' });
+      assert.equal(queued.ok, false);
+      assert.equal(queued.approval.status, 'pending');
+
+      const denied = callTool(server.kernel, {
+        name: 'huqan.approve',
+        operatorToken: 'wrong-secret',
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'operator-secret' });
+      assert.equal(denied.ok, false);
+      assert.equal(denied.error.code, 'OPERATOR_AUTH_REQUIRED');
+      assert.equal(server.approvalStore.getToolApprovalById(queued.approval.id).status, 'pending');
+
+      const approved = callTool(server.kernel, {
+        name: 'huqan.approve',
+        operatorToken: 'operator-secret',
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'operator-secret' });
+      assert.equal(approved.ok, true);
+      assert.equal(approved.data.executed, true);
+
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
   });
 
   it('approving a pending MCP learn uses approved admission instead of a bypass', () => {
     withTempAxiomEnv(() => {
       const server = createServer();
       const queued = callTool(server.kernel, {
-        name: 'axiom.learn',
+        name: 'huqan.learn',
         arguments: { text: 'faz2 contract approved mcp sentinel hayvandir' },
-      }, { approvalStore: server.approvalStore });
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
       assert.equal(queued.ok, false);
       assert.equal(queued.approval.status, 'pending');
 
       const approved = callTool(server.kernel, {
-        name: 'axiom.approve',
-        arguments: { approvalId: queued.approval.id, decision: 'approved' },
-      }, { approvalStore: server.approvalStore });
+        name: 'huqan.approve',
+        operatorToken: 'test-operator',
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
       assert.equal(approved.ok, true);
       assert.equal(approved.data.executed, true);
       assert.equal(approved.data.result.data.admission.outcome, 'allow');
       assert.equal(approved.data.result.data.admission.approvalStatus, 'approved');
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
+
+  it('rejects an out-of-enum decision fail-closed and leaves the pending approval untouched (#615)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'huqan.learn',
+        arguments: { text: 'faz2 contract invalid decision mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+      assert.equal(queued.ok, false);
+      assert.equal(queued.approval.status, 'pending');
+
+      const invalid = callTool(server.kernel, {
+        name: 'huqan.approve',
+        operatorToken: 'test-operator',
+        // Exactly the raw JSON-RPC repro from #615: a client that skips
+        // schema validation and sends an out-of-enum decision.
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'banana', reason: 'invalid-decision-repro' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+      assert.equal(invalid.ok, false);
+      assert.equal(invalid.error.code, 'INVALID_APPROVAL_DECISION');
+      assert.equal(invalid.data, null);
+
+      // Pending state must be completely unchanged -- not claimed, not
+      // resolved, not executed.
+      const stillPending = callTool(server.kernel, {
+        name: 'huqan.approve',
+        operatorToken: 'test-operator',
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision: 'approved' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+      assert.equal(stillPending.ok, true);
+      assert.equal(stillPending.data.executed, true);
+      assert.equal(stillPending.data.idempotent, false);
+
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
+
+  it('rejects an empty or whitespace-only decision fail-closed (#615)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'huqan.learn',
+        arguments: { text: 'faz2 contract whitespace decision mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+      assert.equal(queued.ok, false);
+
+      for (const decision of ['', '   ']) {
+        const result = callTool(server.kernel, {
+          name: 'huqan.approve',
+        operatorToken: 'test-operator',
+          arguments: { approvalId: queued.approval.id, workspaceId: 'default', decision },
+        }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+        assert.equal(result.ok, false);
+        assert.equal(result.error.code, 'INVALID_APPROVAL_DECISION');
+      }
+
+      server.kernel.graph.close?.();
+      server.approvalStore?.close?.();
+    });
+  });
+
+  it('still defaults a genuinely absent decision to approved (#615)', () => {
+    withTempAxiomEnv(() => {
+      const server = createServer();
+      const queued = callTool(server.kernel, {
+        name: 'huqan.learn',
+        arguments: { text: 'faz2 contract absent decision mcp sentinel hayvandir' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+      assert.equal(queued.ok, false);
+
+      const result = callTool(server.kernel, {
+        name: 'huqan.approve',
+        operatorToken: 'test-operator',
+        arguments: { approvalId: queued.approval.id, workspaceId: 'default' },
+      }, { approvalStore: server.approvalStore, operatorToken: 'test-operator' });
+      assert.equal(result.ok, true);
+      assert.equal(result.data.decision, 'approved');
+      assert.equal(result.data.executed, true);
+
       server.kernel.graph.close?.();
       server.approvalStore?.close?.();
     });

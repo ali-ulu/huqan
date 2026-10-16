@@ -9,6 +9,7 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -22,9 +23,22 @@ const {
 } = require('../lib/receipt/receipt-read-index');
 const { validateReceiptChain } = require('../lib/receipt/receipt-chain');
 const { verifyExportedBundle } = require('../lib/receipt/receipt-export');
+const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 
-function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+function makeKernel(t, useSQLite = false) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-receipt-index-'));
+  const kernel = new Kernel({
+    noLoad: true,
+    useSQLite,
+    loadPlugins: false,
+    memoryPath: path.join(tempDir, 'memory.json'),
+    dbPath: useSQLite ? path.join(tempDir, 'memory.db') : null,
+  });
+  t?.after(() => {
+    try { kernel.graph.close?.(); } catch (_) {}
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+  return kernel;
 }
 
 function approvedAdmissionOpts(overrides = {}) {
@@ -53,9 +67,9 @@ function learnApproved(kernel, text, overrides = {}) {
   return result;
 }
 
-describe('V4-PR2.6: receipt materialization/read index', () => {
-  it('real admission path produces and materializes a full receipt', () => {
-    const kernel = makeKernel();
+describe('V4-PR2.6: receipt materialization/read index', (t) => {
+  it('real admission path produces and materializes a full receipt', (t) => {
+    const kernel = makeKernel(t);
     const result = learnApproved(kernel, 'kedi hayvandir', { provenanceId: 'prov-materialized-1' });
     const receipt = result.data.admission.receipt;
 
@@ -66,8 +80,8 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.deepEqual(materialized.receipt, receipt, 'materialized receipt must be the original full receipt');
   });
 
-  it('receiptId resolves to the same full receipt, not a reconstructed query receipt', () => {
-    const kernel = makeKernel();
+  it('receiptId resolves to the same full receipt, not a reconstructed query receipt', (t) => {
+    const kernel = makeKernel(t);
     const result = learnApproved(kernel, 'kopek hayvandir', { provenanceId: 'prov-read-1' });
     const receipt = result.data.admission.receipt;
 
@@ -81,8 +95,26 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.equal(read.chainedReceipt.receiptId, receipt.receiptId);
   });
 
-  it('unknown receiptId returns not_found and never creates a synthetic receipt', () => {
-    const kernel = makeKernel();
+  it('materializes the audit source once when reading a receipt and its chain', (t) => {
+    const kernel = makeKernel(t);
+    const result = learnApproved(kernel, 'aslan hayvandir', { provenanceId: 'prov-single-scan-1' });
+    const receiptId = result.data.admission.receipt.receiptId;
+    const originalGetAuditEvents = kernel.graph.getAuditEvents.bind(kernel.graph);
+    let scans = 0;
+    kernel.graph.getAuditEvents = (filters) => {
+      scans += 1;
+      return originalGetAuditEvents(filters);
+    };
+
+    const read = readReceiptById(kernel.graph, receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, true);
+    assert.equal(read.chainStatus, 'valid');
+    assert.equal(scans, 1, 'receipt lookup and chain validation must share one materialization scan');
+  });
+
+  it('unknown receiptId returns not_found and never creates a synthetic receipt', (t) => {
+    const kernel = makeKernel(t);
     learnApproved(kernel, 'kus hayvandir', { provenanceId: 'prov-unknown-1' });
     const before = listMaterializedReceiptEntries(kernel.graph, { workspaceId: 'default' }).length;
 
@@ -95,8 +127,8 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.equal(after, before, 'unknown reads must not materialize a placeholder receipt');
   });
 
-  it('missing or empty receiptId fails closed without generating a new id', () => {
-    const kernel = makeKernel();
+  it('missing or empty receiptId fails closed without generating a new id', (t) => {
+    const kernel = makeKernel(t);
 
     for (const candidate of ['', '   ', null, undefined]) {
       const read = readReceiptById(kernel.graph, candidate, { workspaceId: 'default' });
@@ -107,8 +139,8 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     }
   });
 
-  it('returned receipts are copies and cannot mutate the stored receipt', () => {
-    const kernel = makeKernel();
+  it('returned receipts are copies and cannot mutate the stored receipt', (t) => {
+    const kernel = makeKernel(t);
     const result = learnApproved(kernel, 'kaplan hayvandir', { provenanceId: 'prov-clone-1' });
     const receiptId = result.data.admission.receipt.receiptId;
 
@@ -120,7 +152,7 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.deepEqual(secondRead.receipt, result.data.admission.receipt);
   });
 
-  it('incomplete materialized receipt is not treated as valid', () => {
+  it('incomplete materialized receipt is not treated as valid', (t) => {
     const incompleteReceipt = {
       receiptId: 'receipt-incomplete',
       decision: 'allow',
@@ -144,8 +176,62 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.match(read.error.message, /receipt\.receiptKind|receipt\.admissionId/);
   });
 
-  it('chain validation and export operate over stored real receipts', () => {
-    const kernel = makeKernel();
+  it('does not let an approval-flow audit receipt poison the canonical receipt chain', (t) => {
+    const kernel = makeKernel(t);
+    const result = learnApproved(kernel, 'viewer kanonik receipt okur', { provenanceId: 'prov-action-receipt-skip' });
+    const canonicalReceipt = result.data.admission.receipt;
+
+    kernel.graph.appendAuditEvent({
+      eventType: 'APPROVAL_APPROVED',
+      targetType: 'ingest_approval',
+      targetId: 'approval-action-receipt-skip',
+      details: {
+        receipt: {
+          receiptId: 'apr-receipt-action-skip',
+          receiptKind: 'reviewed_action_receipt',
+          decision: 'approved',
+          status: 'reviewed',
+          approvalId: 'approval-action-receipt-skip',
+          workspaceId: 'default',
+        },
+      },
+    }, { workspaceId: 'default' });
+
+    const read = readReceiptById(kernel.graph, canonicalReceipt.receiptId, { workspaceId: 'default' });
+    assert.equal(read.ok, true);
+    assert.equal(read.status, 'found');
+    assert.equal(read.chainStatus, 'valid');
+    assert.equal(readReceiptById(kernel.graph, 'apr-receipt-action-skip', { workspaceId: 'default' }).status, 'not_found');
+  });
+
+  it('reads a durable Trust Evidence Ledger receipt from its journaled chain', (t) => {
+    const kernel = makeKernel(t, true);
+    const ledger = createTrustEvidenceLedger({ graph: kernel.graph });
+    const appended = ledger.append({
+      operationId: 'trust-evidence:receipt-read-index',
+      event: {
+        workspaceId: 'default',
+        decision: 'allow',
+        reason: 'approved ingest audit',
+        actionFingerprint: 'sha256:receipt-read-index',
+        createdAt: '2026-08-31T00:00:00.000Z',
+      },
+      mutate: () => kernel.graph.appendAuditEvent({
+        eventType: 'APPROVAL_APPROVED', targetType: 'ingest_approval', targetId: 'receipt-read-index', details: {},
+      }, { workspaceId: 'default' }),
+    });
+
+    const receiptId = appended.receipt.receiptId;
+    const read = readReceiptById(kernel.graph, receiptId, { workspaceId: 'default' });
+    assert.equal(read.ok, true);
+    assert.equal(read.status, 'found');
+    assert.equal(read.chainStatus, 'valid');
+    assert.equal(read.canonicalPayload.receiptKind, 'trust_evidence');
+    assert.equal(read.chainedReceipt.receiptId, receiptId);
+  });
+
+  it('chain validation and export operate over stored real receipts', (t) => {
+    const kernel = makeKernel(t);
     learnApproved(kernel, 'balik hayvandir', { provenanceId: 'prov-chain-1' });
     learnApproved(kernel, 'ari hayvandir', { provenanceId: 'prov-chain-2' });
 
@@ -167,12 +253,260 @@ describe('V4-PR2.6: receipt materialization/read index', () => {
     assert.equal(verifyExportedBundle(exported.bundle).valid, true);
   });
 
-  it('does not add PR3 API or CLI surfaces', () => {
+  it('does not add PR3 API or CLI surfaces', (t) => {
     const serverSource = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
     const cliSource = fs.readFileSync(path.join(__dirname, '..', 'cli.js'), 'utf8');
 
     assert.equal(serverSource.includes('/v4/receipts'), false, 'PR2.6 must not add the PR3 API endpoint');
     assert.equal(cliSource.includes('receipt show'), false, 'PR2.6 must not add a receipt CLI command');
     assert.equal(cliSource.includes('receipt chain'), false, 'PR2.6 must not add a receipt CLI command');
+  });
+});
+
+
+describe('#1520: materialized receipts must match the durable chain anchor', () => {
+  it('JSON read rejects a missing middle receipt instead of re-chaining the suffix', (t) => {
+    const kernel = makeKernel(t);
+    const first = learnApproved(kernel, 'ilk hayvandir', { provenanceId: 'prov-anchor-json-1' });
+    const second = learnApproved(kernel, 'ikinci hayvandir', { provenanceId: 'prov-anchor-json-2' });
+    const removedId = first.data.admission.receipt.receiptId;
+    kernel.graph._auditEvents = kernel.graph._auditEvents
+      .filter((event) => event.details?.receipt?.receiptId !== removedId);
+
+    const read = readReceiptById(kernel.graph, second.data.admission.receipt.receiptId, { workspaceId: 'default' });
+    const exported = exportMaterializedReceiptBundle(kernel.graph, { workspaceId: 'default' });
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'chain_length_mismatch');
+    assert.equal(read.authoritative, false);
+    assert.equal(exported.ok, false);
+    assert.equal(exported.chainStatus.reason, 'chain_length_mismatch');
+  });
+
+  it('JSON read rejects a materialized content edit against the stored head', (t) => {
+    const kernel = makeKernel(t);
+    const first = learnApproved(kernel, 'değişmez hayvandir', { provenanceId: 'prov-anchor-json-3' });
+    const second = learnApproved(kernel, 'son hayvandir', { provenanceId: 'prov-anchor-json-4' });
+    const event = kernel.graph._auditEvents
+      .find((candidate) => candidate.details?.receipt?.receiptId === first.data.admission.receipt.receiptId);
+    event.details.receipt.reason = 'tampered after durable write';
+
+    const read = readReceiptById(kernel.graph, second.data.admission.receipt.receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'materialized_receipt_mismatch');
+    assert.equal(read.authoritative, false);
+  });
+
+  /**
+   * An audit-only receipt: recorded as a decision, never committed as a graph
+   * mutation, so it has no row in the journal. Reviews that changed nothing are
+   * the real producer -- 140 of 201 receipt-bearing audit events in one real
+   * store and 14,895 of 14,996 in another were of this shape, and requiring the
+   * two sets to be equal in size made every V4 receipt in both unreadable.
+   *
+   * Built by cloning a committed receipt onto a fresh id rather than by
+   * constructing a review receipt, because what the chain cross-check sees is
+   * only "an audit receipt with no journal row" -- the kind that produced it is
+   * not what the comparison reads. Filtering by kind would also be the wrong
+   * fix: in the larger store 165 of those review receipts *are* journaled.
+   */
+  function appendAuditOnlyReceipt(kernel, committedReceipt, receiptId) {
+    const events = kernel.graph.getAuditEvents({ workspaceId: 'default' });
+    const template = events.find((event) => (
+      event.details?.receipt?.receiptId === committedReceipt.receiptId
+    ));
+    assert.ok(template, 'a committed receipt must be in the audit trail to clone from');
+    const clone = JSON.parse(JSON.stringify(template));
+    clone.auditId = `${clone.auditId}-audit-only`;
+    clone.details.receipt.receiptId = receiptId;
+    // After the committed ones, so materialized order still matches the journal.
+    clone.timestamp = new Date(Date.parse(clone.timestamp) + 60_000).toISOString();
+    return clone;
+  }
+
+  it('an audit-only receipt does not invalidate the durable chain', (t) => {
+    const kernel = makeKernel(t, true);
+    const first = learnApproved(kernel, 'denetim ilk hayvandir', { provenanceId: 'prov-audit-only-1' });
+    const second = learnApproved(kernel, 'denetim son hayvandir', { provenanceId: 'prov-audit-only-2' });
+    const extra = appendAuditOnlyReceipt(kernel, second.data.admission.receipt, 'madm_receipt_audit_only_0001');
+    const events = [...kernel.graph.getAuditEvents({ workspaceId: 'default' }), extra];
+    const source = {
+      _db: kernel.graph._db,
+      _stmts: kernel.graph._stmts,
+      getAuditEvents: () => events,
+    };
+
+    for (const committed of [first, second]) {
+      const read = readReceiptById(source, committed.data.admission.receipt.receiptId, { workspaceId: 'default' });
+      assert.equal(read.ok, true, `${committed.data.admission.receipt.receiptId} must stay readable`);
+      assert.equal(read.status, 'found');
+      assert.equal(read.authoritative, true);
+      assert.equal(read.chainValidation.valid, true);
+    }
+  });
+
+  it('still refuses when a committed receipt is missing from the audit trail', (t) => {
+    const kernel = makeKernel(t, true);
+    const first = learnApproved(kernel, 'eksik ilk hayvandir', { provenanceId: 'prov-audit-gap-1' });
+    const second = learnApproved(kernel, 'eksik son hayvandir', { provenanceId: 'prov-audit-gap-2' });
+    // The gap found in a real store: two committed admissions whose audit events
+    // never landed. An audit-only receipt alongside it must not disguise the gap
+    // by making the projected count add back up.
+    const extra = appendAuditOnlyReceipt(kernel, second.data.admission.receipt, 'madm_receipt_audit_only_0002');
+    const events = [
+      ...kernel.graph.getAuditEvents({ workspaceId: 'default' })
+        .filter((event) => event.details?.receipt?.receiptId !== first.data.admission.receipt.receiptId),
+      extra,
+    ];
+    const source = {
+      _db: kernel.graph._db,
+      _stmts: kernel.graph._stmts,
+      getAuditEvents: () => events,
+    };
+
+    const read = readReceiptById(source, second.data.admission.receipt.receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'chain_length_mismatch');
+    assert.equal(read.chainValidation.observedCount, 1);
+    assert.equal(read.chainValidation.expectedCount, 2);
+    assert.equal(read.chainValidation.auditOnlyCount, 1);
+    assert.equal(read.authoritative, false);
+  });
+
+  it('SQLite read uses mutation_receipts as the durable anchor', (t) => {
+    const kernel = makeKernel(t, true);
+    const first = learnApproved(kernel, 'sqlite ilk hayvandir', { provenanceId: 'prov-anchor-sqlite-1' });
+    const second = learnApproved(kernel, 'sqlite son hayvandir', { provenanceId: 'prov-anchor-sqlite-2' });
+    const events = kernel.graph.getAuditEvents({ workspaceId: 'default' });
+    const source = {
+      _db: kernel.graph._db,
+      _stmts: kernel.graph._stmts,
+      getAuditEvents: () => events.filter((event) => (
+        event.details?.receipt?.receiptId !== first.data.admission.receipt.receiptId
+      )),
+    };
+
+    const read = readReceiptById(source, second.data.admission.receipt.receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'chain_length_mismatch');
+    assert.equal(read.authoritative, false);
+  });
+});
+
+  it('JSON read rejects reordered materialized events against the stored sequence', (t) => {
+    const kernel = makeKernel(t);
+    const first = learnApproved(kernel, 'sıra ilk hayvandir', { provenanceId: 'prov-anchor-json-5' });
+    const second = learnApproved(kernel, 'sıra son hayvandir', { provenanceId: 'prov-anchor-json-6' });
+    const firstEvent = kernel.graph._auditEvents
+      .find((event) => event.details?.receipt?.receiptId === first.data.admission.receipt.receiptId);
+    const secondEvent = kernel.graph._auditEvents
+      .find((event) => event.details?.receipt?.receiptId === second.data.admission.receipt.receiptId);
+    [firstEvent.timestamp, secondEvent.timestamp] = [secondEvent.timestamp, firstEvent.timestamp];
+
+    const read = readReceiptById(kernel.graph, second.data.admission.receipt.receiptId, { workspaceId: 'default' });
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'receipt_order_mismatch');
+    assert.equal(read.authoritative, false);
+  });
+
+describe('#2120: the durable chain is adopted only when its head matches the recorded tip', () => {
+  // A journal whose chain tip was rewritten, or dropped, must fail closed by name.
+  function readWithRewrittenChainTips(t, rewriteTip) {
+    const kernel = makeKernel(t);
+    const learned = learnApproved(kernel, 'uç kaydı hayvandir', { provenanceId: 'prov-anchor-json-tip' });
+    const readJournal = kernel.graph.readJsonJournal.bind(kernel.graph);
+    kernel.graph.readJsonJournal = () => {
+      const journal = structuredClone(readJournal());
+      const recorded = Object.entries(journal.chainTips || {});
+      assert.ok(recorded.length > 0, 'the fixture must record a chain tip');
+      const chainTips = {};
+      for (const [key, tip] of recorded) {
+        const rewritten = rewriteTip(tip);
+        if (rewritten !== undefined) chainTips[key] = rewritten;
+      }
+      return { ...journal, chainTips };
+    };
+    return readReceiptById(kernel.graph, learned.data.admission.receipt.receiptId, { workspaceId: 'default' });
+  }
+
+  it('the untouched journal reads as found', (t) => {
+    const read = readWithRewrittenChainTips(t, (tip) => tip);
+    assert.equal(read.ok, true, JSON.stringify(read.chainValidation));
+    assert.equal(read.status, 'found');
+  });
+
+  it('JSON read rejects a durable chain whose head does not match the recorded tip', (t) => {
+    const read = readWithRewrittenChainTips(t, () => 'f'.repeat(64));
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'chain_tip_mismatch');
+    assert.equal(read.chainValidation.expectedTip, 'f'.repeat(64));
+    assert.equal(read.authoritative, false);
+  });
+
+  it('JSON read rejects a durable chain with no recorded tip', (t) => {
+    const read = readWithRewrittenChainTips(t, () => undefined);
+
+    assert.equal(read.ok, false);
+    assert.equal(read.status, 'chain_invalid');
+    assert.equal(read.chainValidation.reason, 'stored_chain_tip_missing');
+    assert.equal(read.authoritative, false);
+  });
+});
+
+describe('#1529: an empty durable store is a valid empty chain', () => {
+  /**
+   * `readStoredChainAnchorFor` refused the anchor when it could not infer a
+   * receipt family, and `inferReceiptFamily` has nothing to infer from an empty
+   * projection. Every durable source therefore reported
+   * `stored_chain_anchor_unavailable` on a fresh install -- and the
+   * `expectedCount === 0 && chain.length === 0` branch meant to accept it was
+   * unreachable. Both backends must read a genuinely empty store as valid.
+   */
+  it('a fresh JSON store reads as a valid empty chain', (t) => {
+    const kernel = makeKernel(t);
+
+    const chain = buildMaterializedReceiptChain(kernel.graph, { workspaceId: 'default' });
+    assert.equal(chain.ok, true, JSON.stringify(chain.chainStatus));
+    assert.equal(chain.chain.length, 0);
+    assert.equal(chain.chainStatus.valid, true);
+
+    const exported = exportMaterializedReceiptBundle(kernel.graph, { workspaceId: 'default' });
+    assert.equal(exported.ok, true, JSON.stringify(exported.error));
+    assert.equal(exported.status, 'exported');
+    assert.equal(exported.bundle.receiptCount, 0);
+  });
+
+  it('a fresh SQLite store reads as a valid empty chain', (t) => {
+    const kernel = makeKernel(t, true);
+
+    const chain = buildMaterializedReceiptChain(kernel.graph, { workspaceId: 'default' });
+    assert.equal(chain.ok, true, JSON.stringify(chain.chainStatus));
+    assert.equal(chain.chain.length, 0);
+  });
+
+  it('an empty projection over a non-empty durable store still fails closed', (t) => {
+    const kernel = makeKernel(t);
+    learnApproved(kernel, 'silinmis iz hayvandir', { provenanceId: 'prov-wiped-trail-1' });
+    // Durable rows exist; the audit trail was wiped. The empty projection must
+    // not be mistaken for the empty store accepted above.
+    const source = {
+      readJsonJournal: kernel.graph.readJsonJournal.bind(kernel.graph),
+      getAuditEvents: () => [],
+    };
+
+    const chain = buildMaterializedReceiptChain(source, { workspaceId: 'default' });
+    assert.equal(chain.ok, false);
+    assert.equal(chain.chainStatus.valid, false);
   });
 });

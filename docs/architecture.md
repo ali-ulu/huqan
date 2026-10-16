@@ -1,8 +1,8 @@
-﻿# AXIOM Architecture
+﻿# HUQAN Architecture
 
 ## Source of Truth
 
-Use this file as the compact map before making product or architecture claims about AXIOM.
+Use this file as the compact map before making product or architecture claims about HUQAN.
 
 Detailed behavior still lives in tests and code. This document exists to avoid re-reading the whole repository for every high-level decision.
 
@@ -45,7 +45,7 @@ Responsibilities:
 
 Primary docs:
 
-- `docs/ADR-002-trust-kernel-and-atp.md`
+- `docs/adr/ADR-002-trust-kernel-and-atp.md`
 - `specs/axiom-trust-protocol/0.1/README.md`
 
 Responsibilities:
@@ -181,25 +181,27 @@ GET /graph-data
 Release:
 
 ```text
-v0.9.0
-```
-
-Expected test status:
-
-```text
-1242 total / 1226 pass / 0 fail / 16 skipped
+1.0.1
 ```
 
 Expected status endpoint:
 
 ```text
-version=0.9.0
-testStatus=1242 total / 1226 pass / 0 fail / 16 skipped
+version=1.0.1
 ```
 
-## v0.9 Release Direction Note
+`GET /v2-status` answers with `version` taken straight from `package.json`
+(`lib/http/runtime-status.js`), so the line above is checkable against a running
+server. `check:docs-drift` holds it to the package on every run.
 
-Trust Kernel plus ATP/AVP remains the documented source-of-truth direction, and the release metadata now reflects the v0.9 final alignment.
+This section previously also pinned a test count and a `testStatus=` endpoint
+field. Both are gone on purpose: no such field is returned, and a total frozen
+into prose is stale the next time anyone adds a test. Read the suite for the
+current numbers.
+
+## Release Direction Note
+
+Trust Kernel plus ATP/AVP remains the documented source-of-truth direction.
 
 That direction is intentionally documented before runtime work so protocol design is not mixed with incomplete storage or kernel behavior in the same step.
 

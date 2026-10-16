@@ -2,11 +2,9 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const LLMAdapter = require('./llmAdapter');
 const Kernel = require('./kernel');
+const { isolatedKernelOptions } = require('./test/helpers/isolated-persistence');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function learnFixture(kernel, text, opts = {}) {
   return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
@@ -105,7 +103,7 @@ describe('LLMAdapter', () => {
 
 describe('kernel.verify()', () => {
   function freshK() {
-    const k = new Kernel({ noLoad: true });
+    const k = new Kernel(isolatedKernelOptions('llm-adapter-verify', { loadPlugins: false }));
     return k;
   }
 
@@ -113,7 +111,7 @@ describe('kernel.verify()', () => {
     const k = freshK();
     learnFixture(k, 'kedi balık yer');
     const res = k.verify('kedi balık yer');
-    assert(res.data.status === 'dogrulandi', `Beklenen dogrulandi, gelen: ${res.data.status}`);
+    assert(res.data.status === 'verified', `Beklenen dogrulandi, gelen: ${res.data.status}`);
     assert(res.data.confidence > 0);
     assert(res.evidence.length > 0);
   });
@@ -121,7 +119,7 @@ describe('kernel.verify()', () => {
   it('returns bilinmiyor for unknown statement', () => {
     const k = freshK();
     const res = k.verify('uçan fil muz sever');
-    assert.strictEqual(res.data.status, 'bilinmiyor');
+    assert.strictEqual(res.data.status, 'unknown');
     assert.strictEqual(res.data.confidence, 0);
   });
 
@@ -129,7 +127,7 @@ describe('kernel.verify()', () => {
     const k = freshK();
     learnFixture(k, 'kedi balık yer');
     const res = k.verify('robot düşünür');
-    assert.strictEqual(res.data.status, 'bilinmiyor');
+    assert.strictEqual(res.data.status, 'unknown');
   });
 
   it('finds path-based evidence', () => {
@@ -137,7 +135,7 @@ describe('kernel.verify()', () => {
     learnFixture(k, 'kedi hayvandır');
     learnFixture(k, 'hayvan canlıdır');
     const res = k.verify('kedi canlıdır');
-    assert(res.data.status === 'dogrulandi', `Beklenen dogrulandi, gelen: ${res.data.status}`);
+    assert(res.data.status === 'verified', `Beklenen dogrulandi, gelen: ${res.data.status}`);
     assert(res.evidence.length > 0);
   });
 
@@ -150,7 +148,7 @@ describe('kernel.verify()', () => {
     k.graph.addEdge('kedi', 'bitki', 'tür'); // çoklu-tür çelişkisi
     const res = k.verify('kedi hayvan');
     // Çelişki varsa celiski, yoksa dogrulandi
-    assert(res.data.status === 'celiski' || res.data.status === 'dogrulandi');
+    assert(res.data.status === 'contradicted' || res.data.status === 'verified');
   });
 
   it('evidence array is always present', () => {
@@ -162,7 +160,7 @@ describe('kernel.verify()', () => {
 
 describe('kernel.learnDocument()', () => {
   function freshK() {
-    return new Kernel({ noLoad: true });
+    return new Kernel(isolatedKernelOptions('llm-adapter-document', { loadPlugins: false }));
   }
 
   it('learns from plain text lines', () => {
@@ -188,6 +186,20 @@ describe('kernel.learnDocument()', () => {
     assert(count === 3);
   });
 
+  it('strips en-dash, em-dash and bullet list markers, not just hyphen/asterisk (#436)', () => {
+    // The leading-marker regex's character class was corrupted by a mojibake
+    // encoding round-trip, so '–' (en dash), '—' (em dash) and '•' (bullet)
+    // were never actually stripped -- the marker stayed glued to the learned
+    // subject, so a lookup by the clean subject text found nothing.
+    const k = freshK();
+    const text = '• kedi balık yer\n– köpek kemik sever\n— kuş uçar';
+    const count = k.learnDocument(text, TEST_FIXTURE_LEARN_BYPASS);
+    assert(count === 3);
+    assert(k.ask('kedi balık yer').data.answer !== 'Bilmiyorum');
+    assert(k.ask('köpek kemik sever').data.answer !== 'Bilmiyorum');
+    assert(k.ask('kuş uçar').data.answer !== 'Bilmiyorum');
+  });
+
   it('returns 0 for empty input', () => {
     const k = freshK();
     assert(k.learnDocument('') === 0);
@@ -197,7 +209,7 @@ describe('kernel.learnDocument()', () => {
 
 describe('kernel.learnFromLLM()', () => {
   function freshK() {
-    return new Kernel({ noLoad: true });
+    return new Kernel(isolatedKernelOptions('llm-adapter-learn', { loadPlugins: false }));
   }
 
   it('does not auto-write canonical graph from LLM text without approved admission', () => {

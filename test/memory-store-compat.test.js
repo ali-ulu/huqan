@@ -9,7 +9,11 @@ const { getContentHash } = require('../lib/memory-store-utils');
 function installMockDate(times) {
   const OriginalDate = Date;
   let index = 0;
+  // A derived constructor that returns an object is valid and skips the
+  // super() call by design, which is exactly what this stub does. Do not
+  // 'fix' it by calling super(), which would build an unused instance.
   global.Date = class extends OriginalDate {
+    // oxlint-disable-next-line constructor-super -- verified non-defect, see above
     constructor(...args) {
       if (args.length > 0) {
         return new OriginalDate(...args);
@@ -72,7 +76,12 @@ describe('main memory compatibility aliases', () => {
     assert.strictEqual(statusRes.ok, true);
     assert.strictEqual(statusRes.total, 3);
 
-    assert.strictEqual(store.save().ok, true);
+    // This store is constructed with useSQLite: false, so save() reports that
+    // there is nothing durable behind it rather than claiming success (#1028).
+    const saved = store.save();
+    assert.strictEqual(saved.ok, false);
+    assert.strictEqual(saved.persistent, false);
+    assert.strictEqual(saved.error.code, 'PERSISTENCE_DISABLED');
     assert.strictEqual(store.load().ok, true);
 
     const supports = store.link({

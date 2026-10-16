@@ -1,5 +1,7 @@
 # V5-IMPL-2E - Shared Trust Package Contract Closeout Scope
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-IMPL-2D_FINAL_CLOSEOUT_GREEN`
 **Canonical branch:** `main`

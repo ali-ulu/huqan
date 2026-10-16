@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://huqan.dev/specs/huqan-observation-protocol/0.1/schemas/external-event.schema.json",
+  "title": "HUQAN External Observation Event 0.1",
+  "description": "Producer-side observation envelope. Content-free by design: raw input travels as input_hash only.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "agent_id",
+    "run_id",
+    "step_id",
+    "action",
+    "target",
+    "input_hash",
+    "observed_state",
+    "decision",
+    "receipt_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "huqan.external-event.v1" },
+    "agent_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "run_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "step_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "action": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "target": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "input_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "observed_state": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "decision": {
+      "type": "string",
+      "enum": ["unknown", "allow", "review", "block", "dry_run_only"]
+    },
+    "receipt_id": { "type": ["string", "null"], "maxLength": 256 }
+  }
+}

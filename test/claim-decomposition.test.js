@@ -37,6 +37,28 @@ describe('claim-decomposition', () => {
     assert.ok(result.subclaims[1].claim.startsWith('React Native'));
   });
 
+  it('uses the subject only when a trailing clause has its own predicate (#1117)', () => {
+    for (const [claim, expected] of [
+      ['Berlin has a river and is a capital', ['Berlin has a river', 'Berlin is a capital']],
+      ['The dog has fleas and is sick', ['The dog has fleas', 'The dog is sick']],
+      ['Ali can swim and is fast', ['Ali can swim', 'Ali is fast']],
+      ['Redis is fast and has persistence', ['Redis is fast', 'Redis has persistence']],
+    ]) {
+      assert.deepEqual(decomposeClaim(claim).subclaims.map(item => item.claim), expected, claim);
+    }
+  });
+
+  it('keeps carrying the first predicate when the trailing clause elides it (#1117)', () => {
+    assert.deepEqual(
+      decomposeClaim('Berlin has a river and a park').subclaims.map(item => item.claim),
+      ['Berlin has a river', 'Berlin has a park'],
+    );
+    assert.deepEqual(
+      decomposeClaim('Redis is fast and reliable').subclaims.map(item => item.claim),
+      ['Redis is fast', 'Redis is reliable'],
+    );
+  });
+
   it('normalizes subclaims and decomposition envelopes', () => {
     const normalized = normalizeSubclaim({
       claim: 'React Native is performant',
@@ -54,5 +76,52 @@ describe('claim-decomposition', () => {
     assert.strictEqual(envelope.originalClaim, 'React Native is performant');
     assert.strictEqual(envelope.subclaims.length, 1);
     assert.deepStrictEqual(envelope.warnings, ['X']);
+  });
+
+  it('assigns unique index-based ids to subclaims without explicit ids (#1214)', () => {
+    const envelope = normalizeDecomposition({
+      originalClaim: 'A, B, C',
+      compound: true,
+      subclaims: [{ claim: 'A' }, { claim: 'B' }, { claim: 'C' }],
+      warnings: [],
+    });
+
+    assert.deepEqual(envelope.subclaims.map(subclaim => subclaim.id), [
+      'claim_1',
+      'claim_2',
+      'claim_3',
+    ]);
+    assert.equal(new Set(envelope.subclaims.map(subclaim => subclaim.id)).size, 3);
+  });
+
+  it('keeps explicit subclaim ids unchanged while normalizing', () => {
+    const envelope = normalizeDecomposition({
+      originalClaim: 'A and B',
+      compound: true,
+      subclaims: [{ id: 'custom-a', claim: 'A' }, { id: 'custom-b', claim: 'B' }],
+      warnings: [],
+    });
+
+    assert.deepEqual(envelope.subclaims.map(subclaim => subclaim.id), ['custom-a', 'custom-b']);
+  });
+
+  it('marker matching is independent across repeated calls, even interleaved (#447)', () => {
+    // A shared RegExp with a global/sticky flag advances .lastIndex as a side
+    // effect of .test()/.match(), so a later call's result would silently
+    // depend on where a previous, unrelated call left off. Decomposition
+    // must not have that kind of cross-call state: the same claim must infer
+    // the same subject/predicate no matter what was decomposed just before
+    // it, and interleaving different claims must not perturb either one.
+    const claimA = 'React Native is used in production';
+    const claimB = 'Kubernetes kullanılır in every cluster';
+
+    const first = decomposeClaim(claimA);
+    for (let i = 0; i < 5; i += 1) {
+      decomposeClaim(claimB);
+      const repeat = decomposeClaim(claimA);
+      assert.deepStrictEqual(repeat.subclaims[0].claim, first.subclaims[0].claim);
+      assert.deepStrictEqual(repeat.subclaims[0].subject, first.subclaims[0].subject);
+      assert.deepStrictEqual(repeat.subclaims[0].predicate, first.subclaims[0].predicate);
+    }
   });
 });

@@ -41,7 +41,7 @@ Hedef:
 
 Çıktılar:
 
-- `docs/ADR-006-self-healer-loop.md`
+- `docs/adr/ADR-006-self-healer-loop.md`
 - `docs/self-healer-roadmap.md`
 
 ### SH1 — Repo Scanner Contract

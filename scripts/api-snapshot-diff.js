@@ -1,0 +1,301 @@
+'use strict';
+
+const { stableStringify } = require('./api-snapshot-surface');
+
+function keyMap(items, keyOf) {
+  return new Map((items || []).map((item) => [keyOf(item), item]));
+}
+
+function addBreaking(list, area, key, reason) {
+  list.push({ area, key, reason });
+}
+
+function compareSchema(base, current, context, breaking) {
+  if (base === null || current === null || typeof base !== 'object' || typeof current !== 'object') {
+    if (stableStringify(base, 0) !== stableStringify(current, 0)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}: schema value changed`);
+    }
+    return;
+  }
+  if (Array.isArray(base) || Array.isArray(current)) {
+    if (!Array.isArray(base) || !Array.isArray(current)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}: schema shape changed`);
+      return;
+    }
+    // A union branch (`anyOf`/`oneOf`/`allOf`) is itself a schema, so compare
+    // branches as schemas rather than as an unordered set of opaque strings.
+    // The set comparison reported any edit inside a branch -- including adding
+    // an optional property -- as "accepted schema value removed", because the
+    // branch's serialized form changed. Pair identical branches first (so a
+    // reorder of branches that share a `type` does not mispair them), then pair
+    // the remaining edited branches by their `type` discriminator and recurse,
+    // so an edit inside a branch is judged by the same rules as any schema.
+    const typeOf = (branch) => (branch && typeof branch === 'object' && typeof branch.type === 'string'
+      ? branch.type : null);
+    const usedBase = new Set();
+    const usedCurrent = new Set();
+    base.forEach((branch, index) => {
+      const serialized = stableStringify(branch, 0);
+      const match = current.findIndex((item, at) => !usedCurrent.has(at) && stableStringify(item, 0) === serialized);
+      if (match !== -1) {
+        usedBase.add(index);
+        usedCurrent.add(match);
+      }
+    });
+    base.forEach((branch, index) => {
+      if (usedBase.has(index)) return;
+      const type = typeOf(branch);
+      let match = -1;
+      if (type !== null) {
+        match = current.findIndex((item, at) => !usedCurrent.has(at) && typeOf(item) === type);
+      } else {
+        match = current.findIndex((item, at) => !usedCurrent.has(at) && typeOf(item) === null);
+      }
+      if (match === -1) {
+        addBreaking(breaking, context.area, context.key, `${context.path}: accepted schema value removed`);
+      } else {
+        usedCurrent.add(match);
+        compareSchema(branch, current[match], { ...context, path: `${context.path}[${match}]` }, breaking);
+      }
+    });
+    return;
+  }
+
+  for (const field of ['type', 'const', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength']) {
+    if (Object.hasOwn(base, field) && stableStringify(base[field], 0) !== stableStringify(current[field], 0)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}.${field}: constraint changed`);
+    }
+  }
+
+  // Constraint keywords that live beside the compared fields still narrow what
+  // a schema accepts, so a change to one is breaking even though it is not a
+  // property or a union branch. Pure annotations (description, title, default,
+  // examples) are excluded: they do not change acceptance.
+  for (const field of ['minItems', 'maxItems', 'uniqueItems', 'format', 'multipleOf', 'exclusiveMinimum', 'exclusiveMaximum', 'minProperties', 'maxProperties']) {
+    if (stableStringify(base[field], 0) !== stableStringify(current[field], 0)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}.${field}: constraint changed`);
+    }
+  }
+
+  if (Array.isArray(base.enum)) {
+    const currentEnum = new Set(Array.isArray(current.enum) ? current.enum.map(String) : []);
+    for (const value of base.enum) {
+      if (!currentEnum.has(String(value))) {
+        addBreaking(breaking, context.area, context.key, `${context.path}.enum: value removed (${value})`);
+      }
+    }
+  }
+
+  const baseRequired = new Set(Array.isArray(base.required) ? base.required : []);
+  const currentRequired = new Set(Array.isArray(current.required) ? current.required : []);
+  if (context.direction === 'input') {
+    for (const value of currentRequired) {
+      if (!baseRequired.has(value)) {
+        addBreaking(breaking, context.area, context.key, `${context.path}.required: new required input (${value})`);
+      }
+    }
+  } else {
+    for (const value of baseRequired) {
+      if (!currentRequired.has(value)) {
+        addBreaking(breaking, context.area, context.key, `${context.path}.required: required output removed (${value})`);
+      }
+    }
+  }
+
+  const beforeProps = base.properties && typeof base.properties === 'object' ? base.properties : {};
+  const afterProps = current.properties && typeof current.properties === 'object' ? current.properties : {};
+  for (const [name, schema] of Object.entries(beforeProps)) {
+    if (!Object.hasOwn(afterProps, name)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}.properties: property removed (${name})`);
+    } else {
+      compareSchema(schema, afterProps[name], { ...context, path: `${context.path}.properties.${name}` }, breaking);
+    }
+  }
+
+  for (const field of ['items', 'additionalProperties', 'anyOf', 'oneOf', 'allOf']) {
+    if (!Object.hasOwn(base, field)) continue;
+    if (!Object.hasOwn(current, field)) {
+      addBreaking(breaking, context.area, context.key, `${context.path}.${field}: schema branch removed`);
+    } else {
+      compareSchema(base[field], current[field], { ...context, path: `${context.path}.${field}` }, breaking);
+    }
+  }
+}
+
+// Top-level members of a `{ ... }` body, split on `;` and on a closing brace
+// that returns to the body's own depth and ends the member (a namespace's
+// `interface A { ... }` has no semicolon). A brace followed by `|`, `&`, `[`,
+// `.`, `?`, `,` or `=` continues the same type, so it does not split. The `>`
+// of an arrow (`=>`) is not a closing delimiter.
+function bodyMembers(body) {
+  const members = [];
+  let depth = 0;
+  let quote = null;
+  let start = 0;
+  const flush = (end) => {
+    const text = body.slice(start, end).trim();
+    if (text && text !== ';') members.push(text);
+    start = end;
+  };
+  for (let index = 0; index < body.length; index += 1) {
+    const ch = body[index];
+    if (quote) {
+      if (ch === '\\') index += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+    else if (ch === '>' && body[index - 1] === '=') continue;
+    else if ('({[<'.includes(ch)) depth += 1;
+    else if (')]>'.includes(ch)) depth = Math.max(0, depth - 1);
+    else if (ch === '}') {
+      depth = Math.max(0, depth - 1);
+      const next = body.slice(index + 1).trimStart()[0];
+      if (depth === 0 && !(next && '|&[.?,=;'.includes(next))) flush(index + 1);
+    } else if (ch === ';' && depth === 0) flush(index + 1);
+  }
+  flush(body.length);
+  return members;
+}
+
+// Head (before the body), members, and tail (after the body: `;`, a union, an
+// array suffix). Head and tail must match for a change to be additive.
+function splitDeclaration(signature) {
+  const open = signature.indexOf('{');
+  const close = signature.lastIndexOf('}');
+  if (open === -1 || close < open) return null;
+  return {
+    head: signature.slice(0, open).trim(),
+    members: bodyMembers(signature.slice(open + 1, close)),
+    tail: signature.slice(close + 1).trim(),
+  };
+}
+
+const ABSTRACT_MEMBER = /^((public|protected)\s+)?abstract\b/;
+const OPTIONAL_MEMBER = /^(readonly\s+)?[A-Za-z_$][\w$]*\?\s*[:(<]/;
+
+// A declaration change is additive when head and tail are unchanged and every
+// member the old declaration had is still there verbatim. Consumers read
+// classes, namespaces and declared constants, so new members cannot break
+// them -- except a new abstract member, which every concrete subclass must now
+// implement. An interface may also be implemented or built by the consumer, so
+// there only new optional members (`name?:`) are additive. Type aliases stay
+// strict.
+function isAdditiveDeclaration(before, after) {
+  if (!['class', 'namespace', 'const', 'interface'].includes(before.kind) || before.kind !== after.kind) return false;
+  const old = splitDeclaration(before.signature);
+  const now = splitDeclaration(after.signature);
+  if (!old || !now || old.head !== now.head || old.tail !== now.tail) return false;
+  const remaining = [...now.members];
+  for (const member of old.members) {
+    const at = remaining.indexOf(member);
+    if (at === -1) return false;
+    remaining.splice(at, 1);
+  }
+  if (before.kind === 'interface') return remaining.every((member) => OPTIONAL_MEMBER.test(member));
+  if (before.kind === 'class') return !remaining.some((member) => ABSTRACT_MEMBER.test(member));
+  return true;
+}
+
+function diffSnapshots(base, current) {
+  const breaking = [];
+  const added = [];
+  const compareIdentity = (area, beforeItems, afterItems, keyOf, onExisting) => {
+    const before = keyMap(beforeItems, keyOf);
+    const after = keyMap(afterItems, keyOf);
+    for (const [key, item] of before) {
+      if (!after.has(key)) addBreaking(breaking, area, key, 'removed');
+      else onExisting?.(item, after.get(key), key);
+    }
+    for (const [key] of after) {
+      if (!before.has(key)) added.push({ area, key });
+    }
+  };
+
+  // Baselines written before accessor exports were resolved record them as
+  // the bare 'defineProperty'. That says nothing about the value, and two such
+  // entries always compared equal, so an old unresolved target is not
+  // evidence of a change.
+  compareIdentity('exports', base.exports, current.exports, (item) => item.name, (before, after, key) => {
+    if (before.target !== after.target && before.target !== 'defineProperty') {
+      addBreaking(breaking, 'exports', key, 'export target changed');
+    }
+  });
+
+  const flatTypes = (snapshot) => (snapshot.types || []).flatMap((file) =>
+    (file.declarations || []).map((decl) => ({ ...decl, file: file.file })));
+  compareIdentity('types', flatTypes(base), flatTypes(current),
+    (item) => `${item.file}:${item.kind}:${item.name}`,
+    (before, after, key) => {
+      if (before.signature !== after.signature && !isAdditiveDeclaration(before, after)) {
+        addBreaking(breaking, 'types', key, 'declaration signature changed');
+      }
+    });
+
+  compareIdentity('cli', base.cli?.canonical, current.cli?.canonical, (item) => item.command, (before, after, key) => {
+    const removedAliases = (before.aliases || []).filter((value) => !(after.aliases || []).includes(value));
+    const removedFlags = (before.flags || []).filter((value) => !(after.flags || []).includes(value));
+    if (removedAliases.length) addBreaking(breaking, 'cli', key, `aliases removed: ${removedAliases.join(', ')}`);
+    if (removedFlags.length) addBreaking(breaking, 'cli', key, `flags removed: ${removedFlags.join(', ')}`);
+    if (before.usage !== after.usage) addBreaking(breaking, 'cli', key, 'usage/signature changed');
+  });
+  compareIdentity('cli-compat', base.cli?.compatibility, current.cli?.compatibility, (item) => item.command, (before, after, key) => {
+    if (before.usage !== after.usage) addBreaking(breaking, 'cli-compat', key, 'usage/signature changed');
+  });
+
+  compareIdentity('mcp', base.mcp, current.mcp, (item) => item.name, (before, after, key) => {
+    compareSchema(before.inputSchema, after.inputSchema, { area: 'mcp', key, path: 'inputSchema', direction: 'input' }, breaking);
+    compareSchema(before.outputSchema, after.outputSchema, { area: 'mcp', key, path: 'outputSchema', direction: 'output' }, breaking);
+  });
+
+  compareIdentity('rest-routes', base.rest?.declared, current.rest?.declared, (item) => item.id, (before, after, key) => {
+    for (const field of ['path', 'prefix', 'exposure']) {
+      if (before[field] !== after[field]) addBreaking(breaking, 'rest-routes', key, `${field} changed`);
+    }
+    if (Array.isArray(before.methods)) {
+      const methods = new Set(after.methods || []);
+      for (const method of before.methods) {
+        if (!methods.has(method)) addBreaking(breaking, 'rest-routes', key, `method removed (${method})`);
+      }
+    }
+  });
+
+  compareIdentity('rest-workflows', base.rest?.workflows, current.rest?.workflows,
+    (item) => `${item.method}:${item.path}`,
+    (before, after, key) => {
+      compareSchema(before.requestSchema, after.requestSchema, { area: 'rest-workflows', key, path: 'requestSchema', direction: 'input' }, breaking);
+      compareSchema(before.responseSchema, after.responseSchema, { area: 'rest-workflows', key, path: 'responseSchema', direction: 'output' }, breaking);
+    });
+
+  compareIdentity('schemas', base.schemas, current.schemas, (item) => item.path, (before, after, key) => {
+    if (before.schemaVersion !== after.schemaVersion) {
+      const migrations = (current.migrations || []).filter((item) => !(base.migrations || []).includes(item));
+      if (migrations.length === 0) addBreaking(breaking, 'schemas', key, 'schema version changed without a new migration');
+    }
+    compareSchema(before.schema, after.schema, { area: 'schemas', key, path: key, direction: 'input' }, breaking);
+  });
+
+  return { breaking, added };
+}
+
+function reportMarkdown(result, options = {}) {
+  const lines = ['<!-- huqan-api-contract -->', '## HUQAN API contract'];
+  if (options.bootstrap) {
+    lines.push('', 'Baseline bootstrap: the base branch does not contain `api-snapshot-baseline.json` yet.');
+  }
+  if (result.breaking.length === 0) lines.push('', '✅ No breaking API changes detected.');
+  else if (options.acknowledgedMajor) {
+    lines.push('', `⚠️ ${result.breaking.length} breaking API change(s), accepted by the major release ${options.acknowledgedMajor}:`, '');
+    for (const item of result.breaking) lines.push(`- **${item.area}** \`${item.key}\`: ${item.reason}`);
+  } else {
+    lines.push('', '⚠️ Breaking change detected. Major version bump required.', '', `❌ ${result.breaking.length} breaking API change(s) detected:`, '');
+    for (const item of result.breaking) lines.push(`- **${item.area}** \`${item.key}\`: ${item.reason}`);
+  }
+  if (result.added.length > 0) {
+    lines.push('', `ADDED (${result.added.length}):`);
+    for (const item of result.added) lines.push(`- **${item.area}** \`${item.key}\``);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+module.exports = { compareSchema, diffSnapshots, reportMarkdown };

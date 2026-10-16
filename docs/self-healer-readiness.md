@@ -4,7 +4,7 @@
 >
 > Not authoritative for current runtime contracts.
 >
-> Canonical architecture authority: `docs/ADR-007-self-healer-loop.md`.
+> Canonical architecture authority: `docs/adr/ADR-007-self-healer-loop.md`.
 >
 > Canonical phase sequence authority:
 > `docs/v0.9.2-self-healer-roadmap.md`.

@@ -5,151 +5,87 @@ const path = require('path');
 const PluginManager = require('./plugin');
 const createNlp = require('./nlp');
 const VerifyService = require('./lib/verify');
-const { buildProvenance } = require('./lib/provenance-ingest');
-const { evaluateMemoryAdmission } = require('./lib/memory-admission-gate');
-const { detectClaimConflict, routeCandidateClaim } = require('./lib/conflict-detector');
+const { buildBackgroundProvenance, sponsorBackgroundProvenance, provenanceFieldsFrom, commitBackgroundEdge } = require('./lib/background-provenance');
+const { evaluateLearnAdmission } = require('./lib/kernel-learn-admission');
 const { createKernelReadUseCases } = require('./lib/kernel-read-use-cases');
 const { runLearnUseCase } = require('./lib/learn-use-case');
-const MemoryStore = require('./lib/memory-store');
+const { runLearnTransaction } = require('./lib/kernel-learn-transaction');
+const { runProposeNode } = require('./lib/kernel-propose-node');
+const MemoryStore = require('./lib/memory-store'); const { siblingPersistencePath, hookGraphCloseForMemoryStore } = require('./lib/memory-store-utils');
+const { buildCanonicalReceiptPayload } = require('./lib/receipt/canonical-receipt');
+const { toCanonicalVerdict } = require('./lib/verdict/action-verdict');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { runRustSandboxResult } = require('./lib/reason-sandbox');
+const { install: installCapabilityMethods } = require('./lib/kernel-capability-methods');
+const { install: installPrimitiveMethods } = require('./lib/kernel-primitive-methods');
+const { install: installReadMethods } = require('./lib/kernel-read-methods');
+const { install: installPersistenceMethods } = require('./lib/kernel-persistence-methods');
+const { install: installLearnInputMethods } = require('./lib/kernel-learn-input-methods');
+const { install: installCognitionMethods } = require('./lib/kernel-cognition-methods');
 
 let RustGraph;
 try { RustGraph = require('./rustGraph'); } catch {}
-const RUST_BIN = process.env.AXIOM_RUST_BIN || path.join(__dirname, 'axiom-core', 'target', 'x86_64-pc-windows-gnu', 'release', 'axiom-core.exe');
-const hasRust = fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
+const RUST_BIN = RustGraph && RustGraph.resolveRustBin ? RustGraph.resolveRustBin() : readCompatibleEnvironmentVariable('RUST_BIN');
+const hasRust = !!RUST_BIN && fs.existsSync(RUST_BIN) && typeof RustGraph !== 'undefined';
 
-const AXIOM_ERROR = Object.freeze({
-  INVALID_INPUT: 'INVALID_INPUT',
-  CONFLICT_DETECTED: 'CONFLICT_DETECTED',
-  GRAPH_UNAVAILABLE: 'GRAPH_UNAVAILABLE',
-  NORMALIZATION_FAILED: 'NORMALIZATION_FAILED',
-  LLM_DISABLED: 'LLM_DISABLED',
-  INTERNAL: 'INTERNAL',
-});
-
-const CONTRACT_VERSION = '1.0.0';
-const DEFAULT_CAPABILITIES = Object.freeze({
-  graph: true,
-  temporal: false,
-  pluginCapabilities: false,
-  llm: true,
-  contradictionDetection: true,
-  evidenceRanking: false,
-  agentApi: false,
-  companyMode: false,
-  discoveryLoop: false,
-});
-const CLI_MUTATION_AUDIT_FIELDS = new Set([
-  'sourceCommand',
-  'mutationType',
-  'eventType',
-  'decision',
-  'executionEligible',
-  'reason',
-  'actor',
-  'workspaceId',
-  'approvalState',
-  'receiptReference',
-]);
-const CLI_MUTATION_AUDIT_REQUIRED_FIELDS = Object.freeze([
-  'sourceCommand',
-  'mutationType',
-  'eventType',
-  'decision',
-  'executionEligible',
-  'reason',
-]);
-const CLI_MUTATION_AUDIT_APPROVAL_STATES = new Set([
-  'pending',
-  'approved',
-  'rejected',
-  'expired',
-  'cancelled',
-]);
-const CLI_MUTATION_AUDIT_MAPPINGS = Object.freeze([
-  ['kaydet', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
-  ['exit', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
-  ['cikis', 'persistence', 'UPDATE', 'allow', true, 'cli_persist_local'],
-  ['backup', 'export', 'EXPORTED', 'allow', true, 'cli_backup_export_local'],
-  ['restore', 'state_replace', 'IMPORTED', 'allow', true, 'cli_restore_state_replace_local'],
-  ['optimize', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['evolve', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['konsolide', 'canonical', 'REVIEW', 'review', false, 'cli_canonical_mutation_requires_review'],
-  ['dusun', 'automation', 'REVIEW', 'review', false, 'cli_automation_requires_review'],
-]);
-
-function normalizeWorkspaceId(value, fallback = 'default') {
-  if (typeof value === 'string' && value.trim()) return value.trim();
-  return fallback;
+// Canonical receipt projection for a committed learn mutation. Kept here
+// (rather than in lib/kernel-learn-transaction.js) because the receipt and
+// verdict modules live in the Application layer while that module is Core:
+// a direct require would be a new Core -> Application layer violation, and
+// the layer contract prefers an injected seam over a new exception. The
+// transaction receives this as buildCanonicalReceipt.
+function buildLearnCanonicalReceipt(receipt, operationId, committedAt) {
+  return buildCanonicalReceiptPayload({
+    ...receipt,
+    metadata: {
+      ...(receipt.metadata || {}),
+      mutationOperationId: operationId,
+      committedAt,
+    },
+  }, {
+    verdict: toCanonicalVerdict('admission', receipt.decision),
+  });
 }
 
-function isPlainObject(value) {
-  return Boolean(value) && Object.prototype.toString.call(value) === '[object Object]';
-}
-function validateCliMutationAuditIntent(intent) {
-  if (!isPlainObject(intent)) return null;
+const {
+  AXIOM_ERROR,
+  CONTRACT_VERSION,
+  DEFAULT_CAPABILITIES,
+} = require('./lib/kernel-contract');
+const { recordCliMutationAudit } = require('./lib/cli-mutation-audit');
+const { admitAddCandidateClaim, admitCandidateIngress, admitLearn } = require('./lib/kernel-mutation-admission');
 
-  const ownKeys = Reflect.ownKeys(intent);
-  if (ownKeys.some((key) => typeof key !== 'string' || !CLI_MUTATION_AUDIT_FIELDS.has(key))) {
-    return null;
-  }
-  if (CLI_MUTATION_AUDIT_REQUIRED_FIELDS.some(
-    (field) => !Object.prototype.hasOwnProperty.call(intent, field),
-  )) {
-    return null;
-  }
+// ProvenanceError is owned by lib/errors/provenance-error.js so that
+// lib/provenance-ingest.js can throw it without requiring kernel.js back
+// (issue #327). Re-exported below to preserve Kernel.ProvenanceError.
+const { ProvenanceError } = require('./lib/errors/provenance-error');
 
-  for (const field of CLI_MUTATION_AUDIT_REQUIRED_FIELDS) {
-    if (field === 'executionEligible') {
-      if (typeof intent[field] !== 'boolean') return null;
-    } else if (typeof intent[field] !== 'string' || !intent[field]) {
-      return null;
-    }
-  }
-
-  const validated = {
-    sourceCommand: intent.sourceCommand,
-    mutationType: intent.mutationType,
-    eventType: intent.eventType,
-    decision: intent.decision,
-    executionEligible: intent.executionEligible,
-    reason: intent.reason,
-  };
-
-  for (const field of ['actor', 'workspaceId', 'receiptReference']) {
-    if (!Object.prototype.hasOwnProperty.call(intent, field)) continue;
-    if (typeof intent[field] !== 'string' || !intent[field].trim()) return null;
-    validated[field] = intent[field].trim();
-  }
-
-  if (Object.prototype.hasOwnProperty.call(intent, 'approvalState')) {
-    if (!CLI_MUTATION_AUDIT_APPROVAL_STATES.has(intent.approvalState)) return null;
-    validated.approvalState = intent.approvalState;
-  }
-
-  const matchesMapping = CLI_MUTATION_AUDIT_MAPPINGS.some((mapping) => (
-    mapping[0] === validated.sourceCommand
-    && mapping[1] === validated.mutationType
-    && mapping[2] === validated.eventType
-    && mapping[3] === validated.decision
-    && mapping[4] === validated.executionEligible
-    && mapping[5] === validated.reason
-  ));
-  return matchesMapping ? validated : null;
-}
-
-class ProvenanceError extends Error {
-  constructor(message = 'provenance is required when strictProvenance is true') {
-    super(message);
-    this.name = 'ProvenanceError';
-    this.code = 'PROVENANCE_REQUIRED';
-  }
-}
+// #357: the admission bypass used to be gated purely on two plain,
+// string-keyed opts fields (`admissionRequired === false` +
+// `admissionBypassReason` non-empty). ANY caller of the public learn()
+// method -- an SDK consumer, a plugin, a future HTTP route, or code that
+// carelessly spreads caller-supplied/JSON-decoded input into opts -- could
+// produce that exact shape and walk straight past the memory-admission
+// gate. There was no way to tell "kernel's own internal bootstrap" apart
+// from "whatever object someone handed to learn()".
+//
+// The bypass is now gated on this module-private Symbol instead. It is
+// never exported, so no code outside this file can reference it directly --
+// and critically, a Symbol-keyed property cannot survive JSON.stringify/
+// JSON.parse or object-literal spread of a plain object, so it cannot be
+// forged by decoding untrusted input (HTTP body, MCP tool args, CLI argv)
+// into an opts object, no matter how that decoding is written. The only
+// way to produce a valid bypass opts object is to call
+// Kernel.createAdmissionBypassOpts(reason), exported below, which requires
+// the caller to already have required('./kernel') -- i.e. be trusted code
+// running in this process, not data arriving over a wire.
+const ADMISSION_BYPASS_TOKEN = Symbol('huqan-kernel-internal-admission-bypass');
 
 class Kernel {
   /**
    * @param {object} [opts]
-   * @param {boolean} [opts.noLoad=false] - true ise memory.json y?klenmez (test i?in)
-   * @param {string}  [opts.memoryPath]   - ?zel haf?za dosyas? yolu
+   * @param {boolean} [opts.noLoad=false] - true ise memory.json yüklenmez (test için)
+   * @param {string}  [opts.memoryPath]   - özel hafıza dosyası yolu
    */
   constructor(opts = {}) {
     const graphOpts = {};
@@ -164,7 +100,7 @@ class Kernel {
       getGraph: () => this.graph,
       emitPlugin: (...args) => this.plugins.emit(...args),
       normalizeWord: word => this.normalizeWord(word),
-      ok: (...args) => this._ok(...args),
+      ok: (...args) => this.ok(...args),
       reason: (...args) => this.reason(...args),
       alternatives: (...args) => this.alternatives(...args),
       forwardChain: (...args) => this._forwardChain(...args),
@@ -177,10 +113,14 @@ class Kernel {
       edgeRef: (...args) => this._edgeRef(...args),
     });
     if (!opts.noLoad) this.graph.load();
-    this.paranoidMode = opts.paranoidMode === true || process.env.AXIOM_PARANOID === '1';
+    this.paranoidMode = opts.paranoidMode === true || readCompatibleEnvironmentVariable('PARANOID') === '1';
     this.contractVersion = CONTRACT_VERSION;
-    this.lang = opts.lang || process.env.AXIOM_LANG || 'tr';
+    this.lang = opts.lang || readCompatibleEnvironmentVariable('LANG') || 'tr';
     this.nlp = createNlp(this.lang);
+    // #3704: lib/kernel-primitive-methods.js (AgentAction) cannot import
+    // nlp/index.js (Knowledge) directly — the port is Platform-only. Inject
+    // the resolver here at the composition root instead.
+    this._resolveNlpPack = createNlp;
     this.capabilities = { ...DEFAULT_CAPABILITIES, ...(opts.capabilities || {}) };
     this._rust = hasRust ? new RustGraph() : null;
     this.plugins = new PluginManager(this);
@@ -188,59 +128,73 @@ class Kernel {
       const pDir = path.join(__dirname, 'plugins');
       if (fs.existsSync(pDir)) this.plugins.load(pDir);
     }
-    this._verifyService = new VerifyService(this);
-    this.strictProvenance = opts.strictProvenance === true;
+    this._verifyService = new VerifyService(this, {
+      verifyInternal: this._verifyInternal.bind(this),
+      parsePredicate: this._parsePredicate.bind(this),
+      edgeEvidence: this._edgeEvidence.bind(this),
+      findPathWithTimeout: this._findPathWithTimeout.bind(this),
+      findPath: this._findPath.bind(this),
+      pathEvidence: this._pathEvidence.bind(this),
+      edgeRef: this._edgeRef.bind(this),
+    });
+    this.strictProvenance = opts.strictProvenance === true; this.trustPolicyPath = typeof opts.trustPolicyPath === 'string' && opts.trustPolicyPath.trim() ? opts.trustPolicyPath.trim() : null;
     
-    // r1: RwLock mutex for concurrent access safety
-    // Simple lock mechanism (no npm dependencies)
-    // Can be disabled with enableConcurrencyLock=false for backward compatibility
+    // r1: single-flight guard for critical operations (verify/learn), enforced
+    // synchronously by _enterCriticalSection()/_exitCriticalSection() below.
+    // Can be disabled with enableConcurrencyLock=false for backward compatibility.
     this._enableConcurrencyLock = opts.enableConcurrencyLock !== false;
-    this._lockQueue = [];
     this._lockAcquired = false;
-    this._lockTimeoutMs = opts.lockTimeoutMs || 5000;
 
-    // v0.9.1: AXIOM Memory Core — kernel.memory API
+    // v0.9.1: HUQAN Memory Core — kernel.memory API
     this.memory = new MemoryStore({
       trustPolicyVersion: this.contractVersion,
       useSQLite: opts.memoryStoreUseSQLite !== undefined ? opts.memoryStoreUseSQLite : opts.useSQLite,
       dbPath: opts.memoryStoreDbPath || opts.dbPath,
-      memoryPath: opts.memoryStorePath || opts.memoryPath,
+      memoryPath: opts.memoryStorePath || (opts.memoryPath ? siblingPersistencePath(opts.memoryPath, '.memory-store.json') : undefined),
     });
 
-    // Hook graph.close to also close memory store db connection
-    const originalClose = this.graph.close;
-    this.graph.close = () => {
-      if (typeof originalClose === 'function') {
-        originalClose.call(this.graph);
-      }
-      if (this.memory && typeof this.memory.close === 'function') {
-        this.memory.close();
-      }
-    };
+    // Hook graph.close to also close the memory store (see memory-store-utils).
+    hookGraphCloseForMemoryStore(this);
   }
 
-  // r1: Acquire lock for critical operations (verify/learn)
-  async _acquireLock(timeoutMs = null) {
-    if (!this._enableConcurrencyLock) return; // Lock disabled
-    
-    const timeout = timeoutMs !== null ? timeoutMs : this._lockTimeoutMs;
-    const startTime = Date.now();
-    
-    while (this._lockAcquired && Date.now() - startTime < timeout) {
-      await new Promise(resolve => setImmediate(resolve));
+  /**
+   * Ephemeral, isolated reasoning sandbox: batch-learns statements and answers
+   * questions against a throwaway graph that is never persisted and never
+   * touches this.graph (no workspace/provenance/audit semantics apply here —
+   * for that, use learn()/verify() against the real knowledge graph).
+   *
+   * Uses the Rust accelerator's `batch` command (one IPC round trip for all
+   * learn statements, one more for all questions) when huqan-core is built;
+   * otherwise falls back to an in-memory JS Graph so behavior is identical
+   * either way, just slower.
+   *
+   * @param {object} input
+   * @param {string[]} [input.learn] - statements to learn (e.g. "elma meyvedir")
+   * @param {string[]} [input.ask]   - questions to ask after learning
+   * @returns {Promise<{ backend: 'rust'|'js', answers: string[] }>}
+   */
+  async reasonSandbox({ learn = [], ask = [] } = {}) {
+    if (this._rust) {
+      // Deliberately NOT this._rust: huqan-core keeps one mutable Graph for the
+      // life of its process, so the kernel's shared bridge is not a sandbox.
+      // runRustSandbox spawns a private process per call and tears it down (#758).
+      const result = await runRustSandboxResult({ learn, ask });
+      if (result) return result;
+      // Rust unusable or died mid-flight: fall through to the JS sandbox below.
     }
-    
-    if (this._lockAcquired) {
-      throw new Error(`Lock acquisition timeout after ${timeout}ms`);
-    }
-    
-    this._lockAcquired = true;
-  }
-
-  // r1: Release lock
-  _releaseLock() {
-    if (!this._enableConcurrencyLock) return; // Lock disabled
-    this._lockAcquired = false;
+    // JS fallback uses a throwaway Kernel (learn()/ask() live on Kernel, not
+    // Graph) so behavior matches the non-sandbox path when Rust is absent.
+    // Its answers use Kernel's full NLP pipeline rather than huqan-core's
+    // simplified Turkish-suffix parser, so exact wording can differ from the
+    // Rust backend — that asymmetry between the two engines predates this
+    // method (rustGraph.js's own learn/ask already talk to a different
+    // algorithm than Kernel's).
+    const sandbox = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+    const bypass = { [ADMISSION_BYPASS_TOKEN]: true, admissionBypassReason: 'reasonSandbox: ephemeral, unpersisted kernel' };
+    for (const text of learn) sandbox.learn(text, bypass);
+    const answers = ask.map(question => sandbox.ask(question)?.data?.answer || 'Bilmiyorum');
+    if (typeof sandbox.graph?.close === 'function') sandbox.graph.close();
+    return { backend: 'js', answers };
   }
 
   _enterCriticalSection(operation = 'operation') {
@@ -260,86 +214,13 @@ class Kernel {
     this._lockAcquired = false;
   }
 
-  hasCapability(name) {
-    return Boolean(this.capabilities && this.capabilities[name] === true);
-  }
-
-  enableCapability(name) {
-    if (!name || !(name in DEFAULT_CAPABILITIES)) {
-      const error = new Error(`Unknown capability: ${name}`);
-      error.code = 'CAPABILITY_UNKNOWN';
-      error.capability = name;
-      throw error;
-    }
-    this.capabilities[name] = true;
-    if (
-      this.plugins &&
-      typeof this.plugins.emit === 'function' &&
-      this.plugins._handlers &&
-      Array.isArray(this.plugins._handlers['capability:enabled'])
-    ) {
-      this.plugins.emit('capability:enabled', { name });
-    }
-    return true;
-  }
-
-  requireCapability(name) {
-    if (this.hasCapability(name)) return true;
-    const error = new Error(`Required capability is not enabled: ${name}`);
-    error.code = 'CAPABILITY_REQUIRED';
-    error.capability = name;
-    throw error;
-  }
-
-  normalizeWord(word) {
-    return this.nlp.normalize(word);
-  }
-
-  tokenizeText(text) {
-    return this.nlp.tokenize(text);
-  }
-
-  isStopWord(word) {
-    return this.nlp.isStopWord(word);
-  }
-
-  extractFacts(text, knownNodes = null) {
-    return this.nlp.extractFacts(text, knownNodes);
-  }
-
-  usePlugin(plugin) {
-    this.plugins.register(plugin);
-  }
-
-  listCapabilities() {
-    if (!this.plugins || typeof this.plugins.listCapabilities !== 'function') return [];
-    return this.plugins.listCapabilities();
-  }
-
-  getCapability(name) {
-    if (!this.plugins || typeof this.plugins.getCapability !== 'function') return null;
-    return this.plugins.getCapability(name);
-  }
-
-  async runCapability(name, input, opts = {}) {
-    this.requireCapability('pluginCapabilities');
-    if (!this.plugins || typeof this.plugins.runCapability !== 'function') {
-      throw new Error('Plugin manager is unavailable.');
-    }
-    return this.plugins.runCapability(name, input, opts);
-  }
-
   // F-003: Plugin-facing admission-gated edge write.
   // Replaces direct kernel.graph.addEdge() calls in plugins.
   proposeEdge(from, to, relation, opts = {}) {
     return this._commitBackgroundEdge(from, to, relation, 'plugin', {
       workspaceId: opts.workspaceId || 'default',
       edgeOptions: opts,
-      provenanceExtra: {
-        sourceType: opts.sourceType || 'plugin',
-        sourceRef: opts.sourceRef || '',
-        actor: opts.actor || opts.sessionId || 'plugin',
-      },
+      provenanceExtra: provenanceFieldsFrom(opts),
       admissionOpts: {
         approvalRequired: false,
         sourceType: opts.sourceType || 'plugin',
@@ -352,239 +233,7 @@ class Kernel {
 
   // F-003: Plugin-facing admission-gated node write.
   proposeNode(id, label, provenance, opts = {}) {
-    if (!this.graph || typeof this.graph.addNode !== 'function') {
-      return { decision: 'review', node: null, audit: null, admission: null };
-    }
-
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId || provenance?.workspaceId || 'default');
-    const pluginProvenance = provenance && typeof provenance === 'object'
-      ? provenance
-      : this._backgroundProvenance('plugin', workspaceId, {
-        sourceType: opts.sourceType || 'plugin',
-        sourceRef: opts.sourceRef || '',
-        actor: opts.actor || opts.sessionId || 'plugin',
-      });
-    const proposalText = `${id} ${label || id}`;
-    const admissionOpts = {
-      workspaceId,
-      provenanceId: pluginProvenance.provenanceId,
-      actor: pluginProvenance.actor,
-      agentId: opts.sessionId || pluginProvenance.actor,
-      sourceType: pluginProvenance.sourceType,
-      sourceRef: pluginProvenance.sourceRef,
-      approvalRequired: false,
-      admissionReason: 'background_plugin_node_write',
-      admissionContext: {
-        backgroundSource: 'plugin',
-        nodeId: id,
-      },
-    };
-    const admission = this._evaluateLearnAdmission(proposalText, admissionOpts, pluginProvenance, workspaceId);
-
-    if (!admission) {
-      const audit = this._appendAuditEvent({
-        eventType: 'REVIEW',
-        targetType: 'background_node',
-        targetId: id,
-        details: {
-          backgroundSource: 'plugin',
-          reason: 'admission_unavailable',
-          nodeId: id,
-          label: label || id,
-        },
-      }, pluginProvenance, workspaceId);
-      return { decision: 'review', node: null, audit, admission: null };
-    }
-
-    if (admission.outcome !== 'allow') {
-      const audit = this._appendAuditEvent({
-        eventType: admission.outcome === 'reject' ? 'REJECT' : 'REVIEW',
-        targetType: 'background_node',
-        targetId: id,
-        details: {
-          backgroundSource: 'plugin',
-          reason: admission.reason,
-          admissionOutcome: admission.outcome,
-          approvalStatus: admission.approvalStatus,
-          ...this._admissionReceiptDetails(admission),
-          nodeId: id,
-          label: label || id,
-        },
-      }, pluginProvenance, workspaceId);
-      return { decision: admission.outcome, node: null, audit, admission };
-    }
-
-    const node = this.graph.addNode(id, label, pluginProvenance, { ...opts, workspaceId });
-    const audit = this._appendAuditEvent({
-      eventType: 'LEARN',
-      targetType: 'background_node',
-      targetId: id,
-      details: {
-        backgroundSource: 'plugin',
-        nodeId: id,
-        label: label || id,
-        admissionOutcome: 'allow',
-        ...this._admissionReceiptDetails(admission),
-      },
-    }, pluginProvenance, workspaceId);
-    return { decision: 'allow', node, audit, admission };
-  }
-
-  _ok(type, data = null, evidence = [], meta = {}) {
-    const stats = this.graph && typeof this.graph.getStats === 'function' ? this.graph.getStats() : {};
-    return this._validateResult({
-      ok: true,
-      type,
-      data,
-      evidence: this._rankEvidence(Array.isArray(evidence) ? evidence : []),
-      error: null,
-      meta: {
-        contractVersion: this.contractVersion,
-        backend: stats.backend || 'unknown',
-        paranoidMode: this.paranoidMode,
-        ...meta,
-      },
-    });
-  }
-
-  _fail(type, code, message, meta = {}) {
-    return this._validateResult({
-      ok: false,
-      type,
-      data: null,
-      evidence: [],
-      error: { code, message },
-      meta: {
-        contractVersion: this.contractVersion,
-        paranoidMode: this.paranoidMode,
-        ...meta,
-      },
-    });
-  }
-
-  _validateResult(result) {
-    if (!result || typeof result.ok !== 'boolean') throw new Error('Invalid result: ok must be boolean');
-    if (!Array.isArray(result.evidence)) throw new Error('Invalid result: evidence must be array');
-    if (result.type === 'verify' && result.data) {
-      const statuses = new Set(['dogrulandi', 'celiski', 'bilinmiyor']);
-      if (!statuses.has(result.data.status)) throw new Error('Invalid verify status: ' + result.data.status);
-      if (typeof result.data.confidence !== 'number' || result.data.confidence < 0 || result.data.confidence > 1) {
-        throw new Error('Invalid confidence: must be between 0 and 1');
-      }
-    }
-    return result;
-  }
-
-  _edgeRef(edge) {
-    return { from: edge.from, to: edge.to, relation: edge.relation };
-  }
-
-  _rankEvidence(evidence = []) {
-    const seen = new Set();
-    return evidence
-      .filter(Boolean)
-      .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
-      .filter(item => {
-        const key = `${item.kind || 'evidence'}|${item.text || ''}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-  }
-
-  _edgeEvidence(edge, kind = 'direct_edge', confidence) {
-    const score = Math.max(0, Math.min(1, confidence ?? edge.confidence ?? edge.weight ?? 0));
-    const details = [];
-    if (edge.relation) details.push(`relation=${edge.relation}`);
-    if (edge.source) details.push(`source=${edge.source}`);
-    details.push(`confidence=${score.toFixed(2)}`);
-    return {
-      kind,
-      text: `${edge.from} --[${edge.relation}]--> ${edge.to} (${details.join(', ')})`,
-      confidence: score,
-      nodes: [edge.from, edge.to],
-      edges: [this._edgeRef(edge)],
-    };
-  }
-
-  _pathEvidence(pathArr, kind = 'path', confidence = 0.5, workspaceId = 'default') {
-    const edges = [];
-    for (let i = 0; i < pathArr.length - 1; i++) {
-      const direct = this.graph.getEdges(pathArr[i], workspaceId).find(e => e.to === pathArr[i + 1]);
-      const reverse = this.graph.getInEdges(pathArr[i], workspaceId).find(e => e.from === pathArr[i + 1]);
-      const edge = direct || reverse;
-      if (edge) edges.push(this._edgeRef(edge));
-    }
-    return {
-      kind,
-      text: pathArr.join(' -> '),
-      confidence: Math.max(0, Math.min(1, confidence)),
-      nodes: [...pathArr],
-      edges,
-    };
-  }
-
-  _runBeforeLearn(text, opts = {}) {
-    const payload = { text, opts: { ...opts } };
-    if (this.plugins && typeof this.plugins.emitStrict === 'function') {
-      return this.plugins.emitStrict('beforeLearn', payload);
-    }
-    if (this.plugins && typeof this.plugins.emit === 'function') {
-      return this.plugins.emit('beforeLearn', payload);
-    }
-    return payload;
-  }
-
-  _contradictionEvidence(contradiction) {
-    return this._verifyService._contradictionEvidence(contradiction);
-  }
-
-  _resolveLearnMetadata(opts = {}) {
-    const sourceType = typeof opts.sourceType === 'string' ? opts.sourceType.trim() : '';
-    const sourceRef = typeof opts.sourceRef === 'string' ? opts.sourceRef.trim() : '';
-    const sessionId = typeof opts.sessionId === 'string' ? opts.sessionId.trim() : '';
-    const evidenceType = typeof opts.evidenceType === 'string' ? opts.evidenceType.trim() : '';
-    const explicitCompanyMode = typeof opts.companyMode === 'boolean' ? opts.companyMode : this.hasCapability('companyMode');
-    const companyMode = explicitCompanyMode && this.hasCapability('companyMode');
-    return {
-      sourceType,
-      sourceRef,
-      sessionId,
-      evidenceType,
-      companyMode,
-    };
-  }
-
-  _learnEdgeOptions(base, meta, text) {
-    const options = {
-      ...base,
-      evidence: Array.isArray(base.evidence) ? base.evidence : [text],
-    };
-    if (meta.sourceRef) options.sourceRef = meta.sourceRef;
-    if (meta.sessionId) options.sessionId = meta.sessionId;
-    if (meta.sourceType) options.sourceType = meta.sourceType;
-    if (meta.evidenceType) options.evidenceType = meta.evidenceType;
-    if (meta.companyMode) options.companyMode = true;
-    return options;
-  }
-
-  _normalizeProvenanceInput(provenanceInput, opts = {}) {
-    if (!provenanceInput && !opts.sourceType && !opts.sourceRef && !opts.sourceTitle && !opts.actor && !opts.timestamp && !opts.workspaceId) {
-      return { provenance: null, warnings: [] };
-    }
-
-    return buildProvenance(provenanceInput || {}, {
-      strictProvenance: this.strictProvenance,
-      trustPolicy: opts.trustPolicy,
-      trustPolicyPath: opts.trustPolicyPath,
-      sourceType: opts.sourceType,
-      sourceSubType: opts.sourceSubType,
-      sourceRef: opts.sourceRef,
-      sourceTitle: opts.sourceTitle,
-      actor: opts.actor,
-      timestamp: opts.timestamp,
-      workspaceId: opts.workspaceId,
-    });
+    return runProposeNode({ graph: this.graph, contractVersion: this.contractVersion, trustPolicyPath: this.trustPolicyPath, evaluateLearnAdmission: (...args) => this._evaluateLearnAdmission(...args), appendAuditEvent: (...args) => this._appendAuditEvent(...args), admissionReceiptDetails: admission => this._admissionReceiptDetails(admission) }, id, label, provenance, opts);
   }
 
   _appendAuditEvent(event, provenance = null, workspaceId = 'default') {
@@ -592,291 +241,95 @@ class Kernel {
     try {
       return this.graph.appendAuditEvent(event, provenance ? { provenance, workspaceId } : { workspaceId });
     } catch (error) {
-      console.error('[Kernel] Audit log hatası:', error.message);
+      console.error('[Kernel] Audit log error:', error.message);
       return null;
     }
   }
 
   recordCliMutationAudit(intent) {
-    try {
-      const validated = validateCliMutationAuditIntent(intent);
-      if (!validated || !this.graph || typeof this.graph.appendAuditEvent !== 'function') {
-        return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-      }
-
-      const details = {
-        source: 'cli',
-        command: validated.sourceCommand,
-        mutationType: validated.mutationType,
-        decision: validated.decision,
-        executed: validated.executionEligible,
-        reason: validated.reason,
-      };
-      if (validated.approvalState !== undefined) details.approvalState = validated.approvalState;
-      if (validated.receiptReference !== undefined) details.receiptId = validated.receiptReference;
-
-      const event = this.graph.appendAuditEvent({
-        eventType: validated.eventType,
-        targetType: 'cli_mutation',
-        targetId: validated.sourceCommand,
-        actor: validated.actor || 'cli-user',
-        workspaceId: validated.workspaceId || 'default',
-        details,
-      });
-
-      if (!isPlainObject(event) || typeof event.then === 'function') {
-        return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-      }
-      return { auditRecorded: true, event, errorCode: null };
-    } catch (_) {
-      return { auditRecorded: false, event: null, errorCode: 'AUDIT_WRITE_FAILED' };
-    }
+    return recordCliMutationAudit(this.graph, intent);
   }
   /**
-   * FAZ2-PR3 (F-001): Background-source synthetic provenance for autonomous
-   * mutation paths (_autoThinkTick, dream(learnFromDream), selfEvolve,
-   * _crossLink).  Background mutations MUST carry a source/actor/provenanceId
-   * so admission and audit can attribute them.  This is NOT a bypass — the
-   * synthetic provenance is fed into the same admission gate as user writes,
-   * which by default returns 'review' for low-trust background actors and
-   * therefore prevents silent canonical writes.
-   */
-  _backgroundProvenance(source, workspaceId = 'default', extra = {}) {
-    const now = new Date().toISOString();
-    return {
-      provenanceId: `prov_bg_${source}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: now,
-      source: `background:${source}`,
-      sourceType: 'background_inference',
-      sourceRef: `kernel.${source}`,
-      actor: `kernel-background:${source}`,
-      workspaceId,
-      trustPolicyVersion: this.contractVersion,
-      ...extra,
-    };
-  }
-
-  /**
-   * FAZ2-PR3 (F-001): Admission-gated background edge commit.
-   *
-   * - Builds synthetic provenance describing the background source.
-   * - Routes the proposed edge through _evaluateLearnAdmission (same gate the
-   *   user-facing learn path uses).
-   * - On 'allow' decision: writes the edge with source/provenance metadata and
-   *   emits a LEARN audit event tagged background:<source>.
-   * - On 'review' or 'reject' (the default for synthetic background
-   *   provenance): does NOT write the canonical edge and emits a
-   *   REVIEW/REJECT audit event so the attempt is recorded.
+   * K2 (#328, docs/kernel-split-plan.md): admission-gated background edge
+   * commit -- now a delegation to lib/background-provenance.js's
+   * commitBackgroundEdge(deps)(from, to, relation, source, opts). The
+   * function body is the single authoritative implementation; Kernel only
+   * injects its instance methods as dependencies. Behaviour is unchanged.
+   * FAZ2-PR3 (F-001): routes the edge through _evaluateLearnAdmission
+   * (same gate the user-facing learn path uses), writes the canonical edge
+   * with provenance + source metadata on 'allow' (LEARN audit), or records
+   * REVIEW/REJECT without writing on every other outcome (fail-closed).
    *
    * @returns {{decision: string, edge: object|null, audit: object|null, admission: object|null}}
    */
-  _commitBackgroundEdge(from, to, relation, source, opts = {}) {
-    const workspaceId = normalizeWorkspaceId(opts.workspaceId || 'default');
-    const provenance = this._backgroundProvenance(source, workspaceId, opts.provenanceExtra || {});
-    const proposalText = `${from} ${relation} ${to}`;
-    const admissionOpts = {
-      ...(opts.admissionOpts || {}),
-      workspaceId,
-      provenanceId: provenance.provenanceId,
-      actor: provenance.actor,
-      agentId: provenance.actor,
-      sourceType: provenance.sourceType,
-      sourceRef: provenance.sourceRef,
-      admissionReason: `background_${source}_edge_write`,
-      admissionContext: {
-        ...(opts.admissionOpts && opts.admissionOpts.admissionContext) || {},
-        backgroundSource: source,
-      },
-    };
-    const admission = this._evaluateLearnAdmission(proposalText, admissionOpts, provenance, workspaceId);
-
-    // Admission missing (shouldn't happen for background paths) — treat as review for safety.
-    if (!admission) {
-      const audit = this._appendAuditEvent({
-        eventType: 'REVIEW',
-        targetType: 'background_edge',
-        targetId: `${from}|${relation}|${to}`,
-        details: {
-          backgroundSource: source,
-          reason: 'admission_unavailable',
-          from,
-          to,
-          relation,
-        },
-      }, provenance, workspaceId);
-      return { decision: 'review', edge: null, audit, admission: null };
-    }
-
-    if (admission.outcome !== 'allow') {
-      const audit = this._appendAuditEvent({
-        eventType: admission.outcome === 'reject' ? 'REJECT' : 'REVIEW',
-        targetType: 'background_edge',
-        targetId: `${from}|${relation}|${to}`,
-        details: {
-          backgroundSource: source,
-          reason: admission.reason,
-          admissionOutcome: admission.outcome,
-          approvalStatus: admission.approvalStatus,
-          ...this._admissionReceiptDetails(admission),
-          from,
-          to,
-          relation,
-        },
-      }, provenance, workspaceId);
-      return { decision: admission.outcome, edge: null, audit, admission };
-    }
-
-    // Allowed — write the canonical edge with provenance + source metadata.
-    const edgeOptions = {
-      ...(opts.edgeOptions || {}),
-      workspaceId,
-      provenance,
-      source: opts.edgeOptions && opts.edgeOptions.source
-        ? opts.edgeOptions.source
-        : `background:${source}`,
-    };
-    const edge = this.graph.addEdge(from, to, relation, edgeOptions);
-    const audit = this._appendAuditEvent({
-      eventType: 'LEARN',
-      targetType: 'background_edge',
-      targetId: edge ? `${edge.from}|${edge.relation}|${edge.to}` : `${from}|${relation}|${to}`,
-      details: {
-        backgroundSource: source,
-        from,
-        to,
-        relation,
-        admissionOutcome: 'allow',
-        ...this._admissionReceiptDetails(admission),
-      },
-    }, provenance, workspaceId);
-    return { decision: 'allow', edge, audit, admission };
+  commitBackgroundEdge(from, to, relation, source, opts = {}) {
+    return commitBackgroundEdge({
+      contractVersion: this.contractVersion,
+      trustPolicyPath: this.trustPolicyPath,
+      evaluateLearnAdmission: (text, admissionOpts, provenance, workspaceId) =>
+        this._evaluateLearnAdmission(text, admissionOpts, provenance, workspaceId),
+      appendAuditEvent: (event, provenance, workspaceId) =>
+        this._appendAuditEvent(event, provenance, workspaceId),
+      admissionReceiptDetails: admission => this._admissionReceiptDetails(admission),
+      addEdge: (f, t, rel, edgeOptions) => this.graph.addEdge(f, t, rel, edgeOptions),
+    })(from, to, relation, source, opts);
   }
 
+  _commitBackgroundEdge(from, to, relation, source, opts = {}) { return this.commitBackgroundEdge(from, to, relation, source, opts); }
   _isLearnAdmissionBypass(opts = {}) {
-    return opts.admissionRequired === false &&
+    return opts[ADMISSION_BYPASS_TOKEN] === true &&
       typeof opts.admissionBypassReason === 'string' &&
       opts.admissionBypassReason.trim().length > 0;
   }
 
   _evaluateLearnAdmission(text, opts = {}, provenance = null, workspaceId = 'default') {
-    if (this._isLearnAdmissionBypass(opts)) return null;
-
-    const admissionContext = isPlainObject(opts.admissionContext) ? opts.admissionContext : {};
-    const createdAt =
-      provenance?.timestamp ||
-      opts.timestamp ||
-      admissionContext.createdAt ||
-      admissionContext.timestamp ||
-      new Date().toISOString();
-    const provenanceId =
-      provenance?.provenanceId ||
-      opts.provenanceId ||
-      admissionContext.provenanceId ||
-      `prov_${workspaceId}_${Date.now()}`;
-    const actor =
-      provenance?.actor ||
-      opts.actor ||
-      admissionContext.actor ||
-      'kernel';
-    const agentId =
-      opts.agentId ||
-      admissionContext.agentId ||
-      'kernel';
-    const memoryDraftId =
-      opts.memoryDraftId ||
-      admissionContext.memoryDraftId ||
-      `draft_${provenanceId}`;
-    const request = {
-      ...admissionContext,
-      workspaceId,
-      actor,
-      agentId,
-      memoryDraftId,
-      provenanceId,
-      trustPolicyVersion:
-        provenance?.trustPolicyVersion ||
-        opts.trustPolicyVersion ||
-        admissionContext.trustPolicyVersion ||
-        this.contractVersion,
-      approvalId: opts.approvalId || admissionContext.approvalId || '',
-      approvalStatus: opts.approvalStatus || admissionContext.approvalStatus || '',
-      approvalRequired: opts.approvalRequired ?? admissionContext.approvalRequired ?? true,
-      reason: opts.admissionReason || admissionContext.reason || 'kernel_learn_write',
-      createdAt,
-      proposedMemory: {
-        content: String(text || ''),
-        edges: [{ relation: 'learn', workspaceId }],
-        metadata: {
-          sourceType: provenance?.sourceType || opts.sourceType || admissionContext.sourceType || '',
-          sourceRef: provenance?.sourceRef || opts.sourceRef || admissionContext.sourceRef || '',
-          actor,
-        },
-      },
-    };
-
-    const evaluated = evaluateMemoryAdmission(request, {
-      approvalRequired: request.approvalRequired,
-    });
-    if (!evaluated || !evaluated.ok || !evaluated.decision) {
-      return {
-        outcome: 'review',
-        reason: 'memory_admission_evaluation_failed',
-        graphWrite: false,
-        workspaceId,
-      };
-    }
-
-    return {
-      outcome: evaluated.decision.decision,
-      reason: evaluated.decision.reason,
-      graphWrite: evaluated.decision.allowed,
-      workspaceId,
-      approvalStatus: evaluated.decision.approvalStatus,
-      provenanceId: evaluated.decision.provenanceId,
-      receiptId: evaluated.decision.receiptId,
-      receipt: evaluated.decision.receipt,
-      trustPolicyVersion: evaluated.decision.trustPolicyVersion,
-    };
+    return evaluateLearnAdmission({
+      kernel: this,
+      isLearnAdmissionBypass: this._isLearnAdmissionBypass.bind(this),
+      contractVersion: this.contractVersion,
+    }, text, opts, provenance, workspaceId);
   }
 
   _admissionReceiptDetails(admission) {
     if (!admission || typeof admission !== 'object') return {};
-    const details = {};
-    if (admission.receiptId) details.receiptId = admission.receiptId;
-    if (admission.receipt && typeof admission.receipt === 'object') {
-      details.receipt = JSON.parse(JSON.stringify(admission.receipt));
-    }
-    return details;
+    return { ...(admission.receiptId ? { receiptId: admission.receiptId } : {}), ...(admission.receipt && typeof admission.receipt === 'object' ? { receipt: JSON.parse(JSON.stringify(admission.receipt)) } : {}) };
   }
 
-  // r1: Wrapper with lock for concurrent safety (async version)
+  // The async form of learn(). It does NOT add locking: the critical
+  // section is entered inside learn() itself, so learnAsync() is not the
+  // "concurrency-safe" variant of an unsafe learn() (#368).
+  //
+  // What it does add is the async pre-ingest pass.
+  //
+  // #348: this is also the async pre-ingest entry point. Callers that can
+  // await (CLI, MCP, adapters) get preIngest hooks -- which are allowed to
+  // do network I/O -- run before the synchronous learn() pipeline starts.
+  // With no preIngest plugin registered this stays a pass-through, so the
+  // behaviour of every existing caller is unchanged.
   async learnAsync(text, opts = {}) {
-    return this.learn(text, opts);
+    const prepared = await this._runPreIngest(text, opts);
+    return this.learn(prepared.text, prepared.opts || opts);
   }
 
-  // Original synchronous learn (backward compatible - no locks)
-  // For concurrent access, use learnAsync() instead
+  // The synchronous learn path. It takes the critical section itself
+  // (_enterCriticalSection below), so this is concurrency-guarded on its
+  // own; learnAsync() wraps it for the preIngest pass, not for safety
+  // (#368). What this path cannot do is run async preIngest hooks -- a
+  // caller that needs those must await learnAsync().
+  //
+  // #216 (gap 4): every learn() call now goes through the durable mutation
+  // journal, not just callers that explicitly pass mutationOperationId. A
+  // caller-supplied id is used as-is (so MCP's approval-id-as-operation-id
+  // scheme is unchanged); otherwise one is generated internally so legacy
+  // callers (CLI, plugins, direct API use) get the same idempotent-replay
+  // and crash-safety guarantee, not just MCP-approved learns.
   learn(text, opts = {}) {
-    const ev = this._runBeforeLearn(text, opts);
-    const nextText = ev.text;
-    const nextOpts = ev.opts || opts;
-    this._enterCriticalSection('learn');
-    try {
-      return runLearnUseCase(this, nextText, nextOpts, {
-        normalizeWorkspaceId,
-        ProvenanceError,
-      });
-    } finally {
-      this._exitCriticalSection();
-    }
+    return runLearnTransaction({ graph: this.graph, kernel: this, enterCriticalSection: (op) => this._enterCriticalSection(op), exitCriticalSection: () => this._exitCriticalSection(), appendAuditEvent: (...args) => this._appendAuditEvent(...args), admit: (k, t, o) => admitLearn(k, t, o), runUseCase: (k, t, o, d) => runLearnUseCase(k, t, o, d), buildCanonicalReceipt: (receipt, operationId, committedAt) => buildLearnCanonicalReceipt(receipt, operationId, committedAt) }, text, opts);
   }
 
   // r1: Internal learn implementation
   addCandidateClaim(candidate, opts = {}) {
-    if (!this.graph || typeof this.graph.addCandidateClaim !== 'function') {
-      throw new Error('Graph candidate claim storage is unavailable.');
-    }
-    return this.graph.addCandidateClaim(candidate, opts);
+    return admitAddCandidateClaim(this, candidate, opts);
   }
 
   getCandidateClaims(filters = {}) {
@@ -886,1013 +339,45 @@ class Kernel {
     return this.graph.getCandidateClaims(filters);
   }
 
-  detectClaimConflict(claim, opts = {}) {
-    return detectClaimConflict(this, claim, opts);
-  }
-
   ingestCandidateClaim(input = {}, opts = {}) {
-    return routeCandidateClaim(this, input, opts);
+    return admitCandidateIngress(this, input, opts, null, (text, admissionOpts, provenance, workspaceId) =>
+      this._evaluateLearnAdmission(text, admissionOpts, provenance, workspaceId));
   }
 
-  _normalizeExplicitRelationObject(rawObject, opts = {}) {
-    const text = String(rawObject || '').trim();
-    if (!text) return '';
-
-    const words = text.split(/\s+/).filter(Boolean);
-    if (words.length === 0) return '';
-
-    const last = words[words.length - 1];
-    let cleaned = last;
-    if (opts.trimCaseSuffixes !== false) {
-      cleaned = cleaned.replace(/(y[iıuü]|[iıuü]|[ae])$/i, '');
-    }
-    if (!cleaned) cleaned = last;
-    if (opts.trimCaseSuffixes !== false) {
-      cleaned = cleaned.replace(/([gGdDbB])$/, (match) => ({
-        g: 'k',
-        G: 'K',
-        d: 't',
-        D: 'T',
-        b: 'p',
-        B: 'P',
-      }[match] || match));
-    }
-    words[words.length - 1] = this.normalizeWord(cleaned);
-    return words.join(' ').trim();
-  }
-
-  _parseExplicitRelationPredicate(predicate) {
-    const normalized = String(predicate || '').trim();
-    if (!normalized) return null;
-
-    const patterns = [
-      { relation: 'CAUSES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(neden olur|yol acar|yol açar|sebep olur|tetikler|yapar)$/i },
-      { relation: 'CAUSES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(causes|cause|leads to|triggers)\s+(.+)$/i },
-      { relation: 'PREVENTS', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(onler|önler|engeller|durdurur|onune gecer|önüne geçer)$/i },
-      { relation: 'PREVENTS', mode: 'prefix', trimCaseSuffixes: false, marker: /^(prevents|prevent|blocks|stops)\s+(.+)$/i },
-      { relation: 'DEPENDS_ON', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(bagli|baglı|bağlı|baglidir|baglıdır|bağlıdır|gerektirir|dayanir|dayanır|olmadan)$/i },
-      { relation: 'DEPENDS_ON', mode: 'prefix', trimCaseSuffixes: false, marker: /^(requires|depends on)\s+(.+)$/i },
-      { relation: 'ENABLES', mode: 'suffix', trimCaseSuffixes: true, marker: /^(.*?)\s+(saglar|sağlar|mumkun kilar|mümkün kılar|olanak verir|etkinlestirir|etkinleştirir)$/i },
-      { relation: 'ENABLES', mode: 'prefix', trimCaseSuffixes: false, marker: /^(enables|enable)\s+(.+)$/i },
-    ];
-
-    for (const pattern of patterns) {
-      const match = normalized.match(pattern.marker);
-      if (!match) continue;
-      const objectText = pattern.mode === 'prefix' ? match[2] : match[1];
-      const object = this._normalizeExplicitRelationObject(objectText, {
-        trimCaseSuffixes: pattern.trimCaseSuffixes !== false,
-      });
-      if (!object) continue;
-      return { object, relation: pattern.relation };
-    }
-
-    return null;
-  }
-
-  _parsePredicate(predicate) {
-    // "bir" gibi belirsiz artikelleri temizle
-    predicate = predicate.replace(/^bir\s+/, '').trim();
-
-    // KISITLAMA: "sadece x yapar" ? k?s?tlama i?areti
-    const kistlama = predicate.match(/^(sadece|yaln?zca|s?rf|ancak)\s+(.+)/i);
-    if (kistlama) {
-      // K?s?tl? hali parse et, k?s?tlama bilgisini object'e g?m
-      const inner = kistlama[2];
-      const parsed = this._parsePredicate(inner);
-      if (parsed) {
-        parsed.kistlama = true;
-        parsed.object = inner;
-        return parsed;
-      }
-    }
-
-    // -değil/-değildir ? olumsuzluk
-    // "fark?ndal?k değildir" ? değil ili?kisi
-    const degilMatch = predicate.match(/^(.+?)\s+değildir$/i);
-    if (degilMatch) {
-      return { object: degilMatch[1].trim(), relation: 'değil' };
-    }
-    // tek kelime "değildir" biti?ik: "fark?ndal?kdeğildir"
-    const degilSuffix = /^(.+?)değildir$/i;
-    const dMatch = predicate.match(degilSuffix);
-    if (dMatch && dMatch[1].trim()) {
-      return { object: dMatch[1].trim(), relation: 'değil' };
-    }
-
-    // -mez/-maz olumsuz fiil: "hissetmez", "anlamaz", "bilmez" ? değil
-    // "duyguyu hissetmez" gibi ?ok kelimeli i?in son kelimeyi kontrol et
-    const negVerbMatch = predicate.match(/^(.+?)\s+(.+)(mez|maz)$/i);
-    if (negVerbMatch) {
-      const verb = negVerbMatch[2] + negVerbMatch[3];
-      return { object: (negVerbMatch[1] + ' ' + verb).trim(), relation: 'değil' };
-    }
-    // tek kelimeli: "hissetmez"
-    const negSingle = predicate.match(/^(.+?)(mez|maz)$/i);
-    if (negSingle && predicate.indexOf(' ') === -1) {
-      return { object: predicate, relation: 'değil' };
-    }
-
-    // Explicit DEPENDS_ON check before -dır suffix catch-all.
-    // Prevents "baglidir" / "bağlıdır" / "bagli" / "bağlı" from
-    // being swallowed by the generic -dir/-dır tür pattern.
-    const earlyDepends = this._parseExplicitRelationPredicate(predicate);
-    if (earlyDepends && earlyDepends.relation === 'DEPENDS_ON') {
-      return earlyDepends;
-    }
-    // -dır/-dir/-dur/-dır/-tür/-tir/-tur/-tür ? tür ili?kisi
-    const tirSuffix = /(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
-    if (tirSuffix.test(predicate)) {
-      const stem = this.normalizeWord(predicate.replace(tirSuffix, ''));
-      return { object: stem, relation: 'tür' };
-    }
-
-    // -dır/-dir ekli ?ok kelimeli y?klem: "doÄŸru d?nme y?ntemidir"
-    const tirMulti = /^(.+?)(dır|dir|dur|dır|tür|tir|tur|tür)$/i;
-    const mMatch = predicate.match(tirMulti);
-    if (mMatch && mMatch[1].includes(' ')) {
-      return { object: mMatch[1].trim(), relation: 'tür' };
-    }
-
-    const explicitRelation = this._parseExplicitRelationPredicate(predicate);
-    if (explicitRelation) {
-      return explicitRelation;
-    }
-
-    // Fiil ekleri ? yapabilir ili?kisi
-    const verbSuffix = /(ar|er|ır|ir|ur|ür|yor|acak|ecek|mak|mek)$/i;
-if (verbSuffix.test(predicate)) {
-      return { object: predicate, relation: 'yapabilir' };
-    }
-
-    // -r ile biten k?sa fiiller
-    if (/r$/i.test(predicate) && predicate.length > 2) {
-      return { object: predicate, relation: 'yapabilir' };
-    }
-
-    // Ã‡ok kelimeli y?klem ? özellik
-    return { object: predicate, relation: 'özellik' };
-  }
-
-  /**
-   * FAZ2-PR3 (F-001-d): Derive "benzer" (similarity) edges from shared tags.
-   *
-   * Two entry modes:
-   *  - Parent-allowed (context.parentAdmissionAllowed === true):
-   *      Invoked from the main learn path AFTER user admission allowed the
-   *      parent write.  Derived "benzer" edges inherit parent provenance and
-   *      are audited as derived writes; no background admission round-trip
-   *      so the derived chain does not deadlock on review-by-default.  This
-   *      mirrors the parent admission decision rather than introducing a
-   *      separate background gate for a write the user already authorized.
-   *  - Background (no context):
-   *      Invoked externally (e.g. inference/maintenance).  Routed through
-   *      _commitBackgroundEdge so the synthetic provenance is admission-gated.
-   *      Default decision is 'review' → no canonical write.
-   *
-   * Either path produces an audit event so the attempt is observable.
-   */
-  _crossLink(subject, object, relation, workspaceId = 'default', context = {}) {
-    const subjNode = this.graph.getNode(subject, workspaceId);
-    const objNode = this.graph.getNode(object, workspaceId);
-    if (!subjNode || !objNode) return { written: 0, audits: 0, skipped: 0 };
-
-    const parentAllowed = Boolean(context && context.parentAdmissionAllowed);
-    const parentProvenance = context && context.parentProvenance ? context.parentProvenance : null;
-
-    let written = 0;
-    let audits = 0;
-    let skipped = 0;
-
-    for (const tag of Object.keys(subjNode.vector)) {
-      if (tag !== object && this.graph.getNode(tag, workspaceId) && objNode.vector[tag]) {
-        const existing = this.graph.getEdge(subject, object, 'benzer', workspaceId);
-        if (!existing) {
-          if (parentAllowed) {
-            // Parent learn admission already permitted the canonical write
-            // that triggered this derivation.  Carry parent provenance + audit.
-            const edgeOptions = { workspaceId };
-            if (parentProvenance) edgeOptions.provenance = parentProvenance;
-            edgeOptions.source = (context && context.derivedSource) || 'cross-link';
-            const edge = this.graph.addEdge(subject, object, 'benzer', edgeOptions);
-            if (edge) {
-              written++;
-              this._appendAuditEvent({
-                eventType: 'LEARN',
-                targetType: 'derived_edge',
-                targetId: `${edge.from}|${edge.relation}|${edge.to}`,
-                details: {
-                  derivation: 'cross_link',
-                  triggerSubject: subject,
-                  triggerObject: object,
-                  triggerRelation: relation,
-                  via: tag,
-                },
-              }, parentProvenance, workspaceId);
-              audits++;
-            }
-          } else {
-            // Background invocation — route through admission gate.
-            const result = this._commitBackgroundEdge(subject, object, 'benzer', '_crossLink', {
-              workspaceId,
-              edgeOptions: { source: 'cross-link' },
-              provenanceExtra: { derivation: 'cross_link', via: tag },
-            });
-            if (result.audit) audits++;
-            if (result.decision === 'allow' && result.edge) written++;
-            else skipped++;
-          }
-        }
-      }
-    }
-
-    return { written, audits, skipped };
-  }
-
-  ask(question) {
-    return this._readUseCases.ask(question);
-  }
-
-  alternatives(subject, maxPaths = 3, workspaceId = 'default') {
-    const normalized = this.normalizeWord(subject);
-    const node = this.graph.getNode(normalized, workspaceId);
-    if (!node) {
-      return this._ok('alternatives', { subject: normalized, answer: 'Bilmiyorum', paths: [] }, []);
-    }
-
-    // 1. DoÄŸrudan kenarlardan alternatif gruplar? olu?tur
-    const edges = this.graph.getEdges(normalized, workspaceId);
-    const groups = { 'tür': [], yapabilir: [], 'özellik': [], benzer: [], hipotez: [] };
-    for (const e of edges) {
-      const g = groups[e.relation];
-      if (g) g.push(e.to);
-    }
-
-    // 2. En y?ksek g?venli hedefleri se?, her gruptan bir tane al
-    const paths = [];
-    const usedNodes = new Set([normalized]);
-
-    // ?li?ki ?nceliÄŸi: tür > yapabilir > özellik > benzer > hipotez
-    const relOrder = ['tür', 'yapabilir', 'özellik', 'benzer', 'hipotez'];
-
-    for (const rel of relOrder) {
-      if (paths.length >= maxPaths) break;
-      const targets = groups[rel] || [];
-      if (targets.length === 0) continue;
-
-      // G?vene g?re s?rala (y?ksekten d?ÄŸe)
-      const sorted = targets
-        .map(t => ({ target: t, weight: edges.find(e => e.to === t && e.relation === rel)?.weight || 0.5 }))
-        .sort((a, b) => b.weight - a.weight);
-
-      const best = sorted[0];
-      if (usedNodes.has(best.target)) continue;
-
-      const subEdges = this.graph.getEdges(best.target, workspaceId).filter(e => !usedNodes.has(e.to));
-      const chain = subEdges.slice(0, 2).map(e => ({ node: e.to, rel: e.relation }));
-      paths.push({
-        type: rel,
-        from: normalized,
-        to: best.target,
-        chain,
-        confidence: best.weight,
-      });
-      usedNodes.add(best.target);
-    }
-
-    // 3. Alternatif ??z?m olarak deÄŸerlendir
-    let answer = normalized + ' i?in alternatif ??z?mler:\n';
-    for (const p of paths) {
-      answer += `  [${p.type}] ${p.from} ? ${p.to}`;
-      if (p.chain.length > 0) {
-        answer += ` ? ${p.chain.map(c => c.node + '(' + c.rel + ')').join(', ')}`;
-      }
-      answer += ` (g?ven: ${p.confidence.toFixed(2)})\n`;
-    }
-    if (paths.length === 0) answer = 'Bilmiyorum';
-
-    const evidence = paths.map(p => ({
-      kind: 'alternative_path',
-      text: `${p.from} --[${p.type}]--> ${p.to}`,
-      confidence: p.confidence,
-      nodes: [p.from, p.to],
-      edges: [{ from: p.from, to: p.to, relation: p.type }],
-    }));
-
-    return this._ok('alternatives', { subject: normalized, answer, paths }, evidence);
-  }
-
-  contextSimilarity(a, b, context) {
-    const ctxWeight = {};
-    const ctxNode = this.graph.getNode(context);
-    if (ctxNode) {
-      for (const [dim, w] of Object.entries(ctxNode.vector)) {
-        ctxWeight[dim] = w;
-      }
-    }
-
-    const aNode = this.graph.getNode(a);
-    const bNode = this.graph.getNode(b);
-    if (!aNode || !bNode) return 0;
-
-    const dims = new Set([
-      ...Object.keys(aNode.vector),
-      ...Object.keys(bNode.vector),
-      ...Object.keys(ctxWeight),
-    ]);
-
-    let dot = 0, magA = 0, magB = 0;
-    for (const d of dims) {
-      const cw = ctxWeight[d] || 1;
-      const va = (aNode.vector[d] || 0) * cw;
-      const vb = (bNode.vector[d] || 0) * cw;
-      dot += va * vb;
-      magA += va * va;
-      magB += vb * vb;
-    }
-
-    const mag = Math.sqrt(magA) * Math.sqrt(magB);
-    return mag === 0 ? 0 : dot / mag;
-  }
-
-  entropy(workspaceId = 'default') {
-    return this._readUseCases.entropy(workspaceId);
-  }
-
-  detectGaps(workspaceId = 'default') {
-    return this._readUseCases.detectGaps(workspaceId);
-  }
-
-  reason(subject, workspaceId = 'default') {
-    return this._readUseCases.reason(subject, workspaceId);
-  }
-
-  compare(a, b, workspaceId = 'default') {
-    return this._readUseCases.compare(a, b, workspaceId);
-  }
-
-  _parseNumericComparison(text) {
-    return this._verifyService._parseNumericComparison(text);
-  }
-
-  _forwardChain(id, chain, visited, depth, workspaceId = 'default') {
-    if (depth <= 0 || visited.has(id)) return chain;
-    visited.add(id);
-    const edges = this.graph.getEdges(id, workspaceId);
-    for (const e of edges) {
-      if (!visited.has(e.to) && !chain.some(c => c.to === e.to)) {
-        chain.push(e);
-        this._forwardChain(e.to, chain, visited, depth - 1, workspaceId);
-      }
-    }
-    return chain;
-  }
-
-  _backwardChain(id, chain, visited, depth, workspaceId = 'default') {
-    if (depth <= 0 || visited.has(id)) return chain;
-    visited.add(id);
-    const inEdges = this.graph.getInEdges(id, workspaceId);
-    for (const e of inEdges) {
-      if (!visited.has(e.from) && !chain.some(c => c.from === e.from)) {
-        chain.push(e);
-        this._backwardChain(e.from, chain, visited, depth - 1, workspaceId);
-      }
-    }
-    return chain;
-  }
-
-  _detectCycle(start, visited, pathArr, workspaceId = 'default') {
-    if (visited.has(start)) {
-      const idx = pathArr.indexOf(start);
-      if (idx >= 0) return pathArr.slice(idx).concat(start);
-      return null;
-    }
-    visited.add(start);
-    pathArr.push(start);
-    const edges = this.graph.getEdges(start, workspaceId);
-    for (const e of edges) {
-      const result = this._detectCycle(e.to, visited, [...pathArr], workspaceId);
-      if (result) return result;
-    }
-    const inEdges = this.graph.getInEdges(start, workspaceId);
-    for (const e of inEdges) {
-      if (!visited.has(e.from)) {
-        const result = this._detectCycle(e.from, visited, [...pathArr], workspaceId);
-        if (result) return result;
-      }
-    }
-    return null;
-  }
-
-  _resolveCycleOrder(cycle, workspaceId = 'default') {
-    const giren = new Set();
-    const cikan = new Set();
-    for (let i = 0; i < cycle.length - 1; i++) {
-      const edges = this.graph.getEdges(cycle[i], workspaceId);
-      for (const e of edges) {
-        if (e.to === cycle[i + 1] && e.relation === 'tür') {
-          cikan.add(cycle[i]);
-          giren.add(cycle[i + 1]);
-        }
-      }
-    }
-    for (const n of cycle) {
-      if (cikan.has(n) && !giren.has(n)) return n + ' (temel tür)';
-    }
-    return null;
-  }
-
-  _findPath(from, to, visited, pathArr, depth, workspaceId = 'default') {
-    return this._findPathWithTimeout(from, to, 100, workspaceId, depth).path;
-  }
-
-  // r3: findPathWithTimeout - DFS path finding with timeout protection
-  // Prevents infinite recursion or excessive backtracking in cyclic graphs
-  _findPathWithTimeout(from, to, timeoutMs = 100, workspaceId = 'default', maxDepth = 5) {
-    const startTime = Date.now();
-    const visited = new Set();
-    const pathArr = [];
-    let stoppedReason = null;
-    
-    const search = (current, depth) => {
-      // r3: Check timeout on each recursion step
-      if (Date.now() - startTime > timeoutMs) {
-        stoppedReason = 'timeout';
-        return null; // Timeout - abort search
-      }
-      
-      if (depth <= 0) {
-        stoppedReason = stoppedReason || 'maxDepth';
-        return null;
-      }
-
-      if (visited.has(current)) {
-        stoppedReason = stoppedReason || 'cycle';
-        return null;
-      }
-      
-      visited.add(current);
-      pathArr.push(current);
-      
-      if (current === to) return [...pathArr];
-      
-      // Forward search
-      const edges = this.graph.getEdges(current, workspaceId);
-      for (const e of edges) {
-        const result = search(e.to, depth - 1);
-        if (result) return result;
-      }
-      
-      // Backward search
-      const inEdges = this.graph.getInEdges(current, workspaceId);
-      for (const e of inEdges) {
-        const result = search(e.from, depth - 1);
-        if (result) return result;
-      }
-      
-      pathArr.pop();
-      return null;
-    };
-    
-    const path = search(from, maxDepth);
-    if (!path && !stoppedReason) stoppedReason = 'not_found';
-    return {
-      path,
-      stoppedReason,
-      maxDepth,
-      timeoutMs,
-      workspaceId,
-      visitedCount: visited.size,
-    };
-  }
-
-  // --- Background auto-think ---
-  startAutoThink(intervalMs = 10000) {
-    if (this._thinkTimer) return;
-    this._dreamer = new Dream(this);
-    this._thinkTimer = setInterval(() => {
-      try {
-        this._autoThinkTick();
-      } catch (e) {
-        console.error('\n[autoThink hata]', e.message);
-      }
-    }, intervalMs);
-    this._autoThinkLog('AutoThink ba?lad? (her ' + (intervalMs / 1000) + 's)');
-  }
-
-  stopAutoThink() {
-    if (this._thinkTimer) {
-      clearInterval(this._thinkTimer);
-      this._thinkTimer = null;
-    }
-    this._autoThinkLog('AutoThink durduruldu');
-  }
-
-  _autoThinkTick() {
-    if (!this._dreamCount) this._dreamCount = 0;
-    this._dreamCount++;
-
-    const isBilinclikTick = this._dreamCount > 0; // t?m tick'ler art?k bilin?li
-
-    // ADIM 1: R?ya g?r + ?ÄŸren (recursion)
-    // FAZ2-PR3 (F-001-a): autonomous edge proposals route through
-    // _commitBackgroundEdge so they receive synthetic provenance, admission
-    // evaluation, and audit instead of writing directly to the graph.
-    const hips = this._dreamer.dream();
-    let eklenen = 0;
-    let bekleyen = 0;
-    if (hips.length > 0) {
-      for (const h of hips.slice(0, 5)) {
-        if (h.confidence > 0.25) {
-          const existing = this.graph.hasAnyEdge(h.from, h.to);
-          if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = h.type === 'zincir' ? 'benzer' : (h.type === 'benzerlik' ? 'benzer'
-                      : h.relation === 'tür' ? 'tür'
-                      : h.relation === 'yapabilir' ? 'yapabilir'
-                      : h.relation === 'özellik' ? 'özellik'
-                      : 'hipotez');
-            const result = this._commitBackgroundEdge(h.from, h.to, rel, '_autoThinkTick', {
-              provenanceExtra: {
-                hypothesisType: h.type,
-                hypothesisConfidence: h.confidence,
-              },
-            });
-            if (result.decision === 'allow' && result.edge) eklenen++;
-            else bekleyen++;
-          }
-        }
-      }
-    }
-
-    // ADIM 2: ??g?zlem (her tick'te değil, bilgi b?y?d?k?e)
-    let celiskiSayisi = 0;
-    let metaGuven = 0.5;
-    if (isBilinclikTick && this._dreamCount % 3 === 0) {
-      const durum = this.introspect().data;
-      celiskiSayisi = durum.saglik.celiski;
-      metaGuven = durum.saglik.metaGuven;
-
-      // Zay?f noktalar? tespit et
-      if (celiskiSayisi > 5) {
-        this._autoThinkLog(durum.zayifNoktalar.join('; '));
-      }
-    }
-
-    // ADIM 3: S?rekli ?ÄŸrenme dırt?s? (bilin? tikleri)
-    if (eklenen > 0) {
-      this._autoThinkLog(eklenen + ' yeni baÄŸlant? - toplam ' + this.graph.nodeCount() + ' d?ÄŸ?m');
-    } else if (this._dreamCount % 5 === 0) {
-      // Bo? r?ya -> daha fazla girdi laz?m
-      this._autoThinkLog('bo? r?ya, daha fazla bilgi laz?m');
-    }
-  }
-
-  _autoThinkLog(msg) {
-    console.log('\n[ğŸ§  ' + new Date().toLocaleTimeString() + '] ' + msg);
-  }
-
-  /**
-   * Bir ifadeyi bilgi grafiÄŸiyle doÄŸrula.
-   * "kedi bal?k yer" ? ?zne=kedi, nesne=bal?k yer ? kenar var m??
-   * r1: Use verifyAsync() for concurrent safety with locks
-   */
-  verify(statement, opts = {}) {
-    this._enterCriticalSection('verify');
-    try {
-      return this._verifyInternal(statement, opts);
-    } finally {
-      this._exitCriticalSection();
-    }
-  }
-
-  // r1: Async wrapper with lock for concurrent safety
-  async verifyAsync(statement, opts = {}) {
-    return this.verify(statement, opts);
-  }
-
-  // r1: Internal verify implementation (protected by lock if verifyAsync is called)
-  _verifyInternal(statement, opts = {}) {
-    return this._verifyService.verify(statement, opts);
-  }
-
-  dream(opts = {}) {
-    const dreamer = new Dream(this);
-    const raw = dreamer.dream(opts);
-    const hypotheses = raw.map(h => {
-      const nodes = [h.from, h.to, h.node, ...(h.targets || [])].filter(Boolean);
-      const edges = h.from && h.to ? [{ from: h.from, to: h.to, relation: h.relation || h.type || 'hypothesis' }] : [];
-      return {
-        ...h,
-        _evidence: {
-          kind: 'hypothesis',
-          text: h.from && h.to ? `${h.from} ? ${h.to}` : `${nodes.join(' ? ') || 'hypothesis'}`,
-          confidence: Math.max(0, Math.min(1, h.confidence || 0)),
-          nodes,
-          edges,
-        },
-      };
-    });
-
-    // Geribesleme: hipotezleri grafiÄŸe ekle
-    // FAZ2-PR3 (F-001-b): when learnFromDream is set, hypotheses are
-    // background-derived candidate writes — route through admission +
-    // audit instead of silent canonical writes.
-    const learned = [];
-    const pending = [];
-    if (opts.learnFromDream) {
-      const threshold = opts.dreamLearnThreshold ?? 0.1;
-      for (const h of hypotheses) {
-        if (h.confidence > threshold && h.from && h.to) {
-          const existing = this.graph.hasAnyEdge(h.from, h.to);
-          if (!existing && this.graph.getNode(h.from) && this.graph.getNode(h.to)) {
-            const rel = (h.relation === 'tür' || h.via === 'tür') ? 'tür'
-                      : (h.relation === 'yapabilir') ? 'yapabilir'
-                      : (h.relation === 'özellik') ? 'özellik'
-                      : (h.type === 'zincir' || h.relation === 'benzer') ? 'benzer'
-                      : 'hipotez';
-            const result = this._commitBackgroundEdge(h.from, h.to, rel, 'dream', {
-              provenanceExtra: {
-                hypothesisType: h.type,
-                hypothesisConfidence: h.confidence,
-                via: h.via || null,
-              },
-            });
-            if (result.decision === 'allow' && result.edge) {
-              learned.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel });
-            } else {
-              pending.push({ from: h.from, to: h.to, confidence: h.confidence, relation: rel, decision: result.decision });
-            }
-          }
-        }
-      }
-    }
-
-    // R?ya döngü sayac?
-    if (!this._dreamCount) this._dreamCount = 0;
-    this._dreamCount++;
-
-    const evidence = hypotheses.map(h => h._evidence);
-    return this._ok('dream', { hypotheses, learned, pending, cycle: this._dreamCount }, evidence);
-  }
-
-  learnDocument(text, opts = {}) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !l.startsWith('#') && !l.startsWith('//'));
-    let count = 0;
-    const admissions = [];
-    for (const line of lines) {
-      const cleaned = line.replace(/^[\s-â€“â€”*â€¢]+/, '').trim();
-      const words = cleaned.split(/\s+/);
-      if (words.length >= 2) {
-        const result = this.learn(cleaned, opts);
-        count += Number(result?.data?.learned || 0);
-        if (result?.data?.admission) admissions.push(result.data.admission);
-      }
-    }
-    if (opts.returnDetails) {
-      return { learned: count, admissions };
-    }
-    return count;
-  }
-
-  /**
-   * LLM yan?t?ndan bilgi ?ÄŸren.
-   * Ã‡eli?kili c?mleleri atlar, yeni bilgileri grafiÄŸe ekler.
-   *
-   * @param {string} text - LLM'den gelen ham metin
-   * @param {object} [opts]
-   * @param {boolean} [opts.skipConflicts=true]  - çelişkili c?mleleri atla
-   * @param {number}  [opts.minWords=2]           - minimum kelime say?s?
-   * @param {number}  [opts.maxSentences=20]      - max c?mle say?s?
-   * @returns {{ learned: number, skipped: number, conflicts: string[] }}
-   */
-  learnFromLLM(text, opts = {}) {
-    // r1: Note - this method calls learn() and verify() which are now async
-    // For backward compatibility, returning async function result
-    if (this.paranoidMode) {
-      return {
-        learned: 0,
-        skipped: 0,
-        conflicts: [],
-        ok: false,
-        error: {
-          code: AXIOM_ERROR.LLM_DISABLED,
-          message: 'Paranoid mode aktif: d?? LLM ?aÄŸr?lar? ve otomatik ?ÄŸrenme engellendi.',
-        },
-        meta: {
-          contractVersion: this.contractVersion,
-          paranoidMode: this.paranoidMode,
-        },
-      };
-    }
-
-    const skipConflicts = opts.skipConflicts !== false;
-    const minWords     = opts.minWords     || 2;
-    const maxSentences = opts.maxSentences || 20;
-
-    // Metni c?mlelere b?l: nokta, ?nlem, soru i?areti veya satür sonu
-    const sentences = text
-      .split(/[.!?\n]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 3);
-
-    let learned = 0, skipped = 0;
-    const conflicts = [];
-
-    for (const sentence of sentences.slice(0, maxSentences)) {
-      // Markdown i?aretlerini temizle
-      const cleaned = sentence
-        .replace(/^[\s#*\-â€“â€”â€¢>]+/, '')
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        .replace(/`(.+?)`/g, '$1')
-        .trim();
-
-      const words = cleaned.split(/\s+/).filter(Boolean);
-      if (words.length < minWords) { skipped++; continue; }
-
-      // Ã‡eli?ki kontrol?
-      if (skipConflicts) {
-        const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
-        const check = this.verify(cleaned, { workspaceId });
-        if (check.data.status === 'celiski') {
-          conflicts.push(cleaned);
-          skipped++;
-          continue;
-        }
-      }
-
-      const workspaceId = normalizeWorkspaceId(opts.workspaceId || opts.provenance?.workspaceId || 'default');
-      const provenance = opts.provenance && typeof opts.provenance === 'object'
-        ? { ...opts.provenance }
-        : {
-            provenanceId: `llm-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-            sourceRef: opts.sourceRef || 'llm:auto-learn',
-            sourceTitle: opts.sourceTitle || 'LLM auto-learn sentence',
-            sourceType: 'llm',
-            actor: opts.actor || 'system',
-            timestamp: opts.timestamp || new Date().toISOString(),
-            workspaceId,
-            confidence: opts.confidence ?? 0.5,
-            trustPolicyVersion: opts.trustPolicyVersion || '0.8.0',
-          };
-      const learnResult = this.learn(cleaned, {
-        ...opts,
-        provenance,
-        workspaceId,
-        admissionRequired: true,
-        approvalRequired: opts.approvalRequired ?? true,
-      });
-      if (Number(learnResult?.data?.learned || 0) > 0) learned++;
-      else skipped++;
-    }
-
-    return { learned, skipped, conflicts };
-  }
-
-  detectContradictions(subject = '', workspaceId = 'default') {
-    return this._verifyService.detectContradictions(subject, workspaceId);
-  }
-
-  _extractNumbers(text) {
-    return this._verifyService._extractNumbers(text);
-  }
-
-  _getTextCore(text) {
-    return this._verifyService._getTextCore(text);
-  }
-
-  introspect(workspaceId = 'default') {
-    this.plugins.emit('beforeIntrospect', {});
-    const allNodes = Object.values(this.graph.getNodes(workspaceId));
-    const allEdges = allNodes.flatMap(n => this.graph.getEdges(n.id, workspaceId));
-    const inEdges  = allNodes.flatMap(n => this.graph.getInEdges(n.id, workspaceId));
-
-    // Temel istatistikler
-    const nodeCount = allNodes.length;
-    const edgeCount = allEdges.length;
-    const typeEdges = allEdges.filter(e => e.relation === 'tür').length;
-    const canEdges  = allEdges.filter(e => e.relation === 'yapabilir').length;
-    const ozellikEdges = allEdges.filter(e => e.relation === 'özellik').length;
-    const benzerEdges  = allEdges.filter(e => e.relation === 'benzer').length;
-    const hipotezEdges = allEdges.filter(e => e.relation === 'hipotez').length;
-
-    // Yal?t?lm?? d?ÄŸ?mler
-    const yalitilmis = allNodes.filter(n => {
-      const out = this.graph.getEdges(n.id, workspaceId);
-      const inn = this.graph.getInEdges(n.id, workspaceId);
-      return out.length === 0 && inn.length === 0;
-    }).map(n => n.id);
-
-    // Ã‡eli?kiler
-    const celiskiler = this.detectContradictions();
-
-    // Bo?luklar (hi? kenar? olmayan)
-    const bosluklar = this.detectGaps(workspaceId);
-
-    // Kenar aÄŸ?rl?k daÄŸ?l?m?
-    const agirliklar = allEdges.map(e => e.weight || 0.5);
-    const ortAgirlik = agirliklar.length > 0 ? agirliklar.reduce((s, w) => s + w, 0) / agirliklar.length : 0;
-    const dusukAgirlik = agirliklar.filter(w => w < 0.3).length;
-
-    // Ã–z-bilgi: graph kendisi hakk?nda ne biliyor?
-    const selfNodes = ['axiom', 'kernel', 'dream', 'rüya', 'hipotez'];
-    const selfBilgi = {};
-    for (const n of selfNodes) {
-      const node = this.graph.getNode(n, workspaceId);
-      if (node) {
-        const edges = this.graph.getEdges(n, workspaceId);
-        selfBilgi[n] = { var: true, kenar: edges.length };
-      } else {
-        selfBilgi[n] = { var: false, kenar: 0 };
-      }
-    }
-
-    // R?ya döngüs?
-    const dreamCycle = this._dreamCount || 0;
-
-    // Entropi (bilgi ?e?itliliÄŸi)
-    const entropi = this.entropy(workspaceId);
-
-    // Meta-g?ven skoru
-    let metaGuven = 0.5;
-    if (nodeCount > 0) {
-      metaGuven += Math.min(0.2, nodeCount * 0.001);
-      metaGuven -= Math.min(0.3, celiskiler.length * 0.05);
-      metaGuven += Math.min(0.1, ortAgirlik * 0.1);
-      metaGuven -= Math.min(0.1, yalitilmis.length * 0.02);
-      metaGuven = Math.max(0, Math.min(1, metaGuven));
-    }
-
-    // Zay?f noktalar
-    const zayifNoktalar = [];
-    if (yalitilmis.length > 0) zayifNoktalar.push(`${yalitilmis.length} yal?t?lm?? d?ÄŸ?m`);
-    if (celiskiler.length > 0) zayifNoktalar.push(`${celiskiler.length} çelişki`);
-    if (dusukAgirlik > edgeCount * 0.3) zayifNoktalar.push(`${dusukAgirlik} d?k g?venli kenar`);
-    if (nodeCount < 5) zayifNoktalar.push('?ok az bilgi');
-
-    // G??l? noktalar
-    const gucluNoktalar = [];
-    if (nodeCount > 50) gucluNoktalar.push('geni? bilgi grafiÄŸi');
-    if (typeEdges > 10) gucluNoktalar.push('g??l? tür hiyerar?isi');
-    if (benzerEdges > 5) gucluNoktalar.push('aktif benzerlik aÄŸ?');
-    if (dreamCycle > 0) gucluNoktalar.push(`${dreamCycle} r?ya döngüs? tamamland?`);
-
-    const result = {
-      bilgi: {
-        dugum: nodeCount,
-        kenar: edgeCount,
-        tur: typeEdges,
-        yapabilir: canEdges,
-        ozellik: ozellikEdges,
-        benzer: benzerEdges,
-        hipotez: hipotezEdges,
-        yalitilmis: yalitilmis.length,
-        entropi: entropi.toFixed(3),
-      },
-      saglik: {
-        metaGuven: parseFloat(metaGuven.toFixed(3)),
-        celiski: celiskiler.length,
-        bosluk: bosluklar.length,
-        ortalamaAgirlik: parseFloat(ortAgirlik.toFixed(3)),
-        dusukGuvenliKenar: dusukAgirlik,
-      },
-      ozBilgi: selfBilgi,
-      zayifNoktalar,
-      gucluNoktalar,
-      dreamCycle,
-    };
-
-    this.plugins.emit('afterIntrospect', result);
-    return this._ok('introspect', result);
-  }
-
-  getPersistenceDescriptor() {
-    return this._readUseCases.getPersistenceDescriptor();
-  }
-
-  reload() {
-    return this.graph.load();
-  }
-
-  persist() {
-    return this.graph.save();
-  }
-
-  optimize() {
-    return this.graph.optimize();
-  }
-  consolidate(dryRun = true) {
-    return this.graph._consolidateEdges(dryRun);
-  }
-
-  /**
-   * Kendi kendine evrimle?me döngüs?.
-   * 1. R?ya g?r (hipotez ?ret)
-   * 2. Y?ksek g?venli hipotezleri bilgiye d?n??tür
-   * 3. GrafiÄŸi temizle (birle?tir + optimize et)
-   * 4. Kaydet, rapor d?ndır
-   */
-  selfEvolve(opts = {}) {
-    const Dream = require('./dream');
-    const dreamer = new Dream(this);
-    const dreams = dreamer.dream();
-
-    // FAZ2-PR3 (F-001-c): self-evolution converts autonomous hypotheses into
-    // canonical edges.  Each proposed edge now passes through
-    // _commitBackgroundEdge so synthetic provenance is attached, admission is
-    // evaluated, and the attempt is audited.  By default the admission gate
-    // returns 'review' for background-derived writes, so canonical writes only
-    // happen when the operator has wired a higher-trust background policy.
-    const added = [];
-    const deferred = [];
-    for (const h of dreams) {
-      if (opts.minConfidence && h.confidence < opts.minConfidence) continue;
-      const defaultMin = h.type === 'zincir' ? 0.25 : 0.3;
-      if (h.confidence < defaultMin) continue;
-
-      const rel = h.relation || (
-        h.type === 'benzerlik' || h.type === 'vektör-benzerlik'
-          ? 'benzer'
-          : 'hipotez'
-      );
-
-      const existing = this.graph.getEdge(h.from, h.to, rel);
-      if (existing) continue;
-
-      const weight = Math.min(0.4, h.confidence * 0.8);
-      const result = this._commitBackgroundEdge(h.from, h.to, rel, 'selfEvolve', {
-        edgeOptions: { weight, source: 'kendilik' },
-        provenanceExtra: {
-          hypothesisType: h.type,
-          hypothesisConfidence: h.confidence,
-          weight,
-        },
-      });
-      if (result.decision === 'allow' && result.edge) {
-        added.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type });
-      } else {
-        deferred.push({ from: h.from, to: h.to, relation: rel, confidence: h.confidence, type: h.type, decision: result.decision });
-      }
-    }
-
-    const cons = this.consolidate(false);
-    const opt = this.graph.optimize();
-
-    if (added.length > 0 || cons.removed > 0) {
-      try { this.graph.save(); } catch (e) { console.error("[Kernel] Graph save hatası:", e.message); }
-    }
-
-    this._dreamCount = (this._dreamCount || 0) + 1;
-
-    return {
-      dreams: dreams.length,
-      added: added.length,
-      addedDetails: added,
-      deferred: deferred.length,
-      deferredDetails: deferred,
-      consolidated: cons.removed,
-      optimized: opt.pruned,
-    };
-  }
-
-  /**
-   * Kendi kendine ?ÄŸrenme â€” bo?luklar? tespit edip doldurur.
-   * Bilinmeyen kavramlar? bulur ve LLM'den ?ÄŸrenir.
-   */
-  selfLearn(opts = {}) {
-    const gaps = this.detectGaps();
-    if (gaps.length === 0) return { gaps: 0, learned: 0, message: 'Bo?luk yok' };
-
-    const before = this.graph.edgeCount();
-    for (const gapId of gaps) {
-      const node = this.graph.getNode(gapId);
-      if (!node) continue;
-      const hasAnyEdge = this.graph.getEdges(gapId).length > 0 || this.graph.getInEdges(gapId).length > 0;
-      if (hasAnyEdge) continue;
-
-      const sim = this.graph.cosineSimilarity ? this.graph.cosineSimilarity(gapId, gapId) : 0;
-    }
-
-    const after = this.graph.edgeCount();
-    return { gaps: gaps.length, learned: after - before };
-  }
-
-  /**
-   * Periyodik bak?m â€” ?ÄŸrenme sayac?n? takip eder, e?ik a??l?nca selfEvolve ?al??tür?r.
-   */
+  // Periyodik bakım — sayım ve guard lib/kernel-self-evolve içindedir.
   _learnCount = 0;
   maintenanceEvery = 5;
+  _maintenanceRunning = false;
 
-  _autoMaintain() {
-    this._learnCount = (this._learnCount || 0) + 1;
-    if (this._learnCount >= this.maintenanceEvery) {
-      this._learnCount = 0;
-      this.selfEvolve();
-    }
-  }
+
 }
+
+// Method groups that moved out of this file (#2122). Each is installed with
+// the descriptor it had as a class member; see lib/kernel-method-install.js.
+installCapabilityMethods(Kernel);
+installPrimitiveMethods(Kernel);
+installReadMethods(Kernel);
+installPersistenceMethods(Kernel);
+installLearnInputMethods(Kernel);
+installCognitionMethods(Kernel, Dream);
 
 module.exports = Kernel;
 module.exports.AXIOM_ERROR = AXIOM_ERROR;
 module.exports.CONTRACT_VERSION = CONTRACT_VERSION;
 module.exports.ProvenanceError = ProvenanceError;
 
+// #357: the only way to construct a learn() opts object that bypasses the
+// memory-admission gate. Requires require()-ing this module, so it can only
+// be produced by trusted code running in this process -- never by decoding
+// untrusted input (HTTP body, MCP tool args, CLI argv, plugin-forwarded
+// input) into a plain object, since a Symbol-keyed property cannot survive
+// JSON.stringify/parse or plain-object spread. `reason` must be a non-empty
+// string; every bypass is expected to explain itself for the same reason
+// the old string-keyed convention did (audit readability), not because the
+// string carries any authority of its own -- the token does.
+module.exports.createAdmissionBypassOpts = function createAdmissionBypassOpts(reason) {
+  if (typeof reason !== 'string' || !reason.trim()) {
+    throw new TypeError('createAdmissionBypassOpts(reason): reason must be a non-empty string');
+  }
+  return { [ADMISSION_BYPASS_TOKEN]: true, admissionBypassReason: reason };
+};

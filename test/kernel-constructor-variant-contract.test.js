@@ -86,7 +86,12 @@ function createManagedCliKernel({ label, mode = 'options', options = {}, env = {
     else instance = CLI.createKernel(isolatedKernelOptions(root, options));
   } catch (error) {
     closeKernel(instance);
-    fs.rmSync(root, { recursive: true, force: true });
+    // The cwd must be restored off of `root` before it can be removed --
+    // Windows refuses to rmSync a directory that is still the process's
+    // current working directory (EPERM), which masked the real assertion
+    // this helper exists to let through.
+    process.chdir(cwdBefore);
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     throw error;
   } finally {
     process.chdir(cwdBefore);
@@ -98,7 +103,7 @@ function createManagedCliKernel({ label, mode = 'options', options = {}, env = {
     instance,
     dispose() {
       closeKernel(instance);
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }
@@ -118,7 +123,7 @@ function createManagedMcpKernel({ label, version }) {
     instance = createKernelFromEnv();
   } catch (error) {
     closeKernel(instance);
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     throw error;
   } finally {
     restoreEnv(envBefore);
@@ -129,18 +134,22 @@ function createManagedMcpKernel({ label, version }) {
     instance,
     dispose() {
       closeKernel(instance);
-      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
     },
   };
 }
 
-test('constructor identity keeps package entry on Kernel v1', { concurrency: false }, () => {
-  assert.equal(PackageKernel, Kernel);
+test('the package entry point exports the canonical kernel', { concurrency: false }, () => {
+  // #329: runtime selection and the published root export now agree --
+  // require('huqan') hands out the same KernelV2 every entry point builds.
+  // The v1 implementation stays reachable only under a deprecated name.
+  assert.equal(PackageKernel, KernelV2);
+  assert.equal(PackageKernel.KernelV1, Kernel);
   assert.notEqual(KernelV2, Kernel);
   assert.equal(typeof PackageKernel, 'function');
 });
 
-test('CLI defaults to Kernel v1 without a variant selector', { concurrency: false }, () => {
+test('CLI builds the canonical kernel with no selector present', { concurrency: false }, () => {
   const noArgs = createManagedCliKernel({
     label: 'cli-no-args',
     mode: 'no-args',
@@ -153,37 +162,31 @@ test('CLI defaults to Kernel v1 without a variant selector', { concurrency: fals
   });
 
   try {
-    assert.ok(noArgs.instance instanceof Kernel);
-    assert.ok(!(noArgs.instance instanceof KernelV2));
-    assert.ok(emptyOptions.instance instanceof Kernel);
-    assert.ok(!(emptyOptions.instance instanceof KernelV2));
+    for (const managed of [noArgs, emptyOptions]) {
+      assert.ok(managed.instance instanceof KernelV2);
+      assert.ok(!(managed.instance instanceof Kernel));
+    }
   } finally {
     noArgs.dispose();
     emptyOptions.dispose();
   }
 });
 
-test('CLI keeps non-v2 selectors on Kernel v1', { concurrency: false }, () => {
-  const envSelected = createManagedCliKernel({
-    label: 'cli-env-legacy',
-    env: { AXIOM_KERNEL_VERSION: 'legacy' },
-  });
-  const optionSelected = createManagedCliKernel({
-    label: 'cli-option-legacy',
-    options: { version: 'legacy' },
-    env: { AXIOM_KERNEL_VERSION: undefined },
-  });
-
-  try {
-    assert.ok(envSelected.instance instanceof Kernel);
-    assert.ok(optionSelected.instance instanceof Kernel);
-  } finally {
-    envSelected.dispose();
-    optionSelected.dispose();
+test('CLI rejects a legacy kernel selector instead of falling back to v1', { concurrency: false }, () => {
+  for (const [label, config] of [
+    ['cli-env-legacy', { env: { AXIOM_KERNEL_VERSION: 'legacy' } }],
+    ['cli-option-legacy', { options: { version: 'legacy' }, env: { AXIOM_KERNEL_VERSION: undefined } }],
+    ['cli-option-v1', { options: { version: 'v1' }, env: { AXIOM_KERNEL_VERSION: undefined } }],
+  ]) {
+    assert.throws(
+      () => createManagedCliKernel({ label, ...config }),
+      { code: 'HUQAN_KERNEL_VERSION_UNSUPPORTED' },
+      label,
+    );
   }
 });
 
-test('CLI selects KernelV2 only through an explicit v2 selector', { concurrency: false }, () => {
+test('CLI accepts the canonical selector from options or environment', { concurrency: false }, () => {
   const optionSelected = createManagedCliKernel({
     label: 'cli-option-v2',
     options: { version: 'v2' },
@@ -196,50 +199,29 @@ test('CLI selects KernelV2 only through an explicit v2 selector', { concurrency:
 
   try {
     assert.ok(optionSelected.instance instanceof KernelV2);
-    assert.ok(!(optionSelected.instance instanceof Kernel));
     assert.ok(envSelected.instance instanceof KernelV2);
-    assert.ok(!(envSelected.instance instanceof Kernel));
-    assert.equal(require('..'), Kernel);
+    assert.equal(require('..'), KernelV2);
   } finally {
     optionSelected.dispose();
     envSelected.dispose();
   }
 });
 
-test('CLI-selected Kernel variants expose the bounded audit seam', { concurrency: false }, () => {
-  const defaultKernel = createManagedCliKernel({
-    label: 'cli-audit-seam-v1',
-    env: { AXIOM_KERNEL_VERSION: undefined },
-  });
-  const v2Kernel = createManagedCliKernel({
-    label: 'cli-audit-seam-v2',
-    options: { version: 'v2' },
+test('the canonical CLI kernel exposes the bounded audit seam', { concurrency: false }, () => {
+  const managed = createManagedCliKernel({
+    label: 'cli-audit-seam',
     env: { AXIOM_KERNEL_VERSION: undefined },
   });
 
   try {
-    assert.equal(require('..'), Kernel);
-    assert.ok(defaultKernel.instance instanceof Kernel);
-    assert.ok(v2Kernel.instance instanceof KernelV2);
-    assert.equal(typeof defaultKernel.instance.recordCliMutationAudit, 'function');
-    assert.equal(typeof v2Kernel.instance.recordCliMutationAudit, 'function');
+    assert.ok(managed.instance instanceof KernelV2);
+    assert.equal(typeof managed.instance.recordCliMutationAudit, 'function');
   } finally {
-    defaultKernel.dispose();
-    v2Kernel.dispose();
+    managed.dispose();
   }
 });
 
-test('CLI preserves option then environment then v1 selector precedence', { concurrency: false }, () => {
-  const optionV2 = createManagedCliKernel({
-    label: 'cli-precedence-option-v2',
-    options: { version: 'v2' },
-    env: { AXIOM_KERNEL_VERSION: 'legacy' },
-  });
-  const optionLegacy = createManagedCliKernel({
-    label: 'cli-precedence-option-legacy',
-    options: { version: 'legacy' },
-    env: { AXIOM_KERNEL_VERSION: 'v2' },
-  });
+test('an empty option selector defers to the environment, and both canonical values agree', { concurrency: false }, () => {
   const emptyOption = createManagedCliKernel({
     label: 'cli-precedence-empty-option',
     options: { version: '' },
@@ -247,44 +229,54 @@ test('CLI preserves option then environment then v1 selector precedence', { conc
   });
 
   try {
-    assert.ok(optionV2.instance instanceof KernelV2);
-    assert.ok(optionLegacy.instance instanceof Kernel);
-    assert.ok(!(optionLegacy.instance instanceof KernelV2));
     assert.ok(emptyOption.instance instanceof KernelV2);
   } finally {
-    optionV2.dispose();
-    optionLegacy.dispose();
     emptyOption.dispose();
   }
+
+  // A legacy value anywhere in the chain fails, even paired with a canonical
+  // value elsewhere -- precedence cannot launder a removed selector.
+  assert.throws(
+    () => createManagedCliKernel({
+      label: 'cli-precedence-option-legacy',
+      options: { version: 'legacy' },
+      env: { AXIOM_KERNEL_VERSION: 'v2' },
+    }),
+    { code: 'HUQAN_KERNEL_VERSION_UNSUPPORTED' },
+  );
+  assert.throws(
+    () => createManagedCliKernel({
+      label: 'cli-precedence-env-legacy',
+      options: { version: 'v2' },
+      env: { AXIOM_KERNEL_VERSION: 'legacy' },
+    }),
+    { code: 'HUQAN_KERNEL_VERSION_UNSUPPORTED' },
+  );
 });
 
-test('MCP defaults absent, empty, and non-v2 selectors to Kernel v1', { concurrency: false }, () => {
+test('MCP builds the canonical kernel for absent and empty selectors', { concurrency: false }, () => {
   const absent = createManagedMcpKernel({ label: 'mcp-absent', version: undefined });
   const empty = createManagedMcpKernel({ label: 'mcp-empty', version: '' });
-  const legacy = createManagedMcpKernel({ label: 'mcp-legacy', version: 'legacy' });
+  const canonical = createManagedMcpKernel({ label: 'mcp-v2', version: 'v2' });
 
   try {
-    for (const managed of [absent, empty, legacy]) {
-      assert.ok(managed.instance instanceof Kernel);
-      assert.ok(!(managed.instance instanceof KernelV2));
+    for (const managed of [absent, empty, canonical]) {
+      assert.ok(managed.instance instanceof KernelV2);
+      assert.ok(!(managed.instance instanceof Kernel));
     }
+    assert.equal(require('..'), KernelV2);
   } finally {
     absent.dispose();
     empty.dispose();
-    legacy.dispose();
+    canonical.dispose();
   }
 });
 
-test('MCP selects KernelV2 only for exact v2 environment value', { concurrency: false }, () => {
-  const managed = createManagedMcpKernel({ label: 'mcp-v2', version: 'v2' });
-
-  try {
-    assert.ok(managed.instance instanceof KernelV2);
-    assert.ok(!(managed.instance instanceof Kernel));
-    assert.equal(require('..'), Kernel);
-  } finally {
-    managed.dispose();
-  }
+test('MCP rejects a legacy kernel selector', { concurrency: false }, () => {
+  assert.throws(
+    () => createManagedMcpKernel({ label: 'mcp-legacy', version: 'legacy' }),
+    { code: 'HUQAN_KERNEL_VERSION_UNSUPPORTED' },
+  );
 });
 
 test('environment isolation restores prior presence and values', { concurrency: false }, () => {

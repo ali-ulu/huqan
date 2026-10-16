@@ -1,0 +1,385 @@
+{
+  "description": "Frozen retrieval corpus for #3462. Edit only by regenerating frozen.sha256 in the same change; the experiment refuses a mismatched hash.",
+  "workspaceId": "lab",
+  "records": [
+    {
+      "memoryId": "m01",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Release pipeline publishes the npm package through OIDC trusted publishing",
+      "createdAt": "2026-10-01T00:00:01.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m02",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Windows runners resolve temp paths to 8.3 short names, so realpath differs",
+      "createdAt": "2026-10-01T00:00:02.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m03",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "The recall gate withholds memories that lack provenance",
+      "createdAt": "2026-10-01T00:00:03.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m04",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Degraded recall results stay in the page; only withheld records are dropped",
+      "createdAt": "2026-10-01T00:00:04.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m05",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "SQLite store indexes the memories table by workspace and creation time",
+      "createdAt": "2026-10-01T00:00:05.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m06",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Trust receipts chain each approval to the previous receipt hash",
+      "createdAt": "2026-10-01T00:00:06.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m07",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Tombstoned memories are reversible and excluded from active queries",
+      "createdAt": "2026-10-01T00:00:07.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m08",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Supersede writes a new memory and links it to the record it replaces",
+      "createdAt": "2026-10-01T00:00:08.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m09",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "The CLI mutation gate requires approval before a destructive command",
+      "createdAt": "2026-10-01T00:00:09.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m10",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Coverage ratchet fails when moving covered code lowers the branch ratio",
+      "createdAt": "2026-10-01T00:00:10.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m11",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Benchmark latency numbers are advisory and never a CI threshold",
+      "createdAt": "2026-10-01T00:00:11.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m12",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Clock resolution on Windows Python is about fifteen milliseconds",
+      "createdAt": "2026-10-01T00:00:12.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m13",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Workspace boundary is strictly enforced on every memory query",
+      "createdAt": "2026-10-01T00:00:13.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m14",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "The MCP server exposes huqan.search with a declared output schema",
+      "createdAt": "2026-10-01T00:00:14.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m15",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Contradiction detection flags two claims that cannot both hold",
+      "createdAt": "2026-10-01T00:00:15.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m16",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Evidence ranker orders sources by provenance strength",
+      "createdAt": "2026-10-01T00:00:16.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m17",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Package closure check fails when a new lib file is missing from files",
+      "createdAt": "2026-10-01T00:00:17.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m18",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Approval workflow pauses the agent until a human signs off",
+      "createdAt": "2026-10-01T00:00:18.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m19",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Memory query pagination caps the limit at one thousand rows",
+      "createdAt": "2026-10-01T00:00:19.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "m20",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Receipt hash is not a signature; a counter-seal is a separate step",
+      "createdAt": "2026-10-01T00:00:20.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "x-tombstoned",
+      "workspaceId": "lab",
+      "kind": "memory-record",
+      "status": "tombstoned",
+      "content": "Old note: the recall gate admits memories without provenance",
+      "createdAt": "2026-10-01T00:00:30.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    },
+    {
+      "memoryId": "x-other-workspace",
+      "workspaceId": "other",
+      "kind": "memory-record",
+      "status": "active",
+      "content": "Recall gate provenance rule from another workspace",
+      "createdAt": "2026-10-01T00:00:31.000Z",
+      "metadata": {},
+      "provenance": {
+        "actor": "retrieval-experiment",
+        "sourceType": "fixture",
+        "sourceRef": "benchmarks/fixtures/retrieval-frozen-corpus.json"
+      }
+    }
+  ],
+  "queries": [
+    {
+      "id": "q01",
+      "text": "recall gate provenance",
+      "relevant": [
+        "m03",
+        "m04"
+      ]
+    },
+    {
+      "id": "q02",
+      "text": "tombstoned memories reversible",
+      "relevant": [
+        "m07"
+      ]
+    },
+    {
+      "id": "q03",
+      "text": "approval before destructive command",
+      "relevant": [
+        "m09",
+        "m18"
+      ]
+    },
+    {
+      "id": "q04",
+      "text": "windows clock resolution",
+      "relevant": [
+        "m12"
+      ]
+    },
+    {
+      "id": "q05",
+      "text": "receipt hash signature",
+      "relevant": [
+        "m06",
+        "m20"
+      ]
+    },
+    {
+      "id": "q06",
+      "text": "workspace boundary query",
+      "relevant": [
+        "m13"
+      ]
+    },
+    {
+      "id": "q07",
+      "text": "npm package OIDC",
+      "relevant": [
+        "m01"
+      ]
+    },
+    {
+      "id": "q08",
+      "text": "query limit pagination",
+      "relevant": [
+        "m19"
+      ]
+    },
+    {
+      "id": "q09",
+      "text": "degraded recall",
+      "relevant": [
+        "m04"
+      ]
+    }
+  ],
+  "frozen": {
+    "sha256": "a49dcf90745f050f39db398903ad1f92cb914148b6fccc7c11cdd57f197d98da"
+  }
+}

@@ -3,14 +3,14 @@
 const { describe, it, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const MemoryStore = require('../lib/memory-store');
+const Database = require('better-sqlite3');
 
-// Create a temp directory within the workspace for testing
-const tempDir = path.join(__dirname, 'sqlite-test-temp-' + Date.now());
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir);
-}
+// Keep runtime artifacts outside the repository. Static source-audit tests scan
+// the workspace concurrently, so a repo-local temp directory creates a race.
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-sqlite-test-'));
 
 after(() => {
   try {
@@ -245,9 +245,13 @@ describe('memory-store-sqlite', () => {
       return originalLoad.apply(this, arguments);
     };
 
-    // Clear require cache of memory-store
+    // Clear require cache of memory-store and its SQLite writer: the driver
+    // load state lives at the writer's top level since #2129, so clearing
+    // the store alone would keep the previously loaded Database.
     const storeKey = require.resolve('../lib/memory-store');
+    const writerKey = require.resolve('../lib/memory-store-sqlite-writer');
     delete require.cache[storeKey];
+    delete require.cache[writerKey];
 
     const MemoryStoreMock = require('../lib/memory-store');
 
@@ -258,6 +262,7 @@ describe('memory-store-sqlite', () => {
     // Restore load and require cache
     Module._load = originalLoad;
     delete require.cache[storeKey];
+    delete require.cache[writerKey];
   });
 
   it('runs safely in in-memory mode when useSQLite is false', () => {
@@ -341,6 +346,103 @@ describe('memory-store-sqlite', () => {
     assert.strictEqual(linksRes.ok, true);
     assert.strictEqual(linksRes.total, 1);
     assert.strictEqual(linksRes.links[0].relation, 'supports');
+    store2.close();
+  });
+
+  it('history preserves direct and linked events with workspace isolation after reload', () => {
+    const dbPath = getDbPath('history-linked-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+
+    const root = store1.store({ content: 'history root', workspaceId: 'ws-history' }).memory;
+    const target = store1.store({ content: 'history target', workspaceId: 'ws-history' }).memory;
+    const other = store1.store({ content: 'other workspace', workspaceId: 'ws-other' }).memory;
+    const linkRes = store1.linkMemories({
+      fromMemoryId: root.memoryId,
+      toMemoryId: target.memoryId,
+      relation: 'supports',
+      workspaceId: 'ws-history',
+    });
+    assert.strictEqual(linkRes.ok, true);
+
+    const before = store1.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(before.ok, true);
+    assert.strictEqual(before.total, 2);
+    assert.deepStrictEqual(before.events.map((event) => event.eventType), ['CREATED', 'LINKED']);
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const after = store2.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(after.ok, true);
+    assert.strictEqual(after.total, before.total);
+    assert.deepStrictEqual(after.events.map((event) => event.eventType), ['CREATED', 'LINKED']);
+    assert.deepStrictEqual(after.events.map((event) => event.memoryId), before.events.map((event) => event.memoryId));
+    assert.ok(after.events.every((event) => event.workspaceId === 'ws-history'));
+
+    const isolated = store2.history(other.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(isolated.ok, true);
+    assert.strictEqual(isolated.total, 0);
+    store2.close();
+  });
+
+  it('history preserves supersede relatedMemoryId after SQLite reload', () => {
+    const dbPath = getDbPath('history-related-reload');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const root = store1.store({ content: 'history v1', workspaceId: 'ws-history' }).memory;
+    const supersedeRes = store1.supersede(root.memoryId, 'history v2', { workspaceId: 'ws-history' });
+    assert.strictEqual(supersedeRes.ok, true);
+
+    const before = store1.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(before.ok, true);
+    assert.strictEqual(before.total, 3);
+    const relatedBefore = before.events.find((event) => event.relatedMemoryId === root.memoryId);
+    assert.ok(relatedBefore);
+    assert.strictEqual(relatedBefore.eventType, 'CREATED');
+    assert.strictEqual(relatedBefore.memoryId, supersedeRes.newMemory.memoryId);
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const after = store2.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(after.ok, true);
+    assert.strictEqual(after.total, before.total);
+    const relatedAfter = after.events.find((event) => event.relatedMemoryId === root.memoryId);
+    assert.ok(relatedAfter);
+    assert.strictEqual(relatedAfter.eventType, 'CREATED');
+    assert.strictEqual(relatedAfter.memoryId, supersedeRes.newMemory.memoryId);
+    store2.close();
+  });
+
+  it('legacy memory_events schema gains relatedMemoryId without losing history', () => {
+    const dbPath = getDbPath('history-related-legacy-schema');
+    const legacyDb = new Database(dbPath);
+    legacyDb.exec(`
+      CREATE TABLE memory_events (
+        workspace_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        memory_id TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        details_json TEXT NOT NULL,
+        provenance_json TEXT NOT NULL,
+        trust_policy_version TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (workspace_id, event_id)
+      );
+    `);
+    legacyDb.close();
+
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const root = store1.store({ content: 'legacy history v1', workspaceId: 'ws-history' }).memory;
+    const supersedeRes = store1.supersede(root.memoryId, 'legacy history v2', { workspaceId: 'ws-history' });
+    assert.strictEqual(supersedeRes.ok, true);
+    const columns = store1._db.prepare('PRAGMA table_info(memory_events)').all();
+    assert.ok(columns.some((column) => column.name === 'related_memory_id'));
+    store1.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    const history = store2.history(root.memoryId, { workspaceId: 'ws-history' });
+    assert.strictEqual(history.ok, true);
+    assert.strictEqual(history.total, 3);
+    assert.ok(history.events.some((event) => event.relatedMemoryId === root.memoryId));
     store2.close();
   });
 
@@ -512,7 +614,9 @@ describe('memory-store-sqlite', () => {
           created_at: recordA.createdAt,
           updated_at: null,
           deleted_at: null,
+          archived_at: null,
           supersedes_memory_id: null,
+          supersedes_hash: null,
         });
 
         store1._stmts.upsertMemory.run({
@@ -528,7 +632,9 @@ describe('memory-store-sqlite', () => {
           created_at: recordB.createdAt,
           updated_at: null,
           deleted_at: null,
+          archived_at: null,
           supersedes_memory_id: null,
+          supersedes_hash: null,
         });
       })();
 
@@ -602,7 +708,7 @@ describe('memory-store-sqlite', () => {
 
       const store2 = new MemoryStore({ useSQLite: true, dbPath });
 
-      const events1 = store2.getEvents(mid1);
+      const events1 = store2.getEvents(mid1, { workspaceId: 'ws-a' });
       const updateEvent = events1.find(e => e.eventType === 'UPDATED' && e.details.action === 'supersede');
       assert.ok(updateEvent);
       assert.strictEqual(updateEvent.provenance.actor, 'superseder');
@@ -610,7 +716,7 @@ describe('memory-store-sqlite', () => {
       assert.strictEqual(updateEvent.details.previousStatus, 'active');
       assert.strictEqual(updateEvent.details.newStatus, 'superseded');
 
-      const events2 = store2.getEvents(mid2);
+      const events2 = store2.getEvents(mid2, { workspaceId: 'ws-a' });
       const tombstoneEvent = events2.find(e => e.eventType === 'TOMBSTONE');
       assert.ok(tombstoneEvent);
       assert.strictEqual(tombstoneEvent.provenance.actor, 'tombstoner');
@@ -699,5 +805,165 @@ describe('memory-store-sqlite', () => {
         store.close();
       }
     });
+  });
+});
+
+
+describe('PR-S3C SQLite warmup corruption quarantine (#1536)', () => {
+  it('opens with valid rows and bounded corruptRows diagnostics instead of bricking the store', () => {
+    const dbPath = getDbPath('warmup-corrupt-rows');
+    const store1 = new MemoryStore({ useSQLite: true, dbPath });
+    const valid = store1.store({ content: 'valid', workspaceId: 'ws1' });
+    const corrupt = store1.store({ content: 'corrupt', workspaceId: 'ws1' });
+    const link = store1.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: valid.memory.memoryId,
+      toMemoryId: corrupt.memory.memoryId,
+      relation: 'supports',
+    });
+    assert.strictEqual(valid.ok, true);
+    assert.strictEqual(corrupt.ok, true);
+    assert.strictEqual(link.ok, true);
+    store1.close();
+
+    const db = new Database(dbPath);
+    db.prepare('UPDATE memories SET trust_policy_version = ? WHERE memory_id = ?')
+      .run('', corrupt.memory.memoryId);
+    const corruptEventId = db.prepare(
+      'SELECT event_id FROM memory_events WHERE memory_id = ? ORDER BY event_id LIMIT 1',
+    ).get(valid.memory.memoryId).event_id;
+    db.prepare('UPDATE memory_events SET event_type = ? WHERE event_id = ?')
+      .run('', corruptEventId);
+    db.prepare('UPDATE memory_links SET relation = ? WHERE link_id = ?')
+      .run('', link.link.linkId);
+    db.close();
+
+    const store2 = new MemoryStore({ useSQLite: true, dbPath });
+    assert.deepStrictEqual(store2.corruptRows.map((row) => row.kind), ['memory', 'event', 'link']);
+    assert.ok(store2.corruptRows.every((row) => row.id && Array.isArray(row.errors)));
+    assert.strictEqual(store2.list({ workspaceId: 'ws1' }).total, 1);
+    assert.strictEqual(store2.get(valid.memory.memoryId, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store2.get(corrupt.memory.memoryId, { workspaceId: 'ws1' }).ok, false);
+    store2.close();
+
+    assert.throws(
+      () => new MemoryStore({ useSQLite: true, dbPath, strictWarmup: true }),
+      (error) => error.code === 'MEMORY_STORE_CORRUPT_ROW' && error.details.kind === 'memory',
+    );
+  });
+});
+
+
+describe('PR-S3D SQLite mutation snapshot cost (#1535)', () => {
+  it('does not snapshot the in-memory mirror on SQLite writes', () => {
+    const dbPath = getDbPath('sqlite-no-write-snapshot');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    let snapshotCalls = 0;
+    store._snapshotInMemoryState = () => {
+      snapshotCalls += 1;
+      throw new Error('SQLite writes must not take a full mirror snapshot');
+    };
+
+    const first = store.store({ content: 'first', workspaceId: 'ws1' });
+    const second = store.store({ content: 'second', workspaceId: 'ws1' });
+    assert.strictEqual(first.ok, true);
+    assert.strictEqual(second.ok, true);
+    assert.strictEqual(store.patchMetadata(first.memory.memoryId, { tag: 'patched' }, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: first.memory.memoryId,
+      toMemoryId: second.memory.memoryId,
+      relation: 'supports',
+    }).ok, true);
+    assert.strictEqual(store.supersede(second.memory.memoryId, 'second-v2', { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(store.tombstone(first.memory.memoryId, { workspaceId: 'ws1' }).ok, true);
+    assert.strictEqual(snapshotCalls, 0);
+    store.close();
+  });
+});
+
+
+describe('reopen() after restore replaces the backing file (#1864)', () => {
+  it('an open store matches a fresh store after the db file is restored', () => {
+    const dbPath = getDbPath('reopen-restore');
+    const backupPath = getDbPath('reopen-restore-backup');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    assert.strictEqual(store.store({ content: 'before backup', workspaceId: 'ws1' }).ok, true);
+    store.close();
+    fs.copyFileSync(dbPath, backupPath);
+    store.reopen();
+    const after = store.store({ content: 'after backup', workspaceId: 'ws1' });
+    assert.strictEqual(after.ok, true);
+    store.close();
+    fs.copyFileSync(backupPath, dbPath);
+    store.reopen();
+
+    const fresh = new MemoryStore({ useSQLite: true, dbPath });
+    try {
+      assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, fresh.list({ workspaceId: 'ws1' }).total);
+      assert.strictEqual(store._events.length, fresh._events.length);
+      assert.strictEqual(store._links.length, fresh._links.length);
+      assert.deepStrictEqual(
+        store.list({ workspaceId: 'ws1' }).memories.map((memory) => memory.content),
+        fresh.list({ workspaceId: 'ws1' }).memories.map((memory) => memory.content),
+      );
+    } finally {
+      fresh.close();
+      store.close();
+    }
+  });
+
+  it('repeated reopen does not duplicate events or links', () => {
+    const dbPath = getDbPath('reopen-idempotent');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    const first = store.store({ content: 'first', workspaceId: 'ws1' });
+    const second = store.store({ content: 'second', workspaceId: 'ws1' });
+    assert.strictEqual(store.linkMemories({
+      workspaceId: 'ws1',
+      fromMemoryId: first.memory.memoryId,
+      toMemoryId: second.memory.memoryId,
+      relation: 'supports',
+    }).ok, true);
+    const expected = [store.list({ workspaceId: 'ws1' }).total, store._events.length, store._links.length];
+    store.reopen();
+    store.reopen();
+    assert.deepStrictEqual(
+      [store.list({ workspaceId: 'ws1' }).total, store._events.length, store._links.length],
+      expected,
+    );
+    store.close();
+  });
+
+  // #3208: SQLite is the only full copy of the records, so a failed reload can
+  // no longer fall back to a resident mirror. It still never exposes a partial
+  // view: reads fail closed until a reopen against a valid file succeeds.
+  it('a failed reload serves no partial cache and recovers on the next good reopen', () => {
+    const dbPath = getDbPath('reopen-failure');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    assert.strictEqual(store.store({ content: 'keep me', workspaceId: 'ws1' }).ok, true);
+    store.close();
+    const good = fs.readFileSync(dbPath);
+    fs.writeFileSync(dbPath, 'not a database');
+    assert.throws(() => store.reopen());
+    assert.throws(() => store.list({ workspaceId: 'ws1' }), { code: 'MEMORY_STORE_CLOSED' });
+    fs.writeFileSync(dbPath, good);
+    store.reopen();
+    assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, 1);
+    assert.strictEqual(store.list({ workspaceId: 'ws1' }).memories[0].content, 'keep me');
+    store.close();
+  });
+
+  it('exposes the backend init/warmup pair as documented public methods (#2359)', () => {
+    const dbPath = getDbPath('reopen-public-backend');
+    const store = new MemoryStore({ useSQLite: true, dbPath });
+    try {
+      assert.strictEqual(typeof store.initDB, 'function');
+      assert.strictEqual(typeof store.warmup, 'function');
+      assert.strictEqual(store.store({ content: 'via public backend', workspaceId: 'ws1' }).ok, true);
+      store.reopen();
+      assert.strictEqual(store.list({ workspaceId: 'ws1' }).total, 1);
+    } finally {
+      store.close();
+    }
   });
 });

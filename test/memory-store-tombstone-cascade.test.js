@@ -34,11 +34,13 @@ describe('PR-S6 tombstone and supersede cascade', () => {
 
     const listRes = store.list({ workspaceId: 'ws-a' });
     assert.strictEqual(listRes.total, 2);
-    assert.deepStrictEqual(listRes.memories.map((m) => m.content), ['alpha', 'gamma']);
+    // Records created in the same millisecond order by their content-hash id, so on fast
+    // hardware the order is not insertion order. This test is about what is hidden, not order.
+    assert.deepStrictEqual(listRes.memories.map((m) => m.content).sort(), ['alpha', 'gamma']);
 
     const queryRes = store.query({ workspaceId: 'ws-a' });
     assert.strictEqual(queryRes.total, 2);
-    assert.deepStrictEqual(queryRes.memories.map((m) => m.content), ['alpha', 'gamma']);
+    assert.deepStrictEqual(queryRes.memories.map((m) => m.content).sort(), ['alpha', 'gamma']);
 
     const queryIncludeDeleted = store.query({ workspaceId: 'ws-a', includeDeleted: true });
     assert.strictEqual(queryIncludeDeleted.total, 3);
@@ -57,7 +59,7 @@ describe('PR-S6 tombstone and supersede cascade', () => {
     const linksForTombstonedInclude = store.linksForMemory(m2.memoryId, { workspaceId: 'ws-a', includeDeleted: true });
     assert.strictEqual(linksForTombstonedInclude.links.length, 2);
 
-    const auditLinks = store.getLinks(m2.memoryId);
+    const auditLinks = store.getLinks(m2.memoryId, { workspaceId: 'ws-a' });
     assert.strictEqual(auditLinks.length, 2);
 
     const timelineRes = store.timeline({ workspaceId: 'ws-a' });
@@ -102,7 +104,7 @@ describe('PR-S6 tombstone and supersede cascade', () => {
     const linksForOriginalInclude = store.linksForMemory(original.memoryId, { workspaceId: 'ws-a', includeDeleted: true });
     assert.strictEqual(linksForOriginalInclude.links.length, 1);
 
-    const auditLinks = store.getLinks(original.memoryId);
+    const auditLinks = store.getLinks(original.memoryId, { workspaceId: 'ws-a' });
     assert.strictEqual(auditLinks.length, 1);
 
     const wsBQuery = store.query({ workspaceId: 'ws-b' });

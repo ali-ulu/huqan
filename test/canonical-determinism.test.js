@@ -8,10 +8,7 @@ const path = require('node:path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-canonical-determinism-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 test.after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -195,7 +192,7 @@ test('canonical verdict hash stays stable across fresh kernels even when raw pay
   assert.strictEqual(new Set(canonicalHashes).size, 1, 'canonical payload hash should be stable across repeated fresh kernels');
 
   for (const run of runs) {
-    assert.strictEqual(run.canonical.verdict.status, 'celiski');
+    assert.strictEqual(run.canonical.verdict.status, 'contradicted');
     assert.strictEqual(run.canonical.verdict.confidence, 0.95);
     assert.deepStrictEqual(run.canonical.semanticTrust.warnings, [
       'CAUSE_PREVENT_OPPOSITION',

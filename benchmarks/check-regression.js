@@ -26,15 +26,20 @@ function evaluateRegression(baseline, current, opts = {}) {
       continue;
     }
 
-    if (curFixture.nodes < baseFixture.nodes) {
-      const message = `${fixtureName}.nodes regressed: ${curFixture.nodes} < ${baseFixture.nodes}`;
-      failures.push(message);
-      blockingFailures.push(message);
-    }
-    if (curFixture.edges < baseFixture.edges) {
-      const message = `${fixtureName}.edges regressed: ${curFixture.edges} < ${baseFixture.edges}`;
-      failures.push(message);
-      blockingFailures.push(message);
+    for (const field of ['nodes', 'edges']) {
+      const curValue = curFixture[field];
+      const baseValue = baseFixture[field];
+      if (!isFiniteNumber(curValue) || !isFiniteNumber(baseValue)) {
+        const message = `${fixtureName}.${field} is not numeric`;
+        failures.push(message);
+        blockingFailures.push(message);
+        continue;
+      }
+      if (curValue < baseValue) {
+        const message = `${fixtureName}.${field} regressed: ${curValue} < ${baseValue}`;
+        failures.push(message);
+        blockingFailures.push(message);
+      }
     }
 
     for (const metric of metrics) {

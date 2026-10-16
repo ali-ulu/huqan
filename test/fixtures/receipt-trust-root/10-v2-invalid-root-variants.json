@@ -1,0 +1,1 @@
+{"caseId":"RTR-010-V2-INVALID-TRUST-ROOT-VARIANTS","description":"Invalid trust-root variants fail closed","input":{"schemaVersion":"v4-receipt-v2","trustRoots":[""," ","LOCAL_OPERATOR",7,{},[],"unknown"]},"expected":{"mode":"futureV2Structural","allInvalid":true},"nonClaims":["new enum values"]}

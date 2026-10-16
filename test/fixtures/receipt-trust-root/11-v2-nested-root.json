@@ -1,0 +1,1 @@
+{"caseId":"RTR-011-V2-NESTED-TRUST-ROOT","description":"Nested trust root is not authority","input":{"schemaVersion":"v4-receipt-v2","metadata":{"trustRoot":"local_operator"}},"expected":{"mode":"futureV2Structural","valid":false},"nonClaims":["metadata authority"]}

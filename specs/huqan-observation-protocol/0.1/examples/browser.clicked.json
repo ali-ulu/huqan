@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "huqan.external-event.v1",
+  "agent_id": "browser-agent",
+  "run_id": "run-002",
+  "step_id": "step-014",
+  "action": "browser.clicked",
+  "target": "page:checkout#pay-button",
+  "input_hash": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b467ec1f2a00000000",
+  "observed_state": "cart total visible, no PII captured",
+  "decision": "unknown",
+  "receipt_id": null
+}

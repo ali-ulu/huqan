@@ -1,0 +1,210 @@
+'use strict';
+
+/**
+ * Package root export.
+ *
+ * #329 (arch-4) made KernelV2 + AgentV3 the canonical runtime and removed
+ * runtime version selection, but `package.json` still pointed `main` at
+ * kernel.js — so the product had one runtime and two public kernel surfaces:
+ * every entry point built a KernelV2 while `require('huqan')` handed out the
+ * v1 Kernel. This file closes that gap.
+ *
+ * The root export is KernelV2. The v1 Kernel stays reachable under an
+ * explicitly deprecated name so consumers that genuinely depend on it are not
+ * broken abruptly; it is no longer the default and no longer a runtime option.
+ * Deprecation contract: DEPRECATION_POLICY.md; registry: deprecations.json.
+ * `KernelV1` is recorded there as deprecated in 0.12.0 with removal in 2.0.0,
+ * warned by construction below and guided by docs/migrations/kernel-v2.md --
+ * importing this library stays free of side effects because no deprecated
+ * export warns at require time. `KernelV1` can be removed in 2.0.0, the
+ * major after the 1.0.0 surface is set.
+ *
+ * Note on CommonJS mechanics: `module.exports = KernelV2` followed by property
+ * assignment attaches those properties to the KernelV2 class object itself, so
+ * they are visible through `require('./kernel.v2')` too. That is inherent to
+ * the `export = Class` idiom and is why the names below are deliberately
+ * specific rather than generic.
+ */
+
+const Kernel = require('./kernel');
+const KernelV2 = require('./kernel.v2');
+// R51 (#3583): a library consumer gets the same own-weight semantic model
+// wiring as the server/MCP/CLI runtimes (shadow by default; HUQAN_SEMANTIC_MODEL=off disables it).
+require('./lib/semantic-model-provider').installSemanticModelProvider();
+const errorPrevention = require('./lib/error-prevention');
+const agentActionFirewall = require('./lib/agent-action-firewall');
+const agentIdentityRuntime = require('./lib/agent-identity-runtime');
+const trustEvidenceLedger = require('./lib/trust-evidence-ledger');
+const humanOversightApprovalRuntime = require('./lib/human-oversight-approval-runtime');
+const prGuardian = require('./lib/pr-guardian');
+const multiAgentCascadeGuard = require('./lib/multi-agent-cascade-guard');
+const { createA2aHandoffDispatcher } = require('./lib/a2a/handoff-dispatch');
+const { createA2aHandoffCursor, CURSOR_SCHEMA_VERSION } = require('./lib/a2a/handoff-cursor');
+const handoffTermination = require('./lib/a2a/handoff-termination');
+const exchangeErrorRecord = require('./lib/a2a/exchange-error-record');
+const delegationDepth = require('./lib/a2a/delegation-depth');
+const trustReceiptPilot = require('./lib/pilot/trust-receipt-pilot');
+const trustReceiptPilotArchive = require('./lib/pilot/trust-receipt-pilot-archive');
+const pilotTestDatabaseBoundary = require('./lib/pilot/test-database-boundary');
+const observabilityClient = require('./lib/observability/client');
+const externalActionGuard = require('./lib/external-action-guard');
+const externalActionAdapter = require('./lib/external-action-adapter');
+const externalActionReceipt = require('./lib/external-action-receipt');
+const registryBundleSigningKeyResolver = require('./lib/registry/registry-bundle-signing-key-resolver');
+const trustInteropVc = require('./lib/interop/vc-mapping');
+const trustInteropOtel = require('./lib/interop/otel-mapping');
+
+module.exports = KernelV2;
+
+module.exports.KernelV2 = KernelV2;
+
+/** @deprecated Use KernelV2 / require('huqan'). Removed in 2.0.0. */
+Object.defineProperty(module.exports, 'KernelV1', {
+  enumerable: true,
+  configurable: false,
+  get() {
+    process.emitWarning(
+      'KernelV1 is deprecated since 0.12.0 and will be removed in 2.0.0. Use KernelV2.',
+      { type: 'DeprecationWarning' },
+    );
+    return Kernel;
+  },
+});
+
+// These four were part of the published surface while `main` was kernel.js:
+// `require('huqan').ProvenanceError` and
+// `require('huqan').createAdmissionBypassOpts(...)` are live call patterns, and
+// `error instanceof require('huqan').ProvenanceError` has to keep matching the
+// errors the kernel actually throws. Forwarding the same objects (not copies)
+// keeps those identity checks true.
+module.exports.AXIOM_ERROR = Kernel.AXIOM_ERROR;
+module.exports.CONTRACT_VERSION = Kernel.CONTRACT_VERSION;
+module.exports.ProvenanceError = Kernel.ProvenanceError;
+module.exports.createAdmissionBypassOpts = Kernel.createAdmissionBypassOpts;
+
+// #657: general Error Prevention core. Callers can bind it to the canonical
+// kernel memory store (`createErrorPrevention(kernel.memory)`) from SDK, API,
+// CLI, MCP, or any other host without coupling the core to a specific agent.
+module.exports.ErrorPrevention = errorPrevention.ErrorPrevention;
+module.exports.createErrorPrevention = errorPrevention.createErrorPrevention;
+module.exports.errorPrevention = errorPrevention;
+
+// Agent Action Firewall public surface. The runtime seams use the same module,
+// so SDK/connector hosts can preflight an action without creating a second policy.
+module.exports.AgentActionFirewall = agentActionFirewall;
+module.exports.evaluateAgentActionFirewall = agentActionFirewall.evaluateAgentActionFirewall;
+module.exports.AGENT_ACTION_FIREWALL_VERSION = agentActionFirewall.AGENT_ACTION_FIREWALL_VERSION;
+module.exports.AGENT_ACTION_FIREWALL_DECISIONS = agentActionFirewall.AGENT_ACTION_FIREWALL_DECISIONS;
+
+// Runtime agent identity and delegated-authority surface. Hosts may compose this
+// evaluator into mutation admission without creating a second identity policy.
+module.exports.AgentIdentityRuntime = agentIdentityRuntime;
+module.exports.evaluateAgentIdentity = agentIdentityRuntime.evaluateAgentIdentity;
+module.exports.composeReceiverOwnedIdentityClaim = agentIdentityRuntime.composeReceiverOwnedIdentityClaim;
+module.exports.snapshotAgentIdentityAuthority = agentIdentityRuntime.snapshotAgentIdentityAuthority;
+module.exports.AGENT_IDENTITY_RUNTIME_VERSION = agentIdentityRuntime.AGENT_IDENTITY_RUNTIME_VERSION;
+module.exports.IDENTITY_RUNTIME_ERRORS = agentIdentityRuntime.IDENTITY_RUNTIME_ERRORS;
+
+// Durable Trust Evidence & Receipt Ledger surface. This composes the existing
+// Graph mutation journal and receipt chain; it does not create a second trust root.
+module.exports.TrustEvidenceLedger = trustEvidenceLedger;
+module.exports.createTrustEvidenceLedger = trustEvidenceLedger.createTrustEvidenceLedger;
+module.exports.buildTrustEvidencePayload = trustEvidenceLedger.buildTrustEvidencePayload;
+module.exports.verifyTrustEvidenceReceipt = trustEvidenceLedger.verifyTrustEvidenceReceipt;
+module.exports.TRUST_EVIDENCE_SCHEMA_VERSION = trustEvidenceLedger.TRUST_EVIDENCE_SCHEMA_VERSION;
+
+// Human Oversight & Approval Runtime. The factory requires receiver-owned
+// identity resolution, the existing Graph mutation journal, and the existing
+// Trust Evidence Ledger; it does not create a second durability authority.
+module.exports.HumanOversightApprovalRuntime = humanOversightApprovalRuntime;
+module.exports.createHumanOversightApprovalRuntime = humanOversightApprovalRuntime.createHumanOversightApprovalRuntime;
+module.exports.HUMAN_OVERSIGHT_RUNTIME_VERSION = humanOversightApprovalRuntime.HUMAN_OVERSIGHT_RUNTIME_VERSION;
+module.exports.HUMAN_OVERSIGHT_RUNTIME_REASONS = humanOversightApprovalRuntime.RUNTIME_REASONS;
+
+// GitHub PR Guardian SDK surface. It is transport-independent: hosts may use
+// the library directly without MCP or the bundled HTTP server.
+module.exports.PrGuardian = prGuardian;
+module.exports.PRGuardian = prGuardian;
+
+// Bounded multi-agent coordination. Hosts supply execution; this guard owns
+// fan-out, dependency isolation, retry, and circuit-breaker policy.
+module.exports.MultiAgentCascadeGuard = multiAgentCascadeGuard;
+module.exports.createMultiAgentCascadeGuard = multiAgentCascadeGuard.createMultiAgentCascadeGuard;
+module.exports.MULTI_AGENT_CASCADE_REASONS = multiAgentCascadeGuard.REASONS;
+
+// Outbound host SDK seam; signing, admission and transport remain host-owned.
+module.exports.createA2aHandoffDispatcher = createA2aHandoffDispatcher;
+
+// Durable active-delegator cursor and its typed termination reasons (R23).
+// The host owns the directory (shared with the replay/task stores); this pair
+// owns the record shape, the exclusive-create durability and the allowlist.
+module.exports.createA2aHandoffCursor = createA2aHandoffCursor;
+module.exports.CURSOR_SCHEMA_VERSION = CURSOR_SCHEMA_VERSION;
+module.exports.HANDOFF_TERMINATION_REASONS = handoffTermination.HANDOFF_TERMINATION_REASONS;
+module.exports.resolveHandoffTermination = handoffTermination.resolveHandoffTermination;
+
+// Typed exchange error records and the delegation depth bound (R25). Pure
+// constructors and predicates for hosts and auditors; the exchange keeps
+// returning its existing reason strings.
+module.exports.buildExchangeErrorRecord = exchangeErrorRecord.buildExchangeErrorRecord;
+module.exports.classifyExchangeErrorType = exchangeErrorRecord.classifyExchangeErrorType;
+module.exports.isRetryableErrorRecord = exchangeErrorRecord.isRetryableErrorRecord;
+module.exports.EXCHANGE_ERROR_TYPES = exchangeErrorRecord.EXCHANGE_ERROR_TYPES;
+module.exports.evaluateDelegationDepth = delegationDepth.evaluateDelegationDepth;
+module.exports.withinDelegationDepth = delegationDepth.withinDelegationDepth;
+module.exports.MAX_DELEGATION_DEPTH = delegationDepth.MAX_DELEGATION_DEPTH;
+
+// Bounded Trust Receipt pilot surface for one real issuer-to-receiver event.
+module.exports.TrustReceiptPilot = trustReceiptPilot;
+module.exports.buildPilotTrustReceipt = trustReceiptPilot.buildPilotTrustReceipt;
+module.exports.projectPilotTrustReceipt = trustReceiptPilot.projectPilotTrustReceipt;
+module.exports.verifyPilotTrustReceipt = trustReceiptPilot.verifyPilotTrustReceipt;
+module.exports.verifyPilotPublicProjection = trustReceiptPilot.verifyPilotPublicProjection;
+module.exports.createPilotReceiptArchive = trustReceiptPilotArchive.createPilotReceiptArchive;
+module.exports.assertPilotTestDatabaseBoundary = pilotTestDatabaseBoundary.assertPilotTestDatabaseBoundary;
+
+// Stable local-first AgentV3 framework integration. The client hashes goals
+// before handing them to the observability service and forwards only bounded,
+// workspace-scoped telemetry fields; it has no network side effects.
+module.exports.ObservabilityTelemetryClient = observabilityClient;
+module.exports.createObservabilityTelemetryClient = observabilityClient.createObservabilityTelemetryClient;
+module.exports.OBSERVABILITY_CLIENT_ERRORS = observabilityClient.OBSERVABILITY_CLIENT_ERRORS;
+module.exports.TELEMETRY_EVENT_TYPES = observabilityClient.TELEMETRY_EVENT_TYPES;
+
+// Agent-brand-independent pre-execution action guard. Client adapters only
+// translate native hook envelopes; all policy and receipt decisions live here.
+module.exports.ExternalActionGuard = externalActionGuard;
+module.exports.evaluateExternalAction = externalActionGuard.evaluateExternalAction;
+module.exports.recordExternalActionOutcome = externalActionGuard.recordExternalActionOutcome;
+module.exports.recordExternalActionReview = externalActionGuard.recordExternalActionReview;
+module.exports.latestExternalActionReview = externalActionReceipt.latestExternalActionReview;
+module.exports.ExternalActionAdapter = externalActionAdapter;
+module.exports.createOpenCodeGuardPlugin = externalActionAdapter.createOpenCodeGuardPlugin;
+module.exports.registerPiGuard = externalActionAdapter.registerPiGuard;
+module.exports.createDurableExternalActionReceiptWriter = externalActionReceipt.createDurableExternalActionReceiptWriter;
+module.exports.createExternalActionReceiptWriter = externalActionReceipt.createJsonlExternalActionReceiptWriter;
+
+// Registry-backed portable receipt-bundle verification. Exposed from the
+// package root so an external consumer can bind a bundle signature to the same
+// admitted registry identity and receiver-owned trust-root records used by the
+// HTTP registry surface.
+module.exports.createRegistryBundleSigningKeyResolver =
+  registryBundleSigningKeyResolver.createRegistryBundleSigningKeyResolver;
+
+// Open-standard interop: W3C VC envelopes and OpenTelemetry spans projected
+// from public trust receipts. Pure mappings with no network side effects;
+// verification of the carried evidence always re-enters the HUQAN import path.
+module.exports.publicReceiptToCredential = trustInteropVc.publicReceiptToCredential;
+module.exports.credentialToPublicReceipt = trustInteropVc.credentialToPublicReceipt;
+module.exports.HUQAN_CREDENTIAL_TYPE = trustInteropVc.HUQAN_CREDENTIAL_TYPE;
+module.exports.publicReceiptToSpan = trustInteropOtel.publicReceiptToSpan;
+module.exports.toOtlpHttpPayload = trustInteropOtel.toOtlpHttpPayload;
+
+// Opt-in bounded causal learning over verified ExperienceJournal outcomes.
+module.exports.CausalRuntime = require('./lib/causal/causal-runtime').CausalRuntime;
+module.exports.LearnedCausalEngine = require('./lib/causal/learned-causal-engine').LearnedCausalEngine;
+
+// Opt-in local neural cognition candidate (#3474 I6). It is a CANDIDATE_ONLY
+// proposal through the model-agnostic port; it is never authority.
+module.exports.createLocalNeuralModel = require('./lib/cognitive-model-local-ssm').createLocalNeuralModel;
+module.exports.validateCognitiveModelProposal = require('./lib/cognitive-model-port').validateProposal;

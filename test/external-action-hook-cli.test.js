@@ -1,0 +1,326 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const Graph = require('../graph');
+
+const root = path.resolve(__dirname, '..');
+const hook = path.join(root, 'bin', 'huqan-gate-hook.js');
+const adapterRoot = path.join(root, 'adapters', 'external-action');
+
+// These tests are about the host projections and receipt persistence, not about
+// the #2505 C identity default (which test/external-action-identity.test.js
+// owns). Unattested calls now block by default, so the projection fixtures opt
+// out the way the in-process guard tests already do with `requireIdentityCard:
+// false`. An explicit `--require-identity` still wins, which the fail-closed
+// case below pins.
+const PROJECTION_ENV = Object.freeze({
+  ...process.env,
+  HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'allow',
+  HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: 'allow',
+});
+
+function runHook(profile, payload, directory, extraArgs = []) {
+  const receiptLog = path.join(directory, 'receipts.jsonl');
+  const memoryPath = path.join(directory, 'memory.json');
+  const dbPath = path.join(directory, 'memory.db');
+  return {
+    receiptLog,
+    memoryPath,
+    dbPath,
+    process: spawnSync(process.execPath, [
+      hook,
+      '--profile', profile,
+      '--workspace-root', root,
+      '--receipt-log', receiptLog,
+      '--memory-path', memoryPath,
+      '--db-path', dbPath,
+      ...extraArgs,
+    ], {
+      cwd: root,
+      input: JSON.stringify(payload),
+      encoding: 'utf8',
+      env: PROJECTION_ENV,
+    }),
+  };
+}
+
+function genericPayload(command) {
+  return {
+    invocationId: `cli-${Date.now()}`,
+    agentName: 'future-agent-2035',
+    sessionId: 'cli-session',
+    toolName: 'shell',
+    args: { command },
+    cwd: root,
+    workspaceRoot: root,
+  };
+}
+
+test('generic hook allows a bounded read command and persists its receipt', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHook('generic', genericPayload('git status'), directory);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.decision, 'allow');
+  const receipts = fs.readFileSync(run.receiptLog, 'utf8').trim().split(/\r?\n/).map(JSON.parse);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].decision, 'allow');
+
+  const graph = new Graph({ memoryPath: run.memoryPath, dbPath: run.dbPath, useSQLite: true });
+  try {
+    if (graph.getStats().backend === 'sqlite') {
+      const events = graph.getAuditEvents({ workspaceId: 'default' });
+      assert.equal(events.some(event => event.auditId === receipts[0].receiptId), true);
+    }
+  } finally {
+    graph.close();
+  }
+});
+
+test('generic hook blocks an unknown executable before a host can run it', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const sentinel = path.join(directory, 'must-not-exist.txt');
+  const command = `${process.execPath} -e "require('fs').writeFileSync(${JSON.stringify(sentinel)}, 'ran')"`;
+  const run = runHook('generic', genericPayload(command), directory);
+  assert.equal(run.process.status, 3, run.process.stderr);
+  assert.equal(JSON.parse(run.process.stdout).decision, 'review');
+  assert.equal(fs.existsSync(sentinel), false);
+});
+
+test('two identical refused calls in one session surface review advice without changing the gate verdict (#3338)', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-bypass-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const policyPath = path.join(directory, 'policy.json');
+  fs.writeFileSync(policyPath, JSON.stringify({
+    bypassResponse: { refusedRetry: { reviewAfter: 2, blockAfter: 3 } },
+  }));
+  const payload = genericPayload('rm -rf /');
+  payload.invocationId = 'bypass-refusal-1';
+  const first = runHook('generic', payload, directory, ['--policy', policyPath]);
+  assert.equal(first.process.status, 2, first.process.stderr);
+  const firstOutput = JSON.parse(first.process.stdout);
+  assert.equal(firstOutput.decision, 'block');
+  assert.deepEqual(firstOutput.bypassAdvice.recommendations, []);
+
+  const repeated = { ...payload, invocationId: 'bypass-refusal-2' };
+  const second = runHook('generic', repeated, directory, ['--policy', policyPath]);
+  assert.equal(second.process.status, 2, second.process.stderr);
+  const secondOutput = JSON.parse(second.process.stdout);
+  assert.equal(secondOutput.decision, 'block', 'advice never changes the gate verdict');
+  assert.equal(secondOutput.bypassAdvice.adviceOnly, true);
+  assert.equal(secondOutput.bypassAdvice.recommendations.length, 1);
+  assert.equal(secondOutput.bypassAdvice.recommendations[0].decision, 'require_review');
+  assert.equal(secondOutput.bypassAdvice.recommendations[0].recommendation, 'review recommended');
+
+  const thirdAttempt = { ...payload, invocationId: 'bypass-refusal-3' };
+  const third = runHook('generic', thirdAttempt, directory, ['--policy', policyPath]);
+  assert.equal(third.process.status, 2, third.process.stderr);
+  const thirdOutput = JSON.parse(third.process.stdout);
+  assert.equal(thirdOutput.decision, 'block', 'advice still does not change the gate verdict');
+  assert.equal(thirdOutput.bypassAdvice.recommendations.length, 1);
+  assert.equal(thirdOutput.bypassAdvice.recommendations[0].decision, 'block');
+  assert.equal(thirdOutput.bypassAdvice.recommendations[0].recommendation, 'block recommended');
+});
+
+test('Codex and Claude projections fail closed before destructive execution', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const payload = {
+    session_id: 'native-session',
+    tool_use_id: 'native-call',
+    tool_name: 'Bash',
+    tool_input: { command: 'rm -rf /' },
+    cwd: root,
+  };
+  const codex = runHook('codex', payload, directory);
+  assert.equal(codex.process.status, 0, codex.process.stderr);
+  assert.equal(JSON.parse(codex.process.stdout).hookSpecificOutput.permissionDecision, 'deny');
+
+  payload.tool_use_id = 'native-call-2';
+  const claude = runHook('claude-code', payload, directory);
+  assert.equal(claude.process.status, 0, claude.process.stderr);
+  assert.equal(JSON.parse(claude.process.stdout).hookSpecificOutput.permissionDecision, 'deny');
+});
+
+test('OpenHands projection blocks a destructive call with a top-level deny decision', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  // OpenHands' PreToolUse hook payload is flat snake_case with the project
+  // directory as working_dir; the decision is a top-level {decision, reason}
+  // (OpenHands' contract has no "ask"), not a nested hookSpecificOutput.
+  const payload = {
+    event_type: 'PreToolUse',
+    session_id: 'openhands-session',
+    tool_use_id: 'openhands-call',
+    tool_name: 'terminal',
+    tool_input: { command: 'rm -rf /' },
+    working_dir: root,
+  };
+  const run = runHook('openhands', payload, directory);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.decision, 'deny');
+  assert.match(output.reason, /DENYLISTED_COMMAND_BLOCKED/);
+  assert.equal(output.hookSpecificOutput, undefined);
+});
+
+test('OpenHands projection allows a bounded read and persists its receipt', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-cli-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHook('openhands', {
+    event_type: 'PreToolUse',
+    session_id: 'openhands-session',
+    tool_use_id: 'openhands-read',
+    tool_name: 'terminal',
+    tool_input: { command: 'git status' },
+    working_dir: root,
+  }, directory);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  assert.deepEqual(JSON.parse(run.process.stdout), {});
+  assert.equal(fs.readFileSync(run.receiptLog, 'utf8').trim().split(/\r?\n/).length, 1);
+});
+
+test('shipped adapter templates bind every supported host to HUQAN before execution', () => {
+  const claude = JSON.parse(fs.readFileSync(path.join(adapterRoot, 'claude-code-hooks.json'), 'utf8'));
+  const codex = JSON.parse(fs.readFileSync(path.join(adapterRoot, 'codex-hooks.json'), 'utf8'));
+  assert.match(claude.hooks.PreToolUse[0].hooks[0].command, /huqan-gate --profile claude-code/);
+  assert.match(codex.hooks.PreToolUse[0].hooks[0].command, /huqan-gate --profile codex/);
+  assert.match(codex.hooks.PreToolUse[0].hooks[0].commandWindows, /huqan-gate\.cmd --profile codex/);
+
+  const openhands = JSON.parse(fs.readFileSync(path.join(adapterRoot, 'openhands-hooks.json'), 'utf8'));
+  assert.match(openhands.hooks.pre_tool_use[0].hooks[0].command, /huqan-gate --profile openhands/);
+  assert.match(openhands.hooks.pre_tool_use[0].hooks[0].commandWindows, /huqan-gate\.cmd --profile openhands/);
+
+  const openCode = fs.readFileSync(path.join(adapterRoot, 'opencode-plugin.mjs'), 'utf8');
+  const pi = fs.readFileSync(path.join(adapterRoot, 'pi-extension.js'), 'utf8');
+  const hermes = fs.readFileSync(path.join(adapterRoot, 'hermes', '__init__.py'), 'utf8');
+  const manifest = fs.readFileSync(path.join(adapterRoot, 'hermes', 'plugin.yaml'), 'utf8');
+  assert.match(openCode, /createOpenCodeGuardPlugin/);
+  assert.match(pi, /registerPiGuard/);
+  assert.match(hermes, /ctx\.register_hook\("pre_tool_call", guard_tool_call\)/);
+  assert.match(hermes, /shell=False/);
+  assert.match(manifest, /name: huqan-external-action-guard/);
+});
+
+// --- Faz C (#1769): identity card + identity log query over the CLI --------
+
+function identityCardFile(directory, taskScope = null) {
+  const target = path.join(directory, 'card.json');
+  // The hook evaluates the card against the real clock, so the window is built
+  // around it: #2505 C requires an expiry and caps the lifetime at 24h.
+  const issuedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  fs.writeFileSync(target, JSON.stringify({
+    schemaVersion: 'huqan.agent-identity-card.v1',
+    agentId: 'future-agent-2035',
+    agentName: 'future-agent-2035',
+    ownerActorId: 'actor:ali',
+    workspaceId: 'default',
+    capabilities: ['shell'],
+    issuedAt,
+    expiresAt,
+    ...(taskScope ? { taskScope } : {}),
+  }));
+  return target;
+}
+
+function runHookWithCard(payload, directory, extraArgs = []) {
+  const receiptLog = path.join(directory, 'receipts.jsonl');
+  return {
+    receiptLog,
+    process: spawnSync(process.execPath, [
+      hook,
+      '--profile', 'generic',
+      '--workspace-root', root,
+      '--receipt-log', receiptLog,
+      '--memory-path', path.join(directory, 'memory.json'),
+      '--db-path', path.join(directory, 'memory.db'),
+      ...extraArgs,
+    ], { cwd: root, input: JSON.stringify(payload), encoding: 'utf8', env: PROJECTION_ENV }),
+  };
+}
+
+test('the hook attaches an identity card and reports it in the decision output', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-identity-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHookWithCard(genericPayload('git status'), directory, [
+    '--identity-card', identityCardFile(directory),
+  ]);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.decision, 'allow');
+  assert.equal(output.identityRef, 'agent:default:future-agent-2035');
+  assert.equal(output.identityAttested, true);
+
+  const receipt = JSON.parse(fs.readFileSync(run.receiptLog, 'utf8').trim().split(/\r?\n/)[0]);
+  assert.equal(receipt.metadata.identity.ownerActorId, 'actor:ali');
+  assert.equal(receipt.metadata.identity.attested, true);
+});
+
+test('--require-identity fails closed when no card is supplied', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-identity-req-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHookWithCard(genericPayload('git status'), directory, ['--require-identity']);
+  assert.equal(run.process.status, 2, run.process.stderr);
+  assert.equal(JSON.parse(run.process.stdout).decision, 'block');
+});
+
+test('--identity-log lists every action recorded for one identity', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-identity-log-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const card = identityCardFile(directory);
+  const first = runHookWithCard(genericPayload('git status'), directory, ['--identity-card', card]);
+  assert.equal(first.process.status, 0, first.process.stderr);
+  const second = runHookWithCard(genericPayload('git diff'), directory, ['--identity-card', card]);
+  assert.equal(second.process.status, 0, second.process.stderr);
+
+  const query = spawnSync(process.execPath, [
+    hook,
+    '--identity-log', 'agent:default:future-agent-2035',
+    '--receipt-log', first.receiptLog,
+  ], { cwd: root, encoding: 'utf8' });
+  assert.equal(query.status, 0, query.stderr);
+  const result = JSON.parse(query.stdout);
+  assert.equal(result.matched, 2);
+  assert.equal(result.summary.attested, 2);
+  assert.ok(result.actions.every(action => action.identity.ownerActorId === 'actor:ali'));
+});
+
+test('--graduated-autonomy exposes the enforced T1 score and tier in CLI output', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-autonomy-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const run = runHookWithCard(genericPayload('git status'), directory, ['--graduated-autonomy']);
+  assert.equal(run.process.status, 0, run.process.stderr);
+  const output = JSON.parse(run.process.stdout);
+  assert.equal(output.autonomyTier, 'T1');
+  assert.equal(output.autonomyScore, 0);
+  const receipt = JSON.parse(fs.readFileSync(run.receiptLog, 'utf8').trim());
+  assert.equal(receipt.metadata.autonomy.schemaVersion, 'huqan.graduated-autonomy.v1');
+  assert.equal(receipt.metadata.autonomy.requiredTier, 'T1');
+});
+
+test('--task-id binds a task-scoped card to its task end to end (#2505 C)', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-task-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const card = identityCardFile(directory, { taskId: 'task-7' });
+
+  const matched = runHookWithCard(genericPayload('git status'), directory, [
+    '--identity-card', card,
+    '--task-id', 'task-7',
+  ]);
+  assert.equal(matched.process.status, 0, matched.process.stderr);
+  assert.equal(JSON.parse(matched.process.stdout).decision, 'allow');
+
+  const floating = runHookWithCard(genericPayload('git status'), directory, [
+    '--identity-card', card,
+  ]);
+  assert.equal(floating.process.status, 2, floating.process.stderr);
+  assert.equal(JSON.parse(floating.process.stdout).decision, 'block');
+});

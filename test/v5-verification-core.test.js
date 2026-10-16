@@ -80,6 +80,15 @@ test('bounded verification core fails closed for malformed inputs', () => {
   });
 });
 
+test('bounded verification core fails closed on synthetic signature placeholders', () => {
+  const fixture = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
+
+  assert.deepEqual(evaluateBoundedVerification(fixture.input), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'malformed_signature_evidence'
+  });
+});
+
 test('bounded verification core rejects unbounded trusted-key metadata', () => {
   const positive = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
   const cases = [
@@ -155,6 +164,55 @@ test('bounded verification output never claims trust or authorization', () => {
       assert.equal(forbiddenOutputKeys.has(key), false, `${fixture.caseId}: ${key}`);
     }
   }
+});
+
+test('bounded verification core never returns verified/signature_valid -- it is a structural verifier with no cryptographic capability (#1299)', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'lib', 'v5', 'verification-core.js'),
+    'utf8'
+  );
+
+  // evaluateBoundedVerification has no path that can produce this status:
+  // signatureReason always returns a truthy reason (missing or malformed),
+  // so every input falls through to not_verified. Asserting the string is
+  // gone from the source, not just untriggered by fixtures, so a future
+  // edit can't quietly reopen the previously-dead 'verified' branch.
+  assert.equal(source.includes('signature_valid'), false);
+  assert.equal(source.includes("result('verified'"), false);
+
+  for (const fixture of readFixtures()) {
+    const actual = evaluateBoundedVerification(fixtureInput(fixture));
+    assert.notEqual(actual.verificationStatus, 'verified', fixture.caseId);
+  }
+});
+
+test('bounded verification core treats an expired expiresAt as expired_key_metadata even under status: active (#1274)', () => {
+  const positive = readFixtures().find(({ caseId }) => caseId === 'verified-supported-algorithm');
+
+  const expired = JSON.parse(JSON.stringify(positive.input));
+  expired.trustedKeyMetadata.expiresAt = '2020-01-01T00:00:00.000Z';
+  expired.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(expired), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'expired_key_metadata'
+  });
+
+  const notYetExpired = JSON.parse(JSON.stringify(positive.input));
+  notYetExpired.trustedKeyMetadata.expiresAt = '2030-01-01T00:00:00.000Z';
+  notYetExpired.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(notYetExpired), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'malformed_signature_evidence'
+  });
+
+  // exactly at the boundary counts as expired, matching trusted-key-resolver.js
+  const atBoundary = JSON.parse(JSON.stringify(positive.input));
+  atBoundary.trustedKeyMetadata.expiresAt = '2026-08-23T00:00:00.000Z';
+  atBoundary.evaluationTime = '2026-08-23T00:00:00.000Z';
+  assert.deepEqual(evaluateBoundedVerification(atBoundary), {
+    verificationStatus: 'not_verified',
+    reasonCategory: 'expired_key_metadata'
+  });
 });
 
 test('verification core source contains no resolver, runtime, or crypto dependency', () => {
@@ -262,3 +320,31 @@ test('cryptographic evidence handoff is separate from bounded verification evalu
     cryptographicState: 'valid'
   }), { cryptographicState: 'valid' });
 });
+
+test('facade re-exports the extracted verification modules (#2257)', () => {
+  const shape = require('../lib/v5/verification-input-shape');
+  const normalizer = require('../lib/v5/verification-evidence-normalizer');
+  const reasons = require('../lib/v5/verification-reason-mapping');
+  const evaluator = require('../lib/v5/verification-evaluator');
+  const facade = require('../lib/v5/verification-core');
+
+  assert.equal(typeof shape.hasOnlyKeys, 'function');
+  assert.equal(typeof shape.containsForbiddenKeyMaterial, 'function');
+  assert.equal(typeof shape.malformedInput, 'function');
+  assert.equal(typeof normalizer.hasOnlyOwnDataKeys, 'function');
+  assert.equal(typeof normalizer.normalizeCryptographicVerificationEvidence, 'function');
+  assert.equal(typeof reasons.forbiddenClaimReason, 'function');
+  assert.equal(typeof reasons.keyStateReason, 'function');
+  assert.equal(typeof reasons.signatureReason, 'function');
+  assert.equal(typeof evaluator.evaluateBoundedVerification, 'function');
+
+  // The facade stays the public contract: same functions, same behavior.
+  assert.equal(facade.evaluateBoundedVerification, evaluator.evaluateBoundedVerification);
+  assert.equal(
+    facade.normalizeCryptographicVerificationEvidence,
+    normalizer.normalizeCryptographicVerificationEvidence
+  );
+  assert.equal(typeof facade.SUPPORTED_SCHEMA_VERSION, 'string');
+  assert.equal(typeof facade.SUPPORTED_ALGORITHM, 'string');
+});
+

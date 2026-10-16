@@ -1,0 +1,326 @@
+'use strict';
+
+/**
+ * Who is allowed to touch the world, and on what grounds.
+ *
+ * scripts/enforcement-coverage.js finds every call site that can execute a
+ * process, write to the filesystem or leave the machine. This file is the other
+ * half: the recorded judgement about each one. A file with such a call site and
+ * no entry here fails the check.
+ *
+ * Classification is per file rather than per line on purpose. A file has one
+ * job, and eighty individually argued lines would be eighty places for a reason
+ * to rot while the code moved under it. If a file's role changes, its entry
+ * should change with it -- and that is a review conversation, which is the
+ * point.
+ *
+ * The roles are ordered by how much they are trusted, most to least.
+ */
+const ROLES = Object.freeze({
+  /**
+   * This code *is* the boundary. Gating it would be circular: the sandbox
+   * cannot ask itself for permission to be a sandbox.
+   */
+  enforcement: 'is the admission boundary itself; gating it would be circular',
+  /**
+   * Writes the evidence trail. A receipt that needed admission to be written
+   * could not record a denial, so the audit record would be missing exactly the
+   * events that matter most.
+   */
+  evidence: 'writes the audit trail; gating it would lose the record of denials',
+  /**
+   * The product's own datastore, under a path the product resolves. Not an
+   * arbitrary write: the target is derived from configuration, not from agent
+   * input.
+   */
+  persistence: 'the product datastore, at a path the product resolves, not one an agent supplies',
+  /**
+   * Runs only when a human invokes it directly from a terminal. There is no
+   * agent in the loop to admit.
+   */
+  operator_tool: 'runs only under direct human invocation; no agent is in the loop',
+  /**
+   * Reads the outside world into the graph. It ingests; it does not act.
+   */
+  adapter_read: 'ingests external data; performs no mutation of the outside world',
+  /**
+   * Leaves the machine only on a path a human operator turned on by
+   * configuration, on a separately deployed process with no agent in the loop
+   * to admit. The decision is written down in ADR-014 rather than left to a
+   * per-file reason.
+   */
+  egress_operator_gated: 'egress on an operator-enabled, separately deployed path; no agent action reaches it, recorded as a deliberate exception in ADR-014',
+  /**
+   * Genuinely outside the boundary. Listed rather than hidden -- a governance
+   * product that conceals its own gaps is making the error it exists to
+   * prevent.
+   */
+  unguarded: 'outside the admission boundary; recorded openly rather than hidden',
+});
+
+/**
+ * Every production file with a risky call site, and why it holds one.
+ *
+ * The reasons are specific because a generic one ("internal") would pass review
+ * forever without anybody re-reading the code.
+ */
+const CLASSIFIED = Object.freeze({
+  // ── the boundary itself ────────────────────────────────────────────────
+  // ── the approval authority service (ADR-016) ───────────────────────────
+  'lib/authority/authority-client.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',
+  }),
+  'lib/mcp/rekor-anchor-client.js': Object.freeze({
+    role: 'evidence',
+    why: 'the external witness of the approval authority ledger (#3940): it posts only a signed sha256 digest of the ledger head with the anchor public key to the fixed rekor.sigstore.dev endpoint, and reads back entries under that key, accepting only those signed by the Rekor key pinned in source. No ledger content, approval or workspace leaves the machine, and the endpoint is not taken from input',
+  }),
+  'lib/authority/consume-key.js': Object.freeze({
+    role: 'persistence',
+    why: 'creates the runtime\'s consume-proof key once, owner-only, at a fixed path under the user\'s home; the path is not taken from agent input',
+  }),
+  'lib/authority/install-trust.js': Object.freeze({
+    role: 'enforcement',
+    why: 're-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted',
+  }),
+  'lib/authority/state-store.js': Object.freeze({
+    role: 'persistence',
+    why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',
+  }),
+  'lib/authority/service-main.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'only `init` writes: it is run once by the operator to create the authority state and the pin (ADR-016 plans for the elevated installer to run it and keep the pin admin-only); `serve` writes nothing itself, and the ledger and state writes it reaches are the service\'s own store',
+  }),
+
+  'sandboxRunner.js': Object.freeze({
+    role: 'enforcement',
+    why: 'spawns process.execPath running __filename in CHILD_MODE -- this is the AB6 isolation mechanism, and its argv is fixed in source',
+  }),
+  'lib/external-action-gate-install.js': Object.freeze({
+    role: 'enforcement',
+    why: 'removes the gate artifact this install call just wrote when the sentinel refuses it, so a failed install leaves nothing behind; the rest of the installer lives in the external-action-gate-install-*.js modules below',
+  }),
+  'lib/external-action-gate-install-spec.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writeJson is the one JSON writer for the gate\'s own hook and Hermes configuration; every install path writes through it',
+  }),
+  'lib/external-action-gate-install-files.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writes and removes the gate\'s own plugin files for the OpenCode, Pi and Hermes profiles, refusing to overwrite or delete anything it did not write',
+  }),
+  'lib/external-action-gate-install-command.js': Object.freeze({
+    role: 'enforcement',
+    why: 'asks cmd.exe for the 8.3 short name of a gate path with spaces, so the recorded hook command runs in both cmd.exe and PowerShell (#1797); fixed argv, no agent input',
+  }),
+  'lib/external-action-gate-install-sentinel.js': Object.freeze({
+    role: 'enforcement',
+    why: 'runs a candidate gate command against the synthetic rm -rf / sentinel under each host shell, inside a throwaway directory it creates and removes; the spawns are the gate proving itself',
+  }),
+  'lib/external-action-gate-install-validate.js': Object.freeze({
+    role: 'enforcement',
+    why: 'loads the just-installed artifact (Node runner or the Hermes Python plugin) in a child process and drives the sentinel through it; the spawns are the gate proving itself',
+  }),
+  'lib/external-action-adapter-generator.js': Object.freeze({
+    role: 'enforcement',
+    why: 'proves a gate command by running it against a denylisted envelope and writes the adapter that will call it; the spawns are the gate proving itself and the write is the integration it just proved, refused entirely if the sentinel does not block',
+  }),
+  'lib/external-action-identity-issue.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'mints the capability card an operator hands to the gate (#2505); the write is refused if the target exists, and there is no agent in the loop -- an agent that could mint its own authority would defeat the card',
+  }),
+  'adapters/external-action/generic-adapter.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the generated custom-agent adapter: its one spawn is the call to the gate itself, made before the agent acts, so gating it would be circular -- it fails closed on a gate it cannot start, parse or recognise',
+  }),
+  'lib/command-policy-editor.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writes the allowed-command list the gate itself reads, atomically and under a cross-process lock; gating this write through admission would be circular, and the route in front of it requires an operator token the agent API key cannot satisfy',
+  }),
+
+  // ── the evidence trail ─────────────────────────────────────────────────
+  'lib/external-action-receipt.js': Object.freeze({
+    role: 'evidence',
+    why: 'appends the external-action receipt itself, at the path defaultExternalActionReceiptPath resolves',
+  }),
+  'lib/external-action-receipt-collector.js': Object.freeze({
+    role: 'evidence',
+    why: 'append-only receipt store; the tenant-scoped JSONL the fleet view reads',
+  }),
+  'lib/external-action-receipt-shipper.js': Object.freeze({
+    role: 'evidence',
+    why: 'appends collector counter-seals beside the trail; the cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split',
+  }),
+  'lib/external-action-receipt-cursor.js': Object.freeze({
+    role: 'evidence',
+    why: 'the shipped-position cursor beside the receipt trail (mode 0o600, dir 0o700); advancing it past an unshipped receipt would lose evidence, which is why the resync check lives beside it',
+  }),
+  'lib/receipt/public-trust-receipt.js': Object.freeze({
+    role: 'evidence',
+    why: 'writes the allowlist-projected public form of a trust receipt to a caller-named export path',
+  }),
+  'lib/mutation-journal-lock.js': Object.freeze({
+    role: 'evidence',
+    why: 'the durable mutation journal lock; losing it would break replay idempotency',
+  }),
+  'lib/fitness-history.js': Object.freeze({
+    role: 'evidence',
+    why: 'appends the fitness history series under the resolved state directory; append-only, never rewritten',
+  }),
+  'lib/runtime-watchdog-audit.js': Object.freeze({
+    role: 'evidence',
+    why: 'writes and verifies the append-only hash-chained watchdog audit journal at an operator-configured absolute path',
+  }),
+
+  // ── the product datastore ──────────────────────────────────────────────
+  'lib/graph-json-snapshot.js': Object.freeze({ role: 'persistence', why: 'writes the JSON graph snapshot to the configured memoryPath; the non-SQLite backend for the canonical graph' }),
+  'lib/graph-json-transaction.js': Object.freeze({ role: 'persistence', why: 'the JSON graph write transaction: writes a temp file beside memoryPath and renames it, so a crash cannot leave a half-written graph' }),
+  'lib/reason-sandbox.js': Object.freeze({ role: 'persistence', why: 'owns and removes the product-created per-request reasoning sandbox under the OS temp root; the sandbox path is created by HUQAN, never supplied by an agent' }),
+  'lib/secure-file-write.js': Object.freeze({ role: 'persistence', why: 'central private staging and atomic-replacement primitive for product persistence; callers select the target while this module performs exclusive bounded filesystem writes' }),
+  'lib/a2a/replay-store.js': Object.freeze({ role: 'persistence', why: 'the A2A replay reservation store; its durability is what makes at-most-once delivery hold across a restart' }),
+  'lib/a2a/task-store.js': Object.freeze({ role: 'persistence', why: 'the A2A task store backing at-most-once delivery, under the configured replay directory' }),
+  'lib/a2a/handoff-cursor.js': Object.freeze({ role: 'persistence', why: 'the A2A active-delegator cursor beside the replay/task stores, under the host-configured directory; one exclusive-create file per route receipt id, file name is the receipt hash so a cursor cannot escape that directory' }),
+  'lib/a2a/delegation-audit-log.js': Object.freeze({ role: 'persistence', why: 'the A2A delegation audit trail, under the same configured replay directory; one exclusive-create file per exchange, and every write failure is swallowed so recording can never refuse a delegation' }),
+  'lib/registry/registry-record-store.js': Object.freeze({ role: 'persistence', why: 'the trust registry record store, under the resolved registry directory' }),
+  'lib/github-app-beta-store.js': Object.freeze({ role: 'persistence', why: 'the GitHub App beta store, at HUQAN_GITHUB_APP_STORE_PATH; written only on the deployment-gated beta path' }),
+  'lib/github-app-streaming-trust-store-files.js': Object.freeze({ role: 'persistence', why: 'the streaming trust store file writes, moved here from lib/github-app-streaming-trust-store.js by #2826 without reclassification; at a configured path and only when the streaming-trust flag is enabled' }),
+  'lib/hypothesis-thresholds.js': Object.freeze({ role: 'persistence', why: 'persists learned hypothesis thresholds under the state directory; product-owned data, no external input in the path' }),
+  'lib/huqan-package-format.js': Object.freeze({ role: 'persistence', why: 'writes an exported package to the caller-named output path' }),
+  'lib/agent-memory-runtime.js': Object.freeze({ role: 'persistence', why: 'writes agent memory (goals, runs, tool stats) through a temp file and rename so a run can resume, and moves a corrupt memory file aside; the path is the Agent constructor memoryPath or derived from the kernel graph memoryPath, never a request field' }),
+  'lib/store-creation-guard.js': Object.freeze({ role: 'persistence', why: 'the registry of store paths this machine keeps, under the resolved state root; the recorded path is a store path the runtime already resolved, never a request field, and every write failure is swallowed so the registry can never refuse an open' }),
+  'lib/mcp-capability-nonce-store.js': Object.freeze({
+    role: 'persistence',
+    why: 'the durable single-use MCP capability nonce store, reached from mcpServer.js; the directory is resolved from config or beside memoryPath and the file name is a hash of the attacker-influenced nonce, so a nonce cannot escape that directory',
+  }),
+  'lib/emergency-stop.js': Object.freeze({
+    role: 'enforcement',
+    why: 'writes the emergency stop records that the identity gate, MCP dispatch, the agent step executor and A2A admission read before acting, and appends the receipt of each stop and lift; gating these writes through admission would be circular. The directory comes from HUQAN_EMERGENCY_STOP_DIR or the state root, never a request field; each record file is named by a hash of its scope and created exclusively, so a stop cannot be overwritten',
+  }),
+  // ── operator tools ─────────────────────────────────────────────────────
+  'bin/huqan-cognitive-lab.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the directly invoked isolated calibration CLI copies DB/WAL into its own mkdtemp directory for read-only authentication and removes only that private scratch directory; it exposes no agent-request route and never writes the supplied database during this check',
+  }),
+  'bin/huqan-causal-lab.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the directly invoked bounded causal experiment uses only a checked private mkdtemp directory and removes only that owned scratch path; it exposes no agent action route, opens no canonical memory, and has no network effects',
+  }),
+  'lib/cognitive-lab-cli.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the directly invoked calibration CLI creates only its own private lab directory and exclusive state marker beneath the operator root; existing state is bound to a frozen experiment and locked before its Graph journal is opened, without writing canonical memory',
+  }),
+  // #2168 split backupRestore.js; its writes and spawns now live in these three.
+  'lib/storage/backup-restore-store.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the backup store behind the human-invoked backup/restore CLI: directory and file copies, pruning, the manifest, and the SQLite online-backup child process',
+  }),
+  'lib/storage/backup-restore-validate.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'restore-source validation behind the human-invoked restore CLI; its only spawn is the read-only SQLite integrity check of the candidate file',
+  }),
+  'lib/storage/backup-restore-restore.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the human-invoked restore: atomic file replacement, the progress marker and stale temp cleanup, after a safety backup',
+  }),
+  'lib/storage/backup-restore-create.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the human-invoked backup: staging directory rename into place and cleanup of a failed staging directory',
+  }),
+  'lib/quickstart-cli.js': Object.freeze({ role: 'operator_tool', why: 'the quickstart writes a demo workspace on explicit invocation' }),
+  'lib/integrity-violation-notifier.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the integrity siren reached only from the human-invoked `huqan integrity --notify` command; writes one cursor file beside the ledger (or an operator-named override) recording the last notified seq, and sends nothing itself, so an agent request cannot reach it',
+  }),
+  'lib/self-healer/source-dogfood-simulator.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'writes a simulated source tree for the dogfood run; never reached by an agent request',
+  }),
+  'plugins/metric-collector.js': Object.freeze({ role: 'operator_tool', why: 'plugin writing its own metric output file; loaded only when an operator enables the plugin directory' }),
+  'lib/receipt/receipt-exporter-paths.js': Object.freeze({ role: 'operator_tool', why: 'writes the receipt-exporter plugin JSON export to an operator-named path; runs on explicit invocation, not on an agent request' }),
+  'lib/receipt/receipt-exporter-pdf.js': Object.freeze({ role: 'operator_tool', why: 'writes the receipt-exporter plugin PDF export to an operator-named path; runs on explicit invocation, not on an agent request' }),
+  'lib/coder/apply-derivation.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'applies a deterministic transform only after ordinary code-change admission or the explicit closed project-initialization permission; initialization uses exclusive creation, and failed writes roll back the files written by this invocation',
+  }),
+  'lib/coder/project-method-memory.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'persists bounded candidate-only project ASTs to an explicit external path after native acceptance and sealed verified-source validation; exclusive creation grants no code-write authority and reuse requires fresh project admission and heldouts',
+  }),
+  'lib/coder/learned-candidate.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'explicitly persists candidate-only method bodies in a bounded private coder directory; exclusive creation and fresh sealed-source validation grant no installation or code-write authority',
+  }),
+  'lib/coder/project-verification.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'mandatory native fixed HTTP verification for explicitly approved closed initialization; its process adapter runs only after the existing command-exec gate admits the fixed command',
+  }),
+  'lib/coder/project-revision-verification.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'native fixed HTTP acceptance for an explicitly authorized memory-backed project revision after ordinary code-change admission; the command-exec gate admits the fixed test command and full generated-output checks surround its execution before sealed retention',
+  }),
+  'lib/coder/project-initialization-permission.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'reads live Git identity/status/head to bind a single-use recipe permission; removes only empty src/test directories created by an initialization whose rollback already removed its files',
+  }),
+  'lib/coder/verify-ocr.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'spawns `ocr review` after a coder write only on explicit human-run coder --verify ocr; argv is fixed in source (shell only on Windows for the npm .cmd shim, with no caller data in the command line), the result is an observed signal that never changes the outcome, and ocr sends the change to the LLM endpoint the operator configured for it',
+  }),
+  'lib/coder/journal-store.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'creates the operator-named journal database directory on explicit coder --journal invocation; mkdir only, the database itself is opened by better-sqlite3 and the journal rows are the gated pilot evidence',
+  }),
+
+  // ── read-only adapters ─────────────────────────────────────────────────
+  'lib/cli-coder-verify.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'execFileSync of git show to read a file as of a base ref while re-deriving a recorded transform; argv is fixed in source, no shell is involved, and the command only reads history',
+  }),
+  'lib/cli-coder.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'execFileSync of git rev-parse and git status to report branch and dirtiness to the code-change gate; argv is fixed in source, no shell is involved, and nothing outside the process is mutated',
+  }),
+  'adapters/git-log-adapter.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'execFileSync of git log to ingest history; argv is fixed and the repository path is the configured workspace',
+  }),
+  'adapters/github-adapter.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'fetches public GitHub data for ingestion; performs no write against the API',
+  }),
+  'lib/web-research.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'fetches public web search results from Brave/Firecrawl/Tavily over pinned https endpoints; sends only the operator query, performs no write against the APIs, and secret/PII queries are blocked by the egress gate before transport',
+  }),
+
+  // ── the AURA bridge ────────────────────────────────────────────────────
+  'lib/aura-signal-pack.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'regenerates the deterministic AURA signal pack by running the AURA engine over a temp copy of its case files and writing the artifact next to it; it runs from an operator command (node lib/aura-signal-pack.js), the AURA source tree is never modified, and no agent action reaches the write',
+  }),
+
+  // ── the Laya bridge ────────────────────────────────────────────────────
+  'plugins/laya-risk.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS)',
+  }),
+
+  // ── outside the boundary, listed ───────────────────────────────────────
+  'rustGraph.js': Object.freeze({
+    role: 'unguarded',
+    why: 'spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN). The RUST_BIN resolution hardening and the process-launch gate are the open work in ADR-014',
+  }),
+  'lib/runtime-watchdog.js': Object.freeze({
+    role: 'unguarded',
+    why: 'starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate. The watchdog health-fetch is covered by the bounded exception in ADR-014; the server spawn remains open there',
+  }),
+  'lib/pr-guardian/github-client.js': Object.freeze({
+    role: 'egress_operator_gated',
+    why: 'outbound GitHub API calls on the PR Guardian path, which runs as its own deployment and is enabled by operator configuration; no agent action reaches the fetch, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014',
+  }),
+  'lib/pr-guardian/ocr-review-check.js': Object.freeze({
+    role: 'egress_operator_gated',
+    why: 'spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks. No agent action reaches the spawn, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014',
+  }),
+});
+
+module.exports = { ROLES, CLASSIFIED };

@@ -82,7 +82,10 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
     assert.equal(result.allowed, false);
     assert.equal(result.canDryRun, false);
-    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.RESOURCE_EXHAUSTION_BLOCK);
+    // Was RESOURCE_EXHAUSTION_BLOCK, which is what an unknown runner reported
+    // before #1112 -- the file's only code/reason mismatch, and the reason an
+    // operator went looking for a resource limit that was never involved.
+    assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.UNKNOWN_RUNNER_BLOCK);
     assert.equal(result.risk.level, SANDBOX_RISK_LEVELS.CRITICAL);
   });
 
@@ -99,6 +102,37 @@ describe('AB6 sandbox isolation core decisions', () => {
     assert.equal(result.canDryRun, true);
     assert.equal(result.requiredReview, true);
     assert.equal(result.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
+  });
+
+  it('does not false-positive on words that merely contain a forbidden token as a substring (#380)', () => {
+    const result = evaluate({
+      source: 'const evaluation = summarize(offshore, transfer); return evaluation.score;',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+    });
+
+    // 'evaluation' contains 'eval', 'offshore' contains 'fs' -- neither is a
+    // real use of the forbidden capability and must not trip the gate.
+    assert.notEqual(result.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
+  });
+
+  it('still catches forbidden capabilities at real word boundaries, including punctuation-adjacent ones (#380)', () => {
+    const bracketAccess = evaluate({
+      source: 'globalThis["process"].exit(1)',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+    });
+    assert.equal(bracketAccess.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
+
+    // 'import(' ends in a non-word character, so a word character
+    // immediately following the '(' (no space/quote) must still match --
+    // the punctuation-adjacent side must not gain a boundary it never had.
+    const dynamicImport = evaluate({
+      source: 'import(moduleName).then(m => m.run())',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+    });
+    assert.equal(dynamicImport.reason, SANDBOX_ISOLATION_REASONS.FORBIDDEN_CAPABILITY_QUARANTINE);
   });
 
   it('source with external network access returns quarantine', () => {
@@ -120,6 +154,21 @@ describe('AB6 sandbox isolation core decisions', () => {
       runner: RUNNER_TYPES.NODE_VM,
       context: {
         tempArtifactPath: 'C:\\sandbox\\tmp\\artifact.json',
+        sandboxRoot: 'C:\\sandbox',
+      },
+    });
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.ALLOW);
+    assert.equal(result.allowed, true);
+  });
+
+  it('sandbox root itself is inside sandbox during destructive cleanup', () => {
+    const result = evaluate({
+      source: 'wipe temp artifacts',
+      sourceTrust: SOURCE_TRUST_LEVELS.VALIDATED,
+      runner: RUNNER_TYPES.NODE_VM,
+      context: {
+        tempArtifactPath: 'C:\\sandbox',
         sandboxRoot: 'C:\\sandbox',
       },
     });
@@ -336,7 +385,54 @@ describe('AB6 sandbox isolation core decisions', () => {
         sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
         runner: RUNNER_TYPES.NODE_VM,
       },
-      { policy: { minimumDecision: 'allow', allowUntustedSource: true } }
+      { policy: { minimumDecision: 'allow', allowUntrustedSource: true } }
+    );
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+  });
+
+  it('policy allowUntrustedSource legacy alias allowUntustedSource (typo) is accepted', () => {
+    const result = evaluate(
+      {
+        source: '({ total: input.a })',
+        sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
+        runner: RUNNER_TYPES.NODE_VM,
+      },
+      // Use legacy misspelled key instead of correct key
+      { policy: { minimumDecision: 'allow', allowUntustedSource: false } }
+    );
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+  });
+
+  it('policy allowUntrustedSource both correct key and legacy alias true (untrusted source — always blocked regardless)', () => {
+    // Note: UNTRUSTED source is always blocked by UNTRUSTED_SOURCE_BLOCK regardless of allowUntrustedSource.
+    // This tests that both keys are accepted without error, and fail-closed logic doesn't interfere.
+    const result = evaluate(
+      {
+        source: '({ total: input.a })',
+        sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
+        runner: RUNNER_TYPES.NODE_VM,
+      },
+      // Both keys present, both true — but untrusted source is still blocked by core logic
+      { policy: { minimumDecision: 'allow', allowUntrustedSource: true, allowUntustedSource: true } }
+    );
+
+    assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);
+    assert.equal(result.allowed, false);
+  });
+
+  it('policy allowUntrustedSource both keys present — fail-closed: one false blocks', () => {
+    const result = evaluate(
+      {
+        source: '({ total: input.a })',
+        sourceTrust: SOURCE_TRUST_LEVELS.UNTRUSTED,
+        runner: RUNNER_TYPES.NODE_VM,
+      },
+      // Both keys present but one is false → fail-closed (block)
+      { policy: { minimumDecision: 'allow', allowUntrustedSource: true, allowUntustedSource: false } }
     );
 
     assert.equal(result.decision, SANDBOX_ISOLATION_DECISIONS.BLOCK);

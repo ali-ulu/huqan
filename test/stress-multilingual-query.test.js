@@ -73,10 +73,10 @@ describe('Stress Multilingual Query Regression', () => {
     for (const query of queries) {
       const result = unwrap(kernel.verify(query, { workspaceId: 'default' }));
       assert.ok(result && typeof result === 'object', 'verify result should be an object');
-      assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
+      assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
       assert.notStrictEqual(
         result.status,
-        'dogrulandi',
+        'verified',
         `weak multilingual query was incorrectly verified: ${query}`,
       );
     }
@@ -93,7 +93,7 @@ describe('Stress Multilingual Query Regression', () => {
     const result = unwrap(kernel.verify('B737 has 4 engines', { workspaceId: 'default' }));
 
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.notStrictEqual(result.status, 'dogrulandi', 'false multilingual claim must not be verified');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.notStrictEqual(result.status, 'verified', 'false multilingual claim must not be verified');
   });
 });

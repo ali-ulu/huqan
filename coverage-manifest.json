@@ -1,0 +1,1603 @@
+{
+  "schemaVersion": "huqan.enforcement-coverage.v1",
+  "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
+  "totals": {
+    "files": 74,
+    "sites": 159,
+    "byCapability": {
+      "process": 23,
+      "egress": 6,
+      "fs_write": 130
+    },
+    "byRole": {
+      "enforcement": 37,
+      "adapter_read": 7,
+      "operator_tool": 51,
+      "persistence": 44,
+      "evidence": 15,
+      "egress_operator_gated": 2,
+      "unguarded": 3
+    }
+  },
+  "unguarded": [
+    {
+      "file": "lib/runtime-watchdog.js",
+      "role": "unguarded",
+      "why": "starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate. The watchdog health-fetch is covered by the bounded exception in ADR-014; the server spawn remains open there",
+      "capabilities": [
+        "egress",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 33,
+          "capability": "egress",
+          "call": "fetch"
+        },
+        {
+          "line": 102,
+          "capability": "process",
+          "call": "spawnProcess"
+        }
+      ]
+    },
+    {
+      "file": "rustGraph.js",
+      "role": "unguarded",
+      "why": "spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN). The RUST_BIN resolution hardening and the process-launch gate are the open work in ADR-014",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 99,
+          "capability": "process",
+          "call": "spawn"
+        }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "file": "adapters/external-action/generic-adapter.js",
+      "role": "enforcement",
+      "why": "the generated custom-agent adapter: its one spawn is the call to the gate itself, made before the agent acts, so gating it would be circular -- it fails closed on a gate it cannot start, parse or recognise",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 82,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "adapters/git-log-adapter.js",
+      "role": "adapter_read",
+      "why": "execFileSync of git log to ingest history; argv is fixed and the repository path is the configured workspace",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 105,
+          "capability": "process",
+          "call": "execFileSync"
+        },
+        {
+          "line": 108,
+          "capability": "process",
+          "call": "execFileSync"
+        }
+      ]
+    },
+    {
+      "file": "adapters/github-adapter.js",
+      "role": "adapter_read",
+      "why": "fetches public GitHub data for ingestion; performs no write against the API",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 31,
+          "capability": "egress",
+          "call": "fetch"
+        }
+      ]
+    },
+    {
+      "file": "bin/huqan-causal-lab.js",
+      "role": "operator_tool",
+      "why": "the directly invoked bounded causal experiment uses only a checked private mkdtemp directory and removes only that owned scratch path; it exposes no agent action route, opens no canonical memory, and has no network effects",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 236,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "bin/huqan-cognitive-lab.js",
+      "role": "operator_tool",
+      "why": "the directly invoked isolated calibration CLI copies DB/WAL into its own mkdtemp directory for read-only authentication and removes only that private scratch directory; it exposes no agent-request route and never writes the supplied database during this check",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 19,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 23,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 24,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 34,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/a2a/delegation-audit-log.js",
+      "role": "persistence",
+      "why": "the A2A delegation audit trail, under the same configured replay directory; one exclusive-create file per exchange, and every write failure is swallowed so recording can never refuse a delegation",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 178,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/a2a/handoff-cursor.js",
+      "role": "persistence",
+      "why": "the A2A active-delegator cursor beside the replay/task stores, under the host-configured directory; one exclusive-create file per route receipt id, file name is the receipt hash so a cursor cannot escape that directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 109,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/a2a/replay-store.js",
+      "role": "persistence",
+      "why": "the A2A replay reservation store; its durability is what makes at-most-once delivery hold across a restart",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 32,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/a2a/task-store.js",
+      "role": "persistence",
+      "why": "the A2A task store backing at-most-once delivery, under the configured replay directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 93,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/agent-memory-runtime.js",
+      "role": "persistence",
+      "why": "writes agent memory (goals, runs, tool stats) through a temp file and rename so a run can resume, and moves a corrupt memory file aside; the path is the Agent constructor memoryPath or derived from the kernel graph memoryPath, never a request field",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 37,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 51,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 53,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 54,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 57,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/aura-signal-pack.js",
+      "role": "operator_tool",
+      "why": "regenerates the deterministic AURA signal pack by running the AURA engine over a temp copy of its case files and writing the artifact next to it; it runs from an operator command (node lib/aura-signal-pack.js), the AURA source tree is never modified, and no agent action reaches the write",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 103,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 104,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 111,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 119,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 191,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 192,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/authority/authority-client.js",
+      "role": "enforcement",
+      "why": "the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 44,
+          "capability": "egress",
+          "call": "http.request"
+        }
+      ]
+    },
+    {
+      "file": "lib/authority/consume-key.js",
+      "role": "persistence",
+      "why": "creates the runtime's consume-proof key once, owner-only, at a fixed path under the user's home; the path is not taken from agent input",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 34,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 36,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 42,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/authority/install-trust.js",
+      "role": "enforcement",
+      "why": "re-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 77,
+          "capability": "process",
+          "call": "spawn"
+        }
+      ]
+    },
+    {
+      "file": "lib/authority/service-main.js",
+      "role": "operator_tool",
+      "why": "only `init` writes: it is run once by the operator to create the authority state and the pin (ADR-016 plans for the elevated installer to run it and keep the pin admin-only); `serve` writes nothing itself, and the ledger and state writes it reaches are the service's own store",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 65,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 66,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/authority/state-store.js",
+      "role": "persistence",
+      "why": "the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 29,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 41,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 64,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cli-coder-verify.js",
+      "role": "adapter_read",
+      "why": "execFileSync of git show to read a file as of a base ref while re-deriving a recorded transform; argv is fixed in source, no shell is involved, and the command only reads history",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 55,
+          "capability": "process",
+          "call": "childProcess.execFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cli-coder.js",
+      "role": "adapter_read",
+      "why": "execFileSync of git rev-parse and git status to report branch and dirtiness to the code-change gate; argv is fixed in source, no shell is involved, and nothing outside the process is mutated",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 133,
+          "capability": "process",
+          "call": "childProcess.execFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/apply-derivation.js",
+      "role": "operator_tool",
+      "why": "applies a deterministic transform only after ordinary code-change admission or the explicit closed project-initialization permission; initialization uses exclusive creation, and failed writes roll back the files written by this invocation",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 103,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 104,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 122,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 123,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/journal-store.js",
+      "role": "operator_tool",
+      "why": "creates the operator-named journal database directory on explicit coder --journal invocation; mkdir only, the database itself is opened by better-sqlite3 and the journal rows are the gated pilot evidence",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 35,
+          "capability": "fs_write",
+          "call": "nodeFs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/learned-candidate.js",
+      "role": "operator_tool",
+      "why": "explicitly persists candidate-only method bodies in a bounded private coder directory; exclusive creation and fresh sealed-source validation grant no installation or code-write authority",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 33,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 99,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-initialization-permission.js",
+      "role": "operator_tool",
+      "why": "reads live Git identity/status/head to bind a single-use recipe permission; removes only empty src/test directories created by an initialization whose rollback already removed its files",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 18,
+          "capability": "process",
+          "call": "execFileSync"
+        },
+        {
+          "line": 128,
+          "capability": "fs_write",
+          "call": "fs.rmdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-method-memory.js",
+      "role": "operator_tool",
+      "why": "persists bounded candidate-only project ASTs to an explicit external path after native acceptance and sealed verified-source validation; exclusive creation grants no code-write authority and reuse requires fresh project admission and heldouts",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 326,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-revision-verification.js",
+      "role": "operator_tool",
+      "why": "native fixed HTTP acceptance for an explicitly authorized memory-backed project revision after ordinary code-change admission; the command-exec gate admits the fixed test command and full generated-output checks surround its execution before sealed retention",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 40,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/project-verification.js",
+      "role": "operator_tool",
+      "why": "mandatory native fixed HTTP verification for explicitly approved closed initialization; its process adapter runs only after the existing command-exec gate admits the fixed command",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 20,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/coder/verify-ocr.js",
+      "role": "operator_tool",
+      "why": "spawns `ocr review` after a coder write only on explicit human-run coder --verify ocr; argv is fixed in source (shell only on Windows for the npm .cmd shim, with no caller data in the command line), the result is an observed signal that never changes the outcome, and ocr sends the change to the LLM endpoint the operator configured for it",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 96,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cognitive-lab-cli.js",
+      "role": "operator_tool",
+      "why": "the directly invoked calibration CLI creates only its own private lab directory and exclusive state marker beneath the operator root; existing state is bound to a frozen experiment and locked before its Graph journal is opened, without writing canonical memory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 120,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 122,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 175,
+          "capability": "fs_write",
+          "call": "fs.chmodSync"
+        },
+        {
+          "line": 192,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/command-policy-editor.js",
+      "role": "enforcement",
+      "why": "writes the allowed-command list the gate itself reads, atomically and under a cross-process lock; gating this write through admission would be circular, and the route in front of it requires an operator token the agent API key cannot satisfy",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 57,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 61,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 65,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        },
+        {
+          "line": 67,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/emergency-stop.js",
+      "role": "enforcement",
+      "why": "writes the emergency stop records that the identity gate, MCP dispatch, the agent step executor and A2A admission read before acting, and appends the receipt of each stop and lift; gating these writes through admission would be circular. The directory comes from HUQAN_EMERGENCY_STOP_DIR or the state root, never a request field; each record file is named by a hash of its scope and created exclusively, so a stop cannot be overwritten",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 104,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 105,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        },
+        {
+          "line": 110,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 126,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        },
+        {
+          "line": 200,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 203,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 215,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 222,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 270,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-adapter-generator.js",
+      "role": "enforcement",
+      "why": "proves a gate command by running it against a denylisted envelope and writes the adapter that will call it; the spawns are the gate proving itself and the write is the integration it just proved, refused entirely if the sentinel does not block",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 93,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 111,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 150,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 151,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-command.js",
+      "role": "enforcement",
+      "why": "asks cmd.exe for the 8.3 short name of a gate path with spaces, so the recorded hook command runs in both cmd.exe and PowerShell (#1797); fixed argv, no agent input",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 40,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-files.js",
+      "role": "enforcement",
+      "why": "writes and removes the gate's own plugin files for the OpenCode, Pi and Hermes profiles, refusing to overwrite or delete anything it did not write",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 18,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 19,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 24,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        },
+        {
+          "line": 53,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 55,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 71,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-sentinel.js",
+      "role": "enforcement",
+      "why": "runs a candidate gate command against the synthetic rm -rf / sentinel under each host shell, inside a throwaway directory it creates and removes; the spawns are the gate proving itself",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 64,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 89,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 147,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 188,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-spec.js",
+      "role": "enforcement",
+      "why": "writeJson is the one JSON writer for the gate's own hook and Hermes configuration; every install path writes through it",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 24,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 25,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install-validate.js",
+      "role": "enforcement",
+      "why": "loads the just-installed artifact (Node runner or the Hermes Python plugin) in a child process and drives the sentinel through it; the spawns are the gate proving itself",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 48,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 81,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-gate-install.js",
+      "role": "enforcement",
+      "why": "removes the gate artifact this install call just wrote when the sentinel refuses it, so a failed install leaves nothing behind; the rest of the installer lives in the external-action-gate-install-*.js modules below",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 219,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-identity-issue.js",
+      "role": "operator_tool",
+      "why": "mints the capability card an operator hands to the gate (#2505); the write is refused if the target exists, and there is no agent in the loop -- an agent that could mint its own authority would defeat the card",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 112,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 127,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 175,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-receipt-collector.js",
+      "role": "evidence",
+      "why": "append-only receipt store; the tenant-scoped JSONL the fleet view reads",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 48,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        },
+        {
+          "line": 86,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 120,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        },
+        {
+          "line": 132,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-receipt-cursor.js",
+      "role": "evidence",
+      "why": "the shipped-position cursor beside the receipt trail (mode 0o600, dir 0o700); advancing it past an unshipped receipt would lose evidence, which is why the resync check lives beside it",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 34,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 35,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-receipt-shipper.js",
+      "role": "evidence",
+      "why": "appends collector counter-seals beside the trail; the cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 165,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/external-action-receipt.js",
+      "role": "evidence",
+      "why": "appends the external-action receipt itself, at the path defaultExternalActionReceiptPath resolves",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 107,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/fitness-history.js",
+      "role": "evidence",
+      "why": "appends the fitness history series under the resolved state directory; append-only, never rewritten",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 48,
+          "capability": "fs_write",
+          "call": "fs.appendFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/github-app-beta-store.js",
+      "role": "persistence",
+      "why": "the GitHub App beta store, at HUQAN_GITHUB_APP_STORE_PATH; written only on the deployment-gated beta path",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 128,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 160,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 204,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/github-app-streaming-trust-store-files.js",
+      "role": "persistence",
+      "why": "the streaming trust store file writes, moved here from lib/github-app-streaming-trust-store.js by #2826 without reclassification; at a configured path and only when the streaming-trust flag is enabled",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 25,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 39,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 58,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/graph-json-snapshot.js",
+      "role": "persistence",
+      "why": "writes the JSON graph snapshot to the configured memoryPath; the non-SQLite backend for the canonical graph",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 103,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/graph-json-transaction.js",
+      "role": "persistence",
+      "why": "the JSON graph write transaction: writes a temp file beside memoryPath and renames it, so a crash cannot leave a half-written graph",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 111,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        },
+        {
+          "line": 162,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/huqan-package-format.js",
+      "role": "persistence",
+      "why": "writes an exported package to the caller-named output path",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 140,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/hypothesis-thresholds.js",
+      "role": "persistence",
+      "why": "persists learned hypothesis thresholds under the state directory; product-owned data, no external input in the path",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 131,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 132,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 135,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/integrity-violation-notifier.js",
+      "role": "operator_tool",
+      "why": "the integrity siren reached only from the human-invoked `huqan integrity --notify` command; writes one cursor file beside the ledger (or an operator-named override) recording the last notified seq, and sends nothing itself, so an agent request cannot reach it",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 54,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 55,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/mcp-capability-nonce-store.js",
+      "role": "persistence",
+      "why": "the durable single-use MCP capability nonce store, reached from mcpServer.js; the directory is resolved from config or beside memoryPath and the file name is a hash of the attacker-influenced nonce, so a nonce cannot escape that directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 90,
+          "capability": "fs_write",
+          "call": "fileSystem.rmSync"
+        },
+        {
+          "line": 102,
+          "capability": "fs_write",
+          "call": "fileSystem.mkdirSync"
+        },
+        {
+          "line": 117,
+          "capability": "fs_write",
+          "call": "fileSystem.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/mcp/rekor-anchor-client.js",
+      "role": "evidence",
+      "why": "the external witness of the approval authority ledger (#3940): it posts only a signed sha256 digest of the ledger head with the anchor public key to the fixed rekor.sigstore.dev endpoint, and reads back entries under that key, accepting only those signed by the Rekor key pinned in source. No ledger content, approval or workspace leaves the machine, and the endpoint is not taken from input",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 72,
+          "capability": "egress",
+          "call": "https.request"
+        }
+      ]
+    },
+    {
+      "file": "lib/mutation-journal-lock.js",
+      "role": "evidence",
+      "why": "the durable mutation journal lock; losing it would break replay idempotency",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 63,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/pr-guardian/github-client.js",
+      "role": "egress_operator_gated",
+      "why": "outbound GitHub API calls on the PR Guardian path, which runs as its own deployment and is enabled by operator configuration; no agent action reaches the fetch, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 28,
+          "capability": "egress",
+          "call": "fetch"
+        }
+      ]
+    },
+    {
+      "file": "lib/pr-guardian/ocr-review-check.js",
+      "role": "egress_operator_gated",
+      "why": "spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks. No agent action reaches the spawn, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 288,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/quickstart-cli.js",
+      "role": "operator_tool",
+      "why": "the quickstart writes a demo workspace on explicit invocation",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 86,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/reason-sandbox.js",
+      "role": "persistence",
+      "why": "owns and removes the product-created per-request reasoning sandbox under the OS temp root; the sandbox path is created by HUQAN, never supplied by an agent",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 140,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/receipt/public-trust-receipt.js",
+      "role": "evidence",
+      "why": "writes the allowlist-projected public form of a trust receipt to a caller-named export path",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 58,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 71,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/receipt/receipt-exporter-paths.js",
+      "role": "operator_tool",
+      "why": "writes the receipt-exporter plugin JSON export to an operator-named path; runs on explicit invocation, not on an agent request",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 122,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/receipt/receipt-exporter-pdf.js",
+      "role": "operator_tool",
+      "why": "writes the receipt-exporter plugin PDF export to an operator-named path; runs on explicit invocation, not on an agent request",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 116,
+          "capability": "fs_write",
+          "call": "fs.createWriteStream"
+        }
+      ]
+    },
+    {
+      "file": "lib/registry/registry-record-store.js",
+      "role": "persistence",
+      "why": "the trust registry record store, under the resolved registry directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 93,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 97,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 103,
+          "capability": "fs_write",
+          "call": "fs.unlinkSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/runtime-watchdog-audit.js",
+      "role": "evidence",
+      "why": "writes and verifies the append-only hash-chained watchdog audit journal at an operator-configured absolute path",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 53,
+          "capability": "fs_write",
+          "call": "fileSystem.mkdirSync"
+        },
+        {
+          "line": 66,
+          "capability": "fs_write",
+          "call": "fileSystem.appendFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/runtime-watchdog.js",
+      "role": "unguarded",
+      "why": "starts the server it supervises and fetches its health URL on a heartbeat. The spawn and health target default to the local server and both are injectable, but neither action passes a gate. The watchdog health-fetch is covered by the bounded exception in ADR-014; the server spawn remains open there",
+      "capabilities": [
+        "egress",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 33,
+          "capability": "egress",
+          "call": "fetch"
+        },
+        {
+          "line": 102,
+          "capability": "process",
+          "call": "spawnProcess"
+        }
+      ]
+    },
+    {
+      "file": "lib/secure-file-write.js",
+      "role": "persistence",
+      "why": "central private staging and atomic-replacement primitive for product persistence; callers select the target while this module performs exclusive bounded filesystem writes",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 36,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 46,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 47,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 51,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 76,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 87,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 97,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/self-healer/source-dogfood-simulator.js",
+      "role": "operator_tool",
+      "why": "writes a simulated source tree for the dogfood run; never reached by an agent request",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 101,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-create.js",
+      "role": "operator_tool",
+      "why": "the human-invoked backup: staging directory rename into place and cleanup of a failed staging directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 62,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        },
+        {
+          "line": 76,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-restore.js",
+      "role": "operator_tool",
+      "why": "the human-invoked restore: atomic file replacement, the progress marker and stale temp cleanup, after a safety backup",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 144,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 148,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-store.js",
+      "role": "operator_tool",
+      "why": "the backup store behind the human-invoked backup/restore CLI: directory and file copies, pruning, the manifest, and the SQLite online-backup child process",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 15,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 21,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 37,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 88,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        },
+        {
+          "line": 95,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/storage/backup-restore-validate.js",
+      "role": "operator_tool",
+      "why": "restore-source validation behind the human-invoked restore CLI; its only spawn is the read-only SQLite integrity check of the candidate file",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 63,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/store-creation-guard.js",
+      "role": "persistence",
+      "why": "the registry of store paths this machine keeps, under the resolved state root; the recorded path is a store path the runtime already resolved, never a request field, and every write failure is swallowed so the registry can never refuse an open",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 91,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 92,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/web-research.js",
+      "role": "adapter_read",
+      "why": "fetches public web search results from Brave/Firecrawl/Tavily over pinned https endpoints; sends only the operator query, performs no write against the APIs, and secret/PII queries are blocked by the egress gate before transport",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 132,
+          "capability": "egress",
+          "call": "https.request"
+        }
+      ]
+    },
+    {
+      "file": "plugins/laya-risk.js",
+      "role": "adapter_read",
+      "why": "spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS)",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 108,
+          "capability": "process",
+          "call": "spawnSync"
+        }
+      ]
+    },
+    {
+      "file": "plugins/metric-collector.js",
+      "role": "operator_tool",
+      "why": "plugin writing its own metric output file; loaded only when an operator enables the plugin directory",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 142,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 143,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "rustGraph.js",
+      "role": "unguarded",
+      "why": "spawns the Rust accelerator at the fixed RUST_BIN path with no arguments. Not agent-controllable, but it is a process launch that no admission decision covers, and RUST_BIN is env-configurable (HUQAN_RUST_BIN). The RUST_BIN resolution hardening and the process-launch gate are the open work in ADR-014",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 99,
+          "capability": "process",
+          "call": "spawn"
+        }
+      ]
+    },
+    {
+      "file": "sandboxRunner.js",
+      "role": "enforcement",
+      "why": "spawns process.execPath running __filename in CHILD_MODE -- this is the AB6 isolation mechanism, and its argv is fixed in source",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 236,
+          "capability": "process",
+          "call": "childProcess.spawnSync"
+        }
+      ]
+    }
+  ],
+  "unclassified": []
+}

@@ -1,0 +1,48 @@
+{
+  "include": [
+    "test/**",
+    "**/*.test.js"
+  ],
+  "rules": [
+    {
+      "path": "lib/command-parser.js",
+      "rule": "HUQAN CLI parsing trap. Command text is folded to lower case (normalizeCommandText) before matching, so a flag's *payload* must be read from the raw input, never from the folded text: `--base HEAD` arrived as `--base head` and only the Linux CI job noticed. A flag's operand must also be told apart from a following flag: `--reviewer --accept` is a missing operand, not a reviewer named `--accept`, and an explicitly empty operand must not fall back to a default.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "lib/mcp/**",
+      "rule": "HUQAN MCP tool wiring trap. A new `huqan.*` tool is never one file: it touches the workflow contract (lib/workflow-contract.js), the tool catalog/registry, the input schema, the handler, the gate/refusal path, and the fixtures/tests. Flag a partial wiring as a required change -- a tool advertised in the catalog with no handler, a handler the gate does not know, or a schema the handler does not honour. The workflow contract is the surface every other layer is checked against.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "lib/mcp-*.js",
+      "rule": "HUQAN MCP tool wiring trap. A new `huqan.*` tool is never one file: it touches the workflow contract (lib/workflow-contract.js), the tool catalog/registry, the input schema, the handler, the gate/refusal path, and the fixtures/tests. Flag a partial wiring as a required change -- a tool advertised in the catalog with no handler, a handler the gate does not know, or a schema the handler does not honour. The workflow contract is the surface every other layer is checked against.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "plugins/*.js",
+      "rule": "HUQAN plugin manifest trap. A plugin's bytes are hashed into the sibling `<name>.manifest.json` (`sha256`); any edit to `plugins/<name>.js` must regenerate that digest in the same commit, or the loader answers a silent 409 hash-drift and the plugin is never activated. test/plugin-manifest-integrity.test.js pins the pair, so a stale digest fails CI. Do not hand-write the digest -- recompute it from the file bytes.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "public/**",
+      "rule": "HUQAN UI i18n trap. `data-i18n` is only for copy the JS never writes at runtime. An element whose text a script assigns is translated by the script, not by the annotation, and annotating it leaves a dead catalogue key. test/i18n-localization.test.js and test/dashboard-runtime-i18n.test.js pin both directions: annotated keys must resolve, and keys the scripts ask for must exist.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "test/**/*.test.js",
+      "rule": "HUQAN source-contract test trap. Many tests here are contracts on the *shape of other files* -- source text, line numbers, counts, ratchets, baselines -- not only on behaviour. When the reviewed change edits a file such a test reads, that contract must move in the same PR: find it with `grep -rl <changed-file> test/`. A whole-tree pin that no changed file reaches is never selected by the impact plan, so it can go red on main while every PR stayed green -- add it to MUST_HAVE_PATTERNS in scripts/ci-impact-rules.js. Also flag a test that reads another file as a string, since the dependency graph sees no edge.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "lib/**/*.js",
+      "rule": "HUQAN packaging trap. package.json#files is a hand-maintained allowlist with no globs. A new `lib/*.js` module that is required at load time by an already-published module must be added to that list in the same PR, or an installed consumer gets `Cannot find module` from inside node_modules while every path resolves in a clone. Verify with `npm run check:package-closure`. A file already at the 400-line limit must not grow: split it into its own module instead (issue #328).",
+      "merge_system_rule": true
+    },
+    {
+      "path": "**/*.js",
+      "rule": "HUQAN comment style, which overrides the default 'complex logic should have comments' item. A comment is required only where the code cannot say it itself: a non-obvious invariant, a workaround, a subtle ordering or locking requirement, or a deliberate trade-off. Do NOT ask for a comment that restates the code, narrates the change or diff, or describes behaviour from another file -- and flag such a comment as noise. Strict equality (`===`/`!==`) and `const`/`let` are enforced by oxlint; `var` and `==` are errors.",
+      "merge_system_rule": true
+    }
+  ]
+}

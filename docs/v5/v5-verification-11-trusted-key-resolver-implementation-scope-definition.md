@@ -1,5 +1,7 @@
 # V5-VERIFICATION-11 - Trusted-Key Resolver Implementation Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Implementation scope definition only
 **Current checkpoint:** `V5-VERIFICATION-10_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

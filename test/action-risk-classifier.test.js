@@ -28,8 +28,8 @@ const {
 } = require('../lib/action-risk-classifier');
 
 describe('AB1 v2 canon', () => {
-  it('exports 13 canonical categories', () => {
-    assert.strictEqual(Object.keys(ACTION_CATEGORIES).length, 13);
+  it('exports 14 canonical categories', () => {
+    assert.strictEqual(Object.keys(ACTION_CATEGORIES).length, 14);
     assert.ok(Object.isFrozen(ACTION_CATEGORIES));
     assert.strictEqual(ACTION_CATEGORIES.READ_ONLY, 'READ_ONLY');
     assert.strictEqual(ACTION_CATEGORIES.PRODUCTION_MUTATION, 'PRODUCTION_MUTATION');
@@ -76,6 +76,19 @@ describe('AB1 v2 canon', () => {
   it('high-impact write categories contains the expected 8 entries', () => {
     assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.size, 8);
   });
+
+  it('high-impact write categories is genuinely immutable, not just Object.freeze on the Set wrapper (#1285)', () => {
+    // Object.freeze on a Set blocks reconfiguring the Set object's own
+    // properties, but add()/delete()/clear() mutate through [[SetData]],
+    // which Object.freeze never touches -- so the set stayed fully mutable
+    // through its own methods despite being "frozen".
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.add('READ_ONLY'), TypeError);
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.delete('MEMORY_WRITE'), TypeError);
+    assert.throws(() => HIGH_IMPACT_WRITE_CATEGORIES.clear(), TypeError);
+    assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.size, 8);
+    assert.strictEqual(HIGH_IMPACT_WRITE_CATEGORIES.has('MEMORY_WRITE'), true);
+    assert.strictEqual([...HIGH_IMPACT_WRITE_CATEGORIES].length, 8);
+  });
 });
 
 describe('AB1 v2 normalization', () => {
@@ -85,6 +98,12 @@ describe('AB1 v2 normalization', () => {
     assert.strictEqual(normalizeActionType('network_access'), 'NETWORK_CALL');
     assert.strictEqual(normalizeActionType('local_analysis'), 'READ_ONLY');
     assert.strictEqual(normalizeActionType('test_execution'), 'SANDBOX_SIMULATION');
+    assert.strictEqual(normalizeActionType('payment'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('BILLING'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('invoice'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('refund'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('charge'), 'FINANCIAL_TRANSACTION');
+    assert.strictEqual(normalizeActionType('payout'), 'FINANCIAL_TRANSACTION');
   });
 
   it('returns null for unknown categories', () => {
@@ -163,11 +182,47 @@ describe('AB1 v2 helper functions', () => {
     assert.strictEqual(isPathInList('docs\\sub\\file.md', ['docs/']), true);
     assert.strictEqual(isPathInList('lib/file.js', ['docs/']), false);
 
+    // `..` segments must be resolved before the allowlist prefix check, or a
+    // traversal like `/home/user/../../etc/passwd` slips past a `/home/user/`
+    // allowlist entry via a naive startsWith comparison (#375).
+    assert.strictEqual(isPathInList('/home/user/../../etc/passwd', ['/home/user/']), false);
+    assert.strictEqual(isPathInList('/home/user/docs/../file.md', ['/home/user/']), true);
+    assert.strictEqual(isPathInList('docs/../../etc/passwd', ['docs/']), false);
+
     assert.strictEqual(isPathSecuritySensitive('lib/trust-policy.js'), true);
     assert.strictEqual(isPathSecuritySensitive('src/random.js'), false);
 
+    // Windows/macOS file systems are case-insensitive, so a differently-cased
+    // path must still be recognised as security sensitive (#449).
+    assert.strictEqual(isPathSecuritySensitive('lib/Trust-Policy.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('LIB/TRUST-POLICY.JS'), true);
+    assert.strictEqual(isPathSecuritySensitive('lib\\Trust-Policy.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('src/Random.js'), false);
+
     assert.strictEqual(isUrlInList('https://api.axiom.local/health', ['https://api.axiom.local']), true);
     assert.strictEqual(isUrlInList('https://example.com', ['https://api.axiom.local']), false);
+  });
+
+  it('isPathSecuritySensitive requires a path-boundary match, not a bare suffix (#1286)', () => {
+    // These file names merely end with a sensitive token but are not the
+    // token itself -- a bare endsWith() over-blocked them.
+    assert.strictEqual(isPathSecuritySensitive('mykernel.js'), false);
+    assert.strictEqual(isPathSecuritySensitive('notpackage.json'), false);
+    assert.strictEqual(isPathSecuritySensitive('backup-server.js'), false);
+    assert.strictEqual(isPathSecuritySensitive('src/backup-server.js'), false);
+
+    // A multi-segment token trailed by extra characters ('.bak') is not the
+    // token either -- the old includes('/' + token) check had no
+    // right-hand boundary and matched this too.
+    assert.strictEqual(isPathSecuritySensitive('lib/verify.js.bak'), false);
+
+    // Genuine matches, bare and nested, still block.
+    assert.strictEqual(isPathSecuritySensitive('kernel.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('server.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('package.json'), true);
+    assert.strictEqual(isPathSecuritySensitive('src/kernel.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('lib/verify.js'), true);
+    assert.strictEqual(isPathSecuritySensitive('a/b/lib/verify.js'), true);
   });
 });
 
@@ -218,6 +273,25 @@ describe('AB1 v2 classifier behavior', () => {
     );
     assert.strictEqual(r.decision, 'QUARANTINE');
     assert.strictEqual(r.riskLevel, 'MEDIUM');
+  });
+
+  it('does not lower review for URL traversal or encoded separators (#1063)', () => {
+    const allowlistedUrls = ['https://api.example.com/v1'];
+    for (const url of [
+      'https://api.example.com/v1/../../admin',
+      'https://api.example.com/v1/..%2f..%2fadmin',
+      'https://api.example.com/v1/%2e%2e%2fadmin',
+    ]) {
+      const r = classifyAgentAction({ category: 'NETWORK_CALL', target: { url } }, { allowlistedUrls });
+      assert.strictEqual(r.decision, 'HUMAN_REVIEW', url);
+      assert.strictEqual(r.riskLevel, 'HIGH', url);
+    }
+  });
+
+  it('matches URL allowlists by normalized scheme, host, port, and path (#1063)', () => {
+    assert.strictEqual(isUrlInList('HTTPS://API.EXAMPLE.COM:443/v1/items', ['https://api.example.com/v1']), true);
+    assert.strictEqual(isUrlInList('https://api.example.com:8443/v1/items', ['https://api.example.com/v1']), false);
+    assert.strictEqual(isUrlInList('https://api.example.com/v10/items', ['https://api.example.com/v1']), false);
   });
 
   it('NETWORK_CALL to unknown URL is HUMAN_REVIEW / HIGH', () => {
@@ -295,6 +369,38 @@ describe('AB1 v2 classifier behavior', () => {
     const a = classifyAgentAction({ category: 'READ_ONLY', target: { path: 'docs/x.md' } }, { allowlistedPaths: ['docs/'] });
     const b = classify({ category: 'READ_ONLY', target: { path: 'docs/x.md' } }, { allowlistedPaths: ['docs/'] });
     assert.deepStrictEqual(a, b);
+  });
+
+  it('DESCRIPTIVE is no longer aliased onto PRODUCTION_MUTATION (#377)', () => {
+    assert.strictEqual(normalizeActionType('DESCRIPTIVE'), null);
+    const r = classifyAgentAction({ category: 'DESCRIPTIVE' });
+    assert.strictEqual(r.category, null);
+    assert.notStrictEqual(r.decision, ACTION_DECISIONS.BLOCK);
+    assert.strictEqual(r.decision, ACTION_DECISIONS.HUMAN_REVIEW);
+    assert.strictEqual(r.hardBlocked, false);
+    assert.ok(r.flags.includes(FLAGS.UNKNOWN_ACTION_CATEGORY));
+  });
+
+  it('DESTRUCTIVE and its DESCTRUCTIVE misspelling still hard-block (#377)', () => {
+    for (const token of ['DESTRUCTIVE', 'DESCTRUCTIVE']) {
+      const r = classifyAgentAction({ category: token });
+      assert.strictEqual(r.category, ACTION_CATEGORIES.PRODUCTION_MUTATION, token);
+      assert.strictEqual(r.riskLevel, RISK_LEVELS.CRITICAL, token);
+      assert.strictEqual(r.decision, ACTION_DECISIONS.BLOCK, token);
+      assert.strictEqual(r.hardBlocked, true, token);
+    }
+  });
+
+  it('financial transactions use the dedicated fail-closed policy (#2505/D)', () => {
+    assert.strictEqual(resolveRiskLevel('FINANCIAL_TRANSACTION'), RISK_LEVELS.CRITICAL);
+    for (const token of ['FINANCIAL_TRANSACTION', 'payment', 'billing', 'invoice', 'refund', 'charge', 'payout']) {
+      const r = classifyAgentAction({ category: token });
+      assert.strictEqual(r.category, ACTION_CATEGORIES.FINANCIAL_TRANSACTION, token);
+      assert.strictEqual(r.decision, ACTION_DECISIONS.HUMAN_REVIEW, token);
+      assert.strictEqual(r.riskLevel, RISK_LEVELS.CRITICAL, token);
+      assert.strictEqual(r.reason, 'FINANCIAL_DETAILS_ABSENT', token);
+      assert.ok(!r.flags.includes(FLAGS.UNKNOWN_ACTION_CATEGORY), token);
+    }
   });
 
   it('normalizeActionDecision canonicalizes canonical objects', () => {

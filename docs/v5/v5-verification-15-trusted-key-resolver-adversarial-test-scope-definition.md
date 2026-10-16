@@ -1,5 +1,7 @@
 # V5-VERIFICATION-15 - Trusted-Key Resolver Adversarial Test Scope Definition
 
+**Status:** `spec`
+
 Mode: adversarial test scope definition only
 Current checkpoint: V5-VERIFICATION-14_CLOSEOUT_AUDIT_GREEN
 Canonical base: main @ 82500a9d287b7bd1b471750b4472e83324122377

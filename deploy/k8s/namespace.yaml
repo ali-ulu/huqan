@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: huqan
+  labels:
+    app.kubernetes.io/name: huqan
+    app.kubernetes.io/component: runtime

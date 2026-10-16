@@ -6,10 +6,7 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-sqlite-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -57,9 +54,6 @@ function withMutedConsole(fn) {
 }
 
 describe('Stress SQLite Backend Stability', () => {
-  const runKnownFailing = process.env.AXIOM_RUN_KNOWN_FAILING_REGRESSIONS === '1';
-  const knownFailingIt = runKnownFailing ? it : it.skip;
-
   it('keeps semantic safety stable on SQLite roundtrip for known true facts', (t) => {
     const kernel = makeKernel('sqlite-roundtrip');
     const stats = kernel.graph.getStats();
@@ -96,12 +90,12 @@ describe('Stress SQLite Backend Stability', () => {
     const radarClaim = unwrap(reader.verify('TCAS is weather radar', { workspaceId: 'default' }));
 
     assert.ok(trueFact && typeof trueFact === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(trueFact.status), 'status contract must stay stable');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(trueFact.status), 'status contract must stay stable');
 
-    assert.strictEqual(trueFact.status, 'dogrulandi');
+    assert.strictEqual(trueFact.status, 'verified');
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): SQLite false claim B737 has 4 engines stays false-positive today', (t) => {
+  it('SQLite false claim B737 has 4 engines is not verified', (t) => {
     const kernel = makeKernel('sqlite-false-b737');
     const stats = kernel.graph.getStats();
     if (stats.backend !== 'sqlite') {
@@ -118,11 +112,11 @@ describe('Stress SQLite Backend Stability', () => {
 
     const result = unwrap(kernel.verify('B737 has 4 engines', { workspaceId: 'default' }));
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.notStrictEqual(result.status, 'dogrulandi', 'false claim must not be verified on SQLite backend');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.notStrictEqual(result.status, 'verified', 'false claim must not be verified on SQLite backend');
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): SQLite false claim EDDF is in Paris stays false-positive today', (t) => {
+  it('SQLite false claim EDDF is in Paris is not verified', (t) => {
     const kernel = makeKernel('sqlite-false-eddf');
     const stats = kernel.graph.getStats();
     if (stats.backend !== 'sqlite') {
@@ -138,11 +132,11 @@ describe('Stress SQLite Backend Stability', () => {
 
     const result = unwrap(kernel.verify('EDDF is in Paris', { workspaceId: 'default' }));
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.notStrictEqual(result.status, 'dogrulandi', 'false location claim must not be verified on SQLite backend');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.notStrictEqual(result.status, 'verified', 'false location claim must not be verified on SQLite backend');
   });
 
-  knownFailingIt('TODO(v0.9-semantic-gate): SQLite false claim TCAS is weather radar stays false-positive today', (t) => {
+  it('SQLite false claim TCAS is weather radar is not verified', (t) => {
     const kernel = makeKernel('sqlite-false-tcas');
     const stats = kernel.graph.getStats();
     if (stats.backend !== 'sqlite') {
@@ -158,7 +152,7 @@ describe('Stress SQLite Backend Stability', () => {
 
     const result = unwrap(kernel.verify('TCAS is weather radar', { workspaceId: 'default' }));
     assert.ok(result && typeof result === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(result.status), 'status contract must stay stable');
-    assert.notStrictEqual(result.status, 'dogrulandi', 'false semantic claim must not be verified on SQLite backend');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(result.status), 'status contract must stay stable');
+    assert.notStrictEqual(result.status, 'verified', 'false semantic claim must not be verified on SQLite backend');
   });
 });

@@ -8,10 +8,39 @@ function normalizeInput(input) {
   return '';
 }
 
+// #1307 / #1325: a plain substring-anywhere test let positive stems match
+// inside a negated word (invalid -> valid, unsupported -> support), and an
+// unqualified prefix match (an earlier fix for #1307) let "pass" match
+// inside "passive". Each entry here is a literal word plus, where the word
+// has common inflections actually seen in experiment write-ups, an explicit
+// suffix alternation -- matched with \b on both sides so "passive"/
+// "workshop"/"bypass" cannot match "pass"/"work"/"pass". Includes the
+// Turkish stems #1325 asked for, since result text is not English-only.
+const REJECT_WORDS = [
+  'reject(?:s|ed|ing)?', 'fail(?:s|ed|ing)?', 'negative', 'false',
+  'den(?:y|ies|ied)', 'broken', 'invalid',
+  'gecersiz', 'geçersiz', 'basarisiz', 'başarısız', 'reddedildi',
+  'dogrulanmadi', 'doğrulanmadı',
+];
+const SUPPORT_WORDS = [
+  'support(?:s|ed|ing)?', 'confirm(?:s|ed|ing)?', 'positive',
+  'pass(?:es|ed|ing)?', 'true', 'works?', 'valid',
+  'destekliyor', 'dogrulandi', 'doğrulandı', 'basarili', 'başarılı',
+  'gecerli', 'geçerli',
+];
+const REJECT_PATTERN = new RegExp(`\\b(?:${REJECT_WORDS.join('|')})\\b`);
+const SUPPORT_PATTERN = new RegExp(`\\b(?:${SUPPORT_WORDS.join('|')})\\b`);
+
 function classifySignal(text) {
   const normalized = String(text || '').toLowerCase();
-  if (/(support|confirm|positive|pass|true|works|valid)/i.test(normalized)) return 'support';
-  if (/(reject|fail|negative|false|deny|broken|invalid)/i.test(normalized)) return 'reject';
+  const hasReject = REJECT_PATTERN.test(normalized);
+  const hasSupport = SUPPORT_PATTERN.test(normalized);
+  // Both present (e.g. "does not support the hypothesis; reject it") is
+  // genuinely ambiguous -- falling through to 'mixed' routes it to a human
+  // via experimentPlanner/'refine' instead of silently picking a side.
+  if (hasReject && hasSupport) return 'mixed';
+  if (hasReject) return 'reject';
+  if (hasSupport) return 'support';
   return 'mixed';
 }
 
@@ -90,3 +119,4 @@ function createResultAnalyzerPlugin() {
 
 module.exports = createResultAnalyzerPlugin();
 module.exports.create = createResultAnalyzerPlugin;
+module.exports._test = { classifySignal, normalizeInput };

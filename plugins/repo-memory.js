@@ -1,405 +1,143 @@
-const { fetchRepoFiles, parseRepoUrl } = require('../adapters/github-adapter');
+const { fetchRepoFiles, parseRepoUrl, isMarkdownPath } = require('../adapters/github-adapter');
 const { parseMarkdown, ingestMarkdown } = require('../adapters/markdown-adapter');
-const { buildProvenance } = require('../lib/provenance-ingest');
+const { ingestJson } = require('../adapters/json-adapter');
+const { ingestYaml } = require('../adapters/yaml-adapter');
+const { ingestGitLog } = require('../adapters/git-log-adapter');
+const { ingestPdf } = require('../adapters/pdf-adapter');
+const { ingestUrls } = require('../adapters/http-adapter');
+const { pinnedRepoFile } = require('../lib/repo-file-pin');
+const {
+  nowIso,
+  ensureCompanyState,
+  trackIngestSuccess,
+  trackIngestError,
+  addCompanyEdge,
+} = require('../lib/connectors/repo-memory-records');
+const { ingestGuardedSource, plainEntry } = require('../lib/connectors/repo-memory-path-ingest');
+const { ingestGithubRepo: ingestGithubRepoWith } = require('../lib/connectors/repo-memory-github');
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function ensureCompanyState(kernel) {
-  if (!kernel._companyIngestState) {
-    kernel._companyIngestState = {
-      bySource: { repo: 0, markdown: 0, manual: 0 },
-      lastIngestAt: null,
-      ingestErrors: [],
-    };
-  }
-  return kernel._companyIngestState;
-}
-
-function trackIngestSuccess(kernel, sourceType, amount) {
-  const state = ensureCompanyState(kernel);
-  if (!(sourceType in state.bySource)) state.bySource[sourceType] = 0;
-  state.bySource[sourceType] += Math.max(0, Number(amount || 0));
-  state.lastIngestAt = nowIso();
-}
-
-function trackIngestError(kernel, sourceType, message) {
-  const state = ensureCompanyState(kernel);
-  state.ingestErrors.push({
-    sourceType,
-    message: String(message || 'unknown error'),
-    at: nowIso(),
+// The adapters are required here and nowhere else in runtime source; the
+// lib/connectors modules receive them as values (connector-firewall ledger).
+function ingestGithubRepo(kernel, input = {}) {
+  return ingestGithubRepoWith(kernel, input, {
+    fetchRepoFiles, parseRepoUrl, isMarkdownPath, parseMarkdown, pinnedRepoFile,
   });
-  state.lastIngestAt = nowIso();
 }
 
-function addCompanyEdge(kernel, fromId, toId, relation, opts = {}) {
-  const provenance = opts.provenance && typeof opts.provenance === 'object' ? opts.provenance : null;
-  const workspaceId = opts.workspaceId || provenance?.workspaceId || 'default';
-  const fromProvenance = opts.fromProvenance && typeof opts.fromProvenance === 'object' ? opts.fromProvenance : provenance;
-  const toProvenance = opts.toProvenance && typeof opts.toProvenance === 'object' ? opts.toProvenance : provenance;
-  kernel.proposeNode(fromId, opts.fromLabel || fromId, fromProvenance, { workspaceId });
-  kernel.proposeNode(toId, opts.toLabel || toId, toProvenance, { workspaceId });
-  const result = kernel.proposeEdge(fromId, toId, relation, {
-    source: opts.source || 'repo',
-    sourceRef: opts.sourceRef || provenance?.sourceRef || '',
-    sessionId: opts.sessionId || '',
-    sourceType: opts.sourceType || provenance?.sourceType || 'repo',
-    companyMode: true,
-    evidenceType: opts.evidenceType || 'docs',
-    evidence: Array.isArray(opts.evidence) ? opts.evidence : [],
-    confidence: typeof opts.confidence === 'number' ? opts.confidence : 0.75,
-    createdAt: opts.createdAt || '',
-    provenance,
-    workspaceId,
-  });
-  return result && result.edge ? result.edge : null;
-}
+const FILE_FLOW = Object.freeze({ provenanceSourceType: 'import', confidence: 0.68 });
+const fileCount = (ingested) => ({ files: ingested.files.length });
+const plainEntries = (ingested, input) => ingested.entries.map((entry) => plainEntry(entry, input));
 
-function buildConnectorProvenance({
-  sourceType,
-  sourceSubType,
-  sourceRef,
-  sourceTitle,
-  actor,
-  workspaceId,
-  confidence,
-  timestamp,
-}) {
-  return buildProvenance({
-    sourceType,
-    sourceSubType,
-    sourceRef,
-    sourceTitle,
-    actor,
-    workspaceId,
-    confidence,
-    timestamp,
-  }).provenance;
-}
-
-function buildGraphAdmissionRecord({
-  kind,
-  outcome = 'admitted',
-  targetType,
-  targetId,
-  provenance = null,
-  workspaceId = 'default',
-  details = {},
-}) {
-  return {
-    kind,
-    outcome,
-    targetType,
-    targetId,
-    workspaceId,
-    sourceType: provenance?.sourceType || '',
-    sourceRef: provenance?.sourceRef || '',
-    actor: provenance?.actor || '',
-    provenanceId: provenance?.provenanceId || '',
-    trustPolicyVersion: provenance?.trustPolicyVersion || '',
-    graphWrite: outcome === 'admitted',
-    provenance: provenance || null,
-    ...details,
-  };
-}
-
-function summarizeGraphAdmissions(entries = []) {
-  const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
-  const counts = list.reduce((acc, entry) => {
-    const key = entry.outcome || 'unknown';
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-  const outcome = list.length === 0
-    ? 'skipped'
-    : (counts.rejected > 0 ? 'rejected'
-      : counts.candidate > 0 ? 'candidate'
-        : counts.admitted > 0 ? 'admitted'
-          : counts.skipped > 0 ? 'skipped'
-            : 'unknown');
-  return {
-    outcome,
-    counts,
-    total: list.length,
-    entries: list,
-  };
-}
-
-function buildSectionNodeId(prefix, sectionTitle) {
-  return `section:${prefix}:${sectionTitle}`;
-}
-
-async function ingestGithubRepo(kernel, input = {}) {
-  const repoUrl = input.repoUrl || input.url || '';
-  const sessionId = input.sessionId || '';
-  const fetchRepoFilesImpl = typeof input.fetchRepoFiles === 'function' ? input.fetchRepoFiles : fetchRepoFiles;
-  const parseRepoUrlImpl = typeof input.parseRepoUrl === 'function' ? input.parseRepoUrl : parseRepoUrl;
-  const files = await fetchRepoFilesImpl(repoUrl, {
-    token: input.token || process.env.GITHUB_TOKEN || '',
-    branch: input.branch || 'main',
-    paths: input.paths,
-    fetchImpl: input.fetchImpl,
-  });
-
-  const { owner, repo } = parseRepoUrlImpl(repoUrl);
-  const repoNode = `repo:${owner}/${repo}`;
-  const workspaceId = input.workspaceId || 'default';
-  const admissions = [];
-  const repoProvenance = buildConnectorProvenance({
-    sourceType: 'github',
-    sourceSubType: 'repo',
-    sourceRef: repoUrl,
-    sourceTitle: `${owner}/${repo}`,
-    actor: input.actor || 'github',
-    workspaceId,
-    confidence: 0.8,
+// Each executor call below runs inside executeGuardedConnectorIngest, via
+// ingestGuardedSource's `execute` callback.
+const MARKDOWN = {
+  connector: 'markdown',
+  rootCode: 'MARKDOWN_ROOT_REQUIRED',
+  ingest: (decision) => ingestMarkdown(decision.target, { rootPath: decision.rootPath }),
+  flow: {
+    provenanceSourceType: 'document', fileSubType: 'markdown_file',
+    entrySubType: 'markdown_section', confidence: 0.68,
+  },
+  entries: (ingested, input) => ingested.sections.map((section) => ({
+    filePath: section.filePath,
+    sourceRef: `file:${section.filePath}:${section.sectionTitle}`,
+    key: section.sectionTitle,
+    label: section.sectionTitle,
+    actor: input.actor || 'repo-memory',
     timestamp: input.timestamp || nowIso(),
-  });
-  kernel.proposeNode(repoNode, repoNode, repoProvenance, { workspaceId });
-  admissions.push(buildGraphAdmissionRecord({
-    kind: 'node',
-    targetType: 'graph_node',
-    targetId: repoNode,
-    provenance: repoProvenance,
-    workspaceId,
-  }));
+    details: { sectionTitle: section.sectionTitle },
+    contentHash: section.contentHash,
+    contentHashAlgorithm: section.contentHashAlgorithm,
+  })),
+  counts: fileCount,
+};
 
-  let added = 0;
-  for (const file of files) {
-    const fileRef = `repo:${owner}/${repo}:${file.path}`;
-    const fileProvenance = buildConnectorProvenance({
-      sourceType: 'github',
-      sourceSubType: 'repo_file',
-      sourceRef: fileRef,
-      sourceTitle: file.path,
-      actor: input.actor || 'github',
-      workspaceId,
-      confidence: 0.8,
-      timestamp: file.lastModified || nowIso(),
-    });
-    const useTemporalCreatedAt = kernel.hasCapability && kernel.hasCapability('temporal');
-    const createdAt = useTemporalCreatedAt ? String(file.lastModified || nowIso()) : nowIso();
-    const fileEdge = addCompanyEdge(kernel, repoNode, fileRef, 'içerir', {
-      source: 'repo',
-      sourceRef: fileRef,
-      sessionId,
-      sourceType: 'github',
-      evidence: [file.path],
-      confidence: 0.8,
-      createdAt,
-      workspaceId,
-      provenance: fileProvenance,
-      fromProvenance: repoProvenance,
-      toProvenance: fileProvenance,
-      fromLabel: repoNode,
-      toLabel: file.path,
-    });
-    admissions.push(buildGraphAdmissionRecord({
-      kind: 'node',
-      targetType: 'graph_node',
-      targetId: fileRef,
-      provenance: fileProvenance,
-      workspaceId,
-      details: {
-        parentId: repoNode,
-        filePath: file.path,
-      },
-    }));
-    if (fileEdge) {
-      admissions.push(buildGraphAdmissionRecord({
-        kind: 'edge',
-        targetType: 'graph_edge',
-        targetId: `${fileEdge.from}|${fileEdge.relation}|${fileEdge.to}`,
-        provenance: fileProvenance,
-        workspaceId,
-        details: {
-          relation: fileEdge.relation,
-          sourceRef: fileProvenance.sourceRef,
-        },
-      }));
+const JSON_SOURCE = {
+  connector: 'json',
+  rootCode: 'JSON_ROOT_REQUIRED',
+  ingest: (decision) => ingestJson(decision.target, { rootPath: decision.rootPath }),
+  flow: { ...FILE_FLOW, fileSubType: 'json_file', entrySubType: 'json_entry' },
+  entries: plainEntries,
+  counts: fileCount,
+};
+
+const YAML_SOURCE = {
+  connector: 'yaml',
+  rootCode: 'YAML_ROOT_REQUIRED',
+  ingest: (decision) => ingestYaml(decision.target, { rootPath: decision.rootPath }),
+  flow: { ...FILE_FLOW, fileSubType: 'yaml_file', entrySubType: 'yaml_entry' },
+  entries: plainEntries,
+  counts: fileCount,
+};
+
+const GIT_LOG = {
+  connector: 'git-log',
+  rootCode: 'GIT_LOG_ROOT_REQUIRED',
+  ingest: (decision, input) => ingestGitLog(decision.target, {
+    rootPath: decision.rootPath,
+    maxCommits: input.maxCommits,
+    since: input.since,
+    branch: input.branch,
+    pathFilter: input.pathFilter,
+  }),
+  flow: { ...FILE_FLOW, fileSubType: 'git_log_repo', entrySubType: 'git_log_commit' },
+  // A commit carries its own author and date, so unlike the other connectors
+  // the entry provenance is the commit's, not the ingesting caller's.
+  entries: (ingested, input) => ingested.entries.map((entry) => ({
+    filePath: entry.filePath,
+    sourceRef: entry.sourceRef,
+    key: entry.entryKey,
+    label: entry.commit.subject || entry.entryKey,
+    actor: entry.commit.authorName || input.actor || 'repo-memory',
+    timestamp: entry.commit.date || input.timestamp || nowIso(),
+    details: { entryKey: entry.entryKey, commitHash: entry.commit.hash },
+  })),
+  counts: (ingested) => ({ files: 1, commits: ingested.commits.length }),
+};
+
+const PDF = {
+  connector: 'pdf',
+  rootCode: 'PDF_ROOT_REQUIRED',
+  ingest: (decision) => ingestPdf(decision.target, { rootPath: decision.rootPath }),
+  flow: { ...FILE_FLOW, fileSubType: 'pdf_file', entrySubType: 'pdf_page' },
+  entries: plainEntries,
+  counts: fileCount,
+};
+
+const HTTP = {
+  connector: 'http',
+  target: (input) => {
+    const urls = input.urls || (input.url ? [input.url] : []);
+    if (!Array.isArray(urls) || urls.length === 0) {
+      const err = new Error('http url(s) required');
+      err.code = 'HTTP_URL_REQUIRED';
+      throw err;
     }
+    return urls;
+  },
+  // Deliberately not a spread of `input` -- allowPrivateAddresses is a
+  // test-only SSRF bypass in lib/ssrf-guard and must never be reachable
+  // from a plugin/CLI caller, so only known-safe fields are forwarded here.
+  ingest: (decision, input) => ingestUrls(HTTP.target(input), {
+    respectRobots: input.respectRobots,
+    timeoutMs: input.timeoutMs,
+    maxBytes: input.maxBytes,
+    maxRedirects: input.maxRedirects,
+    userAgent: input.userAgent,
+  }),
+  flow: {
+    provenanceSourceType: 'import', fileSubType: 'http_page', entrySubType: 'http_section',
+    confidence: 0.6, fileRefPrefix: 'url:',
+  },
+  entries: plainEntries,
+  counts: (ingested) => ({ urls: ingested.urls.length }),
+  extra: (ingested) => ({ fetchErrors: ingested.errors }),
+};
 
-    const sections = parseMarkdown(file.content, `${owner}/${repo}/${file.path}`);
-    if (sections.length === 0) {
-      added += 1;
-      continue;
-    }
-
-    for (const section of sections) {
-      const sectionNode = buildSectionNodeId(`${owner}/${repo}/${file.path}`, section.sectionTitle);
-      const sectionProvenance = buildConnectorProvenance({
-        sourceType: 'github',
-        sourceSubType: 'repo_section',
-        sourceRef: `${fileRef}#${section.sectionTitle}`,
-        sourceTitle: section.sectionTitle,
-        actor: input.actor || 'github',
-        workspaceId,
-        confidence: 0.72,
-        timestamp: file.lastModified || nowIso(),
-      });
-      const sectionEdge = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
-        source: 'repo',
-        sourceRef: sectionProvenance.sourceRef,
-        sessionId,
-        sourceType: 'github',
-        evidence: [section.sectionTitle],
-        confidence: 0.72,
-        createdAt,
-        workspaceId,
-        provenance: sectionProvenance,
-        fromProvenance: fileProvenance,
-        toProvenance: sectionProvenance,
-        fromLabel: file.path,
-        toLabel: section.sectionTitle,
-      });
-      admissions.push(buildGraphAdmissionRecord({
-        kind: 'node',
-        targetType: 'graph_node',
-        targetId: sectionNode,
-        provenance: sectionProvenance,
-        workspaceId,
-        details: {
-          parentId: fileRef,
-          sectionTitle: section.sectionTitle,
-        },
-      }));
-      if (sectionEdge) {
-        admissions.push(buildGraphAdmissionRecord({
-          kind: 'edge',
-          targetType: 'graph_edge',
-          targetId: `${sectionEdge.from}|${sectionEdge.relation}|${sectionEdge.to}`,
-          provenance: sectionProvenance,
-          workspaceId,
-          details: {
-            relation: sectionEdge.relation,
-            sourceRef: sectionProvenance.sourceRef,
-          },
-        }));
-      }
-      added += 1;
-    }
-  }
-
-  trackIngestSuccess(kernel, 'repo', added || files.length);
-  return {
-    ok: true,
-    sourceType: 'repo',
-    repoUrl,
-    files: files.length,
-    added,
-    admission: summarizeGraphAdmissions(admissions),
-    admissions,
-  };
-}
-
-async function ingestMarkdownPath(kernel, input = {}) {
-  const targetPath = input.path || input.targetPath || '';
-  if (!targetPath) {
-    throw new Error('markdown path is required');
-  }
-
-  const rootPath = input.rootPath || input.workspaceRoot || input.allowedRoot || '';
-  if (!rootPath) {
-    const err = new Error('markdown rootPath is required');
-    err.code = 'MARKDOWN_ROOT_REQUIRED';
-    throw err;
-  }
-
-  const sessionId = input.sessionId || '';
-  const ingested = ingestMarkdown(targetPath, { rootPath });
-  let added = 0;
-  const workspaceId = input.workspaceId || 'default';
-  const admissions = [];
-
-  for (const section of ingested.sections) {
-    const fileRef = `file:${section.filePath}`;
-    const sourceRef = `file:${section.filePath}:${section.sectionTitle}`;
-    const sectionNode = buildSectionNodeId(section.filePath, section.sectionTitle);
-    const fileProvenance = buildConnectorProvenance({
-      sourceType: 'document',
-      sourceSubType: 'markdown_file',
-      sourceRef: fileRef,
-      sourceTitle: section.filePath,
-      actor: input.actor || 'repo-memory',
-      workspaceId,
-      confidence: 0.68,
-      timestamp: input.timestamp || nowIso(),
-    });
-    const sectionProvenance = buildConnectorProvenance({
-      sourceType: 'document',
-      sourceSubType: 'markdown_section',
-      sourceRef,
-      sourceTitle: section.sectionTitle,
-      actor: input.actor || 'repo-memory',
-      workspaceId,
-      confidence: 0.68,
-      timestamp: input.timestamp || nowIso(),
-    });
-    kernel.proposeNode(fileRef, section.filePath, fileProvenance, { workspaceId });
-    admissions.push(buildGraphAdmissionRecord({
-      kind: 'node',
-      targetType: 'graph_node',
-      targetId: fileRef,
-      provenance: fileProvenance,
-      workspaceId,
-      details: {
-        filePath: section.filePath,
-      },
-    }));
-    kernel.proposeNode(sectionNode, section.sectionTitle, sectionProvenance, { workspaceId });
-    admissions.push(buildGraphAdmissionRecord({
-      kind: 'node',
-      targetType: 'graph_node',
-      targetId: sectionNode,
-      provenance: sectionProvenance,
-      workspaceId,
-      details: {
-        parentId: fileRef,
-        sectionTitle: section.sectionTitle,
-      },
-    }));
-    const sectionEdge = addCompanyEdge(kernel, fileRef, sectionNode, 'özellik', {
-      source: 'markdown',
-      sourceRef,
-      sessionId,
-      sourceType: 'document',
-      evidence: [section.sectionTitle],
-      confidence: 0.68,
-      workspaceId,
-      provenance: sectionProvenance,
-      fromProvenance: fileProvenance,
-      toProvenance: sectionProvenance,
-      fromLabel: section.filePath,
-      toLabel: section.sectionTitle,
-    });
-    if (sectionEdge) {
-      admissions.push(buildGraphAdmissionRecord({
-        kind: 'edge',
-        targetType: 'graph_edge',
-        targetId: `${sectionEdge.from}|${sectionEdge.relation}|${sectionEdge.to}`,
-        provenance: sectionProvenance,
-        workspaceId,
-        details: {
-          relation: sectionEdge.relation,
-          sourceRef,
-        },
-      }));
-    }
-    added += 1;
-  }
-
-  trackIngestSuccess(kernel, 'markdown', added || ingested.files.length);
-  return {
-    ok: true,
-    sourceType: 'markdown',
-    files: ingested.files.length,
-    added,
-    admission: summarizeGraphAdmissions(admissions),
-    admissions,
-  };
-}
+const PATH_SOURCES = Object.freeze({
+  markdown: MARKDOWN, json: JSON_SOURCE, yaml: YAML_SOURCE, yml: YAML_SOURCE,
+  'git-log': GIT_LOG, gitlog: GIT_LOG, pdf: PDF, http: HTTP, url: HTTP,
+});
 
 function createRepoMemoryPlugin() {
   return {
@@ -428,13 +166,15 @@ function createRepoMemoryPlugin() {
         if (sourceType === 'github' || sourceType === 'repo') {
           return await ingestGithubRepo(kernel, input);
         }
-        if (sourceType === 'markdown') {
-          return await ingestMarkdownPath(kernel, input);
-        }
-        return {
-          ok: false,
-          error: `Unsupported sourceType for repo-memory: ${sourceType}`,
-        };
+    if (Object.hasOwn(PATH_SOURCES, sourceType)) {
+      // The #3034 drift re-check runs inside ingestGuardedSource, before the
+      // graph walk re-proposes the entry nodes with this ingest's own hashes.
+      return await ingestGuardedSource(kernel, input, PATH_SOURCES[sourceType]);
+    }
+    return {
+      ok: false,
+      error: `Unsupported sourceType for repo-memory: ${sourceType}`,
+    };
       } catch (err) {
         trackIngestError(kernel, sourceType === 'repo' ? 'repo' : sourceType, err.message || String(err));
         return {

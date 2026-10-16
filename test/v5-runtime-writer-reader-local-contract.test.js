@@ -103,6 +103,141 @@ test('reader fails closed for invalid local candidates in the handoff path', () 
   assert.equal(claimResult.reason_category, 'runtime_reader_claim');
 });
 
+test('#3479 handoff binds to declared participants; an injected target fails closed on both sides', () => {
+  const bound = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.001',
+      decisionPath: ['kernel', 'review_gate'],
+      participants: ['agent.local.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract', reason: 'peer_handoff' }
+    }
+  });
+  const accepted = writeRuntimePackage(bound);
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.verdict, 'ACCEPT');
+  const readerAccepted = readRuntimePackage(accepted.package);
+  assert.equal(readerAccepted.ok, true);
+  assert.equal(readerAccepted.reason_category, 'valid_route_receipt_metadata');
+  // The decision rationale travels with the bound handoff, unchanged.
+  assert.equal(readerAccepted.package.routeReceipt.handoff.reason, 'peer_handoff');
+
+  const injected = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.002',
+      decisionPath: ['kernel', 'review_gate'],
+      participants: ['agent.local.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.injected.attacker' }
+    }
+  });
+  const blocked = writeRuntimePackage(injected);
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.verdict, 'BLOCK');
+  assert.equal(blocked.reason_category, 'malformed_route_receipt_metadata');
+
+  // The reader refuses the same injected target independently of the writer.
+  const forgedPackage = { ...accepted.package, routeReceipt: injected.routeReceipt };
+  const readerBlocked = readRuntimePackage(forgedPackage);
+  assert.equal(readerBlocked.ok, false);
+  assert.equal(readerBlocked.reason_category, 'malformed_route_receipt_metadata');
+
+  // A handoff without a declared participant set cannot be bound: fail closed.
+  const unbound = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.003',
+      decisionPath: ['kernel'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract' }
+    }
+  });
+  assert.equal(writeRuntimePackage(unbound).reason_category, 'malformed_route_receipt_metadata');
+
+  // A participant set that omits the handoff source also fails closed.
+  const wrongSource = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.004',
+      decisionPath: ['kernel'],
+      participants: ['agent.other.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract' }
+    }
+  });
+  assert.equal(writeRuntimePackage(wrongSource).reason_category, 'malformed_route_receipt_metadata');
+
+  // A blank decision rationale is refused rather than silently accepted.
+  const blankReason = makeWriterInput({
+    routeReceipt: {
+      routeId: 'route.binding.005',
+      decisionPath: ['kernel'],
+      participants: ['agent.local.contract', 'agent.peer.contract'],
+      handoff: { from: 'agent.local.contract', to: 'agent.peer.contract', reason: '   ' }
+    }
+  });
+  assert.equal(writeRuntimePackage(blankReason).reason_category, 'malformed_route_receipt_metadata');
+});
+
+test('writer carries a valid source snapshot exactly as supplied and the reader accepts it', () => {
+  // Convergence: written package with source snapshot passes the
+  // writer-to-reader local handoff unchanged. Carried or rejected, never
+  // fixed up — the reader must accept the snapshot the writer carried
+  // and must not mutate, re-hash, or re-version it. Contract:
+  // docs/v5/v5-immutable-source-snapshot-contract.md (Section 3).
+  const snapshot = {
+    snapshotId: 'snap.local.contract.001',
+    snapshotVersion: 'huqan.external-source-snapshot.v1',
+    hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    algorithm: 'sha256'
+  };
+  const input = makeWriterInput({ sourceSnapshot: snapshot });
+  const writerResult = writeRuntimePackage(input);
+
+  assert.equal(writerResult.ok, true);
+  assert.equal(writerResult.verdict, 'ACCEPT');
+  assert.deepEqual(writerResult.package.sourceSnapshot, input.sourceSnapshot);
+
+  const readerResult = readRuntimePackage(writerResult.package);
+
+  assert.equal(readerResult.ok, true);
+  assert.equal(readerResult.status, 'readable');
+  assert.deepEqual(readerResult.package.sourceSnapshot, input.sourceSnapshot);
+});
+
+test('source snapshot alone is a sufficient acceptance reason when no higher-priority metadata is present', () => {
+  // Without route receipt, reasoning, or provenance, a valid source
+  // snapshot alone makes the writer output acceptable with the snapshot's
+  // own reason category.
+  const snapshot = {
+    snapshotId: 'snap.local.contract.002',
+    snapshotVersion: 'huqan.external-source-snapshot.v1',
+    hash: 'b'.repeat(64),
+    algorithm: 'sha256'
+  };
+  const input = makeWriterInput({
+    routeReceipt: undefined,
+    reasoning: undefined,
+    provenance: undefined,
+    sourceSnapshot: snapshot
+  });
+  const writerResult = writeRuntimePackage(input);
+
+  assert.equal(writerResult.ok, true);
+  assert.equal(writerResult.reason_category, 'valid_source_snapshot_metadata');
+  assert.deepEqual(writerResult.package.sourceSnapshot, input.sourceSnapshot);
+});
+
+
+
+test('absent source snapshot input stays absent — writer and reader emit nothing', () => {
+  // Absent input stays absent; the writer never invents a snapshot shape.
+  const input = makeWriterInput();
+  const writerResult = writeRuntimePackage(input);
+
+  assert.equal(writerResult.ok, true);
+  assert.equal(Object.hasOwn(writerResult.package, 'sourceSnapshot'), false);
+
+  const readerResult = readRuntimePackage(writerResult.package);
+
+  assert.equal(readerResult.ok, true);
+  assert.equal(Object.hasOwn(readerResult.package, 'sourceSnapshot'), false);
+});
+
 test('readable local output does not imply trust, authorization, or verification', () => {
   const result = readRuntimePackage(writeRuntimePackage(makeWriterInput()).package);
 
@@ -114,10 +249,18 @@ test('readable local output does not imply trust, authorization, or verification
 });
 
 test('writer and reader helpers remain isolated from exchange and persistence surfaces', () => {
-  const writerSource = fs.readFileSync(
-    path.join(__dirname, '..', 'lib', 'v5', 'runtime-writer.js'),
-    'utf8'
-  );
+  // The writer is split across runtime-writer*.js (#2206): follow its own
+  // require chain so every part is held to the same rule.
+  const v5Dir = path.join(__dirname, '..', 'lib', 'v5');
+  const writerFiles = ['runtime-writer.js'];
+  for (let i = 0; i < writerFiles.length; i += 1) {
+    const text = fs.readFileSync(path.join(v5Dir, writerFiles[i]), 'utf8');
+    for (const [, name] of text.matchAll(/require\(['"]\.\/(runtime-writer[\w-]*)['"]\)/g)) {
+      if (!writerFiles.includes(`${name}.js`)) writerFiles.push(`${name}.js`);
+    }
+  }
+  assert.ok(writerFiles.length > 1, 'the writer parts are reachable from its entry file');
+  const writerSource = writerFiles.map((file) => fs.readFileSync(path.join(v5Dir, file), 'utf8')).join('\n');
   const readerSource = fs.readFileSync(
     path.join(__dirname, '..', 'lib', 'v5', 'runtime-reader.js'),
     'utf8'
@@ -126,4 +269,28 @@ test('writer and reader helpers remain isolated from exchange and persistence su
 
   assert.equal(forbiddenDependencyPattern.test(writerSource), false);
   assert.equal(forbiddenDependencyPattern.test(readerSource), false);
+});
+
+test('a BigInt anywhere in the input fails closed with BLOCK instead of throwing (#1298)', () => {
+  const input = makeWriterInput({ provenance: { traceId: 'trace.bigint', weight: 10n } });
+  let result;
+  assert.doesNotThrow(() => {
+    result = writeRuntimePackage(input);
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.verdict, 'BLOCK');
+  assert.equal(result.reason_category, 'invalid_json_value');
+});
+
+test('a circular reference in the input fails closed with BLOCK instead of throwing (#1298)', () => {
+  const provenance = { traceId: 'trace.cycle', source: 'local_test' };
+  provenance.self = provenance;
+  const input = makeWriterInput({ provenance });
+  let result;
+  assert.doesNotThrow(() => {
+    result = writeRuntimePackage(input);
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.verdict, 'BLOCK');
+  assert.equal(result.reason_category, 'invalid_json_value');
 });

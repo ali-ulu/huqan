@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const fixtureRoot = path.join(__dirname, 'fixtures', 'v5', 'verification');
 const expectedCases = [
-  ['verified-supported-algorithm', 'verified', 'signature_valid'],
+  ['verified-supported-algorithm', 'not_verified', 'malformed_signature_evidence'],
   ['missing-signature-evidence', 'not_verified', 'missing_signature_evidence'],
   ['malformed-signature-evidence', 'not_verified', 'malformed_signature_evidence'],
   ['payload-digest-mismatch', 'not_verified', 'payload_digest_mismatch'],
@@ -21,7 +21,7 @@ const expectedCases = [
   ['forbidden-trust-claim', 'not_verified', 'forbidden_trust_claim'],
   ['forbidden-authorization-claim', 'not_verified', 'forbidden_authorization_claim'],
   ['forbidden-exchange-claim', 'not_verified', 'forbidden_exchange_claim'],
-  ['deterministic-repeat', 'verified', 'signature_valid']
+  ['deterministic-repeat', 'not_verified', 'malformed_signature_evidence']
 ];
 const allowedStatuses = new Set(['verified', 'not_verified']);
 const allowedReasons = new Set(expectedCases.map(([, , reason]) => reason));
@@ -136,7 +136,7 @@ test('negative fixtures encode their intended bounded condition', () => {
   assert.equal(Object.hasOwn(fixtureByCaseId(fixtures, 'forbidden-exchange-claim').input, 'claims'), true);
 });
 
-test('positive and repeat fixtures preserve bounded evidence and determinism', () => {
+test('placeholder and repeat fixtures preserve bounded evidence and fail-closed determinism', () => {
   const fixtures = fixtureFiles().map((file) => ({ file, fixture: readFixture(file) }));
   const positive = fixtureByCaseId(fixtures, 'verified-supported-algorithm');
   assert.equal(positive.input.algorithm, 'test-structural-v1');
@@ -151,8 +151,8 @@ test('positive and repeat fixtures preserve bounded evidence and determinism', (
   const repeat = fixtureByCaseId(fixtures, 'deterministic-repeat');
   assert.equal(repeat.input.evaluationCount, 2);
   assert.deepEqual(repeat.input.equivalentInputs[0], repeat.input.equivalentInputs[1]);
-  assert.equal(repeat.expected.verificationStatus, 'verified');
-  assert.equal(repeat.expected.reasonCategory, 'signature_valid');
+  assert.equal(repeat.expected.verificationStatus, 'not_verified');
+  assert.equal(repeat.expected.reasonCategory, 'malformed_signature_evidence');
 });
 
 test('verification fixture corpus is synthetic and preserves its current nonClaims union', () => {

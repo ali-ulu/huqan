@@ -1,0 +1,355 @@
+name: Publish to npm
+
+# Tag-driven, never automatic on a branch. A publish is irreversible in
+# practice -- npm allows unpublishing only within 72 hours and only while
+# nothing depends on the version -- so it takes a deliberate act (pushing a
+# `v*` tag, or dispatching this workflow) rather than happening as a side
+# effect of a merge.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run every gate and pack the tarball, but do not upload'
+        type: boolean
+        default: true
+
+# A manual dispatch used to be able to reach the publish step from any ref a
+# maintainer could select -- a branch, or a tag whose name said nothing about
+# what was in package.json. The tag/version binding below is therefore keyed on
+# the ref itself rather than on the event: whatever the trigger, a real publish
+# only happens from an immutable `v<version>` tag that is already on the
+# default branch (#1673).
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+
+    # The environment carries the required reviewers/branch policy, and is now
+    # also half of the publish credential: its name is part of the OIDC claim
+    # npm checks against the package's trusted publisher, so a job running
+    # outside `npm-publish` cannot publish even from a valid tag. Keep the
+    # environment's deployment-branch policy set to `v*` tags only.
+    environment: npm-publish
+
+    permissions:
+      contents: read
+      attestations: write
+      artifact-metadata: write
+      # Required for npm provenance and GitHub Artifact Attestations: both
+      # mint short-lived OIDC-backed signing identities rather than using
+      # long-lived signing credentials.
+      # Required for npm provenance: npm exchanges this workflow's OIDC token
+      # for a signed attestation that ties the published tarball to this
+      # repository, this workflow and this commit. Without it, `npm publish
+      # --provenance` fails rather than publishing unattested.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history is required: the live-Git-validation tests in
+          # test/agent-context.test.js and the V5-C5 external-conformance
+          # runner fail on a shallow checkout (they read canonical ancestry,
+          # not just the tip). Every other workflow that runs those suites
+          # already fetches depth 0; publish.yml was the only one that did not.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+          # Points npm at the public registry. The auth line this also seeds is
+          # cleared in the publish step below, which authenticates over OIDC.
+          registry-url: 'https://registry.npmjs.org'
+
+      # Release authority, checked once for every trigger (#1673).
+      #
+      # A publish is only allowed from an immutable `v<version>` tag that is
+      # already an ancestor of the default branch. That is three separate
+      # claims, and each one has to hold on its own:
+      #
+      #   1. The ref is a tag, not a branch. A branch tip moves, so "publish
+      #      from main" means publishing whatever happened to be there when
+      #      the job started -- unreviewable after the fact.
+      #   2. The tag name matches package.json#version exactly. The tag is
+      #      what a human typed; the manifest is what actually gets published.
+      #      A disagreement means one of them is wrong, and guessing which
+      #      would publish a version nobody asked for.
+      #   3. The tagged commit is reachable from the default branch, so the
+      #      published tree is code that went through review, not a tag
+      #      pushed onto an arbitrary commit.
+      #
+      # A dry run is exempt from nothing: it runs the same gates, and the
+      # publish step below is what the dry-run flag actually withholds.
+      - name: Require an authorized immutable release ref
+        id: authority
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::Refusing to run from ${GITHUB_REF_TYPE} '${GITHUB_REF_NAME}'." >&2
+            echo "Publication is bound to an immutable v* tag. Push (or dispatch from) the tag." >&2
+            exit 1
+          fi
+
+          case "${GITHUB_REF_NAME}" in
+            v*) ;;
+            *)
+              echo "::error::Tag '${GITHUB_REF_NAME}' is not a v* release tag." >&2
+              exit 1
+              ;;
+          esac
+
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(node -p "require('./package.json').version")"
+          if [ "${tag}" != "${manifest}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${manifest}." >&2
+            echo "Retag, or bump the manifest -- do not publish a mismatch." >&2
+            exit 1
+          fi
+
+          default_branch="${DEFAULT_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${default_branch}:refs/remotes/origin/${default_branch}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${default_branch}"; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (${GITHUB_SHA}) is not an ancestor of ${default_branch}." >&2
+            echo "Only reviewed, merged commits may be published." >&2
+            exit 1
+          fi
+
+          echo "version=${manifest}" >> "${GITHUB_OUTPUT}"
+          echo "Publishing version ${manifest} from tag ${GITHUB_REF_NAME} (${GITHUB_SHA})."
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
+      - name: Refuse to republish an existing version
+        run: |
+          set -euo pipefail
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "${name}@${version}" version --json > /dev/null 2>&1; then
+            echo "${name}@${version} is already on the registry." >&2
+            echo "npm versions are immutable; bump the version instead." >&2
+            exit 1
+          fi
+          echo "${name}@${version} is not on the registry yet."
+
+      # Signed-Releases gate (#3068): a published release is proven by a
+      # cryptographically signed tag object, not by who pushed it or from
+      # where. The tag ruleset makes release tags immutable but does not
+      # require a signature, so the check has to run here, where a release is
+      # actually made, and fail closed: lightweight tags are rejected outright
+      # (they cannot carry one), and annotated tags must verify through the
+      # GitHub tags API, which checks signatures against the keys attached to
+      # the signer's GitHub account. A runner-side gpg keyring would be empty
+      # and always fail, so GitHub's own verification is the honest source.
+      # gh needs a token on the runner. Without one every `gh api` call fails,
+      # the `|| echo false` fallback reads that as "unsigned", and a correctly
+      # signed tag is refused (v0.13.0, run 36945701163).
+      - name: Require a signed release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if ! git cat-file -e "refs/tags/${tag}" 2>/dev/null; then
+            echo "::error::Tag ${tag} does not exist in this checkout." >&2
+            exit 1
+          fi
+          object_type="$(git cat-file -t "refs/tags/${tag}")"
+          if [ "${object_type}" != "tag" ]; then
+            echo "::error::Tag ${tag} is a lightweight tag; releases must be annotated tag objects." >&2
+            exit 1
+          fi
+          tag_object="$(git rev-parse "refs/tags/${tag}")"
+          verified="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" --jq '.verification.verified' 2>/dev/null || echo false)"
+          if [ "${verified}" != "true" ]; then
+            reason="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_object}" --jq '.verification.reason' 2>/dev/null || echo unknown)"
+            echo "::error::Tag ${tag} is not cryptographically signed (GitHub verification: ${reason})." >&2
+            echo "Sign and push the release tag: git tag -s ${tag} -m 'release ${tag}' && git push origin ${tag}." >&2
+            exit 1
+          fi
+          echo "Tag ${tag} is a signed release tag (GitHub verification passed)."
+
+      - run: npm ci --include=optional
+
+      - name: Enforce breaking API release semver
+        run: node scripts/api-semver-gate.js
+
+      # The gate no static check replaces: pack the tarball, install it into an
+      # empty project, and read the output. A plugin that fails to load prints
+      # a line and still exits 0, which is how v0.10.0 nearly shipped three
+      # modules that resolved from a clone and not from node_modules.
+      - name: Verify the packed tarball as an installed consumer sees it
+        run: npm run verify:tarball
+
+      # The full suite must run here, as its own step, and NOT inside `npm
+      # publish`'s prepublishOnly. Nested npm operations (the 4C1 installed-
+      # tarball tests and the V5-C5 conformance runner pack + install the
+      # package from inside the suite) are contaminated by the outer `npm
+      # publish` process: on a clean runner the same suite fails 21 tests when
+      # run as prepublishOnly and passes when run as a step. prepublishOnly is
+      # therefore limited to the fast closure check; this step is the
+      # "source tree is sound" gate.
+      - name: Run the full test suite
+        run: npm test
+
+      # #2505/H: release-specific security evaluation. The full suite above is
+      # necessary but not sufficient evidence for this release claim: this
+      # named gate keeps adversarial, prompt-injection/jailbreak and
+      # privilege/authority-overreach cases as an explicit release contract.
+      - name: Run release security evaluation
+        run: npm run test:security-release
+
+      # Trusted publishing needs a newer npm than any Node 22 image ships
+      # (setup-node's Node 22 comes with npm 10.x). The OIDC exchange lives in
+      # npm >= 11.5.1; on an older CLI `npm publish` silently falls back to
+      # looking for an _authToken and fails as if the credential were wrong.
+      # This step is therefore load-bearing, not hygiene.
+      #
+      # Pinned to the 11 line, not @latest (#3323). npm 12 no longer runs
+      # dependency install scripts, so the post-publish checklist's tarball
+      # smoke installs huqan without better-sqlite3's binding and fails, and
+      # `npm view --json` changes shape. A major npm bump must arrive as a
+      # reviewed change here, not silently in the middle of a release.
+      - name: Install an npm that can exchange OIDC for a publish credential
+        run: |
+          set -euo pipefail
+          npm install -g npm@11
+          npm --version
+
+      # Publishes with GitHub's OIDC identity instead of a long-lived npm
+      # token. npm mints a short-lived, single-publish credential after
+      # checking this repository, this workflow file and this environment
+      # against the trusted publisher configured on the package.
+      #
+      # Software bill of materials for exactly the dependency tree a consumer
+      # installs (--omit dev), generated from the lockfile that `npm ci` just
+      # honoured. It runs before the upload and on dry runs too, so a release
+      # can never ship without one, and it is kept as a run artifact next to
+      # the provenance attestation npm records for the tarball.
+      - name: Generate CycloneDX SBOM
+        run: |
+          set -euo pipefail
+          npm sbom --sbom-format cyclonedx --omit dev --package-lock-only > "huqan-${GITHUB_REF_NAME}.cdx.json"
+          node -e 'const b=require(process.argv[1]); if (b.bomFormat !== "CycloneDX" || !Array.isArray(b.components)) process.exit(1); console.log(`SBOM: CycloneDX ${b.specVersion}, ${b.components.length} components`)' "./huqan-${GITHUB_REF_NAME}.cdx.json"
+
+      # The npm package already receives npm/SLSA provenance through trusted
+      # publishing. This independent GitHub/Sigstore attestation covers the
+      # CycloneDX SBOM itself, binding the exact SBOM bytes to this repository,
+      # workflow, release ref and commit without pretending it is the npm
+      # package's provenance record.
+      - name: Attest SBOM provenance
+        id: sbom-attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: huqan-${{ github.ref_name }}.cdx.json
+
+      # #3068: alongside the SBOM itself, export the Sigstore bundle the step
+      # above produced. The bundle is the verifiable signature; carrying it as
+      # an artifact lets the GitHub Release ship a directly verifiable
+      # signature file instead of depending on the attestations API to prove
+      # the SBOM later.
+      - name: Export SBOM attestation bundle
+        run: |
+          set -euo pipefail
+          bundle="${{ steps.sbom-attest.outputs.bundle-path }}"
+          if [ ! -s "${bundle}" ]; then
+            echo "::error::No attestation bundle was produced for the SBOM." >&2
+            exit 1
+          fi
+          mkdir -p sbom-bundle
+          cp "${bundle}" "sbom-bundle/huqan-${GITHUB_REF_NAME}.cdx.sigstore.json"
+          echo "Exported the Sigstore bundle for the SBOM attestation."
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-attestation-bundle
+          path: sbom-bundle/*.sigstore.json
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-cyclonedx
+          path: huqan-${{ github.ref_name }}.cdx.json
+          if-no-files-found: error
+
+      # This replaces secrets.NPM_TOKEN, and the replacement is the point: a
+      # granular token expires and has to be minted, scoped and pasted into
+      # the environment again on a schedule, and every failure mode of that
+      # dance (wrong account, package not in the selection, 2FA required,
+      # trailing newline, the wrong .npmrc) surfaces as npm's unauthorized-PUT
+      # 404 -- an error that names the package rather than the credential.
+      # There is nothing to rotate here, so none of that recurs.
+      #
+      # No `--provenance` flag: trusted publishing attests every upload, and
+      # passing it explicitly is redundant rather than additive.
+      - name: Publish
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: |
+          set -euo pipefail
+          # Re-read the manifest at the point of upload rather than trusting
+          # the earlier step's output: the gates above run npm ci, pack and
+          # the full suite, and a publish must be of the version that was
+          # actually authorized.
+          manifest="$(node -p "require('./package.json').version")"
+          if [ "v${manifest}" != "${GITHUB_REF_NAME}" ] || [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::Release ref no longer matches ${manifest}; refusing to publish." >&2
+            exit 1
+          fi
+
+          # setup-node seeded a userconfig whose only auth line dereferences
+          # NODE_AUTH_TOKEN, which is unset here. Left in place npm reads it as
+          # an empty credential and never attempts the OIDC exchange, so the
+          # registry line is rewritten without it.
+          npmrc="${NPM_CONFIG_USERCONFIG:-${HOME}/.npmrc}"
+          printf 'registry=https://registry.npmjs.org/\n' > "${npmrc}"
+
+          # The output is captured so a failure can be read rather than only
+          # returned. npm answers an unauthorized upload with 404 on PUT -- the
+          # same code it uses for a package that does not exist -- so the one
+          # message a release engineer sees names the package and says nothing
+          # about the credential. Eight consecutive releases failed on exactly
+          # that. The publish still fails; it now says what to configure.
+          log="${RUNNER_TEMP}/npm-publish.log"
+          set +e
+          npm publish --access public 2>&1 | tee "${log}"
+          publish_status="${PIPESTATUS[0]}"
+          set -e
+          if [ "${publish_status}" -ne 0 ]; then
+            node scripts/explain-npm-publish-failure.js "${log}"
+            exit "${publish_status}"
+          fi
+
+      # Final release checklist (#2633, C7). This is deliberately the last
+      # real-publish gate. It reuses the local tarball verifier and the C4
+      # registry round-trip verifier, then adds version/tag, changelog and
+      # CycloneDX shape/component-count checks around them. The registry proof
+      # also verifies npm provenance and matches the SBOM to the published
+      # manifest. One script therefore owns the final release verdict and emits
+      # both a human summary and a machine-readable JSON report.
+      - name: Verify the complete release checklist
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: node scripts/release-verify.js --sbom "huqan-${GITHUB_REF_NAME}.cdx.json" --json "release-verification-${GITHUB_REF_NAME}.json"
+
+      # Preserve the structured verdict even when the checklist fails. A
+      # missing report should not mask the original verification error, so the
+      # upload warns instead of becoming a second failure.
+      - name: Upload release verification report
+        if: always() && (github.event_name == 'push' || inputs.dry_run == false)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-verification-report
+          path: release-verification-${{ github.ref_name }}.json
+          if-no-files-found: warn
+
+      - name: Dry run complete
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: echo "Every gate passed on tag ${GITHUB_REF_NAME}. Re-run with dry_run unchecked, or push a v* tag, to publish."

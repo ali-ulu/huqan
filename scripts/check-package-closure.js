@@ -1,0 +1,232 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * Fail if a module the installed package loads is not in package.json#files.
+ *
+ * `files` is a hand-maintained allowlist, so it drifts the moment someone adds
+ * a module and wires it into an already-published one. Nothing in the repo
+ * notices: every path resolves from a clone, `npm test` passes, and the break
+ * only appears after `npm install`, as a `Cannot find module` from inside
+ * node_modules. Three such breaks shipped into v0.10.0's tarball at once --
+ * all four file adapters (lib/safe-file-walk.js) and two plugins.
+ *
+ * What this checks, precisely: walk the relative requires a caller can reach
+ * outward from the entry points an installed consumer loads, and require every
+ * module reached that way to be published.
+ *
+ * Reachable, not merely load-time. A require inside a function body counts,
+ * because a CLI subcommand or an MCP tool name is a caller: `huqan coder`
+ * loads `lib/cli-coder.js`, which loads `lib/coder/apply-derivation.js`, which
+ * requires `lib/coder/experience-reporter.js` -- and that file shipped in no
+ * tarball while this gate reported OK, because the first require sat in a
+ * function body and the walk never entered it. Only a `try`/`catch` block is
+ * excluded, and that is a decision, not an oversight: the repository guards
+ * repo-only dependencies (`server.js` -> the V5 import route,
+ * `lib/a2a/exchange-route.js` -> `lib/a2a/bounded-exchange.js`) so the server
+ * boots unavailable rather than failing to start. A checker that flagged them
+ * would be reporting the design as a defect. A require outside such a guard
+ * either resolves or its caller throws.
+ *
+ * Usage:  node scripts/check-package-closure.js [--root <dir>]
+ * Exit 0 = the reachable closure is fully published, exit 1 = something is not.
+ * `--root` points the gate at another tree; it exists so the OK and FAIL
+ * verdicts can be exercised in tests without touching this repository.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { retainedDeepImportFiles } = require('./retained-deep-imports');
+// Load-time require scanning core lives in scripts/require-scan.js (#2227);
+// loadTimeRequires is re-exported below so existing importers keep working.
+const { loadTimeRequires, reachableRequires, resolveLocal } = require('./require-scan');
+
+const repoRoot = path.resolve(__dirname, '..');
+
+function packageRoots(root) {
+  const roots = [root];
+  const packagesDir = path.join(root, 'packages');
+  if (!fs.existsSync(packagesDir)) return roots;
+  for (const name of fs.readdirSync(packagesDir).sort()) {
+    const candidate = path.join(packagesDir, name);
+    const manifest = path.join(candidate, 'package.json');
+    if (!fs.statSync(candidate).isDirectory() || !fs.existsSync(manifest)) continue;
+    if (JSON.parse(fs.readFileSync(manifest, 'utf8')).private !== true) roots.push(candidate);
+  }
+  return roots;
+}
+
+/**
+ * Expand package.json#files into the concrete file set it ships. Entries may
+ * name a directory (the manifest lists `lib/error-prevention`), so a bare
+ * membership test against the array would miss everything inside one.
+ *
+ * @param {string} root repository root
+ * @returns {Set<string>} repo-relative POSIX paths
+ */
+/**
+ * Files npm publishes whether or not `files` lists them.
+ *
+ * npm always ships the manifest, the readme and the licence from the package
+ * root. Modelling `files` as the whole published set therefore reports a false
+ * failure for them: mcpServer.js requires `./package.json` at load time, so
+ * dropping the redundant `"package.json"` entry made this gate claim an
+ * installed consumer would get "Cannot find module" -- for a file npm puts in
+ * every tarball. Verified with `npm pack --dry-run`: removing the entry leaves
+ * package.json in the tarball, and `npm run verify:tarball` installs and runs
+ * it. Only the root files are covered; a nested readme is published only if an
+ * entry matches it, which is why packages/*'/'README.md are listed explicitly.
+ */
+const ALWAYS_PUBLISHED = Object.freeze(['package.json', 'README.md', 'LICENSE']);
+
+function publishedFiles(root) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const out = new Set(ALWAYS_PUBLISHED.filter((name) => fs.existsSync(path.join(root, name))));
+  const walkDir = (dir) => {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) walkDir(full);
+      else out.add(path.relative(root, full).split(path.sep).join('/'));
+    }
+  };
+  for (const entry of pkg.files || []) {
+    const full = path.join(root, entry);
+    if (fs.existsSync(full) && fs.statSync(full).isDirectory()) walkDir(full);
+    else out.add(entry);
+  }
+  return out;
+}
+
+// Scan core (BLOCK_HEADS/braceDefers/loadTimeRequires/resolveLocal) lives in
+// scripts/require-scan.js (#2227).
+
+/**
+ * The entry points an installed consumer loads.
+ *
+ * `main` and every `bin` are read from the manifest rather than restated, so a
+ * newly declared executable is covered the moment it ships. Published plugins
+ * and adapters are entries too: plugin.js loads the plugin directory with
+ * readdirSync, which no static walk from `main` can see.
+ *
+ * So are the retained deep imports. Reaching a module from `main` is not the
+ * same as a consumer being able to load it: `server.js` is a supported import
+ * that nothing under `index.js` requires, so its whole subtree sat outside this
+ * walk. That is how `lib/http/external-action-receipt-collector-route.js`
+ * shipped unpublished while this gate reported a complete closure -- the 4C1
+ * tarball smoke failed on `require('huqan/server')` and this said OK. Both now
+ * read one list (scripts/retained-deep-imports.js) so they cannot disagree
+ * again.
+ *
+ * @param {string} root repository root
+ * @param {Set<string>} published expanded file set
+ * @returns {string[]} repo-relative entry paths
+ */
+function loadTimeEntryPoints(root, published) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const entries = new Set();
+  if (pkg.main) entries.add(pkg.main.replace(/^\.\//, ''));
+  for (const target of Object.values(pkg.bin || {})) entries.add(target.replace(/^\.\//, ''));
+  for (const file of published) {
+    if (!file.endsWith('.js')) continue;
+    if (file.startsWith('plugins/') || file.startsWith('adapters/')) entries.add(file);
+  }
+  // Sub-package roots (packages/*) reuse this function; a retained import that
+  // does not exist under the root being analyzed is simply not its surface, and
+  // analyzePackageClosure already skips entries that are absent from disk.
+  for (const file of retainedDeepImportFiles()) entries.add(file);
+  return [...entries].sort();
+}
+
+/**
+ * @param {object} [opts]
+ * @param {string} [opts.root] repository root
+ * @returns {{entryPoints: string[], reached: string[], missing: Map<string, string[]>}}
+ */
+function analyzePackageClosure(opts = {}) {
+  const root = opts && opts.root ? opts.root : repoRoot;
+  const published = publishedFiles(root);
+  const entryPoints = loadTimeEntryPoints(root, published);
+  const reached = new Set();
+  const missing = new Map();
+
+  const walk = (rel) => {
+    if (reached.has(rel)) return;
+    reached.add(rel);
+    const full = path.join(root, rel);
+    if (!fs.existsSync(full) || !rel.endsWith('.js')) return;
+
+    for (const spec of reachableRequires(fs.readFileSync(full, 'utf8'))) {
+      const resolved = resolveLocal(full, spec);
+      // Unresolvable specifiers are left to Node: a typo'd path fails the same
+      // way in a clone as in an install, so it is not a packaging finding.
+      if (!resolved) continue;
+      const target = path.relative(root, resolved).split(path.sep).join('/');
+      if (published.has(target)) walk(target);
+      else if (missing.has(target)) missing.get(target).push(rel);
+      else missing.set(target, [rel]);
+    }
+  };
+
+  for (const entry of entryPoints) {
+    if (fs.existsSync(path.join(root, entry))) walk(entry);
+  }
+
+  for (const [, requiredBy] of missing) requiredBy.sort();
+  return { entryPoints, reached: [...reached].sort(), missing };
+}
+
+function analyzePackageClosures(opts = {}) {
+  const root = opts && opts.root ? opts.root : repoRoot;
+  return packageRoots(root).map(packageRoot => ({
+    root: packageRoot,
+    ...analyzePackageClosure({ root: packageRoot }),
+  }));
+}
+
+function main(argv = process.argv.slice(2)) {
+  const rootFlag = argv.indexOf('--root');
+  const root = rootFlag !== -1 && argv[rootFlag + 1]
+    ? path.resolve(argv[rootFlag + 1])
+    : repoRoot;
+  const reports = analyzePackageClosures({ root });
+  const failures = reports.filter(report => report.missing.size > 0);
+
+  if (failures.length === 0) {
+    const reached = reports.reduce((total, report) => total + report.reached.length, 0);
+    const entryPoints = reports.reduce((total, report) => total + report.entryPoints.length, 0);
+    console.log(
+      `OK: the reachable closure of ${reached} modules `
+      + `from ${entryPoints} published entry points is fully published.`,
+    );
+    return 0;
+  }
+
+  const missingCount = failures.reduce((total, report) => total + report.missing.size, 0);
+  console.error(`FAIL: ${missingCount} module(s) are reachable at install time but are not published.\n`);
+  for (const report of failures) {
+    for (const target of [...report.missing.keys()].sort()) {
+      console.error(`  ${path.relative(root, report.root) || '.'}/${target}`);
+      console.error(`      reachable from: ${report.missing.get(target).join(', ')}`);
+    }
+  }
+  console.error(
+    '\nAn installed consumer gets "Cannot find module" for each of these.',
+    '\nAdd them to package.json#files, or -- if the dependency is meant to stay',
+    '\nrepo-only -- move the require inside a guard at the call site, the way',
+    '\nserver.js does for lib/http/v5-package-import-route.js.',
+  );
+  return 1;
+}
+
+if (require.main === module) process.exit(main());
+
+module.exports = {
+  analyzePackageClosure,
+  analyzePackageClosures,
+  loadTimeRequires,
+  reachableRequires,
+  loadTimeEntryPoints,
+  main,
+  packageRoots,
+  publishedFiles,
+};

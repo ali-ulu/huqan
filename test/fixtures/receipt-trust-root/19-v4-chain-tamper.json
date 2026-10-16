@@ -1,0 +1,1 @@
+{"caseId":"RTR-019-V4-CHAIN-TAMPER-VARIANTS","description":"Mixed-chain tampering fails","input":{"variants":["reordered","inserted","removed","downgraded","rewritten"]},"expected":{"mode":"futureV2Structural","allInvalid":true},"nonClaims":["generic journal rejection"]}

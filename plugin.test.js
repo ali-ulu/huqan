@@ -10,10 +10,7 @@ const createDiscoveryEnginePlugin = require('./plugins/discovery-engine').create
 const createIdeaMriPlugin = require('./plugins/idea-mri').create;
 const createDevilAdvocatePlugin = require('./plugins/devil-advocate').create;
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function learnFixture(kernel, text, opts = {}) {
   return kernel.learn(text, { ...opts, ...TEST_FIXTURE_LEARN_BYPASS });
@@ -532,7 +529,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `discovery-engine-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'discovery-engine-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -723,7 +721,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `idea-mri-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'idea-mri-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -827,7 +826,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `devil-advocate-public-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'devil-advocate-public-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -932,7 +932,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `devil-advocate-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'devil-advocate-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('kedi', 'Kedi', { source: 'fixture' });
@@ -1034,7 +1035,7 @@ describe('Plugin - Yonetici', () => {
         capturedArg = nodes;
         return [{ subject: 'kedi', predicate: 'hayvan' }];
       },
-      _parsePredicate(predicate) {
+      parsePredicate(predicate) {
         const parts = String(predicate || '').split(/\s+/);
         return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
       },
@@ -1087,7 +1088,7 @@ describe('Plugin - Yonetici', () => {
         capturedArg = nodes;
         return [{ subject: 'kedi', predicate: 'hayvan' }];
       },
-      _parsePredicate(predicate) {
+      parsePredicate(predicate) {
         const parts = String(predicate || '').split(/\s+/);
         return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
       },
@@ -1123,7 +1124,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const os = require('os');
     const nlp = createNlp('tr');
-    const tmpPath = path.join(os.tmpdir(), `contradiction-alert-parity-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'contradiction-alert-parity-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       // Use a two-word subject node id ('kara kedi'). The Turkish NLP pack
@@ -1160,7 +1162,7 @@ describe('Plugin - Yonetici', () => {
           extractFacts(text, knownNodes) {
             return nlp.extractFacts(text, knownNodes);
           },
-          _parsePredicate(predicate) {
+          parsePredicate(predicate) {
             const parts = String(predicate || '').split(/\s+/);
             return { relation: parts[0] || '', object: parts.slice(1).join(' ') };
           },
@@ -1349,7 +1351,8 @@ describe('Plugin - Yonetici', () => {
     // output must match for both default and tenant-a workspaces.
     const Graph = require('./graph');
     const os = require('os');
-    const tmpPath = path.join(os.tmpdir(), `company-brain-parity-03a-${Date.now()}-${process.pid}.json`);
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'company-brain-parity-03a-'));
+    const tmpPath = path.join(tmpDir, 'memory.json');
     const graph = new Graph({ useSQLite: false, memoryPath: tmpPath });
     try {
       graph.addNode('axiom', 'Axiom Motor', { source: 'fixture' });
@@ -1539,7 +1542,8 @@ describe('Plugin - Yonetici', () => {
     // `this._normalizeExplicitRelationObject`). No graph state is shared
     // with the spy kernel below — we only borrow the bound method.
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-characterization-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-characterization-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1575,8 +1579,8 @@ describe('Plugin - Yonetici', () => {
           return nlp.extractFacts(text, knownNodes);
         },
         // REAL _parsePredicate (bound to the production Kernel instance).
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1707,7 +1711,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard1-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-guard1-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1733,8 +1738,8 @@ describe('Plugin - Yonetici', () => {
           capturedArg = knownNodes;
           return nlp.extractFacts(text, knownNodes);
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1799,7 +1804,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard2-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-guard2-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1827,8 +1833,8 @@ describe('Plugin - Yonetici', () => {
           capturedArg = knownNodes;
           return nlp.extractFacts(text, knownNodes);
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1891,7 +1897,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-guard3-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-guard3-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -1926,8 +1933,8 @@ describe('Plugin - Yonetici', () => {
         extractFacts(text, knownNodes) {
           return nlp.extractFacts(text, knownNodes);
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},
@@ -1984,7 +1991,8 @@ describe('Plugin - Yonetici', () => {
     const createNlp = require('./nlp');
     const nlp = createNlp('tr');
     const os = require('os');
-    const tmpKernelPath = path.join(os.tmpdir(), `p03-legacy-kernel-${Date.now()}-${process.pid}.json`);
+    const tmpKernelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'p03-legacy-kernel-'));
+    const tmpKernelPath = path.join(tmpKernelDir, 'memory.json');
     const realKernelForParser = new Kernel({ useSQLite: false, memoryPath: tmpKernelPath });
     try {
       const defaultNode = { id: 'kedi', label: 'Kedi', workspaceId: 'default' };
@@ -2013,8 +2021,8 @@ describe('Plugin - Yonetici', () => {
           capturedFacts = facts;
           return facts;
         },
-        _parsePredicate(predicate) {
-          return realKernelForParser._parsePredicate(predicate);
+        parsePredicate(predicate) {
+          return realKernelForParser.parsePredicate(predicate);
         },
         hasCapability: () => false,
         proposeNode: () => {},

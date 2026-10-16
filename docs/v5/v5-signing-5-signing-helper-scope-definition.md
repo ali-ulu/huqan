@@ -1,5 +1,7 @@
 # V5-SIGNING-5 - Signing Helper Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `V5-SIGNING-4_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

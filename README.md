@@ -1,299 +1,124 @@
-# Huqan
+# HUQAN
 
-### Models generate. Agents act. Memory stores. HUQAN judges.
+**A local trust boundary that separates the agent from the operator.**
 
-**A local-first, deterministic judgment and verification layer for AI claims, memory, and actions.**
+Most tools make agents stronger.  
+With the Approval Authority installed, HUQAN puts an OS boundary between the agent and the power to approve.
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js)](https://nodejs.org)
+Agents can now write code, delete files, spend money, and change memory.  
+Without a proper trust layer, that power runs as the same user as you.
 
-[Quick Start](#quick-start) · [Architecture](#architecture) · [Safety Gates](#safety-gates) · [MCP Server](#mcp-server-claude--cursor) · [API](#rest-api) · [Roadmap](#roadmap)
+On Windows, the Approval Authority moves approval into a separate service protected by TOTP and cryptographic decision envelopes.  
+The decision is held by that service's own account, not by your user: an agent running as you cannot sign an approval, though it may still share your user identity with the operator.
 
----
+Every decision is recorded as a Trust Receipt.
 
-## The Problem
+No model. No cloud. No API key required for the core gate.
 
-LLMs can produce unsupported or contradictory answers. In regulated industries - healthcare, finance, legal, engineering - a confident wrong answer is dangerous and expensive.
+[![npm](https://img.shields.io/npm/v/huqan?logo=npm&color=cb3837)](https://www.npmjs.com/package/huqan)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ali-ulu/huqan/badge)](https://scorecard.dev/viewer/?uri=github.com/ali-ulu/huqan)
 
-Many guardrail systems are probabilistic: they use another model to inspect the first one. That can help, but it does not create a deterministic trust boundary by itself.
+## Try it in 30 seconds
 
-**HUQAN takes a different approach: repeatable judgments with receipts, graph evidence, and action gates.**
-
-For tested current-main paths, the core verdict flow does not rely on LLM-as-judge behavior.
-
----
-
-## What Huqan Does
-
-| Capability | How It Works |
-|---|---|
-| **Judges Claims** | Produces deterministic verification results from graph-backed evidence and current trust rules |
-| **Checks Memory Writes** | Admission and workspace boundaries protect canonical memory writes from silent drift |
-| **Gates Risky Actions** | Policy and trust gates classify review, block, and dry-run-only paths before execution |
-| **Emits Receipts** | Trust Receipt and reasoning metadata preserve why a result was allowed, blocked, or downgraded |
-| **Supports Local Integrations** | MCP, CLI, and local server flows can run against the same local trust boundary |
-| **Runs Local-First** | No cloud dependency is required for the core local graph, verification, and gate paths |
-
----
-
-## Comparison
-
-| Feature | HUQAN | LLM-only | Guardrail-only stack |
-|---|---|---|---|
-| Core verdict path | Deterministic for tested current-main paths | Model-dependent | Usually policy or model-dependent |
-| Contradiction handling | Graph and verifier backed | Not inherent | Varies by implementation |
-| Local-first operation | Supported | Usually API-backed | Varies by implementation |
-| Receipts / audit trail | Built into trust flows | Usually absent | Often partial |
-| Risky action gating | Explicit review / block / dry-run paths | Usually external | Policy-oriented |
-| Relation extraction | Explicit marker extraction, not full NLP | Model inference | Usually not primary focus |
-| Current limits | Partial trust layer, documented checkpoints | Model variance | Coverage varies by product |
-
----
-
-## Quick Start
-
-```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
-npm ci --include=optional
-
-node -e "const Database=require('better-sqlite3'); const db=new Database(':memory:'); db.close(); console.log('better-sqlite3 db ok')"
-npm test
-
-node egitim.js
-node cli.js
-node server.js
-node mcpServer.js
+```console
+$ npx -y huqan quickstart
+HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
+  1. OK   propose: huqan.learn -> review (mutating_requires_review), approval approval-…
+  2. OK   approve: huqan.approve -> approved (actor cli-quickstart)
+  3. OK   verify: verified (confidence 0.90)
+  4. OK   receipt: receiptId … (status canonical)
 ```
 
-> Requirements: Node.js >= 18. Use `npm ci --include=optional` for deterministic installs with the local SQLite path enabled.
+The write in line 1 **did not happen**. It was held until line 2 approved it. The quickstart uses a throwaway store.
 
-## Product Surfaces
+No install needed: the same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
 
-- `demo/index.html` is the canonical static public demo surface.
-- `public/index.html` is the canonical local backend-connected UI served by `node server.js`.
-- `docs/index.html` is the docs/demo chooser, not a competing product page.
+## Connect your agent in one line
 
-See [docs/product-surfaces.md](./docs/product-surfaces.md) for the explicit surface policy.
-
-## Competitive Positioning
-
-- HUQAN is a local-first judgment and verification layer, not another model or chat wrapper.
-- The public story should stay centered on deterministic judgment, receipts, and safe decision support.
-- Product messaging, demo framing, and pitch language live in [docs/competitive-positioning.md](./docs/competitive-positioning.md), [docs/demo-positioning.md](./docs/demo-positioning.md), and [docs/pitch-v0.md](./docs/pitch-v0.md).
-
-## Scale Truth
-
-- Current benchmark fixtures cover small-to-medium graphs only.
-- Largest existing benchmark fixture: `xlarge` with 140 nodes and 131 edges in `benchmarks/results.json`.
-- Larger graph support requires dedicated benchmarking; it is not yet proven at Wikipedia-scale.
-- See [docs/scale-truth-pack.md](./docs/scale-truth-pack.md) for the measured status and safe public language.
-
-## English-first Developer UX
-
-- Public docs use English-first command examples.
-- Turkish commands remain supported for compatibility.
-- English aliases are the recommended path for global developers.
-- Guarded API examples use `POST /verify`, `POST /v2/verify`, and `POST /upload`.
-- Unsafe GET verification is not supported; `GET /verify`, `GET /dogrula`, and `GET /v2/verify` return `405 Method Not Allowed`.
-
-## NLP Boundary
-
-- `nlp/lang-tr.js` is a simple deterministic parser for controlled statements.
-- It is not a full Turkish NLP engine and should not be presented as general semantic understanding.
-- Parser limits, safe examples, and the optional adapter strategy are documented in [docs/nlp-boundary.md](./docs/nlp-boundary.md).
-
-## Current Verified State
-
-- Explicit marker relation extraction is checkpointed for `CAUSES`, `PREVENTS`, `DEPENDS_ON`, and `ENABLES`, including Turkish `DEPENDS_ON` variants.
-- Shield now verifies the full LLM response window instead of only the first 300 characters.
-- Memory lookup now fails closed when `workspaceId` is missing instead of scanning across workspaces.
-- Self-Healer contract and safety matrix docs exist, but runtime Self-Healer implementation remains planned.
-- Recent hardening and relation extraction checkpoints are documented under [docs/audits](./docs/audits).
-
----
-
-## Architecture
-
-```text
-Surface Layer      -> CLI, REST API, Web UI
-Agent Layer        -> query routing, task dispatch
-Safety Layer       -> AB1-AB6 gates, risk classification
-Kernel Layer       -> verify, learn, graph-backed reasoning
-Trust Layer        -> provenance, receipts, admission
-Relation Layer     -> explicit CAUSES / PREVENTS / ENABLES / DEPENDS_ON markers
-Memory/Data Layer  -> SQLite store, append-only audit trail
-```
-
-Each layer is independently testable. The Safety Layer and Kernel can run without the full stack.
-
----
-
-## Safety Gates
-
-HUQAN classifies risky behavior through deterministic gates:
-
-| Gate | Function | Example Catch |
-|---|---|---|
-| **AB1** | Harmful content detection | "How to make a bomb" |
-| **AB2** | PII / sensitive data leak | SSN, medical records in output |
-| **AB3** | Instruction injection | Prompt-injection attempts |
-| **AB4** | Code change risk assessment | Destructive SQL / shell commands |
-| **AB5** | Tool-call gating | Unauthorized API calls |
-| **AB6** | Cross-gate risk aggregation | Combined risk scoring |
-
-Core gate outcomes are deterministic policy judgments such as `ALLOW`, `BLOCK`, or `ESCALATE`.
-
----
-
-## Relation Reasoning
-
-HUQAN supports explicit relation extraction and graph reasoning for patterns such as:
-
-```text
-CAUSES      - Smoking causes lung cancer
-PREVENTS    - Vaccination prevents disease
-ENABLES     - Authentication enables secure access
-DEPENDS_ON  - Growth depends on investment
-```
-
-For explicit supported markers, HUQAN can trace relation paths step by step with evidence at each link. This is explicit marker extraction, not a general-purpose NLP engine.
-
----
-
-## MCP Server (Claude / Cursor)
-
-Connect HUQAN as a local MCP server to give your AI assistant a deterministic verification layer:
-
-```bash
-node mcpServer.js
-```
-
-**Claude Desktop config** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+**MCP (Claude, Cursor, any MCP client):**
 
 ```json
 {
   "mcpServers": {
     "huqan": {
-      "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "command": "npx",
+      "args": ["-y", "--package=huqan", "huqan-mcp"]
     }
   }
 }
 ```
 
-Tested local MCP paths use the same gate semantics for read, review, block, and dry-run decisions.
-
----
-
-## REST API
+**Gate (pre-execution guard for other agents):**
 
 ```bash
-node server.js  # Starts at http://localhost:3000
+npx -y --package=huqan huqan-gate install --profile claude-code
 ```
 
-| Endpoint | Method | Auth | Description |
-|---|---|---|---|
-| `/health` | GET | Public | Health check |
-| `/v2-status` | GET | Public | V2 status |
-| `/api?q=query` | GET | Public | Read-only allowlisted query surface |
-| `/verify?statement=...` | GET | Public | `405 Method Not Allowed` |
-| `/dogrula?statement=...` | GET | Public | `405 Method Not Allowed` |
-| `/v2/verify?statement=...` | GET | Public | `405 Method Not Allowed` |
-| `/graph-data` | GET | Public | Export knowledge graph |
-| `/verify` | POST | Required | Guarded verification endpoint |
-| `/dogrula` | POST | Required | Guarded verification endpoint |
-| `/v2/verify` | POST | Required | Guarded structured verification endpoint |
-| `/upload` | POST | Required | English alias for guarded load endpoint |
-| `/yukle` | POST | Required | Guarded load endpoint |
+Profiles: `claude-code`, `codex`, `openhands`, `opencode`, `pi`, `hermes`. The gate enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
 
-**Auth:** Mutation endpoints require `AXIOM_API_KEY` on the server and `X-API-Key` or `Authorization: Bearer <key>` header.
+Operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and require `HUQAN_MCP_OPERATOR_TOKEN` — an agent cannot approve its own proposal.
 
-**Public surface note:** `demo/index.html` is the canonical static public demo. `public/index.html` is the canonical local backend-connected UI served by `node server.js`. `docs/index.html` is a chooser page, not a third product surface.
+## Install
 
----
+```bash
+npm install -g huqan     # Node.js 22.13.0 or newer
+```
 
-## Obsidian Plugin
+Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.  
+Run `huqan doctor` to see what is configured.
 
-Use HUQAN inside Obsidian to verify notes and build a local knowledge graph from a vault.
+## How it works
 
-See [`/obsidian-plugin`](./obsidian-plugin).
+```text
+evidence + provenance + workspace scope
+        → verification, contradiction, risk
+                → policy and approval boundary
+                        → outcome + Trust Receipt
+```
 
----
+The outcome is one of:
 
-## Use Cases
+ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-| Industry | Application |
-|---|---|
-| **Healthcare** | Verify drug interaction claims against known causal data |
-| **Finance** | Gate LLM outputs that could trigger unauthorized transactions |
-| **Legal** | Detect contradictions in contract analysis outputs |
-| **Engineering** | Validate safety-critical claims with deterministic judgments and receipts |
-| **Compliance** | Preserve audit evidence for AI-assisted decisions |
+**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated`; that needs a second approver, so it is absent in a single-user install. Decision types: `approve`, `reject`, `expire`, `cancel`, `escalate`, `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
----
+A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
 
-## Verified Runtime Notes
+When the Approval Authority is installed, the decision itself moves behind an OS boundary (Windows service + TOTP + cryptographic envelopes). See [ADR-016](./docs/adr/ADR-016-approval-authority-os-boundary.md).
 
-- Memory Core compatibility and workspace invariants remain part of the current mainline.
-- Relation extraction and security hardening closures are tracked in dated audit checkpoints.
-- For the latest validated state, prefer the checkpoint docs over stale README snapshots.
+## Limits (honest)
 
----
+- HUQAN does **not** eliminate hallucinations. It makes one claim **inspectable and blockable** before it becomes state.
+- Only what is wired is governed. An agent that never calls HUQAN is not covered.
+- The OS boundary needs the Approval Authority (a Windows service today). Code running as your user can still edit runtime files or the local store; the authority's ledger makes that detectable, not impossible. UAC is not a security boundary ([ADR-016 residual risks](./docs/adr/ADR-016-approval-authority-os-boundary.md#residual-risks)).
+- Complements IAM, infrastructure security and human governance — it replaces none of them.
+- The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
+- Scale measured up to 10k graph nodes on one machine.
 
-## Roadmap
-
-- [x] Causal graph engine
-- [x] Contradiction detection
-- [x] MCP server (Claude / Cursor)
-- [x] Obsidian plugin
-- [x] Trust Receipts (ATP v0.1)
-- [x] Safety gates AB1-AB6
-- [ ] Standalone Safety Gate package (`@huqan/safety-gate`)
-- [ ] npm package distribution
-- [ ] A2A Internal Exchange (agent-to-agent task economy)
-- [ ] Distributed trust layer
-- [ ] Self-Healer audit loop (planned)
-- [ ] Public API with rate limiting
-
----
-
-## Philosophy
-
-Most AI tools try to make models answer more.
-We're building a layer that judges claims, memory writes, and risky actions before they become trusted state.
-
-> *"Models generate. Agents act. Memory stores. HUQAN judges."*
-
----
-
-## Contributing
-
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
-
-## Governance and contribution
-
-- The project is maintainer-led and human-reviewed.
-- AI-assisted contributions are allowed, but they must be reviewed before merge.
-- Security-sensitive changes require explicit approval.
-- Release tags require clean test and smoke gates.
-- See [CONTRIBUTING.md](./CONTRIBUTING.md), [docs/governance.md](./docs/governance.md), and [SECURITY.md](./SECURITY.md).
-
-## Launch UAT and Demo
-
-- [Launch UAT](./docs/launch-uat.md)
-- [Demo Script](./docs/v4/v4-demo-script.md)
-- Static demo surface: `demo/index.html`
-- Local UI surface: `public/index.html`
+Full details and edge cases: [docs](./docs).
 
 ## License
 
-Apache License 2.0 - see [LICENSE](./LICENSE) and [NOTICE](./NOTICE)
+**Open Source:** AGPL-3.0-only  
+Free for open-source use, personal projects, research, and non-commercial evaluation.
 
-This project was previously licensed under AGPL-3.0. The license was changed to Apache 2.0
-to enable broader adoption, including enterprise use and proprietary integration.
-For commercial licensing inquiries, please open an issue.
+**Commercial License**  
+Required for:
+- Closed-source / proprietary products
+- Production use inside companies
+- Redistribution as part of a commercial offering
+- Multi-user / team deployments with support
+
+Commercial licenses include dual-licensing rights (use HUQAN without AGPL obligations), priority support, and optional future commercial features.
+
+→ Request commercial license: [aliulu@ai-ulu.com](mailto:aliulu@ai-ulu.com)
+
+Until a commercial agreement is signed, this repository grants **no commercial rights**.
 
 ---
 
-**huqan.ai** · [Issues](https://github.com/agiulucom42-del/axiom/issues) · [Discussions](https://github.com/agiulucom42-del/axiom/discussions)
+**Confidence is not truth. Verify before you trust.**
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-aliulu-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/aliulu)

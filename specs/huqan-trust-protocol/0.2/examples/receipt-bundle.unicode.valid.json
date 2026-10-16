@@ -1,0 +1,35 @@
+{
+  "sealVersion": "huqan-bundle-seal-v2",
+  "schemaVersion": "v4-receipt-bundle-v1",
+  "workspaceId": "default",
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "receiptCount": 1,
+  "receipts": [
+    {
+      "schemaVersion": "v4-receipt-v1",
+      "receiptId": "madm_receipt_01",
+      "receiptKind": "memory_admission_receipt",
+      "decision": "allow",
+      "verdict": "allow",
+      "status": "admitted",
+      "admissionId": "madm_01",
+      "workspaceId": "default",
+      "actor": "Ünïcödé aktör — 日本語",
+      "agentId": "kernel",
+      "memoryDraftId": "draft_01",
+      "provenanceId": "prov_01",
+      "trustPolicyVersion": "1.0.0",
+      "approvalId": "not_applicable",
+      "approvalStatus": "not_required",
+      "reason": "kayıt kabul edildi",
+      "riskScore": 0,
+      "createdAt": "2026-01-01T00:00:01.000Z",
+      "metadata": {
+        "note": "çift baytlı içerik: αβγ 🔐"
+      },
+      "previousReceiptHash": "genesis:v4-receipt-chain",
+      "receiptHash": "c8d83dea9f493762f9d2181ddbe03139222854751500092635f883c6e1b35ca8"
+    }
+  ],
+  "bundleHash": "446900cfe9b2f58e2cad93c1115b988518e97137da8e240899515c8756d92164"
+}

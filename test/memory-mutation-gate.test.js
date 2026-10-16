@@ -261,6 +261,51 @@ describe('AB4 memory mutation gate core decisions', () => {
     assert.equal(result.reason, MEMORY_MUTATION_GATE_REASONS.CROSS_WORKSPACE_MUTATION_BLOCKED);
   });
 
+  it('a caller-chosen targetSpace cannot be used to make a cross-workspace entry look same-workspace (#378)', () => {
+    // Before #378: normalizeEntry() defaults an entry's workspaceId to
+    // context.targetSpace whenever the raw entry omits it, so
+    // isCrossWorkspaceEntry compared targetSpace against itself and never
+    // caught the case where the entry never declared a workspace at all --
+    // even though the caller who omitted it could be acting on any workspace.
+    const result = evaluate({
+      entries: [
+        {
+          id: 'mem_no_workspace',
+          action: 'upsert',
+          changeType: 'content',
+          contentChanged: true,
+          // deliberately no workspaceId/scope -- this used to silently
+          // inherit targetSpace and bypass the cross-workspace check.
+        },
+      ],
+      targetSpace: 'default',
+      metadata: { workspaceId: 'default' },
+      operationType: 'write',
+      diffSummary: 'entry omits workspace declaration',
+    });
+
+    // Not treated as cross-workspace (no declared conflicting workspace),
+    // but also not silently downgraded -- classifyMemoryMutation still runs
+    // its normal category/risk logic for the write.
+    assert.notEqual(result.reason, MEMORY_MUTATION_GATE_REASONS.CROSS_WORKSPACE_MUTATION_BLOCKED);
+  });
+
+  it('metadataOnly is not inferred from omitted change flags (#378)', () => {
+    // No contentChanged/linksChanged/auditChanged/etc, and no explicit
+    // metadataOnly -- before #378 this defaulted to metadataOnly: true.
+    const normalized = normalizeMemoryMutationInput({
+      entries: [{ id: 'mem_no_flags', workspaceId: 'default' }],
+      targetSpace: 'default',
+    });
+    assert.equal(normalized.entries[0].metadataOnly, false);
+
+    const explicit = normalizeMemoryMutationInput({
+      entries: [{ id: 'mem_explicit', workspaceId: 'default', metadataOnly: true }],
+      targetSpace: 'default',
+    });
+    assert.equal(explicit.entries[0].metadataOnly, true);
+  });
+
   it('package or import changes require review', () => {
     const result = evaluate({
       entries: [

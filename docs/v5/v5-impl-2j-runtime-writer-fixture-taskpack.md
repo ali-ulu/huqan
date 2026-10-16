@@ -1,5 +1,7 @@
 # V5-IMPL-2J - Runtime Writer Fixture Task-Pack
 
+**Status:** `implementation`
+
 **Mode:** Task-pack only
 **Current checkpoint:** `V5-IMPLEMENTATION-READINESS-AUDIT-0_READY`
 **Canonical branch:** `main`

@@ -94,6 +94,23 @@ describe('approval-flow', () => {
     assert.strictEqual(result.auditEvent.workspaceId, 'workspace-a');
   });
 
+  test('ASI09: approving an agent-flagged block surfaces an override warning', () => {
+    const overrideBlock = approveRequest(
+      { ...baseRequest, requestedVerdict: 'block', reason: 'accepted risk' },
+      { actor: 'agent-1' },
+    );
+    assert.ok(overrideBlock.ok);
+    assert.ok(overrideBlock.warnings.some((warning) => warning.code === 'APPROVAL_OVERRIDES_BLOCK'));
+    assert.strictEqual(overrideBlock.decision.overridesAgentVerdict, true);
+    assert.strictEqual(overrideBlock.auditEvent.overridesAgentVerdict, true);
+
+    const normal = approveRequest(baseRequest, { actor: 'agent-1' });
+    assert.ok(normal.ok);
+    assert.strictEqual(normal.warnings.length, 0);
+    assert.strictEqual(normal.decision.overridesAgentVerdict, false);
+    assert.strictEqual(normal.auditEvent.overridesAgentVerdict, false);
+  });
+
   test('receipt builders are deterministic and JSON-safe', () => {
     const decision = {
       approvalId: 'apr_001',

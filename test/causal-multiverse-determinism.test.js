@@ -56,7 +56,7 @@ function createReceiptGraph(universeIndex) {
     sourceTitle: 'V1 causal granite demo',
     sourceType: 'document',
     sourceSubType: 'note',
-    actor: 'axiom-core',
+    actor: 'huqan-core',
     timestamp: '2026-06-05T00:00:00Z',
     confidence: 0.88,
     workspaceId: 'workspace-a',

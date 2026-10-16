@@ -1,0 +1,835 @@
+{
+  "pageScroll": {
+    "top": "Sayfanın başına dön",
+    "up": "Bir ekran yukarı kaydır",
+    "down": "Bir ekran aşağı kaydır"
+  },
+  "commandPolicy": {
+    "variables": "Ortam değişkenleri: HUQAN_POLICY_EDITOR_TOKEN / HUQAN_EXTERNAL_GUARD_POLICY",
+    "title": "Kurallar",
+    "nav": "Komut izinleri",
+    "intro": "Komut sınıflandırıcısından tekrar onay istemeden geçebilecek shell komutlarını yönetin.",
+    "scope": "Workspace kapsamı: bu komutlar yalnızca bu workspace politikasını kullanan hook’larda incelemeyi atlayabilir. Diğer tüm komutları denylist ve sınıflandırıcı yönetir.",
+    "limits": "Bu ekran yalnızca komut izinlerini yönetir. Dosya erişim yasakları oluşturmaz ve ajanın hook kurulumunu doğrulamaz.",
+    "setup": "Kural düzenlemeyi etkinleştirme",
+    "setupHelp": "Sunucu operatörü en az 32 karakterlik ayrı bir düzenleme anahtarı ve mevcut, korunan bir klasörde politika dosyası tanımlamalıdır. Sunucu ve hook’lar aynı politika yolunu kullanmalıdır. Düzenleme anahtarını ajanın API anahtarından ayrı tutun.",
+    "token": "Operatör anahtarı",
+    "tokenHelp": "Yalnızca bu isteklerde kullanılır; tarayıcı depolamasına kaydedilmez. İşiniz bitince ekranı kilitleyin.",
+    "load": "Kayıtlı kuralları yükle",
+    "lock": "Düzenlemeyi kilitle",
+    "commands": "İzin verilen komutlar — her satıra bir komut",
+    "prefix": "Bir kayıt ek argümanları da kapsar: npm test, npm test -- --watch komutuyla eşleşir. node gibi geniş kayıtlar geniş komut izni verir. Yerleşik güvenlik kontrolleri uygulanmaya devam eder.",
+    "confirm": "Bu değişikliği bu workspace politikasını kullanan hook’lar için onaylıyorum.",
+    "save": "Kuralları kaydet",
+    "command": "Sınıflandırılacak komut",
+    "preview": "Kayıtlı kurallarla sınıflandır",
+    "previewHelp": "Hiçbir komut çalıştırılmaz. Sonuç, kayıtlı politikanın komut sınıflandırmasıdır; nihai izin/engel kararı veya ajan korumasının kanıtı değildir.",
+    "waiting": "Operatör bilgilerini girip kayıtlı politikayı yükleyin.",
+    "working": "Kontrol ediliyor…",
+    "loaded": "Kayıtlı kurallar yüklendi. Ajanın korunduğu doğrulanmadı.",
+    "saved": "Kurallar kaydedildi. Aynı dosyayı okuyan hook’lar değişikliği görecek; ajanın korunduğu doğrulanmadı.",
+    "previewed": "Kayıtlı politika komutu sınıflandırdı. Hiçbir komut çalıştırılmadı.",
+    "unsaved": "Kaydedilmemiş değişiklikler var. Komutu sınıflandırmadan önce kaydedin.",
+    "notConfigured": "Bu sunucuda kural düzenleme yapılandırılmamış. Yukarıdaki kurulum açıklamasını açın.",
+    "apiRequired": "Önce Ayarlar’dan API anahtarınızla bağlanın.",
+    "operatorRequired": "Operatör yetkisi reddedildi. Ajanın API anahtarı tek başına kuralları değiştiremez.",
+    "conflict": "Politika başka bir yerde değiştirildi. Yeniden kaydetmeden önce güncel kuralları yükleyin.",
+    "failed": "İşlem başarısız. Başarı doğrulanmadı; durumu görmek için politikayı yeniden yükleyin.",
+    "category": "Sınıflandırma",
+    "matched": "Kullanılan izin kaydı"
+  },
+  "app": {
+    "title": "HUQAN — Güven Komuta Merkezi",
+    "subtitle": "Güven Komuta Merkezi"
+  },
+  "nav": {
+    "overview": "Genel Bakış",
+    "overviewDesc": "Komuta Merkezi",
+    "verify": "Doğrula",
+    "verifyDesc": "İddia Doğrulama",
+    "approvals": "Onaylar",
+    "approvalsDesc": "İnceleme ve Kararlar",
+    "evidence": "Kanıtlar",
+    "evidenceDesc": "Güven Dekontları",
+    "observability": "Gözlemlenebilirlik",
+    "observabilityDesc": "Ajan Telemetrisi",
+    "activity": "Aktivite",
+    "activityDesc": "Ajan Denetim İzleri",
+    "graph": "Graf",
+    "graphDesc": "Güven Ağı",
+    "conflicts": "Çatışmalar",
+    "conflictsDesc": "Sorun Tespiti",
+    "integrations": "Entegrasyonlar",
+    "integrationsDesc": "Çalışma Zamanı Yüzeyleri",
+    "settings": "Ayarlar",
+    "settingsDesc": "Yerel Oturum"
+  },
+  "header": {
+    "systemStatus": "Sistem Durumu",
+    "searchPlaceholder": "Ara: dekont ID, iddia, kaynak…",
+    "searchLabel": "Dekont, iddia ve kaynaklarda ara",
+    "node": "DÜĞÜM",
+    "time": "ZAMAN"
+  },
+  "secure": {
+    "title": "GÜVENLİ KANAL",
+    "apiKeyRequired": "API anahtarı gerekli",
+    "connected": "Bu oturum için güvenli kanal bağlı",
+    "notConnected": "Güvenli kanal bağlı değil"
+  },
+  "overview": {
+    "eyebrow": "HUQAN Çalışma Zamanı",
+    "description": "Gerçek çalışma zamanı yüzeyleri, kanıt akışı ve güven altyapısı tek bir komuta merkezinde.",
+    "refresh": "↻ Yenile",
+    "metrics": {
+      "graphNodes": "Graf Düğümleri",
+      "graphNodesDesc": "canlı graf verisi",
+      "relations": "İlişkiler",
+      "relationsDesc": "kaynak destekli graf",
+      "pendingReview": "Bekleyen İnceleme",
+      "pendingReviewDesc": "insan onay kuyruğu",
+      "kernel": "Çekirdek",
+      "version": "sürüm —"
+    },
+    "mesh": {
+      "title": "KÜRESEL GÜVEN AĞI",
+      "subtitle": "Graf verisi yükleniyor…",
+      "badgeState": "● KONTROL EDİLİYOR",
+      "badgeDesc": "çalışma zamanı senkronizasyonu"
+    },
+    "activeNodes": {
+      "title": "AKTİF GRAF DÜĞÜMLERİ",
+      "viewAll": "Tümünü gör",
+      "empty": "Graf verisi bekleniyor."
+    },
+    "health": {
+      "title": "SİSTEM SAĞLIĞI"
+    },
+    "activityPulse": {
+      "title": "AJAN AKTİVİTESİ"
+    }
+  },
+  "verify": {
+    "eyebrow": "Doğrulama",
+    "description": "Mevcut iş akışı sözleşmesi üzerinden doğrula, soru sor, savunma yap veya bellek arama çalıştır.",
+    "workflowState": "YÜKLENİYOR",
+    "console": {
+      "title": "DOĞRULAMA KONSOLU",
+      "contract": "manifest yükleniyor"
+    },
+    "form": {
+      "workflowLabel": "İş Akışı",
+      "workflows": {
+        "ask": "Soru Sor",
+        "advocate": "Savunma Yap",
+        "memorySearch": "Bellek Arama",
+        "agentPlan": "Ajan Planı",
+        "agentRun": "Ajan Çalıştır"
+      },
+      "promptLabel": "İddia / Sorgu",
+      "promptPlaceholder": "Doğrulanacak bir iddia veya soru girin…",
+      "stepsLabel": "Adım Bütçesi",
+      "steps": {
+        "1": "1 adım",
+        "2": "2 adım",
+        "4": "4 adım (varsayılan)",
+        "6": "6 adım",
+        "8": "8 adım (maks)"
+      },
+      "actions": {
+        "run": "Çalıştır",
+        "fileBtn": "Dosya seç",
+        "review": "İnceleme için gönder"
+      },
+      "status": "Manifest bekleniyor.",
+      "rationaleLabel": "Gerekçe",
+      "noteLabel": "Not metni",
+      "rationalePlaceholder": "Bu neden kararlaştırıldı…",
+      "notePlaceholder": "İncelemeye alınacak not…",
+      "goalPlaceholder": "Ajanın izleyeceği hedefi tanımlayın…"
+    },
+    "result": {
+      "title": "DOĞRULAMA SONUCU",
+      "subtitle": "kaynak destekli yanıt",
+      "empty": "Henüz sorgu çalıştırılmadı."
+    },
+    "manifestReady": "Yetenek manifestosu hazır.",
+    "manifestUnavailable": "Yetenek manifestosu kullanılamıyor.",
+    "workflowReady": "HAZIR",
+    "errors": {
+      "goalRequired": "Önce bir hedef girin.",
+      "ingestRequired": "Önce alınacak metni girin.",
+      "claimRequired": "Önce bir iddia veya sorgu girin.",
+      "fileType": "Yalnızca .txt ve .md dosyaları desteklenir."
+    }
+  },
+  "approvals": {
+    "eyebrow": "İnsan İncelemesi",
+    "title": "Onay Kuyruğu",
+    "description": "Bekleyen alma adaylarını gerçek onay uç noktası üzerinden çözün.",
+    "pending": {
+      "title": "BEKLEYEN ONAYLAR",
+      "subtitle": "yükleniyor",
+      "empty": "Kuyruk yükleniyor."
+    },
+    "actions": {
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "inspect": "İncele"
+    },
+    "none": "Bekleyen onay yok.",
+    "queueState": "Onay kuyruğu {state}."
+  },
+  "evidence": {
+    "title": "Güven Dekont Gezgini",
+    "description": "Mevcut güven dekont API'sinden dekont, kaynak ve denetim verilerini okuyun.",
+    "lookup": {
+      "title": "DEKONT ARAMA",
+      "subtitle": "salt okunur",
+      "modeLabel": "Arama Modu",
+      "modes": {
+        "targetId": "targetId",
+        "receiptId": "receiptId",
+        "sourceRef": "sourceRef",
+        "provenanceId": "provenanceId"
+      },
+      "inputLabel": "Dekont / Kaynak",
+      "inputPlaceholder": "dekont ID veya sourceRef",
+      "loadBtn": "Kanıtı yükle",
+      "status": "Sorgu bekleniyor.",
+      "summary": {
+        "status": "Durum"
+      }
+    },
+    "raw": {
+      "title": "HAM DEKONT",
+      "subtitle": "değişmez okuma görünümü",
+      "empty": "Bir dekont sorgulayın."
+    },
+    "loading": "Kanıt yükleniyor…",
+    "found": "Makbuz bulundu.",
+    "noEvidence": "Bu hedef için kayıtlı kanıt yok. Bu bir makbuz kimliğiyse Arama Modu'nu receiptId yapın.",
+    "enterId": "Bir makbuz veya sourceRef girin.",
+    "noReceipt": "Makbuz yok",
+    "defaultLabel": "Güven Makbuzu",
+    "openReceipt": "Makbuzu aç",
+    "rows": {
+      "status": "Durum",
+      "receiptId": "Makbuz kimliği",
+      "workspace": "Çalışma alanı",
+      "target": "Hedef",
+      "confidence": "Güven",
+      "canonical": "Kanonik",
+      "policy": "Politika"
+    },
+    "values": {
+      "yes": "evet",
+      "no": "hayır"
+    }
+  },
+  "observability": {
+    "title": "Gözleblenebilirlik ve Kuyruk",
+    "description": "Canlı olay akışı, kalıcı çalışma geçmişi, performans metrikleri, uyarı kuralları ve korumalı ajan kuyruğu.",
+    "windowFilter": "Zaman penceresi",
+    "windows": {
+      "1h": "Son 1 saat",
+      "24h": "Son 24 saat",
+      "7d": "Son 7 gün",
+      "31d": "Son 31 gün"
+    },
+    "metrics": {
+      "totalRuns": "Toplam Çalışma",
+      "totalRunsDesc": "seçili pencere",
+      "successRate": "Başarı Oranı",
+      "successRateDesc": "terminal çalışmalar",
+      "p95Latency": "P95 Gecikme",
+      "p95LatencyDesc": "milisaniye",
+      "tokens": "Tokenlar",
+      "tokensDesc": "kullanılabilir olmadığında raporlanır",
+      "cost": "Maliyet",
+      "costDesc": "yapılandırılmış oran",
+      "queueDepth": "Kuyruk Derinliği",
+      "queueDepthDesc": "kuyruklanmış + çalışan"
+    },
+    "toolUsage": {
+      "title": "ARAÇ KULLANIM DAĞILIMI",
+      "subtitle": "çalışma alanına kapsamlı · {window}",
+      "total": "araç çağrısı",
+      "totalMismatch": "toplam uyuşmazlığı",
+      "empty": "Henüz araç çağrısı yok.",
+      "breakdownUnavailable": "Araç kullanım dağılımı yok.",
+      "breakdownUnavailableAria": "Araç kullanım dağılımı yok: {total} çağrı",
+      "distributionAria": "Araç kullanım dağılımı: {total} çağrı",
+      "breakdownIncomplete": "; dağılım eksik",
+      "unattributedName": "Atanmamış"
+    },
+    "events": {
+      "loading": "Olay geçmiyesi yükleniyor…",
+      "loadingNext": "Bir sonraki olay sayfası yükleniyor…",
+      "loadError": "Olay geçmiyesi yüklenemedi: {message}",
+      "summary": "{count} olay gösteriliyor · {window}{eventType}{runId}",
+      "nextPage": "sonraki sayfa mevcut",
+      "boundedPage": "sınırlı sayfa",
+      "empty": "Bu pencerde eşleşen olay yok.",
+      "meta": "{count} satır · {state}",
+      "runLabel": "Koşum:",
+      "toolLabel": "Araç:",
+      "durationLabel": "Süre:",
+      "runPrefix": "koşum"
+    },
+    "runs": {
+      "empty": "Henüz kalıcı çalışma yok.",
+      "toolText": "araç kullanılmadı",
+      "nextPage": "sonraki sayfa mevcut",
+      "boundedPage": "sınırlı sayfa",
+      "loadError": "Çalışma geçmiyesi yüklenemedi: {message}",
+      "meta": "{count} satır · {state}",
+      "toolsLabel": "Araçlar:",
+      "calls": "{count} çağrı",
+      "tokens": "{tokens} jeton"
+    },
+    "queue": {
+      "empty": "Kuyruk boş",
+      "attempts": "{attempts}/{maxAttempts} deneme",
+      "goalChars": "{length} karakter",
+      "error": "Kuyruğa alınamadı: {message}"
+    },
+    "alerts": {
+      "empty": "Aktif uyarı yok",
+      "error": "Uyarı oluşturulamadı: {message}"
+    },
+    "forms": {
+      "alertMetric": "Metrik",
+      "createAlert": "Uyarı oluştur",
+      "queue": "Kuyruğa ekle"
+    },
+    "status": "Gözleblenebilirlik sorgusu bekleniyor.",
+    "notMeasured": "ölçülmedi",
+    "selectedWindow": "seçili aralık",
+    "unknownError": "bilinmeyen hata",
+    "costUnits": "{amount} birim"
+  },
+  "graph": {
+    "description": "Canlı graf veri yüzeyinden düğümleri ve ilişkileri inceleyin.",
+    "relations": {
+      "title": "İLİŞKİLER",
+      "count": "—"
+    },
+    "emptyInWorkspace": "Bu çalışma alanında graf verisi yok",
+    "nodeLabel": "Graf düğümü",
+    "dataEmpty": "Graf verisi boş.",
+    "isEmpty": "Graf boş.",
+    "noRelations": "Henüz ilişki yok.",
+    "dataState": "Graf verisi {state}.",
+    "isState": "Graf {state}.",
+    "relationsState": "İlişkiler {state}."
+  },
+  "conflicts": {
+    "eyebrow": "Graf Sinyalleri",
+    "title": "Çatışma Tespiti",
+    "description": "Mevcut graf verisinden çoklu tip, olumsuzlama, düşük güven ve bayat sinyalleri türetir.",
+    "triage": {
+      "title": "ÖNCELİKLENDİRME ÖZETİ",
+      "summary": "graf verisi bekleniyor",
+      "filterAria": "Sinyalleri önem derecesine göre süz"
+    },
+    "signals": {
+      "title": "TESPİT EDİLEN SİNYALLER",
+      "meta": "graf verisi bekleniyor",
+      "status": "Graf verisi bekleniyor.",
+      "filtersAria": "Çatışma sinyali süzgeçleri"
+    },
+    "severity": {
+      "label": "Önem",
+      "all": "Tüm önem dereceleri",
+      "high": "Yüksek öncelik",
+      "medium": "İnceleme gerekiyor",
+      "low": "Bilgilendirme"
+    },
+    "signalType": {
+      "label": "Sinyal tipi",
+      "all": "Tüm sinyal tipleri",
+      "multiType": "Çelişen tipler",
+      "negation": "Olumsuzlama çatışması",
+      "lowConfidence": "Düşük güven",
+      "stale": "Bayat kanıt"
+    },
+    "clearFilters": "Süzgeçleri temizle",
+    "showMore": "Daha fazla göster",
+    "showTop": "İlk 10’u göster",
+    "noSignals": "Mevcut graf verisinde çelişki sinyali yok.",
+    "noMatch": "Seçili süzgeçlerle eşleşen sinyal yok.",
+    "blankWorkspace": "Bu çalışma alanında henüz graf verisi yok.",
+    "nothingToTriage": "Bu çalışma alanında henüz graf verisi yok, ayıklanacak bir şey de yok.",
+    "detail": {
+      "negation": "Olumsuzlama ile olumlu ilişki bir arada."
+    },
+    "triageState": "Çelişki ayıklama {state}.",
+    "noSignalsHint": "Graf çelişkili tür, olumsuzlama, düşük güven veya bayat kanıt taşıdığında sinyaller burada görünür."
+  },
+  "integrations": {
+    "eyebrow": "Çalışma Zamanı",
+    "title": "Entegrasyon Yüzeyleri",
+    "description": "Bu Web UI'sinin gerçekten ulaştığı HTTP yüzeyleri, uydurulmuş bir bağlayıcı listesi değil."
+  },
+  "settings": {
+    "description": "API anahtarı yalnızca bu tarayıcı sekmesinin sessionStorage'ında saklanır.",
+    "workspace": {
+      "title": "ÇALIŞMA ALANI OTURUMU",
+      "subtitle": "tarayıcı yerel",
+      "apiKeyLabel": "API Anahtarı",
+      "apiKeyPlaceholder": "HUQAN API anahtarı",
+      "workspaceLabel": "Çalışma Alanı",
+      "saveBtn": "Kaydet ve Bağlan",
+      "clearBtn": "Oturumu Temizle"
+    },
+    "connected": "Bağlandı.",
+    "connectionFailed": "Bağlantı başarısız.",
+    "keyNotSet": "API anahtarı ayarlı değil.",
+    "keyLoaded": "Oturum API anahtarı yüklendi.",
+    "connecting": "Bağlanıyor…",
+    "authDisabledNotice": "Bu sunucu API anahtarı istemiyor.",
+    "authenticatedSession": "kimliği doğrulanmış oturum",
+    "authDisabled": "bu sunucuda API kimlik doğrulaması kapalı",
+    "surfacesLocked": "Bir veya daha fazla yüzey için API anahtarı gerekli."
+  },
+  "footer": {
+    "status": "KONTROL EDİLİYOR · Yüzeyler kontrol ediliyor — sonuçlar henüz dönmedi.",
+    "lastSync": "Son senkronizasyon: —",
+    "workspace": "Çalışma Alanı: default",
+    "tagline": "HUQAN · Güven doğrulanabilir.",
+    "workspaceNamed": "Çalışma alanı: {workspace}"
+  },
+  "common": {
+    "retry": "Tekrar dene",
+    "filter": "Filtrele",
+    "refresh": "Yenile"
+  },
+  "status": {
+    "checking": "KONTROL EDİLİYOR",
+    "offline": "ÇEVRİM DIŞI",
+    "degraded": "BOZUK",
+    "healthy": "SAĞLIKLI",
+    "live": "CANLI",
+    "locked": "KİLİTLİ",
+    "error": "HATA",
+    "empty": "BOŞ",
+    "partial": "KISMİ",
+    "unavailable": "KULLANILAMIYOR"
+  },
+  "emptyStates": {
+    "noGraphData": "Graf verisi yok",
+    "noToolCalls": "Henüz araç çağrısı yok"
+  },
+  "onboarding": {
+    "eyebrow": "İlk kullanım",
+    "title": "İlk doğrulanmış cevabınıza ulaşın",
+    "description": "Üç adım. Her biri, tıkladığınızda değil, eylem gerçekten başarılı olduğunda tamamlanır.",
+    "progress": "{total} adımdan {done} tamam",
+    "reset": "Sıfırla",
+    "skip": "Atla",
+    "reopen": "İlk kullanım listesini göster",
+    "steps": {
+      "session": {
+        "title": "Çalışma alanı oturumunuzu bağlayın",
+        "hint": "API anahtarını ve çalışma alanını kaydedin, çalışma zamanı yüzeylerine erişin.",
+        "cta": "Ayarları aç"
+      },
+      "read": {
+        "title": "Bir okuma iş akışı çalıştırın",
+        "hint": "Bir iddiayı doğrulayın ya da soru sorun; kaynağa dayalı bir cevap alın.",
+        "cta": "Doğrula’yı aç"
+      },
+      "evidence": {
+        "title": "Cevabın arkasındaki kanıtı açın",
+        "hint": "Cevaba nasıl ulaşıldığını kaydeden Güven Dekontunu getirin.",
+        "cta": "Kanıtlar’ı aç"
+      }
+    }
+  },
+  "viewer": {
+    "title": "HUQAN Dekont Terminali",
+    "eyebrow": "HUQAN / GÜVEN KATMANI",
+    "lede": "Operatör kimlik bilgilerini açığa çıkarmadan tek bir kanonik güven dekontunu inceleyin.",
+    "access": {
+      "title": "Oturum Erişimi",
+      "apiKeyLabel": "Operatör API anahtarı",
+      "workspaceLabel": "Çalışma Alanı ID'si",
+      "workspaceHint": "isteğe bağlı, varsayılan \"default\"",
+      "submitBtn": "Oturum aç",
+      "logoutBtn": "Oturumu kapat"
+    },
+    "lookup": {
+      "title": "Dekont Arama",
+      "receiptIdLabel": "Dekont ID",
+      "workspaceLabel": "Çalışma Alanı ID'si",
+      "workspaceHint": "isteğe bağlı, oturumun çalışma alanıyla eşleşmeli",
+      "submitBtn": "Kanıtı incele"
+    },
+    "result": {
+      "title": "Gözlemlenen Durum",
+      "ready": "Sınırlı arama için hazır."
+    },
+    "messages": {
+      "unauthorized": "Dekontları incelemek için bir görüntüleyici oturumu açın.",
+      "invalidRequest": "Geçerli bir dekont tanımlayıcısı girin.",
+      "notFound": "Bu sınırlı arama için hiçbir dekont bulunamadı.",
+      "chainInvalid": "Dekont zinciri bütünlüğü başarısız. Bu dekont yetkili değil ve alanları gizlenmiştir.",
+      "unverified": "Bu dekont bir güven durumu taşımıyor. Alanları okunduğu gibi gösteriliyor; buradaki hiçbir şey kanonik bir gözlem değil.",
+      "readError": "Dekont güvenli bir şekilde okunamadı.",
+      "found": "Kanonik dekont gözlemlendi.",
+      "sessionOpened": "Görüntüleyici oturumu açıldı. Bir makbuz kimliği girin."
+    },
+    "heading": {
+      "line1": "Makbuz",
+      "line2": "Terminali"
+    }
+  },
+  "surfaces": {
+    "status": {
+      "label": "Çalışma Zamanı Durumu",
+      "reason": "Çalışma zamanı durumu bekleniyor.",
+      "nextAction": "Yenile"
+    },
+    "workflows": {
+      "label": "İş Akışı Sözleşmesi",
+      "reason": "Yetenek bildirimi bekleniyor.",
+      "nextAction": "Yenile"
+    },
+    "graph": {
+      "label": "Graf Verisi",
+      "reason": "Graf verisi bekleniyor.",
+      "nextAction": "Yenile"
+    },
+    "approvals": {
+      "label": "Onay Kuyruğu",
+      "reason": "Onay kuyruğu bekleniyor.",
+      "nextAction": "Yenile"
+    },
+    "activity": {
+      "label": "Ajan Aktivitesi",
+      "reason": "Aktivite bekleniyor.",
+      "nextAction": "Yenile"
+    }
+  },
+  "observabilityStatus": {
+    "checking": "KONTROL EDİLİYOR - bu çalışma alanı için gözleblenebilirlik onaylanıyor.",
+    "loading": "Gözleblenebilirlik yükleniyor…",
+    "ready": "Canlı ve kalıcı gözleblenebilirlik hazır.",
+    "error": "Gözleblenebilirlik yüklenemedi: {message}",
+    "reconnect": "{delay} ms içinde canlı akışa yeniden bağlanılıyor…",
+    "unavailable": {
+      "notConfigured": "KONFIGÜRASYON YOK · Gözleblenebilirlik yetkilendirmesi kullanılamıyor. Sunucuda OBSERVABILITY_AUTHZ_POLICY ayarlayın ve yeniden bağlanın.",
+      "workspaceForbidden": "KULLANILABİLİR DEĞİL · Bu oturum bu çalışma alanı için gözleblenebilir üyeliği yok. Erişim için bir yöneticiden destek alın.",
+      "authRequired": "KULLANILABİLİR DEĞİL · Gözleblenebilirlik kimliği doğrulamalı bir oturum gerektirir. Ayarlar'da bir API anahtarı kaydedin.",
+      "generic": "KULLANILABİLİR DEĞİL · Gözleblenebilirlik ulaşılamadı: {message}"
+    }
+  },
+  "locale": {
+    "selector": {
+      "tr": "Türkçe",
+      "en": "English"
+    },
+    "label": "Dil"
+  },
+  "pwa": {
+    "install": "Uygulamayı yükle",
+    "dismissed": "Yükleme kapatıldı. Hazır olduğunuzda tarayıcı menüsünü kullanın.",
+    "incomplete": "Yükleme tamamlanmadı. Tekrar denemek için tarayıcı menüsünü kullanın.",
+    "unsupported": "Bu tarayıcı oturumunda çevrimdışı kip kullanılamıyor."
+  },
+  "navGroup": {
+    "start": "Başlangıç",
+    "work": "Çalışma",
+    "monitor": "İzleme",
+    "system": "Sistem"
+  },
+  "home": {
+    "eyebrow": "Önce-yerel yapay zekâ yönetişimi",
+    "title": "Yapay zekânın bildiğini doğrulayın. Değiştirdiğini inceleyin.",
+    "description": "Kanıta dayalı kontroller çalıştırın, korumalı eylemleri onaylayın ve her kararı birbirine bağlayan Güven Dekontlarını inceleyin.",
+    "actionsAria": "Birincil eylemler",
+    "verify": "Bir iddiayı doğrula",
+    "review": "Kararları incele",
+    "navLabel": "Ana Sayfa",
+    "claimsActions": "İddialar ve Eylemler",
+    "node": "HUQAN YEREL"
+  },
+  "offline": {
+    "title": "Çevrimdışı kabuk",
+    "body": "Gezinme kullanılabilir; HUQAN yeniden bağlanana kadar canlı veri ve eylemler kullanılamaz."
+  },
+  "rail": {
+    "approvalQueue": "ONAY KUYRUĞU",
+    "trustMatrix": "GÜVEN DURUM MATRİSİ",
+    "thisSession": "bu oturum",
+    "surfacesOnline": "yüzey çevrimiçi",
+    "recentReceipts": "SON GÜVEN DEKONTLARI",
+    "noReceipts": "Henüz dekont yok."
+  },
+  "pulse": {
+    "pageEvents": "sayfa olayı",
+    "actors": "aktör",
+    "receipts": "dekont",
+    "loading": "Aktivite yükleniyor.",
+    "meta": "çalışma alanı kapsamlı · bekleniyor",
+    "open": "Aktiviteyi aç",
+    "locked": "Etkinlik erişimi kilitli. Ayarlar’dan bir API anahtarı ekleyin.",
+    "error": "Etkinlik yüklenemedi. Yeniden deneyin.",
+    "empty": "Bu çalışma alanında henüz ajan eylemi yok."
+  },
+  "workflows": {
+    "learnReview": "Öğren (inceleme gerekli)",
+    "ingestPreview": "Alım Önizleme",
+    "ingestExecute": "Alımı Çalıştır",
+    "sourceType": "Kaynak tipi",
+    "sourceRef": "Kaynak referansı",
+    "sourceTitle": "Kaynak başlığı",
+    "ingestSource": "Alım kaynağı",
+    "manualNote": "Elle not",
+    "decisionRecord": "Karar kaydı",
+    "decisionTitle": "Karar başlığı",
+    "recordedBy": "Kaydeden"
+  },
+  "obs": {
+    "toolUsageEmpty": "Araç kullanımı bekleniyor.",
+    "runHistory": "KOŞUM GEÇMİŞİ",
+    "firstPage": "çalışma alanı kapsamlı · ilk sayfa",
+    "next": "Sonraki",
+    "noRuns": "Henüz koşum yüklenmedi.",
+    "liveStream": "CANLI OLAY AKIŞI",
+    "sse": "SSE · sansürlenmiş yük",
+    "waitingEvents": "Canlı olaylar bekleniyor.",
+    "queue": "AJAN KUYRUĞU",
+    "lease": "işçi kirası durumu",
+    "goal": "Hedef",
+    "maxSteps": "En fazla adım",
+    "queueEmpty": "Kuyruk yüklenmedi.",
+    "alertRule": "UYARI KURALI",
+    "thresholdCooldown": "eşik + bekleme",
+    "name": "Ad",
+    "operatorThreshold": "İşleç / eşik",
+    "windowMs": "Pencere (ms)",
+    "alertsEmpty": "Uyarılar yüklenmedi.",
+    "eventHistory": "OLAY GEÇMİŞİ",
+    "event": "Olay",
+    "allEvents": "Tüm olaylar",
+    "runId": "Koşum kimliği",
+    "waitingHistory": "Olay geçmişi sorgusu bekleniyor.",
+    "noHistory": "Henüz olay geçmişi yüklenmedi."
+  },
+  "activity": {
+    "eyebrow": "Denetim İzi",
+    "title": "Ajan Aktivitesi ve Güven Dekontları",
+    "description": "Sınırlı denetim sayfaları ve bağlı Güven Dekontlarıyla çalışma alanındaki ajan eylemlerini izleyin.",
+    "timeline": "AJAN EYLEM ZAMAN ÇİZELGESİ",
+    "meta": "salt okunur · bekleniyor",
+    "actor": "Aktör",
+    "waiting": "Aktivite sorgusu bekleniyor.",
+    "empty": "Henüz aktivite yüklenmedi.",
+    "detail": "AKTİVİTE AYRINTISI",
+    "noRow": "Satır seçilmedi",
+    "selectRow": "Bir aktivite satırı seçin.",
+    "loading": "Etkinlik yükleniyor…",
+    "updated": "Etkinlik güncellendi.",
+    "noneForFilters": "Bu süzgeçler için etkinlik yok.",
+    "auditOnly": "yalnızca denetim",
+    "receiptLinked": "makbuz bağlı",
+    "rows": {
+      "event": "Olay",
+      "action": "Eylem",
+      "actor": "Aktör",
+      "target": "Hedef",
+      "timestamp": "Zaman damgası",
+      "source": "Kaynak",
+      "provenance": "Köken",
+      "receipt": "Makbuz",
+      "decision": "Karar",
+      "destination": "Sayfa",
+      "browserTool": "Tarayıcı işlemi",
+      "reportedOutcome": "Bildirilen sonuç",
+      "browserSession": "Tarayıcı oturumu",
+      "browserEvent": "Tarayıcı olayı",
+      "networkMethod": "Ağ yöntemi",
+      "networkStatus": "Ağ durumu",
+      "consoleType": "Konsol türü",
+      "boundOutcome": "Bağlı sonuç"
+    },
+    "externalAdmission": "Ajan işlemine izin verildi",
+    "externalOutcome": "Ajan işlem sonucu",
+    "externalRejection": "Ajan işlemi engellendi",
+    "externalReview": "Ajan işlemi inceleme bekliyor",
+    "browserSessionEvent": "Tarayıcı oturumu olayı",
+    "observationOnly": "yalnızca gözlem",
+    "observed": "GÖZLEMLENDİ"
+  },
+  "ingestRun": {
+    "eyebrow": "Alım",
+    "title": "Alım Koşumu Ayrıntısı",
+    "description": "Çalışma alanı kapsamlı bir alım koşumunu, ilerlemesini, kurtarma yönergesini ve nihai Güven Dekontunu okuyun.",
+    "lookup": "KOŞUM ARAMA",
+    "load": "Koşumu yükle",
+    "waiting": "Bir koşum kimliği bekleniyor.",
+    "projection": "KOŞUM İZDÜŞÜMÜ",
+    "query": "Bir alım koşumu sorgulayın.",
+    "nav": {
+      "label": "Alım Koşumları",
+      "desc": "İlerleme ve Makbuzlar"
+    },
+    "enterId": "Bir koşum kimliği girin.",
+    "loading": "Alım koşumu yükleniyor…",
+    "viewRun": "Alım koşumunu gör",
+    "rows": {
+      "status": "Durum",
+      "phase": "Aşama",
+      "runId": "Koşum kimliği",
+      "approval": "Onay",
+      "workspace": "Çalışma alanı",
+      "source": "Kaynak",
+      "digest": "Özet",
+      "idempotencyKey": "Idempotency anahtarı",
+      "progress": "İlerleme",
+      "nextAction": "Sonraki eylem",
+      "retry": "Yeniden deneme",
+      "resume": "Sürdürme",
+      "receipt": "Makbuz",
+      "evidence": "Kanıt"
+    },
+    "values": {
+      "unknown": "bilinmiyor",
+      "none": "yok",
+      "allowed": "izinli",
+      "notAllowed": "izinli değil",
+      "notEmitted": "üretilmedi",
+      "phaseUnknown": "aşama bilinmiyor"
+    }
+  },
+  "placeholders": {
+    "goal": "Ajanın güvenle yürüteceği hedef",
+    "alertName": "Yüksek gecikme",
+    "sourceTitle": "İnsan tarafından okunabilir kaynak başlığı",
+    "sourceRef": "URL, belge kimliği veya yerel referans",
+    "decisionTitle": "Ne karara bağlandı",
+    "recordedBy": "Bunu kim kaydediyor",
+    "actor": "ajan veya aktör",
+    "approvalRunId": "onay/koşum kimliği",
+    "sourceType": "elle, belge, konuşma…",
+    "runId": "koşum kimliği"
+  },
+  "aria": {
+    "primaryNav": "Birincil gezinme",
+    "secureChannel": "Güvenli kanal bağlı değil",
+    "toolUsage": "Araç kullanım dağılımı"
+  },
+  "runtime": {
+    "notChecked": "denetlenmedi",
+    "reason": {
+      "locked": "Bu yüzeyi okumak için API anahtarı gerekli.",
+      "error": "Yüzey yüklenemedi.",
+      "graphEmpty": "Graf uç noktası hiç düğüm veya ilişki döndürmedi.",
+      "empty": "Bu çalışma alanında kayıt yok.",
+      "checking": "İlk yanıt bekleniyor.",
+      "ok": "Çalışma zamanı yüzeyinden yanıt alındı."
+    },
+    "health": {
+      "locked": "Bazı yüzeyler kilitli — API anahtarı gerekli.",
+      "error": "En az bir yüzey yüklenemedi.",
+      "offline": "Hiçbir yüzey yanıt vermedi.",
+      "checking": "Yüzeyler denetleniyor — sonuçlar henüz dönmedi.",
+      "partial": "Bazı yüzeyler henüz canlı değil.",
+      "ok": "Tüm yüzeyler canlı."
+    },
+    "next": {
+      "locked": "Ayarlar’ı açıp API anahtarınızı ekleyin.",
+      "error": "Başarısız yüzeyleri yeniden deneyin.",
+      "offline": "Tüm yüzeyleri yeniden deneyin.",
+      "checking": "Biraz bekleyip yenileyin.",
+      "partial": "Her birini incelemek için Yüzeyler’i açın.",
+      "ok": "İstediğiniz zaman yenileyin.",
+      "wait": "Bekleyin"
+    },
+    "openSurfaces": "Yüzeyleri aç",
+    "surfaceDesc": {
+      "status": "Çekirdek, sürüm ve çalışma zamanı durumunu okur.",
+      "workflows": "Arayüz iş akışı yetenek manifestosu ve rota sözleşmesi.",
+      "graph": "Çalışma alanına kapsamlı graf düğüm/ilişki yüzeyi.",
+      "approvals": "Kimlik doğrulamalı insan incelemesi alım kuyruğu.",
+      "activity": "Çalışma alanına kapsamlı sınırlı ajan etkinliği okuma yüzeyi."
+    },
+    "field": {
+      "status": "Durum:",
+      "reason": "Gerekçe:",
+      "lastChecked": "Son denetim:",
+      "next": "Sonraki:"
+    },
+    "fetched": {
+      "status": "Çalışma zamanı durumu alındı.",
+      "manifest": "Yetenek manifestosu alındı.",
+      "graph": "Bu çalışma alanı için graf verisi alındı.",
+      "approvals": "Bu çalışma alanı için onay kuyruğu alındı.",
+      "activity": "Bu çalışma alanı için etkinlik alındı."
+    },
+    "failed": {
+      "status": "Çalışma zamanı durumu isteği başarısız oldu.",
+      "manifest": "Yetenek manifestosu isteği başarısız oldu.",
+      "graphHttp": "Graf isteği HTTP {status} ile başarısız oldu.",
+      "graphNoResponse": "Graf isteği yanıt alınmadan başarısız oldu.",
+      "approvalsHttp": "Onay isteği HTTP {status} ile başarısız oldu.",
+      "approvalsNoResponse": "Onay isteği yanıt alınmadan başarısız oldu.",
+      "activityHttp": "Etkinlik isteği HTTP {status} ile başarısız oldu.",
+      "activityDetail": "Etkinlik isteği başarısız oldu: {message}"
+    },
+    "locked": {
+      "graph": "Graf verisini okumak için API anahtarı gerekli.",
+      "approvals": "Bekleyen onayları okumak için API anahtarı gerekli.",
+      "activity": "Etkinliği okumak için API anahtarı gerekli."
+    },
+    "empty": {
+      "approvals": "Bu çalışma alanında bekleyen onay yok.",
+      "activity": "Bu çalışma alanında etkinlik yok."
+    },
+    "loading": {
+      "activity": "Etkinlik yükleniyor."
+    }
+  },
+  "learnReview": {
+    "promptLabel": "Önerilecek olgu",
+    "promptPlaceholder": "İnsan incelemesine gönderilecek olguyu yazın…",
+    "submit": "İnsan incelemesine gönder",
+    "enterFact": "Önce önerilecek bir olgu girin.",
+    "pending": "İnsan onayı bekliyor",
+    "notCanonical": "bir insan onaylayana kadar kanonik değil"
+  },
+  "webResearch": {
+    "title": "Web Araştırması",
+    "provider": "Arama sağlayıcısı",
+    "keyHelp": "Seçilen sağlayıcının API anahtarını sunucuda tanımlayın. Ücretsiz haklar sağlayıcıya ve işleme göre değişir.",
+    "search": "Web üzerinde ara",
+    "searching": "Araştırılıyor…",
+    "external": "Dış kaynaklar; henüz doğrulanmadı. Hafızaya kaydedilmedi.",
+    "empty": "Sonuç bulunamadı.",
+    "prepare": "Öğrenme incelemesine hazırla",
+    "prompt": "Araştırma sorusu",
+    "failed": "Araştırma tamamlanamadı.",
+    "missingKey": "Seçilen sağlayıcının API anahtarı sunucuda tanımlı değil.",
+    "prepared": "Kaynak aktarıldı. Bilgiyi inceleyip insan onayına gönderebilirsiniz.",
+    "limit": "Sonuç sayısı",
+    "snippetLength": "Özet uzunluğu",
+    "summarize": "HUQAN özetlesin",
+    "costNote": "Dikkat: sonuç sayısı ve uzunluk arttıkça ücret ve süre artar.",
+    "summaryTitle": "HUQAN özeti (doğrulanmadı)",
+    "summaryUnavailable": "Özet çıkarılamadı; yalnızca kaynaklar gösteriliyor.",
+    "evidenceLadder": "Kanıt merdiveni",
+    "evidence": {
+      "external_research": "Dış araştırma",
+      "review_candidate": "İnceleme adayı",
+      "canonical_evidence": "Kanonik kanıt",
+      "verified_claim": "Doğrulanmış iddia"
+    },
+    "openCandidates": "Bekleyen araştırma adayları aç",
+    "candidateNote": "Dış sonuçlar doğrulanmamış kalır ve insan incelemesi gerektirir; araştırma kanonik hafızaya yazmaz.",
+    "externalCandidates": "Dış kaynaklar doğrulanmamış durumda. Bekleyen inceleme adayları açıldı; kanonik hafıza değiştirilmedi.",
+    "candidatesOpened": "Açılan bekleyen araştırma adayı",
+    "contradictionsFound": "bulunan çelişki"
+  }
+}

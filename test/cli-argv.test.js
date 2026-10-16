@@ -32,59 +32,61 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
   it('keeps the no-argument invocation as the interactive REPL', () => {
     const result = runCli([]);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /AXIOM - dogal dil ile konus/);
-    assert.match(result.stdout, /axiom> /);
+    assert.match(result.stdout, /HUQAN - talk, teach and ask in natural language/);
+    assert.match(result.stdout, /huqan> /);
   });
 
   it('prints help without opening the REPL', () => {
     const result = runCli(['--help']);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /AXIOM komutlari:/);
-    assert.doesNotMatch(result.stdout, /axiom> /);
+    assert.match(result.stdout, /HUQAN commands:/);
+    assert.doesNotMatch(result.stdout, /huqan> /);
   });
 
   it('prints the package version without opening the REPL', () => {
     const result = runCli(['--version']);
     assert.strictEqual(result.status, 0);
     assert.strictEqual(result.stdout.trim(), require('../package.json').version);
-    assert.doesNotMatch(result.stdout, /axiom> /);
+    assert.doesNotMatch(result.stdout, /huqan> /);
   });
 
   it('executes a synchronous read command once', () => {
     const result = runCli(['durum']);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /Durum:/);
-    assert.doesNotMatch(result.stdout, /AXIOM - dogal dil ile konus/);
+    assert.match(result.stdout, /Status:/);
+    assert.doesNotMatch(result.stdout, /HUQAN - talk, teach and ask in natural language/);
   });
 
   it('joins argv and executes a parsed command once', () => {
     const result = runCli(['verify:', 'kedi', 'bitkidir']);
     assert.strictEqual(result.status, 0);
     assert.match(result.stdout, /Verify:/);
-    assert.doesNotMatch(result.stdout, /axiom> /);
+    assert.doesNotMatch(result.stdout, /huqan> /);
   });
 
   it('uses exit 2 for an unknown command or option', () => {
     const command = runCli(['frobnicate']);
     assert.strictEqual(command.status, 2);
-    assert.match(command.stderr, /Bilinmeyen komut:/);
+    assert.match(command.stderr, /Unknown command:/);
 
     const option = runCli(['--frobnicate']);
     assert.strictEqual(option.status, 2);
-    assert.match(option.stderr, /Bilinmeyen secenek:/);
+    assert.match(option.stderr, /Unknown option:/);
   });
 
-  it('uses exit 3 when the command requires review', () => {
+  // review_required is 5 in the one exit-code table; plain text used to say 3
+  // for the same outcome --json reported as 5 (#1995).
+  it('uses the review_required code when the command requires review', () => {
     const result = runCli(['learn:', 'cats', 'are', 'animals']);
-    assert.strictEqual(result.status, 3);
-    assert.match(result.stdout, /review gerektiriyor/);
+    assert.strictEqual(result.status, 5);
+    assert.match(result.stdout, /requires review/);
   });
 
   it('persists through the one-shot kaydet command', () => {
     const result = runCli(['kaydet']);
     assert.strictEqual(result.status, 0);
-    assert.match(result.stdout, /Hafiza kaydedildi\./);
-    assert.doesNotMatch(result.stdout, /Bilinmeyen komut/);
+    assert.match(result.stdout, /Memory saved\./);
+    assert.doesNotMatch(result.stdout, /Unknown command/);
   });
 
   it('can surface friendly REPL failures as structured argv errors', () => {
@@ -99,7 +101,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     try {
       assert.throws(
         () => cli.execute('yükle', 'missing-file.txt', { gateResult: null, throwOnError: true }),
-        /Dosya okunamad/
+        /Could not read file/
       );
     } finally {
       cli.agent?.storage?.close?.();
@@ -108,10 +110,13 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     }
   });
 
-  it('uses exit 1 when command execution throws', () => {
+  // failed is 8 in the one exit-code table; the same throw used to leave 1 in
+  // plain text and 8 under --json, so a script's meaning changed with a
+  // display flag (#1995).
+  it('uses the failed code when command execution throws', () => {
     const result = runCli(['restore:', 'missing-backup']);
-    assert.strictEqual(result.status, 1);
-    assert.match(result.stderr, /Komut hatasi:/);
+    assert.strictEqual(result.status, 8);
+    assert.match(result.stderr, /Command error:/);
   });
 
   it('awaits delayed async output before returning success', async () => {
@@ -119,7 +124,7 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     let resolved = false;
     const cli = {
       parse: () => ({ command: 'async-command', args: 'payload' }),
-      _evaluateCliGate: () => null,
+      evaluateCliGate: () => null,
       execute: () => new Promise(resolve => {
         setTimeout(() => {
           resolved = true;
@@ -138,11 +143,11 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
     assert.deepStrictEqual(stdout, ['async complete']);
   });
 
-  it('maps a rejected async command to exit 1', async () => {
+  it('maps a rejected async command to the failed code', async () => {
     const stderr = [];
     const cli = {
       parse: () => ({ command: 'async-command', args: '' }),
-      _evaluateCliGate: () => null,
+      evaluateCliGate: () => null,
       execute: async () => {
         throw new Error('async failure');
       },
@@ -153,16 +158,15 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
       stderr: value => stderr.push(value),
     });
 
-    assert.strictEqual(result.exitCode, 1);
-    assert.deepStrictEqual(stderr, ['Komut hatasi: async failure']);
+    assert.strictEqual(result.exitCode, 8, 'failed is 8 in both modes (#1995)');
+    assert.deepStrictEqual(stderr, ['Command error: async failure']);
   });
 
   it('uses the structured gate decision instead of output wording', async () => {
     const stdout = [];
     const cli = {
       parse: () => ({ command: 'guarded', args: '' }),
-      _evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
-      _formatCliGateMessage: () => 'approval required',
+      evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
       execute: () => {
         throw new Error('guarded command must not execute');
       },
@@ -173,8 +177,59 @@ describe('CLI argv one-shot execution', { concurrency: false }, () => {
       stdout: value => stdout.push(value),
     });
 
-    assert.strictEqual(result.exitCode, 3);
+    assert.strictEqual(result.exitCode, 5, 'review_required is 5 in both modes (#1995)');
     assert.strictEqual(result.decision, 'review');
-    assert.deepStrictEqual(stdout, ['approval required']);
+    assert.match(stdout.join('\n'), /requires review/, 'the real gate message explains the block');
+  });
+});
+
+describe('CLI exit code parity between output modes (#1995)', () => {
+  function failing() {
+    return {
+      // A workflowId in both modes: without one, --json short-circuits to
+      // capability_not_available before reaching the gate, and the two runs
+      // would be comparing different branches rather than the same outcome.
+      parse: () => ({ command: 'async-command', args: '', workflowId: 'wf-async' }),
+      evaluateCliGate: () => null,
+      execute: async () => { throw new Error('async failure'); },
+    };
+  }
+
+  function reviewed() {
+    return {
+      parse: () => ({ command: 'guarded', args: '', workflowId: 'wf-guarded' }),
+      evaluateCliGate: () => ({ canExecute: false, decision: 'review', reason: 'approval_required' }),
+      execute: () => { throw new Error('guarded command must not execute'); },
+    };
+  }
+
+  // The defect: the same outcome left a different exit code depending only on
+  // a display flag, so a script's meaning changed with --json.
+  for (const [label, makeCli, argv] of [
+    ['a failure', failing, ['async-command']],
+    ['a review', reviewed, ['guarded']],
+  ]) {
+    it(`reports ${label} with the same code in both modes`, async () => {
+      const plain = await runCliArgv(argv, { cli: makeCli(), stdout: () => {}, stderr: () => {} });
+      const json = await runCliArgv([...argv, '--json'], { cli: makeCli(), stdout: () => {}, stderr: () => {} });
+
+      assert.strictEqual(
+        plain.exitCode,
+        json.exitCode,
+        `${label}: plain text exited ${plain.exitCode} while --json exited ${json.exitCode}`,
+      );
+    });
+  }
+
+  // Not parity, and deliberately so: plain text opens the REPL, which is a
+  // successful start, while --json has no REPL and reports INVALID_INPUT.
+  it('keeps the no-argument paths apart, because their outcomes differ', async () => {
+    const plain = await runCliArgv([], { cli: failing(), stdout: () => {}, stderr: () => {} });
+    const json = await runCliArgv(['--json'], { cli: failing(), stdout: () => {}, stderr: () => {} });
+
+    assert.strictEqual(plain.interactive, true);
+    assert.strictEqual(plain.exitCode, 0);
+    assert.strictEqual(json.interactive, false);
+    assert.strictEqual(json.exitCode, 2);
   });
 });

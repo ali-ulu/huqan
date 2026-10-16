@@ -1,0 +1,1 @@
+{"caseId":"RTR-014-V2-DECLARED-MISSING-TRUST-ROOT","description":"Declared raw V2 never downgrades","input":{"canonicalReceiptSchemaVersion":"v4-receipt-v2"},"expected":{"mode":"futureV2Structural","valid":false,"downgrade":false},"nonClaims":["legacy fallback"]}

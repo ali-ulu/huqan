@@ -1,0 +1,1 @@
+{"caseId":"RTR-018-V1-V2-NO-PREDECESSOR-REHASH","description":"V1 predecessor is not rehashed","input":{"predecessorSchemaVersion":"v4-receipt-v1","successorSchemaVersion":"v4-receipt-v2"},"expected":{"mode":"futureV2Structural","preservePredecessor":true},"nonClaims":["historical rewrite"]}

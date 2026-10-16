@@ -1,0 +1,238 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+  CANONICAL_VERIFY_STATUSES,
+  LEGACY_VERIFY_STATUSES,
+  VERIFY_STATUS_KEYS,
+  toCanonicalVerifyStatus,
+  toLegacyVerifyStatus,
+  isKnownVerifyStatus,
+  toPublicVerifyPayload,
+  toPublicVerifyEnvelope,
+  toLegacyVerifyEnvelope,
+} = require('../lib/verify-status-vocabulary');
+const { normalizeCheck, classifyLlmSor } = require('../lib/shield');
+
+test('canonical verify vocabulary is English and complete', () => {
+  assert.deepEqual([...CANONICAL_VERIFY_STATUSES].sort(), [
+    'contradicted',
+    'unknown',
+    'verified',
+  ]);
+  assert.deepEqual([...LEGACY_VERIFY_STATUSES].sort(), [
+    'bilinmiyor',
+    'celiski',
+    'dogrulandi',
+  ]);
+  assert.deepEqual(VERIFY_STATUS_KEYS, ['status', 'finalStatus']);
+});
+
+test('legacy status values map onto the canonical English values', () => {
+  assert.equal(toCanonicalVerifyStatus('dogrulandi'), 'verified');
+  assert.equal(toCanonicalVerifyStatus('celiski'), 'contradicted');
+  assert.equal(toCanonicalVerifyStatus('bilinmiyor'), 'unknown');
+});
+
+test('toCanonicalVerifyStatus/toLegacyVerifyStatus degrade to unknown for an Object.prototype member name, not a function (#1320)', () => {
+  // A plain `table[value]` lookup returns an inherited Object.prototype
+  // member (truthy) for these names, so `|| 'unknown'` never ran and the
+  // function value reached toPublicVerifyPayload's `status` field, which
+  // JSON.stringify silently drops -- the field vanished entirely.
+  for (const value of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+    assert.equal(toCanonicalVerifyStatus(value), 'unknown');
+    assert.equal(toLegacyVerifyStatus(value), 'bilinmiyor');
+  }
+  const payload = toPublicVerifyPayload({ status: 'constructor', confidence: 0.9 });
+  assert.equal(payload.status, 'unknown');
+  assert.equal(typeof payload.status, 'string');
+});
+
+test('canonical values are accepted unchanged (projection is idempotent)', () => {
+  for (const status of CANONICAL_VERIFY_STATUSES) {
+    assert.equal(toCanonicalVerifyStatus(status), status);
+    assert.equal(toCanonicalVerifyStatus(toCanonicalVerifyStatus(status)), status);
+  }
+});
+
+test('an unrecognized status degrades to unknown, never to verified', () => {
+  for (const bogus of ['', 'nonsense', 'VERIFIED', null, undefined, 42, {}]) {
+    assert.equal(toCanonicalVerifyStatus(bogus), 'unknown');
+  }
+});
+
+test('the reverse mapping accepts both vocabularies', () => {
+  assert.equal(toLegacyVerifyStatus('verified'), 'dogrulandi');
+  assert.equal(toLegacyVerifyStatus('contradicted'), 'celiski');
+  assert.equal(toLegacyVerifyStatus('unknown'), 'bilinmiyor');
+  assert.equal(toLegacyVerifyStatus('dogrulandi'), 'dogrulandi');
+  assert.equal(toLegacyVerifyStatus('celiski'), 'celiski');
+  assert.equal(toLegacyVerifyStatus('bilinmiyor'), 'bilinmiyor');
+  assert.equal(toLegacyVerifyStatus('nonsense'), 'bilinmiyor');
+});
+
+test('isKnownVerifyStatus recognizes both vocabularies and nothing else', () => {
+  for (const status of [...CANONICAL_VERIFY_STATUSES, ...LEGACY_VERIFY_STATUSES]) {
+    assert.equal(isKnownVerifyStatus(status), true, status);
+  }
+  for (const bogus of ['pending', 'done', 'active', '', null, 7]) {
+    assert.equal(isKnownVerifyStatus(bogus), false, String(bogus));
+  }
+});
+
+test('toPublicVerifyPayload translates status and preserves every other field', () => {
+  const projected = toPublicVerifyPayload({
+    status: 'dogrulandi',
+    confidence: 0.85,
+    evidence: ['a', 'b'],
+    raw: { nested: true },
+  });
+  assert.equal(projected.status, 'verified');
+  assert.equal(projected.confidence, 0.85);
+  assert.deepEqual(projected.evidence, ['a', 'b']);
+  assert.deepEqual(projected.raw, { nested: true });
+});
+
+test('envelope projection rewrites every verify status key at every depth', () => {
+  const envelope = {
+    ok: true,
+    data: { status: 'celiski', confidence: 0.9 },
+    meta: {
+      semanticTrust: { status: 'celiski', classification: 'contradicted' },
+      reasoningTrace: {
+        status: 'celiski',
+        steps: [
+          { status: 'dogrulandi' },
+          { status: 'bilinmiyor', semanticTrust: { status: 'bilinmiyor' } },
+        ],
+        trustReceiptPreview: { finalStatus: 'celiski' },
+      },
+      trustReceiptPreview: { finalStatus: 'celiski' },
+    },
+  };
+
+  const projected = toPublicVerifyEnvelope(envelope);
+
+  assert.equal(projected.data.status, 'contradicted');
+  assert.equal(projected.meta.semanticTrust.status, 'contradicted');
+  assert.equal(projected.meta.reasoningTrace.status, 'contradicted');
+  assert.equal(projected.meta.reasoningTrace.steps[0].status, 'verified');
+  assert.equal(projected.meta.reasoningTrace.steps[1].status, 'unknown');
+  assert.equal(projected.meta.reasoningTrace.steps[1].semanticTrust.status, 'unknown');
+  assert.equal(projected.meta.reasoningTrace.trustReceiptPreview.finalStatus, 'contradicted');
+  assert.equal(projected.meta.trustReceiptPreview.finalStatus, 'contradicted');
+
+  // No legacy value survives anywhere in the projected envelope.
+  assert.equal(/dogrulandi|celiski|bilinmiyor/.test(JSON.stringify(projected)), false);
+});
+
+test('envelope projection leaves a non-verify status field byte-identical', () => {
+  // Approval, phase and roadmap records also use a `status` key. Rewriting
+  // those would be data corruption, so the value guard must skip them.
+  const envelope = {
+    approval: { status: 'pending' },
+    phase: { status: 'done' },
+    member: { status: 'active' },
+    receipt: { status: 'admitted', decision: 'allow' },
+    verdict: { status: 'bilinmiyor' },
+  };
+
+  const projected = toPublicVerifyEnvelope(envelope);
+
+  assert.equal(projected.approval.status, 'pending');
+  assert.equal(projected.phase.status, 'done');
+  assert.equal(projected.member.status, 'active');
+  assert.equal(projected.receipt.status, 'admitted');
+  assert.equal(projected.receipt.decision, 'allow');
+  // ...while the real verify status is still translated.
+  assert.equal(projected.verdict.status, 'unknown');
+});
+
+test('envelope projection preserves structure, key order and non-status values', () => {
+  const envelope = {
+    ok: true,
+    evidence: [{ kind: 'direct_edge', text: 'celiski is a word here', confidence: 0.4 }],
+    meta: { thresholds: { supportVerified: 0.6 }, warnings: ['WEAK_SUPPORT'] },
+    data: { status: 'dogrulandi' },
+  };
+
+  const projected = toPublicVerifyEnvelope(envelope);
+
+  assert.deepEqual(Object.keys(projected), Object.keys(envelope));
+  // A legacy token appearing as free text, not under a status key, is untouched.
+  assert.equal(projected.evidence[0].text, 'celiski is a word here');
+  assert.deepEqual(projected.meta, envelope.meta);
+  assert.equal(projected.data.status, 'verified');
+});
+
+test('envelope projection does not mutate the kernel result it was given', () => {
+  const envelope = { data: { status: 'dogrulandi' }, meta: { reasoningTrace: { status: 'dogrulandi' } } };
+  const projected = toPublicVerifyEnvelope(envelope);
+
+  assert.equal(envelope.data.status, 'dogrulandi', 'internal representation must stay legacy');
+  assert.equal(envelope.meta.reasoningTrace.status, 'dogrulandi');
+  assert.equal(projected.data.status, 'verified');
+});
+
+test('envelope projection does not pollute the projected object\'s prototype (#1300)', () => {
+  // JSON.parse('{"__proto__":{"polluted":true}}') produces an own-enumerable
+  // '__proto__' key, not an actual prototype override -- so this reproduces
+  // what untrusted JSON-parsed input can hand to the projector. A plain
+  // `projected[childKey] = value` assignment for that key sets the *actual*
+  // [[Prototype]] of `projected` (via the __proto__ accessor every plain
+  // object inherits), which hasOwnProperty cannot see -- `projected.polluted`
+  // resolves through the prototype chain instead, so that is the property
+  // access this test has to use to catch it.
+  const envelope = JSON.parse('{"data":{"status":"dogrulandi"},"__proto__":{"polluted":true}}');
+
+  const projectedPublic = toPublicVerifyEnvelope(envelope);
+  assert.equal(projectedPublic.data.status, 'verified');
+  assert.equal(projectedPublic.polluted, undefined);
+  assert.equal(Object.getPrototypeOf(projectedPublic), Object.prototype);
+
+  const projectedLegacy = toLegacyVerifyEnvelope(envelope);
+  assert.equal(projectedLegacy.polluted, undefined);
+  assert.equal(Object.getPrototypeOf(projectedLegacy), Object.prototype);
+});
+
+test('envelope projection preserves an own "__proto__" key as ordinary data, not just avoids pollution (#1320)', () => {
+  // The #1300 fix stopped the pollution by skipping '__proto__' entirely,
+  // which meant the field silently vanished from the output -- the
+  // module's own documented guarantee is "every other value [is]
+  // preserved." Object.defineProperty writes it as a real own data
+  // property instead, so it survives projection like any other key.
+  const envelope = JSON.parse('{"data":{"status":"dogrulandi"},"__proto__":{"normal":1}}');
+  assert.deepEqual(Object.keys(envelope), ['data', '__proto__']);
+
+  const projectedPublic = toPublicVerifyEnvelope(envelope);
+  assert.ok(Object.hasOwn(projectedPublic, '__proto__'));
+  assert.deepEqual(Object.keys(projectedPublic), ['data', '__proto__']);
+  assert.deepEqual(projectedPublic.__proto__, { normal: 1 });
+  assert.equal(Object.getPrototypeOf(projectedPublic), Object.prototype);
+});
+
+test('shield reads both vocabularies so boundary ordering cannot change a verdict', () => {
+  // The same logical result, expressed in each vocabulary, must classify
+  // identically. This is what makes the API-boundary adapter safe to apply
+  // before or after lib/shield.js sees the value.
+  assert.equal(normalizeCheck({ status: 'verified' }).status, 'verified');
+  assert.equal(normalizeCheck({ status: 'contradicted' }).status, 'contradicted');
+  assert.equal(normalizeCheck({ status: 'unknown' }).status, 'unknown');
+
+  const pairs = [
+    [{ status: 'dogrulandi' }, { status: 'verified' }],
+    [{ status: 'celiski' }, { status: 'contradicted' }],
+    [{ status: 'bilinmiyor' }, { status: 'unknown' }],
+  ];
+  for (const [legacy, canonical] of pairs) {
+    assert.equal(
+      classifyLlmSor(legacy, legacy),
+      classifyLlmSor(canonical, canonical),
+      `classification must not depend on vocabulary: ${JSON.stringify(legacy)}`,
+    );
+  }
+  assert.equal(classifyLlmSor({ status: 'verified' }, { status: 'verified' }), 'graph-backed');
+  assert.equal(classifyLlmSor({ status: 'contradicted' }, { status: 'unknown' }), 'contradicted');
+});

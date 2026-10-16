@@ -1,0 +1,145 @@
+const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+const { resolvePathWithinRoot } = require('../lib/path-safety');
+const { learnEntriesSync } = require('./utils/learn-entries');
+
+const FIELD_SEP = '\x1f';
+const DEFAULT_MAX_COMMITS = 200;
+
+function toAbs(p) {
+  return path.resolve(String(p || ''));
+}
+
+/**
+ * Parses one raw metadata record emitted for a known commit hash. Pure and git-free, so it
+ * is testable without spawning a process.
+ */
+function parseGitLog(rawOutput) {
+  const text = String(rawOutput || '');
+  if (!text.trim()) return [];
+  return text.split('\x1e')
+    .filter((record) => record.trim().length > 0)
+    .map((record) => {
+      const [hash, authorName, authorEmail, date, subject, ...bodyParts] = record.split(FIELD_SEP);
+      return {
+        hash: (hash || '').trim(),
+        shortHash: (hash || '').trim().slice(0, 12),
+        authorName: (authorName || '').trim(),
+        authorEmail: (authorEmail || '').trim(),
+        date: (date || '').trim(),
+        subject: (subject || '').trim(),
+        body: (bodyParts.join(FIELD_SEP) || '').trim(),
+      };
+    })
+    .filter((commit) => commit.hash);
+}
+
+/**
+ * Checks that absPath is itself a git repository root -- NOT that it is
+ * nested somewhere under one. `git rev-parse --git-dir` walks up through
+ * parent directories looking for a `.git`, so running it against an
+ * arbitrary empty directory would report "yes" whenever any ancestor
+ * happens to be a repo (e.g. the OS temp dir living under a user home
+ * directory that is itself version-controlled). Checking for a `.git` entry
+ * directly inside absPath avoids that false positive entirely.
+ */
+function isGitRepo(absPath) {
+  return fs.existsSync(path.join(absPath, '.git'));
+}
+
+/**
+ * Runs `git log` against a validated, on-disk repository and returns
+ * structured commits. repoPath must resolve inside options.rootPath (same
+ * traversal/symlink guard every other adapter uses) and must itself be a
+ * git repository -- both are checked before any process is spawned. Every
+ * git argument is a fixed literal or a value passed via execFileSync's argv
+ * array, never shell-interpolated, so there is no command-injection surface
+ * regardless of what options.since/branch/pathFilter contain.
+ */
+function getCommits(repoPath, options = {}) {
+  const rootPath = options.rootPath || options.allowedRoot || options.workspaceRoot;
+  if (!rootPath) {
+    throw new Error('rootPath is required');
+  }
+
+  const absRoot = path.resolve(String(rootPath));
+  const absRepo = resolvePathWithinRoot(absRoot, repoPath);
+  if (!fs.statSync(absRepo).isDirectory()) {
+    throw new Error(`git-log-adapter: ${absRepo} is not a directory`);
+  }
+  if (!isGitRepo(absRepo)) {
+    const err = new Error(`git-log-adapter: ${absRepo} is not a git repository`);
+    err.code = 'NOT_A_GIT_REPO';
+    throw err;
+  }
+
+  const maxCommits = Number.isInteger(options.maxCommits) && options.maxCommits > 0
+    ? options.maxCommits
+    : DEFAULT_MAX_COMMITS;
+
+  const args = [
+    '-C', absRepo,
+    'log',
+    `--max-count=${maxCommits}`,
+    '--pretty=format:%H',
+  ];
+  if (options.since) args.push(`--since=${options.since}`);
+  if (options.branch) {
+    // Guard against arg injection: a branch name that starts with '-' would be
+    // interpreted as a git flag (e.g. --system / -e). Reject anything that is
+    // not a plausible refname. This is intentionally permissive about slashes,
+    // dots, dashes and alphanumerics, but rejects leading dashes and shells.
+    const branch = String(options.branch);
+    if (!/^[A-Za-z0-9][A-Za-z0-9/._-]*$/.test(branch)) {
+      throw Object.assign(
+        new Error(`git-log-adapter: invalid branch name "${branch}" (must match /^[A-Za-z0-9][A-Za-z0-9/._-]*$/)`),
+        { code: 'GIT_LOG_INVALID_BRANCH' }
+      );
+    }
+    args.push(branch);
+  }
+  if (options.pathFilter) args.push('--', String(options.pathFilter));
+
+  const hashes = String(execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 15_000 }))
+    .trim().split(/\r?\n/).filter((hash) => /^[0-9a-f]{40,64}$/i.test(hash));
+  return hashes.map((hash) => {
+    const raw = execFileSync('git', ['-C', absRepo, 'show', '-s', `--format=%H${FIELD_SEP}%an${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s${FIELD_SEP}%b`, hash], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 15_000 });
+    const [commit] = parseGitLog(raw);
+    return { ...commit, hash, shortHash: hash.slice(0, 12), repoPath: absRepo };
+  });
+}
+
+function ingestGitLog(repoPath, options = {}) {
+  const commits = getCommits(repoPath, options);
+  const entries = commits.map((commit) => {
+    const content = commit.body ? `${commit.subject}\n\n${commit.body}` : commit.subject;
+    return {
+      entryKey: commit.shortHash,
+      filePath: commit.repoPath,
+      content: content.trim(),
+      sourceRef: `git:${commit.repoPath}:${commit.hash}`,
+      commit,
+    };
+  }).filter((entry) => entry.content);
+
+  return {
+    repoPath: commits.length ? commits[0].repoPath : toAbs(repoPath),
+    commits,
+    entries,
+  };
+}
+
+function ingestAndLearn(repoPath, kernel, options = {}) {
+  const result = ingestGitLog(repoPath, options);
+  return learnEntriesSync(result, kernel, options, 'import', 'git-log');
+}
+
+module.exports = {
+  parseGitLog,
+  isGitRepo,
+  getCommits,
+  ingestGitLog,
+  ingestAndLearn,
+};

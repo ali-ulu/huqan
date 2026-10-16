@@ -24,10 +24,7 @@ const http = require('http');
 const Kernel = require('../kernel');
 const { callTool } = require('../mcpServer');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 const APPROVED_TEST_ADMISSION = {
   admissionRequired: true,
@@ -128,7 +125,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
     });
 
     const result = unwrap(kernel.verify('Ankara Türkiye\'nin başkentidir'));
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.ok(result.confidence > 0, 'confidence should be positive');
   });
 
@@ -142,7 +139,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
     const result = unwrap(kernel.verify('Su 50 derecede kaynar'));
     // The verify result should indicate contradiction or unknown
     assert.ok(
-      ['celiski', 'bilinmiyor'].includes(result.status),
+      ['contradicted', 'unknown'].includes(result.status),
       `Expected celiski or bilinmiyor, got ${result.status}`
     );
   });
@@ -152,7 +149,7 @@ describe('Integration: Kernel + Graph + Verify (learn→verify roundtrip)', () =
     seedBasicFacts(kernel);
 
     const result = unwrap(kernel.verify('Mars kırmızı bir gezegendir'));
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
   });
 
   it('learn→verify roundtrip preserves evidence chain', () => {
@@ -232,7 +229,7 @@ describe('Integration: Kernel + Causal Traversal', () => {
     // Sigara PREVENTS sağlık — "Sigara sağlıklıdır" should now be contradicted
     const raw = kernel.verify('Sigara sağlıklıdır');
     const result = unwrap(raw);
-    assert.strictEqual(result.status, 'celiski',
+    assert.strictEqual(result.status, 'contradicted',
       `Expected celiski for "Sigara sağlıklıdır" (PREVENTS edge exists), got ${result.status}`);
     assert.ok(result.confidence > 0, 'contradiction should have positive confidence');
     // Evidence should mention PREVENTS
@@ -389,7 +386,7 @@ describe('Integration: MCP Gate + Safety (AB1–AB6 enforcement)', () => {
     return {
       learn() { return { ok: true, data: { learned: 1, skipped: 0, conflicts: [], alternatives: [] }, type: 'learn', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       ask() { return { ok: true, data: { answer: 'mock answer', subject: 'x', unknown: false, alternatives: 0 }, type: 'ask', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
-      verify() { return { ok: true, data: { status: 'dogrulandi', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
+      verify() { return { ok: true, data: { status: 'verified', confidence: 1 }, type: 'verify', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       reason() { return { ok: true, data: { subject: 'x', answer: 'y', forward: [], backward: [], cycles: [] }, type: 'reason', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       compare() { return { ok: true, data: { a: 'x', b: 'y', answer: 'z', common: [], onlyA: [], onlyB: [], paths: [] }, type: 'compare', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
       dream() { return { ok: true, data: { hypotheses: [], learned: [], cycle: 0 }, type: 'dream', evidence: [], error: null, meta: { contractVersion: '1.0', backend: 'sqlite', paranoidMode: false } }; },
@@ -432,7 +429,7 @@ describe('Integration: MCP Gate + Safety (AB1–AB6 enforcement)', () => {
     assert.ok(result.data, 'should have data from kernel');
   });
 
-  it('axiom.learn (write) is queued for review by gate — REVIEW required', () => {
+  it('axiom.learn (write) is held for durable review by gate — REVIEW required', () => {
     const kernel = mockKernel();
     const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'New fact' } });
     assert.equal(result.ok, false);
@@ -440,17 +437,24 @@ describe('Integration: MCP Gate + Safety (AB1–AB6 enforcement)', () => {
     assert.equal(result.gate.canExecute, false);
     assert.equal(result.gate.canDryRun, true);
     assert.equal(result.gate.requiredReview, true);
+    assert.equal(result.approval.persisted, true);
+    assert.ok(result.approval.id);
+    assert.equal(result.status, 'review_required');
     assert.equal(result.message, 'Tool call queued for review: mutating_requires_review');
   });
 
-  it('axiom.agent (agent loop) returns a dry-run plan via gate - DRY_RUN_ONLY', () => {
+  it('axiom.agent (agent loop) is restored to durable review — REVIEW required', () => {
     const kernel = mockKernel();
     const result = callTool(kernel, { name: 'axiom.agent', arguments: { goal: 'Build a plan' } });
-    assert.equal(result.ok, true);
-    assert.equal(result.dryRun, true);
+    assert.equal(result.ok, false);
     assert.equal(result.gate.allowed, false);
+    assert.equal(result.gate.canExecute, false);
     assert.equal(result.gate.canDryRun, true);
-    assert.equal(result.gate.reason, 'agent_loop_dry_run_only');
+    assert.equal(result.gate.requiredReview, true);
+    assert.equal(result.gate.decision, 'review');
+    assert.equal(result.gate.reason, 'agent_loop_requires_review');
+    assert.equal(result.approval.persisted, true);
+    assert.ok(result.approval.id);
   });
 
   it('unknown tool is blocked by gate (returns error, not throw)', () => {

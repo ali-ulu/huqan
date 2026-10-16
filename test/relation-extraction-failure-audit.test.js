@@ -7,10 +7,7 @@ const path = require('node:path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-rel0-audit-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 test.after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -82,9 +79,10 @@ test('relation extraction audit keeps explicit marker fixes while broad gaps sta
   const cases = [
     {
       text: 'Sigara kanser yapar',
-      expectedRelation: 'CAUSES',
+      expectedRelation: 'yapabilir',
       expectedObjectHints: ['kanser'],
-      expectedClassification: 'clean_relation_extracted',
+      expectedClassification: 'false_causal_relation',
+      neutral: true,
     },
     {
       text: 'Sigara kansere neden olur',
@@ -220,7 +218,7 @@ test('relation extraction audit keeps explicit marker fixes while broad gaps sta
   const contradictionVerify = preventsAudit.kernel.verify('Asilama hastaliga neden olur', { workspaceId: 'default' });
   assert.strictEqual(preventsAudit.graphEdgeRelation, 'PREVENTS');
   assert.ok(preventsAudit.graphEdgeObject.includes('hastalik'));
-  assert.strictEqual(contradictionVerify.data.status, 'celiski');
+  assert.strictEqual(contradictionVerify.data.status, 'contradicted');
 
   const summary = {
     causes: findings.filter((finding) => finding.statement.includes('causes') || finding.statement.includes('neden olur') || finding.statement.includes('yapar') || finding.statement.includes('artirir')),

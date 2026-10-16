@@ -8,8 +8,13 @@ const test = require('node:test');
 
 const CLI = require('../cli');
 const Kernel = require('../kernel');
-const { createAxiomClient } = require('../lib/sdk');
-const { createServer } = require('../mcpServer');
+const { createHuqanClient } = require('../lib/sdk');
+const {
+  createServer,
+  createMcpOperatorCapability,
+  operatorCapabilityBinding,
+} = require('../mcpServer');
+const { canonicalMcpToolName } = require('../lib/mcp-tool-names');
 
 function createFixture(label) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `huqan-4b1-${label}-`));
@@ -31,11 +36,20 @@ function closeFixture(fixture, server) {
 }
 
 function callTool(server, name, args = {}) {
+  const canonicalName = canonicalMcpToolName(name);
+  const operator = ['huqan.approve', 'huqan.approvals'].includes(canonicalName)
+    ? {
+        operatorCapability: createMcpOperatorCapability({
+          secret: 'test-operator',
+          ...operatorCapabilityBinding(canonicalName, args),
+        }),
+      }
+    : {};
   const response = server.handleRequest({
     jsonrpc: '2.0',
     id: 1,
     method: 'tools/call',
-    params: { name, arguments: args },
+    params: { name, ...operator, arguments: args },
   });
   assert.ok(response.result?.structuredContent, `${name} must return structured content`);
   return response.result.structuredContent;
@@ -52,21 +66,15 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
   const fixture = createFixture('verify');
   const cli = Object.create(CLI.prototype);
   cli.kernel = fixture.kernel;
-  const sdk = createAxiomClient(fixture.kernel);
+  const sdk = createHuqanClient(fixture.kernel);
   try {
-    fixture.kernel.learn('kedi hayvandir', {
-      admissionRequired: false,
-      admissionBypassReason: 'test_fixture',
-    });
-    fixture.kernel.learn('kus ucmaz', {
-      admissionRequired: false,
-      admissionBypassReason: 'test_fixture',
-    });
+    fixture.kernel.learn('kedi hayvandir', Kernel.createAdmissionBypassOpts('test_fixture'));
+    fixture.kernel.learn('kus ucmaz', Kernel.createAdmissionBypassOpts('test_fixture'));
 
     const cases = [
-      ['kedi hayvandir', 'dogrulandi'],
-      ['kus ucar', 'celiski'],
-      ['balik ucabilir', 'bilinmiyor'],
+      ['kedi hayvandir', 'verified'],
+      ['kus ucar', 'unknown'],
+      ['balik ucabilir', 'unknown'],
     ];
 
     for (const [statement, expected] of cases) {
@@ -84,7 +92,7 @@ test('verify classification stays aligned across Kernel, CLI, and SDK wrappers',
 
 test('MCP learn strips caller bypass metadata and executes an approval once', () => {
   const fixture = createFixture('mcp-bypass');
-  const mcp = createServer(fixture.kernel);
+  const mcp = createServer({ kernel: fixture.kernel, operatorToken: 'test-operator' });
   const learnCalls = [];
   const originalLearn = fixture.kernel.learn.bind(fixture.kernel);
   fixture.kernel.learn = (text, options) => {
@@ -108,6 +116,7 @@ test('MCP learn strips caller bypass metadata and executes an approval once', ()
 
     const approved = callTool(mcp, 'axiom.approve', {
       approvalId: queued.approval.id,
+      workspaceId: 'caller-workspace',
       decision: 'approved',
     });
     assert.equal(approved.ok, true);
@@ -115,16 +124,17 @@ test('MCP learn strips caller bypass metadata and executes an approval once', ()
     assert.equal(learnCalls.length, 1);
 
     const options = learnCalls[0].options;
-    assert.equal(options.workspaceId, 'default');
+    assert.equal(options.workspaceId, 'caller-workspace');
     assert.equal(options.approvalRequired, true);
     assert.equal(options.approvalStatus, 'approved');
     assert.equal(options.approvalId, queued.approval.id);
     assert.equal(Object.hasOwn(options, 'admissionRequired'), false);
     assert.equal(Object.hasOwn(options, 'admissionBypassReason'), false);
-    assert.equal(options.provenance.workspaceId, 'default');
+    assert.equal(options.provenance.workspaceId, 'caller-workspace');
 
     const duplicate = callTool(mcp, 'axiom.approve', {
       approvalId: queued.approval.id,
+      workspaceId: 'caller-workspace',
       decision: 'approved',
     });
     assert.equal(duplicate.data.idempotent, true);

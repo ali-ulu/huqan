@@ -11,22 +11,22 @@ const {
 describe('reasoning-trace', () => {
   it('aggregates supported and contradicted subclaims conservatively', () => {
     const aggregate = aggregateSubclaimVerdicts([
-      { id: 'claim_1', claim: 'A', required: true, status: 'dogrulandi', confidence: 0.9, evidence: [{ text: 'A' }], downgradeReasons: [] },
-      { id: 'claim_2', claim: 'B', required: true, status: 'celiski', confidence: 0.8, evidence: [{ text: 'B' }], downgradeReasons: ['CONTRADICTION_SUBCLAIM'] },
+      { id: 'claim_1', claim: 'A', required: true, status: 'verified', confidence: 0.9, evidence: [{ text: 'A' }], downgradeReasons: [] },
+      { id: 'claim_2', claim: 'B', required: true, status: 'contradicted', confidence: 0.8, evidence: [{ text: 'B' }], downgradeReasons: ['CONTRADICTION_SUBCLAIM'] },
     ], { confidenceFloor: 0.65 });
 
-    assert.strictEqual(aggregate.status, 'celiski');
+    assert.strictEqual(aggregate.status, 'contradicted');
     assert.strictEqual(aggregate.finalRule, 'ANY_REQUIRED_CONTRADICTED');
     assert.ok(aggregate.reasons.includes('CONTRADICTION_SUBCLAIM'));
   });
 
   it('downgrades below confidence floor even when all subclaims support', () => {
     const aggregate = aggregateSubclaimVerdicts([
-      { id: 'claim_1', claim: 'A', required: true, status: 'dogrulandi', confidence: 0.8, evidence: [{ text: 'A' }], downgradeReasons: [] },
-      { id: 'claim_2', claim: 'B', required: true, status: 'dogrulandi', confidence: 0.6, evidence: [{ text: 'B' }], downgradeReasons: [] },
+      { id: 'claim_1', claim: 'A', required: true, status: 'verified', confidence: 0.8, evidence: [{ text: 'A' }], downgradeReasons: [] },
+      { id: 'claim_2', claim: 'B', required: true, status: 'verified', confidence: 0.6, evidence: [{ text: 'B' }], downgradeReasons: [] },
     ], { confidenceFloor: 0.65 });
 
-    assert.strictEqual(aggregate.status, 'bilinmiyor');
+    assert.strictEqual(aggregate.status, 'unknown');
     assert.strictEqual(aggregate.finalRule, 'CONFIDENCE_FLOOR');
     assert.ok(aggregate.reasons.includes('CONFIDENCE_FLOOR'));
   });
@@ -42,8 +42,8 @@ describe('reasoning-trace', () => {
       warnings: [],
     };
     const subclaimOutcomes = [
-      { id: 'claim_1', claim: 'React Native is used in production', required: true, status: 'dogrulandi', confidence: 0.9, evidence: [{ text: 'React Native is used in production' }], rejectedEvidence: [], downgradeReasons: [], semanticTrust: { warnings: [] }, risk: { flags: [] } },
-      { id: 'claim_2', claim: 'React Native is performant', required: true, status: 'bilinmiyor', confidence: 0.35, evidence: [], rejectedEvidence: [{ text: 'React Native has performance issues' }], downgradeReasons: ['WEAK_SUPPORT'], semanticTrust: { warnings: ['WEAK_SUPPORT'] }, risk: { flags: ['WEAK_SUPPORT'] } },
+      { id: 'claim_1', claim: 'React Native is used in production', required: true, status: 'verified', confidence: 0.9, evidence: [{ text: 'React Native is used in production' }], rejectedEvidence: [], downgradeReasons: [], semanticTrust: { warnings: [] }, risk: { flags: [] } },
+      { id: 'claim_2', claim: 'React Native is performant', required: true, status: 'unknown', confidence: 0.35, evidence: [], rejectedEvidence: [{ text: 'React Native has performance issues' }], downgradeReasons: ['WEAK_SUPPORT'], semanticTrust: { warnings: ['WEAK_SUPPORT'] }, risk: { flags: ['WEAK_SUPPORT'] } },
     ];
     const aggregate = aggregateSubclaimVerdicts(subclaimOutcomes, { confidenceFloor: 0.65 });
     const first = buildReasoningTrace({
@@ -77,20 +77,20 @@ describe('reasoning-trace', () => {
     const step = normalizeTraceStep({
       type: 'subclaim_verification',
       claim: 'A',
-      status: 'dogrulandi',
+      status: 'verified',
       confidence: 0.7,
       warnings: ['X'],
       evidence: [{ text: 'A' }],
     });
 
     assert.strictEqual(step.type, 'subclaim_verification');
-    assert.strictEqual(step.status, 'dogrulandi');
+    assert.strictEqual(step.status, 'verified');
     assert.deepStrictEqual(step.warnings, ['X']);
     assert.ok(Array.isArray(step.evidence));
   });
 
   it('attaches trace metadata without mutating the verify envelope status', () => {
-    const result = attachReasoningTrace({ status: 'bilinmiyor', meta: { existing: true } }, {
+    const result = attachReasoningTrace({ status: 'unknown', meta: { existing: true } }, {
       claim: 'A',
       mode: 'semantic-trace',
       steps: [],
@@ -98,7 +98,7 @@ describe('reasoning-trace', () => {
       trustReceiptPreview: { originalClaim: 'A' },
     });
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(result.meta.reasoningTrace);
     assert.ok(result.meta.trustReceiptPreview);
     assert.ok(result.meta.existing);

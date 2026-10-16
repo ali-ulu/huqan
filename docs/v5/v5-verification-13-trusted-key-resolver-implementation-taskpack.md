@@ -1,5 +1,7 @@
 # V5-VERIFICATION-13 - Trusted-Key Resolver Implementation Task-Pack
 
+**Status:** `implementation`
+
 **Mode:** Implementation task-pack definition only
 **Current checkpoint:** V5-VERIFICATION-12_CLOSEOUT_AUDIT_GREEN
 **Canonical branch:** main

@@ -9,7 +9,7 @@ function createKernel(overrides = {}) {
       return {
         ok: true,
         data: {
-          status: 'dogrulandi',
+          status: 'verified',
           confidence: 0.88,
           answer: `verified:${statement}`,
         },
@@ -155,7 +155,7 @@ describe('workflow-tools', () => {
 
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.status, 'done');
-    assert.strictEqual(result.data.status, 'dogrulandi');
+    assert.strictEqual(result.data.status, 'verified');
     assert.strictEqual(result.data.claim, 'kedi hayvandir');
     assert.strictEqual(result.confidence, 0.88);
     assert.ok(Array.isArray(result.evidence));
@@ -172,6 +172,19 @@ describe('workflow-tools', () => {
     assert.strictEqual(result.data.count, 1);
     assert.ok(Array.isArray(result.data.contradictions));
     assert.ok(result.evidence.some(item => item.kind === 'negation'));
+  });
+
+  it('findContradictions forwards the workflow workspace (#1073)', () => {
+    let seen;
+    const kernel = createKernel({
+      detectContradictions(subject, workspaceId) {
+        seen = [subject, workspaceId];
+        return [];
+      },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'findContradictions');
+    tool.run({ workspaceId: 'tenant-a' }, { subject: 'kedi' });
+    assert.deepStrictEqual(seen, ['kedi', 'tenant-a']);
   });
 
   it('rankEvidence uses evidence-ranker weights and adjusted confidence', () => {
@@ -193,7 +206,9 @@ describe('workflow-tools', () => {
   });
 
   it('runCapability calls kernel.runCapability and awaits async execution', async () => {
-    const tool = createWorkflowTools(createKernel()).find(item => item.name === 'runCapability');
+    const tool = createWorkflowTools(createKernel(), {
+      runCapabilityPolicy: () => true,
+    }).find(item => item.name === 'runCapability');
     const result = await tool.run({}, {
       name: 'demo',
       input: { hello: 'world' },
@@ -206,6 +221,43 @@ describe('workflow-tools', () => {
     assert.deepStrictEqual(result.data.value, { hello: 'world' });
     assert.deepStrictEqual(result.data.opts, { approve: true });
     assert.ok(result.evidence.length >= 1);
+  });
+
+  it('generic runCapability is default-deny before either runner can execute', async () => {
+    const calls = [];
+    const kernel = createKernel({
+      getCapability() { return { name: 'demo', riskLevel: 'low' }; },
+      async runCapability() { calls.push('kernel'); },
+      plugins: { async runCapability() { calls.push('plugins'); } },
+    });
+    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+
+    const result = await tool.run({}, { name: 'demo' });
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error.code, 'CAPABILITY_NOT_ALLOWED');
+    assert.deepStrictEqual(calls, []);
+  });
+
+  it('generic runCapability injects capability metadata into its allowlist policy', async () => {
+    const seen = [];
+    const kernel = createKernel({
+      getCapability(name) { return { name, riskLevel: 'high', plugin: 'demo-plugin' }; },
+    });
+    const tool = createWorkflowTools(kernel, {
+      runCapabilityPolicy(request) {
+        seen.push(request);
+        return request.capability.riskLevel === 'high' && request.name === 'demo';
+      },
+    }).find(item => item.name === 'runCapability');
+
+    const result = await tool.run({}, { name: 'demo', input: { allowed: true } });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(seen.length, 1);
+    assert.deepStrictEqual(seen[0].capability, {
+      name: 'demo', riskLevel: 'high', plugin: 'demo-plugin',
+    });
   });
 
   it('runCapability prefers the governed Kernel facade over PluginManager', async () => {
@@ -222,7 +274,9 @@ describe('workflow-tools', () => {
         },
       },
     });
-    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+    const tool = createWorkflowTools(kernel, {
+      runCapabilityPolicy: () => true,
+    }).find(item => item.name === 'runCapability');
 
     const result = await tool.run({}, { name: 'demo' });
 
@@ -240,7 +294,9 @@ describe('workflow-tools', () => {
         },
       },
     });
-    const tool = createWorkflowTools(kernel).find(item => item.name === 'runCapability');
+    const tool = createWorkflowTools(kernel, {
+      runCapabilityPolicy: () => true,
+    }).find(item => item.name === 'runCapability');
 
     const result = await tool.run({}, { name: 'demo' });
 
@@ -440,7 +496,7 @@ describe('workflow-tools', () => {
 
     const runCapability = tools.find(tool => tool.name === 'runCapability');
     const registeredRun = await runCapability.run({}, { name: 'demo', input: { a: 1 } });
-    assert.strictEqual(registeredRun.ok, true);
-    assert.strictEqual(registeredRun.status, 'done');
+    assert.strictEqual(registeredRun.ok, false);
+    assert.strictEqual(registeredRun.error.code, 'CAPABILITY_NOT_ALLOWED');
   });
 });

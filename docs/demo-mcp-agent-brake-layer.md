@@ -12,7 +12,7 @@ No hallucination. No data corruption. The agent never reaches the filesystem.
 
 ## Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22.13.0
 - Claude Desktop or Cursor (or any MCP-compatible client)
 
 ---
@@ -22,8 +22,8 @@ No hallucination. No data corruption. The agent never reaches the filesystem.
 ### 1. Install & load knowledge base
 
 ```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
 npm install
 node egitim.js   # loads initial knowledge base (~5 seconds)
 ```
@@ -35,9 +35,9 @@ node egitim.js   # loads initial knowledge base (~5 seconds)
 ```json
 {
   "mcpServers": {
-    "axiom": {
+    "huqan": {
       "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "args": ["/path/to/huqan/mcpServer.js"]
     }
   }
 }
@@ -48,9 +48,9 @@ node egitim.js   # loads initial knowledge base (~5 seconds)
 ```json
 {
   "mcpServers": {
-    "axiom": {
+    "huqan": {
       "command": "node",
-      "args": ["/path/to/axiom/mcpServer.js"]
+      "args": ["/path/to/huqan/mcpServer.js"]
     }
   }
 }
@@ -69,7 +69,7 @@ Claude Desktop or Cursor will detect the new MCP server on restart.
 Ask the LLM: *"What is a cat?"*
 
 Behind the scenes:
-1. LLM calls `axiom.ask` via MCP
+1. LLM calls `huqan.ask` via MCP
 2. Gate AB1 classifies: `read-only` → `allow`
 3. Huqan returns the answer from its knowledge graph
 4. LLM presents the answer to you
@@ -81,7 +81,7 @@ Behind the scenes:
 Ask the LLM: *"Teach Huqan that cats are plants"*
 
 Behind the scenes:
-1. LLM calls `axiom.learn` via MCP
+1. LLM calls `huqan.learn` via MCP
 2. Gate AB1 classifies: `write` → `review`
 3. Gate AB2 checks tool call policy → `review`
 4. Gate AB4 checks memory mutation rules → `review`
@@ -122,16 +122,16 @@ If an applicable gate returns `block` or `review`, the action stops immediately.
 
 | Tool | Mutating | Alpha Decision | Gates |
 |------|----------|---------------|-------|
-| `axiom.ask` | No | allow | AB1 |
-| `axiom.verify` | No | allow | AB1 |
-| `axiom.plan` | No | allow | AB1 |
-| `axiom.policy` | No | allow | AB1 |
-| `axiom.approvals` | No | allow | AB1 |
-| `axiom.reason` | No | allow | AB1 |
-| `axiom.compare` | No | allow | AB1 |
-| `axiom.dream` | No | allow | AB1 |
-| `axiom.learn` | Yes | review | AB1, AB2, AB4 |
-| `axiom.agent` | No | dry_run_only | AB1, AB2 |
+| `huqan.ask` | No | allow | AB1 |
+| `huqan.verify` | No | allow | AB1 |
+| `huqan.plan` | No | allow | AB1 |
+| `huqan.policy` | No | allow | AB1 |
+| `huqan.approvals` | No | allow | AB1 |
+| `huqan.reason` | No | allow | AB1 |
+| `huqan.compare` | No | allow | AB1 |
+| `huqan.dream` | No | allow | AB1 |
+| `huqan.learn` | Yes | review | AB1, AB2, AB4 |
+| `huqan.agent` | No | dry_run_only | AB1, AB2 |
 
 Unknown tools → **blocked** by default.
 
@@ -150,10 +150,10 @@ Unknown tools → **blocked** by default.
 
 **"Server not found" in Claude Desktop:**
 - Check the path in `claude_desktop_config.json` is absolute
-- Run `node /path/to/axiom/mcpServer.js` manually to verify it starts
+- Run `node /path/to/huqan/mcpServer.js` manually to verify it starts
 
 **Tests fail after pulling:**
 ```bash
 node --test test/*.test.js
 ```
-`mcpServer.test.js` has been updated for V2.6 gate behavior (PR #16). The expected private-alpha behavior is: `axiom.learn` returns `review-required` and `axiom.agent` returns `dry_run_only`.
+`mcpServer.test.js` has been updated for V2.6 gate behavior (PR #16). The expected private-alpha behavior is: `huqan.learn` returns `review-required` and `huqan.agent` returns `dry_run_only`.

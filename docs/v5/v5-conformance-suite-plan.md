@@ -1,5 +1,7 @@
 # V5 Conformance Suite Fixture Plan
 
+**Status:** `future`
+
 ## Status
 
 Planning only.

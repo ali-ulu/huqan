@@ -60,6 +60,7 @@ function expectedIntent({
   decision,
   executionEligible,
   reason,
+  phase = 'attempted',
 }) {
   return {
     sourceCommand,
@@ -69,23 +70,28 @@ function expectedIntent({
     executionEligible,
     reason,
     actor: 'cli-user',
+    phase,
   };
 }
 
 function captureKernelAudit(cli) {
   const original = cli.kernel.recordCliMutationAudit;
   const calls = [];
-  cli.kernel.recordCliMutationAudit = intent => {
-    calls.push(intent);
-    return { auditRecorded: true, event: null, errorCode: null };
-  };
-  return {
+  const capture = {
     calls,
+    /** Optional hook so a test can observe audit calls in execution order. */
+    onCall: null,
     original: original.bind(cli.kernel),
     restore() {
       cli.kernel.recordCliMutationAudit = original;
     },
   };
+  cli.kernel.recordCliMutationAudit = intent => {
+    calls.push(intent);
+    if (typeof capture.onCall === 'function') capture.onCall(intent);
+    return { auditRecorded: true, event: null, errorCode: null };
+  };
+  return capture;
 }
 
 function createInteractiveHarness(cli, auditMode = 'record') {
@@ -133,7 +139,7 @@ function createInteractiveHarness(cli, auditMode = 'record') {
       cli.kernel.recordCliMutationAudit = undefined;
     } else {
       cli.kernel.recordCliMutationAudit = intent => {
-        events.push(`audit:${intent.sourceCommand}`);
+        events.push(`audit:${intent.sourceCommand}:${intent.phase}`);
         if (auditMode === 'throwing') throw new Error('audit sentinel');
         return { auditRecorded: true, event: null, errorCode: null };
       };
@@ -145,7 +151,21 @@ function createInteractiveHarness(cli, auditMode = 'record') {
     events.length = 0;
     return {
       events,
-      line: input => Promise.resolve(lineHandler(input)),
+      /**
+       * Runs one input line and then drains the readline close chain.
+       *
+       * `rl.close()` does not exit inline: it queues `lineQueue.then(... =>
+       * process.exit(0))`, which resolves a tick after this line's promise. If
+       * the harness restores the real `process.exit` before that tick, the
+       * queued callback exits the test process for real -- silently taking
+       * every later test in this file with it, and reporting the file as a
+       * pass. Settling the queue here keeps the stub installed until the exit
+       * has been recorded as an event.
+       */
+      line: async (input) => {
+        await lineHandler(input);
+        await new Promise(resolve => setImmediate(resolve));
+      },
       restore,
     };
   } catch (error) {
@@ -167,10 +187,10 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       ['kaydet', '', 'UPDATE', 'allow', 'persistence', 'cli_persist_local', true, 'kaydet'],
       ['backup', '', 'EXPORTED', 'allow', 'export', 'cli_backup_export_local', true, 'backup'],
       ['restore', '', 'IMPORTED', 'allow', 'state_replace', 'cli_restore_state_replace_local', true, 'restore'],
-      ['optimize', '', 'REVIEW', 'review', 'canonical', 'cli_canonical_mutation_requires_review', false, 'optimize'],
-      ['evolve', '', 'REVIEW', 'review', 'canonical', 'cli_canonical_mutation_requires_review', false, 'evolve'],
-      ['konsolide', '', 'REVIEW', 'review', 'canonical', 'cli_canonical_mutation_requires_review', false, 'konsolide'],
-      ['d\u00fc\u015f\u00fcn', 'ba\u015fla', 'REVIEW', 'review', 'automation', 'cli_automation_requires_review', false, 'dusun'],
+      ['optimize', '', 'BLOCKED', 'block', 'canonical', 'cli_canonical_mutation_unavailable', false, 'optimize'],
+      ['evolve', '', 'BLOCKED', 'block', 'canonical', 'cli_canonical_mutation_unavailable', false, 'evolve'],
+      ['konsolide', '', 'BLOCKED', 'block', 'canonical', 'cli_canonical_mutation_unavailable', false, 'konsolide'],
+      ['d\u00fc\u015f\u00fcn', 'ba\u015fla', 'BLOCKED', 'block', 'automation', 'cli_automation_unavailable', false, 'dusun'],
     ];
 
     try {
@@ -209,6 +229,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         'eventType',
         'executionEligible',
         'mutationType',
+        'phase',
         'reason',
         'sourceCommand',
       ]);
@@ -226,6 +247,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         decision: 'allow',
         executed: true,
         reason: 'cli_backup_export_local',
+        phase: 'attempted',
       });
     } finally {
       capture.restore();
@@ -260,45 +282,98 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     }
   });
 
+  // #760: an audit sink that is absent or throwing is an unavailable sink, and
+  // the gate's whole promise is that these commands never mutate unaudited. So
+  // the command is refused rather than run without its evidence.
   for (const mode of ['missing', 'throwing']) {
-    it(`isolates a ${mode} Kernel audit seam from direct command results`, () => {
+    it(`fails a ${mode} Kernel audit seam closed instead of mutating unaudited`, () => {
       const managed = createIsolatedCli();
       const original = managed.cli.kernel.recordCliMutationAudit;
+      const originalPersist = managed.cli.kernel.persist;
       let attempts = 0;
+      let persistCalls = 0;
       try {
+        managed.cli.kernel.persist = () => { persistCalls += 1; };
         managed.cli.kernel.recordCliMutationAudit = mode === 'missing'
           ? undefined
           : () => { attempts += 1; throw new Error('audit sentinel'); };
+
         const gate = managed.cli._evaluateCliMutationGate('kaydet', '');
-        assert.strictEqual(gate.decision, 'allow');
-        assert.strictEqual(gate.canExecute, true);
-        assert.strictEqual(managed.cli.execute('kaydet', ''), 'Bilinmeyen komut.');
+        assert.strictEqual(gate.decision, 'block');
+        assert.strictEqual(gate.canExecute, false);
+        assert.strictEqual(gate.reason, 'cli_audit_write_failed');
+        assert.strictEqual(gate.metadata.auditRecorded, false);
+        assert.strictEqual(
+          gate.metadata.auditErrorCode,
+          mode === 'missing' ? 'AUDIT_SINK_UNAVAILABLE' : 'AUDIT_WRITE_FAILED',
+        );
+
+        assert.match(managed.cli.execute('kaydet', ''), /was blocked/);
+        assert.strictEqual(persistCalls, 0, 'state was persisted without an audit record');
         assert.strictEqual(attempts, mode === 'throwing' ? 2 : 0);
       } finally {
         managed.cli.kernel.recordCliMutationAudit = original;
+        managed.cli.kernel.persist = originalPersist;
         managed.close();
       }
     });
   }
 
-  it('preserves the direct execute kaydet compatibility result', () => {
+  it('leaves read-only commands usable when the audit sink is unavailable', () => {
+    const managed = createIsolatedCli();
+    const original = managed.cli.kernel.recordCliMutationAudit;
+    try {
+      managed.cli.kernel.recordCliMutationAudit = undefined;
+      // `durum` has nothing to audit, so a broken sink is none of its business.
+      assert.strictEqual(managed.cli._evaluateCliMutationGate('durum', ''), null);
+      assert.match(managed.cli.execute('durum', ''), /^Status: /);
+    } finally {
+      managed.cli.kernel.recordCliMutationAudit = original;
+      managed.close();
+    }
+  });
+
+  it('keeps unavailable commands non-executable when audit fails', () => {
+    const managed = createIsolatedCli();
+    const original = managed.cli.kernel.recordCliMutationAudit;
+    const originalOptimize = managed.cli.kernel.optimize;
+    let optimizeCalls = 0;
+    try {
+      managed.cli.kernel.optimize = () => { optimizeCalls += 1; return { pruned: 0, removedNodes: 0 }; };
+      managed.cli.kernel.recordCliMutationAudit = () => { throw new Error('audit sentinel'); };
+
+      const gate = managed.cli._evaluateCliMutationGate('optimize', '');
+      assert.strictEqual(gate.canExecute, false);
+      assert.strictEqual(gate.canDryRun, false, 'a dry run must not be offered without audit');
+      assert.strictEqual(gate.metadata.classifiedDecision, 'block');
+      assert.strictEqual(optimizeCalls, 0);
+    } finally {
+      managed.cli.kernel.recordCliMutationAudit = original;
+      managed.cli.kernel.optimize = originalOptimize;
+      managed.close();
+    }
+  });
+
+
+  it('brackets a direct execute kaydet with attempted and committed audits', () => {
+    // This case previously expected 'Unknown command.' and no persist, which
+    // never held: the whole file was exiting early (see createInteractiveHarness)
+    // so nothing here ran. `kaydet` does persist, and it is audited on both
+    // sides of the write.
     const managed = createIsolatedCli();
     const capture = captureKernelAudit(managed.cli);
     const originalPersist = managed.cli.kernel.persist;
-    let persistCalls = 0;
-    managed.cli.kernel.persist = () => { persistCalls += 1; };
+    const order = [];
+    managed.cli.kernel.persist = () => { order.push('persist'); };
     try {
-      assert.strictEqual(managed.cli.execute('kaydet', ''), 'Bilinmeyen komut.');
-      assert.strictEqual(persistCalls, 0);
-      assert.strictEqual(capture.calls.length, 1);
-      assert.deepStrictEqual(capture.calls[0], expectedIntent({
-        sourceCommand: 'kaydet',
-        mutationType: 'persistence',
-        eventType: 'UPDATE',
-        decision: 'allow',
-        executionEligible: true,
-        reason: 'cli_persist_local',
-      }));
+      const intent = { sourceCommand: 'kaydet', mutationType: 'persistence', eventType: 'UPDATE', decision: 'allow', executionEligible: true, reason: 'cli_persist_local' };
+      capture.onCall = call => order.push(`audit:${call.phase}`);
+
+      assert.strictEqual(managed.cli.execute('kaydet', ''), 'Memory saved.');
+      assert.deepStrictEqual(order, ['audit:attempted', 'persist', 'audit:committed']);
+      assert.strictEqual(capture.calls.length, 2);
+      assert.deepStrictEqual(capture.calls[0], expectedIntent(intent));
+      assert.deepStrictEqual(capture.calls[1], expectedIntent({ ...intent, phase: 'committed' }));
     } finally {
       managed.cli.kernel.persist = originalPersist;
       capture.restore();
@@ -306,7 +381,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     }
   });
 
-  it('records review audit before formatting and never invokes mutation', () => {
+  it('records unavailable-command audit before formatting and never invokes mutation', () => {
     const managed = createIsolatedCli();
     const originalAudit = managed.cli.kernel.recordCliMutationAudit;
     const originalFormat = managed.cli._formatCliGateMessage;
@@ -325,12 +400,46 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
         stages.push('mutation');
         return { pruned: 0, removedNodes: 0 };
       };
-      assert.match(managed.cli.execute('optimize', ''), /review gerektiriyor/);
+      assert.match(managed.cli.execute('optimize', ''), /was blocked/);
       assert.deepStrictEqual(stages, ['audit', 'format']);
     } finally {
       managed.cli.kernel.recordCliMutationAudit = originalAudit;
       managed.cli._formatCliGateMessage = originalFormat;
       managed.cli.kernel.optimize = originalOptimize;
+      managed.close();
+    }
+  });
+
+  it('does not execute unavailable maintenance mutations even with an executable gate result', () => {
+    const managed = createIsolatedCli();
+    const calls = { think: 0, optimize: 0, consolidate: 0, evolve: 0 };
+    const originals = {
+      startAutoThink: managed.cli.kernel.startAutoThink,
+      optimize: managed.cli.kernel.optimize,
+      consolidate: managed.cli.kernel.consolidate,
+      selfEvolve: managed.cli.kernel.selfEvolve,
+    };
+    try {
+      managed.cli.kernel.startAutoThink = () => { calls.think += 1; };
+      managed.cli.kernel.optimize = () => { calls.optimize += 1; return { pruned: 0, removedNodes: 0 }; };
+      managed.cli.kernel.consolidate = () => { calls.consolidate += 1; return { removed: 0 }; };
+      managed.cli.kernel.selfEvolve = () => { calls.evolve += 1; return { dreams: 0, added: 0, consolidated: 0, optimized: 0 }; };
+
+      const executableGate = { canExecute: true, decision: 'allow', reason: 'test-only-gate' };
+      for (const [command, args, key] of [
+        ['düşün', 'başla', 'think'],
+        ['optimize', '', 'optimize'],
+        ['konsolide', '', 'consolidate'],
+        ['evolve', '', 'evolve'],
+      ]) {
+        assert.match(managed.cli.execute(command, args, { gateResult: executableGate }), /was blocked/);
+        assert.equal(calls[key], 0, `${command} must not reach its mutation method`);
+      }
+    } finally {
+      managed.cli.kernel.startAutoThink = originals.startAutoThink;
+      managed.cli.kernel.optimize = originals.optimize;
+      managed.cli.kernel.consolidate = originals.consolidate;
+      managed.cli.kernel.selfEvolve = originals.selfEvolve;
       managed.close();
     }
   });
@@ -341,9 +450,10 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     try {
       await harness.line('kaydet');
       assert.deepStrictEqual(harness.events, [
-        'audit:kaydet',
+        'audit:kaydet:attempted',
         'persist',
-        'log:Hafiza kaydedildi.',
+        'audit:kaydet:committed',
+        'log:Memory saved.',
         'prompt',
       ]);
     } finally {
@@ -364,9 +474,10 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       try {
         await harness.line(input);
         assert.deepStrictEqual(harness.events, [
-          `audit:${sourceCommand}`,
+          `audit:${sourceCommand}:attempted`,
           'persist',
-          'log:Hafiza kaydedildi. Gule gule.',
+          `audit:${sourceCommand}:committed`,
+          'log:Memory saved. Goodbye.',
           'close',
           'exit:0',
         ]);
@@ -377,17 +488,36 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
     });
   }
 
-  for (const mode of ['missing', 'throwing']) {
-    it(`keeps interactive persistence behavior with a ${mode} audit seam`, async () => {
+  // #760: the interactive save is the same mutation as the one-shot save, so
+  // it fails closed on the same terms -- an unavailable audit sink stops the
+  // write instead of persisting without evidence.
+  for (const [mode, errorCode] of [['missing', 'AUDIT_SINK_UNAVAILABLE'], ['throwing', 'AUDIT_WRITE_FAILED']]) {
+    it(`refuses the interactive save with a ${mode} audit seam`, async () => {
       const managed = createIsolatedCli();
       const harness = createInteractiveHarness(managed.cli, mode);
       try {
         await harness.line('kaydet');
         const nonAuditEvents = harness.events.filter(event => !event.startsWith('audit:'));
         assert.deepStrictEqual(nonAuditEvents, [
-          'persist',
-          'log:Hafiza kaydedildi.',
+          `log:Kaydetme durduruldu: denetim kaydi yazilamadi (${errorCode}).`,
           'prompt',
+        ]);
+      } finally {
+        harness.restore();
+        managed.close();
+      }
+    });
+
+    it(`still exits, without an unaudited save, with a ${mode} audit seam`, async () => {
+      const managed = createIsolatedCli();
+      const harness = createInteractiveHarness(managed.cli, mode);
+      try {
+        await harness.line('exit');
+        const nonAuditEvents = harness.events.filter(event => !event.startsWith('audit:'));
+        assert.deepStrictEqual(nonAuditEvents, [
+          `log:Kaydetmeden cikiliyor: denetim kaydi yazilamadi (${errorCode}).`,
+          'close',
+          'exit:0',
         ]);
       } finally {
         harness.restore();
@@ -444,7 +574,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
   });
 
   it('keeps backup and restore output and operation ordering behind the audit seam', () => {
-    const managed = createIsolatedCli();
+    const managed = createIsolatedCli({ useSQLite: true });
     const originalAudit = managed.cli.kernel.recordCliMutationAudit;
     const originalOptions = managed.cli._backupOptions;
     const originalReload = managed.cli.kernel.reload;
@@ -453,7 +583,7 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       managed.cli.agent.storage.close();
       managed.cli.kernel.persist();
       managed.cli.kernel.recordCliMutationAudit = intent => {
-        stages.push(`audit:${intent.sourceCommand}`);
+        stages.push(`audit:${intent.sourceCommand}:${intent.phase}`);
         return originalAudit.call(managed.cli.kernel, intent);
       };
       managed.cli._backupOptions = extra => {
@@ -467,17 +597,99 @@ describe('REFACTOR-1C3E: CLI audit callsite migration contracts', { concurrency:
       };
 
       const backupResult = managed.cli.execute('backup', '');
-      assert.match(backupResult, /^Backup tamamlandi:/);
-      assert.deepStrictEqual(stages, ['audit:backup', 'command:backup']);
+      assert.match(backupResult, /^Backup complete:/);
+      assert.deepStrictEqual(stages, [
+        'audit:backup:attempted',
+        'command:backup',
+        'audit:backup:committed',
+      ]);
 
       stages.length = 0;
       const restoreResult = managed.cli.execute('restore', '');
       assert.match(restoreResult, /^Restore tamamlandi:/);
-      assert.deepStrictEqual(stages, ['audit:restore', 'command:restore', 'reload']);
+      assert.deepStrictEqual(stages, [
+        'audit:restore:attempted',
+        'command:restore',
+        'reload',
+        'audit:restore:committed',
+      ]);
     } finally {
       managed.cli.kernel.recordCliMutationAudit = originalAudit;
       managed.cli._backupOptions = originalOptions;
       managed.cli.kernel.reload = originalReload;
+      managed.close();
+    }
+  });
+
+  it('restore closes the SQLite handle before the replace and reopens before reload (#1848)', () => {
+    const managed = createIsolatedCli({ useSQLite: true });
+    const originalClose = managed.cli.kernel.closeSqlite;
+    const originalReopen = managed.cli.kernel.reopenSqlite;
+    const originalReload = managed.cli.kernel.reload;
+    const order = [];
+    // Windows cannot rename over an open SQLite file (EPERM), so restore must
+    // close the handle before the file replace and reopen it before reload
+    // re-reads the restored database. CI is Linux-only (rename-over-open is
+    // legal there), which is exactly why this order is made load-bearing here.
+    managed.cli.kernel.closeSqlite = () => { order.push('closeSqlite'); return originalClose.call(managed.cli.kernel); };
+    managed.cli.kernel.reopenSqlite = () => { order.push('reopenSqlite'); return originalReopen.call(managed.cli.kernel); };
+    managed.cli.kernel.reload = () => { order.push('reload'); return originalReload.call(managed.cli.kernel); };
+    try {
+      managed.cli.agent.storage.close();
+      managed.cli.kernel.persist();
+      const backupResult = managed.cli.execute('backup', '');
+      assert.match(backupResult, /^Backup complete:/);
+
+      const restoreResult = managed.cli.execute('restore', '');
+      assert.match(restoreResult, /^Restore tamamlandi:/);
+      assert.deepStrictEqual(order, ['closeSqlite', 'reopenSqlite', 'reload']);
+
+      // The reopened SQLite handle must actually be usable against the restored
+      // database, not just closed and left dangling.
+      assert.strictEqual(managed.cli.kernel.graph.getStats().nodes, 0);
+    } finally {
+      managed.cli.kernel.closeSqlite = originalClose;
+      managed.cli.kernel.reopenSqlite = originalReopen;
+      managed.cli.kernel.reload = originalReload;
+      managed.close();
+    }
+  });
+
+  it('restore closes and reopens the journal EVIDENCE handle too (#2915)', () => {
+    // The journal's own connection points at the same memory.db, so leaving it
+    // open reintroduces the Windows EPERM that #1848 fixed -- and a journal left
+    // on a closed handle would fail every append after the restore.
+    const managed = createIsolatedCli({ useSQLite: true });
+    const conn = managed.cli.kernel.experienceJournalConnection;
+    assert.ok(conn, 'the CLI must attach the journal connection to the kernel');
+    const journal = managed.cli.kernel.experienceJournal;
+    assert.ok(journal, 'the CLI must build the production journal');
+    // Setup, not the restore under test: storage.close() also closes the
+    // journal handle it was opened beside, so it runs before the spies.
+    managed.cli.agent.storage.close();
+    const closeCalls = [];
+    const reopenCalls = [];
+    const originalConnClose = conn.close;
+    const originalConnReopen = conn.reopen;
+    conn.close = () => { closeCalls.push('close'); return originalConnClose.call(conn); };
+    conn.reopen = () => { reopenCalls.push('reopen'); return originalConnReopen.call(conn); };
+    try {
+      managed.cli.kernel.persist();
+      assert.match(managed.cli.execute('backup', ''), /^Backup complete:/);
+      assert.match(managed.cli.execute('restore', ''), /^Restore tamamlandi:/);
+
+      assert.deepStrictEqual(closeCalls, ['close']);
+      assert.deepStrictEqual(reopenCalls, ['reopen']);
+      // Reopened for real, and the journal still writes through it afterwards.
+      assert.ok(conn.db, 'the journal handle must be open after restore');
+      assert.equal(conn.db.pragma('synchronous')[0].synchronous, 2,
+        'the reopened handle must still be EVIDENCE');
+      const appended = journal.append({ runId: 'post-restore', workspaceId: 'ws', eventId: 'e1', type: 'run_started' });
+      assert.equal(appended.ok, true);
+      assert.equal(conn.db.prepare('SELECT count(*) AS n FROM experience_journal').get().n, 1);
+    } finally {
+      conn.close = originalConnClose;
+      conn.reopen = originalConnReopen;
       managed.close();
     }
   });

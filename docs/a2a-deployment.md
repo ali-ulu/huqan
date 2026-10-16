@@ -1,0 +1,291 @@
+# A2A deployment
+
+**Status:** implementation
+
+**About:** `main` at the commit that introduced
+`test/a2a-deployment-smoke.test.js`.
+
+HUQAN ships four A2A routes and serves none of them until an operator
+configures two paths. This page is the recipe, and the boundary of what
+configuring them does and does not claim.
+
+## What is on `main`
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/a2a/exchange` | POST | Evaluate and, on allow, apply one bounded exchange |
+| `/.well-known/agent-card.json` | GET | Advertise this receiver's identity and limits |
+| `/api/a2a/negotiate` | POST | Negotiate capabilities before an exchange |
+| `/api/a2a/tasks/{taskId}` | GET | Read what happened to a prior exchange |
+
+All four mount through `lib/a2a/routes.js`, which `server.js` reaches in one
+line. Each is authenticated. The exchange route additionally sends every
+cryptographically verified delegated action through the Agent Action Firewall
+(AB5) before it reserves a replay key or records an effect.
+
+## Delegated task and policy admission
+
+The signed exchange carries the task in `requestedAction` and the delegation
+policy in `constraints`. The receiver also resolves the source identity's
+signed, authority-bound `policy_version`. These values enter AB5 together; the
+receiver does not execute a task whose source policy is absent.
+
+The ordering is fail-closed:
+
+1. validate the envelope, identities, delegation, evidence and signature;
+2. evaluate `requestedAction + constraints + policy_version` through AB5;
+3. only an `allow` decision may reserve the replay key and record the effect.
+
+`block`, `review`, and `dry_run_only` all stop before reservation and effect.
+Their HTTP response contains bounded `receiptMetadata` with the firewall
+decision, policy version, task, and delegated constraints. An allowed exchange
+stores the same metadata inside its durable task effect, so the task read route
+returns the policy and AB5 decision that admitted it.
+
+## Inter-agent receipt chain
+
+Every exchange also carries a signed `routeReceipt`. Its
+`parent_receipt_id` must equal the verified public trust receipt id in
+`evidence.receipt`; its source, target, workspace, action hash, delegation
+scope, constraints, expiry, source policy version, and timestamp must match
+the rest of the signed envelope. The receiver recomputes the route receipt id
+and refuses a missing, altered, or self-inconsistent link before replay
+reservation or effect.
+
+After AB5 evaluates the delegated task, the receiver deterministically
+aggregates the parent receipt decision with its local decision. A disagreement
+emits `cross_agent_decision_contradiction` and the aggregate risk is the higher
+of the parent receipt's 0-100 score and the receiver's own firewall risk score
+on the same scale. Only a receiver decision that carries no score falls back to
+the decision table (`allow=0`, `review=50`, `dry_run_only=75`, `block=100`), and
+`receiver.risk_source` says which one was used. The aggregation also records the
+delegated `maxRiskTier` as a 0-100 ceiling (the top of its band) and whether the
+receiver's score stayed within it; that record is not enforced. The route
+receipt and aggregation are returned in refusal metadata or stored with an
+allowed task effect.
+
+This path is local-first: validation, hashing, signature checks, aggregation,
+replay reservation, and task recording use only the request bytes and the
+receiver-owned local authority/replay paths. No network lookup or cloud
+service is needed to decide an exchange.
+
+## Enabling it
+
+Two variables, both absolute paths, both required. Setting one without the
+other leaves the surface off — a half-configured deployment must not answer
+some requests and fail others.
+
+```bash
+HUQAN_A2A_AUTHORITY_FILE=/etc/huqan/a2a-authority.json \
+HUQAN_A2A_REPLAY_DIR=/var/lib/huqan/a2a-replay \
+HUQAN_API_KEY=replace-with-a-secret \
+npm run server
+```
+
+The legacy `AXIOM_`-prefixed spellings resolve identically through
+`lib/environment-compat.js`. Setting both prefixes to different values refuses
+startup rather than picking one.
+
+### Verifying the surface is live
+
+```bash
+curl -s http://localhost:3000/.well-known/agent-card.json | jq .agent.agentId
+```
+
+An unconfigured server answers `404` here, not `401`. That is deliberate: an
+install that cannot serve the surface does not advertise that the surface
+exists, not even by refusing it differently from a path that does not exist.
+
+## The receiver authority file
+
+The authority is the receiver's trust root. It decides which identities and
+keys are trusted, which target this receiver is, and what time it believes it
+is. It is read once at startup, so an edit needs a restart — the same lifetime
+the trusted-key set already has.
+
+```jsonc
+{
+  "authorityId": "receiver-authority-a2a-v1",
+  "evaluationTime": "2026-08-19T12:00:00.000Z",
+
+  // Who this receiver is. An exchange addressed to anyone else is refused
+  // with identity_invalid.
+  "expectedTarget": {
+    "agentId": "agent-target",
+    "identityRef": "identity:agent-target",
+    "identityHash": "<sha256 of the identity record>",
+    "workspaceId": "default"
+  },
+
+  // At least two. Each carries the identity record itself, so a tampered
+  // record fails its hash rather than being trusted by reference.
+  "identities": [
+    {
+      "ref": "identity:agent-source",
+      "keyReference": "key:agent-source",
+      "record": { "...": "the identity record" },
+      "allowedPackageIds": ["pkg-a2a-001"]
+    }
+  ],
+
+  // At least two. Ed25519 public keys, SPKI DER, base64.
+  "keys": [
+    {
+      "keyReference": "key:agent-source",
+      "status": "active",
+      "expiresAt": "2027-01-01T00:00:00.000Z",
+      "publicKeySpkiDerBase64": "<base64>"
+    }
+  ],
+
+  // At least one. Binds a public receipt id to the internal receipt and
+  // bundle hashes it must match.
+  "receiptBindings": [
+    {
+      "publicReceiptId": "<id>",
+      "expectedInternalReceiptHash": "<sha256>",
+      "expectedBundleHash": "<sha256>",
+      "keyId": "key:receipt-signer",
+      "purpose": "a2a-public-trust-receipt"
+    }
+  ],
+
+  // At least one. The keys allowed to sign public trust receipts.
+  "receiptTrustedKeyRecords": [
+    {
+      "keyReference": "key:receipt-signer",
+      "status": "active",
+      "expiresAt": "2027-01-01T00:00:00.000Z",
+      "publicKeySpkiDerBase64": "<base64>",
+      "purpose": "a2a-public-trust-receipt"
+    }
+  ]
+}
+```
+
+A malformed authority does not degrade the surface, it removes it: the
+boundary returns null at construction and every route answers `404`.
+
+For a complete, valid example, read `buildFixture()` in
+`scripts/a2a-conformance/run.js`. It is the generator both the route tests and
+the deployment smoke use, so it cannot drift from what the evaluator accepts.
+
+### Path safety is enforced, not assumed
+
+`readReceiverAuthority()` refuses the file unless every one of these holds:
+
+- the configured path is absolute;
+- neither the file nor its parent directory is a symlink;
+- both resolve to themselves under `realpath`;
+- the file is a regular file between 1 byte and 1 MiB;
+- its size does not change between `stat` and `read`.
+
+The authority decides which keys are trusted, so a symlinked parent directory
+would be a way to swap the trust root without touching the configured path.
+
+## The replay directory
+
+`HUQAN_A2A_REPLAY_DIR` holds the replay markers and the task records. It must
+be writable and durable: losing it loses the guarantee below.
+
+**The replay key is reserved before the effect runs, and the marker stands
+even if the effect throws.** An exchange whose outcome is unknown is never
+retried and never guessed at. That is why a resend is refused rather than
+reapplied, and why `GET /api/a2a/tasks/{taskId}` exists — a caller asks what
+happened instead of sending again.
+
+Caller-supplied idempotency keys are refused for the same reason: returning a
+stored success for a retried request requires knowing the first attempt
+succeeded, and the one case where that is unknowable is the case the marker
+exists for.
+
+Every refusal carries `safeToRetry`, meaning "resending cannot double an
+effect" rather than "a retry might work". An unrecognised reason defaults to
+unsafe.
+
+## Workspace boundary
+
+The exchange route serves the canonical workspace `default` only. An exchange
+built for any other workspace is refused with `a2a_workspace_not_canonical`.
+This is the same bounded authority the V4-B2 HTTP action surface has: a shared
+API key authenticates one key and owns no caller-to-workspace mapping, so it
+may bind exactly one workspace.
+
+## Evidence
+
+| Claim | Where it is proved |
+|---|---|
+| Bounded exchange rules hold under 52 adversarial cases | `npm run conformance:a2a` — 52/52, verdict `V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT` |
+| A real HTTP request reaches those rules unchanged | `test/a2a-exchange-route.test.js` and its sibling route tests |
+| Booting `node server.js` with these variables serves the surface | `test/a2a-deployment-smoke.test.js` |
+| Booting without them serves `404`, not `401` | same file |
+| A replayed exchange is refused by the real server | same file |
+| An AB5-blocked exchange produces no effect | `test/a2a-deployment-smoke.test.js` |
+| Entry into the V5 track is authorized | `docs/v5/v5-implementation-entry-successor-audit.md` — `V5_IMPLEMENTATION_ENTRY: PASS` |
+
+## What configuring this does not claim
+
+- **Not externally interoperable.** No third party has spoken to this
+  transport. The conformance suite drives the evaluator through a child
+  process, and the smoke drives the server from the same repository.
+- **Not deployed.** Nothing here claims a running deployment exists.
+- **Not complete.** `P0_A2A_PRODUCTION_TRANSPORT: SHIPPED_WITH_ONE_UNIT_DEFERRED`
+  — P0-G is deferred on the authority of its own scope freeze. See
+  `docs/v5/v5-p0-a2a-transport-closeout.md`.
+- **No network discovery or routing.** The agent card advertises this
+  receiver; nothing discovers it for you.
+- **Effect payload bytes are not exchanged**, only a signed hash reference.
+
+## Registry records (Faz F, #1787)
+
+The exchange verifies signatures against keys the receiver already holds. Until
+now the only way to hold a key was for an operator to write it into the
+authority file by hand, which is why two agents that had never met could not
+talk: certificates worked, there was no CA. The registry is where a receiver
+records "this identity, this trust root" so that binding stops being a manual
+copy.
+
+Configure it with one additional variable, alongside the two above:
+
+```
+HUQAN_REGISTRY_DIR=/var/lib/huqan/registry
+```
+
+The directory must exist, be absolute, and be a real directory — a symlink is
+refused, because whoever controls the link would decide where admitted
+identities are written. Without the variable the routes are not served at all
+and answer `404`, the same shape the exchange uses: a declared-but-unbuildable
+route would turn a configuration mistake into a `401` that confirms the path
+exists.
+
+| Route | Method | What it does |
+|---|---|---|
+| `/api/registry/records` | `POST` | Register an identity the receiver already holds |
+| `/api/registry/records/:recordId` | `GET` | Read one record, trust root re-resolved live |
+
+Both are authenticated. A record binds an identity to a trust root, so reading
+one tells the caller which key this receiver will accept for that agent.
+
+Two properties are worth stating because they are the reason the unit exists:
+
+- **Nothing is admitted on the registrant's word.** Identity is matched against
+  the receiver's own authority, capabilities against the receiver's own offer,
+  and the trust root through the receiver's own key resolver. A registration
+  the receiver cannot independently corroborate is refused whole — there is no
+  partial record.
+- **Revocation reaches readers without an edit.** Every read re-resolves the
+  trust root, so a key revoked in the authority stops resolving for readers
+  immediately. The stored `resolvedKeyState` is a record of an admission, never
+  a permission to reuse.
+
+### What the registry does not claim
+
+- **No discovery.** There is no listing route and no public path. A caller can
+  read a record whose id it already has; nothing enumerates the registry, and
+  the agent card still refuses to publish key material.
+- **No federation.** One receiver, one authority. Which authority is
+  authoritative for which workspace is not decided here.
+- **No revocation distribution.** Revocation takes effect where this receiver
+  reads its own authority; publishing revocation to other parties is not built.
+- **Not a CA yet.** This closes the record and admission half of #1787. The
+  publication and federation halves remain open on that issue.

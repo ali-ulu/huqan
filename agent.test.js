@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./test/helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -5,18 +6,79 @@ const os = require('os');
 const path = require('path');
 const Agent = require('./agent');
 const KernelV2 = require('./kernel.v2');
+const Kernel = require('./kernel');
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+// KernelV2.learn() delegates straight to a wrapped v1 Kernel instance
+// (this.kernel.learn()), so it enforces the same admission gate and needs
+// the same bypass token (#357).
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 function freshAgent(memoryPath) {
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new KernelV2(isolatedKernelOptions('agent', { noLoad: true, useSQLite: false, loadPlugins: false }));
   return new Agent({ kernel, memoryPath });
 }
 
 describe('Agent', () => {
+  it('persists memory through a temporary file and atomic rename', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-atomic-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const originalRenameSync = fs.renameSync;
+    let rename = null;
+
+    fs.renameSync = (source, destination) => {
+      rename = { source, destination };
+      assert.strictEqual(fs.existsSync(source), true);
+      originalRenameSync(source, destination);
+    };
+
+    try {
+      const agent = freshAgent(memoryPath);
+      agent._saveMemory();
+    } finally {
+      fs.renameSync = originalRenameSync;
+    }
+
+    assert.ok(rename);
+    assert.strictEqual(path.dirname(rename.source), tmpDir);
+    assert.notStrictEqual(rename.source, memoryPath);
+    assert.strictEqual(rename.destination, memoryPath);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(memoryPath, 'utf8')).plans, []);
+    assert.deepStrictEqual(fs.readdirSync(tmpDir), ['agent.memory.json']);
+  });
+
+  it('preserves existing memory when atomic rename fails', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-atomic-failure-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const existingMemory = '{"version":1,"plans":["preserve-me"]}';
+    fs.writeFileSync(memoryPath, existingMemory);
+    const agent = freshAgent(memoryPath);
+    const originalRenameSync = fs.renameSync;
+    fs.renameSync = () => { throw new Error('simulated rename failure'); };
+
+    try {
+      agent._saveMemory();
+    } finally {
+      fs.renameSync = originalRenameSync;
+    }
+
+    assert.strictEqual(fs.readFileSync(memoryPath, 'utf8'), existingMemory);
+    assert.deepStrictEqual(fs.readdirSync(tmpDir), ['agent.memory.json']);
+  });
+
+  it('backs up corrupt memory and throws instead of silently resetting it', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-agent-corrupt-'));
+    const memoryPath = path.join(tmpDir, 'agent.memory.json');
+    const corruptMemory = '{"plans": [broken';
+    fs.writeFileSync(memoryPath, corruptMemory);
+
+    assert.throws(() => freshAgent(memoryPath), /corrupt/i);
+
+    const files = fs.readdirSync(tmpDir);
+    const backup = files.find(file => file.startsWith('agent.memory.json.corrupt-'));
+    assert.ok(backup);
+    assert.strictEqual(fs.readFileSync(path.join(tmpDir, backup), 'utf8'), corruptMemory);
+  });
+
   it('plans a multi-step verify workflow', () => {
     const agent = freshAgent();
     const planResult = agent.plan('kedi hayvandir mi?');
@@ -45,9 +107,86 @@ describe('Agent', () => {
     assert.ok(typeof runResult.data.finalAnswer === 'string');
     assert.ok(runResult.data.finalSummary);
     assert.ok(typeof runResult.data.finalSummary.mode === 'string');
-    assert.ok(runResult.data.report.includes('Hedef:'));
-    assert.ok(runResult.data.report.includes('Yargı özeti:'));
-    assert.ok(runResult.data.report.includes('Sonuç:'));
+    assert.ok(runResult.data.report.includes('Goal:'));
+    assert.ok(runResult.data.report.includes('Judgement summary:'));
+    assert.ok(runResult.data.report.includes('Result:'));
+  });
+
+  it('a beforeTask plugin setting blocked:true actually halts the step (not just observes it)', () => {
+    const agent = freshAgent();
+    agent.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    let askToolInvoked = false;
+    const originalAsk = agent.kernel.ask.bind(agent.kernel);
+    agent.kernel.ask = (...args) => { askToolInvoked = true; return originalAsk(...args); };
+
+    agent.plugins.register({
+      name: 'watchdog-test',
+      requires: [],
+      optional: [],
+      beforeTask(_agent, data) {
+        data.blocked = true;
+        data.blockReason = 'policy locked';
+        data.blockedBy = 'watchdog-test';
+      },
+    });
+
+    const report = agent._executeStep(
+      { id: 's1', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' },
+      { goal: 'kedi nedir', objective: 'ask', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(askToolInvoked, false, 'the underlying tool must not run once beforeTask blocks the step');
+    assert.strictEqual(report.status, 'blocked');
+    assert.strictEqual(report.result.ok, false);
+    assert.strictEqual(report.result.error.code, 'BEFORE_TASK_BLOCKED');
+    assert.strictEqual(report.result.error.message, 'policy locked');
+    assert.strictEqual(report.result.meta.blockedBy, 'watchdog-test');
+  });
+
+  it('a beforeTask plugin that does not block leaves the step to execute normally', () => {
+    const agent = freshAgent();
+    agent.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    let observed = null;
+    agent.plugins.register({
+      name: 'observer-test',
+      requires: [],
+      optional: [],
+      beforeTask(_agent, data) { observed = data.step.tool; },
+    });
+
+    const report = agent._executeStep(
+      { id: 's1', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' },
+      { goal: 'kedi nedir', objective: 'ask', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(observed, 'ask');
+    assert.strictEqual(report.status, 'done');
+  });
+
+  it('runs ask, reason, and compare inside the scoped workspace (#1068)', () => {
+    const agent = freshAgent();
+    const workspaceId = 'customer-a';
+    agent.kernel.graph.addNode('kedi', 'kedi', null, { workspaceId });
+    agent.kernel.graph.addNode('kopek', 'kopek', null, { workspaceId });
+    agent.kernel.graph.addNode('hayvan', 'hayvan', null, { workspaceId });
+    agent.kernel.graph.addEdge('kedi', 'hayvan', 'tur', { workspaceId });
+    agent.kernel.graph.addEdge('kopek', 'hayvan', 'tur', { workspaceId });
+    const state = { goal: 'kedi', objective: 'ask', steps: [] };
+    const opts = {
+      askOpts: { workspaceId },
+      reasonOpts: { workspaceId },
+      compareOpts: { workspaceId },
+    };
+
+    const ask = agent._executeStep({ id: 'ask', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' }, state, opts);
+    const reason = agent._executeStep({ id: 'reason', action: 'reason', tool: 'reason', input: 'kedi', rationale: '' }, state, opts);
+    const compare = agent._executeStep({ id: 'compare', action: 'compare', tool: 'compare', input: 'kedi | kopek', rationale: '' }, state, opts);
+
+    assert.equal(ask.result.data.unknown, false);
+    assert.equal(reason.result.data.unknown, false);
+    assert.equal(compare.result.data.unknown, false);
   });
 
   it('persists goal history and can resume an unfinished run', () => {
@@ -170,7 +309,7 @@ describe('Agent', () => {
     assert.ok(plan.data.policy.signals.includes('recent-failure'));
     assert.ok(Array.isArray(plan.data.policy.failureHits));
     assert.ok(plan.data.policy.failureHits.length >= 1);
-    assert.ok(plan.data.rationale.includes('Amaç sinyali açık') || plan.data.rationale.includes('Default'));
+    assert.ok(plan.data.rationale.includes('The objective signal is clear') || plan.data.rationale.includes('Default'));
   });
 
   it('surfaces policy scores and demotes unhealthy tools', () => {
@@ -247,10 +386,10 @@ describe('Agent', () => {
     assert.strictEqual(runResult.type, 'agent');
     assert.strictEqual(runResult.data.status, 'blocked');
     assert.ok(runResult.data.steps.some(step => step.status === 'blocked'));
-    assert.ok(runResult.data.report.includes('Durum: blocked'));
-    assert.ok(runResult.data.report.includes('Sonraki ad'));
-    assert.ok(runResult.data.report.includes('Öneri:'));
-    assert.ok(runResult.data.report.includes('Araç sağlığı:'));
+    assert.ok(runResult.data.report.includes('Status: blocked'));
+    assert.ok(runResult.data.report.includes('Next step'));
+    assert.ok(runResult.data.report.includes('Recommendation:'));
+    assert.ok(runResult.data.report.includes('Tool health:'));
     assert.ok(runResult.data.recommendations);
     assert.ok(runResult.data.nextAction);
     assert.strictEqual(runResult.data.nextAction.action, 'revise');
@@ -284,7 +423,7 @@ describe('Agent', () => {
 
     const fakeKernel = {
       plugins: { emit: () => ({}) },
-      _ok(type, data = null, evidence = [], meta = {}) {
+      ok(type, data = null, evidence = [], meta = {}) {
         return {
           ok: true,
           type,
@@ -295,13 +434,13 @@ describe('Agent', () => {
         };
       },
       ask() {
-        return this._ok('ask', { answer: 'Aynı cevap', subject: 'axiom', unknown: false, alternatives: 0 }, []);
+        return this.ok('ask', { answer: 'Aynı cevap', subject: 'axiom', unknown: false, alternatives: 0 }, []);
       },
       reason() {
-        return this._ok('reason', { subject: 'axiom', answer: 'Aynı cevap', forward: [], backward: [], cycles: [] }, []);
+        return this.ok('reason', { subject: 'axiom', answer: 'Aynı cevap', forward: [], backward: [], cycles: [] }, []);
       },
       verify() {
-        return this._ok('verify', { status: 'bilinmiyor', confidence: 0.5, evidence: [] }, []);
+        return this.ok('verify', { status: 'unknown', confidence: 0.5, evidence: [] }, []);
       },
     };
 
@@ -327,7 +466,53 @@ describe('Agent', () => {
     assert.strictEqual(runResult.ok, true);
     assert.strictEqual(runResult.type, 'agent');
     assert.ok(runResult.data.steps.some(step => step.tool === 'dream'));
-    assert.ok(runResult.data.report.includes('İlerleme:'));
+    assert.ok(runResult.data.report.includes('Progress:'));
     assert.ok(typeof runResult.data.progress.stalledCount === 'number');
+  });
+
+  it('reports external toolPolicy decisions through afterGateDecision (#469)', () => {
+    const agent = freshAgent();
+    const observed = [];
+    agent.plugins.register({
+      name: 'gate-telemetry-observer',
+      requires: [],
+      optional: [],
+      afterGateDecision(_kernel, data) { observed.push(data); },
+    });
+
+    const report = agent._executeStep(
+      { id: 's1', action: 'call', tool: 'shell', input: 'run a shell command', rationale: '' },
+      { goal: 'run a shell command', objective: 'call', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(report.status, 'blocked');
+    assert.strictEqual(observed.length, 1);
+    assert.strictEqual(observed[0].source, 'agent-tool-policy');
+    assert.strictEqual(observed[0].decision, 'block');
+    assert.strictEqual(observed[0].metadata.tool, 'shell');
+    assert.strictEqual(observed[0].metadata.category, 'external');
+    assert.strictEqual(observed[0].metadata.blocked, true);
+    assert.ok(typeof observed[0].reason === 'string' && observed[0].reason.length > 0);
+  });
+
+  it('does not emit toolPolicy telemetry for internal tools', () => {
+    const agent = freshAgent();
+    agent.kernel.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    const observed = [];
+    agent.plugins.register({
+      name: 'gate-telemetry-observer-internal',
+      requires: [],
+      optional: [],
+      afterGateDecision(_kernel, data) { observed.push(data); },
+    });
+
+    agent._executeStep(
+      { id: 's1', action: 'ask', tool: 'ask', input: 'kedi nedir', rationale: '' },
+      { goal: 'kedi nedir', objective: 'ask', steps: [] },
+      {}
+    );
+
+    assert.strictEqual(observed.length, 0);
   });
 });

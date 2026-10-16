@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: huqan-data
+  namespace: huqan
+  labels:
+    app.kubernetes.io/name: huqan
+    app.kubernetes.io/component: runtime
+spec:
+  accessModes:
+    # Single-replica topology only: SQLite lives on one local filesystem and
+    # the graph is held in memory of exactly one process. RWO is by design.
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

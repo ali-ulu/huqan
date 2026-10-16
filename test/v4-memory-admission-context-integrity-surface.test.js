@@ -30,7 +30,7 @@ function mockKernel() {
       return {
         ok: true,
         type: 'verify',
-        data: { status: 'bilinmiyor', confidence: 0 },
+        data: { status: 'unknown', confidence: 0 },
         evidence: [],
         error: null,
         meta: { contractVersion: '1.0', backend: 'memory', paranoidMode: false },
@@ -63,7 +63,7 @@ function assertMemoryAdmissionShape(result) {
   assert.equal(typeof result.memoryAdmission.contextIntegrity.mutationAllowed, 'boolean');
 }
 
-test('axiom.learn returns memory admission metadata with review status', () => {
+test('axiom.learn persists a durable review admission', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.learn',
     arguments: {
@@ -81,6 +81,9 @@ test('axiom.learn returns memory admission metadata with review status', () => {
   assert.equal(result.verdict, 'review');
   assertMemoryAdmissionShape(result);
   assert.equal(result.memoryAdmission.status, 'review_required');
+  assert.equal(result.status, 'review_required');
+  assert.equal(result.approval.persisted, true);
+  assert.ok(result.approval.id);
   assert.equal(result.memoryAdmission.verdict, 'review');
   assert.equal(result.memoryAdmission.workspaceId, 'v4-pr5-workspace');
   assert.equal(result.memoryAdmission.provenance.present, true);
@@ -144,9 +147,10 @@ test('null and malformed params do not crash or mutate memory', () => {
     arguments: 'not-json',
   });
   assert.equal(malformedResult.ok, false);
-  assert.equal(malformedResult.verdict, 'review');
+  assert.equal(malformedResult.error.code, 'ARGUMENTS_PARSE_ERROR');
+  assert.equal(malformedResult.verdict, 'block');
   assertMemoryAdmissionShape(malformedResult);
-  assert.equal(malformedResult.memoryAdmission.status, 'review_required');
+  assert.equal(malformedResult.memoryAdmission.status, 'blocked');
   assert.equal(malformedResult.memoryAdmission.contextIntegrity.canonicalMutation, false);
 });
 

@@ -150,6 +150,57 @@ describe('memory-admission-gate', () => {
     assert.strictEqual(quarantine.receipt.quarantined, true);
   });
 
+  test('approval state never weakens a high-risk missing-provenance rejection (#1114)', () => {
+    for (const approvalStatus of ['pending', 'cancelled', 'expired', 'approved', 'rejected']) {
+      const result = evaluateMemoryAdmission({
+        ...baseRequest,
+        provenanceId: '',
+        approvalStatus,
+        riskScore: 90,
+      }, { approvalRequired: true });
+
+      assert.ok(result.ok, approvalStatus);
+      assert.strictEqual(result.decision.decision, 'reject', approvalStatus);
+      assert.ok(result.decision.signals.some((signal) => signal.reason === 'missing_provenance_high_risk'), approvalStatus);
+      assert.ok(result.receipt.signals.some((signal) => signal.reason === 'missing_provenance_high_risk'), approvalStatus);
+    }
+  });
+
+  test('decision and receipt retain every applicable admission signal (#1114)', () => {
+    const result = evaluateMemoryAdmission({
+      ...baseRequest,
+      provenanceId: '',
+      approvalStatus: 'pending',
+      riskScore: 90,
+    }, { approvalRequired: true });
+    const reasons = result.decision.signals.map((signal) => signal.reason);
+
+    assert.deepStrictEqual(result.receipt.signals, result.decision.signals);
+    assert.ok(reasons.includes('missing_provenance_high_risk'));
+    assert.ok(reasons.includes('approval_required'));
+    assert.ok(reasons.includes('canonical_mutation_requires_provenance'));
+    assert.ok(reasons.includes('canonical_mutation_requires_approved_approval'));
+    assert.strictEqual(reasons.includes('provenance_present_low_risk'), false);
+  });
+
+  test('canonical mutation policy reasons are reachable (#1114)', () => {
+    const missingProvenance = evaluateMemoryAdmission({
+      ...baseRequest,
+      provenanceId: '',
+      approvalStatus: 'not_required',
+      approvalRequired: false,
+      riskScore: 10,
+    });
+    assert.strictEqual(missingProvenance.decision.reason, 'canonical_mutation_requires_provenance');
+
+    const missingApproval = evaluateMemoryAdmission({
+      ...baseRequest,
+      approvalStatus: 'pending',
+      riskScore: 10,
+    }, { approvalRequired: true });
+    assert.strictEqual(missingApproval.decision.reason, 'canonical_mutation_requires_approved_approval');
+  });
+
   test('receipt builders and normalizer are JSON-safe and deterministic', () => {
     const normalized = normalizeMemoryAdmissionDecision({
       ok: true,

@@ -1,0 +1,37 @@
+{
+  "agent_id": "agent-chain-invalid",
+  "agent_type": "delegated",
+  "display_name": "Chain Invalid Agent",
+  "owner_actor_id": "actor-owner-001",
+  "workspace_id": "workspace-alpha",
+  "delegation_scope": [
+    "verify"
+  ],
+  "allowed_tools": [
+    "axiom.verify"
+  ],
+  "allowed_memory_scopes": [
+    "read_only_context"
+  ],
+  "allowed_connectors": [
+    "local_stdio_mcp"
+  ],
+  "risk_tier": "medium",
+  "trust_tier": "probationary",
+  "policy_version": "v5-planning-identity-1",
+  "issued_at": "2026-08-01T00:00:00.000Z",
+  "expires_at": null,
+  "revoked_at": null,
+  "revocation_reason": null,
+  "parent_agent_id": "agent-real-parent",
+  "delegation_chain": [
+    "agent-other-hop",
+    "agent-other-hop-2"
+  ],
+  "receipt_refs": [],
+  "provenance_refs": [],
+  "audit_requirements": [],
+  "verification_status": "unverified",
+  "expected_status": "invalid",
+  "expected_reason_code": "delegation.chain_invalid"
+}

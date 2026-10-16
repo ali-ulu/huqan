@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://huqan.local/schemas/v5/shared-trust-package.schema.json",
+  "$id": "https://huqan.dev/specs/huqan-trust-protocol/0.2/schemas/shared-trust-package.schema.json",
   "title": "HUQAN V5 Shared Trust Package Fixture Contract",
   "description": "Static schema contract for V5 Shared Trust Package fixtures. This schema does not implement runtime writer support, runtime reader support, signing, verification runtime, A2A transport, marketplace distribution, connector enforcement, or AgentAction policy enforcement.",
   "type": "object",
@@ -53,6 +53,14 @@
       "properties": {
         "type": {
           "type": "string",
+          "enum": [
+            "agent_action",
+            "change",
+            "tool_call",
+            "route_receipt",
+            "route_receipt_chain",
+            "reasoning_metadata"
+          ],
           "minLength": 1
         },
         "id": {
@@ -103,7 +111,8 @@
           "additionalProperties": false,
           "required": [
             "routeId",
-            "hopCount"
+            "hopCount",
+            "metadata"
           ],
           "properties": {
             "routeId": {
@@ -124,6 +133,34 @@
                   "null"
                 ]
               }
+            }
+          }
+        },
+        "sourceSnapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId",
+            "snapshotVersion",
+            "hash",
+            "algorithm"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshotVersion": {
+              "type": "string",
+              "const": "huqan.external-source-snapshot.v1"
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "algorithm": {
+              "type": "string",
+              "const": "sha256"
             }
           }
         }

@@ -1,9 +1,0 @@
-{
-  "id": "huqan-trust-panel",
-  "name": "HUQAN Trust Panel",
-  "version": "1.0.0",
-  "minAppVersion": "1.5.0",
-  "description": "Local mock verification panel for HUQAN / AXIOM",
-  "author": "HUQAN / AXIOM",
-  "isDesktopOnly": true
-}

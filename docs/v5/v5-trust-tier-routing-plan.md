@@ -1,5 +1,7 @@
 # V5 Trust-tier Routing Plan
 
+**Status:** `future`
+
 ## Status
 
 Planning only.

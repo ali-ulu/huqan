@@ -1,3 +1,4 @@
+declare namespace Kernel {
 export type VerifyStatus = 'dogrulandi' | 'celiski' | 'bilinmiyor';
 
 export interface EvidenceEdgeRef {
@@ -34,6 +35,12 @@ export interface LearnData {
 
 export interface LearnOptions extends Record<string, unknown> {
   returnDetails?: boolean;
+  /**
+   * #1747 batch persistence: when true, `learnDocument` suppresses the
+   * per-learned-line full `graph.save()` and flushes the graph once at the
+   * end of the document. Default (absent/false) is unchanged.
+   */
+  deferSave?: boolean;
 }
 
 export interface LearnDocumentResult {
@@ -149,6 +156,59 @@ export type CliMutationAuditResult = Readonly<{
   errorCode: null | 'AUDIT_WRITE_FAILED';
 }>;
 
+export interface BackgroundEdgeCommitResult {
+  decision: string;
+  edge: object | null;
+  audit: object | null;
+  admission: object | null;
+}
+
+export interface PredicateParseResult {
+  object: string;
+  relation: string;
+  kistlama?: boolean;
+}
+
+/**
+ * The `kernel.memory` read surface this product actually consumes.
+ *
+ * Records and links are `unknown` on purpose: their shape is owned by
+ * lib/memory-schema.js and versioned there, so pinning a structural type here
+ * would publish a second, drifting copy of it. What the declaration commits to
+ * is the call shape and the result envelope, which is what a caller needs to
+ * branch on `ok`.
+ */
+export interface MemoryListOptions {
+  workspaceId?: string;
+  includeTombstoned?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface MemoryListResult {
+  ok: boolean;
+  memories: unknown[];
+  total: number;
+}
+
+export interface MemoryQueryLinksOptions {
+  workspaceId?: string;
+  fromMemoryId?: string;
+  toMemoryId?: string;
+  relation?: string;
+  includeDeleted?: boolean;
+  includeTombstoned?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface MemoryQueryLinksResult {
+  ok: boolean;
+  links?: unknown[];
+  total?: number;
+  error?: { code: string; message: string };
+}
+
 export interface KernelOptions {
   noLoad?: boolean;
   memoryPath?: string;
@@ -164,6 +224,8 @@ export interface KernelOptions {
   strictProvenance?: boolean;
 }
 
+}
+
 declare class ProvenanceError extends Error {
   constructor(message?: string);
   name: 'ProvenanceError';
@@ -175,16 +237,68 @@ declare class Kernel {
   static CONTRACT_VERSION: string;
   static ProvenanceError: typeof ProvenanceError;
 
-  constructor(opts?: KernelOptions);
+  constructor(opts?: Kernel.KernelOptions);
 
+  /**
+   * Graph surface used by the kernel. This is a structural subset of the real
+   * Graph class (graph.js) covering the methods kernel.js and plugins call at
+   * runtime. Method signatures are kept permissive (unknown for rich object
+   * shapes) because Graph is a live JS module, not a generated binding.
+   */
   graph: {
     memoryPath: string;
     load(): void;
     save(): void;
+    close(): void;
+    optimize(workspaceId?: string): { pruned: number; removedNodes: number };
+    getStats(): { nodes: number; edges: number; [key: string]: unknown };
+    // Node access
+    addNode(id: string, label?: string, provenance?: unknown, opts?: Record<string, unknown>): unknown;
+    getNode(id: string, workspaceId?: string): unknown | null;
+    getNodes(workspaceId?: string): Record<string, unknown>;
+    nodeCount(workspaceId?: string): number;
+    // Edge access
+    addEdge(fromId: string, toId: string, relation: string, opts?: Record<string, unknown>): unknown;
+    getEdge(fromId: string, toId: string, relation: string, workspaceId?: string): unknown | null;
+    getEdges(nodeId: string, workspaceId?: string): unknown[];
+    getInEdges(nodeId: string, workspaceId?: string): unknown[];
+    hasAnyEdge(fromId: string, toId: string, workspaceId?: string): boolean;
+    edgeCount(workspaceId?: string): number;
+    cosineSimilarity(aId: string, bId: string, workspaceId?: string): number;
+    // Candidate claims / mutations
+    // The audit-append seam is deliberately absent here. Graph does implement
+    // an audit-append method and kernel.js reaches it through its private
+    // wrapper, but declaring it would publish a generic audit-append surface on
+    // the typed Kernel facade. recordCliMutationAudit is the only supported
+    // public audit entry point; see
+    // test/kernel-cli-audit-seam-contract.test.js.
+    addCandidateClaim(candidate: unknown, opts?: Record<string, unknown>): unknown;
+    getCandidateClaims(filters?: Record<string, unknown>): unknown[];
+    runMutationOnce(
+      operationId: string,
+      mutate: () => unknown,
+      opts?: Record<string, unknown>
+    ): { replayed: boolean; result: unknown; receipt?: unknown };
+    appendAuditEvent(event: unknown, opts?: Record<string, unknown>): unknown;
+    _consolidateEdges(dryRun?: boolean): unknown;
   };
 
+  // The memory store's own surface is wider than this. What is declared here
+  // is what this product reaches through `kernel.memory` -- server.js's
+  // graph-data endpoint calls list() and queryLinks(), kernel.js calls
+  // close() -- so a consumer writing the code HUQAN itself ships typechecks.
+  // Declaring the remaining methods would publish a surface no caller has
+  // exercised outside the memory suite; see
+  // test/memory-store-surface-audit.test.js for that classification.
   memory: {
     close(): void;
+    list(opts?: Kernel.MemoryListOptions): Kernel.MemoryListResult;
+    queryLinks(opts?: Kernel.MemoryQueryLinksOptions): Kernel.MemoryQueryLinksResult;
+    // Restore replaces memory.db underneath an open handle, so the CLI closes
+    // and reopens the store around it -- see #1848. A consumer writing that
+    // same restore flow needs the method declared.
+    // No parentheses in this comment: the audit reads the block by regex.
+    reopen(): void;
   };
 
   lang: string;
@@ -203,7 +317,15 @@ declare class Kernel {
     removedNodes: number;
   };
 
-  recordCliMutationAudit(intent: CliMutationAuditIntent): CliMutationAuditResult;
+  recordCliMutationAudit(intent: Kernel.CliMutationAuditIntent): Kernel.CliMutationAuditResult;
+  parsePredicate(predicate: string): Kernel.PredicateParseResult;
+  commitBackgroundEdge(
+    from: string,
+    to: string,
+    relation: string,
+    source: string,
+    opts?: object
+  ): Kernel.BackgroundEdgeCommitResult;
 
   paranoidMode: boolean;
 
@@ -218,20 +340,20 @@ declare class Kernel {
     opts?: Record<string, unknown>
   ): Promise<unknown>;
 
-  learn(text: string, opts?: LearnOptions): Envelope<'learn', LearnData>;
+  learn(text: string, opts?: Kernel.LearnOptions): Kernel.Envelope<'learn', Kernel.LearnData>;
   learnDocument(text: string): number;
-  learnDocument(text: string, opts: LearnOptions & { returnDetails: true }): LearnDocumentResult;
-  learnDocument(text: string, opts: LearnOptions & { returnDetails?: false }): number;
-  learnDocument(text: string, opts: LearnOptions): number | LearnDocumentResult;
-  learnFromLLM(text: string, opts?: LearnOptions): LearnFromLLMResult;
-  ask(question: string, opts?: Record<string, unknown>): Envelope<'ask', AskData>;
-  verify(statement: string, opts?: Record<string, unknown>): Envelope<'verify', VerifyData>;
-  reason(subject: string, opts?: Record<string, unknown>): Envelope<'reason', ReasonData>;
-  compare(left: string, right: string, opts?: Record<string, unknown>): Envelope<'compare', CompareData>;
-  dream(opts?: Record<string, unknown>): Envelope<'dream', DreamData>;
-  detectGaps(): string[];
-  detectContradictions(): Array<{ type: string; node: string; targets: string[]; confidence: number; message?: string }>;
-  entropy(): number;
+  learnDocument(text: string, opts: Kernel.LearnOptions & { returnDetails: true }): Kernel.LearnDocumentResult;
+  learnDocument(text: string, opts: Kernel.LearnOptions & { returnDetails?: false }): number;
+  learnDocument(text: string, opts: Kernel.LearnOptions): number | Kernel.LearnDocumentResult;
+  learnFromLLM(text: string, opts?: Kernel.LearnOptions): Kernel.LearnFromLLMResult;
+  ask(question: string, opts?: Record<string, unknown>): Kernel.Envelope<'ask', Kernel.AskData>;
+  verify(statement: string, opts?: Record<string, unknown>): Kernel.Envelope<'verify', Kernel.VerifyData>;
+  reason(subject: string, opts?: Record<string, unknown> | string): Kernel.Envelope<'reason', Kernel.ReasonData>;
+  compare(left: string, right: string, opts?: Record<string, unknown> | string): Kernel.Envelope<'compare', Kernel.CompareData>;
+  dream(opts?: Record<string, unknown>): Kernel.Envelope<'dream', Kernel.DreamData>;
+  detectGaps(workspaceId?: string): string[];
+  detectContradictions(subject?: string, workspaceId?: string): Array<{ type: string; node: string; targets: string[]; confidence: number; message?: string }>;
+  entropy(workspaceId?: string): number;
   consolidate(dryRun?: boolean): { dryRun: boolean; removed: number; details: string[] };
   selfEvolve(opts?: Record<string, unknown>): Record<string, unknown>;
   startAutoThink(intervalMs?: number): void;

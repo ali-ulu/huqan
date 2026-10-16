@@ -1,0 +1,401 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const receiptExporter = require('./receipt-exporter');
+const { ensureExporterState, exportReceiptToFile, exportReceiptToPdf } = receiptExporter._test;
+const Kernel = require('../kernel');
+
+// pdf.js (used to read a generated PDF back for the round-trip assertion)
+// wants '/' separators and the standard-font data URL, mirroring
+// adapters/pdf-adapter.js.
+const STANDARD_FONT_DATA_URL = `${path.join(
+  path.dirname(require.resolve('pdfjs-dist/package.json')),
+  'standard_fonts'
+).split(path.sep).join('/')}/`;
+
+async function readPdfText(filePath) {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const data = new Uint8Array(fs.readFileSync(filePath));
+  const loadingTask = pdfjsLib.getDocument({
+    data,
+    isEvalSupported: false,
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+    verbosity: pdfjsLib.VerbosityLevel.ERRORS,
+  });
+  const doc = await loadingTask.promise;
+  let text = '';
+  try {
+    for (let pageNum = 1; pageNum <= doc.numPages; pageNum += 1) {
+      const page = await doc.getPage(pageNum);
+      try {
+        const content = await page.getTextContent();
+        text += `${content.items.map((item) => item.str || '').join(' ')} `;
+      } finally {
+        page.cleanup();
+      }
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function fakeKernel() {
+  return {};
+}
+
+test('receipt-exporter: exportReceiptToFile writes JSON keyed by receiptId', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-'));
+  // Repo-contained explicit targets stay bounded to receipts/ (dev fallback);
+  // this writes into a throwaway subdirectory under it.
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
+  try {
+    const filePath = exportReceiptToFile({ receiptId: 'r-123', ok: true }, outputDir);
+    assert.ok(filePath.endsWith(`r-123.json`));
+    const written = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    assert.equal(written.receiptId, 'r-123');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToFile rejects an outputDir inside the repo but outside receipts/ (#1280)', () => {
+  // Previously validated only against REPO_ROOT, so outputDir: '.' (resolving
+  // to the repo root under process.cwd()) plus a legitimate-looking
+  // receiptId reached repo-root files like package.json -- receiptId is
+  // already a validated single safe segment, so the escape had to come from
+  // outputDir, not the file name.
+  const repoRoot = path.join(__dirname, '..');
+  assert.throws(
+    () => exportReceiptToFile({ receiptId: 'package' }, repoRoot),
+    (e) => e.code === 'PATH_OUTSIDE_ALLOWED_ROOT',
+  );
+});
+
+test('receipt-exporter: a second export to the same target fails instead of overwriting the first (#1280)', () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-exclusive-${process.pid}`);
+  try {
+    const first = exportReceiptToFile({ receiptId: 'r-exclusive-1', decision: 'first' }, outputDir);
+    assert.equal(JSON.parse(fs.readFileSync(first, 'utf8')).decision, 'first');
+
+    assert.throws(
+      () => exportReceiptToFile({ receiptId: 'r-exclusive-1', decision: 'second' }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_TARGET_EXISTS',
+    );
+    // The original file must survive untouched -- not silently overwritten.
+    assert.equal(JSON.parse(fs.readFileSync(first, 'utf8')).decision, 'first');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToFile accepts an outputDir under the OS temp root (H-09, #1982)', () => {
+  // A read-only install cannot be written to, so tmp/cwd/user-data targets
+  // must be accepted -- previously any dir outside the repo was rejected with
+  // PATH_OUTSIDE_ALLOWED_ROOT, which made exports impossible there.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-outside-'));
+  try {
+    const filePath = exportReceiptToFile({ receiptId: 'r-tmp-1', ok: true }, dir);
+    assert.ok(filePath.endsWith('r-tmp-1.json'));
+    assert.equal(JSON.parse(fs.readFileSync(filePath, 'utf8')).receiptId, 'r-tmp-1');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: afterLearn does nothing when no receipt is present', () => {
+  const kernel = fakeKernel();
+  receiptExporter.afterLearn(kernel, { text: 'x', opts: {}, admission: {} });
+  assert.equal(ensureExporterState(kernel).exported.length, 0);
+});
+
+test('receipt-exporter: exported history is capped at MAX_EXPORTED_HISTORY entries (#1280)', () => {
+  const { recordExported, MAX_EXPORTED_HISTORY } = receiptExporter._test;
+  const kernel = fakeKernel();
+  const state = ensureExporterState(kernel);
+  for (let i = 0; i < MAX_EXPORTED_HISTORY + 50; i += 1) {
+    recordExported(state, { receiptId: `r-${i}`, filePath: `/x/r-${i}.json`, exportedAt: 'now' });
+  }
+  assert.equal(state.exported.length, MAX_EXPORTED_HISTORY);
+  // The oldest entries are dropped, not the newest.
+  assert.equal(state.exported[0].receiptId, 'r-50');
+  assert.equal(state.exported[state.exported.length - 1].receiptId, `r-${MAX_EXPORTED_HISTORY + 49}`);
+});
+
+test('receipt-exporter: run() list returns an isolated copy', () => {
+  const kernel = fakeKernel();
+  const state = ensureExporterState(kernel);
+  state.exported.push({ receiptId: 'a', filePath: '/x', exportedAt: 'now' });
+  const result = receiptExporter.run(kernel, { action: 'list' });
+  assert.equal(result.exported.length, 1);
+  result.exported.push({ receiptId: 'b' });
+  assert.equal(ensureExporterState(kernel).exported.length, 1, 'mutating the returned list must not affect internal state');
+});
+
+test('receipt-exporter: run() export requires a receipt object', () => {
+  const kernel = fakeKernel();
+  const result = receiptExporter.run(kernel, { action: 'export' });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'RECEIPT_EXPORT_MISSING_RECEIPT');
+});
+
+test('receipt-exporter: run() rejects an unsupported action', () => {
+  const kernel = fakeKernel();
+  const result = receiptExporter.run(kernel, { action: 'nonsense' });
+  assert.equal(result.ok, false);
+});
+
+test('receipt-exporter: afterLearn end to end -- a real kernel.learn() with an admission receipt gets exported', () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false });
+  k.plugins.register(receiptExporter);
+
+  k.learn('Köpek hayvandır', {
+    admissionRequired: true,
+    approvalRequired: false,
+    sourceType: 'test',
+  });
+
+  const state = ensureExporterState(k);
+  try {
+    if (state.exported.length > 0) {
+      assert.ok(state.exported[0].filePath);
+      assert.ok(fs.existsSync(state.exported[0].filePath));
+    }
+    // Not every admission path produces a receipt (bypass-mode learns
+    // don't); this test's point is that the hook runs without throwing
+    // against a real kernel, and exports cleanly on the paths that do
+    // produce one -- it deliberately does not assert exported.length > 0,
+    // since that depends on admission internals outside this plugin's
+    // control.
+  } finally {
+    // Only remove what this test created: the default output dir is user
+    // data (H-09), never the repo, so it must not be removed wholesale.
+    for (const entry of state.exported) {
+      fs.rmSync(entry.filePath, { force: true });
+    }
+  }
+});
+
+test('receipt-exporter: exportReceiptToPdf writes a real PDF with %PDF magic bytes', async () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
+  try {
+    const filePath = await exportReceiptToPdf({ receiptId: 'r-pdf-1', decision: 'approved' }, outputDir);
+    assert.ok(filePath.endsWith('r-pdf-1.pdf'));
+    assert.ok(fs.existsSync(filePath));
+    const head = fs.readFileSync(filePath).subarray(0, 5).toString('ascii');
+    assert.equal(head, '%PDF-');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: a second PDF export to the same target fails instead of overwriting the first (#1280)', async () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-pdf-exclusive-${process.pid}`);
+  try {
+    const first = await exportReceiptToPdf({ receiptId: 'r-pdf-exclusive-1', decision: 'first' }, outputDir);
+    const original = fs.readFileSync(first);
+
+    await assert.rejects(
+      exportReceiptToPdf({ receiptId: 'r-pdf-exclusive-1', decision: 'second' }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_TARGET_EXISTS',
+    );
+    // The original file must survive untouched -- not silently overwritten.
+    assert.ok(fs.readFileSync(first).equals(original));
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: exportReceiptToPdf accepts an outputDir under the OS temp root (H-09, #1982)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-receipt-pdf-outside-'));
+  try {
+    const filePath = await exportReceiptToPdf({ receiptId: 'r-pdf-tmp-1' }, dir);
+    assert.ok(filePath.endsWith('r-pdf-tmp-1.pdf'));
+    const head = fs.readFileSync(filePath).subarray(0, 5).toString('ascii');
+    assert.equal(head, '%PDF-');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: run() format "pdf" exports a real PDF and records it', async () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
+  try {
+    const result = await receiptExporter.run(kernel, {
+      action: 'export',
+      format: 'pdf',
+      outputDir,
+      receipt: { receiptId: 'r-run-pdf', decision: 'approved' },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.format, 'pdf');
+    assert.ok(result.filePath.endsWith('r-run-pdf.pdf'));
+    assert.ok(fs.existsSync(result.filePath));
+    const head = fs.readFileSync(result.filePath).subarray(0, 5).toString('ascii');
+    assert.equal(head, '%PDF-');
+    // The PDF export is recorded in exporter state like the JSON export.
+    const state = ensureExporterState(kernel);
+    assert.equal(state.exported.length, 1);
+    assert.equal(state.exported[0].format, 'pdf');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: run() default format stays JSON', () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
+  try {
+    const result = receiptExporter.run(kernel, {
+      action: 'export',
+      outputDir,
+      receipt: { receiptId: 'r-run-json', decision: 'approved' },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.format, 'json');
+    assert.ok(result.filePath.endsWith('r-run-json.json'));
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: PDF round-trip -- a generated receipt PDF reads back its fields', async () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-export-test-${process.pid}`);
+  try {
+    const receipt = {
+      receiptId: 'r-roundtrip-7',
+      timestamp: '2026-08-08T00:00:00Z',
+      decision: 'approved',
+      sourceType: 'test',
+      provenance: { source: 'unit-test' },
+    };
+    const filePath = await exportReceiptToPdf(receipt, outputDir);
+    const text = await readPdfText(filePath);
+    assert.ok(text.includes('Huqan Trust Receipt'));
+    assert.ok(text.includes('r-roundtrip-7'));
+    assert.ok(text.includes('approved'));
+    assert.ok(text.includes('r-roundtrip-7'), 'receiptId is embedded in the full JSON dump');
+    assert.ok(text.includes('unit-test'), 'provenance value is embedded in the full JSON dump');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+
+// --- #543: receiptId path traversal ---------------------------------------
+
+test('receipt-exporter: #543 traversal receiptId cannot escape the output dir (JSON)', () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-traversal-${process.pid}`);
+  const sentinel = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-sentinel-${process.pid}.json`);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(sentinel, 'sentinel');
+    const stem = `../tmp-receipt-sentinel-${process.pid}`;
+    assert.throws(
+      () => exportReceiptToFile({ receiptId: stem, pwned: true }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+    );
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'sentinel', 'sentinel file was not overwritten');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+    fs.rmSync(sentinel, { force: true });
+  }
+});
+
+test('receipt-exporter: #543 traversal receiptId rejects on the PDF path too', async () => {
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-traversal-pdf-${process.pid}`);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    await assert.rejects(
+      () => exportReceiptToPdf({ receiptId: '../escaped' }, outputDir),
+      (e) => e.code === 'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+    );
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: #543 unsafe receiptId shapes all fail closed', () => {
+  const { resolveReceiptFileStem } = receiptExporter._test;
+  const unsafe = [
+    // `'a\b'` and `'C:\win'` were single-escaped, so the fixtures held a
+    // backspace and `C:win` -- the backslashes this list reads as were never
+    // there. Doubled so each entry is the Windows path shape it names; both
+    // are still rejected, because `SAFE_RECEIPT_ID` admits only [A-Za-z0-9._-].
+    '../package', '..', '.', 'a/b', 'a\\b', '/abs', 'C:\\win',
+    'nul\u0000byte', 'has space', 'x'.repeat(129),
+  ];
+  for (const receiptId of unsafe) {
+    assert.throws(
+      () => resolveReceiptFileStem({ receiptId }),
+      (e) => e.code === 'RECEIPT_EXPORT_INVALID_RECEIPT_ID',
+      `expected ${JSON.stringify(receiptId)} to be rejected`,
+    );
+  }
+});
+
+test('receipt-exporter: #543 legitimate receiptId shapes still pass', () => {
+  const { resolveReceiptFileStem } = receiptExporter._test;
+  const safe = [
+    'apr_receipt_abc123', 'madm_receipt_0f9d', 'external_candidate_receipt_ff00',
+    'receipt-1754-ab12cd', 'r-run-json', 'v1.2.3',
+  ];
+  for (const receiptId of safe) {
+    assert.equal(resolveReceiptFileStem({ receiptId }), receiptId);
+  }
+  // A receipt with no id at all still gets a generated stem.
+  assert.match(resolveReceiptFileStem({}), /^receipt-\d+-[a-z0-9]+$/);
+});
+
+// --- #544: unknown format fail-closed --------------------------------------
+
+test('receipt-exporter: #544 unknown format fails closed instead of writing JSON', () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-format-${process.pid}`);
+  try {
+    const result = receiptExporter.run(kernel, {
+      action: 'export',
+      format: 'yaml',
+      outputDir,
+      receipt: { receiptId: 'r-format-yaml', decision: 'approved' },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'RECEIPT_EXPORT_UNSUPPORTED_FORMAT');
+    assert.deepEqual(result.supportedFormats, ['json', 'pdf']);
+    assert.equal(fs.existsSync(path.join(outputDir, 'r-format-yaml.json')), false,
+      'no JSON artefact is written for an unsupported format');
+    assert.deepEqual(ensureExporterState(kernel).exported, [],
+      'a rejected export is not recorded in exporter state');
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('receipt-exporter: #544 supported formats still export and report honestly', async () => {
+  const kernel = fakeKernel();
+  const outputDir = path.join(receiptExporter._test.RECEIPTS_ROOT, `tmp-receipt-format-ok-${process.pid}`);
+  try {
+    const json = receiptExporter.run(kernel, {
+      action: 'export', format: 'JSON', outputDir,
+      receipt: { receiptId: 'r-ok-json' },
+    });
+    assert.equal(json.ok, true);
+    assert.equal(json.format, 'json');
+    assert.ok(json.filePath.endsWith('r-ok-json.json'));
+
+    const pdf = await receiptExporter.run(kernel, {
+      action: 'export', format: 'pdf', outputDir,
+      receipt: { receiptId: 'r-ok-pdf' },
+    });
+    assert.equal(pdf.ok, true);
+    assert.equal(pdf.format, 'pdf');
+    assert.ok(pdf.filePath.endsWith('r-ok-pdf.pdf'));
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+});

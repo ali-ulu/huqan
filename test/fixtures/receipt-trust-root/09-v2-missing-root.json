@@ -1,0 +1,1 @@
+{"caseId":"RTR-009-V2-MISSING-TRUST-ROOT","description":"Declared V2 requires trust root","input":{"schemaVersion":"v4-receipt-v2"},"expected":{"mode":"futureV2Structural","valid":false},"nonClaims":["runtime error vocabulary"]}

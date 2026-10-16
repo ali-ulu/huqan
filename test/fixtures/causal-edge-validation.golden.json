@@ -1,0 +1,1056 @@
+{
+  "valid": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "null": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "edge input must be an object"
+      }
+    ],
+    "warnings": []
+  },
+  "array": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "edge input must be an object"
+      }
+    ],
+    "warnings": []
+  },
+  "string": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "edge input must be an object"
+      }
+    ],
+    "warnings": []
+  },
+  "empty-object": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'id' is missing",
+        "field": "id"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'from' is missing",
+        "field": "from"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'to' is missing",
+        "field": "to"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'relation' is missing",
+        "field": "relation"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'strength' is missing",
+        "field": "strength"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'workspaceId' is missing",
+        "field": "workspaceId"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'provenanceId' is missing",
+        "field": "provenanceId"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'trustPolicyVersion' is missing",
+        "field": "trustPolicyVersion"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'createdAt' is missing",
+        "field": "createdAt"
+      },
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'edgeSchemaVersion' is missing",
+        "field": "edgeSchemaVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "self-edge": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "SELF_EDGE",
+        "message": "edge from and to must differ (self-edge forbidden)",
+        "field": "to"
+      }
+    ],
+    "warnings": []
+  },
+  "self-edge-blank": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "from must be a non-empty string",
+        "field": "from"
+      },
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "to must be a non-empty string",
+        "field": "to"
+      }
+    ],
+    "warnings": []
+  },
+  "id#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ID",
+        "message": "id must be a non-empty string",
+        "field": "id"
+      }
+    ],
+    "warnings": []
+  },
+  "id#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ID",
+        "message": "id must be a non-empty string",
+        "field": "id"
+      }
+    ],
+    "warnings": []
+  },
+  "id#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ID",
+        "message": "id must be a non-empty string",
+        "field": "id"
+      }
+    ],
+    "warnings": []
+  },
+  "id#3": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ID",
+        "message": "id must be a non-empty string",
+        "field": "id"
+      }
+    ],
+    "warnings": []
+  },
+  "from#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "from must be a non-empty string",
+        "field": "from"
+      }
+    ],
+    "warnings": []
+  },
+  "from#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "from must be a non-empty string",
+        "field": "from"
+      }
+    ],
+    "warnings": []
+  },
+  "from#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "from must be a non-empty string",
+        "field": "from"
+      }
+    ],
+    "warnings": []
+  },
+  "to#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "to must be a non-empty string",
+        "field": "to"
+      }
+    ],
+    "warnings": []
+  },
+  "to#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "to must be a non-empty string",
+        "field": "to"
+      }
+    ],
+    "warnings": []
+  },
+  "to#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ENDPOINT",
+        "message": "to must be a non-empty string",
+        "field": "to"
+      }
+    ],
+    "warnings": []
+  },
+  "relation#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_RELATION",
+        "message": "relation 'LIKES' is not in CAUSAL_EDGE_RELATIONS",
+        "field": "relation"
+      }
+    ],
+    "warnings": []
+  },
+  "relation#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_RELATION",
+        "message": "relation '' is not in CAUSAL_EDGE_RELATIONS",
+        "field": "relation"
+      }
+    ],
+    "warnings": []
+  },
+  "relation#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_RELATION",
+        "message": "relation 'null' is not in CAUSAL_EDGE_RELATIONS",
+        "field": "relation"
+      }
+    ],
+    "warnings": []
+  },
+  "relation#3": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_RELATION",
+        "message": "relation 'causes' is not in CAUSAL_EDGE_RELATIONS",
+        "field": "relation"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be in [0, 1]",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be in [0, 1]",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be a finite number",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#3": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be a finite number",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#4": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be a finite number",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#5": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be a finite number",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "strength#6": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "strength#7": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "strength#8": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "strength#9": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "strength#10": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "confidence#0": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "confidence#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_CONFIDENCE",
+        "message": "confidence must be in [0, 1]",
+        "field": "confidence"
+      }
+    ],
+    "warnings": []
+  },
+  "confidence#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_CONFIDENCE",
+        "message": "confidence must be in [0, 1]",
+        "field": "confidence"
+      }
+    ],
+    "warnings": []
+  },
+  "confidence#3": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_CONFIDENCE",
+        "message": "confidence must be a finite number",
+        "field": "confidence"
+      }
+    ],
+    "warnings": []
+  },
+  "confidence#4": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_CONFIDENCE",
+        "message": "confidence must be a finite number",
+        "field": "confidence"
+      }
+    ],
+    "warnings": []
+  },
+  "confidence#5": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_CONFIDENCE",
+        "message": "confidence must be a finite number",
+        "field": "confidence"
+      }
+    ],
+    "warnings": []
+  },
+  "workspaceId#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_WORKSPACE_ID",
+        "message": "workspaceId must be a non-empty string",
+        "field": "workspaceId"
+      }
+    ],
+    "warnings": []
+  },
+  "workspaceId#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_WORKSPACE_ID",
+        "message": "workspaceId must be a non-empty string",
+        "field": "workspaceId"
+      }
+    ],
+    "warnings": []
+  },
+  "workspaceId#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_WORKSPACE_ID",
+        "message": "workspaceId must be a non-empty string",
+        "field": "workspaceId"
+      }
+    ],
+    "warnings": []
+  },
+  "provenanceId#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "EMPTY_PROVENANCE_ID",
+        "message": "provenanceId must be a non-empty string",
+        "field": "provenanceId"
+      }
+    ],
+    "warnings": []
+  },
+  "provenanceId#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_PROVENANCE_ID",
+        "message": "provenanceId must be stable (no leading/trailing whitespace)",
+        "field": "provenanceId"
+      }
+    ],
+    "warnings": []
+  },
+  "provenanceId#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_PROVENANCE_ID",
+        "message": "provenanceId must be stable (no leading/trailing whitespace)",
+        "field": "provenanceId"
+      }
+    ],
+    "warnings": []
+  },
+  "provenanceId#3": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "EMPTY_PROVENANCE_ID",
+        "message": "provenanceId must be a non-empty string",
+        "field": "provenanceId"
+      }
+    ],
+    "warnings": []
+  },
+  "provenanceId#4": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "EMPTY_PROVENANCE_ID",
+        "message": "provenanceId must be a non-empty string",
+        "field": "provenanceId"
+      }
+    ],
+    "warnings": []
+  },
+  "trustPolicyVersion#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_TRUST_POLICY_VERSION",
+        "message": "trustPolicyVersion must be a non-empty string",
+        "field": "trustPolicyVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "trustPolicyVersion#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_TRUST_POLICY_VERSION",
+        "message": "trustPolicyVersion must be a non-empty string",
+        "field": "trustPolicyVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "trustPolicyVersion#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_TRUST_POLICY_VERSION",
+        "message": "trustPolicyVersion must be a non-empty string",
+        "field": "trustPolicyVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "createdAt#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_TIMESTAMP",
+        "message": "createdAt must be an ISO-8601 timestamp",
+        "field": "createdAt"
+      }
+    ],
+    "warnings": []
+  },
+  "createdAt#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_TIMESTAMP",
+        "message": "createdAt must be an ISO-8601 timestamp",
+        "field": "createdAt"
+      }
+    ],
+    "warnings": []
+  },
+  "createdAt#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_TIMESTAMP",
+        "message": "createdAt must be an ISO-8601 timestamp",
+        "field": "createdAt"
+      }
+    ],
+    "warnings": []
+  },
+  "createdAt#3": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "createdAt#4": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_TIMESTAMP",
+        "message": "createdAt must be an ISO-8601 timestamp",
+        "field": "createdAt"
+      }
+    ],
+    "warnings": []
+  },
+  "edgeSchemaVersion#0": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_EDGE_SCHEMA_VERSION",
+        "message": "edgeSchemaVersion must be '1.0.0'",
+        "field": "edgeSchemaVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "edgeSchemaVersion#1": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_EDGE_SCHEMA_VERSION",
+        "message": "edgeSchemaVersion must be '1.0.0'",
+        "field": "edgeSchemaVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "edgeSchemaVersion#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_EDGE_SCHEMA_VERSION",
+        "message": "edgeSchemaVersion must be '1.0.0'",
+        "field": "edgeSchemaVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "strengthLabel#0": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "strengthLabel#1": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "strengthLabel#2": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "STRENGTH_LABEL_MISMATCH",
+        "message": "strengthLabel 'weak' does not match band 'strong' for strength 0.6",
+        "field": "strengthLabel"
+      }
+    ],
+    "warnings": []
+  },
+  "strengthLabel#3": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "STRENGTH_LABEL_MISMATCH",
+        "message": "strengthLabel 'nope' does not match band 'strong' for strength 0.6",
+        "field": "strengthLabel"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:id": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'id' is missing",
+        "field": "id"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:from": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'from' is missing",
+        "field": "from"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:to": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'to' is missing",
+        "field": "to"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:relation": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'relation' is missing",
+        "field": "relation"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:strength": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'strength' is missing",
+        "field": "strength"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:workspaceId": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'workspaceId' is missing",
+        "field": "workspaceId"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:provenanceId": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'provenanceId' is missing",
+        "field": "provenanceId"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:trustPolicyVersion": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'trustPolicyVersion' is missing",
+        "field": "trustPolicyVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:createdAt": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'createdAt' is missing",
+        "field": "createdAt"
+      }
+    ],
+    "warnings": []
+  },
+  "missing:edgeSchemaVersion": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "MISSING_FIELD",
+        "message": "required field 'edgeSchemaVersion' is missing",
+        "field": "edgeSchemaVersion"
+      }
+    ],
+    "warnings": []
+  },
+  "future:temporal:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:temporal:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'temporal' must be null in V1 (got object)",
+        "field": "temporal"
+      }
+    ],
+    "warnings": []
+  },
+  "future:probability:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:probability:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'probability' must be null in V1 (got object)",
+        "field": "probability"
+      }
+    ],
+    "warnings": []
+  },
+  "future:formalProof:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:formalProof:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'formalProof' must be null in V1 (got object)",
+        "field": "formalProof"
+      }
+    ],
+    "warnings": []
+  },
+  "future:worldModel:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:worldModel:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'worldModel' must be null in V1 (got object)",
+        "field": "worldModel"
+      }
+    ],
+    "warnings": []
+  },
+  "future:causalProjection:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:causalProjection:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'causalProjection' must be null in V1 (got object)",
+        "field": "causalProjection"
+      }
+    ],
+    "warnings": []
+  },
+  "future:counterfactualTrace:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:counterfactualTrace:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'counterfactualTrace' must be null in V1 (got object)",
+        "field": "counterfactualTrace"
+      }
+    ],
+    "warnings": []
+  },
+  "future:simulationReceipt:null": {
+    "ok": true,
+    "value": null,
+    "errors": [],
+    "warnings": []
+  },
+  "future:simulationReceipt:set": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'simulationReceipt' must be null in V1 (got object)",
+        "field": "simulationReceipt"
+      }
+    ],
+    "warnings": []
+  },
+  "everything-wrong": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ID",
+        "message": "id must be a non-empty string",
+        "field": "id"
+      },
+      {
+        "code": "SELF_EDGE",
+        "message": "edge from and to must differ (self-edge forbidden)",
+        "field": "to"
+      },
+      {
+        "code": "INVALID_RELATION",
+        "message": "relation 'NOPE' is not in CAUSAL_EDGE_RELATIONS",
+        "field": "relation"
+      },
+      {
+        "code": "INVALID_STRENGTH",
+        "message": "strength must be in [0, 1]",
+        "field": "strength"
+      },
+      {
+        "code": "INVALID_CONFIDENCE",
+        "message": "confidence must be in [0, 1]",
+        "field": "confidence"
+      },
+      {
+        "code": "INVALID_WORKSPACE_ID",
+        "message": "workspaceId must be a non-empty string",
+        "field": "workspaceId"
+      },
+      {
+        "code": "INVALID_PROVENANCE_ID",
+        "message": "provenanceId must be stable (no leading/trailing whitespace)",
+        "field": "provenanceId"
+      },
+      {
+        "code": "MISSING_TRUST_POLICY_VERSION",
+        "message": "trustPolicyVersion must be a non-empty string",
+        "field": "trustPolicyVersion"
+      },
+      {
+        "code": "INVALID_TIMESTAMP",
+        "message": "createdAt must be an ISO-8601 timestamp",
+        "field": "createdAt"
+      },
+      {
+        "code": "INVALID_EDGE_SCHEMA_VERSION",
+        "message": "edgeSchemaVersion must be '1.0.0'",
+        "field": "edgeSchemaVersion"
+      },
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'temporal' must be null in V1 (got number)",
+        "field": "temporal"
+      },
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'probability' must be null in V1 (got string)",
+        "field": "probability"
+      }
+    ],
+    "warnings": []
+  },
+  "label-mismatch-with-other-errors": {
+    "ok": false,
+    "value": null,
+    "errors": [
+      {
+        "code": "INVALID_ID",
+        "message": "id must be a non-empty string",
+        "field": "id"
+      },
+      {
+        "code": "FUTURE_FIELD_NOT_NULL",
+        "message": "future field 'formalProof' must be null in V1 (got boolean)",
+        "field": "formalProof"
+      },
+      {
+        "code": "STRENGTH_LABEL_MISMATCH",
+        "message": "strengthLabel 'weak' does not match band 'strong' for strength 0.6",
+        "field": "strengthLabel"
+      }
+    ],
+    "warnings": []
+  }
+}

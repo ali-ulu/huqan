@@ -1,14 +1,16 @@
 'use strict';
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 /**
  * FAZ2-PR6 — CLI Gate Parity Contract Tests (F-004)
  *
  * F-004 closed: every CLI command that can mutate persistence, the canonical
  * graph, or background automation now runs through a gate. _evaluateCliGate no
  * longer returns null for mutation-bearing commands — it returns either a
- * review decision (canonical/automation mutations, execute() short-circuits) or
- * an audited allow decision (local persistence/recovery ops that must still
- * run). This mirrors the REST surface, where requestGuards
- * UNSAFE_PUBLIC_API_COMMANDS blocks the same commands on the public API.
+ * review decision (approval-backed mutations), an explicit unavailable block
+ * (maintenance mutations without a CLI approval workflow), or an audited allow
+ * decision (local persistence/recovery ops that must still run). This mirrors
+ * the REST surface, where requestGuards UNSAFE_PUBLIC_API_COMMANDS blocks the
+ * same commands on the public API.
  *
  * Mechanism:
  *   cli.js mapCliCommandToMcpTool  — maps öğret/öğren/yükle/company-ingest to
@@ -16,7 +18,9 @@
  *   cli.js CLI_MUTATION_GATE       — classifies kaydet/backup/restore/evolve/
  *                                    optimize/konsolide/düşün/rüya so
  *                                    _evaluateCliGate never short-circuits to
- *                                    null for a mutation command.
+ *                                    null for a mutation command; maintenance
+ *                                    mutations are explicit unavailable blocks
+ *                                    until an approval workflow exists.
  *
  * Historical note: prior revisions of this file asserted the RED gap
  * (_evaluateCliGate returning null). Those assertions are intentionally
@@ -33,14 +37,15 @@ const Kernel = require('../kernel');
 // Helpers
 // ---------------------------------------------------------------------------
 function makeCLI() {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  const kernel = new Kernel(isolatedKernelOptions('faz2-cli-gate-parity-contract', { noLoad: true, useSQLite: false, loadPlugins: false }));
   const cli = new CLI({ kernelInstance: kernel });
   return cli;
 }
 
 /**
  * Mutation-bearing CLI commands that previously bypassed the gate (returned
- * null). After FAZ2-6 each must return a non-null gate decision.
+ * null). After FAZ2-6 each must return a non-null gate decision, including an
+ * explicit block for maintenance mutations without an approval workflow.
  */
 const MUTATION_COMMANDS = [
   'kaydet',
@@ -78,12 +83,12 @@ describe('FAZ2-PR1 contract: F-004 CLI gate parity — harness', () => {
     assert.ok(cli.kernel, 'cli.kernel must exist');
   });
 
-  it('_evaluateCliGate method exists on CLI prototype', () => {
+  it('evaluateCliGate method exists on CLI prototype', () => {
     const cli = makeCLI();
     assert.strictEqual(
-      typeof cli._evaluateCliGate,
+      typeof cli.evaluateCliGate,
       'function',
-      '_evaluateCliGate must be a function'
+      'evaluateCliGate must be a function'
     );
   });
 
@@ -91,8 +96,8 @@ describe('FAZ2-PR1 contract: F-004 CLI gate parity — harness', () => {
     // Previously 'öğren' (→ ogren) was unmapped and returned null. FAZ2-6 maps
     // it to axiom.learn so the learn alias is gated like öğret.
     const cli = makeCLI();
-    const learnAlias   = cli._evaluateCliGate('öğren', '');
-    const teachCommand = cli._evaluateCliGate('öğret', '');
+    const learnAlias   = cli.evaluateCliGate('öğren', '');
+    const teachCommand = cli.evaluateCliGate('öğret', '');
     assert.notStrictEqual(learnAlias, null,
       "'öğren' (learn alias) must be gated — no longer returns null");
     assert.notStrictEqual(teachCommand, null,
@@ -105,16 +110,16 @@ describe('FAZ2-PR1 contract: F-004 CLI gate parity — harness', () => {
 // ---------------------------------------------------------------------------
 describe('FAZ2-PR6 contract: F-004 mutation commands are gated', () => {
   for (const cmd of MUTATION_COMMANDS) {
-    it(`_evaluateCliGate('${cmd}') returns a gate decision (never null)`, () => {
+    it(`evaluateCliGate('${cmd}') returns a gate decision (never null)`, () => {
       const cli = makeCLI();
-      const result = cli._evaluateCliGate(cmd, '');
+      const result = cli.evaluateCliGate(cmd, '');
       assert.notStrictEqual(
         result,
         null,
-        `_evaluateCliGate('${cmd}') must not return null — the gate must run`
+        `evaluateCliGate('${cmd}') must not return null — the gate must run`
       );
       assert.ok(result && typeof result.decision === 'string',
-        `_evaluateCliGate('${cmd}') must produce a decision`);
+        `evaluateCliGate('${cmd}') must produce a decision`);
     });
   }
 });
@@ -124,13 +129,13 @@ describe('FAZ2-PR6 contract: F-004 mutation commands are gated', () => {
 // ---------------------------------------------------------------------------
 describe('FAZ2-PR1 contract: F-004 currently gated commands stay gated', () => {
   for (const { command, expectedTool } of GATED_COMMANDS) {
-    it(`_evaluateCliGate('${command}') returns a gate result (tool: ${expectedTool})`, () => {
+    it(`evaluateCliGate('${command}') returns a gate result (tool: ${expectedTool})`, () => {
       const cli = makeCLI();
-      const result = cli._evaluateCliGate(command, 'test value');
+      const result = cli.evaluateCliGate(command, 'test value');
       assert.notStrictEqual(
         result,
         null,
-        `_evaluateCliGate('${command}') must not return null — gate must run for ${expectedTool}`
+        `evaluateCliGate('${command}') must not return null — gate must run for ${expectedTool}`
       );
     });
   }
@@ -140,13 +145,14 @@ describe('FAZ2-PR1 contract: F-004 currently gated commands stay gated', () => {
 // SECTION 4: Mutation gate decisions are correct (no silent canonical write)
 // ---------------------------------------------------------------------------
 describe('FAZ2-PR6 contract: F-004 mutation gate decisions', () => {
-  // Canonical-graph / automation mutations must be reviewed (execute() blocks).
+  // Canonical-graph / automation mutations are explicit unavailable blocks
+  // until the CLI has a durable approval/execution workflow.
   for (const cmd of ['evolve', 'optimize', 'konsolide', 'düşün']) {
-    it(`'${cmd}' is reviewed and cannot execute silently`, () => {
+    it(`'${cmd}' is unavailable and cannot execute silently`, () => {
       const cli = makeCLI();
-      const result = cli._evaluateCliGate(cmd, '');
+      const result = cli.evaluateCliGate(cmd, '');
       assert.notStrictEqual(result, null, `gate must run for '${cmd}'`);
-      assert.strictEqual(result.decision, 'review', `'${cmd}' must be reviewed`);
+      assert.strictEqual(result.decision, 'block', `'${cmd}' must be explicitly blocked`);
       assert.strictEqual(result.canExecute, false, `'${cmd}' must not execute under review`);
     });
   }
@@ -156,7 +162,7 @@ describe('FAZ2-PR6 contract: F-004 mutation gate decisions', () => {
     it(`'${cmd}' is allowed (local) and audited`, () => {
       const cli = makeCLI();
       const before = (cli.kernel.graph._auditEvents || []).length;
-      const result = cli._evaluateCliGate(cmd, '');
+      const result = cli.evaluateCliGate(cmd, '');
       assert.notStrictEqual(result, null, `gate must run for '${cmd}'`);
       assert.strictEqual(result.canExecute, true, `'${cmd}' must remain executable locally`);
       const after = (cli.kernel.graph._auditEvents || []).length;
@@ -164,16 +170,16 @@ describe('FAZ2-PR6 contract: F-004 mutation gate decisions', () => {
     });
   }
 
-  it("'öğren' alias is mapped so _evaluateCliGate returns a gate result", () => {
+  it("'öğren' alias is mapped so evaluateCliGate returns a gate result", () => {
     const cli = makeCLI();
-    const result = cli._evaluateCliGate('öğren', '');
+    const result = cli.evaluateCliGate('öğren', '');
     assert.notStrictEqual(result, null, "'öğren' alias must be gated");
   });
 
-  it('_evaluateCliGate returns a non-null decision for every mutation command', () => {
+  it('evaluateCliGate returns a non-null decision for every mutation command', () => {
     const cli = makeCLI();
     for (const cmd of MUTATION_COMMANDS) {
-      const result = cli._evaluateCliGate(cmd, '');
+      const result = cli.evaluateCliGate(cmd, '');
       assert.notStrictEqual(result, null,
         `mutation command '${cmd}' must be gated (no null short-circuit)`);
     }

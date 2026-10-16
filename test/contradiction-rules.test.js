@@ -47,14 +47,15 @@ describe('contradiction-rules', () => {
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.TYPE_CONFLICT);
   });
 
-  it('emits relation drift for semantic mismatch', () => {
+  it('emits a review-only relation drift signal for topical predicate mismatch', () => {
     const signal = detectPredicateDrift(
       { text: 'TCAS detects traffic', subject: 'TCAS', relation: 'detects traffic' },
-      { text: 'TCAS is weather radar', subject: 'TCAS', relation: 'is weather radar' },
+      { text: 'TCAS detects aircraft traffic', subject: 'TCAS', relation: 'detects aircraft traffic' },
     );
 
     assert.ok(signal);
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.PREDICATE_DRIFT);
+    assert.strictEqual(signal.kind, 'risk');
     assert.ok(signal.flags.includes('RELATION_DRIFT'));
   });
 
@@ -105,6 +106,26 @@ describe('contradiction-rules', () => {
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.UNIT_CONFLICT);
   });
 
+  it('does not flag meter vs metre with the same value as a unit conflict (regression)', () => {
+    // "meter" (US) and "metre" (UK/TR) are the same unit. Without canonical
+    // normalization these would be flagged as a unit conflict even when the
+    // numeric value is identical.
+    const signal = detectUnitConflict(
+      { text: 'wingspan is 10 meter', subject: 'wingspan' },
+      { text: 'wingspan is 10 metre', subject: 'wingspan' },
+    );
+    assert.strictEqual(signal, null);
+  });
+
+  it('still flags meter vs metre when the numeric value differs', () => {
+    const signal = detectUnitConflict(
+      { text: 'wingspan is 10 meter', subject: 'wingspan' },
+      { text: 'wingspan is 20 metre', subject: 'wingspan' },
+    );
+    assert.ok(signal);
+    assert.strictEqual(signal.rule, CONTRADICTION_RULES.UNIT_CONFLICT);
+  });
+
   it('supports relation inversion when opposition is known', () => {
     const signal = detectRelationInversion(
       { text: 'Mayday is distress call', subject: 'Mayday', relation: 'is' },
@@ -113,5 +134,48 @@ describe('contradiction-rules', () => {
 
     assert.ok(signal);
     assert.strictEqual(signal.rule, CONTRADICTION_RULES.RELATION_INVERSION);
+  });
+
+  it('does not false-positive on negation tokens inside other words (#434)', () => {
+    // "no" is a negation token, but it must not match inside "snow", "knowledge",
+    // or "nope" (substring match was the old buggy behavior).
+    // Two identical affirmative claims about "snow" must not be flagged.
+    const signal = detectNegationConflict(
+      { text: 'snow is white', subject: 'snow' },
+      { text: 'snow is white', subject: 'snow' },
+    );
+    assert.strictEqual(signal, null);
+  });
+
+  it('detects negation conflict when a Turkish subject carries a suffix (#434)', () => {
+    // stripSubject previously used \b which is ASCII-only and failed to match
+    // Turkish letters (ç, ğ, ı, ş, ü, ö). With Unicode-aware boundaries the
+    // subject "kuşun" (with Turkish ş) must be stripped correctly so the
+    // predicate overlap check can pass.
+    const signal = detectNegationConflict(
+      { text: 'kuşun yuvası yüksektedir', subject: 'kuşun' },
+      { text: 'kuşun yuvası yüksekte değildir', subject: 'kuşun' },
+    );
+    assert.ok(signal);
+    assert.strictEqual(signal.rule, CONTRADICTION_RULES.NEGATION_CONFLICT);
+  });
+
+  it('does not treat cause as a substring inside because (#1234)', () => {
+    const signals = runContradictionRules(
+      { text: 'engine fails because of icing', subject: 'engine' },
+      { text: 'engine prevents failure', subject: 'engine' },
+    );
+    assert.equal(
+      signals.some(signal => signal.rule === CONTRADICTION_RULES.CAUSE_PREVENT_OPPOSITION),
+      false,
+    );
+  });
+
+  it('still detects a true cause/prevent opposition at phrase boundaries', () => {
+    const signals = runContradictionRules(
+      { text: 'engine causes failure', subject: 'engine' },
+      { text: 'engine prevents failure', subject: 'engine' },
+    );
+    assert.ok(signals.some(signal => signal.rule === CONTRADICTION_RULES.CAUSE_PREVENT_OPPOSITION));
   });
 });

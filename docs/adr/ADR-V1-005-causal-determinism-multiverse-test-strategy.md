@@ -94,7 +94,7 @@ The following are *contract violations* in V1:
 A determinism test pack is part of `npm test`. The pack is intentionally
 duplicative of ordinary tests but with a stricter byte-equality check:
 
-- `test/causal-determinism.test.js` — multiverse runs of representative
+- `test/causal-multiverse-determinism.test.js` — multiverse runs of representative
   traversals; expects byte-equal canonical JSON.
 - `test/causal-edge-schema.test.js` — validator determinism (see ADR-V1-002).
 - `test/causal-traversal.test.js` — `MAX_DEPTH_EXCEEDED` and `CYCLE_DETECTED`

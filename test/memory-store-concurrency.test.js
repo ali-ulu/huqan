@@ -9,10 +9,8 @@ const os = require('node:os');
 const MemoryStore = require('../lib/memory-store');
 
 function getDbPath(label) {
-  return path.join(
-    os.tmpdir(),
-    `axiom-pr-s3-${label}-${process.pid}-${Date.now()}.db`
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `axiom-pr-s3-${label}-`));
+  return path.join(directory, 'memory.db');
 }
 
 function cleanupDb(p) {
@@ -75,6 +73,26 @@ describe('PR-S3 transaction safety & concurrency', () => {
         assert.strictEqual(res.ok, false);
         assert.strictEqual(res.error.code, 'PERSISTENCE_ERROR');
         assert.strictEqual(res.error.operation, 'tombstone');
+      } finally { cleanupDb(dbPath); }
+    });
+
+    test('archive: SQLite write failure returns PERSISTENCE_ERROR/archive and leaves the record active', () => {
+      const dbPath = getDbPath('err-archive-sql');
+      try {
+        const store = newStore('err-archive-sql', { dbPath });
+        const r1 = store.store({ content: { data: 'x' } });
+        const eventsBefore = store._events.length;
+        const restore = mockStatementThrow(store._stmts, 'upsertMemory', 'simulated archive failure');
+        const res = store.archive(r1.memory.memoryId);
+        restore();
+        const after = store.get(r1.memory.memoryId).memory;
+        const eventsAfter = store._events.length;
+        store.close();
+        assert.strictEqual(res.ok, false);
+        assert.strictEqual(res.error.code, 'PERSISTENCE_ERROR');
+        assert.strictEqual(res.error.operation, 'archive');
+        assert.strictEqual(after.status, 'active');
+        assert.strictEqual(eventsAfter, eventsBefore);
       } finally { cleanupDb(dbPath); }
     });
 
@@ -223,7 +241,7 @@ describe('PR-S3 transaction safety & concurrency', () => {
       assert.deepStrictEqual(types, ['CREATED', 'TOMBSTONE']);
     });
 
-    test('in-memory: _withTransaction restores snapshot on mid-transaction throw (no partial state)', () => {
+    test('in-memory: withTransaction restores snapshot on mid-transaction throw (no partial state)', () => {
       const store = new MemoryStore();
       const r1 = store.store({ content: 'pre-tx-1' }).memory;
       const r2 = store.store({ content: 'pre-tx-2' }).memory;
@@ -235,7 +253,7 @@ describe('PR-S3 transaction safety & concurrency', () => {
       const preList = store.list().memories.map(m => m.memoryId).sort();
 
       assert.throws(() => {
-        store._withTransaction(() => {
+        store.withTransaction(() => {
           store.store({ content: 'will-be-rolled-back' });
           store.linkMemories({ fromMemoryId: r1.memoryId, toMemoryId: r2.memoryId, relation: 'contradicts' });
           throw new Error('forced in-memory mid-transaction failure');

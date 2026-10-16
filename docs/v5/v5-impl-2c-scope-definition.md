@@ -1,5 +1,7 @@
 # V5-IMPL-2C Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `SOURCE-RECON-5_POST_CANONICALIZATION_AUDIT_GREEN`
 **Canonical branch:** `main`

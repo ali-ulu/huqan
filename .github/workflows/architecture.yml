@@ -1,0 +1,206 @@
+name: Architecture Checks
+
+on:
+  # No base-branch filter: see the note in security.yml. A pull request based on
+  # a feature branch skipped both jobs below and still showed "All checks have
+  # passed" (#681).
+  pull_request:
+  workflow_dispatch:
+
+# Keep one current PR run per workflow; a new push supersedes stale work.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# CI cost: these gates used to be one job per check (~10 runners, each with
+# checkout + setup-node). They share one tree and almost no install, so they
+# run sequentially on two runners:
+#   static-gates  — dependency-free source/docs policy scripts
+#   source-gates  — lint + docs-drift (need npm ci once)
+# Ruleset check contexts must match the job `name:` fields during migration.
+# Compatibility jobs below keep those required contexts real until that migration lands.
+
+jobs:
+  static-gates:
+    name: Architecture static gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # tracker-drift compares against a base ref; needs history.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+
+      # No npm ci: every script below only reads the source/docs tree.
+
+      - name: Require architecture tracker snapshot to be current
+        run: npm run check:architecture-trackers -- --base-ref=${{ github.event.pull_request.base.sha || github.event.before || 'origin/main' }}
+
+      - name: Require graph is acyclic
+        run: node scripts/check-import-cycles.js
+
+      - name: Enforce the large-file threshold
+        run: node scripts/check-file-size.js
+
+      - name: Forbid cross-module private access
+        run: node scripts/check-module-boundary.js
+
+      - name: Require published ports to match the require graph
+        run: node scripts/generate-context-ports.js --check
+
+      - name: Enforce dependency direction
+        run: node scripts/check-layers.js
+
+      - name: Detect dead code and public-surface drift
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          node scripts/check-dead-code.js 2>&1 | tee artifacts/dead-code-report.txt
+
+      - name: Upload dead-code report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dead-code-report-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts/dead-code-report.txt
+          if-no-files-found: error
+
+      - name: Require security invariants to map to live tests
+        run: npm run check:security-invariants
+
+      - name: Forbid raw control characters in tracked sources
+        run: node scripts/check-control-chars.js
+
+      - name: Require every V5 document to declare its status
+        run: node scripts/check-doc-status.js
+
+      - name: Require identity documents to name HUQAN, not AXIOM (#3029)
+        run: npm run check:naming-conformance
+
+      # The gates below shipped as `npm run` scripts but no workflow called
+      # them, so a regression they exist to catch could land green.
+      # Each is dependency-free -- they only read the source tree, the lockfile
+      # and the specs -- so they belong in this no-install job.
+
+      - name: Require every locked dependency to carry an approved license
+        run: npm run check:licenses
+
+      - name: Require the structured-log format to hold
+        run: npm run check:structured-log
+
+      - name: Forbid a model-calling module reachable from a declared entry point
+        run: npm run check:deterministic-path
+
+      - name: Require the V5 agent-identity readiness verdict
+        run: npm run check:v5-identity
+
+      # #3418: these two shipped as `npm run` scripts and ran only indirectly,
+      # through the tests that import their functions. A regression that broke
+      # the scan while leaving the imported function green could land. Both are
+      # dependency-free and sub-second, so they belong in this no-install job.
+      - name: Require every world-acting call site to carry a recorded role
+        run: node scripts/enforcement-coverage.js
+
+      # The check above rewrites coverage-manifest.json, so a committed manifest
+      # that no longer matches the tree is the same drift it reports. Fail here
+      # rather than leaving it for the next author to regenerate.
+      - name: Require the committed enforcement manifest to match the tree
+        run: git diff --exit-code coverage-manifest.json
+
+      - name: Require the benign false-block rate to hold its recorded baseline
+        run: node scripts/benign-false-block-rate.js
+
+      - name: Enforce the deprecation policy
+        run: npm run check:deprecations
+
+  source-gates:
+    name: Architecture source gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      # docs-drift loads mcpServer.js (needs runtime deps); lint needs oxlint.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require living documentation to agree with the source
+        run: node scripts/check-docs-drift.js
+
+      - name: Enforce a lint-clean tree
+        run: npm run lint
+
+
+  compat-tracker-drift:
+    name: Require architecture tracker snapshot to be current
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-import-cycles:
+    name: Require graph is acyclic
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-file-size:
+    name: Enforce the large-file threshold
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-control-chars:
+    name: Forbid raw control characters in tracked sources
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-doc-status:
+    name: Require every V5 document to declare its status
+    needs: static-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.static-gates.result }}" = "success"
+
+  compat-docs-drift:
+    name: Require living documentation to agree with the source
+    needs: source-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.source-gates.result }}" = "success"
+
+  compat-lint:
+    name: Enforce a lint-clean tree
+    needs: source-gates
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.source-gates.result }}" = "success"

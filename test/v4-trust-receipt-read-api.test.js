@@ -13,25 +13,7 @@ process.env.AXIOM_API_KEY = 'v4-pr3-test-key';
 process.env.AXIOM_MEMORY_PATH = path.join(tempDir, 'memory.json');
 process.env.AXIOM_USE_SQLITE = 'false';
 
-const CLI = require('../cli');
-const cliModulePath = require.resolve('../cli');
-const originalCliExport = require.cache[cliModulePath].exports;
-let serverCli = null;
-let server = null;
-
-class ReceiptTestCLI extends CLI {
-  constructor(...args) {
-    super(...args);
-    serverCli = this;
-  }
-}
-
-try {
-  require.cache[cliModulePath].exports = ReceiptTestCLI;
-  server = require('../server');
-} finally {
-  require.cache[cliModulePath].exports = originalCliExport;
-}
+const server = require('../server');
 
 function approvedAdmissionOpts(workspaceId, overrides = {}) {
   return {
@@ -86,7 +68,7 @@ function requestJson(port, pathname, opts = {}) {
 }
 
 async function seedReceipt(_port, text, workspaceId, overrides = {}) {
-  const result = serverCli.kernel.learn(text, approvedAdmissionOpts(workspaceId, overrides));
+  const result = server.kernel.learn(text, approvedAdmissionOpts(workspaceId, overrides));
   assert.equal(result.data?.admission?.outcome, 'allow');
   assert.ok(result.data?.admission?.receipt);
   return result.data.admission.receipt;
@@ -102,7 +84,7 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
 
   after(async () => {
     await new Promise((resolve) => server.close(resolve));
-    server.closeAxiom();
+    server.closeHuqan();
   });
 
   it('returns a stored/materialized receipt by valid receiptId', async () => {
@@ -119,7 +101,7 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
     assert.deepEqual(response.body.receipt, receipt);
   });
 
-  it('finds a non-default workspace receipt by receiptId when no workspaceId filter is supplied', async () => {
+  it('rejects a receipt read when no exact workspaceId is supplied', async () => {
     const workspaceId = 'v4-pr3-api-no-query';
     const receipt = await seedReceipt(port, 'saka kustur', workspaceId, { provenanceId: 'prov-v4-pr3-no-query' });
 
@@ -128,9 +110,8 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
       `/api/trust-receipt/${encodeURIComponent(receipt.receiptId)}`,
     );
 
-    assert.equal(response.status, 200);
-    assert.equal(response.body.ok, true);
-    assert.deepEqual(response.body.receipt, receipt);
+    assert.equal(response.status, 400);
+    assert.equal(response.body.error.code, 'MISSING_WORKSPACE_ID');
   });
 
   it('fails closed when an explicit workspaceId does not match the stored receipt workspace', async () => {
@@ -216,7 +197,7 @@ describe('V4-PR3: read-only Trust Receipt API surface', () => {
     const health = await requestJson(port, '/health', { headers: {} });
     assert.equal(health.status, 200);
     assert.equal(health.body.ok, true);
-    assert.equal(health.body.service, 'axiom');
+    assert.equal(health.body.service, 'huqan');
 
     const status = await requestJson(port, '/v2-status', { headers: {} });
     assert.equal(status.status, 200);

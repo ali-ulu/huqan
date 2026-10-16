@@ -1,16 +1,63 @@
 node_modules/
+graphify-out/
 memory.json
 memory.db
+.route-server-*.db
 memory.embeddings.json
+memory.mutations.json
+# Runtime lock for the JSON mutation journal (lib/mutation-journal-lock.js).
+# Never commit one: a stale lock file in a fresh clone blocks the journal.
+memory.mutations.json.lock
+*.mutations.json.lock
+# Crash/interrupted-write artifacts left behind by graph.js's
+# atomicWriteFileSync (writes to a sibling `<file>.tmp-<pid>-<random>` before
+# renaming into place). 40 of these previously slipped into git via #655.
+*.tmp-[0-9]*-*
 agent.memory.json
 *.agent.json
 memory.db-shm
 memory.db-wal
 test_memory.db
+# Fixture databases the tests write beside themselves. The tests clean up after
+# themselves; this is the backstop for a run that dies before its cleanup.
+test/test-demo-seed.*
+# Trust Receipts written at runtime, and by the smoke tests that exercise the
+# receipt paths — generated output, not source.
+receipts/
 *.log
 .env
-demo-sonuc.json
-tbk-demo.js
-tbk-kira.js
+# Local developer scratch files — use these prefixes for personal test output
+local-*.json
+local-*.js
 backups/
-obsidian-plugin/dist/
+
+# MCP operator-capability replay records (#1674)
+.huqan-capability-nonces/
+
+# Onboarding E2E scratch (Playwright) - not run by node:test suite
+test/onboarding-checklist.test.js
+test-results/
+huqan-server.pid
+
+# Stryker mutation-testing scratch and generated reports
+.stryker-tmp/
+reports/mutation/
+
+# Local progress state for scripts/architecture-review-queue.js (#2924) --
+# which queue items a reviewer has already marked done. Not shared state.
+.architecture-review-queue-state.json
+
+# c8 coverage scratch and reports (#3077)
+coverage/
+.nyc_output/
+
+# Benchmark output files produced by CI / local runs (#3011). The pinned
+# baselines (benchmarks/results.json, benchmarks/graph-save-baseline.json) are
+# tracked; only the *-current.json run reports are generated and stay out.
+benchmarks/graph-save-current.json
+benchmarks/current-results.json
+benchmarks/observability-load-current.json
+benchmarks/observability-soak-current.json
+
+# Archify diagram working artifacts
+.archify/

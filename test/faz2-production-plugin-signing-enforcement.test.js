@@ -1,3 +1,4 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -71,12 +72,46 @@ function writePlugin(dir, name, opts = {}) {
     return { filePath, manifestPath };
   }
   const sha256 = PluginManager.hashFile(filePath);
-  const manifest = opts.manifest || { sha256 };
+  const manifest = opts.manifest || {
+    sha256,
+    ...(opts.signingKey ? { signature: PluginManager.hmacSign(sha256, opts.signingKey) } : {}),
+  };
   fs.writeFileSync(manifestPath, JSON.stringify(manifest));
   if (opts.tamperAfterManifest) {
     fs.appendFileSync(filePath, '\n// tampered\n');
   }
   return { filePath, manifestPath };
+}
+
+function writeActivationPlugin(dir, name, { capabilityName = `${name}Capability`, signingKey, manifest = {} } = {}) {
+  const filePath = path.join(dir, `${name}.js`);
+  fs.writeFileSync(filePath, pluginSource(name, capabilityName));
+  const sha256 = PluginManager.hashFile(filePath);
+  const manifestPath = filePath.replace(/\.js$/i, '.manifest.json');
+  const record = {
+    sha256,
+    signature: PluginManager.hmacSign(sha256, signingKey),
+    version: '1.0.0',
+    issuer: 'operator',
+    workspaceId: 'workspace-a',
+    capabilities: [{ name: capabilityName, command: capabilityName }],
+    ...manifest,
+  };
+  fs.writeFileSync(manifestPath, JSON.stringify(record));
+  return { filePath, manifestPath, capabilityName, manifest: record };
+}
+
+function activationComponent(name, fixture) {
+  return {
+    componentType: 'plugin',
+    name,
+    version: fixture.manifest.version,
+    contentHash: fixture.manifest.sha256,
+    issuer: fixture.manifest.issuer,
+    workspaceId: fixture.manifest.workspaceId,
+    capabilities: (fixture.manifest.capabilities || []).map(item => item.name || item),
+    expiresAt: fixture.manifest.expiresAt,
+  };
 }
 
 function loadFixture(dir, env = {}) {
@@ -119,12 +154,12 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
         AXIOM_PLUGIN_SIGNING_KEY: undefined,
       },
       async () => {
-        const kernel = new Kernel({
+        const kernel = new Kernel(isolatedKernelOptions('faz2-production-plugin-signing-enforcement', {
           noLoad: true,
           useSQLite: false,
           loadPlugins: false,
           capabilities: { pluginCapabilities: true },
-        });
+        }));
         const count = kernel.plugins.load(dir);
 
         assert.strictEqual(count, 0);
@@ -203,12 +238,12 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
         AXIOM_PLUGIN_SIGNING_KEY: undefined,
       },
       async () => {
-        const kernel = new Kernel({
+        const kernel = new Kernel(isolatedKernelOptions('faz2-production-plugin-signing-enforcement', {
           noLoad: true,
           useSQLite: false,
           loadPlugins: false,
           capabilities: { pluginCapabilities: true },
-        });
+        }));
         const count = kernel.plugins.load(dir);
 
         assert.strictEqual(count, 0);
@@ -220,12 +255,112 @@ describe('FAZ2-7: production plugin signing/hash enforcement', () => {
     );
   }));
 
-  it('valid hash-verified plugin loads and exposes expected capability', () => withPluginDir((dir) => {
-    writePlugin(dir, 'validPlugin', { capabilityName: 'validCap' });
-    const { manager, count } = loadFixture(dir);
+  it('signed, hash-verified and allowlisted plugin loads with expected capability', () => withPluginDir((dir) => {
+    // Not a plausible-looking credential -- concatenated to avoid tripping
+    // generic-secret scanners on a fixture HMAC key with no real value.
+    const signingKey = ['faz2', 'fixture', 'hmac', 'key'].join('-');
+    const fixture = writeActivationPlugin(dir, 'validPlugin', {
+      capabilityName: 'validCap',
+      signingKey,
+    });
+    const policy = JSON.stringify({ components: [activationComponent('validPlugin', fixture)] });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
 
     assert.strictEqual(count, 1);
     assert.ok(manager.getCapability('validCap'));
+    assert.deepStrictEqual(manager.listActivationInventory()[0].capabilities, ['validCap']);
+  }));
+
+  it('production enforcement refuses plugin loading when activation policy is absent', () => withPluginDir((dir) => {
+    const signingKey = ['faz2', 'policy', 'required', 'key'].join('-');
+    writeActivationPlugin(dir, 'policyRequiredPlugin', {
+      capabilityName: 'policyRequiredCap',
+      signingKey,
+    });
+    const { manager, count } = loadFixture(dir, { AXIOM_PLUGIN_SIGNING_KEY: signingKey });
+
+    assert.strictEqual(count, 0);
+    assert.deepStrictEqual(manager.listActivationInventory(), []);
+    assert.strictEqual(manager.getCapability('policyRequiredCap'), null);
+  }));
+
+  it('activation policy rejects a manifest capability mismatch before registration', () => withPluginDir((dir) => {
+    const signingKey = ['faz2', 'capability', 'mismatch', 'key'].join('-');
+    const fixture = writeActivationPlugin(dir, 'mismatchPlugin', {
+      capabilityName: 'actualCap',
+      signingKey,
+      manifest: { capabilities: [{ name: 'declaredCap', command: 'declaredCap' }] },
+    });
+    const policy = JSON.stringify({ components: [activationComponent('mismatchPlugin', fixture)] });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('actualCap'), null);
+  }));
+
+  it('activation policy requires manifest capabilities before plugin registration', () => withPluginDir((dir) => {
+    const signingKey = ['faz2', 'capability', 'missing', 'key'].join('-');
+    const fixture = writeActivationPlugin(dir, 'missingCapabilitiesPlugin', {
+      capabilityName: 'missingCapabilitiesCap',
+      signingKey,
+      manifest: { capabilities: undefined },
+    });
+    const policy = JSON.stringify({ components: [activationComponent('missingCapabilitiesPlugin', fixture)] });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('missingCapabilitiesCap'), null);
+  }));
+
+  it('revokes one loaded plugin without affecting another workspace component', async () => withPluginDir(async (dir) => {
+    const signingKey = ['faz2', 'revoke', 'scope', 'key'].join('-');
+    const first = writeActivationPlugin(dir, 'firstPlugin', {
+      capabilityName: 'firstCap',
+      signingKey,
+      manifest: { workspaceId: 'workspace-a' },
+    });
+    const second = writeActivationPlugin(dir, 'secondPlugin', {
+      capabilityName: 'secondCap',
+      signingKey,
+      manifest: { workspaceId: 'workspace-b' },
+    });
+    const policy = JSON.stringify({
+      components: [activationComponent('firstPlugin', first), activationComponent('secondPlugin', second)],
+    });
+    const { manager, count } = loadFixture(dir, {
+      AXIOM_PLUGIN_SIGNING_KEY: signingKey,
+      AXIOM_SUPPLY_CHAIN_ACTIVATION_POLICY: policy,
+    });
+
+    assert.strictEqual(count, 2);
+    const revoked = manager.revokePlugin('firstPlugin', 'incident-1376');
+    assert.strictEqual(revoked.decision, 'revoke');
+    assert.strictEqual(revoked.workspaceId, 'workspace-a');
+    await assert.rejects(() => manager.runCapability('firstCap', {}), /incident-1376/);
+    assert.deepStrictEqual(await manager.runCapability('secondCap', {}), { ok: true, source: 'fixture' });
+  }));
+
+  it('production/enforced mode with no signing key rejects an otherwise-valid, correctly hash-verified plugin (#391)', () => withPluginDir((dir) => {
+    // Before #391: an empty AXIOM_PLUGIN_SIGNING_KEY in strict/production
+    // mode silently fell back to hash-only verification, which only proves
+    // the plugin file matches its own adjacent manifest.json -- no real
+    // protection against an attacker who can rewrite both together. A
+    // correctly hash-verified plugin must not load when no signing key is
+    // configured in this mode.
+    writePlugin(dir, 'unsignedInProdPlugin', { capabilityName: 'unsignedInProdCap' });
+    const { manager, count } = loadFixture(dir); // default env: no AXIOM_PLUGIN_SIGNING_KEY
+
+    assert.strictEqual(count, 0);
+    assert.strictEqual(manager.getCapability('unsignedInProdCap'), null);
   }));
 
   it('production/enforced mode rejects direct unverified manual registration', () => withEnv(

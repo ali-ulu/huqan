@@ -1,21 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { resolveContainedPath } = require('./lib/memory-store-utils');
+const { resolveContainedPath, siblingPersistencePath } = require('./lib/memory-store-utils');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { probeWritablePathSync } = require('./lib/secure-file-write');
 
 function resolvePersistencePaths(opts = {}) {
   const cwd = path.resolve(opts.rootDir || process.cwd());
   const allowedRoots = [cwd, os.tmpdir()];
   const memoryPath = resolveContainedPath(
-    path.resolve(cwd, opts.memoryPath || process.env.AXIOM_MEMORY_PATH || 'memory.json'),
+    path.resolve(cwd, opts.memoryPath || readCompatibleEnvironmentVariable('MEMORY_PATH') || 'memory.json'),
     allowedRoots,
   );
   const dbPath = resolveContainedPath(
-    path.resolve(cwd, opts.dbPath || process.env.AXIOM_DB_PATH || memoryPath.replace(/\.json$/i, '.db')),
+    path.resolve(cwd, opts.dbPath || readCompatibleEnvironmentVariable('DB_PATH') || siblingPersistencePath(memoryPath, '.db')),
     [...allowedRoots, path.dirname(memoryPath)],
   );
   const backupBaseDir = resolveContainedPath(
-    path.resolve(cwd, opts.backupBaseDir || process.env.AXIOM_BACKUP_DIR || path.join(path.dirname(memoryPath), 'backups')),
+    path.resolve(cwd, opts.backupBaseDir || readCompatibleEnvironmentVariable('BACKUP_DIR') || path.join(path.dirname(memoryPath), 'backups')),
     [...allowedRoots, path.dirname(memoryPath)],
   );
 
@@ -27,16 +29,36 @@ function resolvePersistencePaths(opts = {}) {
   };
 }
 
+/**
+ * The user-data root for artefacts that must survive a read-only install
+ * (receipt exports, gate telemetry). Same convention as the external-action
+ * gate's own state root in lib/external-action-receipt.js: HUQAN_STATE_ROOT
+ * wins when set, otherwise the platform state dir (`%LOCALAPPDATA%\huqan` on
+ * Windows, `~/.local/state/huqan` elsewhere). Install-dir paths are never the
+ * default, so a read-only install can still export.
+ */
+function resolveStateRoot(environment = process.env) {
+  const override = environment && typeof environment.HUQAN_STATE_ROOT === 'string'
+    ? environment.HUQAN_STATE_ROOT.trim()
+    : '';
+  if (override) return path.resolve(override);
+  const base = process.platform === 'win32' && environment && environment.LOCALAPPDATA
+    ? environment.LOCALAPPDATA
+    : path.join(os.homedir(), '.local', 'state');
+  return path.join(base, 'huqan');
+}
+
+function resolveReceiptsDir(environment = process.env) {
+  return path.join(resolveStateRoot(environment), 'receipts');
+}
+
+function resolveGateTelemetryPath(environment = process.env) {
+  return path.join(resolveStateRoot(environment), 'gate-telemetry.json');
+}
+
 function canWriteTo(targetPath, kind = 'file') {
   try {
-    const probePath = kind === 'dir'
-      ? path.join(targetPath, `.axiom-write-${process.pid}-${Date.now()}.tmp`)
-      : `${targetPath}.axiom-write-${process.pid}-${Date.now()}.tmp`;
-    const parentDir = kind === 'dir' ? targetPath : path.dirname(targetPath);
-    fs.mkdirSync(parentDir, { recursive: true });
-    fs.writeFileSync(probePath, 'ok');
-    fs.rmSync(probePath, { force: true });
-    return true;
+    return probeWritablePathSync(targetPath, kind);
   } catch (_) {
     return false;
   }
@@ -61,4 +83,7 @@ module.exports = {
   canWriteTo,
   inspectPersistence,
   resolvePersistencePaths,
+  resolveStateRoot,
+  resolveReceiptsDir,
+  resolveGateTelemetryPath,
 };

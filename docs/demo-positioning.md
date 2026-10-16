@@ -1,8 +1,8 @@
-# AXIOM Demo Positioning
+# HUQAN Demo Positioning
 
 ## Demo Goal
 
-The demo should make one thing obvious: AXIOM judges claims, it does not merely echo them.
+The demo should make one thing obvious: HUQAN judges claims, it does not merely echo them.
 
 ## Demo Narrative
 
@@ -40,4 +40,4 @@ The local UI should be positioned as the backend-connected developer surface.
 
 ## Short Closing
 
-Models generate. Agents act. Memory stores. AXIOM judges.
+Models generate. Agents act. Memory stores. HUQAN judges.

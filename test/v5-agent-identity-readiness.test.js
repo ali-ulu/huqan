@@ -34,14 +34,18 @@ test('V5 agent identity readiness index keeps runtime and ecosystem capabilities
   const index = buildAgentIdentityReadinessIndex();
 
   assert.equal(index.readyForRuntimeEnforcement, false);
-  assert.equal(index.implementationBoundaryClean, true);
+  // #1324: notCompleted is measured from coverage now, so it reports these six
+  // capabilities as what they are -- not completed. implementationBoundaryClean
+  // follows, and is false until they actually are. It used to be derived from a
+  // frozen all-false constant, which made it true for every possible input.
+  assert.equal(index.implementationBoundaryClean, false);
   assert.deepEqual(index.boundaryMatrix.notCompleted, {
-    runtimeEnforcement: false,
-    connectorIdentityEnforcement: false,
-    a2aIdentityExchange: false,
-    marketplaceIdentityLayer: false,
-    trustPackageWriterReader: false,
-    agentActionPolicyEngine: false
+    runtimeEnforcement: true,
+    connectorIdentityEnforcement: true,
+    a2aIdentityExchange: true,
+    marketplaceIdentityLayer: true,
+    trustPackageWriterReader: true,
+    agentActionPolicyEngine: true
   });
   assert.deepEqual(index.boundaryMatrix.nonEnforcement, {
     runtimeIdentity: true,
@@ -58,13 +62,17 @@ test('V5 agent identity readiness index preserves coverage evidence', () => {
 
   assert.equal(index.coverage.schemaVersion, 'v5-agent-identity-coverage/v0.1');
   assert.equal(index.coverage.status, 'implementation_chain_coverage_manifest');
-  assert.equal(index.coverage.fixtureSummary.total, 6);
-  assert.equal(index.coverage.fixtureSummary.valid, 1);
-  assert.equal(index.coverage.fixtureSummary.invalid, 5);
+  // Ratchet bump 8 -> 13 (validator extension for Gate 7's remaining classes, #846):
+  // +invalid.identity_claim, delegation_scope_exceeded, delegation_chain,
+  //   connector_context, unresolvable_lifecycle
+  // Readiness index stays coverage-faithful; values updated to match.
+  assert.equal(index.coverage.fixtureSummary.total, 13);
+  assert.equal(index.coverage.fixtureSummary.valid, 2);
+  assert.equal(index.coverage.fixtureSummary.invalid, 11);
   assert.deepEqual(index.coverage.conformanceSummary, {
     ok: true,
-    totalFixtures: 6,
-    passed: 6,
+    totalFixtures: 13,
+    passed: 13,
     failed: 0,
     failingFiles: []
   });

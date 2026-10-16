@@ -117,6 +117,58 @@ describe('Causal Simulator - v0.7', () => {
     assert.deepStrictEqual(first.outcomes.map(item => item.effect), ['direct', 'enabling', 'dependency', 'blocking']);
   });
 
+  it('simulateChange defaults workspaceId and preserves descriptive input contract (#393)', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    const newState = { enabled: true };
+
+    const result = simulator.simulateChange({
+      nodeId: 'A',
+      action: 'Enable A',
+      changeType: 'modify',
+      newState,
+    });
+
+    assert.strictEqual(result.workspaceId, 'default');
+    assert.strictEqual(result.input.workspaceId, 'default');
+    assert.strictEqual(result.action, 'Enable A');
+    assert.strictEqual(result.changeType, 'modify');
+    assert.deepStrictEqual(result.input.newState, newState);
+  });
+
+  it('simulateChange isolates the same node id across workspaces (#393)', () => {
+    const graph = new Graph({ noLoad: true });
+    graph.addNode('A', 'Default A', null, { workspaceId: 'default' });
+    graph.addNode('B', 'Default B', null, { workspaceId: 'default' });
+    graph.addEdge('A', 'B', 'CAUSES', { workspaceId: 'default', strength: 0.8, confidence: 0.8, evidence: ['default-edge'] });
+    graph.addNode('A', 'Tenant A', null, { workspaceId: 'tenant-b' });
+    graph.addNode('B', 'Tenant B', null, { workspaceId: 'tenant-b' });
+    graph.addEdge('A', 'B', 'CAUSES', { workspaceId: 'tenant-b', strength: 0.8, confidence: 0.8, evidence: ['tenant-edge'] });
+
+    const result = new CausalSimulator(graph).simulateChange({ nodeId: 'A', workspaceId: 'tenant-b' });
+
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.workspaceId, 'tenant-b');
+    assert.strictEqual(result.input.workspaceId, 'tenant-b');
+    assert.deepStrictEqual(result.evidence, ['tenant-edge']);
+    assert.deepStrictEqual(result.affectedNodes.map(item => item.label), ['Tenant B']);
+  });
+
+it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+
+    const result = simulator.simulateChange({ nodeId: 'A', maxDepth: 5 });
+    assert.ok(result.traversal, 'traversal metadata resultta yer alır');
+    assert.doesNotThrow(
+      () => JSON.stringify(result),
+      'traversal.chain self-reference yüzünden JSON serialize crash olmamalı',
+    );
+
+    const roundTripped = JSON.parse(JSON.stringify(result));
+    assert.equal(Array.isArray(roundTripped.traversal.chain), true);
+    assert.equal(roundTripped.traversal.start, 'A');
+  });
   it('simulateChange relation semantiğini korur', () => {
     const graph = buildBranchingGraph();
     const simulator = new CausalSimulator(graph);
@@ -230,7 +282,7 @@ describe('Causal Simulator - v0.7', () => {
     assert.deepStrictEqual(result.evidence, ['a-b']);
   });
 
-  it('simulateChange preserves direct reads around the existing traversal touches', () => {
+  it('simulateChange keeps direct reads pure during traversal', () => {
     const graph = buildBranchingGraph();
     const simulator = new CausalSimulator(graph);
     graph._nodes.A.lastAccessed = 101;
@@ -260,13 +312,71 @@ describe('Causal Simulator - v0.7', () => {
         ['A', 'default'],
         ['A', 'default'],
       ]);
-      assert.ok(graph._nodes.A.lastAccessed > 101);
+      assert.strictEqual(graph._nodes.A.lastAccessed, 101);
       assert.strictEqual(graph._nodes.B.lastAccessed, 102);
-      assert.strictEqual(touchCalls, 2);
+      assert.strictEqual(touchCalls, 0);
     } finally {
       graph.getNode = originalGetNode;
       graph._db = previousDb;
       graph._stmts = previousStatements;
     }
+  });
+});
+
+
+describe('Causal Simulator - what-if state overlay (#1160)', () => {
+  it('projects add, modify, and remove without mutating the graph', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    const before = JSON.stringify({ nodes: graph._nodes, edges: graph._edges });
+
+    const added = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'add',
+      newState: { enabled: true },
+    });
+    const modified = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'modify',
+      newState: { enabled: false },
+    });
+    const removed = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'remove',
+      newState: { enabled: false },
+    });
+
+    assert.equal(added.simulation.effect, 'activated');
+    assert.equal(added.simulation.stateImpact, 1);
+    assert.equal(modified.simulation.effect, 'suppressed');
+    assert.equal(modified.simulation.stateImpact, 0);
+    assert.equal(removed.simulation.effect, 'suppressed');
+    assert.equal(removed.simulation.stateImpact, 0);
+    assert.ok(modified.outcomes.every(outcome => outcome.impact === 0 && outcome.confidence === 0));
+    assert.equal(modified.risks.length, 0);
+    assert.equal(modified.confidence, 0);
+    assert.match(modified.recommendation, /suppresses downstream causal consequences/);
+    assert.notEqual(added.summary, modified.summary);
+    assert.equal(JSON.stringify({ nodes: graph._nodes, edges: graph._edges }), before);
+  });
+
+  it('uses explicit status values as a modify-state overlay', () => {
+    const graph = buildBranchingGraph();
+    const simulator = new CausalSimulator(graph);
+    const active = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'modify',
+      newState: { status: 'active' },
+    });
+    const disabled = simulator.simulateChange({
+      nodeId: 'A',
+      changeType: 'modify',
+      newState: { status: 'disabled' },
+    });
+
+    assert.equal(active.simulation.stateImpact, 1);
+    assert.equal(disabled.simulation.stateImpact, 0);
+    assert.ok(active.confidence > disabled.confidence);
+    assert.equal(disabled.outcomes.every(outcome => outcome.simulationEffect === 'suppressed'), true);
   });
 });

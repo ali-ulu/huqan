@@ -25,14 +25,14 @@ Questions:
 Known sealed examples:
 
 - PR-S0 blocked `restore`, `yükle`, `yukle`, and bare `restore` from public `/api`.
-- PR-S0b made missing `AXIOM_API_KEY` fail closed.
+- PR-S0b made missing `HUQAN_API_KEY` fail closed.
 
 ## 2. Auth / Authorization
 
 Check:
 
 - Does the endpoint call `requireApiKey` / `denyIfUnauthorized` when required?
-- What happens if `AXIOM_API_KEY` is missing?
+- What happens if `HUQAN_API_KEY` is missing?
 - What happens if it is empty or whitespace?
 - Are tests covering:
   - valid key
@@ -80,7 +80,7 @@ Examples:
 
 - `/api?q=restore:foo` returns 403
 - `/api?q=yükle:/etc/passwd` returns 403
-- missing `AXIOM_API_KEY` returns 401
+- missing `HUQAN_API_KEY` returns 401
 - valid authenticated request still works
 
 ## 6. Merge Decision Rule

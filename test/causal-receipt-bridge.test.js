@@ -5,7 +5,11 @@ const os = require('os');
 const path = require('path');
 const Kernel = require('../kernel');
 const { buildCausalVerdict } = require('../lib/causal');
-const { buildTrustReceipt, queryTrustGraph } = require('../lib/provenance-query');
+// Import the bridge surface directly: the split moved buildTrustReceipt into
+// provenance-query-trust-receipt.js, and reaching through the facade would make
+// this the only thing pinning the re-export in place.
+const { buildTrustReceipt, normalizeCausalBridgeStatus, normalizeCausalReceiptBlock } = require('../lib/provenance-query-trust-receipt');
+const { queryTrustGraph } = require('../lib/provenance-query');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-causal-receipt-'));
 

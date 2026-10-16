@@ -1,5 +1,7 @@
 # V5-VERIFICATION-12 - Trusted-Key Resolver Test Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Test scope definition only
 **Current checkpoint:** `V5-VERIFICATION-11A_CLOSEOUT_AUDIT_GREEN`
 **Canonical branch:** `main`

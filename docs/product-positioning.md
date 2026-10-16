@@ -1,12 +1,12 @@
-# AXIOM Product Positioning
+# HUQAN Product Positioning
 
 ## One-line Promise
 
-AXIOM tells you what breaks before you ship a decision.
+HUQAN tells you what breaks before you ship a decision.
 
 ## Product Category
 
-AXIOM is a local-first judgment and verification layer for LLM-assisted builders, agents, tools, and graph memory.
+HUQAN is a local-first judgment and verification layer for LLM-assisted builders, agents, tools, and graph memory.
 
 It is not another model. It sits around models and memory, then classifies what is known, unknown, contradicted, or risky.
 
@@ -48,7 +48,7 @@ For demo framing, follow [docs/demo-positioning.md](./demo-positioning.md) so th
 
 ## Core Differentiation
 
-AXIOM does not just answer.
+HUQAN does not just answer.
 
 It judges:
 
@@ -65,7 +65,7 @@ Use these phrases:
 
 - `What breaks if you do this?`
 - `Unsupported knowledge does not become trusted memory.`
-- `AXIOM judges claims, memory, and decisions.`
+- `HUQAN judges claims, memory, and decisions.`
 - `Local-first symbolic reasoning for LLM-assisted builders.`
 
 Avoid overstating:
@@ -77,10 +77,10 @@ Avoid overstating:
 
 ## Current Direction
 
-Current mainline shifts AXIOM from causal reasoning alone to accountable judgment:
+Current mainline shifts HUQAN from causal reasoning alone to accountable judgment:
 
 - Trust Kernel
-- AXIOM Trust Protocol (`ATP`) and AXIOM Verify Protocol (`AVP`)
+- HUQAN Trust Protocol (`ATP` legacy lineage) and the verify subset (`AVP`)
 - source binding and provenance-aware claims
 - audit trail and conflict routing
 - lightweight workspace scoping

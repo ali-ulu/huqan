@@ -1,0 +1,18 @@
+{
+  "description": "Fail-closed HUQAN admission guard for local Codex tool calls",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "huqan-gate --profile codex",
+            "commandWindows": "huqan-gate.cmd --profile codex",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

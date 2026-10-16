@@ -1,5 +1,7 @@
 # HUQAN / AXIOM V5 Shared Trust / Ecosystem Blueprint
 
+**Status:** `future`
+
 ## Status
 
 Current checkpoint:

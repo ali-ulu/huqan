@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: huqan
+  namespace: huqan
+  labels:
+    app.kubernetes.io/name: huqan
+    app.kubernetes.io/component: runtime
+spec:
+  # One replica, deliberately. State is an SQLite file on a single volume and
+  # the graph is in-memory of one process; scale-out is not a supported
+  # topology. See docs/deployment-supported-matrix.md.
+  #
+  # Recreate, not RollingUpdate: two pods would contend for the same
+  # ReadWriteOnce volume (and the same SQLite file) during an update.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: huqan
+      app.kubernetes.io/component: runtime
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: huqan
+        app.kubernetes.io/component: runtime
+    spec:
+      securityContext:
+        # The runtime image runs as the unprivileged `node` user (uid/gid 1000).
+        # fsGroup lets the PVC be group-writable where the cluster honors it.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: huqan
+          # No verified registry image is published by this repository; build
+          # locally from the repo Dockerfile (see deploy/k8s/README.md) and
+          # point this field at your registry path.
+          image: huqan:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
+            - name: HUQAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: huqan-secrets
+                  key: HUQAN_API_KEY
+            # Operator-only MCP surface (huqan.approve / huqan.approvals /
+            # huqan.agent_resume). Withheld from tools/list; needs this token.
+            - name: HUQAN_MCP_OPERATOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huqan-secrets
+                  key: HUQAN_MCP_OPERATOR_TOKEN
+            # Container defaults already point at /app/data; pinned here so the
+            # PVC mount and persistence paths cannot drift apart silently.
+            - name: HUQAN_DB_PATH
+              value: /app/data/memory.db
+            - name: HUQAN_BACKUP_DIR
+              value: /app/data/backups
+          # Read-only root: persistence goes to the PVC, SQLite WAL and other
+          # transient writes go to the tmpfs below.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              # Memory limit bounds the in-memory graph. Default here matches
+              # the single-node Docker story; larger graphs need measured
+              # headroom, not a claimed number.
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 4
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 4
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            # Writable tmpfs for SQLite WAL/SHM and other transient files,
+            # mirroring the hardened docker-compose.yml.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: huqan-data
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi

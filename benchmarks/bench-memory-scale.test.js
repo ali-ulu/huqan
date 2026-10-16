@@ -10,6 +10,7 @@ const {
   runBenchmarks,
   DEFAULT_SEED,
   DEFAULT_FIXTURES,
+  WARMUP_ITERATIONS,
 } = require('./bench-memory-scale');
 
 describe('bench-memory-scale (PR-S4B)', () => {
@@ -67,6 +68,8 @@ describe('bench-memory-scale (PR-S4B)', () => {
       assert.strictEqual(out.size, 10);
       assert.strictEqual(out.iterations, 1);
       assert.strictEqual(out.seed, 0xCAFE);
+      assert.strictEqual(out.warmupIterations, WARMUP_ITERATIONS);
+      assert.strictEqual(out.useSQLite, false);
       assert.strictEqual(out.recordCount, 10);
       assert.strictEqual(typeof out.ingestMs, 'number');
       assert.strictEqual(typeof out.queryMs, 'number');
@@ -75,30 +78,56 @@ describe('bench-memory-scale (PR-S4B)', () => {
       assert.ok(Number.isFinite(out.queryMs));
       assert.ok(Number.isFinite(out.roundtripMs));
     });
+
+    it('runs the same contract on an isolated SQLite fixture', () => {
+      const out = benchSize('sqlite-smoke', 3, {
+        iterations: 1,
+        seed: 0xCAFE,
+        useSQLite: true,
+      });
+      assert.strictEqual(out.useSQLite, true);
+      assert.strictEqual(out.recordCount, out.size);
+      assert.strictEqual(out.warmupIterations, WARMUP_ITERATIONS);
+      assert.ok(Number.isFinite(out.queryMs));
+      assert.ok(Number.isFinite(out.roundtripMs));
+    });
   });
 
   describe('runBenchmarks smoke', () => {
-    it('produces the default fixture set', () => {
-      const out = runBenchmarks({ iterations: 1 });
+    it('produces the default in-memory fixture set and a separate SQLite set', () => {
+      const out = runBenchmarks({
+        iterations: 1,
+        fixtures: [{ name: 'tiny-memory', size: 3 }],
+        sqliteFixtures: [{ name: 'tiny-sqlite', size: 3 }],
+      });
       assert.strictEqual(out.version, '1.0.0');
       assert.strictEqual(out.iterations, 1);
+      assert.strictEqual(out.warmupIterations, WARMUP_ITERATIONS);
       assert.strictEqual(out.seed, DEFAULT_SEED);
-      for (const f of DEFAULT_FIXTURES) {
-        assert.ok(out.fixtures[f.name],
-          `expected fixture ${f.name} in output`);
-        assert.strictEqual(out.fixtures[f.name].size, f.size);
-      }
+      assert.strictEqual(out.fixtures['tiny-memory'].useSQLite, false);
+      assert.strictEqual(out.sqliteFixtures['tiny-sqlite'].useSQLite, true);
+      assert.strictEqual(out.sqliteFixtures['tiny-sqlite'].recordCount, 3);
     });
 
     it('honors a custom fixtures list', () => {
       const out = runBenchmarks({
         iterations: 1,
         fixtures: [{ name: 'tiny', size: 3 }],
+        sqliteFixtures: [],
       });
       assert.ok(out.fixtures.tiny);
       assert.strictEqual(out.fixtures.tiny.size, 3);
       assert.strictEqual(out.fixtures.tiny.recordCount, 3);
       assert.strictEqual(out.fixtures.small, undefined);
+      assert.deepStrictEqual(out.sqliteFixtures, {});
+    });
+
+    it('retains the published default in-memory fixture definitions', () => {
+      assert.deepStrictEqual(DEFAULT_FIXTURES, [
+        { name: 'small', size: 10 },
+        { name: 'medium', size: 100 },
+        { name: 'large', size: 1000 },
+      ]);
     });
   });
 });

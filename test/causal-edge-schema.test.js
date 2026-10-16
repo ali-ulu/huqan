@@ -54,9 +54,9 @@ describe('frozen exports', () => {
     assert.strictEqual(REQUIRED_FIELDS.length, 10);
   });
 
-  it('CAUSAL_EDGE_ERROR_CODES is frozen with 12 entries', () => {
+  it('CAUSAL_EDGE_ERROR_CODES is frozen with 15 entries', () => {
     assert.ok(Object.isFrozen(CAUSAL_EDGE_ERROR_CODES));
-    assert.strictEqual(Object.keys(CAUSAL_EDGE_ERROR_CODES).length, 12);
+    assert.strictEqual(Object.keys(CAUSAL_EDGE_ERROR_CODES).length, 15);
   });
 });
 
@@ -126,11 +126,14 @@ describe('determinism (multiverse-safe)', () => {
 });
 
 describe('error code names', () => {
-  it('all 12 error codes exist as keys', () => {
+  it('all 15 error codes exist as keys', () => {
     const expected = [
       'MISSING_FIELD',
       'INVALID_RELATION',
+      'INVALID_ID',
+      'INVALID_ENDPOINT',
       'INVALID_STRENGTH',
+      'INVALID_CONFIDENCE',
       'INVALID_WORKSPACE_ID',
       'EMPTY_PROVENANCE_ID',
       'INVALID_PROVENANCE_ID',

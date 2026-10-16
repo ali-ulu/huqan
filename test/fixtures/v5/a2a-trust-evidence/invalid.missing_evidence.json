@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "v5-a2a-trust-evidence-v1",
+  "envelopeId": "a2a-ev-0005",
+  "recordedAt": "2026-03-01T12:00:00.000Z",
+  "delegation": {
+    "sourceAgent": {
+      "agentId": "agent-buyer-01",
+      "identityRef": "identity://agent-buyer-01",
+      "identityHash": "c8547c49e7ed2254975fd90beaed7cdd62b8173e4f7efcc81be2b5de2eee7e25"
+    },
+    "targetAgent": {
+      "agentId": "agent-supplier-07",
+      "identityRef": "identity://agent-supplier-07",
+      "identityHash": "ebf1e29303542d0867afbb0d849b138e476d375ec8f1956ca67ec1d029e8d7b1"
+    },
+    "workspaceId": "default",
+    "delegationScope": [
+      "quote.collect",
+      "quote.read"
+    ],
+    "requestedAction": {
+      "capability": "quote.collect",
+      "target": "catalog://category-x",
+      "parameters": {
+        "count": 3
+      }
+    },
+    "requestedOutput": {
+      "kind": "quote_set",
+      "expectedOutcome": "three_quotes_collected",
+      "expectedEffectSummary": "3 quote records created in workspace default"
+    },
+    "constraints": {
+      "maxRiskTier": "medium",
+      "allowedTools": [
+        "quote.collect"
+      ],
+      "allowedConnectors": [
+        "catalog"
+      ],
+      "notes": "bounded to category X"
+    },
+    "expiresAt": "2026-03-02T00:00:00.000Z",
+    "delegationChain": [
+      "agent-buyer-01",
+      "agent-supplier-07"
+    ]
+  },
+  "observation": {
+    "observedAction": {
+      "capability": "quote.collect",
+      "target": "catalog://category-x",
+      "parameters": {
+        "count": 3
+      }
+    },
+    "observedOutcome": {
+      "status": "observed_completed",
+      "detail": "three quotes recorded",
+      "unknownReason": ""
+    },
+    "effectSummary": "3 quote records created in workspace default",
+    "observedAt": "2026-03-01T11:59:00.000Z",
+    "observedBy": {
+      "observerRef": "observer://ledger-a",
+      "observerRelation": "third_party_observed"
+    }
+  },
+  "evidence": {
+    "evidenceRefs": [],
+    "trustReceipt": null
+  },
+  "reconciliation": {
+    "scopeMatch": "pass",
+    "requestedVsObservedMatch": "pass",
+    "delegationChainValid": "pass",
+    "withinExpiry": "pass",
+    "evidenceSufficient": "fail",
+    "verdict": "block",
+    "reasonCodes": [
+      "evidence_missing"
+    ]
+  }
+}

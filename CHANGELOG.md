@@ -1,35 +1,511 @@
 # Changelog
 
-## v0.9.1 - Memory Core Final Release
+## v1.0.1
 
-Released 2026-06-12.
+The v1.0.0 publish run ended red at the full-suite gate: the gate hook read
+`HUQAN_GATE_AURA_SIGNALS` straight off `process.env`, bypassing the AXIOM_
+fallback and the conflict check. The flag now reads through
+`readCompatibleEnvironmentVariable`, so `AXIOM_GATE_AURA_SIGNALS` works as a
+legacy alias and a conflicting pair fails closed. Nothing else changed since
+v1.0.0.
 
-### Added
-- Memory Core compatibility aligned on `main` after PR #42.
-- Main `MemoryStore` now exposes the Memory Core compatibility surface without replacing the normalized SQLite architecture.
-- Release smoke now reflects the final verified full suite result: `1277 pass / 0 fail / 16 skipped`.
+### Fixed
+- **Gate-hook AURA flag goes through the environment-compat shim (#3843).**
+  `bin/huqan-gate-hook.js` read the opt-in signal flag directly, which the
+  `environment-compat-bypass` test forbids: one variable silently lost the
+  legacy fallback and the `HUQAN_ENV_CONFLICT` check. `GATE_AURA_SIGNALS` joins
+  the compat inventory, and the hook resolves it through the shim like every
+  other flag.
 
-### Highlights
-- Main MemoryStore architecture preserved.
-- Memory Core API compatibility aligned.
-- SQLite and normalized persistence compatibility preserved.
-- Deterministic memory behavior preserved.
-- Provenance, audit, and workspace invariants preserved.
-- Package schema and roundtrip coverage preserved.
+## v1.0.0
 
-### Out of scope
-- Self-Healer
-- MCP tool surface expansion
-- UI changes
-- embeddings
-- summary / cluster plugin
-- runtime import/export expansion beyond the existing MemoryStore behavior
-
-## v0.9.1 — AB1 Action Risk Classifier
-
-Released 2026-06-07.
+Released 2026-10-12. The first major release. It marks the point where the MCP
+tool output schemas are enforced rather than merely declared.
 
 ### Added
+- **`huqan coder` can create files and run a fix as one sequence (#3670).**
+  Two new transforms (catalog v1.3.0): `create_file` writes a file that does
+  not exist yet, and `sequence` applies several steps in order as one
+  all-or-nothing derivation. Before this a fix that added a test file was
+  impossible, and a fix that edited one file twice needed separate runs -- each
+  on a tree the previous run had dirtied, held at `DIRTY_REPO_REVIEW_REQUIRED`
+  -- and left records stacked on one file that PR Guardian reported as
+  `HEAD_MISMATCH` / `BASE_INPUT_MISMATCH` against the PR base (#3695: 2/6,
+  #3697: 1/3 reproduced). A record whose transform the verifier does not know
+  (the base-tree verifier on the PR that introduces it) is now
+  `TRANSFORM_UNKNOWN_TO_VERIFIER`, which PR Guardian reports as unknown rather
+  than failed.
+- **`huqan coder --authorize` lands a real source change (#3651).** A
+  `replace_text` task against an ordinary source file (`src/**`, `lib/**`) was
+  held at `review`/`SOURCE_CHANGE_REQUIRES_REVIEW` with no flag able to release
+  it, so the coder could only ever write docs. `--authorize` lets the operator
+  vouch for the exact task and root, turning that one reason into an `apply`
+  (`gate.reason = OPERATOR_AUTHORIZED_REVIEW`, recorded in the derivation
+  record). The waiver is narrow: a critical block (release, secret, auto-merge,
+  main-branch write), a `dry_run_only` runtime entrypoint, a package or CI
+  workflow change, a breadth/cross-cutting finding, and a dirty-repo hold all
+  keep their own decision and reason. The classifier's path hints keep matching
+  by substring (a `test/` directory segment cannot be a whole-term match), but a
+  hint that ends in `/` must now start the path or follow a `/`: without that
+  boundary `test/` fired on the `test/` suffix of `src/latest/`, so an ordinary
+  source change was misread as tests-only and allowed.
+- **Cognitive Lab `contradiction` measurement sub-path (R50, #3582).**
+  `huqan-cognitive-lab contradiction --contradiction-records FILE` scores the
+  frozen R50 contradiction corpus against arm A (the detectors' declared
+  `0.90/0.95` heuristic confidence, labelled `DECLARED_HEURISTIC`) and arm B
+  (the same raw rule score mapped through a frozen score→P(contradiction)
+  mapping fit only on the calibration split). The path is store-free, opens no
+  graph, leaves canonical memory untouched, and asserts no gain. It is a
+  measurement surface, not a production contradiction integration.
+- **Deterministic local fusion arm (R50, #3582).** When the request pins a
+  `sourceCommit`, the same sub-path also reports arm C: a frozen 18-feature
+  vector (the nine detector flags plus a bounded claim-metadata block, no raw
+  text or embedding) through a closed-form ridge readout trained on the train
+  split, mapped to a probability by the same calibration artifact. The raw
+  readout is a score, never a probability, and the arm is
+  `DETERMINISTIC`/`LOCAL`/`CANDIDATE_ONLY` with zero model calls, tokens or
+  external calls. Production integration and the learned-meaning D arm are
+  #3583's scope, not this one.
+
+### Changed (breaking)
+- **An MCP `tools/call` with a non-JSON `arguments` string is now a parse
+  error, not an empty call (#3499).** A string `arguments` value that is not
+  JSON used to be parsed with `parseJsonObject(value, {})`, so the call ran as
+  if the model had supplied no arguments -- indistinguishable from a deliberate
+  empty call. It now fails closed with code `ARGUMENTS_PARSE_ERROR` and gate
+  reason `arguments_parse_error`, kept distinct from the schema's
+  `INVALID_INPUT` / `malformed_input_blocked`. An object value, a missing value
+  and a JSON string that parses to a non-object are unchanged.
+- **MCP output schemas are now the contract clients can rely on.** Four tools had
+  drifted from what they actually return, so the contract described shapes the
+  server never produced. `huqan.search` no longer promises a `total` on the
+  per-tool envelope; `huqan.ask`, `huqan.plan` and `huqan.approve` now accept the
+  payloads they really emit (an unknown-path answer for `ask`, a refusal for
+  `plan`, and the `error` branch for `approve`). Any client that pinned the old
+  schemas must re-read them.
+- **The output-conformance gate enforces every advertised tool.** The
+  declared-only allowlist is empty; a tool whose result does not match its
+  declared schema is withheld and reported as `OUTPUT_SCHEMA_VIOLATION` instead of
+  being passed through. This is why the release is a major: it narrows what the
+  server accepts, which `scripts/api-semver-gate.js` classifies as breaking.
+- The `api-contract` comparison now treats a committed, strictly higher `X.0.0`
+  major as the acknowledged home for a breaking diff, matching the rule the
+  publish-time semver gate already applied (#3590).
+- **One source per workflow input field (#3593).** Where an HTTP workflow and
+  its MCP tool both declare a field, the HTTP request schema is now canonical
+  and the MCP input schema matches it: `question`, `statement`, `goal` and
+  `claim`/`query` bounds are identical on both surfaces, the web-research
+  `maxSnippet`/`summarize` fields are declared on the MCP tool, and HTTP
+  `verify` names `statement` canonically (`claim` stays an accepted alias).
+  `huqan.verify`'s MCP `workspaceId` stays 1..256 against HTTP 1..128, because
+  narrowing it after main reached 1.0.0 would itself be a breaking change. The
+  remaining differences are surface-specific and pinned with their reasons in
+  `test/agent-exit-reasons-and-schema-divergence.test.js`.
+
+### Fixed
+- **`learn:` reads an English `is`/`are` copula as a type statement
+  (#3643).** The predicate parser only knew the Turkish `-dır/-dir` copula, so
+  an English predicate arrived with the copula still attached: `cats are
+  animals` was stored as a node literally named `are animals` with an `özellik`
+  edge, fragmenting the graph. The parser now strips a leading `is`/`are` (and a
+  following `a`/`an`) and takes the remainder as the object of a `tür` relation,
+  matching what the Turkish copula already produced. The frozen EN/TR semantic
+  baseline is refreshed for the five copula cases; every other case, and the
+  whole Turkish contract, is byte-identical.
+- **The transform catalog version no longer disagrees with its release note
+  (#3650).** `huqan coder` stamps every derivation record with
+  `catalogVersion`, read from `TRANSFORM_CATALOG_VERSION` in
+  `lib/coder/derivation-record.js`, while `docs/coder-catalog-notes.md` states
+  the same catalog in prose. The note was advanced to v1.2.0 by a documentation
+  change but the constant stayed at 1.0.0, so every record understated the
+  catalog it was derived from. The constant now reads 1.2.0, and a test pins
+  the note's stated version to it so the two cannot drift apart again.
+- **`huqan quickstart` no longer leaves a `memory.db` in the working directory
+  (#3649).** Booting the CLI built a kernel whose store defaults to the working
+  directory, so the command that advertises a throwaway demo (and prints "your
+  own memory was not touched") still created a brand-new store beside the user
+  -- and, because the store-creation guard refuses a second unnamed store, a
+  second run from another directory failed outright with "refusing to create a
+  new store at an unnamed path". `quickstart` and `--help`, which read and
+  write nothing, now boot against a throwaway store under the OS temp root; the
+  local-first cwd default is unchanged for every command that keeps a store.
+- **`huqan upload:` / `yükle:` now reads the file it is given (#3644).** The
+  command mapped to the same gate path as `learn:` and the queued review
+  proposal carried the argument text -- the file *path* -- as the fact to
+  learn. The durable approval then replayed that path string through
+  `huqan.learn`, reported success, and wrote nothing, so the uploaded document
+  never reached the graph; a non-existent path "succeeded" the same way. The
+  review proposal now loads the file through the same confined read the other
+  CLI file commands use and proposes its content, with `cli:yükle:<path>` as
+  the provenance ref (instead of the misleading `cli:learn`). An unreadable
+  file is reported as `Could not read file: ...` and fails, instead of queueing
+  a path that names no fact.
+- **Naming a store directory names it for the memory and agent stores too
+  (#3669).** `HUQAN_DB_PATH` moved only the graph: the memory store and the
+  agent store kept deriving their defaults from the working directory, so one
+  variable produced stores in two directories that then drifted apart. The store
+  default now lands in the directory the environment named, so the graph, the
+  memory store and the agent store co-locate. The store-creation guard is also
+  tightened: it no longer treats "an operator named *some* store" as "this store
+  was named", so a working-directory `memory.db` is refused even when a variable
+  named a store somewhere else.
+
+## v0.13.2
+
+Released 2026-10-02. A patch release for npm 12. The `v0.13.0` and `v0.13.1` publish runs both ended red; this release is meant to run the whole pipeline green, including the post-publish checklist.
+
+### Fixed
+- With npm 12, which no longer runs dependency install scripts, `huqan` failed to start when `better-sqlite3` had no native binding, and the error did not say why. The CLI now explains what is missing and how to approve the install script (#3324).
+- The publish workflow installed `npm@latest`, which pulled in npm 12. npm 12 broke the post-publish release checklist: the tarball smoke test ran without the SQLite binding, and `npm view --json` returned an array. The publish job now pins `npm@11`, and the registry verifier accepts both output shapes (#3323, #3329).
+
+## v0.13.1
+
+Released 2026-10-02. The first published release of the 0.13 line. It carries everything listed under v0.13.0 below, plus two fixes found while releasing it.
+
+The `v0.13.0` tag exists but was never published: its `publish.yml` run stopped at the signed-tag gate before installing anything, and release tags in this repository are immutable, so the version moves to 0.13.1 instead of re-pointing the tag.
+
+### Fixed
+- The signed-tag gate in `publish.yml` called `gh api` without a token, so every call failed and a correctly signed tag was reported as unsigned (#3320).
+- A coder test raced git auto-maintenance in its fixture repository (#3319).
+
+## v0.13.0
+
+Released 2026-10-02. 1035 commits since `v0.12.0` (184 feat, 183 fix, 211 refactor, 16 perf, the rest chore, docs, test, ci and merges). This entry groups them by area; the complete list is [`v0.12.0...v0.13.0`](https://github.com/ali-ulu/huqan/compare/v0.12.0...v0.13.0).
+
+**No breaking API change.** `scripts/api-semver-gate.js` compares the public exports, type declarations, CLI, MCP tools and REST routes against `v0.12.0` and reports none. Type declarations only gained members (`Kernel#parsePredicate`, `Kernel#commitBackgroundEdge`, `recordExternalActionReview`, `latestExternalActionReview`).
+
+### Added
+- **Experience Core.** A durable, ordered record of each agent run: contract, journal, an independent verifier for outcomes, crash reconciliation at the effect boundary, and read access from the CLI, MCP and HTTP. Learning admission now has a production intake.
+- **Inference runtime.** Rule IR, unification, bounded forward and backward evaluation and bounded abduction, reachable through `kernel.derive` / `kernel.prove` and the CLI, with a persisted history and observed-outcome calibration.
+- **Agent blast radius (#2505).** One 0–100 risk scale for every gate; blast radius and decision justification on receipts; session impact budgets; delegation limits; a financial-action gate; bypass signals; a durable emergency stop operable from the CLI, HTTP and MCP (`huqan.emergency_stop`).
+- **Coder path.** `huqan coder` applies derivations with an Experience journal, content-anchored code locations, a task producer and an observed-verification seam.
+- **Operations.** `huqan doctor` health checks, structured logging and metrics, the Control Room dashboard at `/control-room`, Kubernetes manifests and a Helm chart, keyless cosign signing of the released image.
+- **Observation.** HUQAN Observation Protocol 0.1 envelope with MCP, shell and browser (CDP) observation; GitHub webhook to repo-memory ingest with an approval step.
+- **Release discipline.** Public API snapshot with a breaking-change semver gate, a deprecation registry and checker, a generated changelog, registry round-trip and final release checklists.
+
+### Changed
+- **Storage performance.** Graph saves write only changed records; graph reads use frozen views and a label index; SQLite-backed memories stay in SQLite behind a bounded cache and are read per scope. Measured at 10k nodes: `docs/scale-truth-pack.md`.
+- **Architecture.** Persistence behind `GraphStorePort` / `MemoryStorePort`; an exhaustive ownership map and module-boundary, layer, cycle and file-size gates. No source file is over 400 lines.
+- **README** shortened and updated.
+
+### Fixed
+- 183 fixes. Among them: Dream's causal check built its default simulator from the wrong import and never ran (#3313); the API semver gate read added type members as breaking changes (#3316); the nightly full-suite run turned red on a shard-weight refresh rather than on a test (#3317).
+
+### Deprecated
+- `require('huqan').KernelV1` stays deprecated. Its removal moves from 1.0.0 to **2.0.0**; it still returns the same `Kernel` class and warns on access. Migration: `docs/migrations/kernel-v2.md`.
+
+### Security
+- Dependency license compliance and immutable GitHub Action pins are enforced; releases are gated on an adversarial safety evaluation.
+
+### Not in this release
+- 26 shipped modules still have no production caller (listed in `lib/module-reachability.js`, decision tracked in #3315).
+
+## v0.12.0
+
+Released 2026-09-08. The first release published by `publish.yml` over GitHub
+OIDC trusted publishing rather than by hand, so this is the first tarball that
+carries an npm provenance attestation tying it to this repository, this
+workflow and the `v0.12.0` commit. The stored `NPM_TOKEN` secrets were deleted
+once the trusted publisher was configured; nothing references them any more.
+
+This release carries 320 commits since `v0.11.1`. The entries below are the
+ones that were recorded as they landed; for the complete list see
+[`v0.11.1...v0.12.0`](https://github.com/ali-ulu/huqan/compare/v0.11.1...v0.12.0).
+
+### Changed
+- **The README was rewritten (#1964, #1965).** It had been an empty file on
+  `main` since a removal on 2026-09-07 left the public repository page blank
+  while npm still served the pre-deletion text. The new page is 137 lines
+  rather than 496: it opens on the quickstart transcript and the write that
+  does not happen, names the four alternatives it is usually compared against,
+  and keeps every scope limit in its own section. One earlier claim was wrong
+  and is gone — a capability table advertised `escalate` as a policy-gate
+  outcome, which no gate returns.
+
+### Added
+- **Control-plane protection for the external action guard.** Writes, deletes
+  and in-place rewrites of the config that wires the guard in —
+  `.claude/settings.json`, `.codex/hooks.json`, `.opencode/plugin/**`,
+  `.pi/extensions/**`, `.hermes/plugins/**`, `adapters/external-action/**` —
+  are now `block` on every profile instead of an ordinary `review`. Previously
+  disarming the guard raised the same `ask` as any other workspace write, so a
+  single habitual approval removed it for all later actions. Reading the config
+  is unchanged. `huqan-gate --allow-control-plane` (deployment-supplied, never
+  read from the invocation payload) permits maintenance.
+- **Agent-independent external action guard (#1761/#1762).** `huqan-gate`
+  normalizes external client tool calls into one versioned envelope, reuses
+  HUQAN's existing risk/action/command/memory/automation/egress/workspace gates,
+  fails closed on malformed input or receipt errors, and persists a canonical
+  admission receipt to JSONL plus `audit_log` when SQLite is available. Thin
+  Claude Code, Codex, OpenCode, Pi, Hermes, and generic projections keep client
+  names out of policy. Coverage requires a real pre-execution hook or wrapper;
+  hookless, unconnected agents are not claimed as enforced.
+
+## v0.11.1
+
+Released 2026-08-31 — `npm install -g huqan` now serves this version. It
+carries everything listed under v0.11.0 and v0.10.1 below, neither of which
+reached the registry, so the last version users actually received was v0.10.0.
+
+The upload was made by hand rather than by `publish.yml`, so the published
+tarball carries **no npm provenance attestation** and cannot be traced
+cryptographically back to the `v0.11.1` tag (`ffbe070`), which is the commit it
+was built from. The publish job has since moved from a stored npm token to
+GitHub OIDC trusted publishing (#1690), which attests every upload; releases
+from the next tag onward will carry provenance.
+
+### Fixed
+- **Publishing from a release tag (#1745).** The live Git guard in
+  `scripts/agent-context.js` knew two shapes -- sitting on the baseline branch,
+  or working on a branch that already contains it. `publish.yml` checks out an
+  immutable `v<version>` tag, which is deliberately *behind* `origin/main` by
+  however many commits landed since the release, so the guard read a reviewed,
+  merged commit as an unrebased feature branch and failed closed. Six tests
+  reported it, all with one message, at the step meant to certify the release.
+  A release checkout is now a third recognised state, admitted only on all
+  three of: a detached HEAD, a `v*` tag at that commit, and reachability from
+  `origin/main` -- the last being the same claim `publish.yml` proves on its
+  own before the suite runs. `gitState` reports `headPosition` and the tag it
+  was admitted under; a detached HEAD without a tag, and a tag outside
+  canonical ancestry, both still fail closed.
+
+## v0.11.0
+
+Never released under its own tag — these changes reached users as part of
+v0.11.1 above. The `v0.11.0` tag predates the #1745 fix, and because the publish
+job checks out the tag, that tag can no longer pass its own release gate.
+
+### Added
+- **fractal-learn (#1714).** New `huqan.fractal-learn` MCP tool running a
+  bounded recursive knowledge-synthesis loop: it chains `kernel.dream` rounds
+  (hypothesis generation admitted through the mutation gate) and stops when the
+  per-round entropy gain saturates (`exhausted` / `saturated` / `maxRounds`).
+  Every write is receipted and the tool is gated `mutating_requires_review`, so
+  the graph never grows silently.
+- **autoTune (#1716).** `huqan.fractal-learn` gains a one-way `autoTune` mode:
+  after each round it reads review feedback and tightens `minScore` /
+  `entropyFloor`, but never loosens them automatically. Tightening is recorded
+  per round; loosening always requires human approval.
+- **Graph health scoring and threshold tuning advice.** `huqan fitness` scores
+  graph health (coverage, precision, connectivity, consistency → A–F grade);
+  `huqan tuning` turns review feedback into a threshold proposal — advice only,
+  it never applies a change.
+
+## v0.10.1
+
+Never released under its own tag — these changes reached users as part of
+v0.11.1 above. The heading is kept because the entries below are the record of
+what landed, not a promise of a version that will ship.
+
+Primarily a security release, and the first work since v0.10.0 reached the
+registry on 2026-08-27, so it also carries everything else that landed in
+between.
+
+### Added
+- **Graceful shutdown on SIGTERM/SIGINT (#1697).** `server.js` stops accepting
+  connections and drains the HTTP server before closing observability timers,
+  viewer state, approval storage, external-client resources and the kernel
+  graph. A five-second fail-safe exits non-zero if the drain does not finish,
+  so a container stop no longer severs in-flight requests silently.
+
+### Fixed
+- **Mutation journal replay tracking (#1671).** Journal sections are
+  null-prototype maps. On a plain object `operations['__proto__'] = entry`
+  re-points the prototype instead of creating an own property, so a completed
+  mutation left no record and the same operationId ran a second time;
+  `constructor` and `toString` failed the other way, reading an inherited value
+  back as a journal row. Persisted records keep own-property semantics across a
+  JSON round trip.
+- **External client transport (#1672).** `scripts/external-client.js` requires
+  HTTPS for any bearer-authenticated destination that is not loopback. It
+  previously sent `authorization: Bearer <HUQAN_API_KEY>` in the clear to
+  whatever URL it was given. Plain HTTP survives only for `127.0.0.0/8`,
+  `[::1]` and `localhost`, where the request never reaches a network interface,
+  and the check runs before the credential is read.
+- **Release authority (#1673).** `publish.yml` checks the ref for every
+  trigger, not only for tag pushes. A manual `workflow_dispatch` could reach
+  `npm publish` from any ref, skipping the tag/version binding entirely. A
+  publish now requires an immutable `v<version>` tag matching the manifest whose
+  commit is an ancestor of the default branch, and the job runs in the
+  `npm-publish` environment.
+- **MCP capability replay (#1674).** Consumed capability nonces are recorded
+  durably, one exclusively-created file per nonce, instead of in a process-local
+  map. A restart inside a capability's five-minute validity window used to
+  forget the nonce and accept a spent token again. Reservation is atomic across
+  workers; verification stays fail-closed when the store cannot be written.
+- **PR Guardian execution (#1675).** An approved action is claimed atomically
+  into `executing` before the GitHub call and finalized with an explicit
+  execution record, so a repeated or concurrent request cannot post the comment
+  twice. A call that threw is left `failed` with an unknown outcome rather than
+  silently retried.
+- **Docker build context (#1676).** Environment files, npm/yarn credentials,
+  private keys, certificates and service-account material are excluded before
+  the runtime stage's `COPY . .`, with example files re-included.
+- **PR Guardian webhook destination (#1677).** The workflow validates
+  `PR_GUARDIAN_WEBHOOK_URL` before building or signing anything: HTTPS unless
+  loopback, no embedded credentials, fragment or query, and no control
+  characters. Its checkout is pinned to the base SHA, so the scripts the job
+  runs are the reviewed ones rather than the pull request's.
+- **Data loss on a corrupt JSON graph (#1703).** JSON graph loading moved to
+  its own persistence module and now rejects malformed JSON, bad record
+  shapes, explicitly null collections and colliding normalized node ids. A
+  failed load keeps the previous in-memory view but refuses `save()` and
+  canonical mutations with `GRAPH_JSON_LOAD_FAILED`, so a damaged file can no
+  longer be overwritten by the process that failed to read it. Writing
+  reopens only once a valid snapshot loads.
+- **Concurrent SQLite mutations (#1698).** The durable mutation transaction
+  takes `BEGIN IMMEDIATE`, acquiring the write reservation before the
+  idempotency re-check. Two processes could previously both enter the mutation
+  callback for the same `operationId`.
+- **A dead lock owner blocked writers for 30 seconds (#1706).** The JSON
+  mutation journal consulted a lock record's age before its pid, so a crash
+  left every later mutation waiting out the full lock timeout and then failing
+  with a contention code — while the owning process was provably gone. A
+  parsed record naming a dead pid now decides at once; age remains the
+  fallback where liveness cannot settle it, which is what keeps a half-written
+  lock from a live writer from being evicted. The verdict is unchanged: the
+  lock is still preserved for investigation and never silently stolen.
+- **MCP resources left open on shutdown (#1701).** The MCP server closes owned
+  approval and kernel resources on JSON-RPC shutdown, idempotently and aware
+  of what it owns, and exits non-zero when cleanup fails.
+- **Hypothesis noise (#1643).** `dream()` no longer treats markdown table
+  pipes, CI job ids, or punctuation-only nodes as hypothesis sources, so the
+  human review queue stops filling with proposals built from ingest debris.
+- **The first sixty seconds of the CLI (#1693, #1694, #1695).** The gate
+  refusal for a mutating command was Turkish on an English CLI, half its
+  diacritics stripped, and named no way forward; it is now English, states the
+  decision and reason, and points at a next step that exists. Five
+  `[Plugin] … disabled` warnings no longer precede every command's output —
+  `huqan status` reports which plugins are active, which are waiting on a
+  capability, and which capability each one wants. The quickstart no longer
+  ends by suggesting a command that answers `unknown` against the reader's own
+  graph.
+
+### Documentation
+- **The decision vocabulary in the README matches the code (#1705).** The
+  "How it works" outcome line advertised an `ESCALATE` result no gate returns
+  and omitted `quarantine` and `reject`, which the memory admission gate does.
+  Escalation is real but belongs one layer up — a reviewer's decision at the
+  approval boundary, present where an organization has more than one approver
+  and absent in a single-user install — and the README now says so.
+  `test/readme-decision-vocabulary.test.js` reads the constants and fails if
+  the prose drifts from them again.
+
+### Tests
+- Filesystem failure modes: read-only persistence directory, truncated
+  mutation journal, corrupt SQLite file (#1699).
+- HTTP transport failure paths over real TCP: auth rejection before ingest
+  mutation, declared and chunked uploads over the body limit, malformed JSON
+  (#1700).
+- Real multi-process coverage for the SQLite durable journal, including a
+  process killed inside a transaction (#1698).
+
+## v0.10.0
+
+Published to npm on 2026-08-27 — the first version on the registry. Before it,
+every install was a `git clone`.
+
+### Added
+- `huqan-mcp` binary. `bin/huqan-mcp.js` is a `bin` entry that starts the MCP
+  server by name instead of by absolute path, so Claude Desktop can be
+  configured with `npx -y --package=huqan huqan-mcp` and no prior install. It is
+  a file of its own rather than a shebang on `mcpServer.js`, which sits at
+  exactly the 800-line threshold `scripts/check-file-size.js` enforces.
+- `scripts/check-package-closure.js` and `npm run check:package-closure` — fail
+  when a module the installed package loads is missing from
+  `package.json#files`. It walks *load-time* requires outward from `main`, every
+  `bin`, and each published plugin and adapter; requires behind a guard are out
+  of scope, which is what keeps the deliberately repo-only V5 family from being
+  reported as a defect. Wired into `prepublishOnly`, so a publish that would
+  ship a broken tarball fails before it uploads.
+- `GET /api/v2/memory-approvals` and `POST /api/v2/memory-approvals/{id}/decision`
+  — operator-gated approval over HTTP. Both require the API key *and* a separate
+  operator token in `x-huqan-operator-token`, so the surface that may propose a
+  memory write cannot approve it. Unconfigured, they answer 404.
+- `docs/a2a-deployment.md` — the operator recipe for the four A2A routes, which
+  shipped with no way to turn them on.
+- English spellings for every CLI command that had only a Turkish one: `status`,
+  `dream`, `save`, `think`, `stop thinking`, `consolidate`, `hello`, `agent:`,
+  and bare `why X`. The Turkish spellings keep working.
+
+### Fixed
+- A `PREVENTS` edge made `verify` contradict the sentence that states it, at
+  confidence 0.95. `CAUSES`, `ENABLES` and `DEPENDS_ON` were correct; only
+  `PREVENTS` inverted.
+- Manual and decision ingest failed on every causal relation. `addCompanyEdge`
+  never passed `strength`, which `graph.js::addEdge` requires for a causal
+  relation and enforces by throwing, so each attempt left orphan nodes and no
+  edge. The rule now lives in `lib/causal-edge-strength.js`.
+- `huqan.policy` reported HUQAN's own advertised tools as unknown third-party
+  tools: `huqan.learn` answered `external / block` while `learn` answered
+  `internal / allow`. Namespaced names now resolve, and MCP tool names are
+  answered from `lib/mcp-gate-adapter.js`, the authority for what calling one
+  does.
+- Turkish prose on English API surfaces: the evidence sentences built in
+  `lib/verify.js` and the MCP tool descriptions. Three of those literals also
+  carried `U+FFFD`, so callers were reading `Say?sal kar??la?t?rma`.
+- `docs/current-agent-checkpoint.json` pinned a `canonicalMain` SHA that is not
+  a reachable object in this repository, which failed
+  `scripts/agent-context.js` and four tests.
+- Three modules loaded by the installed package were missing from
+  `package.json#files`, so `npm install` produced a tarball that threw
+  `Cannot find module` at load: `lib/safe-file-walk.js` (required by all four
+  file adapters — JSON, Markdown, PDF and YAML), `lib/causal-edge-strength.js`
+  (the `company-brain` plugin) and `lib/connectors/entry-ingest-flow.js` (the
+  `repo-memory` plugin). Every path resolved from a clone, so nothing in the
+  repository noticed. `check:package-closure` above is the guard that now does.
+- `README.md` named the A2A environment variables without their `HUQAN_`
+  prefix, so following it verbatim left the routes off.
+
+### Changed — install footprint
+- `pdfjs-dist` and `pdfkit` moved to `optionalDependencies`, and both are now
+  loaded on first use rather than at require-time. Previously a top-level
+  `require` in `plugins/receipt-exporter.js`, and a `require.resolve` for the
+  standard-font path in `adapters/pdf-adapter.js`, made a missing or
+  half-installed PDF dependency take the whole module down at load — the kernel
+  printed `Plugin failed to load: receipt-exporter.js` at every start and the
+  plugin's JSON export went down with the PDF one. The failure now lands on the
+  PDF call that needs it, as `HUQAN_PDF_EXPORT_UNAVAILABLE` naming the package
+  to install. `npm install --omit=optional` takes the install from about 111 MB
+  to about 20 MB with the full learn → approve → verify → receipt path intact.
+
+### Known limits of the published tarball
+- `POST /api/a2a/exchange` cannot be enabled from an `npm install`. It reaches
+  the V5 cryptographic family, which `package.json#files` deliberately does not
+  publish, so the route stays `404` there however it is configured; the other
+  three A2A routes do turn on. Run the exchange from a clone. `README.md` now
+  says so.
+
+### Changed
+- **MCP `huqan.verify` emits the canonical English status vocabulary**
+  (`verified` / `contradicted` / `unknown`) instead of the Turkish one. This is
+  a wire change on an advertised output schema, gated in RFC-001's M1-M4 shape:
+  `HUQAN_MCP_LEGACY_VERIFY_STATUS=1` restores the legacy enum, and one predicate
+  drives both the advertised schema and the emitted payload so they cannot
+  disagree. Removal of the opt-in needs its own announced breaking release.
+- The CLI command reference is English-first.
+- AXIOM-era names moved to HUQAN across the surfaces that carry no wire, data or
+  signed-artifact contract, each with the old name retained as an alias:
+  `createAxiomClient`, `runAxiomSdkCommand`, the LangChain tool name,
+  `server.closeAxiom`, `AxiomStorage`, the `axiom-core` crate, the identity
+  fallback subject, and `lib/axiom-package-format.js`, whose implementation
+  moved to the canonical filename.
+- `/llm-sor` emits `huqanCheck` alongside `axiomCheck`, never instead of it.
+
+### Unchanged, deliberately
+The frozen ATP 0.1 lineage — `format: "axiom-package"`, `atpVersion: "0.1"`,
+the fixtures under `specs/axiom-package-format/0.1/`, `packages/axiom-verify`
+and the `.axiom.json` reader. They are what proves old packages still verify.
+The `axiom.*` MCP aliases and `AXIOM_*` environment variables stay accepted on
+input and are never emitted.
+
+## v0.9.1
+
+Released 2026-06-12 (Memory Core Final), following the 2026-06-07 AB1 Action Risk Classifier release.
+
+### AB1 Action Risk Classifier (2026-06-07)
+
+#### Added
 - `lib/action-risk-classifier.js` — deterministic action risk classifier (AB1)
   - `classify(action, opts)` function — classifies intended agent actions before execution
   - 11 action types: `read_only`, `local_analysis`, `test_execution`, `file_write`, `memory_write`, `tool_execution`, `network_access`, `deployment`, `destructive`, `auto_merge`, `unknown`
@@ -41,16 +517,39 @@ Released 2026-06-07.
   - 6 core tests covering all critical action types
   - 15 edge case tests covering null/undefined/malformed inputs
 
-### Rules (AB1)
+#### Rules (AB1)
 - No agent action bypasses classification
 - `auto_merge` and `destructive` are permanently blocked
 - `deployment` requires explicit human review
 - Unknown action types are never silently allowed
 
-### Not included (AB1 scope boundary)
+#### Not included (AB1 scope boundary)
 - No tool execution
 - No server/API/MCP changes
 - No memory writes
 - No deploy logic
 - No auto-merge logic
+
+### Memory Core Final Release (2026-06-12)
+
+#### Added
+- Memory Core compatibility aligned on `main` after PR #42.
+- Main `MemoryStore` now exposes the Memory Core compatibility surface without replacing the normalized SQLite architecture.
+- Release smoke now reflects the final verified full suite result: `1277 pass / 0 fail / 16 skipped`.
+
+#### Highlights
+- Main MemoryStore architecture preserved.
+- Memory Core API compatibility aligned.
+- SQLite and normalized persistence compatibility preserved.
+- Deterministic memory behavior preserved.
+- Provenance, audit, and workspace invariants preserved.
+- Package schema and roundtrip coverage preserved.
+
+#### Out of scope
+- Self-Healer
+- MCP tool surface expansion
+- UI changes
+- embeddings
+- summary / cluster plugin
+- runtime import/export expansion beyond the existing MemoryStore behavior
 

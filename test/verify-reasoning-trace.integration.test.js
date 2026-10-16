@@ -64,11 +64,11 @@ describe('verify reasoning trace integration', () => {
     const raw = kernel.verify('React Native is used in production', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'dogrulandi');
+    assert.strictEqual(result.status, 'verified');
     assert.ok(raw.meta.reasoningTrace);
     assert.strictEqual(raw.meta.reasoningTrace.summary.total, 1);
     assert.strictEqual(raw.meta.trustReceiptPreview.subclaimCount, 1);
-    assert.strictEqual(raw.meta.trustReceiptPreview.finalStatus, 'dogrulandi');
+    assert.strictEqual(raw.meta.trustReceiptPreview.finalStatus, 'verified');
   });
 
   it('builds a reasoning trace for compound claims with supported and contradicted subclaims', () => {
@@ -82,7 +82,7 @@ describe('verify reasoning trace integration', () => {
     const raw = kernel.verify('React Native is used in production and React Native performant değil', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.ok(['celiski', 'bilinmiyor'].includes(result.status));
+    assert.ok(['contradicted', 'unknown'].includes(result.status));
     assert.ok(raw.meta.reasoningTrace);
     assert.strictEqual(raw.meta.reasoningTrace.summary.total, 2);
     assert.ok(raw.meta.reasoningTrace.summary.supported >= 1);
@@ -100,11 +100,11 @@ describe('verify reasoning trace integration', () => {
     const raw = kernel.verify('React Native is used in production and Vue is performant', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.strictEqual(result.status, 'bilinmiyor');
+    assert.strictEqual(result.status, 'unknown');
     assert.ok(raw.meta.reasoningTrace);
     assert.strictEqual(raw.meta.reasoningTrace.summary.total, 2);
     assert.ok(raw.meta.reasoningTrace.summary.unknown >= 1);
-    assert.strictEqual(raw.meta.trustReceiptPreview.finalStatus, 'bilinmiyor');
+    assert.strictEqual(raw.meta.trustReceiptPreview.finalStatus, 'unknown');
   });
 
   it('preserves confidence floor downgrades in the trace', () => {
@@ -118,7 +118,7 @@ describe('verify reasoning trace integration', () => {
       confidenceFloor: 0.96,
     });
 
-    assert.notStrictEqual(unwrap(raw).status, 'dogrulandi');
+    assert.notStrictEqual(unwrap(raw).status, 'verified');
     assert.ok(raw.meta.reasoningTrace);
     assert.ok(
       raw.meta.reasoningTrace.trustReceiptPreview.downgradeReasons.includes('CONFIDENCE_FLOOR') ||
@@ -135,7 +135,7 @@ describe('verify reasoning trace integration', () => {
     const raw = kernel.verify('According to React Native it is performant', { workspaceId: 'default' });
     const result = unwrap(raw);
 
-    assert.ok(['bilinmiyor', 'celiski'].includes(result.status));
+    assert.ok(['unknown', 'contradicted'].includes(result.status));
     assert.ok(raw.meta.reasoningTrace);
     assert.ok(
       raw.meta.semanticTrust.risk.flags.includes('STRAWMAN_ATTRIBUTION') ||

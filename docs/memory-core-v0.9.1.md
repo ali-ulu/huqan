@@ -57,3 +57,38 @@ Tombstoned (`type: "deleted"`) edilen bir hafıza `list()`, `query()` vb. genel 
 * **Semantic/Vector Search:** Şu an string match/regex ve metadata üzerinden Exact Match arama yapılır, embedding tabanlı vector search yoktur.
 * **AI Summary:** Memory özetleme/kümeleme.
 * **Clustering:** K-means tarzı memory gruplama işlemleri.
+
+## Kayıt Deposu (MemoryStore) ve Graf (Graph) Ayrımı
+
+Ürün iki ayrı kalıcılık yüzeyi taşır ve bunlar kasten ayrıdır:
+
+* **Graf** (`nodes`/`edges`): birincil CLI kullanımı. `learn`/`öğret` ve `save`/`kaydet` buraya yazar; CLI'da `sor`, `neden`, `karşılaştır` graf üzerinde okur. `huqan.search` aynı yüzeyin **MCP tool** adıdır; CLI komutu değildir.
+* **MemoryStore kayıt deposu** (`kernel.memory`): `memory-query <text>` komutu ve `huqan.memory_query` MCP tool'u bu depoyu sorgular (`lib/memory-query-read.js` → `MemoryStore.query`). `get`, `list`, `query`, `tombstone`, `supersede`, `linkMemories` metotları buradadır.
+
+**Önemli:** `learn`/`save` **kasten** MemoryStore'a yazmaz. Bu, kanonla sabitlenmiş bir sözleşmedir (bkz. `test/refactor-2e-learn-memory-admission-contract.test.js`, "learn never routes canonical writes through MemoryStore"): birincil `learn` yolu graf yazar, kayıt deposunu değil. Bu yüzden yalnızca CLI `learn`/`save` kullanan bir operatör `memory-query` çalıştırdığında doğal olarak `0 of 0` görür — graf doludur ama sorgulanan kayıt deposu boştur.
+
+### Kayıt Deposunu Ne Doldurur?
+
+Depoya yeni bir **başlangıç (kanonik)** kaydı yazan, depo içindeki bilinen üretim çağrısı `lib/error-prevention/store.js`'teki `memoryStore.store(...)`'dur; buna SDK köprüsü `createErrorPrevention` (`index.js` → `lib/error-prevention/`) üzerinden erişilir. Ancak `MemoryStore.store(...)` genel bir API'dir: kernel'i tutan bir host aynı depoya doğrudan `kernel.memory.store({ content, workspaceId, ... })` ile de başlangıç kaydı yazabilir, `createErrorPrevention` zorunlu değildir. Bir MCP tool'u veya açılışta çalışan bir loader başlangıç kaydı **yazmaz** (bkz. `docs/audits/direct-mutation-inventory.md`). Buna karşılık **`memory-lifecycle supersede` bir istisnadır**: mevcut bir kaydı yeni bir **replacement record** ile değiştirir ve bu replacement record depoya yazılır.
+
+Depo şu yollarla dolabilir:
+
+1. **SDK/API yolu:** `createErrorPrevention(memoryStore)` ile `storeContent(...)` çağırmak; ya da kernel'i tutan bir host'ta doğrudan `kernel.memory.store({ content, workspaceId, ... })` çağırmak.
+2. **`memory-lifecycle supersede`:** **zaten var olan** bir kaydı, depoya yazılan yeni bir replacement record ile değiştirir; ilk kaydı yaratamaz.
+3. **Mevcut kalıcılık dosyası:** yapılandırılmış `memory-store.json` (JSON backend) veya `memoryStoreDbPath` (SQLite backend) hazır kayıtlarla açılışa verilebilir. `MemoryStore` açılışta bu dosyayı hidratlar (`kernel.js` → `new MemoryStore({ memoryStorePath, memoryStoreDbPath })`).
+
+### Beklenen Kullanım
+
+* **Graf sorgusu için:** `learn`/`öğret` ile öğret, ardından CLI'da `sor <soru>` (veya `neden` / `karşılaştır`) kullan. MCP üzerinden aynı yüzey `huqan.search <text>`'tir.
+* **Kayıt deposu sorgusu için:** kayıtları SDK/`createErrorPrevention` yolundan ya da hazır bir `memory-store.json`/SQLite ile doldur, sonra `memory-query <text>` çalıştır.
+
+`memory-query`'nin grafı da taraması **kasıtlı olarak yapılmaz**: iki yüzeyin karıştırılması `memory-lifecycle` tombstone/supersede sözleşmesini ve grafın admission semantiğini bozar.
+
+### Boş Depo Nasıl Anlaşılır?
+
+`memory-query` çıktısındaki `total`, **metin filtresinden geçen** kayıt sayısıdır; hem gerçekten boş bir depoda hem de dolu bir depoda eşleşmeyen bir metinde `0` olur. İkisini ayırt etmek için sorguya `storeTotal: true` eklenir (CLI bunu kendisi gönderir): projeksiyon, **aynı okumada** deponun filtresiz kayıt sayısını `storeTotal` ve türetilmiş `storeEmpty` alanlarıyla döndürür. Böylece:
+
+* Metin yüzeyi, yalnızca `total === 0` **ve** `storeEmpty === true` iken "bu depo boş" açıklamasını basar; ipucu, grafı okumanın CLI yolunu (`sor <soru>`) gösterir.
+* `--json` çıktısı makine-okunur kalır: `storeEmpty` bayrağı otomasyonun "depo boş" ile "metin eşleşmedi" ayrımını yapmasını sağlar.
+
+`storeTotal` varsayılan olarak **kapalıdır**; istemeyen her çağıran için projeksiyonun şekli değişmez (bkz. `lib/memory-query-read.js`, `lib/memory-query-engine.js`, `lib/memory-query-sqlite.js`).

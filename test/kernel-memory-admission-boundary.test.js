@@ -1,9 +1,10 @@
+const { isolatedKernelOptions, isolatedGraphOptions } = require('./helpers/isolated-persistence');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Kernel = require('../kernel');
 
 function makeKernel() {
-  return new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false });
+  return new Kernel(isolatedKernelOptions('kernel-memory-admission-boundary', { noLoad: true, useSQLite: false, loadPlugins: false }));
 }
 
 test('kernel.learn with admissionRequired reviews direct write without approved context', () => {

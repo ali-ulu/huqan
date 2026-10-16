@@ -19,9 +19,13 @@ function mockKernel() {
 
 // ─── Gate blocks review tools (axiom.learn) ─────────────────────────────────
 
-test('callTool: axiom.learn queued for review (gate)', () => {
+test('callTool: axiom.learn is gated for review, and says so truthfully (gate)', () => {
+  // This mock kernel has no graph and therefore no approval store, so there is
+  // nowhere to queue anything. The call used to be reported as "queued for
+  // review" regardless -- a claim about durable state that nothing backed
+  // (#772). The gate verdict is unchanged; only the claim is.
   const kernel = mockKernel();
-  const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'test fact' } });
+  const result = callTool(kernel, { name: 'axiom.learn', arguments: { text: 'test fact' } }, { approvalStore: null });
 
   assert.equal(result.ok, false);
   assert.equal(result.gate.decision, 'review');
@@ -31,25 +35,26 @@ test('callTool: axiom.learn queued for review (gate)', () => {
   assert.equal(result.gate.requiredReview, true);
   assert.equal(result.gate.reason, 'mutating_requires_review');
   assert.ok(result.approval, 'review tool must return approval object');
-  assert.ok(result.message.includes('queued for review'));
+  assert.equal(result.approval.persisted, false);
+  assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
+  assert.ok(!result.message.includes('queued for review'));
 });
 
-// ─── Gate returns dry-run for dry_run_only tools (axiom.agent) ─────────────
+// ─── Gate restores concrete review for agent tools ──────────────────────────
 
-test('callTool: axiom.agent returns dry-run (gate)', () => {
+test('callTool: axiom.agent restores review when a concrete gate requests it', () => {
   const kernel = mockKernel();
-  const result = callTool(kernel, { name: 'axiom.agent', arguments: { goal: 'test' } });
+  const result = callTool(kernel, { name: 'axiom.agent', arguments: { goal: 'test' } }, { approvalStore: null });
 
-  assert.equal(result.ok, true);
-  assert.equal(result.dryRun, true);
-  assert.equal(result.gate.decision, 'dry_run_only');
+  assert.equal(result.ok, false);
+  assert.equal(result.gate.decision, 'review');
   assert.equal(result.gate.allowed, false);
   assert.equal(result.gate.canExecute, false);
   assert.equal(result.gate.canDryRun, true);
-  assert.equal(result.gate.requiredReview, false);
-  assert.equal(result.gate.reason, 'agent_loop_dry_run_only');
-  assert.ok(result.message.includes('Tool dry-run'));
-  assert.ok(result.result, 'dry-run must include result');
+  assert.equal(result.gate.requiredReview, true);
+  assert.equal(result.gate.reason, 'agent_loop_requires_review');
+  assert.equal(result.approval.persisted, false);
+  assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
 });
 
 // ─── Gate allows read-only tools ─────────────────────────────────────────────
@@ -67,7 +72,8 @@ test('callTool: axiom.verify passes gate (allow)', () => {
   const result = callTool(kernel, { name: 'axiom.verify', arguments: { statement: 'test' } });
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.status, 'dogrulandi');
+  // Stub kernel says 'dogrulandi'; the MCP boundary emits canonical English.
+  assert.equal(result.data.status, 'verified');
 });
 
 test('callTool: axiom.reason passes gate (allow)', () => {
@@ -175,7 +181,11 @@ test('callTool: all known tools pass through gate (allow)', () => {
 
 test('callTool: axiom.approvals passes gate (allow, returns pendingCount)', () => {
   const kernel = mockKernel();
-  const result = callTool(kernel, { name: 'axiom.approvals', arguments: {} });
+  const result = callTool(kernel, {
+    name: 'axiom.approvals',
+    operatorToken: 'test-operator',
+    arguments: {},
+  }, { operatorToken: 'test-operator' });
 
   assert.equal(typeof result.pendingCount, 'number');
   assert.ok(Array.isArray(result.approvals));

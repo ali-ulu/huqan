@@ -6,10 +6,7 @@ const path = require('path');
 const Kernel = require('../kernel');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-stress-ingest-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -69,7 +66,7 @@ describe('Stress Ingest Scale Smoke', () => {
 
     const verifyResult = unwrap(kernel.verify('Aircraft_0100 has 4 engines', { workspaceId: 'default' }));
     assert.ok(verifyResult && typeof verifyResult === 'object', 'verify result should be an object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(verifyResult.status), 'status contract must stay stable');
-    assert.notStrictEqual(verifyResult.status, 'dogrulandi', 'post-ingest false claim must not be verified');
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(verifyResult.status), 'status contract must stay stable');
+    assert.notStrictEqual(verifyResult.status, 'verified', 'post-ingest false claim must not be verified');
   });
 });

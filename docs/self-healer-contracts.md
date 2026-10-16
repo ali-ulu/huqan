@@ -16,10 +16,18 @@ Bu paket yalnız contract, schema, fixture ve acceptance criteria içindir.
 
 ## Kapsam
 
-Implemented contract:
+Implemented contracts:
 
 - `finding` - runtime schema authority is
   `lib/self-healer/finding-schema.js`.
+- `safety_decision_matrix` - runtime authority is
+  `lib/self-healer/safety-decision.js`. It encodes
+  `docs/self-healer-safety-matrix.md` and is the only place that mapping
+  exists in source.
+- `trust_receipt_summary` - emitted by `lib/self-healer/dryrun-runner.js`.
+  Note the limit: this is a summary object recording why a proposal was
+  safe or refused. It is not a canonical Trust Receipt, is not hash-chained,
+  and is not written through `lib/receipt/receipt-chain.js`.
 
 Planned contracts:
 
@@ -28,12 +36,10 @@ Planned contracts:
 - `memory_lookup_result`
 - `fix_proposal`
 - `regression_test_proposal`
-- `trust_receipt_summary`
-- `safety_decision_matrix`
 
-Current runtime mode is `audit_only`. The older `dry_run` / `review_only`
-language below is historical/planned terminology and is not current runtime
-authority.
+Runtime modes in source are `audit_only` (`audit-runner.js`) and `dry_run`
+(`dryrun-runner.js`). Neither applies anything. `review_only` below remains
+historical/planned terminology and is not current runtime authority.
 
 Bu belgede şu sözleşmeler tanımlanır:
 

@@ -4,10 +4,27 @@ const assert = require('node:assert/strict');
 const Kernel = require('./kernel');
 const createContradictionAlertPlugin = require('./plugins/contradiction-alert').create;
 
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
+
+test('contradiction-alert: uses the public predicate parser boundary', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, 'plugins', 'contradiction-alert.js'),
+    'utf8'
+  );
+  assert.match(source, /kernel\.parsePredicate\(raw\)/);
+  assert.doesNotMatch(source, /kernel\._parsePredicate/);
+});
+
+test('Kernel public predicate parser preserves the structured compatibility contract', () => {
+  const kernel = new Kernel({ noLoad: true, loadPlugins: false });
+  const parsed = kernel.parsePredicate('yalnızca süt içer');
+  assert.deepEqual(parsed, { object: 'süt içer', relation: 'yapabilir', kistlama: true });
+  assert.deepEqual(parsed, kernel._parsePredicate('yalnızca süt içer'));
+
+  const declaration = require('node:fs').readFileSync(require('node:path').join(__dirname, 'kernel.d.ts'), 'utf8');
+  assert.match(declaration, /interface PredicateParseResult\s*{[\s\S]*object: string;[\s\S]*relation: string;[\s\S]*kistlama\?: boolean;/);
+  assert.match(declaration, /parsePredicate\(predicate: string\): Kernel\.PredicateParseResult;/);
+});
 
 test('contradiction-alert: detects direct contradiction and returns conflict details', async () => {
   const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
@@ -52,4 +69,32 @@ test('contradiction-alert: includes temporal metadata and evidence quality when 
   assert.equal(typeof first.age_ms, 'number');
   assert.equal(typeof first.adjustedConfidence, 'number');
   assert.equal(typeof result.data.evidenceQuality, 'number');
+});
+
+test('contradiction-alert: ignores unrelated facts and independent capabilities', async () => {
+  const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
+  k.learn('ali doktordur', TEST_FIXTURE_LEARN_BYPASS);
+  k.learn('ali kosabilir', TEST_FIXTURE_LEARN_BYPASS);
+  k.usePlugin(createContradictionAlertPlugin());
+
+  const unrelated = await k.plugins.runCapability('contradictionAlert', { text: 'ali istanbulda yasar' });
+  assert.deepEqual(unrelated.data.conflictingThoughts, []);
+  assert.equal(unrelated.data.conflictType, null);
+
+  const independentCapability = await k.plugins.runCapability('contradictionAlert', { text: 'ali yuzebilir' });
+  assert.deepEqual(independentCapability.data.conflictingThoughts, []);
+  assert.equal(independentCapability.data.conflictType, null);
+});
+
+test('contradiction-alert: recognizes Turkish negation with and without diacritics', async () => {
+  for (const negation of ['değil', 'degil', 'değildir', 'degildir']) {
+    const k = new Kernel({ noLoad: true, loadPlugins: false, capabilities: { temporal: true } });
+    k.learn('kedi hayvandir', TEST_FIXTURE_LEARN_BYPASS);
+    k.usePlugin(createContradictionAlertPlugin());
+
+    const result = await k.plugins.runCapability('contradictionAlert', { text: `kedi hayvan ${negation}` });
+    assert.equal(result.ok, true);
+    assert.equal(result.data.conflictingThoughts.length, 1, negation);
+    assert.equal(result.data.conflictType, 'direct', negation);
+  }
 });

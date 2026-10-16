@@ -1,0 +1,68 @@
+name: Launch installed-package smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launch-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed-package-smoke:
+    name: Installed package smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # windows-latest ships Visual Studio 18 (VS 2026); Node 22's bundled
+      # node-gyp 11.5.0 cannot detect it, so any npm ci step that reaches
+      # "node-gyp rebuild" fails (see #3527). npm 11.6.3 bundles node-gyp
+      # ^12.1.0, which supports VS 2026.
+      - name: Upgrade npm for Visual Studio 2026 support (node-gyp >= 12.1.0)
+        if: runner.os == 'Windows'
+        run: npm install -g npm@11.6.3
+
+      - name: Install repository dependencies
+        run: npm ci --include=optional
+
+      - name: Verify package tarball contract
+        run: npm run verify:tarball
+
+      - name: Exercise installed launch surfaces
+        run: node scripts/launch-installed-package-smoke.js
+
+      - name: Lifecycle smoke slice (memory store + receipt chain, Node 22)
+        run: node --test test/memory-lifecycle-restore-receipt-chain.test.js test/memory-tombstone-supersede-downstream-exclusion.test.js test/memory-mutation-race-adversarial.test.js
+
+  package-smoke-gate:
+    name: Package Smoke
+    needs: installed-package-smoke
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require installed-package smoke matrix to pass
+        env:
+          RESULT: ${{ needs.installed-package-smoke.result }}
+        run: test "$RESULT" = "success"

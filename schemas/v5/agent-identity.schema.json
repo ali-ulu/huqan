@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://huqan.local/schemas/v5/agent-identity.schema.json",
+  "$id": "https://huqan.dev/specs/huqan-trust-protocol/0.2/schemas/agent-identity.schema.json",
   "title": "HUQAN V5 Agent Identity Fixture Contract",
   "description": "Static schema contract for V5 Agent Identity fixtures. This schema does not implement runtime identity enforcement, connector authority validation, trust-tier routing, revocation propagation, marketplace identity, or A2A identity exchange.",
   "type": "object",
@@ -147,10 +147,24 @@
       ]
     },
     "expected_status": {
-      "type": "string"
+      "type": "string",
+      "enum": ["valid", "invalid", "expired", "revoked", "rejected"]
     },
     "expected_reason_code": {
-      "type": ["string", "null"]
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "missing_agent_id",
+        "identity_revoked",
+        "identity_expired",
+        "workspace_mismatch",
+        "identity.invalid_claim",
+        "delegation.scope_exceeded",
+        "delegation.chain_invalid",
+        "connector.context_invalid",
+        "lifecycle.unresolved",
+        "broken_delegation_chain"
+      ]
     }
   }
 }

@@ -60,7 +60,7 @@ function assertToolVerdict(result, expected) {
   assert.equal(result.meta.toolVerdict.tool, expected.tool);
 }
 
-test('axiom.ask exposes allow verdict metadata', () => {
+test('legacy axiom.ask exposes allow verdict metadata', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.ask',
     arguments: { question: 'test?', workspaceId: 'dogfood-workspace' },
@@ -68,22 +68,31 @@ test('axiom.ask exposes allow verdict metadata', () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.data.answer, 'mock answer');
-  assertToolVerdict(result, { verdict: 'allow', tool: 'axiom.ask', ok: true });
+  assertToolVerdict(result, { verdict: 'allow', tool: 'huqan.ask', ok: true });
   assert.equal(result.toolVerdict.workspaceId, 'dogfood-workspace');
+
+  // The call used the legacy spelling, so the verdict surface reports the
+  // canonical name it was gated under, and `meta.deprecation` records which
+  // name the caller actually sent. Both halves matter: the first makes the
+  // verdict unambiguous, the second is how a client learns to migrate.
+  assert.equal(result.meta.deprecation.requestedName, 'axiom.ask');
+  assert.equal(result.meta.deprecation.canonicalName, 'huqan.ask');
 });
 
-test('axiom.verify exposes allow verdict metadata', () => {
+test('legacy axiom.verify exposes allow verdict metadata', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.verify',
     arguments: { statement: 'test statement' },
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.data.status, 'dogrulandi');
-  assertToolVerdict(result, { verdict: 'allow', tool: 'axiom.verify', ok: true });
+  // The stub kernel above answers 'dogrulandi'; MCP emits the canonical
+  // spelling, so this asserts the boundary adapter, not the kernel.
+  assert.equal(result.data.status, 'verified');
+  assertToolVerdict(result, { verdict: 'allow', tool: 'huqan.verify', ok: true });
 });
 
-test('axiom.learn exposes review verdict metadata without synthetic receipt', () => {
+test('legacy axiom.learn exposes review verdict metadata without synthetic receipt', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.learn',
     arguments: { text: 'fact for review' },
@@ -92,20 +101,22 @@ test('axiom.learn exposes review verdict metadata without synthetic receipt', ()
   assert.equal(result.ok, false);
   assert.equal(result.gate.decision, 'review');
   assert.ok(result.approval, 'review path must still create an approval request');
-  assertToolVerdict(result, { verdict: 'review', tool: 'axiom.learn', ok: false });
+  assertToolVerdict(result, { verdict: 'review', tool: 'huqan.learn', ok: false });
   assert.equal(result.toolVerdict.receiptId, null);
 });
 
-test('axiom.agent exposes dry-run verdict metadata', () => {
+test('legacy axiom.agent exposes restored review verdict metadata', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.agent',
     arguments: { goal: 'inspect only' },
-  });
+  }, { approvalStore: null });
 
-  assert.equal(result.ok, true);
-  assert.equal(result.dryRun, true);
-  assert.equal(result.gate.decision, 'dry_run_only');
-  assertToolVerdict(result, { verdict: 'dry_run_only', tool: 'axiom.agent', ok: true });
+  assert.equal(result.ok, false);
+  assert.equal(result.gate.decision, 'review');
+  assert.equal(result.gate.reason, 'agent_loop_requires_review');
+  assert.equal(result.approval.persisted, false);
+  assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
+  assertToolVerdict(result, { verdict: 'review', tool: 'huqan.agent', ok: false });
 });
 
 test('unknown tool fails closed with block verdict metadata', () => {
@@ -130,12 +141,24 @@ test('null params do not crash and fail closed with verdict metadata', () => {
   assertToolVerdict(result, { verdict: 'block', tool: 'unknown', ok: false });
 });
 
-test('malformed arguments do not crash and still expose verdict metadata', () => {
+test('a non-JSON arguments string fails closed as a parse error, not an empty call', () => {
   const result = callTool(mockKernel(), {
     name: 'axiom.ask',
     arguments: 'not-json',
   });
 
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'ARGUMENTS_PARSE_ERROR');
+  assert.equal(result.policy.reason, 'arguments_parse_error');
+  assertToolVerdict(result, { verdict: 'block', tool: 'huqan.ask', ok: false });
+});
+
+test('a JSON arguments string still parses and runs', () => {
+  const result = callTool(mockKernel(), {
+    name: 'axiom.ask',
+    arguments: JSON.stringify({ question: 'test?', workspaceId: 'dogfood-workspace' }),
+  });
+
   assert.equal(result.ok, true);
-  assertToolVerdict(result, { verdict: 'allow', tool: 'axiom.ask', ok: true });
+  assertToolVerdict(result, { verdict: 'allow', tool: 'huqan.ask', ok: true });
 });

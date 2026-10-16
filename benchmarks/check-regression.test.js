@@ -135,3 +135,45 @@ describe('benchmark regression checker', () => {
     assert.match(summary, /## Advisory timing warnings/);
   });
 });
+
+  it('nodes and edges must be finite numbers before regression comparison', () => {
+    const baseline = { fixtures: { small: makeBaselineFixture() } };
+    const cases = [
+      {
+        name: 'missing nodes and edges',
+        mutate(current) {
+          delete current.nodes;
+          delete current.edges;
+        },
+        expected: ['small.nodes is not numeric', 'small.edges is not numeric'],
+      },
+      {
+        name: 'null nodes',
+        mutate(current) {
+          current.nodes = null;
+        },
+        expected: ['small.nodes is not numeric'],
+      },
+      {
+        name: 'non-numeric edges',
+        mutate(current) {
+          current.edges = 'çok';
+        },
+        expected: ['small.edges is not numeric'],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const current = makeCurrentFixture();
+      testCase.mutate(current);
+      const result = evaluateRegression(baseline, { results: [current] });
+      assert.strictEqual(result.ok, false, testCase.name);
+      for (const expected of testCase.expected) {
+        assert.ok(result.blockingFailures.includes(expected), `${testCase.name}: ${expected}`);
+      }
+      assert.ok(
+        result.blockingFailures.every(message => !message.includes('regressed:')),
+        `${testCase.name} must not be reported as a numeric regression`,
+      );
+    }
+  });

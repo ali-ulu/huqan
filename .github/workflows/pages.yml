@@ -1,0 +1,62 @@
+name: Deploy static demo to GitHub Pages
+
+# Pages is intentionally manual until repository Settings -> Pages is configured
+# to use GitHub Actions. This prevents a newly merged workflow from turning main
+# red while Pages is still disabled. Once the first deployment is verified,
+# maintainers may add a push/path trigger for demo/**.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Package static demo
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate static-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f demo/index.html
+          if grep -RInE '(HUQAN_API_KEY|NPM_TOKEN|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)' demo; then
+            echo "::error::Static demo contains a credential-like marker."
+            exit 1
+          fi
+          echo "Static demo boundary looks publishable."
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: demo
+
+  deploy:
+    name: Deploy static demo
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

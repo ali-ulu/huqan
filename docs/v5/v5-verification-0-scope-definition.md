@@ -1,5 +1,7 @@
 # V5-VERIFICATION-0 - Verification Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `NEXT-GATE-SELECTION_AFTER_V5-SIGNING-6A_CLOSEOUT_GREEN`
 **Canonical branch:** `main`

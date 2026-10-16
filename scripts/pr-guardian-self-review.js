@@ -1,0 +1,350 @@
+'use strict';
+
+/**
+ * Runs HUQAN's own PR Guardian policy over the pull request that triggered this
+ * workflow, inside the runner.
+ *
+ * The webhook path in `pr-guardian-webhook.yml` is the one an operator wires to
+ * a deployed HUQAN. It has never fired here, because it is gated on a
+ * `PR_GUARDIAN_WEBHOOK_URL` that does not exist and a webhook cannot reach a
+ * laptop (#1968). That left the repository shipping a governance product it did
+ * not apply to itself, and a permanently skipped check that reads on the pull
+ * request page exactly like a passing one.
+ *
+ * `evaluatePullRequest` is a pure function over a snapshot, so self-governance
+ * needs no endpoint at all: fetch the snapshot, evaluate, report. What this
+ * cannot do is emit a canonical Trust Receipt -- that belongs to the runtime,
+ * and is the thing the webhook path adds once there is somewhere to send it.
+ */
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const childProcess = require('node:child_process');
+const { evaluatePullRequest, DECISIONS } = require('../lib/pr-guardian/policy');
+// No HUQAN_-prefixed configuration here on purpose. Reading one directly is
+// caught by lib/environment-compat-bypass.test.js, and reading it through the
+// compat layer requires the suffix to be registered in lib/environment-compat.js
+// -- a supported configuration surface. This job has nothing worth putting
+// there; everything it needs comes from the workflow event.
+
+const MAX_PAGES = 3;
+const PER_PAGE = 100;
+
+async function fetchFiles({ api, repo, number, token }) {
+  const files = [];
+  let truncated = false;
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const url = `${api}/repos/${repo}/pulls/${number}/files?per_page=${PER_PAGE}&page=${page}`;
+    const response = await fetch(url, {
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'user-agent': 'huqan-pr-guardian-self',
+      },
+    });
+    if (!response.ok) throw new Error(`GitHub files read failed: HTTP ${response.status}`);
+    const page_ = await response.json();
+    files.push(...page_.map(file => ({ filename: file.filename, patch: file.patch || '' })));
+    if (page_.length < PER_PAGE) return { files, truncated };
+    truncated = page === MAX_PAGES;
+  }
+  return { files, truncated };
+}
+
+/**
+ * Re-derive whatever derivation records the change carries.
+ *
+ * The base side is this checkout -- the job runs on the base tree -- and the
+ * head side is fetched as data. Any failure here becomes `unknown`, which the
+ * policy surfaces without escalating; an error in the reviewer must not read as
+ * a verdict about the change.
+ */
+async function reviewDerivations({ api, repo, ref, token, files }) {
+  try {
+    const { collectDerivations, headReader } = require('../lib/pr-guardian/derivation-fetch');
+    const { summarizeDerivations } = require('../lib/pr-guardian/derivation-check');
+    const { directoryReader } = require('../lib/coder/verify-derivation');
+
+    const collected = await collectDerivations({ api, repo, ref, token, files });
+    if (collected.records.length === 0 && collected.complete) return { status: 'none', total: 0, verified: 0, failures: [] };
+
+    return summarizeDerivations({
+      records: collected.records,
+      readBase: directoryReader(process.cwd()),
+      readHead: headReader(collected.headFiles),
+      complete: collected.complete,
+    });
+  } catch (error) {
+    return { status: 'unknown', total: 0, verified: 0, failures: [{ path: '', reason: 'REVIEWER_ERROR', detail: error.message }] };
+  }
+}
+
+/**
+ * Fetch the pull request head into the base checkout, so `ocr review
+ * --from/--to` reads both sides without ever checking out the head.
+ *
+ * The base tree stays the tree: only new objects arrive, under a ref the
+ * policy never reads. Any failure becomes `unknown` at the caller -- a
+ * reviewer that cannot see the change is not a verdict about it.
+ */
+function fetchPullHead({ cwd, repo, number, token, spawnSync = childProcess.spawnSync, timeoutMs = 60_000 } = {}) {
+  if (!cwd || !repo || !Number.isInteger(number) || number < 1 || !token) {
+    return { ok: false, error: 'repo, pull request number and token are required' };
+  }
+  const run = spawnSync('git', ['fetch', '--no-tags', '--depth=1', 'origin', `pull/${number}/head:refs/huqan/pr-head`], {
+    cwd,
+    encoding: 'utf8',
+    timeout: timeoutMs,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+      GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(`x-access-token:${token}`).toString('base64')}`,
+    },
+  });
+  if (run.error) return { ok: false, error: `git fetch failed: ${run.error.message}` };
+  if (run.status !== 0) {
+    const detail = String(run.stderr || '').trim().split(/\r?\n/)[0] || `exit ${run.status}`;
+    return { ok: false, error: `git fetch failed: ${detail}` };
+  }
+  return { ok: true, ref: 'refs/huqan/pr-head' };
+}
+
+/**
+ * Run OpenCodeReview over the base-to-head range and reduce it to the snapshot
+ * signal (#3198).
+ *
+ * Base-only by construction: this checkout IS the base tree, so `--rule`
+ * resolves to the base's `.opencodereview/rule.json` and the pull request
+ * cannot supply its own review rules. Without an LLM endpoint there is nothing
+ * to run -- that returns `unknown` immediately, without spawning anything, so
+ * offline legs and key-less CI stay fast and silent.
+ */
+async function reviewOcr({
+  cwd, repo, number, baseSha, token, files = [],
+  env = process.env,
+  spawnSync = childProcess.spawnSync,
+  timeoutMs,
+} = {}) {
+  const check = require('../lib/pr-guardian/ocr-review-check');
+  const filenames = (Array.isArray(files) ? files : []).map(file => file?.filename).filter(Boolean);
+  if (!check.hasOcrEndpoint(env)) {
+    return {
+      summary: {
+        status: 'unknown', total: filenames.length, covered: 0,
+        blockers: [], advisories: [], skipped: [],
+        reason: 'OCR_NO_LLM_ENDPOINT',
+        detail: 'no LLM endpoint configured; set the OCR_LLM_* repository secrets (#3198)',
+      },
+      sarifPath: null,
+    };
+  }
+  const fetched = fetchPullHead({ cwd, repo, number, token, spawnSync });
+  if (!fetched.ok) {
+    return {
+      summary: {
+        status: 'unknown', total: filenames.length, covered: 0,
+        blockers: [], advisories: [], skipped: [],
+        reason: 'OCR_HEAD_UNAVAILABLE', detail: fetched.error,
+      },
+      sarifPath: null,
+    };
+  }
+  const rulePath = path.join(cwd, '.opencodereview', 'rule.json');
+  const run = check.createOcrRunner({ spawnSync, ...(timeoutMs ? { timeoutMs } : {}) })({
+    cwd,
+    from: baseSha,
+    to: fetched.ref,
+    rulePath: fs.existsSync(rulePath) ? rulePath : '',
+  });
+  if (!run.ok) {
+    return { summary: { ...run.summary, total: filenames.length }, sarifPath: null };
+  }
+  const summary = check.summarizeOcrReview({ output: run.output, files: filenames });
+  let sarifPath = null;
+  try {
+    sarifPath = sarifPathFor(env);
+    fs.writeFileSync(sarifPath, JSON.stringify(check.toSarif(summary), null, 2));
+  } catch {
+    sarifPath = null;
+  }
+  return { summary, sarifPath };
+}
+
+/**
+ * Where the SARIF ride-along lands. RUNNER_TEMP is already a per-run private
+ * directory; the shared os.tmpdir() fallback is not, so a predictable filename
+ * directly under it would be a symlink-hijack target (CodeQL: insecure
+ * temporary file). A fresh mkdtemp directory (0700) closes that.
+ */
+function sarifPathFor(env = process.env) {
+  const runnerTemp = text(env?.RUNNER_TEMP);
+  if (runnerTemp) return path.join(runnerTemp, 'ocr-findings.sarif');
+  return path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-ocr-')), 'ocr-findings.sarif');
+}
+
+function text(value) {
+  return typeof value === 'string' ? value.trim() : String(value == null ? '' : value).trim();
+}
+
+function derivationLine(verdict) {
+  const signal = verdict.derivations || { status: 'none' };
+  if (signal.status === 'none') return null;
+  if (signal.status === 'verified') {
+    return `Derivations: ${signal.verified}/${signal.total} reproduced from the base tree.`;
+  }
+  if (signal.status === 'unknown') {
+    const first = (signal.unverifiable || [])[0];
+    // Name the reason. "Not checkable" on its own reads as a shrug, and the
+    // usual cause -- a record newer than the base tree's verifier -- is
+    // something the author can act on.
+    const why = first ? ` (${first.reason}${first.path ? ` on \`${first.path}\`` : ''})` : '';
+    return `Derivations: present but not checkable from the base tree${why}; not counted either way.`;
+  }
+  const first = (signal.failures || [])[0];
+  const detail = first ? ` First: \`${first.path}\` — ${first.reason}.` : '';
+  return `Derivations: ${signal.verified}/${signal.total} reproduced.${detail}`;
+}
+
+/**
+ * The OCR signal as comment lines, with coverage accounting (#3198). "0
+ * findings" is never displayed without the number of files actually covered,
+ * and every changed file the reviewer did not look at is named with its
+ * reason. A long skip list is capped so the evidence cannot flood the log.
+ */
+function ocrLine(verdict) {
+  const signal = verdict.ocrReview || { status: 'none' };
+  if (signal.status === 'none') return null;
+  const coverage = `${signal.covered ?? 0}/${signal.total ?? 0} files covered`;
+  const skipped = Array.isArray(signal.skipped) ? signal.skipped : [];
+  const shown = skipped.slice(0, 10).map(item => `\`${item.path}\` (${item.reason})`).join(', ');
+  const more = skipped.length > 10 ? `, and ${skipped.length - 10} more` : '';
+  const skipNote = skipped.length > 0 ? ` Not reviewed: ${shown}${more}.` : '';
+  if (signal.status === 'clean') {
+    return `OCR review: 0 blocking findings, ${coverage}.${skipNote}`;
+  }
+  if (signal.status === 'review') {
+    const first = (signal.blockers || [])[0];
+    const detail = first ? ` First: \`${first.path}\` — ${first.severity}: ${first.content.slice(0, 200)}.` : '';
+    return `OCR review: ${(signal.blockers || []).length} blocking finding(s), ${coverage}.${detail}${skipNote}`;
+  }
+  const why = signal.reason ? ` (${signal.reason}${signal.detail ? `: ${signal.detail.slice(0, 160)}` : ''})` : '';
+  return `OCR review: present but not checkable from the base tree${why}; not counted either way. ${coverage}.${skipNote}`;
+}
+
+function summarize(verdict, snapshot) {
+  const lines = [
+    '## HUQAN PR Guardian',
+    '',
+    `**Decision:** \`${verdict.decision}\``,
+    `**Reason:** \`${verdict.reason || 'none'}\``,
+    `**Risk labels:** ${verdict.riskLabels?.length ? verdict.riskLabels.map(l => `\`${l}\``).join(', ') : '_none_'}`,
+    '',
+    `Snapshot: ${snapshot.files.length} file(s)${snapshot.filesTruncated ? ' (truncated)' : ''}, head \`${snapshot.headSha.slice(0, 12)}\`.`,
+    ...(derivationLine(verdict) ? [derivationLine(verdict)] : []),
+    ...(ocrLine(verdict) ? [ocrLine(verdict)] : []),
+    '',
+    'Evaluated in the runner by `lib/pr-guardian/policy.js` from the base tree.',
+    'Only `block` fails this check; `review` is a note, not a gate.',
+  ];
+  return lines.join('\n');
+}
+
+async function main() {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  const token = process.env.GITHUB_TOKEN;
+  if (!eventPath || !token) {
+    console.log('::notice::PR Guardian self-review needs GITHUB_EVENT_PATH and GITHUB_TOKEN; skipping.');
+    return 0;
+  }
+  const event = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+  const pr = event.pull_request;
+  if (!pr) {
+    console.log('::notice::No pull_request in the event payload; nothing to review.');
+    return 0;
+  }
+
+  const repo = event.repository?.full_name || process.env.GITHUB_REPOSITORY;
+  const { files, truncated } = await fetchFiles({
+    api: process.env.GITHUB_API_URL || 'https://api.github.com',
+    repo,
+    number: pr.number,
+    token,
+  });
+
+  // The OCR signal runs after the file list is known: it needs the change's
+  // files for coverage accounting, and it degrades to `unknown` without an
+  // LLM endpoint, without spawning anything.
+  const { summary: ocrReview, sarifPath } = await reviewOcr({
+    cwd: process.cwd(),
+    repo,
+    number: pr.number,
+    baseSha: pr.base?.sha || '',
+    token,
+    files,
+  });
+  if (sarifPath) {
+    console.log(`::notice title=HUQAN PR Guardian::OCR findings written to ${sarifPath} for the Code Scanning follow-up (#3198).`);
+  }
+
+  const snapshot = {
+    repo,
+    headSha: pr.head?.sha || '',
+    // Fixed, not configurable. The snapshot needs a workspace only so the
+    // policy can refuse an incomplete one, and this job always reviews the same
+    // repository. An env var would mean registering a new suffix in
+    // lib/environment-compat.js -- a supported configuration surface -- for a
+    // value with exactly one correct setting.
+    workspaceId: 'default',
+    title: pr.title || '',
+    body: pr.body || '',
+    baseRef: pr.base?.ref || '',
+    headRef: pr.head?.ref || '',
+    files,
+    // The runner has no view of branch protection, so requiredness is unknown
+    // and the policy says so rather than reporting a pass it has not earned.
+    checks: [],
+    filesTruncated: truncated,
+    derivations: await reviewDerivations({
+      api: process.env.GITHUB_API_URL || 'https://api.github.com',
+      repo,
+      ref: pr.head?.sha || '',
+      token,
+      files,
+    }),
+    ocrReview,
+  };
+
+  const verdict = evaluatePullRequest(snapshot, { action: 'github.pr.snapshot', phase: 'preview' });
+  const summary = summarize(verdict, snapshot);
+  console.log(summary);
+
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+  }
+
+  const detail = `${verdict.decision}: ${verdict.reason || 'no risk signal'}${verdict.riskLabels?.length ? ` (${verdict.riskLabels.join(', ')})` : ''}`;
+  if (verdict.decision === DECISIONS.BLOCK) {
+    console.log(`::error title=HUQAN PR Guardian blocked this change::${detail}`);
+    return 1;
+  }
+  if (verdict.decision === DECISIONS.REVIEW || verdict.decision === DECISIONS.DRY_RUN_ONLY) {
+    console.log(`::warning title=HUQAN PR Guardian wants a look::${detail}`);
+    return 0;
+  }
+  console.log(`::notice title=HUQAN PR Guardian::${detail}`);
+  return 0;
+}
+
+if (require.main === module) {
+  main().then(code => { process.exitCode = code; }).catch(error => {
+    // Fail closed on an unexpected error: an unreadable snapshot is not evidence
+    // of a safe change.
+    console.log(`::error title=HUQAN PR Guardian could not evaluate this change::${error.message}`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { summarize, fetchFiles, reviewOcr, fetchPullHead, ocrLine, sarifPathFor };

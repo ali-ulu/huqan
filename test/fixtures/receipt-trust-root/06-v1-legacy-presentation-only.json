@@ -1,0 +1,1 @@
+{"caseId":"RTR-006-V1-LEGACY-PRESENTATION-ONLY","description":"Legacy label is presentation only","input":{"label":"legacy_v1_unspecified"},"expected":{"mode":"currentV1Runtime","canonicalFieldAbsent":"trustRoot"},"nonClaims":["third trust root","serialized legacy label"]}

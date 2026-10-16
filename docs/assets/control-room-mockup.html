@@ -1,0 +1,958 @@
+<title>HUQAN Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f2f3f7; --surface: #ffffff; --sunken: #eaecf2; --ink: #121726; --soft: #566074; --faint: #8a92a3;
+  --line: #dde1ea; --accent: #94641b; --accent-ink: #ffffff; --accent-wash: #f4e8d4;
+  --pass: #1f7a4a; --pass-wash: #dff1e6; --review: #2c5fc4; --review-wash: #e1e9fa;
+  --block: #b8382f; --block-wash: #f8e1de; --err: #7f47b8; --err-wash: #eee3f8;
+  --shadow: 0 1px 2px rgba(18,23,38,.06), 0 6px 18px -8px rgba(18,23,38,.14);
+  --gold: #e3b46c;
+  --glass: rgba(255,255,255,.56); --glass-strong: rgba(255,255,255,.8); --glass-line: rgba(18,23,38,.08); --glass-edge: rgba(255,255,255,.75);
+  --glow-a: rgba(227,180,108,.30); --glow-b: rgba(44,95,196,.15);
+  --side-glass: rgba(255,255,255,.4); --side-ink: #151b2b; --side-soft: #5a6377; --side-hover: rgba(18,23,38,.06); --side-line: rgba(18,23,38,.08);
+  --count-bg: rgba(18,23,38,.08); --count-ink: #151b2b;
+  --display: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --text: "Geist", "Segoe UI", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "Cascadia Mono", monospace;
+  --r: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a0e17; --surface: #121826; --sunken: #0e1320; --ink: #eceef3; --soft: #9aa3b5; --faint: #6d7588;
+    --line: #232b3d; --accent: #e3b46c; --accent-ink: #16110a; --accent-wash: #2a2317;
+    --pass: #52c287; --pass-wash: #13291d; --review: #74a0f2; --review-wash: #16223d;
+    --block: #f06e63; --block-wash: #33181a; --err: #bd8fea; --err-wash: #261b34;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.6);
+    --glass: rgba(18,24,38,.5); --glass-strong: rgba(20,27,43,.8); --glass-line: rgba(255,255,255,.07); --glass-edge: rgba(255,255,255,.05);
+    --glow-a: rgba(227,180,108,.13); --glow-b: rgba(70,110,220,.17);
+    --side-glass: rgba(10,14,26,.46); --side-ink: #e8e4da; --side-soft: #9aa1b2; --side-hover: rgba(255,255,255,.05); --side-line: rgba(255,255,255,.07);
+    --count-bg: rgba(255,255,255,.08); --count-ink: #e8e4da;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a0e17; --surface: #121826; --sunken: #0e1320; --ink: #eceef3; --soft: #9aa3b5; --faint: #6d7588;
+  --line: #232b3d; --accent: #e3b46c; --accent-ink: #16110a; --accent-wash: #2a2317;
+  --pass: #52c287; --pass-wash: #13291d; --review: #74a0f2; --review-wash: #16223d;
+  --block: #f06e63; --block-wash: #33181a; --err: #bd8fea; --err-wash: #261b34;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.6);
+    --glass: rgba(18,24,38,.5); --glass-strong: rgba(20,27,43,.8); --glass-line: rgba(255,255,255,.07); --glass-edge: rgba(255,255,255,.05);
+    --glow-a: rgba(227,180,108,.13); --glow-b: rgba(70,110,220,.17);
+    --side-glass: rgba(10,14,26,.46); --side-ink: #e8e4da; --side-soft: #9aa1b2; --side-hover: rgba(255,255,255,.05); --side-line: rgba(255,255,255,.07);
+    --count-bg: rgba(255,255,255,.08); --count-ink: #e8e4da;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--text); -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.mono { font-family: var(--mono); font-size: .92em; }
+.num { font-variant-numeric: tabular-nums; }
+
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
+
+/* ---------- sidebar ---------- */
+.side { background: var(--side-bg); color: var(--side-ink); padding: 18px 12px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; }
+.brand svg { flex: none; }
+.brand b { font-family: var(--display); letter-spacing: .08em; font-size: 15px; }
+.brand small { display: block; color: var(--side-soft); font-size: 11px; letter-spacing: .04em; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--side-soft); cursor: pointer; text-align: left; }
+.nav button:hover { background: #151c2e; color: var(--side-ink); }
+.nav button[aria-current="page"] { background: #182033; color: var(--side-ink); box-shadow: inset 2px 0 0 var(--gold); }
+.nav svg { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.nav .count { margin-left: auto; font-size: 11px; padding: 1px 7px; border-radius: 99px; background: #232b40; color: var(--side-ink); }
+.nav .count.warn { background: #3a2346; color: #d8b6f3; }
+.nav-group { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #6f7689; padding: 10px 10px 4px; }
+.side-foot { margin-top: auto; border-top: 1px solid var(--side-line); padding: 12px 8px 0; font-size: 12px; color: var(--side-soft); display: grid; gap: 8px; }
+.side-foot label { display: grid; gap: 4px; }
+.side-foot select { background: #151c2e; border: 1px solid var(--side-line); border-radius: 6px; padding: 5px 8px; color: var(--side-ink); }
+.live { display: flex; align-items: center; gap: 8px; }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: #52c287; box-shadow: 0 0 0 3px rgba(82,194,135,.18); }
+
+/* ---------- main ---------- */
+main { padding: 0 clamp(16px, 3vw, 36px) 48px; min-width: 0; }
+.sample { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 calc(-1 * clamp(16px, 3vw, 36px)); padding: 8px clamp(16px, 3vw, 36px); background: var(--accent-wash); color: var(--ink); font-size: 12.5px; border-bottom: 1px solid var(--line); }
+.sample strong { font-weight: 600; }
+.topbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; padding: 22px 0 18px; }
+.topbar h1 { font-size: 26px; font-weight: 600; }
+.topbar p { margin: 2px 0 0; color: var(--soft); max-width: 62ch; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; background: var(--sunken); border-radius: 7px; padding: 2px; }
+.seg button { border: 0; background: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; color: var(--soft); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--faint); }
+.btn.primary { background: var(--pass); border-color: var(--pass); color: #fff; }
+.btn.danger { color: var(--block); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+
+.view[hidden] { display: none; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; min-width: 0; }
+.panel h2 { font-size: 15px; font-weight: 600; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.panel-head .hint { color: var(--soft); font-size: 12.5px; }
+.link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-weight: 500; }
+.link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-7 { grid-column: span 7; } .span-5 { grid-column: span 5; } .span-4 { grid-column: span 4; }
+
+/* ---------- verdict hero ---------- */
+.verdict { padding: 20px 22px 18px; box-shadow: var(--shadow); }
+.verdict-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.verdict-top .big { font-family: var(--display); font-size: clamp(34px, 4vw, 48px); font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+.verdict-top .lbl { color: var(--soft); font-size: 15px; }
+.verdict-top .window { margin-left: auto; }
+.vbar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; margin: 18px 0 12px; gap: 2px; background: var(--sunken); }
+.vbar span { transition: flex-grow .4s cubic-bezier(.23,1,.32,1); min-width: 2px; }
+.vlegend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.vl { border-top: 2px solid var(--c); padding-top: 8px; }
+.vl b { display: block; font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.1; }
+.vl span { color: var(--soft); font-size: 12.5px; }
+.vl button { margin-top: 2px; font-size: 12.5px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 7px; border-radius: 99px; font-size: 12px; font-weight: 500; background: var(--w); color: var(--c); white-space: nowrap; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.sq::before { border-radius: 1px; }
+.c-pass { --c: var(--pass); --w: var(--pass-wash); }
+.c-review { --c: var(--review); --w: var(--review-wash); }
+.c-block { --c: var(--block); --w: var(--block-wash); }
+.c-err { --c: var(--err); --w: var(--err-wash); }
+.c-muted { --c: var(--soft); --w: var(--sunken); }
+
+/* ---------- chart ---------- */
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--faint); font: 11px var(--text); }
+.chart .grid-line { stroke: var(--line); }
+
+/* ---------- lists ---------- */
+.rows { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; }
+.row:first-child { border-top: 0; padding-top: 2px; }
+.row .t { font-weight: 500; }
+.row .s { color: var(--soft); font-size: 12.5px; grid-column: 1; }
+.row .r { grid-row: span 2; display: flex; gap: 6px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--c); }
+
+/* ---------- table ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+.filters input, .filters select { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; min-width: 0; }
+.filters input { flex: 1 1 220px; }
+.filters .result { color: var(--soft); font-size: 12.5px; margin-left: auto; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th { text-align: left; font-weight: 500; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--sunken); position: sticky; top: 0; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--sunken); }
+tbody tr:last-child td { border-bottom: 0; }
+td.what { max-width: 360px; }
+td .sub { display: block; color: var(--soft); font-size: 12px; }
+
+/* ---------- approvals ---------- */
+.queue { display: grid; gap: 12px; }
+.ticket { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; box-shadow: inset 3px 0 0 var(--review); }
+.ticket.done { box-shadow: inset 3px 0 0 var(--line); opacity: .7; }
+.ticket h3 { font-size: 15px; font-weight: 600; }
+.ticket .meta { color: var(--soft); font-size: 12.5px; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.ticket .why { margin: 8px 0 0; font-size: 13px; }
+.ticket .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: end; }
+
+/* ---------- agents ---------- */
+.agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.agent { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 10px; }
+.agent-top { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+.agent h3 { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.agent .kind { color: var(--soft); font-size: 12.5px; }
+.agent dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+.agent dt { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+.agent dd { margin: 0; font-family: var(--display); font-size: 18px; font-weight: 600; }
+.agent .foot { font-size: 12.5px; color: var(--soft); border-top: 1px solid var(--line); padding-top: 8px; }
+
+/* ---------- drawer ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(8,11,20,.45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; top: 0; right: 0; height: 100vh; width: min(460px, 100vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -20px 0 50px -20px rgba(0,0,0,.35); transform: translateX(105%); transition: transform .28s cubic-bezier(.23,1,.32,1); padding: 20px 22px; overflow-y: auto; }
+.drawer.on { transform: none; }
+.drawer-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.drawer h2 { font-size: 18px; font-weight: 600; margin-top: 6px; }
+.kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 12px; margin: 16px 0; font-size: 13px; }
+.kv dt { color: var(--soft); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.chain { list-style: none; margin: 12px 0 0; padding: 0; display: grid; }
+.chain li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; padding-bottom: 14px; position: relative; }
+.chain li::before { content: ""; position: absolute; left: 10px; top: 20px; bottom: 0; width: 2px; background: var(--line); }
+.chain li:last-child::before { display: none; }
+.chain .node { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--w); color: var(--c); font-size: 12px; font-weight: 700; }
+.chain b { display: block; font-weight: 600; }
+.chain span { color: var(--soft); font-size: 12.5px; }
+
+/* ---------- misc ---------- */
+.empty { color: var(--soft); padding: 18px 0; text-align: center; }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.check { display: flex; gap: 10px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); cursor: pointer; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.check small { display: block; color: var(--soft); }
+.roadmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.plan { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); padding: 14px 16px; }
+.plan h3 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
+.plan p { margin: 0; color: var(--soft); font-size: 13px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 20px); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; font-weight: 500; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.note-role { font-size: 12.5px; color: var(--soft); margin: -4px 0 12px; }
+
+/* ---------- soft glass layer ---------- */
+body {
+  background:
+    radial-gradient(70rem 46rem at 8% -12%, var(--glow-a), transparent 62%),
+    radial-gradient(60rem 50rem at 104% 6%, var(--glow-b), transparent 60%),
+    radial-gradient(50rem 40rem at 45% 120%, var(--glow-b), transparent 65%),
+    var(--bg);
+  background-attachment: fixed;
+}
+.side { background: var(--side-glass); backdrop-filter: blur(22px) saturate(150%); -webkit-backdrop-filter: blur(22px) saturate(150%); border-right: 1px solid var(--side-line); box-shadow: inset -1px 0 0 var(--glass-edge); }
+.nav button { border-radius: 10px; transition: background-color .18s, color .18s, box-shadow .12s; }
+.nav button:hover { background: var(--side-hover); }
+.nav button[aria-current="page"] { background: linear-gradient(90deg, color-mix(in oklab, var(--gold) 28%, transparent), color-mix(in oklab, var(--gold) 4%, transparent) 80%, transparent); box-shadow: none; color: var(--side-ink); }
+.nav button[aria-current="page"] svg { stroke: var(--gold); }
+.nav .count { background: var(--count-bg); color: var(--count-ink); }
+.nav .count.warn { background: var(--err-wash); color: var(--err); }
+.nav button.dragging, .order-item.dragging { opacity: .45; }
+.nav button.drop-before, .order-item.drop-before { box-shadow: 0 -2px 0 var(--gold); }
+.nav button.drop-after, .order-item.drop-after { box-shadow: 0 2px 0 var(--gold); }
+.side-foot { border-top: 0; background: linear-gradient(90deg, transparent, var(--side-line), transparent) top / 100% 1px no-repeat; }
+.side-foot select { background: var(--side-hover); border-color: var(--side-line); color: var(--side-ink); border-radius: 10px; }
+.side-foot select option { background: var(--surface); color: var(--ink); }
+.side-edit { background: none; border: 0; padding: 0; color: var(--side-soft); text-align: left; cursor: pointer; font-size: 12px; }
+.side-edit:hover { color: var(--side-ink); }
+.sample { background: linear-gradient(90deg, var(--accent-wash), color-mix(in oklab, var(--accent-wash) 30%, transparent) 70%, transparent); border-bottom: 0; }
+.grid { grid-auto-flow: row dense; }
+.span-6 { grid-column: span 6; }
+.panel, .table-wrap, .ticket, .agent, .check, .plan {
+  background: var(--glass); border: 1px solid var(--glass-line); border-radius: var(--r);
+  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 var(--glass-edge), var(--shadow);
+}
+.plan { border-style: dashed; box-shadow: none; }
+.verdict { background: linear-gradient(135deg, var(--glass-strong), var(--glass)); }
+.row { border-top: 0; background: linear-gradient(90deg, transparent, var(--line) 10%, var(--line) 90%, transparent) top / 100% 1px no-repeat; }
+.row:first-child { background: none; }
+th { background: color-mix(in oklab, var(--sunken) 55%, transparent); border-bottom-color: var(--glass-line); }
+td { border-bottom-color: var(--glass-line); }
+tbody tr:hover { background: color-mix(in oklab, var(--accent) 7%, transparent); }
+.filters input, .filters select, .btn { background: var(--glass-strong); border-color: var(--glass-line); border-radius: 10px; }
+.btn.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--pass) 86%, white), var(--pass)); border-color: transparent; color: #fff; }
+.seg { background: color-mix(in oklab, var(--sunken) 70%, transparent); border-radius: 10px; }
+.seg button { border-radius: 8px; }
+.vbar { height: 12px; border-radius: 99px; gap: 3px; background: color-mix(in oklab, var(--sunken) 60%, transparent); }
+.vbar span { border-radius: 99px; }
+.vbar [data-bar="pass"] { background: linear-gradient(90deg, color-mix(in oklab, var(--pass) 45%, transparent), var(--pass)); }
+.vbar [data-bar="approved"] { background: linear-gradient(90deg, color-mix(in oklab, var(--pass) 25%, transparent), color-mix(in oklab, var(--pass) 60%, transparent)); }
+.vbar [data-bar="review"] { background: linear-gradient(90deg, color-mix(in oklab, var(--review) 45%, transparent), var(--review)); }
+.vbar [data-bar="block"] { background: linear-gradient(90deg, color-mix(in oklab, var(--block) 45%, transparent), var(--block)); }
+.vl { border-top: 0; background: linear-gradient(90deg, var(--c), transparent 85%) top / 100% 2px no-repeat; }
+.ticket { background: linear-gradient(90deg, color-mix(in oklab, var(--review) 14%, transparent), transparent 45%), var(--glass); }
+.ticket.done { background: var(--glass); box-shadow: none; }
+.drawer { background: var(--glass-strong); backdrop-filter: blur(26px) saturate(150%); -webkit-backdrop-filter: blur(26px) saturate(150%); border-left: 1px solid var(--glass-line); }
+.scrim { background: rgba(8,11,20,.26); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.ring-wrap { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+.ring-wrap b { display: block; font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1; }
+.ring-wrap span { color: var(--soft); font-size: 12.5px; }
+.ring-bg { fill: none; stroke: color-mix(in oklab, var(--accent) 16%, transparent); stroke-width: 6; }
+.ring-fg { fill: none; stroke: url(#ring-grad); stroke-width: 6; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 32px 32px; transition: stroke-dasharray .6s cubic-bezier(.23,1,.32,1); }
+.spark { width: 100%; height: 40px; display: block; }
+.spark-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--faint); margin-top: -4px; }
+.order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.order-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: color-mix(in oklab, var(--surface) 50%, transparent); border: 1px solid var(--glass-line); cursor: grab; }
+.order-item label { display: flex; gap: 10px; align-items: start; cursor: pointer; min-width: 0; }
+.order-item input { margin-top: 3px; accent-color: var(--accent); }
+.order-item small { display: block; color: var(--soft); font-size: 12px; }
+.grip { color: var(--faint); display: grid; }
+.grip svg { fill: currentColor; }
+.order-btns { display: flex; gap: 4px; }
+.icon-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--glass-line); background: var(--glass-strong); cursor: pointer; }
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.user-hidden { display: none !important; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .panel, .table-wrap, .ticket, .agent, .check, .plan, .side, .drawer { background: var(--surface); }
+}
+
+@media (max-width: 1080px) { .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; } }
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr; }
+  .side { position: static; height: auto; padding: 12px 16px; gap: 10px; }
+  .nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+  .nav button { width: auto; white-space: nowrap; }
+  .nav-group, .side-foot .live { display: none; }
+  .side-foot { margin-top: 0; border-top: 0; padding: 0; grid-template-columns: 1fr 1fr; }
+  .vlegend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ticket { grid-template-columns: 1fr; }
+  .ticket .acts { justify-content: start; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="#e3b46c" stroke-opacity=".45"/><circle cx="16" cy="16" r="9" fill="none" stroke="#e3b46c" stroke-width="3.2"/><path d="M12.2 15.8l3.1 3 6.6-7.2" fill="none" stroke="#f1d6a4" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 20.5l4.5 5" stroke="#e3b46c" stroke-width="3.2" stroke-linecap="round"/></svg>
+      <div><b>HUQAN</b><small>Control Room</small></div>
+    </div>
+    <nav class="nav" aria-label="Sections">
+      <button data-go="overview" aria-current="page"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</button>
+      <button data-go="activity"><svg viewBox="0 0 16 16"><path d="M1.5 8h3l2-5 3 10 2-5h3"/></svg>Agent activity</button>
+      <button data-go="approvals"><svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></svg>Approvals<span class="count num" data-count="review">20</span></button>
+      <button data-go="receipts"><svg viewBox="0 0 16 16"><path d="M4 1.5h8v13l-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M6 5.5h4M6 8.5h4"/></svg>Receipts</button>
+      <button data-go="agents"><svg viewBox="0 0 16 16"><circle cx="8" cy="5.5" r="3"/><path d="M2.5 14.5c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5"/></svg>Agents</button>
+      <button data-go="errors" data-role-hide="approver viewer"><svg viewBox="0 0 16 16"><path d="M8 1.8l6.5 12H1.5z"/><path d="M8 6.5v3.2M8 11.8v.2"/></svg>Errors<span class="count warn num" data-count="errors">4</span></button>
+      <button data-go="customize"><svg viewBox="0 0 16 16"><path d="M2 4h7M12 4h2M2 12h2M7 12h7"/><circle cx="10.5" cy="4" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/></svg>Customize</button>
+      <button data-go="soon"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.5 1.5"/></svg>Coming soon</button>
+    </nav>
+    <div class="side-foot">
+      <div class="live"><i></i>Gate online · local</div>
+      <button class="side-edit" data-go="customize">Drag items to reorder, or edit here</button>
+      <label for="role">View as
+        <select id="role">
+          <option value="admin">Admin</option>
+          <option value="approver">Approver</option>
+          <option value="viewer">Viewer</option>
+        </select>
+      </label>
+      <label for="theme">Theme
+        <select id="theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </div>
+  </aside>
+
+  <main>
+    <div class="sample" role="note"><strong>Design mockup.</strong> Every number, agent and receipt below is sample data, not read from a HUQAN instance. Buttons work so the flow can be tried.</div>
+
+    <!-- OVERVIEW -->
+    <section class="view" data-view="overview">
+      <div class="topbar">
+        <div><h1>Is HUQAN doing its job?</h1><p>Everything your agents tried in the selected window, what HUQAN decided, and what is waiting on you.</p></div>
+        <div class="tools">
+          <div class="seg" role="group" aria-label="Time window">
+            <button aria-pressed="false" data-win="1h">1h</button>
+            <button aria-pressed="true" data-win="24h">24h</button>
+            <button aria-pressed="false" data-win="7d">7d</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <article class="panel verdict span-12" data-widget="verdict">
+          <div class="verdict-top">
+            <span class="big num" data-stat="total">100</span>
+            <span class="lbl">agent actions watched in the last 24 hours</span>
+            <div class="ring-wrap">
+              <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+                <defs><linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--pass)"/></linearGradient></defs>
+                <circle cx="32" cy="32" r="26" class="ring-bg"/>
+                <circle cx="32" cy="32" r="26" class="ring-fg" id="ring-fg"/>
+              </svg>
+              <div><b class="num" data-stat="auto">80%</b><span>decided by policy,<br>no person needed</span></div>
+            </div>
+          </div>
+          <div class="vbar" aria-hidden="true">
+            <span data-bar="pass"></span>
+            <span data-bar="approved"></span>
+            <span data-bar="review"></span>
+            <span data-bar="block"></span>
+          </div>
+          <div class="vlegend">
+            <div class="vl" style="--c:var(--pass)"><b class="num" data-stat="pass">70</b><span>Passed on policy</span></div>
+            <div class="vl" style="--c:color-mix(in oklab, var(--pass) 55%, var(--surface))"><b class="num" data-stat="approved">0</b><span>Passed after your approval</span></div>
+            <div class="vl" style="--c:var(--review)"><b class="num" data-stat="review">20</b><span>Waiting for review</span><br><button class="link" data-go="approvals">Review now</button></div>
+            <div class="vl" style="--c:var(--block)"><b class="num" data-stat="block">10</b><span>Blocked before they ran</span><br><button class="link" data-jump-verdict="block">See what was stopped</button></div>
+          </div>
+        </article>
+
+        <article class="panel chart span-7" data-widget="trend">
+          <div class="panel-head"><h2>Last 7 days</h2><span class="hint">actions per day, by decision</span></div>
+          <div id="chart"></div>
+        </article>
+
+        <article class="panel span-5" data-widget="approvals">
+          <div class="panel-head"><h2>Waiting on you</h2><button class="link" data-go="approvals">All approvals</button></div>
+          <div class="rows" id="ov-approvals"></div>
+        </article>
+
+        <article class="panel span-5" data-widget="agents">
+          <div class="panel-head"><h2>Connected agents</h2><button class="link" data-go="agents">Manage</button></div>
+          <div class="rows" id="ov-agents"></div>
+        </article>
+
+        <article class="panel span-7" data-widget="recent">
+          <div class="panel-head"><h2>Just now</h2><button class="link" data-go="activity">Full activity</button></div>
+          <div class="rows" id="ov-recent"></div>
+        </article>
+
+        <article class="panel span-12" data-widget="health" style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between">
+          <div style="display:flex;gap:10px;align-items:center"><span class="chip c-err">4 system errors</span><span style="color:var(--soft)">HUQAN's own problems are kept off this page so they never read as agent decisions.</span></div>
+          <button class="btn" data-go="errors" data-role-hide="approver viewer">Open Errors</button>
+        </article>
+      </div>
+    </section>
+
+    <!-- ACTIVITY -->
+    <section class="view" data-view="activity" hidden>
+      <div class="topbar"><div><h1>Agent activity</h1><p>Every action an agent tried: which tool, what it wanted to do, and what HUQAN decided. Select a row for the full chain.</p></div></div>
+      <div class="filters">
+        <label class="sr" for="f-q" hidden>Search</label>
+        <input id="f-q" type="search" placeholder="Search actions, tools, receipt IDs">
+        <select id="f-agent" aria-label="Agent"><option value="">All agents</option></select>
+        <select id="f-tool" aria-label="Tool"><option value="">All tools</option></select>
+        <select id="f-verdict" aria-label="Decision">
+          <option value="">All decisions</option>
+          <option value="pass">Passed</option>
+          <option value="approved">Passed after approval</option>
+          <option value="review">Waiting for review</option>
+          <option value="block">Blocked</option>
+          <option value="rejected">Rejected by you</option>
+        </select>
+        <button class="btn" id="f-save">Save this view</button>
+        <span class="result num" id="f-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Agent</th><th>Tool</th><th>What it tried</th><th>Decision</th><th>Receipt</th></tr></thead>
+          <tbody id="act-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- APPROVALS -->
+    <section class="view" data-view="approvals" hidden>
+      <div class="topbar">
+        <div><h1>Approvals</h1><p>Actions HUQAN paused for a person. Approving lets the action run and seals its receipt; rejecting stops it for good.</p></div>
+        <div class="seg" role="group" aria-label="Show">
+          <button aria-pressed="true" data-qfilter="open">Open</button>
+          <button aria-pressed="false" data-qfilter="done">Decided</button>
+        </div>
+      </div>
+      <p class="note-role" id="role-note" hidden>You are viewing as <b>Viewer</b>: you can see the queue but not decide.</p>
+      <div class="queue" id="queue"></div>
+    </section>
+
+    <!-- RECEIPTS -->
+    <section class="view" data-view="receipts" hidden>
+      <div class="topbar"><div><h1>Trust Receipts</h1><p>The record behind every decision. "Unverifiable" is shown separately from "verified" on purpose: a receipt that can't be checked is never counted as a pass.</p></div></div>
+      <div class="grid" style="margin-bottom:16px">
+        <div class="panel span-4"><span class="chip c-pass">Verified</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" data-stat="r-verified">0</b><span>hash chain and signature check out</span></div></div>
+        <div class="panel span-4"><span class="chip c-review">Awaiting approval</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" data-stat="r-pending">0</b><span>sealed once someone decides</span></div></div>
+        <div class="panel span-4"><span class="chip c-err">Unverifiable</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" data-stat="r-bad">0</b><span>chain broken; see Errors</span></div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Receipt</th><th>Action</th><th>Decision</th><th>Signed by</th><th>State</th></tr></thead>
+          <tbody id="rcpt-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- AGENTS -->
+    <section class="view" data-view="agents" hidden>
+      <div class="topbar"><div><h1>Agents</h1><p>Which agents send their actions through HUQAN, and which ones don't. An agent that isn't connected is not being watched.</p></div><button class="btn">Connect an agent</button></div>
+      <div class="agents" id="agents"></div>
+    </section>
+
+    <!-- ERRORS -->
+    <section class="view" data-view="errors" hidden>
+      <div class="topbar"><div><h1>Errors</h1><p>Problems with HUQAN itself: connections, storage, receipt checks. Kept apart from agent decisions.</p></div></div>
+      <div class="rows panel" id="errors"></div>
+    </section>
+
+    <!-- CUSTOMIZE -->
+    <section class="view" data-view="customize" hidden>
+      <div class="topbar"><div><h1>Customize</h1><p>Put things in the order you work. Drag a row or use the arrows; untick to hide. Saved in this browser only.</p></div><button class="btn" id="reset-layout">Reset to default</button></div>
+      <div class="grid">
+        <div class="panel span-6"><div class="panel-head"><h2>Sidebar</h2><span class="hint">You can also drag items in the sidebar itself</span></div><ul class="order" id="order-nav"></ul></div>
+        <div class="panel span-6"><div class="panel-head"><h2>Overview</h2><span class="hint">Top to bottom</span></div><ul class="order" id="order-widgets"></ul></div>
+      </div>
+      <h2 style="font-size:15px;margin:28px 0 10px">Saved views</h2>
+      <div class="rows panel" id="saved"></div>
+    </section>
+
+    <!-- SOON -->
+    <section class="view" data-view="soon" hidden>
+      <div class="topbar"><div><h1>Coming soon</h1><p>Planned, not built. Listed here so they never appear as locked panels on the pages you use.</p></div></div>
+      <div class="roadmap">
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Approve from Slack or Teams</h3><p>Decide on a paused action without opening the Control Room.</p></div>
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Counter-sealed receipts</h3><p>A second, independent signature on each receipt, so the record doesn't rest on one key.</p></div>
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Teams, roles and SSO</h3><p>Who may approve what, per team, signed in with your company account.</p></div>
+        <div class="plan"><span class="chip c-muted">Planned</span><h3>Weekly report</h3><p>A PDF summary of what was watched, stopped and approved, for people who don't log in.</p></div>
+        <div class="plan"><span class="chip c-muted">Exploring</span><h3>Unusual-behaviour alerts</h3><p>A heads-up when an agent suddenly tries far more, or different, actions than usual.</p></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Action detail" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  // ---------- sample data (deterministic) ----------
+  let seed = 20260915;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const hex = (n) => Array.from({ length: n }, () => Math.floor(rnd() * 16).toString(16)).join("");
+
+  const AGENTS = [
+    { id: "claude-code", kind: "Coding agent", status: "connected", seen: "12 s ago" },
+    { id: "codex", kind: "Coding agent", status: "connected", seen: "41 s ago" },
+    { id: "invoice-bot", kind: "n8n workflow", status: "connected", seen: "2 min ago" },
+    { id: "support-triage", kind: "LangGraph agent", status: "connected", seen: "6 min ago" },
+    { id: "gemini-cli", kind: "Coding agent", status: "disconnected", seen: "3 h ago" },
+    { id: "research-crew", kind: "CrewAI crew", status: "never", seen: "never connected" },
+  ];
+  const TEMPLATES = {
+    "claude-code": [
+      ["fs.write", "Edit src/billing/invoice.ts (42 lines)", "pass", "code-edit-in-repo"],
+      ["shell.exec", "Run npm test", "pass", "shell-readonly"],
+      ["git.push", "Push 3 commits to main", "review", "protected-branch"],
+      ["shell.exec", "rm -rf ./dist ./node_modules", "block", "shell-destructive"],
+      ["memory.write", "Remember: staging DB is read-only", "pass", "memory-needs-evidence"],
+    ],
+    "codex": [
+      ["fs.write", "Create migrations/0042_add_index.sql", "pass", "code-edit-in-repo"],
+      ["db.query", "ALTER TABLE customers DROP COLUMN notes", "block", "schema-destructive"],
+      ["git.push", "Open PR: fix retry on 429", "pass", "pr-only"],
+      ["http.post", "POST api.stripe.com/v1/refunds", "review", "money-movement"],
+    ],
+    "invoice-bot": [
+      ["email.send", "Send 14 invoice reminders", "review", "outbound-bulk-email"],
+      ["http.post", "POST erp.internal/invoices (draft)", "pass", "internal-write"],
+      ["email.send", "Email invoice to external address not on contract", "block", "pii-outbound"],
+    ],
+    "support-triage": [
+      ["memory.write", "Remember: customer #8812 prefers phone", "review", "memory-needs-evidence"],
+      ["http.post", "Reply to ticket #4471", "pass", "customer-reply"],
+      ["db.query", "SELECT email FROM users LIMIT 5000", "block", "bulk-pii-read"],
+    ],
+    "gemini-cli": [["fs.write", "Edit README.md", "pass", "code-edit-in-repo"]],
+  };
+  const APPROVERS = ["Ali Ulu", "D. Kaya", "M. Demir"];
+  const WHY = {
+    "protected-branch": "Pushing directly to a protected branch needs a person.",
+    "money-movement": "Any call that can move money waits for approval.",
+    "outbound-bulk-email": "More than 10 outbound emails at once waits for approval.",
+    "memory-needs-evidence": "The agent wants to remember something it has no source for.",
+  };
+
+  const verdicts = [...Array(70).fill("pass"), ...Array(20).fill("review"), ...Array(10).fill("block")];
+  for (let i = verdicts.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [verdicts[i], verdicts[j]] = [verdicts[j], verdicts[i]]; }
+
+  const live = AGENTS.filter((a) => a.status === "connected");
+  let minutes = 0;
+  const ACTIONS = verdicts.map((v, i) => {
+    minutes += Math.floor(rnd() * 22) + 1;
+    const agentPool = minutes > 180 && rnd() < .15 ? [AGENTS[4]] : live;
+    const agent = pick(agentPool);
+    const options = TEMPLATES[agent.id].filter((t) => t[2] === v);
+    const t = options.length ? pick(options) : pick(TEMPLATES[agent.id]);
+    const unverifiable = v === "pass" && (i === 17 || i === 63);
+    return {
+      id: "act_" + hex(8), mins: minutes, agent: agent.id, tool: t[0], what: t[1], verdict: v, policy: t[3],
+      evidence: v === "block" ? Math.floor(rnd() * 2) : 1 + Math.floor(rnd() * 4),
+      receipt: "tr_" + hex(12), receiptState: unverifiable ? "unverifiable" : v === "review" ? "pending" : "verified",
+      signer: v === "pass" ? "policy · auto" : v === "block" ? "policy · auto" : null,
+    };
+  });
+
+  // ---------- helpers ----------
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ago = (m) => m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`;
+  const LABEL = { pass: "Passed", approved: "Approved", review: "Waiting", block: "Blocked", rejected: "Rejected" };
+  const CLS = { pass: "c-pass", approved: "c-pass", review: "c-review", block: "c-block", rejected: "c-block" };
+  const chip = (v) => `<span class="chip ${CLS[v]}">${LABEL[v]}</span>`;
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  const toast = (msg) => { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 1800); };
+
+  // ---------- navigation ----------
+  function go(view) {
+    $$(".view").forEach((v) => v.hidden = v.dataset.view !== view);
+    $$(".nav button").forEach((b) => b.toggleAttribute("aria-current", b.dataset.go === view) || (b.dataset.go === view && b.setAttribute("aria-current", "page")));
+    $$(".nav button").forEach((b) => { if (b.dataset.go === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    window.scrollTo({ top: 0 });
+  }
+  document.addEventListener("click", (e) => {
+    const g = e.target.closest("[data-go]"); if (g) { go(g.dataset.go); return; }
+    const j = e.target.closest("[data-jump-verdict]"); if (j) { $("#f-verdict").value = j.dataset.jumpVerdict; renderActivity(); go("activity"); }
+  });
+
+  // ---------- stats ----------
+  function counts() {
+    const c = { pass: 0, approved: 0, review: 0, block: 0, rejected: 0 };
+    ACTIONS.forEach((a) => c[a.verdict]++);
+    return c;
+  }
+  function renderStats() {
+    const c = counts();
+    const total = ACTIONS.length;
+    $$("[data-stat]").forEach((el) => {
+      const k = el.dataset.stat;
+      if (k === "total") el.textContent = total;
+      else if (k === "block") el.textContent = c.block + c.rejected;
+      else if (k === "r-verified") el.textContent = ACTIONS.filter((a) => a.receiptState === "verified").length;
+      else if (k === "r-pending") el.textContent = ACTIONS.filter((a) => a.receiptState === "pending").length;
+      else if (k === "r-bad") el.textContent = ACTIONS.filter((a) => a.receiptState === "unverifiable").length;
+      else if (k in c) el.textContent = c[k];
+    });
+    $('[data-bar="pass"]').style.flexGrow = c.pass;
+    $('[data-bar="approved"]').style.flexGrow = c.approved;
+    $('[data-bar="approved"]').style.display = c.approved ? "" : "none";
+    $('[data-bar="review"]').style.flexGrow = c.review;
+    $('[data-bar="block"]').style.flexGrow = c.block + c.rejected;
+    $$('[data-count="review"]').forEach((el) => { el.textContent = c.review; el.hidden = !c.review; });
+    const auto = Math.round(((c.pass + c.block) / total) * 100);
+    $('[data-stat="auto"]').textContent = auto + "%";
+    const C = 2 * Math.PI * 26;
+    $("#ring-fg").style.strokeDasharray = `${(C * auto / 100).toFixed(1)} ${C.toFixed(1)}`;
+  }
+
+  // ---------- chart ----------
+  function renderChart() {
+    const days = ["Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Today"];
+    const totals = [64, 71, 58, 83, 42, 37, 100];
+    const c = counts();
+    const data = totals.map((t, i) => i === 6
+      ? { pass: c.pass + c.approved, review: c.review, block: c.block + c.rejected }
+      : { pass: Math.round(t * .72), review: Math.round(t * .17), block: t - Math.round(t * .72) - Math.round(t * .17) });
+    const W = 640, H = 240, L = 34, R = 18, T = 18, B = 30, max = 100;
+    const y = (v) => T + (H - T - B) * (1 - v / max);
+    const x = (i) => L + i * (W - L - R) / (days.length - 1);
+    const cum = (k) => data.map((d) => k === "pass" ? d.pass : k === "review" ? d.pass + d.review : d.pass + d.review + d.block);
+    const pts = (arr) => arr.map((v, i) => [x(i), y(v)]);
+    const f = (n) => n.toFixed(1);
+    const smooth = (p, move = "M") => p.map((pt, i) => {
+      if (i === 0) return `${move}${f(pt[0])},${f(pt[1])}`;
+      const p0 = p[i - 2] || p[i - 1], p1 = p[i - 1], p3 = p[i + 1] || pt;
+      return `C${f(p1[0] + (pt[0] - p0[0]) / 6)},${f(p1[1] + (pt[1] - p0[1]) / 6)} ${f(pt[0] - (p3[0] - p1[0]) / 6)},${f(pt[1] - (p3[1] - p1[1]) / 6)} ${f(pt[0])},${f(pt[1])}`;
+    }).join(" ");
+    const zero = data.map(() => 0);
+    const bands = [["pass", "--pass", zero, cum("pass")], ["review", "--review", cum("pass"), cum("review")], ["block", "--block", cum("review"), cum("block")]];
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Actions per day for the last 7 days, stacked by decision"><defs>`;
+    bands.forEach(([k, v]) => { s += `<linearGradient id="g-${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(${v});stop-opacity:.72"/><stop offset="1" style="stop-color:var(${v});stop-opacity:.16"/></linearGradient>`; });
+    s += `<linearGradient id="fade-x" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".14" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient><mask id="m-fade"><rect x="0" y="0" width="${W}" height="${H}" fill="url(#fade-x)"/></mask></defs>`;
+    [0, 25, 50, 75, 100].forEach((v) => { s += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke-dasharray="2 6"/><text x="${L - 10}" y="${y(v) + 4}" text-anchor="end">${v}</text>`; });
+    s += `<g mask="url(#m-fade)">`;
+    bands.forEach(([k, v, lo, hi]) => {
+      s += `<path d="${smooth(pts(hi))} ${smooth(pts(lo).reverse(), "L")} Z" fill="url(#g-${k})"/>`;
+      s += `<path d="${smooth(pts(hi))}" fill="none" style="stroke:var(${v})" stroke-width="1.6" stroke-linecap="round"/>`;
+    });
+    s += `</g>`;
+    const ex = x(6), ey = y(cum("block")[6]);
+    s += `<line x1="${ex}" x2="${ex}" y1="${ey}" y2="${y(0)}" style="stroke:var(--ink)" stroke-opacity=".16" stroke-dasharray="2 4"/>`;
+    s += `<circle cx="${ex}" cy="${ey}" r="11" style="fill:var(--block)" fill-opacity=".14"/><circle cx="${ex}" cy="${ey}" r="4.5" style="fill:var(--surface);stroke:var(--block)" stroke-width="2"/>`;
+    s += `<text x="${ex - 16}" y="${ey + 4}" text-anchor="end" style="fill:var(--ink);font-weight:600">${totals[6]} today</text>`;
+    days.forEach((d, i) => {
+      s += `<text x="${x(i)}" y="${H - 9}" text-anchor="${i === 0 ? "start" : i === 6 ? "end" : "middle"}" style="${i === 6 ? "fill:var(--ink);font-weight:600" : ""}">${d}</text>`;
+      s += `<rect x="${x(i) - 22}" y="${T}" width="44" height="${H - T - B}" fill="transparent"><title>${d}: ${data[i].pass} passed, ${data[i].review} review, ${data[i].block} blocked</title></rect>`;
+    });
+    s += `</svg><div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px"><span class="chip sq c-pass">Passed</span><span class="chip sq c-review">Review</span><span class="chip sq c-block">Blocked</span></div>`;
+    $("#chart").innerHTML = s;
+  }
+
+  // ---------- overview lists ----------
+  function renderOverview() {
+    const open = ACTIONS.filter((a) => a.verdict === "review").slice(0, 4);
+    $("#ov-approvals").innerHTML = open.length ? open.map((a) => `
+      <div class="row"><span class="t">${esc(a.what)}</span><span class="r"><button class="btn" data-open="${a.id}">Review</button></span>
+      <span class="s"><span class="mono">${a.agent}</span> · ${ago(a.mins)}</span></div>`).join("") : `<p class="empty">Nothing is waiting on you.</p>`;
+    $("#ov-agents").innerHTML = AGENTS.map((ag) => {
+      const n = ACTIONS.filter((a) => a.agent === ag.id).length;
+      const st = ag.status === "connected" ? `<span class="chip c-pass">Connected</span>` : ag.status === "disconnected" ? `<span class="chip c-block">Disconnected</span>` : `<span class="chip c-muted">Not connected</span>`;
+      return `<div class="row"><span class="t mono">${ag.id}</span><span class="r">${st}</span><span class="s">${ag.kind} · ${n} actions · last seen ${ag.seen}</span></div>`;
+    }).join("");
+    $("#ov-recent").innerHTML = ACTIONS.slice(0, 6).map((a) => `
+      <div class="row" data-open="${a.id}" style="cursor:pointer"><span class="t">${esc(a.what)}</span><span class="r">${chip(a.verdict)}</span>
+      <span class="s"><span class="mono">${a.agent}</span> used <span class="mono">${a.tool}</span> · ${ago(a.mins)}</span></div>`).join("");
+  }
+
+  // ---------- activity ----------
+  function fillFilters() {
+    AGENTS.forEach((a) => $("#f-agent").insertAdjacentHTML("beforeend", `<option>${a.id}</option>`));
+    [...new Set(ACTIONS.map((a) => a.tool))].sort().forEach((t) => $("#f-tool").insertAdjacentHTML("beforeend", `<option>${t}</option>`));
+    ["f-q", "f-agent", "f-tool", "f-verdict"].forEach((id) => $("#" + id).addEventListener("input", renderActivity));
+  }
+  function currentFilter() { return { q: $("#f-q").value.trim().toLowerCase(), agent: $("#f-agent").value, tool: $("#f-tool").value, verdict: $("#f-verdict").value }; }
+  function applyFilter(f) { $("#f-q").value = f.q || ""; $("#f-agent").value = f.agent || ""; $("#f-tool").value = f.tool || ""; $("#f-verdict").value = f.verdict || ""; renderActivity(); }
+  function renderActivity() {
+    const f = currentFilter();
+    const rows = ACTIONS.filter((a) => (!f.agent || a.agent === f.agent) && (!f.tool || a.tool === f.tool) && (!f.verdict || a.verdict === f.verdict)
+      && (!f.q || `${a.what} ${a.tool} ${a.receipt} ${a.agent}`.toLowerCase().includes(f.q)));
+    $("#f-count").textContent = `${rows.length} of ${ACTIONS.length} actions`;
+    $("#act-body").innerHTML = rows.length ? rows.map((a) => `
+      <tr data-open="${a.id}" tabindex="0">
+        <td class="num" style="white-space:nowrap;color:var(--soft)">${ago(a.mins)}</td>
+        <td class="mono">${a.agent}</td>
+        <td class="mono">${a.tool}</td>
+        <td class="what">${esc(a.what)}<span class="sub">policy: <span class="mono">${a.policy}</span></span></td>
+        <td>${chip(a.verdict)}</td>
+        <td class="mono" style="color:var(--soft)">${a.receipt}</td>
+      </tr>`).join("") : `<tr><td colspan="6" class="empty">No actions match these filters. Clear one to widen the search.</td></tr>`;
+  }
+
+  // ---------- saved views ----------
+  let saved = store.get("hq.saved", [
+    { name: "Blocked on production agents", f: { verdict: "block" } },
+    { name: "Everything invoice-bot sent", f: { agent: "invoice-bot", tool: "email.send" } },
+  ]);
+  function renderSaved() {
+    $("#saved").innerHTML = saved.map((s, i) => `<div class="row"><span class="t">${esc(s.name)}</span><span class="r"><button class="btn" data-saved="${i}">Open</button></span>
+      <span class="s">${Object.entries(s.f).filter(([, v]) => v).map(([k, v]) => `${k}: ${esc(v)}`).join(" · ") || "no filters"}</span></div>`).join("");
+  }
+  $("#f-save").addEventListener("click", () => {
+    const f = currentFilter();
+    const name = Object.values(f).filter(Boolean).join(" · ") || "All activity";
+    saved = [...saved, { name, f }]; store.set("hq.saved", saved); renderSaved(); toast("View saved to Customize");
+  });
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-saved]"); if (b) { applyFilter(saved[+b.dataset.saved].f); go("activity"); } });
+
+  // ---------- approvals ----------
+  let qFilter = "open";
+  let role = "admin";
+  function renderQueue() {
+    const items = ACTIONS.filter((a) => qFilter === "open" ? a.verdict === "review" : a.verdict === "approved" || a.verdict === "rejected");
+    const canDecide = role !== "viewer";
+    $("#role-note").hidden = canDecide;
+    $("#queue").innerHTML = items.length ? items.map((a) => `
+      <article class="ticket ${a.verdict !== "review" ? "done" : ""}">
+        <div>
+          <h3>${esc(a.what)}</h3>
+          <div class="meta"><span class="mono">${a.agent}</span><span class="mono">${a.tool}</span><span>${ago(a.mins)}</span><span>${a.evidence} evidence item${a.evidence === 1 ? "" : "s"}</span></div>
+          <p class="why">${esc(WHY[a.policy] || "Policy requires a person for this action.")} <span style="color:var(--soft)">(<span class="mono">${a.policy}</span>)</span></p>
+        </div>
+        <div class="acts">
+          ${a.verdict === "review" ? `
+            <button class="btn" data-open="${a.id}">Details</button>
+            <button class="btn danger" data-decide="rejected" data-id="${a.id}" ${canDecide ? "" : "disabled"}>Reject</button>
+            <button class="btn primary" data-decide="approved" data-id="${a.id}" ${canDecide ? "" : "disabled"}>Approve</button>`
+          : `${chip(a.verdict)}<span style="color:var(--soft);font-size:12.5px">by ${a.signer}</span>`}
+        </div>
+      </article>`).join("") : `<p class="empty panel">${qFilter === "open" ? "Nothing is waiting. New requests appear here the moment an agent is paused." : "No decisions yet. Approve or reject something from Open."}</p>`;
+  }
+  $$("[data-qfilter]").forEach((b) => b.addEventListener("click", () => {
+    qFilter = b.dataset.qfilter; $$("[data-qfilter]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); renderQueue();
+  }));
+  function decide(id, verdict) {
+    const a = ACTIONS.find((x) => x.id === id);
+    if (!a || a.verdict !== "review") return;
+    a.verdict = verdict; a.receiptState = "verified"; a.signer = `${APPROVERS[0]} · manual`;
+    renderAll();
+    closeDrawer();
+    toast(verdict === "approved" ? "Approved. The action ran and its receipt is sealed." : "Rejected. The action will not run.");
+  }
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-decide]"); if (b && !b.disabled) decide(b.dataset.id, b.dataset.decide); });
+
+  // ---------- receipts ----------
+  function renderReceipts() {
+    $("#rcpt-body").innerHTML = ACTIONS.slice(0, 40).map((a) => {
+      const st = a.receiptState === "verified" ? `<span class="chip c-pass">Verified</span>` : a.receiptState === "pending" ? `<span class="chip c-review">Awaiting approval</span>` : `<span class="chip c-err">Unverifiable</span>`;
+      return `<tr data-open="${a.id}" tabindex="0"><td class="mono">${a.receipt}</td><td class="what">${esc(a.what)}<span class="sub mono">${a.agent} · ${a.tool}</span></td><td>${chip(a.verdict)}</td><td>${a.signer || '<span style="color:var(--soft)">not yet</span>'}</td><td>${st}</td></tr>`;
+    }).join("");
+  }
+
+  // ---------- agents ----------
+  function spark(mine, id) {
+    const buckets = Array(12).fill(0);
+    mine.forEach((a) => { const b = Math.min(11, Math.floor(a.mins / 120)); buckets[11 - b]++; });
+    const W = 220, H = 40, max = Math.max(3, ...buckets);
+    const line = buckets.map((v, i) => `${i ? "L" : "M"}${(i * W / 11).toFixed(1)},${(H - 3 - (H - 8) * v / max).toFixed(1)}`).join(" ");
+    return `<div><svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="sp-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.38"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs><path d="${line} L${W},${H} L0,${H} Z" fill="url(#sp-${id})"/><path d="${line}" fill="none" style="stroke:var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg><div class="spark-cap"><span>24 h ago</span><span>now</span></div></div>`;
+  }
+  function renderAgents() {
+    $("#agents").innerHTML = AGENTS.map((ag) => {
+      const mine = ACTIONS.filter((a) => a.agent === ag.id);
+      const blocked = mine.filter((a) => a.verdict === "block" || a.verdict === "rejected").length;
+      const waiting = mine.filter((a) => a.verdict === "review").length;
+      const st = ag.status === "connected" ? `<span class="chip c-pass">Connected</span>` : ag.status === "disconnected" ? `<span class="chip c-block">Disconnected</span>` : `<span class="chip c-muted">Not connected</span>`;
+      const foot = ag.status === "connected" ? `Last seen ${ag.seen}` : ag.status === "disconnected" ? `No heartbeat for 3 h. Its actions are <b>not being watched</b> right now.` : `Set up but never sent an action. <button class="link">Show setup steps</button>`;
+      return `<article class="agent"><div class="agent-top"><div><h3>${ag.id}</h3><div class="kind">${ag.kind}</div></div>${st}</div>
+        <dl><div><dt>Actions</dt><dd class="num">${mine.length}</dd></div><div><dt>Waiting</dt><dd class="num">${waiting}</dd></div><div><dt>Blocked</dt><dd class="num">${blocked}</dd></div></dl>
+        ${spark(mine, ag.id)}<div class="foot">${foot}</div></article>`;
+    }).join("");
+  }
+
+  // ---------- errors ----------
+  const ERRORS = [
+    ["c-err", "Receipt chain check failed", `2 receipts no longer match their recorded hash. They are marked Unverifiable and are not counted as passed.`, "18 min ago"],
+    ["c-block", "gemini-cli stopped sending heartbeats", "Actions from this agent are not reaching the gate. Restart the agent or check its HUQAN connection.", "3 h ago"],
+    ["c-review", "Telemetry sink slow to respond", "12 gate decisions were buffered locally and delivered 40 s late. Nothing was lost.", "5 h ago"],
+    ["c-muted", "Policy file reloaded with 1 warning", "Rule outbound-bulk-email has no owner set. Approvals for it go to the Admin role.", "yesterday"],
+  ];
+  function renderErrors() {
+    $("#errors").innerHTML = ERRORS.map(([cls, t, d, when]) => `<div class="row"><span class="t"><span class="dot ${cls}" style="margin-right:8px"></span>${t}</span><span class="r" style="color:var(--soft);font-size:12.5px">${when}</span><span class="s">${d}</span></div>`).join("");
+  }
+
+  // ---------- customize ----------
+  const WIDGETS = [
+    ["verdict", "Decision summary", "Watched, passed, waiting, blocked"],
+    ["trend", "Last 7 days", "Daily actions by decision"],
+    ["approvals", "Waiting on you", "The top of the approval queue"],
+    ["agents", "Connected agents", "Who is and isn't being watched"],
+    ["recent", "Just now", "The latest agent actions"],
+    ["health", "System errors notice", "A one-line pointer to Errors"],
+  ];
+  const NAV_LABEL = { overview: "Overview", activity: "Agent activity", approvals: "Approvals", receipts: "Receipts", agents: "Agents", errors: "Errors", customize: "Customize", soon: "Coming soon" };
+  const LOCKED = ["overview", "customize"];
+  const WIDGET_LABEL = Object.fromEntries(WIDGETS.map(([k, t, d]) => [k, [t, d]]));
+  const merge = (saved, all) => [...saved.filter((k) => all.includes(k)), ...all.filter((k) => !saved.includes(k))];
+  const defaults = () => ({
+    nav: { order: Object.keys(NAV_LABEL), hidden: [] },
+    widgets: { order: WIDGETS.map((w) => w[0]), hidden: [] },
+  });
+  const layout = {
+    nav: { order: merge(store.get("hq.navOrder", []), Object.keys(NAV_LABEL)), hidden: store.get("hq.navHidden", []).filter((k) => !LOCKED.includes(k)) },
+    widgets: { order: merge(store.get("hq.widgetOrder", []), WIDGETS.map((w) => w[0])), hidden: store.get("hq.hidden", []) },
+  };
+  function saveLayout() {
+    store.set("hq.navOrder", layout.nav.order); store.set("hq.navHidden", layout.nav.hidden);
+    store.set("hq.widgetOrder", layout.widgets.order); store.set("hq.hidden", layout.widgets.hidden);
+  }
+  function applyLayout() {
+    const nav = $(".nav");
+    layout.nav.order.forEach((k) => { const b = nav.querySelector(`[data-go="${k}"]`); if (!b) return; nav.appendChild(b); b.classList.toggle("user-hidden", layout.nav.hidden.includes(k)); });
+    layout.widgets.order.forEach((k, i) => { const el = $(`[data-widget="${k}"]`); if (!el) return; el.style.order = i; el.classList.toggle("user-hidden", layout.widgets.hidden.includes(k)); });
+  }
+  function orderRow(list, k, i, n) {
+    const [title, desc] = list === "nav" ? [NAV_LABEL[k], ""] : WIDGET_LABEL[k];
+    const on = !layout[list].hidden.includes(k), locked = list === "nav" && LOCKED.includes(k);
+    const sub = desc ? `<small>${desc}</small>` : locked ? "<small>Always shown</small>" : "";
+    return `<li class="order-item" draggable="true" data-drag-list="${list}" data-key="${k}">
+      <span class="grip" aria-hidden="true"><svg viewBox="0 0 10 16" width="10" height="16"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></span>
+      <label for="v-${list}-${k}"><input type="checkbox" id="v-${list}-${k}" data-vis="${list}" data-key="${k}" ${on ? "checked" : ""} ${locked ? "disabled" : ""}><span><b>${title}</b>${sub}</span></label>
+      <span class="order-btns"><button class="icon-btn" data-move="-1" data-list="${list}" data-key="${k}" aria-label="Move ${title} up" ${i === 0 ? "disabled" : ""}>↑</button><button class="icon-btn" data-move="1" data-list="${list}" data-key="${k}" aria-label="Move ${title} down" ${i === n - 1 ? "disabled" : ""}>↓</button></span>
+    </li>`;
+  }
+  function renderLayoutLists() {
+    ["nav", "widgets"].forEach((list) => { $(`#order-${list}`).innerHTML = layout[list].order.map((k, i, a) => orderRow(list, k, i, a.length)).join(""); });
+  }
+  function moveKey(list, key, toIndex) {
+    const arr = layout[list].order.filter((k) => k !== key);
+    arr.splice(Math.max(0, Math.min(toIndex, arr.length)), 0, key);
+    layout[list].order = arr; saveLayout(); applyLayout(); renderLayoutLists();
+  }
+  document.addEventListener("change", (e) => {
+    const t = e.target.closest("[data-vis]"); if (!t) return;
+    const list = t.dataset.vis, key = t.dataset.key, h = layout[list].hidden;
+    layout[list].hidden = t.checked ? h.filter((x) => x !== key) : [...h, key];
+    saveLayout(); applyLayout();
+  });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-move]"); if (!b || b.disabled) return;
+    const { list, key, move } = b.dataset;
+    moveKey(list, key, layout[list].order.indexOf(key) + Number(move));
+    $(`[data-move="${move}"][data-key="${key}"]:not(:disabled)`)?.focus();
+  });
+  $("#reset-layout").addEventListener("click", () => {
+    Object.assign(layout, defaults()); saveLayout(); applyLayout(); renderLayoutLists(); toast("Layout reset to default");
+  });
+
+  let dragging = null;
+  const clearDrop = () => $$(".drop-before, .drop-after").forEach((x) => x.classList.remove("drop-before", "drop-after"));
+  document.addEventListener("dragstart", (e) => {
+    const it = e.target.closest?.("[data-drag-list]"); if (!it) return;
+    dragging = it; it.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", it.dataset.key);
+  });
+  document.addEventListener("dragover", (e) => {
+    const it = e.target.closest?.("[data-drag-list]");
+    if (!dragging || !it || it === dragging || it.dataset.dragList !== dragging.dataset.dragList) return;
+    e.preventDefault(); clearDrop();
+    const r = it.getBoundingClientRect();
+    const across = getComputedStyle(it.parentElement).flexDirection === "row";
+    it.classList.add((across ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2) ? "drop-after" : "drop-before");
+  });
+  document.addEventListener("drop", (e) => {
+    const it = e.target.closest?.("[data-drag-list]");
+    if (!dragging || !it || it === dragging || it.dataset.dragList !== dragging.dataset.dragList) return;
+    e.preventDefault();
+    const list = it.dataset.dragList, key = dragging.dataset.key;
+    const arr = layout[list].order.filter((k) => k !== key);
+    moveKey(list, key, arr.indexOf(it.dataset.key) + (it.classList.contains("drop-after") ? 1 : 0));
+    toast(list === "nav" ? "Sidebar order saved" : "Overview order saved");
+  });
+  document.addEventListener("dragend", () => { dragging?.classList.remove("dragging"); dragging = null; clearDrop(); });
+
+  function initLayout() {
+    $$(".nav button").forEach((b) => { b.draggable = true; b.dataset.dragList = "nav"; b.dataset.key = b.dataset.go; b.title = "Drag to reorder"; });
+    applyLayout(); renderLayoutLists();
+  }
+
+  // ---------- drawer ----------
+  function openDrawer(id) {
+    const a = ACTIONS.find((x) => x.id === id); if (!a) return;
+    const step = (cls, mark, title, sub) => `<li><span class="node ${cls}">${mark}</span><div><b>${title}</b><span>${sub}</span></div></li>`;
+    const ev = a.evidence ? step("c-pass", "✓", "Evidence", `${a.evidence} source${a.evidence === 1 ? "" : "s"} attached to the request`) : step("c-block", "!", "Evidence", "No source attached");
+    const pol = a.verdict === "block" ? step("c-block", "✕", "Policy: blocked", `<span class="mono">${a.policy}</span> stopped this before it ran`)
+      : a.verdict === "pass" ? step("c-pass", "✓", "Policy: allowed", `<span class="mono">${a.policy}</span>`)
+      : step("c-review", "…", "Policy: needs a person", `<span class="mono">${a.policy}</span>`);
+    const appr = a.verdict === "review" ? step("c-review", "…", "Approval", "Waiting for Admin or Approver")
+      : a.verdict === "approved" ? step("c-pass", "✓", "Approval", `Approved by ${esc(a.signer)}`)
+      : a.verdict === "rejected" ? step("c-block", "✕", "Approval", `Rejected by ${esc(a.signer)}`)
+      : step("c-muted", "–", "Approval", "Not required by policy");
+    const rc = a.receiptState === "verified" ? step("c-pass", "✓", "Receipt sealed", `<span class="mono">${a.receipt}</span>`)
+      : a.receiptState === "pending" ? step("c-review", "…", "Receipt", "Sealed once a person decides")
+      : step("c-err", "!", "Receipt unverifiable", "Hash no longer matches. See Errors.");
+    const canDecide = role !== "viewer";
+    $("#drawer").innerHTML = `
+      <div class="drawer-head"><div>${chip(a.verdict)}<h2>${esc(a.what)}</h2></div><button class="btn" id="d-close" aria-label="Close detail">Close</button></div>
+      <dl class="kv">
+        <dt>Agent</dt><dd class="mono">${a.agent}</dd>
+        <dt>Tool</dt><dd class="mono">${a.tool}</dd>
+        <dt>When</dt><dd>${ago(a.mins)}</dd>
+        <dt>Action ID</dt><dd class="mono">${a.id}</dd>
+      </dl>
+      <h3 style="font-size:14px">What HUQAN did</h3>
+      <ol class="chain">${step("c-muted", "1", "Agent asked", `<span class="mono">${a.agent}</span> called <span class="mono">${a.tool}</span>`)}${ev}${pol}${appr}${rc}</ol>
+      ${a.verdict === "review" ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="btn danger" data-decide="rejected" data-id="${a.id}" ${canDecide ? "" : "disabled"}>Reject</button><button class="btn primary" data-decide="approved" data-id="${a.id}" ${canDecide ? "" : "disabled"}>Approve</button></div>` : ""}`;
+    $("#drawer").classList.add("on"); $("#scrim").classList.add("on"); $("#drawer").setAttribute("aria-hidden", "false");
+    $("#d-close").focus();
+  }
+  function closeDrawer() { $("#drawer").classList.remove("on"); $("#scrim").classList.remove("on"); $("#drawer").setAttribute("aria-hidden", "true"); }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#d-close") || e.target.id === "scrim") { closeDrawer(); return; }
+    const o = e.target.closest("[data-open]"); if (o && !e.target.closest("[data-decide]")) openDrawer(o.dataset.open);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDrawer();
+    if (e.key === "Enter" && e.target.matches("tr[data-open]")) openDrawer(e.target.dataset.open);
+  });
+
+  // ---------- role & theme ----------
+  $("#role").addEventListener("change", (e) => {
+    role = e.target.value;
+    $$("[data-role-hide]").forEach((el) => el.hidden = el.dataset.roleHide.split(" ").includes(role));
+    renderQueue(); toast(`Viewing as ${e.target.selectedOptions[0].text}`);
+  });
+  $("#theme").addEventListener("change", (e) => {
+    if (e.target.value === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", e.target.value);
+  });
+  $$("[data-win]").forEach((b) => b.addEventListener("click", () => {
+    $$("[data-win]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    toast("Sample data: the window switch is illustrative");
+  }));
+
+  function renderAll() { renderStats(); renderChart(); renderOverview(); renderActivity(); renderQueue(); renderReceipts(); renderAgents(); }
+  fillFilters(); renderErrors(); renderSaved(); initLayout(); renderAll();
+})();
+</script>

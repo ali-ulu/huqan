@@ -1,0 +1,2378 @@
+{
+  "schemaVersion": "huqan-contradiction-eval-source-snapshot-v1",
+  "datasetVersion": "contradiction-eval-v1",
+  "sourceSystem": "levh",
+  "snapshotId": "levh-contradiction-candidates-2026-10-07",
+  "authoredOn": "2026-10-07",
+  "authoredBy": "agent:codebuff-r50-pr1",
+  "authoringMethod": "authored claim pairs from text only; no detector output was computed or consulted before labeling",
+  "selectionTargets": {
+    "representative": 46,
+    "lexical_opposition_only": 22,
+    "scope_shift": 24,
+    "measurement_uncertain": 10,
+    "malformed_pair": 6
+  },
+  "candidates": [
+    {
+      "candidateId": "cand-001",
+      "pairGroupId": "group:port-8080",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 9090",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-002",
+      "pairGroupId": "group:retry-limit",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retry limit is 5 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-003",
+      "pairGroupId": "group:beta-release",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the beta release shipped in March 2025",
+        "subject": "mem:beta-release",
+        "relation": "shipped_in",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the beta release shipped in August 2025",
+        "subject": "mem:beta-release",
+        "relation": "shipped_in",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-004",
+      "pairGroupId": "group:license-core",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the license of the core is Apache-2.0",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the license of the core is MIT",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-005",
+      "pairGroupId": "group:default-workspace",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the default workspace is default",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the default workspace is staging",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-006",
+      "pairGroupId": "group:storage-backend",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the storage backend is SQLite",
+        "subject": "svc:storage-backend",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the storage backend is PostgreSQL",
+        "subject": "svc:storage-backend",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-007",
+      "pairGroupId": "group:retention-period",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the retention period is 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retention period is monthly",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-008",
+      "pairGroupId": "group:ingest-enabled",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the ingest path is enabled by default",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the ingest path is not enabled by default",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-009",
+      "pairGroupId": "group:viewer-auth",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the viewer requires authentication",
+        "subject": "svc:viewer",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the viewer does not require authentication",
+        "subject": "svc:viewer",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-010",
+      "pairGroupId": "group:backup-interval",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the backup interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the backup interval is 24 seconds",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-011",
+      "pairGroupId": "group:lease-hold",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the approval lease is held for 2 minutes",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the approval lease is held for 2 milliseconds",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-012",
+      "pairGroupId": "group:cache-fastpath",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the cache enables the fast path",
+        "subject": "svc:cache",
+        "relation": "enables",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache prevents the fast path",
+        "subject": "svc:cache",
+        "relation": "enables",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-013",
+      "pairGroupId": "group:doctor-pass",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "indexing causes the doctor check to pass",
+        "subject": "job:doctor",
+        "relation": "affects",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "indexing prevents the doctor check from passing",
+        "subject": "job:doctor",
+        "relation": "affects",
+        "sourceType": "issue",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-014",
+      "pairGroupId": "group:pipeline-determinism",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the pipeline is deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the pipeline is non-deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      }
+    },
+    {
+      "candidateId": "cand-015",
+      "pairGroupId": "group:write-admission",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the memory write is admitted",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the memory write is rejected",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-016",
+      "pairGroupId": "group:gateway-auth-delegation",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the gateway delegates authentication to the auth service",
+        "subject": "svc:api-gateway",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the auth service delegates authentication to the gateway",
+        "subject": "svc:api-gateway",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-017",
+      "pairGroupId": "group:queue-ownership",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the scheduler owns the queue",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the queue owns the scheduler",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-018",
+      "pairGroupId": "group:recall-ranking",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "recall ranks on semantic similarity",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "recall ranks on word overlap",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-019",
+      "pairGroupId": "group:doctor-quarantine",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the doctor drops quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-020",
+      "pairGroupId": "group:corpus-size",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the eval corpus holds 72 pairs",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the eval corpus holds 96 pairs",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      }
+    },
+    {
+      "candidateId": "cand-021",
+      "pairGroupId": "group:trust-root-pinning",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the trust root is pinned by digest",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the trust root is pinned by file path",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-022",
+      "pairGroupId": "group:gate-failure-mode",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the gate is fail-closed",
+        "subject": "gate:action-firewall",
+        "relation": "fails",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the gate is fail-open",
+        "subject": "gate:action-firewall",
+        "relation": "fails",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-023",
+      "pairGroupId": "group:retention-window",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the retention window is 7 days",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retention window is 7 weeks",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-024",
+      "pairGroupId": "group:write-lock-effect",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the lock prevents concurrent writes",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the lock causes concurrent writes",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-025",
+      "pairGroupId": "group:port-8080",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:staging"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 8080 on the staging host",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:staging"
+      }
+    },
+    {
+      "candidateId": "cand-026",
+      "pairGroupId": "group:default-workspace",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the default workspace is default",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the default workspace is default in v1",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-027",
+      "pairGroupId": "group:recall-ranking",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "recall ranks on semantic similarity",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "recall also exposes a lexical score",
+        "subject": "svc:recall",
+        "relation": "ranks_on",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      }
+    },
+    {
+      "candidateId": "cand-028",
+      "pairGroupId": "group:doctor-quarantine",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the doctor reports quarantined rows to the operator",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-029",
+      "pairGroupId": "group:retention-period",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the retention period is 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the retention period is configurable",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-030",
+      "pairGroupId": "group:pipeline-determinism",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the pipeline is deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the pipeline is bounded",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      }
+    },
+    {
+      "candidateId": "cand-031",
+      "pairGroupId": "group:request-timeout-doc",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the request timeout is 30 seconds",
+        "subject": "cfg:request-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the request timeout is documented in the README",
+        "subject": "cfg:request-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-032",
+      "pairGroupId": "group:ingest-enabled",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the ingest path is enabled by default",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:local-dev"
+      },
+      "incoming": {
+        "text": "the ingest path is enabled by default in the local profile",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:local-dev"
+      }
+    },
+    {
+      "candidateId": "cand-033",
+      "pairGroupId": "group:store-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the core store uses SQLite",
+        "subject": "svc:core-store",
+        "relation": "uses",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the analytics store uses PostgreSQL",
+        "subject": "svc:core-store",
+        "relation": "uses",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-034",
+      "pairGroupId": "group:flag-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the alpha path is disabled",
+        "subject": "cfg:alpha-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the beta path is enabled",
+        "subject": "cfg:alpha-path",
+        "relation": "enabled",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-035",
+      "pairGroupId": "group:limit-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the audit limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-036",
+      "pairGroupId": "group:license-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the license of the core is Apache-2.0",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the license of the docs is CC-BY-4.0",
+        "subject": "doc:core-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-037",
+      "pairGroupId": "group:write-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the memory write is admitted",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the hypothesis write is rejected",
+        "subject": "mem:memory-write",
+        "relation": "verdict",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-038",
+      "pairGroupId": "group:delegation-chain",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the gateway delegates authentication to the auth service",
+        "subject": "svc:auth",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the auth service delegates authentication to the identity provider",
+        "subject": "svc:auth",
+        "relation": "delegates_to",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-039",
+      "pairGroupId": "group:queue-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the scheduler owns the queue",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the workers own the queue",
+        "subject": "svc:scheduler",
+        "relation": "owns",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-040",
+      "pairGroupId": "group:pinning-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the trust root is pinned by digest",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the endpoint is pinned by IP address",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-041",
+      "pairGroupId": "group:window-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the retention window is 7 days",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache window is 7 days",
+        "subject": "cfg:retention-window",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-042",
+      "pairGroupId": "group:ttl-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the approval lease is held for 2 minutes",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the access token is valid for 2 minutes",
+        "subject": "approval:lease",
+        "relation": "held_for",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-043",
+      "pairGroupId": "group:doctor-quarantine",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the doctor quarantines broken rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-044",
+      "pairGroupId": "group:lock-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the lock prevents concurrent writes",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the lock prevents concurrent reads",
+        "subject": "svc:write-lock",
+        "relation": "affects",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-045",
+      "pairGroupId": "group:determinism-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the ingest pipeline is deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the dream pipeline is non-deterministic",
+        "subject": "svc:pipeline",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      }
+    },
+    {
+      "candidateId": "cand-046",
+      "pairGroupId": "group:backup-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the backup interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the snapshot interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-047",
+      "pairGroupId": "group:cache-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the cache enables the fast path",
+        "subject": "svc:cache",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache is disabled for the debug profile",
+        "subject": "svc:cache",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-048",
+      "pairGroupId": "group:corpus-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the eval corpus holds 72 pairs",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      },
+      "incoming": {
+        "text": "the fixture manifest holds 72 digests",
+        "subject": "fixture:eval-corpus",
+        "relation": "holds",
+        "sourceType": "doc",
+        "frameId": "frame:research"
+      }
+    },
+    {
+      "candidateId": "cand-049",
+      "pairGroupId": "group:prod-vs-staging-port",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in production the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in staging the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-050",
+      "pairGroupId": "group:2025-vs-2026-retention",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in 2025 the retention period was 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in 2026 the retention period is 60 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-051",
+      "pairGroupId": "group:workspace-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in workspace alpha the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in workspace beta the retry limit is 5 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-052",
+      "pairGroupId": "group:slot-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "the api gateway timeout is 30 seconds",
+        "subject": "cfg:api-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the worker timeout is 30 seconds",
+        "subject": "cfg:api-timeout",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-053",
+      "pairGroupId": "group:env-license",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in the enterprise profile the license is commercial",
+        "subject": "doc:product-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the community profile the license is Apache-2.0",
+        "subject": "doc:product-license",
+        "relation": "is",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-054",
+      "pairGroupId": "group:time-flag",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "the ingest path was disabled in v1",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the ingest path is enabled in v2",
+        "subject": "cfg:ingest-path",
+        "relation": "enabled",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-055",
+      "pairGroupId": "group:frame-doctor",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in the CI frame the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:ci"
+      },
+      "incoming": {
+        "text": "in the production frame the doctor only reports quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "doc",
+        "frameId": "frame:ci"
+      }
+    },
+    {
+      "candidateId": "cand-056",
+      "pairGroupId": "group:subject-scope-volatile",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "the bootstrap cache is volatile",
+        "subject": "svc:cache",
+        "relation": "volatility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the recall cache is persistent",
+        "subject": "svc:cache",
+        "relation": "volatility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-057",
+      "pairGroupId": "group:quantifier-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "all writes require approval in the enterprise profile",
+        "subject": "policy:approval",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "no approval is required for reads",
+        "subject": "policy:approval",
+        "relation": "requires",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-058",
+      "pairGroupId": "group:temporal-order",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in run 12 the index was rebuilt before the release",
+        "subject": "job:index",
+        "relation": "ordering",
+        "sourceType": "log",
+        "frameId": "frame:ci"
+      },
+      "incoming": {
+        "text": "in run 13 the index was rebuilt after the release",
+        "subject": "job:index",
+        "relation": "ordering",
+        "sourceType": "log",
+        "frameId": "frame:ci"
+      }
+    },
+    {
+      "candidateId": "cand-059",
+      "pairGroupId": "group:unit-frame",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in the legacy frame the backup interval is 24 hours",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the current frame the backup interval is 86400 seconds",
+        "subject": "job:backup",
+        "relation": "runs_every",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-060",
+      "pairGroupId": "group:role-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "the operator approves MCP calls in production",
+        "subject": "policy:mcp-approval",
+        "relation": "acted_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the model proposes MCP calls in production",
+        "subject": "policy:mcp-approval",
+        "relation": "acted_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-061",
+      "pairGroupId": "group:region-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in EU the data is retained for 30 days",
+        "subject": "policy:data-residency",
+        "relation": "retains",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in US the data is retained for 90 days",
+        "subject": "policy:data-residency",
+        "relation": "retains",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-062",
+      "pairGroupId": "group:version-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in v1 the default workspace is default",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in v2 the default workspace is staging",
+        "subject": "cfg:default-workspace",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-063",
+      "pairGroupId": "group:tenant-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "for tenant A the trust root is pinned by digest",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "for tenant B the trust root is pinned by file path",
+        "subject": "trust:root",
+        "relation": "pinned_by",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-064",
+      "pairGroupId": "group:stage-scope",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in the shadow stage the detector output is ignored",
+        "subject": "gate:action-firewall",
+        "relation": "mode",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the on stage the detector output is advisory",
+        "subject": "gate:action-firewall",
+        "relation": "mode",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-065",
+      "pairGroupId": "group:uncertain-timeout",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the timeout is short",
+        "subject": "svc:api-gateway",
+        "relation": "latency",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the timeout is long",
+        "subject": "svc:api-gateway",
+        "relation": "latency",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-066",
+      "pairGroupId": "group:uncertain-subject",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the service is degraded",
+        "subject": "",
+        "relation": "state",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the service is healthy",
+        "subject": "",
+        "relation": "state",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-067",
+      "pairGroupId": "group:uncertain-change",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "recently the limit changed",
+        "subject": "cfg:rate-limit",
+        "relation": "changes",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the limit has not changed",
+        "subject": "cfg:rate-limit",
+        "relation": "changes",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-068",
+      "pairGroupId": "group:uncertain-entity",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "it was admitted",
+        "subject": "",
+        "relation": "verdict",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "it was rejected",
+        "subject": "",
+        "relation": "verdict",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-069",
+      "pairGroupId": "group:uncertain-frame",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the policy is permissive in some frames",
+        "subject": "policy:retention",
+        "relation": "policy",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the policy is strict overall",
+        "subject": "policy:retention",
+        "relation": "policy",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-070",
+      "pairGroupId": "group:uncertain-scale",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the score improved",
+        "subject": "metric:score",
+        "relation": "improved",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the score regressed",
+        "subject": "metric:score",
+        "relation": "improved",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-071",
+      "pairGroupId": "group:malformed-self",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "malformed_pair",
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-072",
+      "pairGroupId": "group:malformed-question",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "malformed_pair",
+      "stored": {
+        "text": "the retry limit is 3 attempts",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "what is the retry limit?",
+        "subject": "cfg:retry-limit",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-073",
+      "pairGroupId": "group:malformed-logline",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "malformed_pair",
+      "stored": {
+        "text": "the doctor repairs quarantined rows",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "INFO doctor: 12 rows quarantined, 0 repaired",
+        "subject": "job:doctor",
+        "relation": "acts_on",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-074",
+      "pairGroupId": "group:malformed-crosswal",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "malformed_pair",
+      "stored": {
+        "text": "the retention period is 30 days",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "le stockage est PostgreSQL",
+        "subject": "cfg:retention-period",
+        "relation": "equals",
+        "sourceType": "chat",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-079",
+      "pairGroupId": "group:worker-count",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the worker pool runs 8 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-080",
+      "pairGroupId": "group:gate-order",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the firewall runs before the admission gate",
+        "subject": "gate:action-firewall",
+        "relation": "runs_before",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the admission gate runs before the firewall",
+        "subject": "gate:action-firewall",
+        "relation": "runs_before",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-081",
+      "pairGroupId": "group:hash-algorithm",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the receipt chain uses sha256",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the receipt chain uses sha1",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-082",
+      "pairGroupId": "group:journal-mode",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the store runs in rollback journal mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-083",
+      "pairGroupId": "group:approval-lifetime",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the approval lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the approval lifetime is 15 hours",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-084",
+      "pairGroupId": "group:api-version",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the public API version is 0.1",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-085",
+      "pairGroupId": "group:quota-window",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the quota is 1000 requests per hour",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-086",
+      "pairGroupId": "group:embed-mode",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the embedder runs in hash mode",
+        "subject": "svc:embedder",
+        "relation": "runs_in",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the embedder runs in semantic mode",
+        "subject": "svc:embedder",
+        "relation": "runs_in",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-087",
+      "pairGroupId": "group:endpoint-visibility",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the receipt endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-088",
+      "pairGroupId": "group:learn-write",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "learning writes to the store",
+        "subject": "svc:learn",
+        "relation": "writes",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "learning never writes to the store",
+        "subject": "svc:learn",
+        "relation": "writes",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-089",
+      "pairGroupId": "group:worker-count",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the worker pool runs at most 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-090",
+      "pairGroupId": "group:journal-mode",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the store runs in WAL mode by default",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-091",
+      "pairGroupId": "group:quota-window",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the quota can be raised per tenant",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-092",
+      "pairGroupId": "group:api-version",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the API version is recorded in the manifest",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-093",
+      "pairGroupId": "group:hash-algorithm",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the receipt chain uses sha256",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the receipt chain hashes with sha256 in the bundle",
+        "subject": "trust:receipt-chain",
+        "relation": "hashes_with",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-094",
+      "pairGroupId": "group:endpoint-visibility",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the public endpoint is rate limited",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-095",
+      "pairGroupId": "group:pool-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the agent pool runs 8 agents",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-096",
+      "pairGroupId": "group:mode-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the cache runs in memory mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-097",
+      "pairGroupId": "group:visibility-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the admin endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-098",
+      "pairGroupId": "group:version-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the package version is 0.9.1",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-099",
+      "pairGroupId": "group:quota-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the audit limit is 1000 rows per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-100",
+      "pairGroupId": "group:lifetime-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the approval lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the session lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-101",
+      "pairGroupId": "group:tenant-workers",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "for tenant A the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "for tenant B the worker pool runs 8 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-102",
+      "pairGroupId": "group:env-version",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in staging the public API version is 0.2",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in production the public API version is 0.1",
+        "subject": "api:public",
+        "relation": "version",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-103",
+      "pairGroupId": "group:time-quota",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in 2025 the quota was 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in 2026 the quota is 5000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-104",
+      "pairGroupId": "group:frame-visibility",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in the internal frame the receipt endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the public frame the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-105",
+      "pairGroupId": "group:stage-lifetime",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in the shadow stage the approval lifetime is 15 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in the on stage the approval lifetime is 60 minutes",
+        "subject": "approval:lifetime",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-106",
+      "pairGroupId": "group:region-quota",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in EU the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in US the quota is 5000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-107",
+      "pairGroupId": "group:slot-mode",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "the memory store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the journal store runs in WAL mode",
+        "subject": "svc:store",
+        "relation": "journal",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-108",
+      "pairGroupId": "group:version-visibility",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in v1 the receipt endpoint is public",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in v2 the receipt endpoint is private",
+        "subject": "api:receipt-endpoint",
+        "relation": "visibility",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-109",
+      "pairGroupId": "group:uncertain-quota",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the quota is generous",
+        "subject": "policy:quota",
+        "relation": "size",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the quota is tight",
+        "subject": "policy:quota",
+        "relation": "size",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-110",
+      "pairGroupId": "group:uncertain-latency",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the store is fast",
+        "subject": "svc:store",
+        "relation": "speed",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the store is slow",
+        "subject": "svc:store",
+        "relation": "speed",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-111",
+      "pairGroupId": "group:uncertain-version",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the version changed",
+        "subject": "",
+        "relation": "version",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the version stayed the same",
+        "subject": "",
+        "relation": "version",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-112",
+      "pairGroupId": "group:uncertain-access",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the endpoint is accessible",
+        "subject": "api:receipt-endpoint",
+        "relation": "access",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the endpoint is inaccessible",
+        "subject": "api:receipt-endpoint",
+        "relation": "access",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "cand-113",
+      "pairGroupId": "group:malformed-fragment",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "malformed_pair",
+      "stored": {
+        "text": "the quota is 1000 requests per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "per day",
+        "subject": "policy:quota",
+        "relation": "equals",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "cand-114",
+      "pairGroupId": "group:malformed-number",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "malformed_pair",
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "8",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "log",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-001-01",
+      "pairGroupId": "group:port-8080",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the api gateway listens on port 9090",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "code",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-033-02",
+      "pairGroupId": "group:store-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the core store uses SQLite",
+        "subject": "svc:core-store",
+        "relation": "uses",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the analytics store uses PostgreSQL",
+        "subject": "svc:core-store",
+        "relation": "uses",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-049-03",
+      "pairGroupId": "group:prod-vs-staging-port",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "in production the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "in staging the api gateway listens on port 8080",
+        "subject": "svc:api-gateway",
+        "relation": "listens_on",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-065-04",
+      "pairGroupId": "group:uncertain-timeout",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the timeout is short",
+        "subject": "svc:api-gateway",
+        "relation": "latency",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the timeout is long",
+        "subject": "svc:api-gateway",
+        "relation": "latency",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    },
+    {
+      "candidateId": "dup-cand-080-05",
+      "pairGroupId": "group:gate-order",
+      "triggerKind": "contradiction_candidate",
+      "samplingStratum": "representative",
+      "stored": {
+        "text": "the firewall runs before the admission gate",
+        "subject": "gate:action-firewall",
+        "relation": "runs_before",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the admission gate runs before the firewall",
+        "subject": "gate:action-firewall",
+        "relation": "runs_before",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-095-06",
+      "pairGroupId": "group:pool-split",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "lexical_opposition_only",
+      "stored": {
+        "text": "the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "the agent pool runs 8 agents",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-101-07",
+      "pairGroupId": "group:tenant-workers",
+      "triggerKind": "ingest_candidate",
+      "samplingStratum": "scope_shift",
+      "stored": {
+        "text": "for tenant A the worker pool runs 4 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      },
+      "incoming": {
+        "text": "for tenant B the worker pool runs 8 workers",
+        "subject": "svc:worker-pool",
+        "relation": "runs",
+        "sourceType": "doc",
+        "frameId": "frame:production"
+      }
+    },
+    {
+      "candidateId": "dup-cand-109-08",
+      "pairGroupId": "group:uncertain-quota",
+      "triggerKind": "review_candidate",
+      "samplingStratum": "measurement_uncertain",
+      "stored": {
+        "text": "the quota is generous",
+        "subject": "policy:quota",
+        "relation": "size",
+        "sourceType": "chat",
+        "frameId": ""
+      },
+      "incoming": {
+        "text": "the quota is tight",
+        "subject": "policy:quota",
+        "relation": "size",
+        "sourceType": "chat",
+        "frameId": ""
+      }
+    }
+  ]
+}

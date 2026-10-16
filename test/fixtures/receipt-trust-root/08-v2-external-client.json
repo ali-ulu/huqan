@@ -1,0 +1,1 @@
+{"caseId":"RTR-008-V2-EXTERNAL-VERIFIED-CLIENT","description":"V2 external verified client shape","input":{"schemaVersion":"v4-receipt-v2","trustRoot":"external_verified_client"},"expected":{"mode":"futureV2Structural","valid":true},"nonClaims":["endpoint enabled"]}

@@ -117,6 +117,37 @@ describe('V4-PR2.5: canonical receipt payload', () => {
     assert.strictEqual(hashCanonicalReceiptPayload(payload), hashCanonicalReceiptPayload(payload),
       'hashing the same payload twice must be identical');
   });
+
+  it('stableStringify throws instead of stack-overflowing on a circular object (#446)', () => {
+    const cyclic = { a: 1 };
+    cyclic.self = cyclic;
+    assert.throws(() => stableStringify(cyclic), /circular reference/);
+
+    const cyclicArray = [1, 2];
+    cyclicArray.push(cyclicArray);
+    assert.throws(() => stableStringify(cyclicArray), /circular reference/);
+  });
+
+  it('stableStringify does not flag a repeated (non-circular) reference as a cycle', () => {
+    // The same object reachable from two different branches is a DAG, not a
+    // cycle, and must serialize normally.
+    const shared = { id: 'shared' };
+    const payload = { left: shared, right: shared };
+    assert.doesNotThrow(() => stableStringify(payload));
+    assert.strictEqual(stableStringify(payload), '{"left":{"id":"shared"},"right":{"id":"shared"}}');
+  });
+
+  it('stableStringify preserves special own keys in canonical bytes', () => {
+    const special = JSON.parse('{"metadata":{"__proto__":{"attacker":"value"},"constructor":{"shadow":true},"prototype":{"marker":true}}}');
+    const ordinary = { metadata: {} };
+    const serialized = stableStringify(special);
+
+    assert.match(serialized, /__proto__/);
+    assert.match(serialized, /constructor/);
+    assert.match(serialized, /prototype/);
+    assert.notStrictEqual(serialized, stableStringify(ordinary));
+    assert.notStrictEqual(hashCanonicalReceiptPayload(special), hashCanonicalReceiptPayload(ordinary));
+  });
 });
 
 describe('V4-PR2.5: receipt chain — linking and genesis', () => {
@@ -138,6 +169,12 @@ describe('V4-PR2.5: receipt chain — linking and genesis', () => {
     }
     const result = validateReceiptChain(chain);
     assert.deepStrictEqual(result, { valid: true, brokenAt: null, reason: null });
+  });
+
+  it('fails closed on a malformed append or validate input instead of chaining garbage', () => {
+    assert.throws(() => appendReceiptToChain(null), /requires a canonical receipt payload/);
+    assert.throws(() => appendReceiptToChain('not-a-payload'), /requires a canonical receipt payload/);
+    assert.throws(() => validateReceiptChain('not-an-array'), /requires an array of chained receipts/);
   });
 });
 

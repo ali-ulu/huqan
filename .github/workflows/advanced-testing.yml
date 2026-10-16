@@ -1,0 +1,202 @@
+name: Advanced Testing
+
+on:
+  pull_request:
+  schedule:
+    # T6 schedule: mutation testing stays off the PR path because it is slow.
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '22'
+  CI: true
+  NPM_CONFIG_AUDIT: false
+  NPM_CONFIG_FUND: false
+
+jobs:
+  pr-advanced-tests:
+    name: ${{ matrix.name }}
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Property tests
+            script: test:property
+            suite: property
+          - name: Fuzz tests
+            script: test:fuzz
+            suite: fuzz
+          - name: Fault injection tests
+            script: test:faults
+            suite: faults
+          - name: Recovery tests
+            script: test:recovery
+            suite: recovery
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.name }}
+        if: matrix.suite != 'fuzz'
+        run: npm run ${{ matrix.script }}
+
+      - name: Run fuzz tests and capture replay output
+        if: matrix.suite == 'fuzz'
+        shell: bash
+        run: |
+          mkdir -p artifacts/fuzz-crash-corpus
+          set -o pipefail
+          npm run test:fuzz 2>&1 | tee artifacts/fuzz-crash-corpus/fuzz-run.log
+
+      - name: Collect fuzz crash corpus
+        if: always() && matrix.suite == 'fuzz'
+        shell: bash
+        run: |
+          mkdir -p artifacts/fuzz-crash-corpus
+          if [[ -d test/fuzz/corpus ]]; then
+            cp -R test/fuzz/corpus/. artifacts/fuzz-crash-corpus/ || true
+          fi
+          if [[ -z "$(find artifacts/fuzz-crash-corpus -mindepth 1 -print -quit)" ]]; then
+            printf 'No fuzz output or crash corpus was produced in this run.\n' > artifacts/fuzz-crash-corpus/README.txt
+          fi
+
+      - name: Upload fuzz crash corpus
+        if: always() && matrix.suite == 'fuzz'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crash-corpus-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts/fuzz-crash-corpus/
+          if-no-files-found: error
+          retention-days: 14
+
+  mutation-baseline-guard:
+    name: Mutation baseline cannot decrease
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enforce mutation baseline ratchet
+        run: node scripts/check-mutation-score.js --against-ref "origin/${{ github.base_ref }}"
+
+  scheduled-mutation:
+    name: Scheduled mutation testing
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full mutation suite
+        run: npm run test:mutation
+
+      - name: Enforce per-file mutation baselines
+        run: node scripts/check-mutation-score.js --report reports/mutation/mutation.json
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: reports/mutation/
+          if-no-files-found: warn
+          retention-days: 30
+
+  capability-usage-report:
+    # scripts/capability-usage.js deliberately reports and never gates: a
+    # capability that has not been used yet is a fact about the product, not a
+    # defect in a change, and failing a build over it would push people to
+    # delete the report rather than the gap. This job therefore runs it against
+    # a real, freshly exercised store on the nightly and publishes the report as
+    # an artifact; it must never become a required check. The DB-independent
+    # invariant it depends on -- every capability declaring an evidence source,
+    # so report.undeclared stays empty -- is already enforced on the PR path by
+    # test/capability-usage.test.js.
+    name: Capability usage report (advisory)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Exercise launch surfaces against an isolated store
+        shell: bash
+        run: |
+          export HUQAN_DB_PATH="$RUNNER_TEMP/huqan-usage/memory.db"
+          mkdir -p "$(dirname "$HUQAN_DB_PATH")"
+          # A non-zero exit here reflects a policy verdict (for example `learn`
+          # queuing a review approval) rather than a job failure, so each call
+          # is tolerated. Their job is to create and populate the store that the
+          # report below reads; `status` alone creates it.
+          node cli.js status >/dev/null 2>&1 || true
+          node cli.js quickstart >/dev/null 2>&1 || true
+          node cli.js "learn: capability usage smoke" >/dev/null 2>&1 || true
+          node cli.js "verify: capability usage smoke is present" >/dev/null 2>&1 || true
+
+      - name: Report capability usage (advisory)
+        shell: bash
+        run: |
+          export HUQAN_DB_PATH="$RUNNER_TEMP/huqan-usage/memory.db"
+          mkdir -p reports
+          node scripts/capability-usage.js | tee reports/capability-usage.txt
+
+      - name: Upload capability usage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capability-usage-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: reports/capability-usage.txt
+          if-no-files-found: warn
+          retention-days: 30

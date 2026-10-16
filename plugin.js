@@ -1,10 +1,44 @@
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
+const { createProvenanceRegistry } = require('./lib/plugin-provenance-registry');
+const {
+  VERIFIED_PLUGIN,
+  hashFile,
+  hmacSign,
+  loadActivationGate,
+  verifyPluginFile,
+  isRuntimePluginFile,
+} = require('./lib/plugin-verification');
+const { installPluginRegisterMethods } = require('./lib/plugin-manager-register');
+const { installPluginGrantMethods } = require('./lib/plugin-manager-grants');
+const { installPluginEventMethods } = require('./lib/plugin-manager-events');
+const { installPluginProvenanceMethods } = require('./lib/plugin-manager-provenance');
 
-const VERIFIED_PLUGIN = Symbol('axiom.verifiedPlugin');
-
+// preIngest is the one async-allowed hook: it runs via emitStrictAsync()
+// from kernel.learnAsync(), *before* the synchronous learn() pipeline
+// starts, precisely so a handler that needs I/O (network reachability of an
+// evidence URL, say) has somewhere to live that is not beforeLearn. See
+// #348 -- beforeLearn stays synchronous on purpose.
+//
+// beforeGateDecision is synchronous MCP evidence, dispatched through
+// collectEvidence('beforeGateDecision', { tool, args, metadata }) before core
+// evaluation. Return undefined or { decision: 'allow'|'review'|'dry_run_only'|'block', reason? }.
+// Each plugin gets a separate input copy; signals can only restrict the core
+// verdict. Invalid/async signals block. afterGateDecision remains a
+// non-authoritative observer without raw text.
+//
+// beforeLearn / beforeAsk may return a partial input payload. Returned fields
+// other than text/opts (learn) or question/workspaceId (ask) are exposed under
+// result.data.annotations[plugin.name]. `annotations` is reserved for the
+// accumulated output. Omitted input fields and earlier annotations survive.
+// Annotation values must be JSON-serializable for learn's durable replay;
+// they are advisory and do not become gate decisions or signed receipt data.
+//
+// Note: plugin-boundary-contract.test.js parses this array straight out of
+// the source and will not tolerate comments *inside* the literal.
 const EVENTS = [
+  'preIngest',
   'beforeLearn',
   'afterLearn',
   'beforeAsk',
@@ -21,123 +55,52 @@ const EVENTS = [
   'afterTask',
   'beforeAgentRun',
   'afterAgentRun',
+  'beforeGateDecision',
+  'afterGateDecision',
 ];
-
-function hashFile(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
-
-function hmacSign(value, signingKey) {
-  return crypto.createHmac('sha256', String(signingKey)).update(String(value)).digest('hex');
-}
-
-function getManifestPath(filePath) {
-  const parsed = path.parse(filePath);
-  return path.join(parsed.dir, `${parsed.name}.manifest.json`);
-}
-
-function readManifest(filePath) {
-  const manifestPath = getManifestPath(filePath);
-  if (!fs.existsSync(manifestPath)) return null;
-  return {
-    manifestPath,
-    manifest: JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
-  };
-}
-
-function verifyPluginFile(filePath, opts = {}) {
-  const strict = opts.strict === true;
-  const signatureKey = opts.signatureKey || process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
-  const currentHash = hashFile(filePath);
-  const manifestRecord = readManifest(filePath);
-
-  if (!manifestRecord) {
-    return {
-      ok: !strict,
-      status: strict ? 'rejected' : 'unverified',
-      sha256: currentHash,
-      manifestPath: getManifestPath(filePath),
-      reason: strict ? 'Plugin manifest is required in strict mode.' : 'Plugin manifest not found.',
-    };
-  }
-
-  const { manifest, manifestPath } = manifestRecord;
-  if (!manifest || typeof manifest !== 'object') {
-    return {
-      ok: false,
-      status: 'rejected',
-      sha256: currentHash,
-      manifestPath,
-      reason: 'Plugin manifest is invalid.',
-    };
-  }
-
-  if (manifest.sha256 !== currentHash) {
-    return {
-      ok: false,
-      status: 'rejected',
-      sha256: currentHash,
-      manifestPath,
-      reason: 'Plugin hash mismatch.',
-    };
-  }
-
-  if (signatureKey) {
-    if (!manifest.signature) {
-      return {
-        ok: !strict,
-        status: strict ? 'rejected' : 'hash-only',
-        sha256: currentHash,
-        manifestPath,
-        reason: strict ? 'Plugin signature is required in strict mode.' : 'Plugin signature not found.',
-      };
-    }
-    const expectedSignature = hmacSign(currentHash, signatureKey);
-    if (manifest.signature !== expectedSignature) {
-      return {
-        ok: false,
-        status: 'rejected',
-        sha256: currentHash,
-        manifestPath,
-        reason: 'Plugin signature mismatch.',
-      };
-    }
-  }
-
-  return {
-    ok: true,
-    status: signatureKey ? 'verified-signed' : 'verified',
-    sha256: currentHash,
-    manifestPath,
-    reason: signatureKey ? 'Plugin hash and signature verified.' : 'Plugin hash verified.',
-  };
-}
-
-function isRuntimePluginFile(fileName) {
-  return (
-    fileName.endsWith('.js') &&
-    !fileName.endsWith('.test.js') &&
-    !fileName.endsWith('.spec.js')
-  );
-}
 
 class PluginManager {
   constructor(kernel) {
     this.kernel = kernel;
     this.plugins = [];
     this._handlers = {};
-    this.pluginSigningKey = process.env.AXIOM_PLUGIN_SIGNING_KEY || '';
+    this.pluginSigningKey = readCompatibleEnvironmentVariable('PLUGIN_SIGNING_KEY') || '';
     this.productionPluginEnforcement =
-      process.env.AXIOM_PLUGIN_PRODUCTION_ENFORCEMENT === '1' ||
+      readCompatibleEnvironmentVariable('PLUGIN_PRODUCTION_ENFORCEMENT') === '1' ||
       process.env.NODE_ENV === 'production';
     this.strictPlugins =
-      this.productionPluginEnforcement || process.env.AXIOM_PLUGIN_STRICT !== '0';
+      this.productionPluginEnforcement || readCompatibleEnvironmentVariable('PLUGIN_STRICT') !== '0';
+    this.activationGate = loadActivationGate();
+    // #1890: every load records signature, publisher provenance, version,
+    // and granted capabilities; the graph below is verified at load and
+    // re-evaluated at runtime (runCapability / revalidatePlugins).
+    this.provenanceRegistry = createProvenanceRegistry();
+    // Capability skips are a configuration state, not output (#1694). They are
+    // collected here so `huqan status` can report them on request instead of
+    // every command announcing them.
+    this.capabilityNotices = [];
     for (const e of EVENTS) this._handlers[e] = [];
+  }
+
+  /**
+   * Record a plugin that declined, or loaded with an optional feature off.
+   * Deduplicated: load() may run more than once in a process.
+   */
+  recordCapabilityNotice({ plugin, capability, kind }) {
+    const notice = { plugin: String(plugin || ''), capability: String(capability || ''), kind };
+    const seen = this.capabilityNotices.some(existing => existing.plugin === notice.plugin
+      && existing.capability === notice.capability && existing.kind === notice.kind);
+    if (!seen) this.capabilityNotices.push(notice);
+    return notice;
   }
 
   load(dir) {
     const pDir = path.resolve(dir);
     if (!fs.existsSync(pDir)) return 0;
+    if (this.productionPluginEnforcement && !this.activationGate) {
+      console.error('Plugin loading refused: production supply-chain activation policy is required.');
+      return 0;
+    }
     const files = fs.readdirSync(pDir).filter(isRuntimePluginFile);
     let count = 0;
     for (const file of files) {
@@ -145,13 +108,24 @@ class PluginManager {
       try {
         const verification = verifyPluginFile(filePath, {
           strict: this.strictPlugins,
+          productionEnforcement: this.productionPluginEnforcement,
           signatureKey: this.pluginSigningKey,
         });
         if (!verification.ok) {
-          console.error(`Plugin yuklenemedi: ${file} - ${verification.reason}`);
+          console.error(`Plugin failed to load: ${file} - ${verification.reason}`);
           continue;
         }
+        // Verification passed, so this is the approved file -- and that is the
+        // whole of the guarantee. require() gives the plugin the host process's
+        // privileges (#362); see verifyPluginFile above.
         const plugin = require(filePath);
+        const descriptor = this._validatePluginDescriptor(plugin, verification);
+        if (!descriptor.ok) {
+          console.error(`Plugin failed to load: ${file} - ${descriptor.reason}`);
+          continue;
+        }
+        const activation = this._activatePlugin(plugin, verification);
+        plugin.__activation = activation;
         plugin.__verification = verification;
         if (Object.prototype.hasOwnProperty.call(plugin, VERIFIED_PLUGIN)) {
           plugin[VERIFIED_PLUGIN] = verification;
@@ -166,81 +140,40 @@ class PluginManager {
         this.register(plugin);
         count++;
       } catch (err) {
-        console.error(`Plugin yuklenemedi: ${file} - ${err.message}`);
+        if (err && err.code === 'PLUGIN_CAPABILITY_DISABLED') {
+          // Three of the bundled plugins (company-brain, repo-memory,
+          // contradiction-alert) require companyMode or temporal, both off by
+          // default in kernel.js DEFAULT_CAPABILITIES. This is a skip, not a
+          // failure -- and it is the *expected* state, so it is recorded rather
+          // than printed (#1694). Writing five of these to stderr on every
+          // single command made a correct default configuration look like a
+          // half-broken install, and polluted --json output on the way past.
+          // `huqan status` reports what was skipped and which capability each
+          // one wants.
+          this.recordCapabilityNotice({
+            plugin: err.pluginName || file,
+            capability: err.capability,
+            kind: 'required',
+          });
+          continue;
+        }
+        console.error(`Plugin failed to load: ${file} - ${err.message}`);
       }
     }
+    // #1890: the dependency graph is verified once the whole directory is
+    // recorded. A dependency can legitimately load after its dependent
+    // (alphabetical order), so per-file verification here would evict plugins
+    // whose dependency simply had not loaded yet.
+    this._evictDependencyOffenders();
     return count;
   }
 
-  register(plugin) {
-    if (!plugin || !plugin.name) return;
-    if (this.plugins.some(existing => existing.name === plugin.name)) return;
-    if (this.productionPluginEnforcement && !this._hasVerifiedProvenance(plugin)) {
-      const error = new Error(`Plugin "${plugin.name}" cannot register without verified production manifest.`);
-      error.code = 'PLUGIN_UNVERIFIED_REGISTRATION';
-      throw error;
-    }
-    const dependencyCheck = this._validatePluginDependencies(plugin);
-    if (!dependencyCheck.ok) {
-      throw new Error(dependencyCheck.reason);
-    }
-    const optional = Array.isArray(plugin.optional) ? plugin.optional : [];
-    for (const capability of optional) {
-      if (!this.kernel || typeof this.kernel.hasCapability !== 'function' || !this.kernel.hasCapability(capability)) {
-        console.warn(`[Plugin] ${plugin.name}: optional capability disabled: ${capability}`);
-      }
-    }
-    this.plugins.push(plugin);
-    if (typeof plugin.init === 'function') {
-      plugin.init(this.kernel, this);
-    }
-    for (const event of EVENTS) {
-      if (typeof plugin[event] === 'function') {
-        this._handlers[event].push(plugin);
-      }
-    }
-  }
 
-  _hasVerifiedProvenance(plugin) {
-    const verification = plugin && plugin[VERIFIED_PLUGIN];
-    return Boolean(verification && verification.ok === true);
-  }
-
-  emit(event, data) {
-    for (const plugin of this._handlers[event]) {
-      try {
-        plugin[event](this.kernel, data);
-      } catch (err) {
-        console.error(`Plugin hatasi [${plugin.name}][${event}]: ${err.message}`);
-      }
-    }
-    return data;
-  }
-
-  emitStrict(event, data) {
-    let nextData = data;
-    for (const plugin of this._handlers[event]) {
-      if (typeof plugin[event] !== 'function') continue;
-      const result = plugin[event](this.kernel, nextData);
-      if (result !== undefined) {
-        nextData = result;
-      }
-    }
-    return nextData;
-  }
-
-  _validatePluginDependencies(plugin) {
-    const required = Array.isArray(plugin.requires) ? plugin.requires : [];
-    for (const capability of required) {
-      if (!this.kernel || typeof this.kernel.hasCapability !== 'function' || !this.kernel.hasCapability(capability)) {
-        return {
-          ok: false,
-          reason: `Plugin "${plugin.name}" requires missing capability: ${capability}`,
-        };
-      }
-    }
-    return { ok: true };
-  }
+  /**
+   * Remove plugins whose recorded dependency edges do not resolve (or form a
+   * cycle) from the active set. Records keep the verdict as `depStatus` so
+   * `huqan status` can say why a plugin is gone.
+   */
 
   listCapabilities() {
     return this.plugins.flatMap(plugin => {
@@ -256,22 +189,15 @@ class PluginManager {
     if (!name) return null;
     return this.listCapabilities().find(capability => capability.name === name || capability.command === name) || null;
   }
-
-  async runCapability(name, input, opts = {}) {
-    const capability = this.getCapability(name);
-    if (!capability) {
-      throw new Error(`Unknown plugin capability: ${name}`);
-    }
-    const plugin = this.plugins.find(item => item.name === capability.plugin);
-    if (!plugin || typeof plugin.run !== 'function') {
-      throw new Error(`Plugin "${capability.plugin}" cannot run capability: ${name}`);
-    }
-    return plugin.run(this.kernel, input, {
-      ...opts,
-      capability,
-    });
-  }
 }
+
+// Registration, grant checks, hook dispatch and provenance queries live in
+// lib/plugin-manager-*; installed as non-enumerable prototype methods, exactly
+// as class methods are.
+installPluginRegisterMethods(PluginManager.prototype, { EVENTS });
+installPluginGrantMethods(PluginManager.prototype);
+installPluginEventMethods(PluginManager.prototype);
+installPluginProvenanceMethods(PluginManager.prototype);
 
 module.exports = PluginManager;
 module.exports.hashFile = hashFile;

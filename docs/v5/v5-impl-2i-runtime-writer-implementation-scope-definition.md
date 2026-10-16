@@ -1,5 +1,7 @@
 # V5-IMPL-2I - Runtime Writer Implementation Scope Definition
 
+**Status:** `spec`
+
 **Mode:** Scope definition only
 **Current checkpoint:** `NEXT-GATE-SELECTION_AFTER_V5-IMPL-2I_AUTHORIZATION_CLOSEOUT_GREEN`
 **Canonical branch:** `main`

@@ -4,8 +4,9 @@
  *
  * Proves that CLI and REST mutation surfaces agree: a command that the REST
  * public API blocks (requestGuards UNSAFE_PUBLIC_API_COMMANDS) is never
- * silently executed by the CLI — the CLI gate runs for it, producing either a
- * review decision (no canonical write) or an audited allow decision.
+ * silently executed by the CLI — the CLI gate runs for it, producing either an
+ * explicit unavailable block, a review decision (no canonical write), or an
+ * audited allow decision.
  *
  * Read-only commands stay usable on the CLI and are not fake-gated.
  */
@@ -16,9 +17,10 @@ const assert = require('node:assert/strict');
 const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { isUnsafePublicApiCommand, isAllowedPublicCommand } = require('../requestGuards');
+const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
 
 function makeCLI(opts = {}) {
-  const kernel = new Kernel({ noLoad: true, useSQLite: false, loadPlugins: false, ...opts });
+  const kernel = new Kernel(isolatedKernelOptions('faz2-rest-cli', opts));
   return new CLI({ kernelInstance: kernel });
 }
 
@@ -41,7 +43,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
   // 1. CLI learn-style mutation uses an admission-aware (gated) path.
   it('CLI learn mutation (öğret) is gated, not a silent write', () => {
     const cli = makeCLI();
-    const gate = cli._evaluateCliGate('öğret', 'Kedi hayvandır');
+    const gate = cli.evaluateCliGate('öğret', 'Kedi hayvandır');
     assert.notStrictEqual(gate, null, 'öğret must be gated');
     assert.strictEqual(gate.canExecute, false, 'öğret must require review, not execute silently');
   });
@@ -51,23 +53,24 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
     const cli = makeCLI();
     const before = nodeCount(cli);
     const out = cli.execute('öğret', 'Kedi hayvandır');
-    assert.ok(String(out).includes('review gerektiriyor'), 'execute must surface the review gate');
+    assert.ok(String(out).includes('requires review'), 'execute must surface the review gate');
     assert.strictEqual(nodeCount(cli), before, 'no canonical node may be written under review');
     assert.ok(!cli.kernel.graph.getNode('kedi'), 'reviewed learn must not create a node');
   });
 
-  it('reviewed CLI maintenance mutation (optimize) does not execute', () => {
+  it('unavailable CLI maintenance mutation (optimize) is explicitly blocked', () => {
     const cli = makeCLI();
-    const gate = cli._evaluateCliGate('optimize', '');
-    assert.strictEqual(gate.decision, 'review');
-    assert.strictEqual(gate.canExecute, false, 'optimize must not run under review');
+    const gate = cli.evaluateCliGate('optimize', '');
+    assert.strictEqual(gate.decision, 'block');
+    assert.strictEqual(gate.reason, 'cli_canonical_mutation_unavailable');
+    assert.strictEqual(gate.canExecute, false, 'optimize must not execute without an approval workflow');
   });
 
   // 3. Allow-decision CLI mutation writes WITH an audit event (no silent op).
   it('allowed local CLI mutation (backup) emits an audit event', () => {
     const cli = makeCLI();
     const before = auditEvents(cli).length;
-    const gate = cli._evaluateCliGate('backup', '');
+    const gate = cli.evaluateCliGate('backup', '');
     assert.strictEqual(gate.canExecute, true, 'backup must remain executable locally');
     const events = auditEvents(cli);
     assert.ok(events.length > before, 'backup must emit an audit event');
@@ -78,7 +81,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
   it('allowed local CLI mutation (restore) emits an audit event', () => {
     const cli = makeCLI();
     const before = auditEvents(cli).length;
-    cli._evaluateCliGate('restore', '');
+    cli.evaluateCliGate('restore', '');
     const events = auditEvents(cli);
     assert.ok(events.length > before, 'restore must emit an audit event');
     assert.strictEqual(events[events.length - 1].eventType, 'IMPORTED');
@@ -97,7 +100,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
     const cli = makeCLI();
     for (const cmd of CLI_MUTATION_COMMANDS) {
       const restUnsafe = isUnsafePublicApiCommand(cmd);
-      const cliGate = cli._evaluateCliGate(cmd, '');
+      const cliGate = cli.evaluateCliGate(cmd, '');
       assert.strictEqual(restUnsafe, true, `REST must block mutation command '${cmd}'`);
       assert.notStrictEqual(cliGate, null,
         `CLI must gate mutation command '${cmd}' that REST blocks (parity)`);
@@ -108,14 +111,14 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
   it('read-only CLI commands are not treated as mutations', () => {
     const cli = makeCLI();
     for (const cmd of ['durum', 'selam', 'yardım']) {
-      assert.strictEqual(cli._evaluateCliGate(cmd, ''), null,
+      assert.strictEqual(cli.evaluateCliGate(cmd, ''), null,
         `read-only command '${cmd}' must not be gated as a mutation`);
     }
     // 'rüya' is classified (non-null) but read-only: it must still execute and
     // must not mutate the canonical graph.
-    cli.kernel.learn('Köpek memelidir', { admissionRequired: false, admissionBypassReason: 'test_fixture' });
+    cli.kernel.learn('Köpek memelidir', Kernel.createAdmissionBypassOpts('test_fixture'));
     const edgesBefore = edgeCount(cli);
-    const ruyaGate = cli._evaluateCliGate('rüya', '');
+    const ruyaGate = cli.evaluateCliGate('rüya', '');
     assert.notStrictEqual(ruyaGate, null, 'rüya is classified');
     assert.strictEqual(ruyaGate.canExecute, true, 'rüya (read-only) must stay executable');
     const out = cli.execute('rüya', '');
@@ -128,7 +131,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
     for (const cmd of ['backup', 'restore', 'kaydet']) {
       const cli = makeCLI();
       const before = auditEvents(cli).length;
-      const gate = cli._evaluateCliGate(cmd, '');
+      const gate = cli.evaluateCliGate(cmd, '');
       assert.notStrictEqual(gate, null, `'${cmd}' must be classified`);
       assert.ok(auditEvents(cli).length > before, `'${cmd}' must be audited`);
     }
@@ -138,7 +141,7 @@ describe('FAZ2-PR6: REST/CLI mutation gate parity (F-004)', () => {
   it('CLI gate never emits the forbidden bypass pattern', () => {
     const cli = makeCLI();
     for (const cmd of CLI_MUTATION_COMMANDS.concat(['rüya', 'sor', 'durum'])) {
-      const gate = cli._evaluateCliGate(cmd, '');
+      const gate = cli.evaluateCliGate(cmd, '');
       if (!gate) continue;
       assert.notStrictEqual(gate.reason, 'cli', 'reason must be specific, not a blanket "cli" bypass');
       assert.notStrictEqual(gate.admissionBypassReason, 'cli',

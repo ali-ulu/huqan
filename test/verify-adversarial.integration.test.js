@@ -30,7 +30,7 @@ describe('verify adversarial integration', () => {
     const raw = kernel.verify('B737 is not not aircraft', { workspaceId: 'default' });
 
     assert.ok(raw && typeof raw === 'object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(raw.data.status));
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(raw.data.status));
     assert.ok(raw.meta.semanticTrust.warnings.includes('DOUBLE_NEGATION'));
   });
 
@@ -39,7 +39,7 @@ describe('verify adversarial integration', () => {
     const raw = kernel.verify('RN is React Native', { workspaceId: 'default' });
 
     assert.ok(raw && typeof raw === 'object');
-    assert.ok(['dogrulandi', 'celiski', 'bilinmiyor'].includes(raw.data.status));
+    assert.ok(['verified', 'contradicted', 'unknown'].includes(raw.data.status));
     assert.ok(raw.meta.semanticTrust.warnings.includes('ALIAS_NORMALIZATION'));
 
     const weasel = kernel.verify('aspirin genellikle güvenlidir', { workspaceId: 'default' });

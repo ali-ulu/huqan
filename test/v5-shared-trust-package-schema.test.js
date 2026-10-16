@@ -237,7 +237,8 @@ test('V5 shared trust package schema parses and declares schema metadata', () =>
   const schema = readSchema();
 
   assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
-  assert.equal(schema.$id, 'https://huqan.local/schemas/v5/shared-trust-package.schema.json');
+  assert.equal(schema.$id,
+    'https://huqan.dev/specs/huqan-trust-protocol/0.2/schemas/shared-trust-package.schema.json');
   assert.equal(schema.type, 'object');
   assert.equal(schema.additionalProperties, false);
 });
@@ -403,4 +404,13 @@ test('V5 shared trust package schema test stays isolated from runtime modules', 
   const forbiddenRuntimeImport = /require\(['"]\.\.\/(?:kernel|server|mcpServer|lib\/|packages\/)/;
 
   assert.equal(forbiddenRuntimeImport.test(testSource), false);
+});
+
+
+test('V5 shared trust package schema constrains subject types to the supported contract', () => {
+  const schema = readSchema();
+  assert.deepEqual(
+    schema.properties.subject.properties.type.enum,
+    ['agent_action', 'change', 'tool_call', 'route_receipt', 'route_receipt_chain', 'reasoning_metadata']
+  );
 });

@@ -1,0 +1,11 @@
+{
+  "sourceTitle": "HUQAN curated demo identity seed",
+  "sourceRef": "docs/seed/huqan-identity.seed.json",
+  "sourceType": "system",
+  "sourceSubType": "identity-seed",
+  "actor": "system",
+  "workspaceId": "default",
+  "facts": [
+    "HUQAN dış marka ürün kimliğidir"
+  ]
+}

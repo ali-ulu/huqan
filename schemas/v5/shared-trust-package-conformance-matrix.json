@@ -196,6 +196,18 @@
       "currentStatus": "not_started",
       "futureGate": "future marketplace gate only after separate approval",
       "runtimeClaimAllowed": false
+    },
+    {
+      "id": "immutable-source-snapshot-binding",
+      "contractArea": "immutable source snapshot binding",
+      "sourceDocument": "docs/v5/v5-immutable-source-snapshot-contract.md",
+      "schemaCoverage": "optional receipt.sourceSnapshot, exact key set { snapshotId, snapshotVersion, hash, algorithm }, version pinned to huqan.external-source-snapshot.v1, algorithm fixed to sha256",
+      "fixtureCoverage": "valid source snapshot fixture and malformed source snapshot fixture",
+      "validatorCoverage": "carry-or-reject at the runtime writer; secret-looking values rejected whole at write time",
+      "testCoverage": "validator and writer both fail closed on malformed snapshots; route rejects secret-looking values",
+      "currentStatus": "covered",
+      "futureGate": "snapshot provenance/authorization claims remain future gate",
+      "runtimeClaimAllowed": false
     }
   ],
   "nonClaims": [

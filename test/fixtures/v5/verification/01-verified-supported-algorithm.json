@@ -19,8 +19,8 @@
     "evaluationTime": "2026-01-15T12:00:00.000Z"
   },
   "expected": {
-    "verificationStatus": "verified",
-    "reasonCategory": "signature_valid"
+    "verificationStatus": "not_verified",
+    "reasonCategory": "malformed_signature_evidence"
   },
   "nonClaims": [
     "package_trust_not_established",

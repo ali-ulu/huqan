@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- **Node.js >= 18** (no GPU, no API key, no Docker)
+- **Node.js >= 22.13.0** (no GPU, no API key, no Docker)
 - **OS**: macOS, Linux, or Windows (PowerShell)
 - **Disk**: ~50 MB (including dependencies)
 - **RAM**: ~100 MB at runtime
@@ -14,9 +14,9 @@
 ## Quick install
 
 ```bash
-git clone https://github.com/agiulucom42-del/axiom.git
-cd axiom
-npm ci --include=optional
+git clone https://github.com/ali-ulu/huqan.git
+cd huqan
+npm run setup:sqlite
 ```
 
 ---
@@ -34,7 +34,7 @@ This loads the initial Turkish knowledge base (~5 seconds). You can skip this â€
 ## Verify installation
 
 ```bash
-node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+npm run setup:sqlite
 npm test
 ```
 
@@ -65,8 +65,20 @@ node server.js
 # Open http://localhost:3000
 ```
 
+`server.js` binds `127.0.0.1` by default, which is reachable only from the
+same machine. Inside a container, on a remote host or behind a reverse proxy,
+set the bind explicitly so the UI and HTTP API answer from outside:
+
+```bash
+HUQAN_HOST=0.0.0.0 node server.js
+```
+
+`HOST` is the same variable through the legacy alias path; `HUQAN_HOST` is the
+canonical spelling. `huqan doctor` reports the resolved bind and fails when a
+loopback bind sits inside a container, because that combination cannot serve
+the surfaces this page documents.
+
 Static demo note:
-- `demo/index.html` is the canonical static public demo surface.
 - `public/index.html` is the canonical local backend-connected UI served by `node server.js`.
 - `docs/index.html` is only a docs/demo chooser and does not replace the local UI.
 
@@ -110,7 +122,7 @@ Add to your MCP client config â€” see [MCP setup instructions](./demo-mcp-agent-
 | POST | `/v2/verify` | Guarded structured verification endpoint |
 | POST | `/upload` | English alias for guarded load endpoint |
 | POST | `/yukle` | Load text into knowledge base |
-| GET | `/graph-data` | Export the knowledge graph |
+| GET | `/graph-data` | Export the knowledge graph (API key required) |
 
 ---
 
@@ -136,9 +148,10 @@ Teach causal chains:
 
 ## Troubleshooting
 
-**`npm ci --include=optional` fails:**
-- Check Node.js version: `node --version` (must be >= 18)
-- Try `npm cache clean --force` then retry
+**`npm run setup:sqlite` fails:**
+- Check Node.js version: `node --version` (the project requires Node.js >= 22.13.0)
+- Retry after `npm cache clean --force`.
+- If the message reports an ABI mismatch, the script attempts `npm rebuild better-sqlite3`; if that also fails, remove `node_modules` and run the setup command again.
 
 **Port 3000 already in use:**
 ```bash

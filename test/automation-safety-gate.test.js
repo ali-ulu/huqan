@@ -95,6 +95,53 @@ describe('AB5 automation safety gate core decisions', () => {
     assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.LOW_RISK_CI_INSPECTION);
   });
 
+  it('an unclassified operation is not waved through as read-only merely because unrelated words contain "read" (#450)', () => {
+    // 'already' and 'ready' both contain the READ_ONLY hint 'read' as a
+    // substring, with no other hint word present anywhere in the text. A
+    // naive .includes() match would classify this unrecognized, potentially
+    // mutating operation as LOW_RISK_READ_ONLY / ALLOW purely from that
+    // incidental substring, instead of falling through to review.
+    const result = evaluate({
+      operationType: 'execute_task',
+      target: 'already indexed, ready to run script',
+    });
+
+    assert.notEqual(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.UNKNOWN_OPERATION_REVIEW_REQUIRED);
+  });
+
+  it('an unclassified operation whose text contains "checkout" is not read as the "check" hint (#450)', () => {
+    // 'checkout' contains the READ_ONLY hint 'check' as a substring, with no
+    // other hint word present.
+    const result = evaluate({
+      operationType: 'execute_task',
+      target: 'run checkout script for staging environment',
+    });
+
+    assert.notEqual(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.UNKNOWN_OPERATION_REVIEW_REQUIRED);
+  });
+
+  it('"bread crumbs" style substrings of a hint word do not trigger the hint', () => {
+    const result = evaluate({
+      operationType: 'status_check',
+      target: 'show bread crumbs navigation status',
+    });
+
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.LOW_RISK_READ_ONLY);
+  });
+
+  it('a genuine read-only status check with the real word "read" still allows', () => {
+    const result = evaluate({
+      operationType: 'status_check',
+      target: 'read pull request status',
+    });
+
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.ALLOW);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.LOW_RISK_READ_ONLY);
+  });
+
   it('unknown operation does not allow', () => {
     const result = evaluate({
       operationType: 'unknown',
@@ -316,7 +363,7 @@ describe('AB5 automation safety gate core decisions', () => {
     assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.TOKEN_PERSISTENCE_BLOCKED);
   });
 
-  it('secret-looking metadata does not leak in warnings', () => {
+  it('secret-looking metadata escalates to block and does not leak in warnings (#402)', () => {
     const secret = 'sk-1234567890abcdef';
     const result = evaluate({
       operationType: 'repo_settings_change',
@@ -326,9 +373,29 @@ describe('AB5 automation safety gate core decisions', () => {
       },
     });
 
-    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.REVIEW);
+    // #402: a detected secret escalates all the way to BLOCK, not just
+    // ALLOW->REVIEW -- a secret in flight is not something to merely review.
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.BLOCK);
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.SECRET_DETECTED_BLOCKED);
     assert.ok(result.warnings.every(warning => !String(warning).includes(secret)));
     assert.ok(result.warnings.every(warning => !String(warning).toLowerCase().includes('sk-')));
+  });
+
+  it('secret detection never downgrades an operation that was already block (#402)', () => {
+    // Detected by key name (apiKey is in SECRET_HINTS), not value shape --
+    // deliberately not a plausible-looking key/token value.
+    const result = evaluate({
+      operationType: 'token_persistence',
+      metadata: {
+        workspaceId: 'default',
+        apiKey: 'placeholder-not-a-real-credential',
+      },
+    });
+
+    assert.equal(result.decision, AUTOMATION_SAFETY_DECISIONS.BLOCK);
+    // The operation's own reason is preserved rather than overwritten by the
+    // secret-detection reason, since it was already at BLOCK on its own.
+    assert.equal(result.reason, AUTOMATION_SAFETY_REASONS.TOKEN_PERSISTENCE_BLOCKED);
   });
 
   it('push to main without approved context returns block', () => {
@@ -469,6 +536,37 @@ describe('AB5 automation safety gate core decisions', () => {
     const summary = summarizeAutomationFindings(first.findings);
     assert.ok(typeof summary.reason === 'string' && summary.reason.length > 0);
     assert.ok(Array.isArray(summary.categories));
+  });
+
+  it('maps decision severity monotonically for dry-run and review findings', () => {
+    const finding = (decision, id) => ({
+      id,
+      operationType: 'test',
+      category: 'test',
+      decision,
+      reason: `${id}_REASON`,
+    });
+
+    const dryRun = summarizeAutomationFindings([finding(AUTOMATION_SAFETY_DECISIONS.DRY_RUN_ONLY, 'dry-run')]);
+    assert.equal(dryRun.decision, AUTOMATION_SAFETY_DECISIONS.DRY_RUN_ONLY);
+    assert.equal(dryRun.riskLevel, 'medium');
+    assert.equal(dryRun.riskScore, 0.55);
+    assert.equal(dryRun.hasHighRisk, false);
+
+    const review = summarizeAutomationFindings([finding(AUTOMATION_SAFETY_DECISIONS.REVIEW, 'review')]);
+    assert.equal(review.decision, AUTOMATION_SAFETY_DECISIONS.REVIEW);
+    assert.equal(review.riskLevel, 'high');
+    assert.equal(review.riskScore, 0.8);
+    assert.equal(review.hasHighRisk, true);
+
+    const combined = summarizeAutomationFindings([
+      finding(AUTOMATION_SAFETY_DECISIONS.DRY_RUN_ONLY, 'dry-run'),
+      finding(AUTOMATION_SAFETY_DECISIONS.REVIEW, 'review'),
+    ]);
+    assert.equal(combined.decision, AUTOMATION_SAFETY_DECISIONS.REVIEW);
+    assert.equal(combined.riskLevel, 'high');
+    assert.equal(combined.riskScore, 0.8);
+    assert.equal(combined.hasHighRisk, true);
   });
 
   it('normalizeAutomationSafetyDecision keeps output shape stable', () => {

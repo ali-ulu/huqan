@@ -1,0 +1,184 @@
+{
+  "_comment": [
+    "Target list for the LEARNING-focused Repo Radar rotation.",
+    "Same selector as config/repo-radar.targets.json (scripts/repo-radar/pick-target.js),",
+    "but a separate roster: this one scans for how other systems CLOSE their",
+    "learning loop, not for general agent frameworks.",
+    "",
+    "Use it with the explicit flag:",
+    "  node scripts/repo-radar/pick-target.js --config config/repo-radar-learn.targets.json --json",
+    "",
+    "Selection is index = floor(unixHours) % repos.length, so entries are",
+    "append-only to keep existing hour mappings stable.",
+    "",
+    "Chosen against HUQAN's measured learning-loop gaps:",
+    "  G1 experience chain is NOT_YET_WIRED (no production caller)",
+    "  G2 dream hypotheses never promote to a Procedure Registry",
+    "  G3 belief-revision contradiction does not feed learning",
+    "  G4 no memory consolidation / forgetting / decay",
+    "  G5 no calibration surface, so 'intelligence improved' is unprovable",
+    "",
+    "Entries must be public repositories, live in 2026, and carry a real",
+    "license (verified via the GitHub API at curation time). 2024-stalled",
+    "repos were deliberately dropped: a stalled loop is a weak teacher."
+  ],
+  "rotation": "utc-hour-modulo",
+  "repos": [
+    {
+      "repo": "jennyzzt/dgm",
+      "license": "Apache-2.0",
+      "focus": ["self-improvement loop", "benchmark-driven archive", "agent self-modification"],
+      "why": "Darwin Godel Machine: the canonical open implementation of an archive-based self-improvement loop that keeps only changes that measurably improve a benchmark. Closes G2/G5 by showing how a hypothesis is promoted on evidence rather than on plausibility."
+    },
+    {
+      "repo": "langchain-ai/deepagents",
+      "license": "MIT",
+      "focus": ["agent harness", "eval-driven design", "context management"],
+      "why": "Batteries-included agent harness whose design decisions are driven by an end-to-end eval set. The most direct 2026 answer to G5: how a harness decides which middleware/prompt parts earn their place."
+    },
+    {
+      "repo": "geekan/MetaGPT",
+      "license": "MIT",
+      "focus": ["multi-agent SOP", "role decomposition", "artifact handoff"],
+      "why": "Encodes standard operating procedures as agent roles and handoffs. A source for G1: turning a successful run into a reusable, named procedure instead of a one-off trace."
+    },
+    {
+      "repo": "WecoAI/aideml",
+      "license": "MIT",
+      "focus": ["autonomous ML engineering", "solution tree", "evaluation loop"],
+      "why": "AIDE: an outer loop that rewrites an inner research agent and scores each rewrite. Shows the propose-evaluate-accept structure HUQAN needs to promote a dream hypothesis into a compiled procedure (G2)."
+    },
+    {
+      "repo": "MemTensor/MemOS",
+      "license": "Apache-2.0",
+      "focus": ["self-evolving memory", "memory scheduling", "retrieval policy"],
+      "why": "A memory OS that treats add/update/delete as scheduled decisions rather than passive writes. Targets G4 directly, where HUQAN only has tombstone/supersede and no consolidation or decay."
+    },
+    {
+      "repo": "princeton-nlp/SWE-agent",
+      "license": "MIT",
+      "focus": ["execution traces", "issue to patch", "feedback loop"],
+      "why": "Instrumented execution where every action is a labelled step against a real task. A concrete source for G1: distilling a run into an experience record that a later request can reuse."
+    },
+    {
+      "repo": "UKGovernmentBEIS/inspect_ai",
+      "license": "MIT",
+      "focus": ["evaluation harness", "scorer composition", "calibration"],
+      "why": "A serious eval framework with composable scorers and logging. Supplies the measurement surface for G5 so any 'intelligence increased' claim is backed by a repeatable score rather than an anecdote."
+    },
+    {
+      "repo": "EleutherAI/lm-evaluation-harness",
+      "license": "MIT",
+      "focus": ["benchmark harness", "task registry", "reproducibility"],
+      "why": "The reference harness for reproducible model scoring. Relevant to G5 for its task-registry and determinism discipline, which is what makes a benchmark comparable over time."
+    },
+    {
+      "repo": "promptfoo/promptfoo",
+      "license": "MIT",
+      "focus": ["prompt evaluation", "red teaming", "assertion grading"],
+      "why": "Eval + adversarial testing in one CLI with declarative assertions. A model for G5 that also touches guardrails: it treats a failed assertion as a first-class, regression-tracked signal."
+    },
+    {
+      "repo": "confident-ai/deepeval",
+      "license": "Apache-2.0",
+      "focus": ["LLM evaluation", "metric design", "regression gating"],
+      "why": "Metric-centric evaluation that plugs into CI. Useful for G5 to see how a fuzzy, LLM-judged metric is made deterministic enough to gate a change."
+    },
+    {
+      "repo": "explodinggradients/ragas",
+      "license": "Apache-2.0",
+      "focus": ["retrieval evaluation", "faithfulness metrics", "synthetic data"],
+      "why": "Metrics for retrieval and faithfulness with synthetic test generation. Targets G4/G5: how to score whether recalled memory is actually correct, not merely present."
+    },
+    {
+      "repo": "laude-institute/harbor",
+      "license": "Apache-2.0",
+      "focus": ["agent eval runner", "sandboxed tasks", "end-to-end scoring"],
+      "why": "The eval runner behind Terminal-Bench, used to benchmark long-horizon agent tasks. A 2026-current model for G5: scoring an agent on end-to-end tasks instead of unit assertions."
+    },
+    {
+      "repo": "ContinualAI/avalanche",
+      "license": "MIT",
+      "focus": ["continual learning", "catastrophic forgetting", "replay buffers"],
+      "why": "The reference library for continual learning and the forgetting/replay strategies that fight it. Directly informs G4: consolidation without destabilising what was already learned."
+    },
+    {
+      "repo": "danijar/dreamerv3",
+      "license": "MIT",
+      "focus": ["world model", "latent imagination", "planning"],
+      "why": "A world model that learns from imagined rollouts. Relevant to HUQAN's dream loop (G2): how a simulator is kept honest so imagined experience does not poison real learning."
+    },
+    {
+      "repo": "zou-group/textgrad",
+      "license": "MIT",
+      "focus": ["textual gradient", "optimization loop", "backpropagation over text"],
+      "why": "Optimises prompts and code by propagating natural-language critique. A different shape for the G2 promotion loop: candidate -> critique -> revised candidate, scored at each step."
+    },
+    {
+      "repo": "microsoft/promptwizard",
+      "license": "MIT",
+      "focus": ["prompt optimization", "task-aware compression", "demo selection"],
+      "why": "Agent-driven prompt optimisation with explicit compression and demo-selection stages. Targets G1: learning a better prompt from past runs and measuring the gain before adopting it."
+    },
+    {
+      "repo": "google-deepmind/alphageometry",
+      "license": "Apache-2.0",
+      "focus": ["deduction", "search with learned heuristics", "proof traces"],
+      "why": "Solves geometry by deduction plus a learned search heuristic, emitting a proof trace. Relevant to HUQAN's inference layer: how derived conclusions carry an auditable justification chain."
+    },
+    {
+      "repo": "souffle-lang/souffle",
+      "license": "UPL-1.0",
+      "focus": ["Datalog engine", "semi-naive evaluation", "stratified negation"],
+      "why": "A high-performance Datalog engine with stratified negation and provenance. The reference for G3: how retracting a fact correctly retracts everything derived from it, which HUQAN's semi-naive join does not yet expose."
+    },
+    {
+      "repo": "eyereasoner/eye",
+      "license": "MIT",
+      "focus": ["N3 reasoning", "backward chaining", "justification"],
+      "why": "A reasoning engine that explains why a conclusion holds. Supplies the justification/provenance pattern HUQAN needs when a belief revision must be attributable (G3)."
+    },
+    {
+      "repo": "OpenSPG/KAG",
+      "license": "Apache-2.0",
+      "focus": ["logical-form reasoning", "knowledge graph", "hybrid retrieval"],
+      "why": "Logical-form-guided reasoning over a knowledge graph with mutual indexing. A current example of grounding LLM reasoning in a graph so contradictions surface as structure, not as prompt drift (G3/G4)."
+    },
+    {
+      "repo": "apache/jena",
+      "license": "Apache-2.0",
+      "focus": ["RDF store", "named graphs", "inference"],
+      "why": "A mature RDF framework with named-graph isolation and rule-based inference. A reference for G4: graph-level integrity and provenance accounting that survives concurrent writes."
+    },
+    {
+      "repo": "oxigraph/oxigraph",
+      "license": "Apache-2.0",
+      "focus": ["SPARQL store", "RDF persistence", "query engine"],
+      "why": "A compact SPARQL database with a clear persistence and query model. Useful as a contrast for HUQAN's own graph store on durability and query planning boundaries."
+    },
+    {
+      "repo": "RDFLib/rdflib",
+      "license": "BSD-3-Clause",
+      "focus": ["RDF library", "graph algebra", "serialization"],
+      "why": "The widely-used Python RDF toolkit, strong on graph algebra and serialization. A reference for graph mutation semantics and round-trip fidelity (G4)."
+    },
+    {
+      "repo": "leondz/garak",
+      "license": "Apache-2.0",
+      "focus": ["LLM vulnerability scanning", "probe taxonomy", "guardrail testing"],
+      "why": "A vulnerability scanner that probes an LLM with a structured attack taxonomy. Relevant to HUQAN's fail-closed gates: how a guardrail is proven to hold under adversarial input, not just happy paths."
+    },
+    {
+      "repo": "microsoft/agent-framework",
+      "license": "MIT",
+      "focus": ["agent orchestration", "graph workflows", "checkpointing", "human-in-the-loop"],
+      "why": "Pairs agents with graph workflows that support type-safe routing, checkpointing and HITL. A current model for G1/G2: durable, resumable state is the substrate a learning loop needs."
+    },
+    {
+      "repo": "kyegomez/tree-of-thoughts",
+      "license": "Apache-2.0",
+      "focus": ["reasoning search", "deliberate planning", "tree expansion"],
+      "why": "Tree-of-Thought search over candidate reasoning paths. Relevant to G2: exploring several hypotheses and keeping the branch that verifies, instead of committing to the first plausible one."
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # V5-VERIFICATION-23 Cryptographic Adapter Adversarial Test Scope
 
+**Status:** `spec`
+
 ## Purpose And Boundary
 
 V23 defines the adversarial regression contract for the implemented bounded

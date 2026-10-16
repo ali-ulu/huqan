@@ -14,10 +14,7 @@ const {
 } = require('../lib/provenance-query');
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'axiom-provenance-receipt-bridge-'));
-const TEST_FIXTURE_LEARN_BYPASS = {
-  admissionRequired: false,
-  admissionBypassReason: 'test_fixture_seed',
-};
+const TEST_FIXTURE_LEARN_BYPASS = Kernel.createAdmissionBypassOpts('test_fixture_seed');
 
 after(() => {
   try {
@@ -182,8 +179,10 @@ test('non-strict learn with invalid sourceType remains allowed as compatibility 
 
     assert.ok(node);
     assert.ok(edge);
-    assert.equal(node.provenance.sourceType, 'system');
-    assert.equal(edge.provenance.sourceType, 'system');
+    // Recorded as invalid rather than promoted to the trusted 'system'
+    // principal, so the low-trust review gate still applies (#742).
+    assert.equal(node.provenance.sourceType, 'invalid');
+    assert.equal(edge.provenance.sourceType, 'invalid');
   } finally {
     closeKernel(kernel);
   }
