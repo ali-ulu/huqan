@@ -53,8 +53,8 @@ as described in [replacement sequence memory](coder-replacement-sequence-memory.
 
 `synthesis.reuseMemory: true` checks the validated joint source method against
 each target's own training examples before the ordinary routing, qualification,
-trust and mutation gates run. It requires the original relative paths and
-order. Successful reuse reports zero fresh enumeration and does not create a
+trust and mutation gates run. Target paths bind positionally to the stored
+steps while preserving their method text and order. Successful reuse reports zero fresh enumeration and does not create a
 duplicate record, even if `rememberFile` names a different output. This is not
 a total-cost or speedup measurement. If no valid applicable method exists,
 fresh synthesis may run; corrupt source/artifact errors stop immediately.

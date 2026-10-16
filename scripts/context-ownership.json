@@ -2844,6 +2844,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
   },
+  "lib/experience/procedure-data.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-EXP-PDATA"
+  },
   "lib/experience/procedure-registry.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"

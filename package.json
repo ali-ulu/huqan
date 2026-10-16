@@ -615,6 +615,7 @@
     "lib/experience/capability-trust-canary-extension.js",
     "lib/experience/contract.js",
     "lib/experience/compiler.js",
+    "lib/experience/procedure-data.js",
     "lib/experience/effect-boundary.js",
     "lib/experience/run-repair.js",
     "lib/experience/bounded-reask.js",
