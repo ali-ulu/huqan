@@ -18,7 +18,7 @@ const test = require('node:test');
 
 const CLI = require('../cli');
 const { createEmergencyStop } = require('../lib/emergency-stop');
-const { EMERGENCY_STOPPED_CODE, COMMANDS_REACHABLE_UNDER_STOP } = require('../lib/cli-emergency-stop');
+const { EMERGENCY_STOPPED_CODE, COMMANDS_REACHABLE_UNDER_STOP } = require('../lib/cli-gate-evaluation');
 
 function stopDir(t) {
   const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-3905-cli-stop-'));

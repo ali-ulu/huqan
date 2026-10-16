@@ -4250,10 +4250,6 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
-  "lib/cli-emergency-stop.js": {
-   "kind": "entry",
-   "evidence": "ownership-map-2446.md#R-CLI-P"
-  },
   "lib/cli-gate-evaluation.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"

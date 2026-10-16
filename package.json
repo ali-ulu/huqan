@@ -400,7 +400,6 @@
     "lib/cli-approval-commands.js",
     "lib/cli-capabilities.js",
     "lib/cli-capability-commands.js",
-    "lib/cli-emergency-stop.js",
     "lib/cli-gate-evaluation.js",
     "lib/cli-knowledge-commands.js",
     "lib/cli-repl.js",
