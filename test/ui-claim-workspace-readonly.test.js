@@ -38,8 +38,8 @@ test('UI capability manifest advertises only the implemented read workflows', ()
 test('read workflow adapter reuses kernel reads and emits stable envelopes', async () => {
   const calls = [];
   const kernel = {
-    ask(question) {
-      calls.push(['ask', question]);
+    ask(question, options) {
+      calls.push(['ask', question, options.workspaceId]);
       return { data: { answer: 'graph answer', unknown: false }, evidence: [{ sourceRef: 'test:ask' }] };
     },
     verify(claim, options) {
@@ -56,7 +56,7 @@ test('read workflow adapter reuses kernel reads and emits stable envelopes', asy
   assert.equal(ask.body.data.answer, 'graph answer');
   assert.match(ask.body.traceId, /^[0-9a-f-]{36}$/);
   assert.equal(verify.body.data.status, 'supported');
-  assert.deepEqual(calls, [['ask', 'q'], ['verify', 'c', 'ws-1']]);
+  assert.deepEqual(calls, [['ask', 'q', 'default'], ['verify', 'c', 'ws-1']]);
 });
 
 test('memory search is workspace-scoped, bounded, and projects trust handoff fields', () => {

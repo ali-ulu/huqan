@@ -136,11 +136,10 @@ function schemaDivergence() {
 // reason. A workflow with no HTTP schema of its own derives it from the MCP
 // input schema and cannot drift.
 const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
-  // The HTTP route is workspace-bound (workspaceId required, const 'default');
-  // the MCP tool answers in the session workspace and has no such argument, so
-  // workspaceId is HTTP-only here.
+  // #3907: both surfaces accept a workspaceId now (HTTP requires it, MCP
+  // carries it optionally and answers in the session workspace when omitted),
+  // so the only remaining divergence is which fields are required.
   ask: [
-    'workspaceId:http-only',
     'required:question|workspaceId!=question',
   ],
   // `claim` is the pre-#3593 HTTP field name, kept as an accepted alias on the
@@ -154,11 +153,8 @@ const KNOWN_SCHEMA_DIVERGENCE = Object.freeze({
     'workspaceId:differs(maxLength):cdd11fe9',
     'required:workspaceId!=statement',
   ],
-  // The HTTP route is workspace-bound (const 'default'); the MCP tool carries
-  // an arbitrary workspaceId string.
-  advocate: [
-    'workspaceId:differs(const,maxLength,minLength,type):5c2e5c2b',
-  ],
+  // advocate left this table at #3907: its HTTP workspaceId accepts the same
+  // 1..128 string the MCP tool already required, so the schemas agree.
   // The HTTP learn route accepts the MCP-only ingestion controls
   // (maxSentences, skipConflicts) and folds provenance into sources
   // (sourceType/sourceRef/sourceTitle) with an open provenance object; MCP

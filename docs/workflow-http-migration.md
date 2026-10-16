@@ -58,9 +58,11 @@ The 1.0.0 major release removed the unintended drift:
 
 `test/agent-exit-reasons-and-schema-divergence.test.js` pins the remaining
 differences as surface-specific, each with its reason:
-- the HTTP agent/ask/advocate routes are workspace-bound (`workspaceId`
-  required, `const "default"`), while the MCP tool answers in the session
-  workspace and carries no such argument;
+- since #3907 the HTTP `ask`/`advocate` routes accept any `workspaceId` (1..128,
+  like `verify`/`search`/`learn-review`), and `huqan.ask` carries an optional
+  MCP `workspaceId` that defaults to the session workspace; the HTTP agent
+  routes stay workspace-bound with `workspaceId` required and no MCP
+  counterpart argument;
 - `approval-decision` addresses the approval through the route
   (`/api/v2/approvals/{id}/decision`), so the MCP tool carries
   `approvalId`/`workspaceId` as arguments and the HTTP body carries only the

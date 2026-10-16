@@ -52,7 +52,11 @@ function createReadFixture() {
   }];
   const kernel = {
     graph,
-    ask(question) {
+    // #3907: ask now carries the workspace scope both surfaces resolve, so the
+    // fixture records it for the parity assertions below.
+    askCalls: [],
+    ask(question, options = {}) {
+      this.askCalls.push([question, options.workspaceId || null]);
       assert.equal(question, 'What is Alpha?');
       return {
         ok: true,
@@ -89,7 +93,7 @@ function createReadFixture() {
     },
     learn() {},
   };
-  return { graph, kernel };
+  return { graph, kernel, askCalls: kernel.askCalls };
 }
 
 function mcpArgsFor(workflowId) {
@@ -196,6 +200,21 @@ test('read workflows preserve field-level parity across MCP and HTTP', async () 
     assert.equal(http.ok, true, `${workflowId} HTTP fixture must complete`);
     assert.deepEqual(comparableEnvelope(workflowId, mcp), comparableEnvelope(workflowId, http));
   }
+});
+
+test('ask parity holds when a non-default workspace is named (#3907)', async () => {
+  const { kernel, askCalls } = createReadFixture();
+  const mcp = await callTool(kernel, { name: 'huqan.ask', arguments: { workspaceId: 'team-a', question: 'What is Alpha?' } });
+  const http = (await runReadWorkflow({
+    workflowId: 'ask', kernel, input: { workspaceId: 'team-a', question: 'What is Alpha?' }, ensureCapabilities: NO_CAPABILITY_ENSURE,
+  })).body;
+
+  assertCommonEnvelopeFields(mcp, 'ask');
+  assert.equal(http.ok, true, 'ask HTTP fixture must complete');
+  assert.deepEqual(comparableEnvelope('ask', mcp), comparableEnvelope('ask', http));
+  // Both surfaces reached the kernel with the named workspace scope instead of
+  // the always-'default' read the `const "default"` lock produced before.
+  assert.deepEqual(askCalls, [['What is Alpha?', 'team-a'], ['What is Alpha?', 'team-a']]);
 });
 
 test('trust-read publishes the same canonical receipt fields without fabricating a receipt', () => {
