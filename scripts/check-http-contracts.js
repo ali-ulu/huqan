@@ -205,6 +205,47 @@ function validateHttpContracts(config, options = {}) {
         errors.push(`workflow route ${item.routeId} must reuse validateWorkflowHttpRequest as its request-schema authority`);
       }
     }
+
+    // #3905: an emergency-stop declaration is a promise that the surface is
+    // actually gated. It has to name the shared gate, and the response owner
+    // has to call it, so a route cannot claim the stop without wiring it.
+    const stop = item.response?.emergencyStop;
+    if (stop !== undefined) {
+      if (stop.enforced !== true) {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set enforced: true`);
+      }
+      // The refusal is a fixed contract, not a free-form field: every gated
+      // surface answers 423 EMERGENCY_STOPPED for the whole workspace, so a
+      // declaration that drifts (200, a different code, an agent scope) would
+      // promise callers something the gate never sends.
+      if (stop.status !== 423) {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set status: 423`);
+      }
+      if (stop.code !== 'EMERGENCY_STOPPED') {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set code: EMERGENCY_STOPPED`);
+      }
+      if (stop.scope !== 'workspace') {
+        errors.push(`route ${item.routeId} emergencyStop declaration must set scope: workspace`);
+      }
+      const gateOwner = ownerPath(stop.owner);
+      if (!gateOwner || !fs.existsSync(gateOwner)) {
+        errors.push(`route ${item.routeId} emergencyStop owner does not exist: ${stop.owner || '<missing>'}`);
+      } else {
+        const gateSource = readFile(gateOwner, 'utf8');
+        for (const token of ['EMERGENCY_STOPPED', 'emergencyStopRefusal']) {
+          if (!gateSource.includes(token)) {
+            errors.push(`route ${item.routeId} emergencyStop owner ${stop.owner} is missing ${token}`);
+          }
+        }
+      }
+      const stopTarget = ownerPath(responseOwner);
+      if (stopTarget && fs.existsSync(stopTarget)) {
+        const ownerSource = readFile(stopTarget, 'utf8');
+        if (!ownerSource.includes('emergencyStopRefusal')) {
+          errors.push(`route ${item.routeId} declares emergencyStop but ${responseOwner} never calls emergencyStopRefusal`);
+        }
+      }
+    }
   }
 
   for (const declaration of expected) {

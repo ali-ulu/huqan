@@ -52,7 +52,7 @@
       "exposure": "authenticated",
       "methods": ["POST"],
       "request": {"mode": "bounded-parser", "owner": "lib/http/core-http-routes.js", "evidence": ["parseJsonRequest", "claim, statement or text is required"]},
-      "response": {"owner": "lib/http/core-http-routes.js"}
+      "response": {"owner": "lib/http/core-http-routes.js", "emergencyStop": {"enforced": true, "status": 423, "code": "EMERGENCY_STOPPED", "scope": "workspace", "owner": "lib/http/emergency-stop-gate.js"}}
     },
     {
       "family": "workflow-read-actions",
@@ -60,7 +60,7 @@
       "exposure": "authenticated",
       "methods": ["POST"],
       "request": {"mode": "schema", "owner": "lib/http/read-workflow-actions.js", "evidence": ["validateWorkflowHttpRequest"]},
-      "response": {"owner": "lib/http/read-workflow-actions.js"}
+      "response": {"owner": "lib/http/read-workflow-actions.js", "emergencyStop": {"enforced": true, "status": 423, "code": "EMERGENCY_STOPPED", "scope": "workspace", "owner": "lib/http/emergency-stop-gate.js"}}
     },
     {
       "family": "workflow-learn",
@@ -68,7 +68,7 @@
       "exposure": "authenticated",
       "methods": ["POST"],
       "request": {"mode": "schema", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["validateWorkflowHttpRequest"]},
-      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+      "response": {"owner": "lib/http/workflow-data-route-groups.js", "emergencyStop": {"enforced": true, "status": 423, "code": "EMERGENCY_STOPPED", "scope": "workspace", "owner": "lib/http/emergency-stop-gate.js"}}
     },
     {
       "family": "legacy-core-post",
@@ -76,7 +76,7 @@
       "exposure": "authenticated",
       "methods": ["POST"],
       "request": {"mode": "bounded-parser", "owner": "lib/http/core-http-routes.js", "evidence": ["parseJsonRequest"]},
-      "response": {"owner": "lib/http/core-http-routes.js"}
+      "response": {"owner": "lib/http/core-http-routes.js", "emergencyStop": {"enforced": true, "routeIds": ["llm-sor", "dogrula", "verify"], "status": 423, "code": "EMERGENCY_STOPPED", "scope": "workspace", "owner": "lib/http/emergency-stop-gate.js"}}
     },
     {
       "family": "answer",
@@ -84,7 +84,7 @@
       "exposure": "authenticated",
       "methods": ["POST"],
       "request": {"mode": "bounded-parser", "owner": "lib/http/answer-route.js", "evidence": ["parseJsonRequest"]},
-      "response": {"owner": "lib/http/answer-route.js"}
+      "response": {"owner": "lib/http/answer-route.js", "emergencyStop": {"enforced": true, "status": 423, "code": "EMERGENCY_STOPPED", "scope": "workspace", "owner": "lib/http/emergency-stop-gate.js"}}
     },
     {
       "family": "ingest",

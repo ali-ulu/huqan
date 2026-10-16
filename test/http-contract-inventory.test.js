@@ -92,3 +92,86 @@ test('a new deployment-gated API rule is discovered and requires classification'
     errors.join('\n'),
   );
 });
+
+// #3905: an emergency-stop declaration must be backed by the shared gate. These
+// probes make the declaration a contract rather than a comment.
+test('a declared emergency stop whose owner never calls the gate fails the check', () => {
+  const config = structuredClone(loadConfig());
+  const family = config.contracts.find((item) => item.routeIds.includes('workflow-ask'));
+  family.response.emergencyStop = {
+    enforced: true,
+    status: 423,
+    code: 'EMERGENCY_STOPPED',
+    owner: 'lib/http/emergency-stop-gate.js',
+  };
+
+  const errors = validateHttpContracts(config, {
+    readFile(file, encoding) {
+      const source = fs.readFileSync(file, encoding);
+      if (file.endsWith(path.join('lib', 'http', 'read-workflow-actions.js'))) {
+        return source.replaceAll('emergencyStopRefusal', 'gate_removed');
+      }
+      return source;
+    },
+  });
+  assert.ok(
+    errors.some((error) => error.includes('workflow-ask declares emergencyStop but')
+      && error.includes('never calls emergencyStopRefusal')),
+    errors.join('\n'),
+  );
+});
+
+test('an emergency-stop declaration without enforced: true fails the check', () => {
+  const config = structuredClone(loadConfig());
+  const family = config.contracts.find((item) => item.routeIds.includes('workflow-ask'));
+  family.response.emergencyStop = {
+    enforced: false,
+    status: 423,
+    code: 'EMERGENCY_STOPPED',
+    owner: 'lib/http/emergency-stop-gate.js',
+  };
+  const errors = validateHttpContracts(config);
+  assert.ok(
+    errors.some((error) => error.includes('workflow-ask emergencyStop declaration must set enforced: true')),
+    errors.join('\n'),
+  );
+});
+
+test('an emergency-stop declaration with a drifted refusal shape fails the check', () => {
+  const cases = [
+    { status: 200, field: 'status: 423' },
+    { code: 'STOPPED', field: 'code: EMERGENCY_STOPPED' },
+    { scope: 'agent', field: 'scope: workspace' },
+  ];
+  for (const { field, ...drift } of cases) {
+    const config = structuredClone(loadConfig());
+    const family = config.contracts.find((item) => item.routeIds.includes('workflow-ask'));
+    family.response.emergencyStop = {
+      enforced: true,
+      status: 423,
+      code: 'EMERGENCY_STOPPED',
+      scope: 'workspace',
+      owner: 'lib/http/emergency-stop-gate.js',
+      ...drift,
+    };
+    const errors = validateHttpContracts(config);
+    assert.ok(
+      errors.some((error) => error.includes(`workflow-ask emergencyStop declaration must set ${field}`)),
+      `${field} drift must be rejected, got: ${errors.join('\n')}`,
+    );
+  }
+});
+
+test('the shipped inventory declares the emergency stop on every HTTP read surface', () => {
+  const config = loadConfig();
+  const gated = [];
+  for (const family of config.contracts) {
+    if (family.response?.emergencyStop) gated.push(family.family);
+  }
+  for (const family of ['v2-verify', 'workflow-read-actions', 'workflow-learn', 'legacy-core-post', 'answer']) {
+    assert.ok(gated.includes(family), `${family} must declare the emergency stop`);
+  }
+  const legacy = config.contracts.find((item) => item.family === 'legacy-core-post');
+  assert.deepEqual(legacy.response.emergencyStop.routeIds, ['llm-sor', 'dogrula', 'verify']);
+});
+

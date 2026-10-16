@@ -41,6 +41,11 @@ const HEAVY_FILES = Object.freeze(new Set([
   // Nine native CLI restarts plus HTTP acceptance, sealed replay and tamper
   // refusals took 84s locally, approaching the ordinary 90s per-file cap.
   'test/coder-revision-method-learning.test.js',
+  // cognitive-lab-b4-transfer replays the locked B4 transfer corpus and was
+  // SIGTERM-killed at 98.981s on the Windows Node 24 shard PRs run (#3943).
+  // On Node 22 locally it passes in 11-20s, so the cost is runner/Node
+  // variance, not a hang.
+  'test/cognitive-lab-b4-transfer.test.js',
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',

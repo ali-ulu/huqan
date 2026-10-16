@@ -17,6 +17,11 @@ jobs:
   governance:
     name: Workflow governance
     runs-on: ubuntu-latest
+    # Reading the pull request's commit list needs more than the top-level
+    # read-only contents scope, so the job asks for it explicitly.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,3 +33,20 @@ jobs:
 
       - name: Check workflow governance
         run: node scripts/check-workflow-governance.js
+
+      # `main` requires verified signatures, so an unsigned commit cannot be
+      # merged. Until this step existed, that verdict arrived only when the
+      # merge button was pressed -- after every other required check had gone
+      # green -- and the fix was a branch rewrite. Report it here instead, on
+      # the pull request, next to the commits that need signing.
+      - name: Check commit signatures
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_COMMIT_COUNT: ${{ github.event.pull_request.commits }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100" --paginate --slurp \
+            > commits.json
+          node scripts/check-pr-signatures.js commits.json "${PR_COMMIT_COUNT}"

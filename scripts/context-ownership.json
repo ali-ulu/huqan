@@ -4590,6 +4590,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
+  "lib/http/emergency-stop-gate.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
   "lib/http/emergency-stop-routes.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
