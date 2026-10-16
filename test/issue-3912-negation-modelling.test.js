@@ -123,3 +123,39 @@ test('#3912 (C) learn reports the negation conflict for a fact predicate', () =>
     closeKernel(kernel);
   }
 });
+
+test('#3912 (C) a causal edge is not an opposing fact', () => {
+  const kernel = makeKernel('causal');
+  try {
+    // "duman" is caused by "yangın", not asserted to be it; negating the
+    // identity must not be reported as a conflict with the causal edge.
+    kernel.graph.addEdge('yangın', 'duman', 'CAUSES', { workspaceId: 'default', strength: 0.8 });
+    const result = data(kernel.learn('yangın duman degildir', admittedOpts(1)));
+    assert.deepEqual(
+      result.conflicts.filter(c => c.type === 'negation'),
+      [],
+      'a CAUSES edge must not be treated as an affirmative identity',
+    );
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('#3912 (B) an ASCII copula negation refutes the affirmative claim it negates', () => {
+  const kernel = makeKernel('copula-ascii');
+  try {
+    data(kernel.learn('kus bir hayvandir', admittedOpts(1)));
+    data(kernel.learn('kus bir hayvan degildir', admittedOpts(2)));
+
+    // The stored target folds to "hayvan degil"; without stripping the ASCII
+    // `degil` the affirmative claim would fall through to the `tür` edge and
+    // be reported verified.
+    const affirmative = data(kernel.verify('kus bir hayvandir', { workspaceId: 'default' }));
+    assert.equal(affirmative.status, 'contradicted', 'the affirmative claim is contradicted');
+
+    const negated = data(kernel.verify('kus bir hayvan degildir', { workspaceId: 'default' }));
+    assert.notEqual(negated.status, 'verified', 'the negated claim must not be refuted by itself');
+  } finally {
+    closeKernel(kernel);
+  }
+});
