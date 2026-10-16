@@ -77,7 +77,17 @@ describe('cycle detection is bounded, not recursive (#743)', () => {
     const graph = chainGraph(500);
     assert.strictEqual(detectCycleBounded(graph, 'n0', { maxDepth: 10 }).stoppedReason, CYCLE_STOPPED.MAX_DEPTH);
     assert.strictEqual(detectCycleBounded(graph, 'n0', { maxNodes: 5 }).stoppedReason, CYCLE_STOPPED.MAX_NODES);
-    assert.strictEqual(detectCycleBounded(graph, 'n0', { timeoutMs: 0.0001 }).stoppedReason, CYCLE_STOPPED.TIMEOUT);
+    // Date.now() ticks in whole milliseconds, so a fast runner can walk the
+    // whole chain inside one tick and never see the timeout. Make each edge
+    // read wait for the clock to move so the budget is always exceeded.
+    const tickingGraph = {
+      getEdges(...args) {
+        const tick = Date.now();
+        while (Date.now() === tick) { /* wait for the next millisecond */ }
+        return graph.getEdges(...args);
+      },
+    };
+    assert.strictEqual(detectCycleBounded(tickingGraph, 'n0', { timeoutMs: 0.0001 }).stoppedReason, CYCLE_STOPPED.TIMEOUT);
   });
 
   it('a shallow cycle is still found when a deep branch hits the depth budget', () => {
