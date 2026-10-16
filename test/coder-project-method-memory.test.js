@@ -38,6 +38,50 @@ function fixture(t) {
   return { run, file, source, base };
 }
 
+test('inferred family is sealed, reused in fresh CLI processes and fails closed', t => {
+  const context = fixture(t);
+  const spec = specOf(); delete spec.routes[0].compute.family;
+  const rows = inputs => inputs.map(input => ({ input, expected: input.map(value => value * 2) }));
+  spec.routes[0].compute.examples = rows([[], [2], [3, 4]]);
+  spec.routes[0].compute.acceptanceExamples = rows([[-3, 8], [1, 1, 1], [20]]);
+  const cold = context.run(spec);
+  assert.equal(cold.child.status, 0, JSON.stringify(cold.result));
+  assert.equal(cold.result.data.projectMemory.state, 'remembered');
+  assert.equal(cold.result.data.plan.computation.family, 'array-map');
+  const search = cold.result.data.plan.computation.routes[0];
+  assert.ok(search.enumerated > 0);
+  assert.equal(search.enumerated, search.familySearches.reduce((sum, family) => sum + family.enumerated, 0));
+  const bytes = fs.readFileSync(context.file, 'utf8');
+  assert.equal(Object.hasOwn(JSON.parse(bytes).sourceSpec.routes[0].compute, 'family'), false);
+  const next = structuredClone(spec); next.name = 'inferred-reused-api';
+  next.routes[0].path = '/reused-double'; next.routes[0].inputField = 'values';
+  next.routes[0].compute.examples = rows([[], [5], [-2, 6]]);
+  next.routes[0].compute.acceptanceExamples = rows([[4, -3, 8], [7], [1, 2, 3]]);
+  const warm = context.run(next);
+  assert.equal(warm.child.status, 0, JSON.stringify(warm.result));
+  assert.equal(warm.result.data.projectMemory.state, 'reused');
+  assert.equal(warm.result.data.plan.computation.family, 'array-map');
+  assert.equal(warm.result.data.plan.computation.routes[0].enumerated, 0);
+  assert.equal(warm.result.data.attempts[0].test.exitCode, 0);
+  assert.equal(fs.readFileSync(context.file, 'utf8'), bytes);
+  next.routes[0].compute.acceptanceExamples[0].expected[0] = 999;
+  const rejected = context.run(next);
+  assert.equal(rejected.child.status, 6, JSON.stringify(rejected.result));
+  assert.equal(rejected.result.data.plan.computation.routes[0].enumerated, 0);
+  assert.equal(rejected.result.data.attempts[0].test.exitCode, 1);
+  assert.equal(rejected.result.data.attempts[0].rolledBack, true);
+  assert.deepEqual(fs.readdirSync(rejected.root), []);
+  assert.equal(fs.readFileSync(context.file, 'utf8'), bytes);
+  const forged = JSON.parse(bytes); forged.programs[0].expression = { type: 'item' };
+  const { hash: discarded, ...body } = forged;
+  forged.hash = createHash('sha256').update(JSON.stringify(body)).digest('hex');
+  fs.writeFileSync(context.file, JSON.stringify(forged));
+  const invalid = context.run(spec);
+  assert.equal(invalid.child.status, 6, JSON.stringify(invalid.result));
+  assert.equal(invalid.result.data.reason, 'PROJECT_MEMORY_INVALID');
+  assert.deepEqual(fs.readdirSync(invalid.root), []);
+});
+
 test('explicit memory miss synthesis learns a new project method and transfers it after restart', t => {
   const context = fixture(t);
   const cold = context.run(specOf());
