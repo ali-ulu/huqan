@@ -438,7 +438,12 @@ test('http-adapter: ingestAndLearn end to end -- a real kernel runs preIngest on
       responseCache: new Map(),
     });
 
-    assert.equal(result.learned[0].ok, true, JSON.stringify(result.learned[0]));
+    // The default kernel holds every write for review, so the adapter must
+    // report the honest outcome -- not a success it did not achieve (#3912
+    // follow-up: an ingest that wrote nothing must not claim it did).
+    assert.equal(result.learned[0].ok, false, JSON.stringify(result.learned[0]));
+    assert.equal(result.learned[0].status, 'review_required');
+    assert.equal(result.learned[0].learned, 0);
     // The point of the wiring: a real kernel's preIngest pass ran, and saw
     // the http sourceRef an evidence gate would need to validate.
     assert.equal(seen.length, 1);

@@ -178,3 +178,37 @@ test('markdown-adapter: ingestAndLearn forwards structural volatile provenance w
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('markdown-adapter: a review-only or rejected learn is not reported as a per-entry success (#3912)', () => {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-markdown-honest-')));
+  const file = path.join(dir, 'facts.md');
+  fs.writeFileSync(file, '# Facts\nkedi hayvandir\n', 'utf8');
+
+  // Each stub answers the way kernel.learn() really does: it returns an
+  // envelope with ok:true, carrying the admission verdict in data.admission,
+  // rather than throwing. The adapter must read that verdict.
+  const cases = [
+    { name: 'learned', result: { data: { learned: 1, admission: { outcome: 'allow' } } },
+      expected: { section: 'Facts', learned: 1, ok: true, status: 'learned' } },
+    { name: 'review', result: { data: { learned: 0, admission: { outcome: 'review', reason: 'canonical_mutation_requires_approved_approval' } } },
+      expected: { section: 'Facts', learned: 0, ok: false, status: 'review_required', reason: 'canonical_mutation_requires_approved_approval' } },
+    { name: 'reject', result: { data: { learned: 0, admission: { outcome: 'reject', reason: 'policy_denied' } } },
+      expected: { section: 'Facts', learned: 0, ok: false, status: 'blocked', reason: 'policy_denied' } },
+    { name: 'unparseable', result: { data: { learned: 0, admission: null } },
+      expected: { section: 'Facts', learned: 0, ok: false, status: 'skipped', reason: null } },
+  ];
+
+  try {
+    for (const item of cases) {
+      const result = ingestAndLearn(file, {
+        learn() { return item.result; },
+      }, { rootPath: dir, actor: 'markdown-test' });
+
+      assert.equal(result.learned.length, 1, item.name);
+      assert.deepEqual(result.learned[0], item.expected, `${item.name}: wrong projection`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+

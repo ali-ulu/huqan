@@ -145,7 +145,7 @@ test('github-adapter: fetchAndLearn ingests through learnAsync, not the sync pat
   assert.equal(calls[0].opts.provenance.source, 'github-adapter');
   assert.equal(calls[0].opts.sourceRef, `https://github.com/ai-ulu/axiom/blob/${TEST_COMMIT_SHA}/README.md`);
   assert.equal(calls[0].opts.provenance.sourceRef, calls[0].opts.sourceRef);
-  assert.deepEqual(result.learned, [{ path: 'README.md', learned: 2, ok: true }]);
+  assert.deepEqual(result.learned, [{ path: 'README.md', learned: 2, ok: true, status: 'learned' }]);
 });
 
 test('github-adapter: fetchAndLearn reports a preIngest rejection per file instead of throwing (#348)', async () => {

@@ -2,6 +2,7 @@ const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const fs = require('fs');
 const path = require('path');
 const { listFilesWithinRoot } = require('../lib/safe-file-walk');
+const { projectLearnOutcome } = require('./utils/learn-entries');
 
 function toAbs(p) {
   return path.resolve(String(p || ''));
@@ -146,7 +147,7 @@ function ingestAndLearn(targetPath, kernel, options = {}) {
     };
     try {
       const r = kernel.learn(section.content, { provenance, sourceType: 'document', sourceSubType: 'markdown', sourceRef: provenance.sourceRef });
-      learned.push({ section: section.sectionTitle, learned: r.data.learned, ok: true });
+      learned.push({ section: section.sectionTitle, ...projectLearnOutcome(r) });
     } catch (e) {
       learned.push({ section: section.sectionTitle, error: e.message, ok: false });
     }
