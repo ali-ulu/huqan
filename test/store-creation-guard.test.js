@@ -227,3 +227,42 @@ test('a recorded store is readable back, once, most recent last', () => {
     ]);
   } finally { box.cleanup(); }
 });
+
+/**
+ * #3976: the temp root and the store path can name the same directory in two
+ * spellings. `os.tmpdir()` is environment-derived and on Windows carries an 8.3
+ * short component (`RUNNER~1`), while the fixture root -- and so the store path
+ * -- is the form `fs.realpathSync.native` returns. A lexical comparison read
+ * the throwaway as a kept store, registered it, and wrote `stores.json` into
+ * the caller's own tree, which the coder gate then saw as untracked dirt.
+ *
+ * A symlinked temp root reproduces the two-spellings-one-directory shape on
+ * every platform, so the regression is pinned without a Windows runner.
+ */
+test('a temp store is a throwaway when the temp root is spelled differently', () => {
+  const box = sandbox();
+  try {
+    const realRoot = path.join(box.root, 'real-temp');
+    const linkedRoot = path.join(box.root, 'linked-temp');
+    fs.mkdirSync(realRoot, { recursive: true });
+    fs.symlinkSync(realRoot, linkedRoot, 'junction');
+    // The store path is the realpath'd form, exactly as the fixture builds it.
+    const store = path.join(realRoot, 'huqan-fixture', 'memory.db');
+
+    // Aliased temp root, long store path: the failing direction. The leaf does
+    // not exist yet, as when the store is about to be created.
+    assert.equal(fs.existsSync(store), false);
+    assert.equal(isEphemeralStorePath(store, linkedRoot), true, `${linkedRoot} vs ${store}`);
+    // A store the operator keeps is still not a throwaway.
+    assert.equal(isEphemeralStorePath(path.join(box.root, 'kept', 'memory.db'), linkedRoot), false);
+  } finally { box.cleanup(); }
+});
+
+test('a temp root that does not exist yet keeps its resolved spelling', () => {
+  const box = sandbox();
+  try {
+    const absent = path.join(box.root, 'not-created');
+    assert.equal(isEphemeralStorePath(path.join(absent, 'memory.db'), absent), true);
+    assert.equal(isEphemeralStorePath(path.join(box.root, 'elsewhere.db'), absent), false);
+  } finally { box.cleanup(); }
+});
