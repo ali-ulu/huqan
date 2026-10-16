@@ -70,6 +70,25 @@ test('pipeline refuses malformed authority, undeclared or duplicate paths and in
   assert.equal(producePipelineRepair({ task, root }).reason, 'SYNTHESIS_TARGET_UNSUPPORTED');
 });
 
+test('pipeline keeps distinct inode identities above the safe Number range', t => {
+  const { root, task } = fixture(t);
+  const originalStat = fs.statSync;
+  fs.statSync = (file, options) => {
+    const stat = originalStat(file, options);
+    const at = ['a.js', 'b.js'].indexOf(path.basename(String(file)));
+    if (at !== -1) {
+      const inode = 9007199254740992n + BigInt(at);
+      stat.dev = options?.bigint ? 1n : 1;
+      stat.ino = options?.bigint ? inode : Number(inode);
+    }
+    return stat;
+  };
+  try {
+    const produced = producePipelineRepair({ task, root });
+    assert.equal(produced.ok, true, produced.reason);
+  } finally { fs.statSync = originalStat; }
+});
+
 test('pipeline recognizes an already satisfied composition', t => {
   const { root, task } = fixture(t);
   for (const name of ['a.js', 'b.js']) fs.writeFileSync(path.join(root, name), 'module.exports = x => x * x;');

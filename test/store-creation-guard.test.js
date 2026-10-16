@@ -266,3 +266,32 @@ test('a temp root that does not exist yet keeps its resolved spelling', () => {
     assert.equal(isEphemeralStorePath(path.join(box.root, 'elsewhere.db'), absent), false);
   } finally { box.cleanup(); }
 });
+
+test('a store escaping a temporary root through a junction is never ephemeral', () => {
+  const box = sandbox();
+  try {
+    const realRoot = path.join(box.root, 'real-temp');
+    const aliasRoot = path.join(box.root, 'alias-temp');
+    const kept = path.join(box.root, 'kept');
+    fs.mkdirSync(realRoot); fs.mkdirSync(kept);
+    fs.symlinkSync(realRoot, aliasRoot, 'junction');
+    fs.symlinkSync(kept, path.join(realRoot, 'escape'), 'junction');
+    fs.writeFileSync(path.join(kept, 'existing.db'), 'kept');
+    for (const root of [realRoot, aliasRoot]) {
+      for (const spelling of [realRoot, aliasRoot]) {
+        assert.equal(isEphemeralStorePath(path.join(spelling, 'escape', 'existing.db'), root), false);
+        assert.equal(isEphemeralStorePath(path.join(spelling, 'escape', 'new-parent', 'memory.db'), root), false);
+      }
+      assert.equal(isEphemeralStorePath(path.join(realRoot, 'new-parent', 'memory.db'), root), true);
+    }
+  } finally { box.cleanup(); }
+});
+
+test('an unresolved junction cannot grant a temporary-store exemption', () => {
+  const box = sandbox();
+  try {
+    const temporary = path.join(box.root, 'temp'); fs.mkdirSync(temporary);
+    fs.symlinkSync(path.join(box.root, 'missing-target'), path.join(temporary, 'broken'), 'junction');
+    assert.equal(isEphemeralStorePath(path.join(temporary, 'broken', 'memory.db'), temporary), false);
+  } finally { box.cleanup(); }
+});
