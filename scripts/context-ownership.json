@@ -3844,6 +3844,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
   },
+  "lib/coder/pipeline-synthesis.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#coder-pipeline-synthesis"
+  },
   "lib/coder/synthesis-memory.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"

@@ -311,6 +311,14 @@ Experience evidence. It reuses the existing compiler and router; it never
 installs a method or relaxes source, coverage, trust or path boundaries.
 The journal continues to contain hashes rather than full method bodies.
 
+## Coder pipeline synthesis
+
+`lib/coder/pipeline-synthesis.js` belongs to AgentAction. The existing
+`arithmetic-synthesis.js` composition path calls it to propose two-file repairs
+from joint input/output observations. It reuses the closed expression enumerator
+and Trust's arithmetic AST reader. It neither executes target source for training
+nor authorizes writes; the existing Coder loop owns apply/test/rollback.
+
 ## Coder project recipe
 
 `lib/coder/project-producer.js` owns the AgentAction requirements-to-task

@@ -44,6 +44,9 @@ const HEAVY_FILES = Object.freeze(new Set([
   // Real revision/update CLI runs, old-test veto and sealed transfer took
   // 166s locally while passing, exceeding the ordinary 90s per-file cap.
   'test/coder-route-updates.test.js',
+  // Native pipeline authority/refusal and eight acceptance/rollback attempts
+  // passed in 133s locally; use the existing install-scale deadline.
+  'test/coder-pipeline-synthesis.test.js',
   // cognitive-lab-b4-transfer replays the locked B4 transfer corpus and was
   // SIGTERM-killed at 98.981s on the Windows Node 24 shard PRs run (#3943).
   // On Node 22 locally it passes in 11-20s, so the cost is runner/Node

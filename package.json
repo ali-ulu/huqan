@@ -432,6 +432,7 @@
     "lib/coder/learned-candidate.js",
     "lib/coder/arithmetic-synthesis.js",
     "lib/coder/expression-search.js",
+    "lib/coder/pipeline-synthesis.js",
     "lib/coder/synthesis-memory.js",
     "lib/coder/project-producer.js",
     "lib/coder/project-spec-data.js",
