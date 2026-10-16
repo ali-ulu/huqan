@@ -38,9 +38,12 @@ const HEAVY_FILE_TIMEOUT_MS = 240_000;
 const HEAVY_FILES = Object.freeze(new Set([
   'test/kernel-facade-contract.test.js',
   'test/coder-project-method-memory.test.js',
-  // Nine native CLI restarts plus HTTP acceptance, sealed replay and tamper
-  // refusals took 84s locally, approaching the ordinary 90s per-file cap.
+  // Native CLI restarts, a cold comparator, HTTP acceptance and tamper
+  // refusals took 195s locally; retain the existing heavy-file deadline.
   'test/coder-revision-method-learning.test.js',
+  // Real revision/update CLI runs, old-test veto and sealed transfer took
+  // 166s locally while passing, exceeding the ordinary 90s per-file cap.
+  'test/coder-route-updates.test.js',
   // cognitive-lab-b4-transfer replays the locked B4 transfer corpus and was
   // SIGTERM-killed at 98.981s on the Windows Node 24 shard PRs run (#3943).
   // On Node 22 locally it passes in 11-20s, so the cost is runner/Node
