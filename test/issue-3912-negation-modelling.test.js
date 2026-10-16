@@ -159,3 +159,80 @@ test('#3912 (B) an ASCII copula negation refutes the affirmative claim it negate
     closeKernel(kernel);
   }
 });
+
+// The issue's third acceptance line: "ask must not return the two conflicting
+// answers side by side". verify already refuses the affirmative claim; `ask`
+// still listed both edges, so a subject taught A and ¬A was answered with A and
+// ¬A, in the same sentence, as grounded facts.
+
+test('#3912 (ask) the refuted fact is not answered beside its negation', () => {
+  const kernel = makeKernel('ask-fact');
+  try {
+    data(kernel.learn('kedi ucabilir', admittedOpts(1)));
+    data(kernel.learn('kedi ucamaz', admittedOpts(2)));
+
+    const asked = data(kernel.ask('kedi ne yapabilir', { workspaceId: 'default' }));
+    assert.equal(asked.answer, 'kedi ucamaz', 'the negation is the answer, not the fact it refutes');
+    assert.equal(asked.answer.includes('ucabilir'), false, 'A is not answered beside ¬A');
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('#3912 (ask) a copula negation is not answered beside the type it negates', () => {
+  const kernel = makeKernel('ask-copula');
+  try {
+    data(kernel.learn('kus bir hayvandir', admittedOpts(1)));
+    data(kernel.learn('kus bir hayvan degildir', admittedOpts(2)));
+
+    const asked = data(kernel.ask('kus nedir', { workspaceId: 'default' }));
+    assert.equal(asked.answer, 'kus hayvan [değil]', 'the negated type is answered alone');
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('#3912 (ask) only the contradicted fact is dropped', () => {
+  const kernel = makeKernel('ask-sibling');
+  try {
+    data(kernel.learn('kedi ucabilir', admittedOpts(1)));
+    data(kernel.learn('kedi kosabilir', admittedOpts(2)));
+    data(kernel.learn('kedi ucamaz', admittedOpts(3)));
+
+    const asked = data(kernel.ask('kedi ne yapabilir', { workspaceId: 'default' }));
+    assert.equal(asked.answer, 'kedi kosabilir, ucamaz', 'an unrelated fact survives the negation');
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('#3912 (ask) a negation is still answerable on its own', () => {
+  const kernel = makeKernel('ask-alone');
+  try {
+    data(kernel.learn('kedi ucamaz', admittedOpts(1)));
+
+    const asked = data(kernel.ask('kedi ne yapabilir', { workspaceId: 'default' }));
+    assert.equal(asked.answer, 'kedi ucamaz', 'what the graph knows about the subject is still answered');
+    assert.equal(asked.unknown, false);
+  } finally {
+    closeKernel(kernel);
+  }
+});
+
+test('#3912 (ask) a negation does not suppress an unrelated causal fact', () => {
+  const kernel = makeKernel('ask-causal');
+  try {
+    // The same relation scope the learn conflict detector uses: a CAUSES edge
+    // does not assert that the subject *is* the target, so a negation over the
+    // same words does not refute it and must not remove it from the answer.
+    kernel.graph.addNode('kedi', 'kedi', null, { workspaceId: 'default' });
+    kernel.graph.addNode('duman', 'duman', null, { workspaceId: 'default' });
+    kernel.graph.addEdge('kedi', 'duman', 'CAUSES', { workspaceId: 'default', strength: 0.8 });
+    data(kernel.learn('kedi duman degildir', admittedOpts(1)));
+
+    const asked = data(kernel.ask('kedi nedir', { workspaceId: 'default' }));
+    assert.equal(asked.answer, 'kedi duman, duman [değil]', 'the causal fact is still answered');
+  } finally {
+    closeKernel(kernel);
+  }
+});
