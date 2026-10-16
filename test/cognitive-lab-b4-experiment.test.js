@@ -57,7 +57,7 @@ test('the runner emits a VALID manifest with B4 ENABLED and no other mechanism',
 });
 
 test('the manifest split mirrors the corpus and the budget is one dispatch per arm per task', () => {
-  const records = runCorpus(TASKS);
+  const records = corpusOf(TASKS);
   const result = run(TASKS, CORPUS_DIGEST);
   const ids = (split) => records.filter((record) => record.split === split).map((record) => record.taskId).sort();
   assert.deepEqual(result.manifest.split.train, Object.keys(SOURCE_OPERATIONS).sort());
@@ -96,7 +96,7 @@ test('splitIdsOf carries the frozen train ids and rejects an unknown split', () 
 });
 
 test('fail-closed: a missing or malformed input is rejected before a manifest is built', () => {
-  const records = runCorpus(TASKS);
+  const records = corpusOf(TASKS);
   const base = { records, corpusDigest: CORPUS_DIGEST, sourceCommit: COMMIT, sourceDirty: false };
   assert.throws(() => runB4Experiment({ ...base, records: undefined }), /records are required/);
   assert.throws(() => runB4Experiment({ ...base, records: [] }), /records are required/);
@@ -107,6 +107,6 @@ test('fail-closed: a missing or malformed input is rejected before a manifest is
 
 test('fail-closed: a manifest without train ids is rejected', () => {
   assert.throws(() => runB4Experiment({
-    records: runCorpus(TASKS), corpusDigest: CORPUS_DIGEST, sourceCommit: COMMIT, sourceDirty: false,
+    records: corpusOf(TASKS), corpusDigest: CORPUS_DIGEST, sourceCommit: COMMIT, sourceDirty: false,
   }), /split\.train is empty/);
 });
