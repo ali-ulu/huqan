@@ -295,3 +295,45 @@ test('an unresolved junction cannot grant a temporary-store exemption', () => {
     assert.equal(isEphemeralStorePath(path.join(temporary, 'broken', 'memory.db'), temporary), false);
   } finally { box.cleanup(); }
 });
+
+test('realpath permission failures cannot classify a store as ephemeral', () => {
+  const box = sandbox();
+  const nativeRealpath = fs.realpathSync.native;
+  try {
+    const temporary = path.resolve(box.root);
+    fs.realpathSync.native = value => {
+      if (value === temporary) throw Object.assign(new Error('denied'), { code: 'EACCES' });
+      return nativeRealpath(value);
+    };
+    assert.equal(isEphemeralStorePath(path.join(temporary, 'memory.db'), temporary), false);
+  } finally { fs.realpathSync.native = nativeRealpath; box.cleanup(); }
+});
+
+test('an unreadable missing-tail entry cannot grant an ephemeral exemption', () => {
+  const box = sandbox();
+  const nativeRealpath = fs.realpathSync.native;
+  const nativeLstat = fs.lstatSync;
+  try {
+    const store = path.resolve(box.root, 'memory.db');
+    fs.realpathSync.native = value => {
+      if (value === store) throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+      return nativeRealpath(value);
+    };
+    fs.lstatSync = value => {
+      if (value === store) throw Object.assign(new Error('denied'), { code: 'EACCES' });
+      return nativeLstat(value);
+    };
+    assert.equal(isEphemeralStorePath(store, box.root), false);
+  } finally { fs.realpathSync.native = nativeRealpath; fs.lstatSync = nativeLstat; box.cleanup(); }
+});
+
+test('a filesystem with no resolvable ancestor grants no temporary exemption', () => {
+  const box = sandbox();
+  const nativeRealpath = fs.realpathSync.native;
+  const nativeLstat = fs.lstatSync;
+  try {
+    const missing = () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); };
+    fs.realpathSync.native = missing; fs.lstatSync = missing;
+    assert.equal(isEphemeralStorePath(path.join(box.root, 'memory.db'), box.root), false);
+  } finally { fs.realpathSync.native = nativeRealpath; fs.lstatSync = nativeLstat; box.cleanup(); }
+});
