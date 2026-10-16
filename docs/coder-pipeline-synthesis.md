@@ -54,7 +54,31 @@ Training success is only a proposal. The existing ordinary mutation gate,
 explicit authorization, independent declared test, candidate budget and verified
 whole-sequence rollback remain required. Fresh-process native tests cover
 unauthorized refusal, held-out composition inputs, and restoration of both files
-after failed acceptance. Pipeline memory options are refused in this initial
-contract; no new persistence or learning-gain claim is introduced.
+after failed acceptance.
+
+With a journal, `synthesis.rememberFile` opts into the existing source-sealed
+`replacement_sequence` candidate memory. Only a kept, independently tested pair
+is remembered. Unauthorized, failed and dry-run requests never create a record.
+Supply at least two negative qualification maps in `qualificationPaths` as in
+[replacement sequence memory](coder-replacement-sequence-memory.md).
+
+`synthesis.reuseMemory: true` rebuilds each stored candidate from its sealed
+source, binds the declared target paths and parses both proposed outputs through
+the existing closed arithmetic AST reader. Joint training examples must match
+the composition, rather than either intermediate function separately. Reuse
+reports zero fresh enumeration; source validation, qualification, trust replay,
+the ordinary write gate and independent acceptance still run. This is not a
+total-cost or speedup measurement. Successful reuse does not duplicate or edit
+the source candidate, even when `rememberFile` names a different destination.
+
+No applicable valid method permits fresh search. Corrupt source/artifact errors
+stop without searching. A memory method failing independent acceptance permits
+fresh search only after verified rollback, charging its attempt against the
+same candidate budget. Budget one stops; larger budgets exclude the failed
+joint canonical AST and may remember a different kept pair from its own sealed
+search run. Gate failures and unverified rollback never authorize fallback.
+This reuses the existing schema, journal and safety gates; no new persistence
+authority or general learning-gain claim is introduced.
 
 Validation: `node --test test/coder-pipeline-synthesis.test.js test/coder-arithmetic-synthesis.test.js`.
+Learning checks: `node --test test/coder-pipeline-learning.test.js test/coder-multi-target-learning.test.js`.
