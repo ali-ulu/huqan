@@ -82,11 +82,16 @@ test('native pipeline applies only with authority and restores both files on fai
     fs.writeFileSync(path.join(root, 'accept.js'), `const assert=require('node:assert/strict');
       const a=require('./a'),b=require('./b'); assert.equal(b(a(5)),${acceptance === 'pass' ? 625 : 999});
       assert.equal(b(a(-2)),16);`);
+    fs.writeFileSync(path.join(root, '.gitignore'), 'request.json\nstate/\nmemory.db\nmemory.db-shm\nmemory.db-wal\n');
     const git = args => execFileSync('git', args, { cwd: root, stdio: 'pipe', windowsHide: true });
-    git(['init', '-qb', 'codex/fixture']); git(['add', '.']);
+    git(['init', '-qb', 'codex/fixture']);
+    // Do not let a developer's global ignore hide an untracked fixture input.
+    git(['config', 'core.excludesFile', path.join(root, '.git', 'empty-global-excludes')]);
+    git(['add', '.']);
     git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture']);
     const requestFile = path.join(root, 'request.json'); fs.writeFileSync(requestFile, JSON.stringify(task));
     const run = authorized => {
+      assert.equal(git(['status', '--porcelain']).toString().trim(), '', 'fixture must satisfy the real clean-repo gate');
       const env = { ...process.env, HUQAN_STATE_ROOT: path.join(root, 'state') }; delete env.NODE_TEST_CONTEXT;
       const child = spawnSync(process.execPath, [path.resolve(__dirname, '../cli.js'), 'coder', requestFile,
         '--synthesize', '--root', root, '--json', ...(authorized ? ['--authorize'] : [])],
