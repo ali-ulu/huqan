@@ -28,6 +28,7 @@
 const crypto = require('node:crypto');
 const { resolveApprovalAuthorityMode } = require('../lib/authority/authority-mode');
 const { createAuthorityClient } = require('../lib/authority/authority-client');
+const { status } = require('../lib/authority/authority-status');
 const { buildRegistration, buildOperationalRegistration, consumeProofFor, storedArgumentsOf } = require('../lib/authority/registration-payload');
 const { OPERATIONAL_TOOLS, isOperationalTool } = require('../lib/authority/operational-guard');
 const { loadOrCreateConsumeKey } = require('../lib/authority/consume-key');
@@ -124,27 +125,6 @@ function defaults(deps) {
 function serviceOrRefusal(mode) {
   if (mode.mode === 'service') return null;
   return { code: 2, report: { mode: mode.mode, reason: mode.reason || 'no approval authority is installed', pinPath: mode.pinPath } };
-}
-
-async function status(deps = {}) {
-  const { resolveMode, createClient } = defaults(deps);
-  const mode = resolveMode();
-  if (mode.mode === 'legacy') {
-    return { code: 0, report: { mode: 'legacy', boundary: mode.boundary,
-      note: 'no approval authority is installed; operator decisions are protected only by the same OS user' } };
-  }
-  if (mode.mode !== 'service') return { code: 2, report: { mode: mode.mode, reason: mode.reason, pinPath: mode.pinPath } };
-  const base = { mode: 'service', boundary: mode.boundary, pinPath: mode.pinPath, port: mode.pin.port, keyId: mode.pin.keyId };
-  try {
-    const identity = await createClient({ pin: mode.pin }).identity();
-    // Signed is not enough: the service must answer 200 under the very key the pin names.
-    if (identity.status !== 200 || !identity.body || identity.body.keyId !== mode.pin.keyId) {
-      return { code: 2, report: { ...base, answering: false, error: 'AUTHORITY_IDENTITY_MISMATCH' } };
-    }
-    return { code: 0, report: { ...base, answering: true } };
-  } catch (error) {
-    return { code: 2, report: { ...base, answering: false, error: error.code || 'STATUS_FAILED' } };
-  }
 }
 
 // #3940: puts the signed ledger head where no process on this machine can take it back.

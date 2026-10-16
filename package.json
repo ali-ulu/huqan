@@ -921,6 +921,8 @@
     "lib/authority/approval-view.js",
     "lib/authority/authority-client.js",
     "lib/authority/authority-mode.js",
+    "lib/authority/authority-status.js",
+    "lib/authority/agent-user-boundary.js",
     "lib/authority/authority-pin.js",
     "lib/authority/authority-service.js",
     "lib/authority/http-server.js",

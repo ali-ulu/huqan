@@ -9,9 +9,25 @@ const { status } = require('../bin/huqan-authority');
 const PIN = Object.freeze({ port: 47821, keyId: 'abcdef0123456789' });
 
 test('legacy mode reports that only the same OS user protects decisions', async () => {
-  const result = await status({ resolveMode: () => ({ mode: 'legacy', boundary: 'same-user' }) });
+  const result = await status({ resolveMode: () => ({ mode: 'legacy', boundary: 'same-user' }),
+    resolveAgentBoundary: () => ({ value: 'same-user' }) });
   assert.equal(result.code, 0);
   assert.deepEqual([result.report.mode, result.report.boundary], ['legacy', 'same-user']);
+});
+
+test('status reports the agent-user boundary beside the authority boundary, in every mode', async () => {
+  // ADR-017 (#3948): the two are orthogonal. Reporting the agent split must not
+  // overwrite which authority the runtime answers to, and vice versa.
+  const legacy = await status({ resolveMode: () => ({ mode: 'legacy', boundary: 'same-user' }),
+    resolveAgentBoundary: () => ({ value: 'os-user' }) });
+  assert.deepEqual([legacy.report.boundary, legacy.report.agentBoundary], ['same-user', 'os-user']);
+  const service = await status({ resolveMode: () => ({ mode: 'service', boundary: 'os-service', pinPath: 'pin', pin: PIN }),
+    resolveAgentBoundary: () => ({ value: 'os-user' }),
+    createClient: () => ({ identity: async () => ({ status: 200, body: { keyId: PIN.keyId } }) }) });
+  assert.deepEqual([service.report.boundary, service.report.agentBoundary], ['os-service', 'os-user']);
+  const unavailable = await status({ resolveMode: () => ({ mode: 'required_unavailable', reason: 'pin_malformed', pinPath: 'pin' }),
+    resolveAgentBoundary: () => ({ value: 'same-user' }) });
+  assert.deepEqual([unavailable.report.reason, unavailable.report.agentBoundary], ['pin_malformed', 'same-user']);
 });
 
 test('service mode with the pinned service answering exits 0', async () => {
