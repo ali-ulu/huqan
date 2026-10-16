@@ -348,7 +348,9 @@ const GOLDEN = {
   // #3550 adds the `terfi` usage line (one line) to the same generated help.
 // #3860 P6a adds the `--authority` flag to the audit usage line.
   // #3892 adds the `receipt verify <id> [--workspace <id>]` usage line (one line).
-  'yardım': 'd63bf98777b235f0f9278d2b51b6b442a73e8df92c48578a32cb0c89bee99afd',
+  // #3905 re-words the `stop` usage line (one line): the stop now covers every
+  // agent, MCP, HTTP and CLI call in a workspace.
+  'yardım': 'a550283cfb4e002ef56dc15fab71ef54461cbb3927c1a26e093ac294b3a36b0a',
   'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
