@@ -22,7 +22,11 @@ enabled.
 
 Repository-native collaboration metadata also includes:
 
-- structured Bug and Feature issue forms;
+- structured Bug and Feature issue forms, both pinned to a repository issue
+  type (`Bug`, `Feature`) so an issue opened from a form carries its type as
+  well as its label;
+- a shared surface vocabulary across the Bug, Feature, Ideas and Q&A forms, so
+  the same HUQAN surface is named the same way whichever form a reporter picks;
 - a pull request template with HUQAN trust/security checks;
 - Ideas and Q&A Discussion category forms for the default `ideas` and `q-a`
   category slugs;

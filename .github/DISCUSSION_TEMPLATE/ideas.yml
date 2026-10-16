@@ -26,17 +26,21 @@ body:
     attributes:
       label: Primary HUQAN surface
       options:
-        - Verification / trust
-        - Human approval
+        - Kernel / library
+        - CLI
         - MCP
+        - REST API / local UI
         - External action guard
-        - A2A / interoperability
-        - Provenance / Trust Receipts
+        - A2A
+        - Verification / trust
+        - Approval / human oversight
+        - Trust Receipts / provenance
         - Storage / graph / memory
         - Security
+        - Plugins
         - Packaging / release
         - Developer experience
-        - Documentation / community
+        - Documentation
         - Other
     validations:
       required: true

@@ -10,16 +10,21 @@ body:
     attributes:
       label: What are you working with?
       options:
+        - Kernel / library
         - CLI
-        - Library / Kernel
         - MCP
-        - REST API
+        - REST API / local UI
         - External action guard
         - A2A
-        - Trust Receipts / Viewer
+        - Verification / trust
+        - Approval / human oversight
+        - Trust Receipts / provenance
+        - Storage / graph / memory
+        - Security
         - Plugins
         - Packaging / release
-        - Development / contribution
+        - Developer experience
+        - Documentation
         - Other
     validations:
       required: true

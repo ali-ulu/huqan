@@ -3,6 +3,7 @@ description: Report a reproducible defect in HUQAN
 title: "bug: "
 labels:
   - bug
+type: Bug
 body:
   - type: markdown
     attributes:
@@ -24,12 +25,17 @@ body:
         - Kernel / library
         - CLI
         - MCP
-        - REST API
+        - REST API / local UI
         - External action guard
         - A2A
-        - Trust Receipt Viewer
-        - Plugin system
+        - Verification / trust
+        - Approval / human oversight
+        - Trust Receipts / provenance
+        - Storage / graph / memory
+        - Security
+        - Plugins
         - Packaging / release
+        - Developer experience
         - Documentation
         - Other
     validations:
