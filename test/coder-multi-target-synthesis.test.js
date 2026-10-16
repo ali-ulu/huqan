@@ -39,6 +39,20 @@ test('synthesizes two independent targets as one bounded sequence without replac
     const invalid = structuredClone(task); mutate(invalid);
     assert.equal(produceArithmeticRepair({ task: invalid, root }).ok, false);
   }
+  const expressions = structuredClone(task);
+  expressions.synthesis.targets[0] = { path: 'a.js', family: 'arithmetic-expression',
+    examples: [-3, -1, 0, 2, 5].map(input => ({ input, expected: input * input })) };
+  const alternatives = produceArithmeticRepair({ task: expressions, root });
+  assert.equal(alternatives.ok, true, alternatives.reason);
+  assert.equal(alternatives.plan.candidateCombinations, 3);
+  assert.equal(alternatives.task.candidates.length, 3);
+  for (const candidate of alternatives.task.candidates) {
+    const result = runTask({ ...alternatives.task, operation: candidate, files });
+    assert.equal(result.status, STATUS.COMPLETED);
+    assert.equal(result.patch.length, 2);
+  }
+  expressions.synthesis.targets[1] = { ...structuredClone(expressions.synthesis.targets[0]), path: 'b.js' };
+  assert.equal(produceArithmeticRepair({ task: expressions, root }).reason, 'SYNTHESIS_MULTI_TARGET_OVER_CAP');
   fs.writeFileSync(path.join(root, 'b.js'),
     'function fold(xs) { let acc = 0; for (const item of xs) { acc = (acc % item); } return acc; }');
   const ambiguous = structuredClone(task);
