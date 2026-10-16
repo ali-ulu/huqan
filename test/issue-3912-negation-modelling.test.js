@@ -69,6 +69,27 @@ test('#3912 (A) an ASCII copula negation parses to the değil relation, not a po
   }
 });
 
+test('#3912 (A) a copula negation written without a space still negates', () => {
+  // The attached spelling ("farkındalıkdeğildir") goes through the suffix
+  // regex, whose ASCII arm (#3912) also accepts `farkındalıkdegildir`.
+  for (const spelling of ['farkındalıkdeğildir', 'farkındalıkdegildir']) {
+    assert.deepEqual(
+      parsePredicate(spelling, word => word),
+      { object: 'farkındalık', relation: 'değil' },
+      `${spelling} must fold to a değil relation on its stem`,
+    );
+  }
+  // A bare negation has no stem to fold, so it is not a copula-negation
+  // *predicate* (the guard must reject the empty stem).
+  for (const spelling of ['', '   ', null, undefined]) {
+    assert.equal(
+      isCopulaNegationPredicate(spelling),
+      false,
+      `${JSON.stringify(spelling)} is not a copula negation predicate`,
+    );
+  }
+});
+
 test('#3912 (A) a taught ASCII negation never becomes a positive type edge', () => {
   const kernel = makeKernel('ascii-learn');
   try {
