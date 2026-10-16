@@ -62,10 +62,13 @@ With an explicit output path, a successful revision saves a distinct
 `huqan-project-method` records keep their format and version. The new record
 contains the previous/next requirements, selected programs, parent references,
 loaded-memory hash and sealed source identity. Loading it validates every parent,
-reproduces the revision from its original parent methods, compares the sealed
+reproduces the baseline from its original parent methods and the target from
+the source-verified saved programs, compares the sealed
 patch hashes and complete generated-output manifest, and validates the selected
 programs against the target recipe. Source replay search remains separate from
-the new target's search counter. An explicitly declared primitive
+the new target's search counter. Revision plans also report `baselineSearch`,
+which counts candidate enumeration while reconstructing the previous recipe.
+Target training contexts never enter baseline reconstruction. An explicitly declared primitive
 `synthesizeOnMemoryMiss` can discover a new method during a revision; after
 successful persistence a new process may reuse it without target enumeration.
 
@@ -74,6 +77,18 @@ Failed tests, unauthorized writes and invalid source records do not produce a
 method file. A persistence refusal after a kept revision is reported as partial;
 it does not undo an already verified code change. Existing ancestry and record
 size bounds still apply. No initialization permission is created for revisions.
+
+The native replay-cost fixture reports plan candidate counters only: initial
+teaching plan 7062, revision learning plan 48, a cold independent target plan 48, and the learned
+target 0 with source replay 0. Teaching is an upfront cost, not erased by reuse.
+These counters also omit additional enumeration during revision verification:
+the verifier reproduces both the revision and its target project. Thus 48 is
+not the total revision learning cost (this fixture performs at least 144
+enumerations during that stage). Total learning cost and break-even are not
+measured. These counters exclude AST evaluation, hashing, journal reads and
+native tests; they do not establish CPU or elapsed-time savings or general learning gain.
+When a baseline method is absent and explicit synthesis is permitted, its
+remaining enumeration is included in source replay rather than reported as zero.
 
 ## Computed HTTP project recipe
 

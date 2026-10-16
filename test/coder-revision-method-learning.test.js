@@ -43,6 +43,10 @@ test('native revision learns a new method, seals it and transfers after restart 
   const taught = run('create', previous, teacher, ['--initialize-project', '--source-root', source, '--project-memory', parent]);
   assert.equal(taught.child.status, 0, JSON.stringify(taught.result));
   const originalParent = fs.readFileSync(parent, 'utf8');
+  const enumeration = plan => (plan.baselineSearch || 0)
+    + plan.computation.routes.reduce((sum, route) => sum + route.enumerated, 0)
+    + (plan.computation.pipelines || []).reduce((sum, pipeline) => sum + (pipeline.enumerated || 0), 0);
+  let revisionTrainingSearch = 0;
   const learned = path.join(base, 'learned.json');
   for (const mode of ['success', 'unauthorized', 'failed-old-test']) {
     const root = path.join(base, mode); fs.mkdirSync(root);
@@ -59,6 +63,7 @@ test('native revision learns a new method, seals it and transfers after restart 
       ['--project-memory', parent, '--project-memory-out', output, ...(mode === 'unauthorized' ? [] : ['--authorize'])]);
     assert.equal(revised.child.status, mode === 'success' ? 0 : 6, JSON.stringify(revised.result));
     if (mode === 'success') {
+      revisionTrainingSearch = enumeration(revised.result.data.plan);
       assert.equal(revised.result.data.projectMemory.state, 'remembered');
       assert.equal(revised.result.data.plan.computation.routes[1].source, 'synthesis-after-memory-miss');
       assert.ok(revised.result.data.plan.computation.routes[1].enumerated > 0);
@@ -78,7 +83,19 @@ test('native revision learns a new method, seals it and transfers after restart 
   assert.equal(reused.child.status, 0, JSON.stringify(reused.result));
   assert.equal(reused.result.data.plan.computation.routes[0].enumerated, 0);
   assert.equal(reused.result.data.plan.computation.routes[0].source, 'memory');
-  assert.ok(reused.result.data.projectMemory.replaySearch > 0);
+  assert.equal(reused.result.data.projectMemory.replaySearch, 0);
+  const coldRoot = path.join(base, 'cold-target'); fs.mkdirSync(coldRoot);
+  const cold = run('create', target, coldRoot, ['--initialize-project', '--source-root', source]);
+  assert.equal(cold.child.status, 0, JSON.stringify(cold.result));
+  const coldSearch = cold.result.data.plan.computation.routes.reduce((sum, route) => sum + route.enumerated, 0);
+  assert.ok(coldSearch > 0);
+  assert.deepEqual(cold.result.data.plan.computation.routes.map(route => route.program),
+    reused.result.data.plan.computation.routes.map(route => route.program));
+  console.log(JSON.stringify({ measure: 'reported-plan-candidate-enumeration-only', initialTeachingPlan: enumeration(taught.result.data.plan),
+    revisionLearningPlan: revisionTrainingSearch, coldTargetPlan: coldSearch,
+    warmSourceReplay: reused.result.data.projectMemory.replaySearch, warmTarget: 0,
+    additionalVerifierEnumeration: 'NOT_COUNTED', totalLearningCost: 'NOT_MEASURED',
+    cpuAndNativeVerificationGain: 'NOT_MEASURED' }));
   assert.equal(reused.result.data.attempts[0].test.exitCode, 0);
   const mutations = [
     [record => { record.sourceHash = '0'.repeat(64); }, 'PROJECT_MEMORY_SOURCE_CHANGED'],
