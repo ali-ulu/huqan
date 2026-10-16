@@ -553,7 +553,7 @@ test('KernelV2 propagates metadata failure without rolling back wrapped learn', 
   }
 });
 
-test('Markdown adapter and Shield preserve review-only learn compatibility', () => {
+test('Markdown adapter and Shield report the honest review outcome, not a false success', () => {
   const adapter = makeKernel('adapter-review');
   const shield = makeKernel('shield-review');
   const markdownPath = path.join(adapter.root, 'input.md');
@@ -561,10 +561,14 @@ test('Markdown adapter and Shield preserve review-only learn compatibility', () 
     fs.writeFileSync(markdownPath, '# Facts\n\nkedi hayvandir\n', 'utf8');
     const adapterResult = ingestAndLearn(markdownPath, adapter.kernel, { rootPath: adapter.root });
     assert.equal(adapterResult.learned.length, 1);
+    // kernel.learn() returns ok:true/learned:0 when the admission gate queues a
+    // review; the adapter must not stamp that as a per-entry success (#3912).
     assert.deepEqual(adapterResult.learned[0], {
       section: 'Facts',
       learned: 0,
-      ok: true,
+      ok: false,
+      status: 'review_required',
+      reason: 'canonical_mutation_requires_approved_approval',
     });
     assertZeroGraphWrites(adapter.kernel);
 

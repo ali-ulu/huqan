@@ -17,6 +17,7 @@ const {
   treeBlobPaths,
   walkTreeBlobPaths,
 } = require('./github-tree');
+const { projectLearnOutcome } = require('./utils/learn-entries');
 
 const DEFAULT_FETCH_TIMEOUT_MS = 30000;
 
@@ -168,7 +169,7 @@ async function fetchAndLearn(repoUrl, kernel, opts = {}) {
       // must get a look at it (#348). No `typeof` fallback to the sync path,
       // for the same reason as http-adapter -- a silent skip is the bug.
       const r = await kernel.learnAsync(file.content, { provenance, sourceType: 'github', sourceSubType: 'blob', sourceRef: provenance.sourceRef });
-      results.push({ path: file.path, learned: r.data.learned, ok: true });
+      results.push({ path: file.path, ...projectLearnOutcome(r) });
     } catch (e) {
       results.push({ path: file.path, error: e.message, ok: false });
     }
