@@ -1784,6 +1784,14 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/authority/agent-user-boundary.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-017-agent-user-boundary.md"
+  },
+  "lib/authority/authority-status.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-017-agent-user-boundary.md"
+  },
   "lib/authority/approval-registration.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -7085,6 +7093,13 @@
     "Platform"
    ],
    "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
+  },
+  "lib/authority/authority-status.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-017: bin/huqan-authority.js status reports the authority mode and the agent-user boundary together"
   },
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",
