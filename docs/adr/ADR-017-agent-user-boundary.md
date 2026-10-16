@@ -101,11 +101,15 @@ process**.
   code (it needs to reason about it) but cannot *edit* it.
 - **`memory.db` / `memory.json`**: no longer resolved in the per-workspace
   cwd. The canonical store moves to a protected state root
-  (`C:\ProgramData\huqan\state`), ACL'd to the operator and SYSTEM, **outside
-  the agent user's token** — the same ACL class as the authority's
-  `state-store.js`.
-- The **runtime process** writes `memory.db`, running under the operator or a
-  service identity. The agent reaches the store **only through the MCP/HTTP
+  (`C:\ProgramData\huqan\state`), ACL'd to the operator, SYSTEM and — when the
+  runtime runs as a service rather than as the operator — the explicitly named
+  runtime service identity that write access requires, **outside the agent
+  user's token** and the same ACL class as the authority's `state-store.js`.
+- The **runtime process** writes `memory.db`. It runs either under the
+  operator identity or under an explicitly named service identity that is
+  granted the state-root access above; the ADR names that identity and its ACL
+  grant when the service variant is chosen, rather than leaving the writer
+  implicit. The agent reaches the store **only through the MCP/HTTP
   interface**, never by opening the file. This closes ADR-016 residual risk 1
   at the memory layer: the "agent writes `memory.db` directly" path now fails
   at the filesystem ACL, not merely at the audit.
@@ -119,8 +123,15 @@ meaningless for that server.
 - Shared MCP servers run as their **own small local service under a
   low-privilege service account** (for example `NT SERVICE\huqan-mcp-levh`),
   with their state ACL'd away from the agent, listening on `127.0.0.1:<port>`
-  and speaking the **same signed-envelope handshake** as the authority
-  service (ADR-016 items 5 and 6).
+  and using a signed-envelope protocol that **authenticates the agent client**;
+  loopback reachability is not client identity. Each request must bind the
+  authenticated client and workspace to the requested MCP operation and its
+  arguments, pass through the existing MCP gate/admission policy before any
+  protected-state access or side effect, and fail closed on a request that does
+  not verify or is not authorized. The envelope fields and verification rules
+  that provide this are a separate contract to be specified; ADR-016 items 5
+  and 6 sign authority responses and seal operator decision requests, and do
+  **not** define this MCP client contract.
 - The agent's MCP client configuration points at `127.0.0.1`, not at a
   spawned child. The server then lives on the operator's trusted side and the
   separation holds.
