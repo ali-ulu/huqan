@@ -75,6 +75,28 @@ test('generated acceptance tests run against real HTTP and reject an incorrect h
     const failed = run();
     assert.notEqual(failed.status, 0);
     assert.match(failed.stdout, /AssertionError|ERR_ASSERTION/);
+    const inferred = specification(); delete inferred.routes[0].compute.family;
+    inferred.routes[0].compute.examples = [
+      { input: [], expected: [] }, { input: [2], expected: [4] }, { input: [-3, 4], expected: [-6, 8] },
+    ];
+    inferred.routes[0].compute.acceptanceExamples = [
+      { input: [5], expected: [10] }, { input: [-2], expected: [-4] }, { input: [1, 3], expected: [2, 6] },
+    ];
+    inferred.routes.push({ ...structuredClone(inferred.routes[0]), path: '/double-again' }, {
+      path: '/quadruple', pipeline: ['/calculate', '/double-again'], acceptanceExamples: [
+        { input: [5], expected: [20] }, { input: [-2], expected: [-8] }, { input: [1, 3], expected: [4, 12] },
+      ],
+    }, { path: '/pair', compose: { left: '/calculate', right: '/double-again' }, acceptanceExamples: [
+      { input: [5], expected: { left: [10], right: [10] } },
+      { input: [-2], expected: { left: [-4], right: [-4] } },
+      { input: [1, 3], expected: { left: [2, 6], right: [2, 6] } },
+    ] });
+    write(inferred);
+    const inferredPass = run();
+    assert.equal(inferredPass.status, 0, inferredPass.stdout + inferredPass.stderr);
+    inferred.routes[0].compute.acceptanceExamples[0].expected = [999];
+    write(inferred);
+    assert.notEqual(run().status, 0);
     const product = specification();
     product.routes[0].compute.examples = [
       { input: [], expected: 1 }, { input: [2], expected: 2 }, { input: [3, 4], expected: 12 },

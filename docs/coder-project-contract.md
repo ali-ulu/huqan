@@ -548,6 +548,27 @@ sources require training provenance; their training inputs remain excluded
 from target acceptance. This adds bounded reuse of learned intermediate
 solutions, not arbitrary algorithm synthesis or a measured general gain.
 
+For a primitive computed route, omitting `compute.family` asks the existing
+model-free search engines to infer the family from training examples. Array
+outputs search map and filter; numeric outputs search fold, guarded fold,
+threshold fold and stateful fold. Every applicable family is searched before
+selection. More than one matching family refuses with
+`PROJECT_COMPUTE_FAMILY_AMBIGUOUS`; independent acceptance examples never break
+that tie. Equivalent implementations in different families can therefore still
+require an explicit family. A unique family does not imply a unique program:
+the existing candidate and training-question reports retain that distinction.
+
+The shared enumeration bound per inferred route is 4,489 for array outputs or
+71,010 for numeric outputs. `enumerated` includes unsuccessful families;
+`familySearches` reports each family's count, cap and omitted matches. Threshold
+overflow refuses the inference rather than silently skipping that family.
+Explicit-family requests retain their previous search and memory semantics.
+Memory-backed inference considers only supported primitive families, retains
+ambiguity refusal and searches on a miss only when `synthesizeOnMemoryMiss` is
+explicitly true. Normal authorization and independent generated HTTP tests
+still decide whether the proposal can be kept. This remains bounded algorithm
+family selection, not arbitrary software synthesis or measured learning gain.
+
 Object `compose` routes may reference scalar-composition routes as well as
 base computation routes. This lets learned methods supply named fields in one
 HTTP response. Each aggregate field retains the referenced method's numeric
