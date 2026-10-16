@@ -12,6 +12,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 
 const layaRisk = require('./laya-risk');
 const { classifyWithLaya, questionValue, questionsHash, candidateTextFromEvent } = layaRisk._test;
@@ -158,4 +159,148 @@ test('the plugin manifest matches the plugin source bytes', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'laya-risk.manifest.json'), 'utf8'));
   const digest = crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname, 'laya-risk.js'))).digest('hex');
   assert.equal(manifest.sha256, digest);
+});
+
+// #3973: the sidecar call is bounded. `spawnSync` is synchronous, so an
+// unbounded call blocks the gate path for as long as the child lives. These
+// tests drive the real plugin against a real child process; the only double is
+// the sidecar itself, which is an external binary this repository does not
+// vendor.
+function sidecarScript(body) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'laya-sidecar-'));
+  const file = path.join(dir, 'sidecar.js');
+  fs.writeFileSync(file, body);
+  return {
+    dir,
+    file,
+    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
+}
+
+// Runs `fn` with LAYA_MCP_* pointed at a script, restoring the previous values
+// even when the assertion throws.
+function withSidecar(script, env, fn) {
+  const saved = {};
+  const applied = {
+    LAYA_MCP_CMD: process.execPath,
+    LAYA_MCP_ARGS: `${script.file} mcp`,
+    ...env,
+  };
+  for (const [key, value] of Object.entries(applied)) {
+    saved[key] = process.env[key];
+    process.env[key] = value;
+  }
+  try {
+    return fn();
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+test('a hung sidecar is bounded and degrades instead of blocking the gate', () => {
+  // Ignores SIGTERM on purpose: `spawnSync`'s default kill signal is SIGTERM,
+  // so a sidecar like this one would block an unbounded call forever.
+  const script = sidecarScript('process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);');
+  try {
+    const started = Date.now();
+    const signal = withSidecar(script, { LAYA_MCP_TIMEOUT_MS: '300' }, () => {
+      const plugin = layaRisk.create({ questions: QUESTIONS });
+      return plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
+    });
+    const elapsed = Date.now() - started;
+    assert.equal(signal, undefined, 'a hung sidecar must contribute nothing');
+    assert.ok(elapsed < 5000, `the call must be bounded, took ${elapsed}ms`);
+  } finally {
+    script.cleanup();
+  }
+});
+
+test('an oversized stdout is bounded and degrades instead of being buffered whole', () => {
+  const script = sidecarScript('process.stdout.write("x".repeat(4 * 1024 * 1024));');
+  try {
+    const signal = withSidecar(script, { LAYA_MCP_MAX_OUTPUT_BYTES: '4096' }, () => {
+      const plugin = layaRisk.create({ questions: QUESTIONS });
+      return plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
+    });
+    assert.equal(signal, undefined, 'an over-large answer must contribute nothing');
+  } finally {
+    script.cleanup();
+  }
+});
+
+test('the next call recovers once the sidecar answers again', () => {
+  const hung = sidecarScript('process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);');
+  const good = sidecarScript(
+    'let raw = "";'
+    + 'process.stdin.on("data", (chunk) => { raw += chunk; });'
+    + 'process.stdin.on("end", () => {'
+    + '  const request = JSON.parse(raw);'
+    + '  if (request.action === "start") process.stdout.write(JSON.stringify({ slot: "s1" }));'
+    + '  else process.stdout.write(JSON.stringify({ probability: 0.95 }));'
+    + '});',
+  );
+  try {
+    const degraded = withSidecar(hung, { LAYA_MCP_TIMEOUT_MS: '300' }, () => {
+      const plugin = layaRisk.create({ questions: QUESTIONS });
+      return plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
+    });
+    assert.equal(degraded, undefined);
+
+    const recovered = withSidecar(good, {}, () => {
+      const plugin = layaRisk.create({ questions: QUESTIONS });
+      return plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
+    });
+    assert.ok(recovered, 'a working sidecar must produce a signal after a bounded failure');
+    assert.equal(recovered.id, 'laya-risk');
+  } finally {
+    hung.cleanup();
+    good.cleanup();
+  }
+});
+
+test('askSidecar reads a well-formed answer and rejects a malformed one', () => {
+  const good = sidecarScript(
+    'let raw = "";'
+    + 'process.stdin.on("data", (chunk) => { raw += chunk; });'
+    + 'process.stdin.on("end", () => {'
+    + '  process.stdout.write(JSON.stringify({ probability: 0.7 }));'
+    + '});',
+  );
+  try {
+    const answer = withSidecar(good, {}, () => layaRisk._test.askSidecar('mcp', { action: 'ask' }));
+    assert.deepEqual(answer, { probability: 0.7 });
+
+    const missing = withSidecar({ file: path.join(os.tmpdir(), 'laya-no-such-binary.js') }, {}, () =>
+      layaRisk._test.askSidecar('mcp', { action: 'ask' }));
+    assert.equal(missing, null, 'a missing sidecar is a null reading');
+  } finally {
+    good.cleanup();
+  }
+});
+
+// #3971: the scope question is worded as a breach question, so a high P(true)
+// and the decision mapping share one orientation. Rewording it back to the
+// matching form ("does this action match ...") while the mapping still treats a
+// high value as a breach is exactly the inversion the issue reports.
+test('the scope question is breach-worded so P(true) and the verdict agree', () => {
+  const scope = QUESTIONS.find((question) => question.id === 'scope');
+  assert.match(scope.ask, /outside the workspace's declared scope/);
+  assert.doesNotMatch(scope.ask, /does this action match/);
+
+  const breach = classifyWithLaya(fakeHandle({ scope: { probability: 0.9 } }), 'anything', QUESTIONS);
+  assert.deepEqual(breach.signalIds, ['laya:scope']);
+  assert.equal(breach.decision, 'review');
+
+  const inScope = classifyWithLaya(fakeHandle({ scope: { probability: 0.1 } }), 'anything', QUESTIONS);
+  assert.deepEqual(inScope.signalIds, []);
+  assert.equal(inScope.decision, 'allow');
+});
+
+test('the shipped pack asks the same scope question as the code', () => {
+  const pack = JSON.parse(fs.readFileSync(path.join(__dirname, 'laya-risk.pack.json'), 'utf8'));
+  const scope = pack.questions.find((question) => question.id === 'scope');
+  assert.equal(scope.ask, QUESTIONS.find((question) => question.id === 'scope').ask);
 });

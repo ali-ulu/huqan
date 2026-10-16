@@ -24,7 +24,10 @@
 //
 // Fail-closed: with no sidecar configured, or an unreachable/degraded model,
 // the lookup returns no reading, the plugin contributes nothing, and it never
-// downgrades a core decision. No cloud call, no API key.
+// downgrades a core decision. A sidecar that hangs or floods stdout is bounded
+// by an explicit timeout and output size and is treated the same as an
+// unreachable one, so it cannot block the synchronous gate path. No cloud call,
+// no API key.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -52,8 +55,14 @@ const DEFAULT_QUESTIONS = Object.freeze([
   Object.freeze({
     id: 'scope',
     kind: 'noul',
-    ask: 'does this action match the workspace\'s declared scope',
-    // A high probability of "no" is a scope breach.
+    // Worded as a breach question on purpose. `noul` is P(true), and every
+    // question here is read as "a higher value is riskier", so the decision
+    // mapping and the risk score share one orientation. Asking the matching
+    // question instead ("does this action match the workspace's declared
+    // scope") reads a high P(true) as in-scope while the mapping below still
+    // treats it as a breach -- the inversion #3971 reports.
+    ask: 'is this action outside the workspace\'s declared scope',
+    // A high probability of "yes" is a scope breach.
     questionDecision: (value, threshold) => (value >= threshold ? 'review' : 'allow'),
   }),
   Object.freeze({
@@ -76,9 +85,31 @@ const DEFAULT_QUESTIONS = Object.freeze([
 const DEFAULT_CALL_THRESHOLD = 0.6;
 const HIGH_RISK_SCORE = 70;
 
+// Bounds on the sidecar call. `spawnSync` is synchronous, so an unbounded call
+// blocks the gate path for as long as the child lives and buffers however much
+// it writes (#3973). A one-shot local CPU model answers well inside this
+// window; anything slower is degraded, not merely slow.
+const DEFAULT_SIDECAR_TIMEOUT_MS = 5_000;
+const DEFAULT_SIDECAR_MAX_OUTPUT_BYTES = 1024 * 1024;
+
 function envValue(name) {
   const raw = process.env[name];
   return typeof raw === 'string' && raw.trim() ? raw.trim() : '';
+}
+
+function positiveIntegerEnv(name, fallback) {
+  const raw = envValue(name);
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function sidecarTimeout() {
+  return positiveIntegerEnv('LAYA_MCP_TIMEOUT_MS', DEFAULT_SIDECAR_TIMEOUT_MS);
+}
+
+function sidecarMaxBuffer() {
+  return positiveIntegerEnv('LAYA_MCP_MAX_OUTPUT_BYTES', DEFAULT_SIDECAR_MAX_OUTPUT_BYTES);
 }
 
 function command() {
@@ -100,18 +131,29 @@ function callThreshold(options = {}) {
 
 // The sidecar's one-shot protocol: one JSON request on stdin, one JSON answer
 // on stdout. Anything else -- a missing binary, a non-zero exit, a non-JSON
-// stdout, no output -- is a degraded model, so the caller gets null and the
-// plugin contributes nothing.
+// stdout, no output, a timeout, or an over-large stdout -- is a degraded model,
+// so the caller gets null and the plugin contributes nothing.
+//
+// `killSignal` is SIGKILL, not the `spawnSync` default SIGTERM: a child that
+// ignores SIGTERM would otherwise leave this synchronous call blocked for as
+// long as it chooses, which is the availability failure #3973 reports.
 function askSidecar(mode, request) {
   let result;
   try {
     result = spawnSync(command(), commandArgs(mode), {
       encoding: 'utf8',
       input: JSON.stringify(request),
+      timeout: sidecarTimeout(),
+      maxBuffer: sidecarMaxBuffer(),
+      killSignal: 'SIGKILL',
     });
   } catch (_) {
     return null;
   }
+  // A killed child has no exit status: `status` is null and `signal` is set.
+  // The timeout/max-buffer errors are read explicitly rather than inferred from
+  // a null status so the two bounds stay visible as the reason for the null.
+  if (result && (result.error || result.signal)) return null;
   if (!result || result.status !== 0) return null;
   const stdout = typeof result.stdout === 'string' ? result.stdout : '';
   if (!stdout.trim()) return null;
@@ -340,7 +382,10 @@ module.exports._test = {
   PLUGIN_NAME,
   DEFAULT_QUESTIONS,
   DEFAULT_CALL_THRESHOLD,
+  DEFAULT_SIDECAR_TIMEOUT_MS,
+  DEFAULT_SIDECAR_MAX_OUTPUT_BYTES,
   HIGH_RISK_SCORE,
+  askSidecar,
   candidateTextFromEvent,
   classifyWithLaya,
   createSidecarHandle,

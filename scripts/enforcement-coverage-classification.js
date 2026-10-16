@@ -301,7 +301,7 @@ const CLASSIFIED = Object.freeze({
   // ── the Laya bridge ────────────────────────────────────────────────────
   'plugins/laya-risk.js': Object.freeze({
     role: 'adapter_read',
-    why: 'spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS)',
+    why: 'spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS). The call itself is bounded by an explicit timeout and output cap (LAYA_MCP_TIMEOUT_MS/LAYA_MCP_MAX_OUTPUT_BYTES), killed with SIGKILL so a child that ignores SIGTERM cannot block the synchronous gate path (#3973)',
   }),
 
   // ── outside the boundary, listed ───────────────────────────────────────
