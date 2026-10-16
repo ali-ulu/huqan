@@ -588,6 +588,10 @@
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
   },
+  "lib/learn-use-case-negation-conflict.js": {
+   "context": "Knowledge",
+   "evidence": "ownership-map-2446.md#R-LEARN-K"
+  },
   "lib/inference-abduction-values.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
