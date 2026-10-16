@@ -14,6 +14,11 @@ name: Benchmark Regression
 #   docker/package       →  docker build runs        (mandatory on docker)
 #   docs-only / nothing  →  all three NOT_APPLICABLE
 #
+# A NOT_APPLICABLE skip is not a measurement: after a merge the Coverage gate
+# stays red while the newest completed measured Coverage verdict on main is
+# not a success (#3970) -- see the coverage-gate job and
+# scripts/coverage-gate-history.js.
+#
 # Security Checks (security.yml) stays mandatory on every PR and is
 # intentionally NOT conditionalized here.
 
