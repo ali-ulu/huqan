@@ -18,7 +18,7 @@ const test = require('node:test');
 
 const CLI = require('../cli');
 const { createEmergencyStop } = require('../lib/emergency-stop');
-const { EMERGENCY_STOPPED_CODE, COMMANDS_REACHABLE_UNDER_STOP } = require('../lib/cli-gate-evaluation');
+const { EMERGENCY_STOPPED_CODE, COMMANDS_REACHABLE_UNDER_STOP, cliEmergencyStopRefusal, formatCliEmergencyStopRefusal } = require('../lib/cli-gate-evaluation');
 
 function stopDir(t) {
   const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-3905-cli-stop-'));
@@ -100,4 +100,28 @@ test('an agent-scoped stop does not block the unattributed CLI caller', (t) => {
   });
   const output = cli.execute('sor', 'kedi nedir', { gateResult: null });
   assert.doesNotMatch(String(output), new RegExp(EMERGENCY_STOPPED_CODE));
+});
+
+test('the gate tolerates a ledger that answers nothing', () => {
+  assert.equal(cliEmergencyStopRefusal({ emergencyStop: { check: () => null }, command: 'sor' }), null);
+});
+
+test('the refusal carries a missing scope and reason as null', () => {
+  const refusal = cliEmergencyStopRefusal({
+    emergencyStop: { check: () => ({ stopped: true, scope: null, reason: null }) },
+    command: 'sor',
+  });
+  assert.equal(refusal.code, EMERGENCY_STOPPED_CODE);
+  assert.equal(refusal.scope, null);
+  assert.equal(refusal.reason, null);
+  const plain = formatCliEmergencyStopRefusal(refusal);
+  assert.match(plain, /scope: workspace/);
+  const json = formatCliEmergencyStopRefusal(refusal, { json: true });
+  assert.equal(json.error.code, EMERGENCY_STOPPED_CODE);
+});
+
+test('the gate defaults hold without options or a command', (t) => {
+  assert.equal(cliEmergencyStopRefusal(), null);
+  const ledger = createEmergencyStop({ directory: stopDir(t) });
+  assert.equal(cliEmergencyStopRefusal({ emergencyStop: ledger }), null);
 });
