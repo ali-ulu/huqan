@@ -1302,10 +1302,13 @@ jobs:
           set -euo pipefail
           runs_file="${RUNNER_TEMP}/benchmark-main-runs.json"
           # Completed Benchmark Regression runs on main, pull_request events
-          # excluded, newest first. The walk looks at most 20 runs deep: an
-          # alarm older than that would sit behind 20 consecutive non-source
-          # commits on a main whose alert issues are already open.
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_branch=main&per_page=40" \
+          # excluded, newest first. The workflow-scoped endpoint is used
+          # because the repo-level runs list ignores an unknown branch
+          # parameter and would feed the walk a page of unrelated runs. The
+          # walk looks at most 20 runs deep: an alarm older than that would
+          # sit behind 20 consecutive non-source commits on a main whose
+          # alert issues are already open.
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/benchmark.yml/runs?branch=main&status=completed&per_page=40" \
             --jq '[.workflow_runs[]
                    | select(.name == "Benchmark Regression"
                             and .event != "pull_request"

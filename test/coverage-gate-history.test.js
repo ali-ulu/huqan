@@ -176,7 +176,10 @@ test('the coverage gate refuses to clear an unresolved alarm after a merge', () 
   assert.match(String(alarmStep.if), /github\.event_name != 'pull_request'/);
   assert.match(String(alarmStep.if), /needs\.classify\.outputs\.source_only != 'yes'/);
   assert.match(alarmStep.run, /scripts[\\/]coverage-gate-history\.js/);
-  assert.match(alarmStep.run, /head_branch=main/);
+  // The workflow-scoped endpoint is pinned because the repo-level runs list
+  // silently ignores an unknown branch parameter and would feed the walk a
+  // page of unrelated runs.
+  assert.match(alarmStep.run, /actions\/workflows\/benchmark\.yml\/runs\?branch=main/);
   assert.match(alarmStep.run, /event != "pull_request"/);
   assert.match(String(alarmStep.env && alarmStep.env.GH_TOKEN), /github\.token/);
 });
