@@ -49,9 +49,10 @@ whole sequence. Protected blockquote/fenced contexts remain refused.
 
 This contract shares the existing candidate schema and journal rather than
 installing a new persistence authority. A routed run cannot mint a replacement
-source candidate. New multi-target synthesis requests still reject automatic
-`rememberFile`/`reuseMemory`; their explicit connection to this method contract
-and adaptation to renamed targets are separate unfinished work.
+source candidate. Multi-target synthesis can explicitly opt into this contract
+with `rememberFile` and `reuseMemory`; see
+[multi-target synthesis](coder-multi-target-synthesis.md). Adaptation to renamed
+targets remains unfinished work.
 
 Validation entry point: `node --test test/experience-replacement-sequence.test.js`.
 The native case reopens SQLite, reuses the method in a fresh CLI process,

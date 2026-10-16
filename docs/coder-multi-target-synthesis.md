@@ -46,15 +46,41 @@ there is no silent Cartesian truncation. A failed test rolls back the whole
 sequence before the next proposal. Training inputs do not substitute for the
 independent declared test.
 
-This mode does not yet persist or reuse a multi-target method: `rememberFile`
-and `reuseMemory` are rejected rather than silently routed into the existing
-single-target record format. It does not infer dependencies between targets,
+With a journal, `synthesis.rememberFile` explicitly stores a kept successful
+sequence as a source-bound `replacement_sequence` candidate. Unauthorized,
+failed or dry-run attempts never create a record. Declare qualification maps
+as described in [replacement sequence memory](coder-replacement-sequence-memory.md).
+
+`synthesis.reuseMemory: true` checks the validated joint source method against
+each target's own training examples before the ordinary routing, qualification,
+trust and mutation gates run. It requires the original relative paths and
+order. Successful reuse reports zero fresh enumeration and does not create a
+duplicate record, even if `rememberFile` names a different output. This is not
+a total-cost or speedup measurement. If no valid applicable method exists,
+fresh synthesis may run; corrupt source/artifact errors stop immediately.
+A reused method failing independent acceptance may start fresh synthesis only
+after rollback is verified. Its attempt is charged against the same bounded
+candidate budget; budget one stops with `SYNTHESIS_BUDGET_EXHAUSTED`. The failed
+joint method is excluded by every target's canonical AST, so cosmetic source
+formatting cannot cause it to be retried. Gate, source, readback and unverified
+rollback failures never trigger this fallback. A later successful proposal can
+be remembered from its own sealed search run without editing the older record.
+
+The mode does not infer dependencies between targets,
 support arbitrary source grammars, or generate requirements from natural text.
 
 Focused checks: `node --test test/coder-multi-target-synthesis.test.js
-test/coder-arithmetic-synthesis.test.js`. Native coverage includes an
+test/coder-multi-target-learning.test.js test/coder-arithmetic-synthesis.test.js`.
+Native coverage includes an
 unauthorized attempt, two successful synthesized files, and independent
 acceptance failure restoring both files. Pure coverage includes unchanged
 source files, invalid/duplicate paths, unsupported record options and a real
 array-fold search whose omitted matches would otherwise hide an over-budget
 Cartesian set.
+
+The retry fixture uses a source method `(x - 3) % 3` and a target requiring
+`x % 3`: both fit the negative training examples, but the positive held-out
+input distinguishes them. With budget one, the failed memory attempt restores
+both files and stops; with budget two, the first different fresh proposal
+passes and is sealed as a new method. This is a bounded counterexample, not
+evidence of general learning gain.

@@ -33,7 +33,7 @@ test('synthesizes two independent targets as one bounded sequence without replac
   for (const mutate of [
     request => { request.synthesis.targets[1].path = 'a.js'; },
     request => { request.synthesis.targets[1].path = '../outside.js'; },
-    request => { request.synthesis.rememberFile = 'record.json'; },
+    request => { request.synthesis.reuseMemory = 'invalid'; },
     request => { request.operation.steps = []; },
   ]) {
     const invalid = structuredClone(task); mutate(invalid);
