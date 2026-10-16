@@ -47,7 +47,8 @@ The live Ruleset now matches `.github/rulesets/main-branch.json` exactly. The
 `required_review_thread_resolution: true` and squash as the only merge method.
 Zero approvals is deliberate: this is a single-maintainer repository where every
 PR is opened from the maintainer's own account. `strict_required_status_checks_policy`
-is `true`, so a PR behind `main` must be updated before it can merge. There are
+is `false` on purpose (see `.github/rulesets/README.md`): a PR behind `main` can
+merge once its own required checks pass. There are
 **no bypass actors** (`current_user_can_bypass: never`). The earlier
 `pull_request`-mode bypass for @ali-ulu (user id 305066106) was removed in #3969.
 Historical evidence for the original review gap (PRs #3061, #3063 and #3064

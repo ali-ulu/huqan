@@ -63,7 +63,8 @@ for (const relativePath of RULESET_PATHS) {
     assert.equal(pullRequest.parameters.required_review_thread_resolution, true);
 
     const statusChecks = ruleset.rules.find(rule => rule.type === 'required_status_checks');
-    assert.equal(statusChecks.parameters.strict_required_status_checks_policy, true);
+    // Strict mode is off on purpose; see .github/rulesets/README.md.
+    assert.equal(statusChecks.parameters.strict_required_status_checks_policy, false);
 
     const contexts = new Set(
       statusChecks.parameters.required_status_checks.map(check => check.context),

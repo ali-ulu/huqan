@@ -23,7 +23,6 @@ The ruleset still requires:
 - pull requests;
 - all 13 current required GitHub Actions checks;
 - review-thread resolution;
-- an up-to-date branch before merge;
 - no force-push;
 - no deletion.
 
@@ -31,6 +30,12 @@ If a second regular maintainer joins, `required_approving_review_count` can be
 raised to 1.
 
 ## Status checks
+
+`strict_required_status_checks_policy` is `false` on purpose. With parallel
+agent PRs, strict mode made every merge put the other open PRs behind `main`
+and re-run every required check, without catching anything the post-merge
+`main` run and the nightly full suite do not already catch. Correctness comes
+from the required checks themselves, which every PR must pass.
 
 The check names and GitHub Actions integration id were copied from the live
 `main` protection state on 2026-09-18. If GitHub rejects a stale check during
@@ -45,9 +50,9 @@ per check. This recipe already lists those two consolidated contexts in place of
 the seven legacy per-check names.
 
 Since 2026-10-16 (#3969) the live `main` Ruleset matches `main-branch.json`
-exactly: the consolidated contexts, `Coverage gate`, strict status checks and no
-bypass actors. Classic branch protection still requires the seven legacy names,
-so the seven compatibility jobs in `architecture.yml` must keep producing them.
+exactly: the consolidated contexts, `Coverage gate` and no bypass actors.
+Classic branch protection still requires the seven legacy names, so the seven
+compatibility jobs in `architecture.yml` must keep producing them.
 Remove those compat jobs only after the classic layer drops the legacy names --
 otherwise merges stall.
 
