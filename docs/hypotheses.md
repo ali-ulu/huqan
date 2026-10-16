@@ -26,6 +26,10 @@ node cli.js hypotheses --propose --critical 3
 
 `--json`, CLI’nin mevcut `WorkflowEnvelope` sözleşmesine uyar. `--propose` yalnızca yüksek ciddiyetli hipotezleri `candidate_claim` olarak admission ve CLI mutation-audit sınırından geçirir; mevcut graph’a doğrudan edge veya node yazmaz. Proposal modu açıkça istenmedikçe hiçbir candidate claim oluşturulmaz.
 
+## `dream` ile `hypotheses --propose` farkı
+
+`dream()` ve `hypotheses` farklı kural kümeleridir. `dream()` hipotezleri yalnızca dönüş değerindeki `pending` listesinde verir; varsayılan `graphWrite: false` ile ne grafa ne `candidate_claims` tablosuna yazar. Hipotezleri kalıcı aday yapan tek yol `hypotheses --propose`'dur.
+
 ## İnsan incelemesi
 
 `--propose` ile kuyruğa alınan adaylar `status: 'pending'` ve `recommendation: 'flag'` taşır. Conflict-detection yolu `flag` önerisini hiçbir zaman kabul veya redde taşımadığı için, bu adayları insan kararıyla sonuçlandıran tek yol `hypotheses review` komutudur.

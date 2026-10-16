@@ -37,6 +37,22 @@ Current measured position for AXIOM graph and memory behavior:
   - `dream()` returns at most 10 hypotheses.
   - Similarity, transitive, gap, symmetry, and contradiction generation are each capped internally.
   - `_biasedWalk()` is bounded by `walkLength` and `walksPerNode`.
+- `dream()` is not persistent. It returns its hypotheses in the `pending`
+  list of the return value only; with the default `graphWrite: false` they are
+  neither written to the graph nor to `candidate_claims`. The persistent path is
+  `hypotheses --propose` (see `docs/hypotheses.md`), which is a different
+  rule set from `dream()`.
+- The `çelişki` dream hypothesis and `detectContradictions` fire only when the
+  graph holds two disjoint `tür` edges for one subject. The ordinary `learn`
+  path does not produce that state: on a disjoint-`tür` conflict
+  `lib/learn-use-case.js` records the second `tür` as a `benzer` edge and
+  reports the conflict in `conflicts`. In normal learning the contradiction
+  hypothesis therefore does not fire; it fires only when such edges are added
+  directly to the graph.
+- `kernel.learn` speed is superlinear in graph size (issue #3911 measurement,
+  one machine): 100 facts 322 ms, 300 facts 1026 ms, 600 facts 2420 ms, and
+  10k facts about 173 s. Read the supported scale below together with this
+  limit.
 - Graph scale is bounded by its local process, hydrated heap, and fixture
   behavior. MemoryStore's bounded retained cache does not remove its linear
   startup validation cost, synchronous read cost, or SQLite writer contention.
