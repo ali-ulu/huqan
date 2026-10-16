@@ -31,9 +31,9 @@ Repository-native collaboration metadata also includes:
 
 ## Verified main-branch protection
 
-Live repository inspection on 2026-09-28 (second pass, after the #3068
-live-settings update), re-verified on 2026-10-09, reports `main` as protected by
-**both** a classic branch protection and an active repository Ruleset:
+Live repository inspection on 2026-10-16, after the #3969 Ruleset
+reconciliation, reports `main` as protected by **both** a classic branch
+protection and an active repository Ruleset:
 
 - Ruleset `HUQAN main protection` (id 23629799, `enforcement: active`, target
   `branch`) carries `deletion`, `non_fast_forward`, `required_signatures`,
@@ -41,19 +41,19 @@ live-settings update), re-verified on 2026-10-09, reports `main` as protected by
 - classic branch protection on `main` additionally lists required checks and
   reports `enforce_admins: false`.
 
-The #3068 review gap is now **closed** at the Ruleset level: the `pull_request`
-rule requires `required_approving_review_count: 1` with `require_code_owner_review: true`
-(the `CODEOWNERS` file names @ali-ulu as the sole owner of every path) and
-`dismiss_stale_reviews_on_push: true`. The only bypass actor is @ali-ulu
-(user id 305066106) in `pull_request` mode — deliberate, because this is a
-single-maintainer repository where every PR is opened from the maintainer's
-own account and could otherwise never receive a second-actor approval.
-Historical evidence for the original gap (PRs #3061, #3063 and #3064 all
-merged with zero reviews on 2026-09-28, before this change) is kept in
-#3068. The classic-protection mirror of the review requirement remains a
-live-settings audit item.
+The live Ruleset now matches `.github/rulesets/main-branch.json` exactly. The
+`pull_request` rule requires `required_approving_review_count: 0`,
+`require_code_owner_review: false`, `dismiss_stale_reviews_on_push: true`,
+`required_review_thread_resolution: true` and squash as the only merge method.
+Zero approvals is deliberate: this is a single-maintainer repository where every
+PR is opened from the maintainer's own account. `strict_required_status_checks_policy`
+is `true`, so a PR behind `main` must be updated before it can merge. There are
+**no bypass actors** (`current_user_can_bypass: never`). The earlier
+`pull_request`-mode bypass for @ali-ulu (user id 305066106) was removed in #3969.
+Historical evidence for the original review gap (PRs #3061, #3063 and #3064
+all merged with zero reviews on 2026-09-28) is kept in #3068.
 
-The 17 checks currently required by the Ruleset are:
+The 13 checks required by the Ruleset are:
 
 - `npm test gate`
 - `Conformance Gate`
@@ -65,36 +65,40 @@ The 17 checks currently required by the Ruleset are:
 - `Rust accelerator gate`
 - `Package Smoke`
 - `CodeQL`
-- the seven architecture checks: `Forbid raw control characters in tracked
-  sources`, `Require living documentation to agree with the source`, `Require
-  graph is acyclic`, `Require every V5 document to declare its status`, `Enforce
-  the large-file threshold`, `Enforce a lint-clean tree`, `Require architecture
-  tracker snapshot to be current`.
+- `Architecture static gates`
+- `Architecture source gates`
+- `Coverage gate`
 
 `Coverage gate` is the numeric coverage ratchet from issue #3077. The
 `coverage` job in `benchmark.yml` measures the suite under `c8` and
 `scripts/check-coverage.js` fails when a global or per-file line/branch ratio
 drops below the floor in `config/coverage-baseline.json`. `--update` may only
 lower a floor: a regression keeps its old floor, so it cannot be spent. The
-committed main recipes require it; the live Ruleset does not yet.
+gate passes on `Coverage (NOT_APPLICABLE)` only when classification found no
+source change; a source change whose measured `Coverage` job is skipped,
+cancelled or failed fails the gate.
 
-The two live layers do **not** currently agree: the Ruleset's 17 contexts are a
-superset of the classic layer's 12, which omit `Benchmark gate`, `Docker build
-gate`, `Rust accelerator gate`, `Package Smoke` and `CodeQL`. `Coverage gate` is
-in neither live layer yet, even though the committed recipes require it.
-When they drift, the stricter of the two is the effective control. Live settings
-drift — re-inspect before making any claim about them (see the audit rule at
-the end of this document).
+The two live layers still do **not** agree. The classic layer requires 12
+contexts: the five shared checks (`npm test gate`, `Conformance Gate`,
+`Validate BDD/Gherkin contracts`, `Security Checks`, `Workflow governance`) plus
+the seven legacy per-check architecture names (`Forbid raw control characters
+in tracked sources`, `Require living documentation to agree with the source`,
+`Require graph is acyclic`, `Require every V5 document to declare its status`,
+`Enforce the large-file threshold`, `Enforce a lint-clean tree`, `Require
+architecture tracker snapshot to be current`). Both layers apply at merge, so
+the effective requirement is their union. Live settings drift, so re-inspect
+before making any claim about them (see the audit rule at the end of this
+document).
 
 ## Architecture check consolidation
 
 `.github/workflows/architecture.yml` now runs the architecture gates as two
 jobs, `Architecture static gates` and `Architecture source gates`, instead of
-one job per check. The committed recipes in `.github/rulesets/` list those two
-consolidated contexts; the live Ruleset and classic layer still require the
-seven per-check names above, which seven compatibility jobs in
-`architecture.yml` keep real so merges do not stall. Drop those compat jobs only
-after both live layers require the consolidated names.
+one job per check. The Ruleset requires those two consolidated contexts. The
+classic layer still requires the seven per-check names above, so seven
+compatibility jobs in `architecture.yml` keep them real and merges do not
+stall. Drop those compat jobs only after the classic layer drops the legacy
+names too.
 
 ## Main branch target
 
