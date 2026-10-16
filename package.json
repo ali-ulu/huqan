@@ -175,6 +175,8 @@
         "plugins/replication-checker.manifest.json",
         "plugins/repo-memory.js",
         "plugins/repo-memory.manifest.json",
+        "plugins/laya-risk.js",
+        "plugins/laya-risk.manifest.json",
         "plugins/result-analyzer.js",
         "plugins/result-analyzer.manifest.json",
         "public/index.html",
