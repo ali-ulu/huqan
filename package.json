@@ -772,6 +772,7 @@
     "lib/http/workflow-data-approval-helpers.js",
     "lib/http/workflow-data-route-groups.js",
     "lib/http/workflow-data-routes.js",
+    "lib/http/workflow-decision-gate.js",
     "lib/http/workflow-request-validation.js",
     "lib/http/pr-guardian-auth.js",
     "lib/http/pr-guardian-body.js",

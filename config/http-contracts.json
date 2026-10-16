@@ -132,7 +132,7 @@
       "exposure": "authenticated",
       "methods": ["GET", "POST"],
       "request": {"mode": "schema", "owner": "lib/http/workflow-data-route-groups.js", "evidence": ["validateWorkflowHttpRequest"]},
-      "response": {"owner": "lib/http/workflow-data-route-groups.js"}
+      "response": {"owner": "lib/http/workflow-data-route-groups.js", "operatorDecision": {"enforced": true, "status": 403, "code": "OPERATOR_AUTH_REQUIRED", "owner": "lib/http/workflow-decision-gate.js"}}
     },
     {
       "family": "workflow-trust-receipts",

@@ -5,6 +5,18 @@ const { describe, it } = require('node:test');
 const { createWorkflowDataRoutes } = require('../lib/http/workflow-data-routes');
 const { WORKFLOW_CAPABILITIES } = require('../lib/workflow-contract');
 const { buildIngestWorkflowRun } = require('../lib/ingest-workflow-run');
+const { createMcpOperatorCapability, operatorCapabilityBinding } = require('../mcpServer');
+const { OPERATOR_DECISION_HEADER } = require('../lib/http/workflow-decision-gate');
+
+const OPERATOR_TOKEN = 'test-operator-token-just-for-this-file';
+
+function decisionHeaders(approvalId, workspaceId, decision, reason = '') {
+  const capability = createMcpOperatorCapability({
+    secret: OPERATOR_TOKEN,
+    ...operatorCapabilityBinding('huqan.approve', { approvalId, workspaceId, decision, reason }),
+  });
+  return { [OPERATOR_DECISION_HEADER]: capability };
+}
 
 function fixture(records = [], overrides = {}) {
   const writes = [];
@@ -53,9 +65,16 @@ function fixture(records = [], overrides = {}) {
       return { status: 200, json: { approval: record, idempotent: false } };
     });
   }
+  // #3926: learn decisions need operator authority, not just the transport
+  // key. Tests opt in per fixture; without a token every learn decision
+  // refuses closed, exactly like production without MCP_OPERATOR_TOKEN.
+  if (overrides.operatorToken !== undefined || overrides.withOperatorToken) {
+    deps.operatorToken = overrides.operatorToken !== undefined ? overrides.operatorToken : OPERATOR_TOKEN;
+    deps.operatorCapabilityNonces = overrides.operatorCapabilityNonces || new Map();
+  }
   const handler = createWorkflowDataRoutes(deps);
-  const invoke = async (method, path, body) => {
-    const req = { method, body };
+  const invoke = async (method, path, body, headers) => {
+    const req = { method, body, headers };
     const handled = await handler(req, {}, new URL(path, 'http://localhost'));
     return { handled, write: writes.at(-1), decisions, learnDecisions };
   };
@@ -159,6 +178,7 @@ describe('canonical workflow data routes', () => {
   it('round-trips a learn proposal through list, detail and decision (H-01 #1976)', async () => {
     const records = [];
     const { invoke } = fixture(records, {
+      withOperatorToken: true,
       proposeLearn: async () => {
         const record = learnApproval('learn-1', 'alpha');
         records.push(record);
@@ -177,7 +197,8 @@ describe('canonical workflow data routes', () => {
     assert.equal(detail.write.status, 200);
     assert.equal(detail.write.json.data.approval.id, 'learn-1');
 
-    const decided = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' });
+    const decided = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' },
+      decisionHeaders('learn-1', 'alpha', 'approved'));
     assert.equal(decided.write.status, 200);
     assert.equal(decided.write.json.workflowId, 'approval-decision');
     assert.equal(decided.write.json.data.approval.status, 'approved');
@@ -193,13 +214,60 @@ describe('canonical workflow data routes', () => {
   });
 
   it('fails a learn decision closed when no learn executor is wired (H-01 #1976)', async () => {
-    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { omitLearnDecision: true });
+    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { omitLearnDecision: true, withOperatorToken: true });
     const listed = await invoke('GET', '/api/v2/approvals?workspaceId=alpha');
     assert.deepEqual(listed.write.json.data.approvals.map(item => item.id), ['learn-1']);
-    const result = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'rejected' });
+    const result = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'rejected' },
+      decisionHeaders('learn-1', 'alpha', 'rejected'));
     assert.equal(result.write.status, 503);
     assert.equal(result.write.json.error.code, 'APPROVAL_DECISION_UNAVAILABLE');
     assert.deepEqual(result.decisions, []);
+  });
+
+  it('refuses a learn decision on the transport key alone (#3926)', async () => {
+    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { withOperatorToken: true });
+    const result = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' });
+    assert.equal(result.write.status, 403);
+    assert.equal(result.write.json.error.code, 'OPERATOR_AUTH_REQUIRED');
+    assert.equal(result.learnDecisions.length, 0);
+  });
+
+  it('refuses a learn decision when no operator token is configured (#3926)', async () => {
+    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { operatorToken: '' });
+    const result = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' });
+    assert.equal(result.write.status, 403);
+    assert.equal(result.write.json.error.code, 'OPERATOR_AUTH_REQUIRED');
+    assert.equal(result.learnDecisions.length, 0);
+  });
+
+  it('refuses a learn decision on a foreign capability (#3926)', async () => {
+    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { withOperatorToken: true });
+    const foreign = createMcpOperatorCapability({
+      secret: 'another-secret',
+      ...operatorCapabilityBinding('huqan.approve', { approvalId: 'learn-1', workspaceId: 'alpha', decision: 'approved', reason: '' }),
+    });
+    const result = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' },
+      { [OPERATOR_DECISION_HEADER]: foreign });
+    assert.equal(result.write.status, 403);
+    assert.equal(result.write.json.error.code, 'OPERATOR_AUTH_REQUIRED');
+    assert.equal(result.learnDecisions.length, 0);
+  });
+
+  it('spends a learn-decision capability on first use (#3926)', async () => {
+    const { invoke } = fixture([learnApproval('learn-1', 'alpha')], { withOperatorToken: true });
+    const headers = decisionHeaders('learn-1', 'alpha', 'approved');
+    const first = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' }, headers);
+    assert.equal(first.write.status, 200);
+    const replay = await invoke('POST', '/api/v2/approvals/learn-1/decision?workspaceId=alpha', { decision: 'approved' }, headers);
+    assert.equal(replay.write.status, 403);
+    assert.equal(replay.write.json.error.code, 'OPERATOR_AUTH_REQUIRED');
+  });
+
+  it('leaves ingest-row decisions on the transport key (#3926)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')], { withOperatorToken: true });
+    const result = await invoke('POST', '/api/v2/approvals/a/decision?workspaceId=alpha', { decision: 'approved' });
+    assert.equal(result.write.status, 200);
+    assert.deepEqual(result.decisions, [{ approvalId: 'a', workspaceId: 'alpha', decision: 'approved', reason: '' }]);
   });
 
   it('enforces the published approval-decision body schema before dispatch', async () => {

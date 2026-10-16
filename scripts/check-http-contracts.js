@@ -246,6 +246,45 @@ function validateHttpContracts(config, options = {}) {
         }
       }
     }
+
+    // #3926: an operator-decision declaration is a promise that a learn
+    // decision is not reachable on the transport key alone. It has to name
+    // the shared gate, and the response owner has to call it, so a route
+    // cannot claim the authority without wiring it.
+    const decision = item.response?.operatorDecision;
+    if (decision !== undefined) {
+      if (decision.enforced !== true) {
+        errors.push(`route ${item.routeId} operatorDecision declaration must set enforced: true`);
+      }
+      // The refusal is a fixed contract: an unauthorized learn decision
+      // answers 403 OPERATOR_AUTH_REQUIRED, the same refusal the
+      // memory-approval surface sends, so a declaration that drifts would
+      // promise callers something the gate never sends.
+      if (decision.status !== 403) {
+        errors.push(`route ${item.routeId} operatorDecision declaration must set status: 403`);
+      }
+      if (decision.code !== 'OPERATOR_AUTH_REQUIRED') {
+        errors.push(`route ${item.routeId} operatorDecision declaration must set code: OPERATOR_AUTH_REQUIRED`);
+      }
+      const gateOwner = ownerPath(decision.owner);
+      if (!gateOwner || !fs.existsSync(gateOwner)) {
+        errors.push(`route ${item.routeId} operatorDecision owner does not exist: ${decision.owner || '<missing>'}`);
+      } else {
+        const gateSource = readFile(gateOwner, 'utf8');
+        for (const token of ['OPERATOR_AUTH_REQUIRED', 'verifyWorkflowDecisionCapability']) {
+          if (!gateSource.includes(token)) {
+            errors.push(`route ${item.routeId} operatorDecision owner ${decision.owner} is missing ${token}`);
+          }
+        }
+      }
+      const decisionTarget = ownerPath(responseOwner);
+      if (decisionTarget && fs.existsSync(decisionTarget)) {
+        const ownerSource = readFile(decisionTarget, 'utf8');
+        if (!ownerSource.includes('verifyWorkflowDecisionCapability')) {
+          errors.push(`route ${item.routeId} declares operatorDecision but ${responseOwner} never calls verifyWorkflowDecisionCapability`);
+        }
+      }
+    }
   }
 
   for (const declaration of expected) {

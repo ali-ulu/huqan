@@ -4782,6 +4782,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
+  "lib/http/workflow-decision-gate.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
   "lib/http/workflow-envelope.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
