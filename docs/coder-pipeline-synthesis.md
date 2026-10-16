@@ -39,7 +39,11 @@ observations must be safe integers. There are three through 32 distinct numeric
 training inputs; input and expected magnitudes are at most one million.
 
 The stage enumeration budget is 4105 attempts each, and the pair budget is
-16,851,025. Matching pairs are ranked by total operation count then lexical
+16,851,025 (`pairBudget`). `stageEnumerated` reports each stage's enumeration
+attempts and `evaluatedPairs` reports joint comparisons; `enumerated` sums both
+phases. `searchBudget` is their combined upper bound, 16,859,235. These counters
+exclude parsing, validation, the independent acceptance test and rollback; they
+are not CPU or wall-clock cost measurements. Matching pairs are ranked by total operation count then lexical
 operation data. At most eight pairs are retained; the result reports actual
 pair evaluations, matching pairs, stage pool sizes and omitted candidates.
 This is a bounded incomplete search when matches are omitted. It does not claim

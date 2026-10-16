@@ -27,7 +27,11 @@ test('joint pipeline search learns x^4 without intermediate examples or supplied
   const produced = produceArithmeticRepair({ root, task });
   assert.equal(produced.ok, true, produced.reason);
   assert.equal(produced.plan.composition, 'second(first(input))');
-  assert.ok(produced.plan.evaluatedPairs <= produced.plan.searchBudget);
+  assert.ok(produced.plan.evaluatedPairs <= produced.plan.pairBudget);
+  assert.ok(produced.plan.stageEnumerated.every(count => count <= produced.plan.stageSearchBudget));
+  assert.equal(produced.plan.enumerated,
+    produced.plan.evaluatedPairs + produced.plan.stageEnumerated.reduce((sum, count) => sum + count, 0));
+  assert.ok(produced.plan.enumerated <= produced.plan.searchBudget);
   assert.ok(produced.plan.matchingPairs >= produced.task.candidates.length);
   assert.equal(produced.plan.omittedCandidates, produced.plan.matchingPairs - produced.task.candidates.length);
   assert.equal(produced.task.candidates.length, 8);
