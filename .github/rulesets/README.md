@@ -44,10 +44,12 @@ guessing a renamed context.
 per check. This recipe already lists those two consolidated contexts in place of
 the seven legacy per-check names.
 
-The live `main` ruleset and classic branch protection still require the seven
-legacy names. Seven compatibility jobs in `architecture.yml` keep producing them
-so the required contexts stay real during the migration. Remove those compat jobs
-only after both live layers drop the legacy names -- otherwise merges stall.
+Since 2026-10-16 (#3969) the live `main` Ruleset matches `main-branch.json`
+exactly: the consolidated contexts, `Coverage gate`, strict status checks and no
+bypass actors. Classic branch protection still requires the seven legacy names,
+so the seven compatibility jobs in `architecture.yml` must keep producing them.
+Remove those compat jobs only after the classic layer drops the legacy names --
+otherwise merges stall.
 
 ## Migration safety
 
