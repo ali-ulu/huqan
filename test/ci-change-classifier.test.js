@@ -115,7 +115,13 @@ test('missing or invalid classification cannot select the coverage skip path', (
 test('coverage gate requires the matching run path and rejects missing classification', (t) => {
   if (!usableBash()) return t.skip('requires a usable POSIX bash');
   const gate = workflow.match(/^  coverage-gate:\n([^]*?)(?=^  [\w-]+:|$(?![^]))/m);
-  const run = gate?.[1].match(/^        run: \|\n([^]*)/m);
+  // The gate now carries the #3970 unresolved-alarm step after the acceptance
+  // check, so the extraction must stop at the next step or job-level line;
+  // the matrix below replays the first step's shell, and only that shell.
+  // The end alternative is a real end-of-string assertion (?![\s\S]), not $:
+  // with /m a bare $ matches before every newline and would stop the lazy
+  // capture after the shell's first line.
+  const run = gate?.[1].match(/^        run: \|\n([^]*?)(?=\n      (?:- |#)|\n  [\w-]+:|(?![\s\S]))/m);
   assert.ok(run, 'coverage gate has a shell acceptance check');
   assert.match(gate[1], /SOURCE_ONLY: \$\{\{ needs\.classify\.outputs\.source_only \}\}/);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-coverage-gate-'));

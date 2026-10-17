@@ -14,6 +14,11 @@ name: Benchmark Regression
 #   docker/package       →  docker build runs        (mandatory on docker)
 #   docs-only / nothing  →  all three NOT_APPLICABLE
 #
+# A NOT_APPLICABLE skip is not a measurement: after a merge the Coverage gate
+# stays red while the newest completed measured Coverage verdict on main is
+# not a success (#3970) -- see the coverage-gate job and
+# scripts/coverage-gate-history.js.
+#
 # Security Checks (security.yml) stays mandatory on every PR and is
 # intentionally NOT conditionalized here.
 
@@ -25,6 +30,16 @@ on:
   schedule:
     - cron: '17 2 * * *'
   workflow_dispatch:
+    # #3970: the explicit, auditable way to measure the current main tree when
+    # no source change would trigger the ratchet on its own -- for example to
+    # confirm or clear an unresolved coverage alarm. The dispatch run and its
+    # summary are the audit record; only a successful measurement clears.
+    inputs:
+      force_coverage:
+        description: 'Measure the coverage ratchet even when no measured source changed'
+        type: boolean
+        required: false
+        default: false
 
 # A new push to the same PR supersedes stale classification/test work.
 concurrency:
@@ -216,6 +231,15 @@ jobs:
             [ -z "${f}" ] && continue
             if is_source_file "${f}"; then source_only=yes; fi
           done <<< "${CHANGED}"
+
+          # #3970: an operator dispatch can demand a real measurement on the
+          # checked-out tree even when no measured source changed -- the
+          # explicit, auditable superseding result for an unresolved coverage
+          # alarm. A successful forced run clears it; a failing one keeps it
+          # red, like any other measurement.
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_coverage || 'false' }}" = "true" ]; then
+            source_only=yes
+          fi
 
           echo "runtime_or_test=${runtime_or_test}" >> "${GITHUB_OUTPUT}"
           echo "perf=${perf}"                         >> "${GITHUB_OUTPUT}"
@@ -1224,6 +1248,12 @@ jobs:
     name: Coverage gate
     needs: [classify, coverage, coverage-skip]
     if: always()
+    # The unresolved-alarm step below lists Benchmark Regression runs on main;
+    # actions:read is the narrowest permission that can read them, and nothing
+    # here writes.
+    permissions:
+      actions: read
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Require the applicable coverage path to pass
@@ -1240,6 +1270,73 @@ jobs:
             no) test "${SKIP_RESULT}" = success ;;
             *) echo "Invalid source classification: coverage cannot be skipped." >&2; exit 1 ;;
           esac
+
+      # The alarm step runs a script from the repository, so fetch exactly that
+      # file; nothing else is needed and no credentials persist.
+      - name: Fetch the gate decision script
+        if: github.event_name != 'pull_request' && needs.classify.outputs.source_only != 'yes'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/coverage-gate-history.js
+          sparse-checkout-cone-mode: false
+
+      # #3970: a NOT_APPLICABLE skip is not a measurement. On a pull request
+      # the step above already answers the only question a merge can ask --
+      # "does this change satisfy the ratchet?" -- and blocking a docs-only PR
+      # on carried history would lock changes that cannot repair the alarm, so
+      # this step deliberately does not run there. After a merge the question
+      # is "does main's current tree satisfy the floor?", and there the skip
+      # must stay transparent to history: while the newest completed measured
+      # Coverage verdict is not a success, the gate stays red even when this
+      # commit itself changed no source. Only a completed successful
+      # measurement clears the alarm -- a re-run of the failed jobs, a later
+      # source commit, or the operator's workflow_dispatch with
+      # force_coverage: true; each is an auditable superseding result.
+      - name: Refuse to clear an unresolved coverage alarm
+        if: github.event_name != 'pull_request' && needs.classify.outputs.source_only != 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs_file="${RUNNER_TEMP}/benchmark-main-runs.json"
+          # Completed Benchmark Regression runs on main, pull_request events
+          # excluded, newest first. The workflow-scoped endpoint is used
+          # because the repo-level runs list ignores an unknown branch
+          # parameter and would feed the walk a page of unrelated runs.
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/benchmark.yml/runs?branch=main&status=completed&per_page=100" \
+            --jq '[.workflow_runs[]
+                   | select(.name == "Benchmark Regression"
+                            and .event != "pull_request"
+                            and .status == "completed")
+                   | {id, head_sha, event, status, run_number, run_attempt, html_url}]' \
+            > "${runs_file}"
+          # One jobs lookup per run, newest first, stopping at the first
+          # measured run: every NOT_APPLICABLE skip in front of it stays
+          # transparent, so the alarm cannot expire behind a streak of
+          # non-source commits (#3970). The 100-run page is a safety bound on
+          # the walk, not an alarm lifetime.
+          with_coverage="${RUNNER_TEMP}/benchmark-main-runs-with-coverage.ndjson"
+          : > "${with_coverage}"
+          while IFS= read -r run; do
+            run_id="$(printf '%s' "${run}" | jq -r '.id')"
+            conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" \
+              --jq '([.jobs[] | select(.name == "Coverage")][0].conclusion) // ""')"
+            printf '%s' "${run}" \
+              | jq --arg conclusion "${conclusion}" \
+                '.coverage = (if ($conclusion | length) > 0 then $conclusion else null end)' \
+              >> "${with_coverage}"
+            # A non-empty, non-skipped conclusion is the newest measured
+            # verdict; nothing older can change it.
+            if [ -n "${conclusion}" ] && [ "${conclusion}" != "skipped" ]; then
+              break
+            fi
+          done < <(jq -c '.[:100][]' "${runs_file}")
+          history_file="${RUNNER_TEMP}/benchmark-main-runs-with-coverage.json"
+          jq -s '.' "${with_coverage}" > "${history_file}"
+          node scripts/coverage-gate-history.js --runs="${history_file}" \
+            | tee "${RUNNER_TEMP}/coverage-alarm-verdict.json"
 
   benchmark-gate:
     name: Benchmark gate
