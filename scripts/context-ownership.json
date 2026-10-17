@@ -1716,6 +1716,10 @@
    "context": "Knowledge",
    "evidence": "AURA<->HUQAN signal pack: runs the AURA engine over its case files and writes the deterministic artifact; consumed by plugins/aura-risk.js as a Knowledge-side knowledge artifact (R-PLUGINS-K family)"
   },
+  "lib/laya-mcp-client.js": {
+   "context": "Knowledge",
+   "evidence": "Laya<->HUQAN bridge transport: holds one MCP stdio session to the local laya-mcp-server sidecar so plugins/laya-risk.js can read a calibrated typed decision on the synchronous gate seam; a Knowledge-side knowledge artifact consumed by the R-PLUGINS-K family, the same shape as lib/aura-signal-pack.js"
+  },
   "lib/mcp-human-oversight-adapter.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"

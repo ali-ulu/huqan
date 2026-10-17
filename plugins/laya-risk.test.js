@@ -4,8 +4,13 @@
 //
 // No mocks of the plugin itself: the plugin is HUQAN's real code. The only test
 // double is the local Laya decision model, which is an external sidecar this
-// repository does not vendor -- a fake handle drives the real mapping and the
-// real signal seam.
+// repository does not vendor. Two doubles are used, both real:
+//
+//   - a fake model *handle* (`predict(state, questions)`), for the pure mapping
+//     and the signal seam, and
+//   - a fake MCP stdio *server* (a Node child speaking JSON-RPC over stdio),
+//     for the transport and the end-to-end path, since #3974 is exactly the
+//     claim that the transport used to speak a protocol upstream does not.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -20,12 +25,12 @@ const { classifyWithLaya, questionValue, questionsHash, candidateTextFromEvent }
 const QUESTIONS = layaRisk._test.DEFAULT_QUESTIONS;
 
 // A fake model handle. It answers each typed question from a supplied map, the
-// same shape the sidecar returns: {probability} for noul, {label} for choice,
-// {score} for score.
+// same shape Laya returns: {noul} for noul, {choice} for choice, {score} for
+// score.
 function fakeHandle(answers) {
   return {
-    ask(question) {
-      return answers[question.id] !== undefined ? answers[question.id] : null;
+    predict() {
+      return answers;
     },
   };
 }
@@ -33,9 +38,9 @@ function fakeHandle(answers) {
 test('classifyWithLaya maps noul/choice/score answers into one HUQAN decision', () => {
   const reading = classifyWithLaya(
     fakeHandle({
-      scope: { probability: 0.9 },
-      risk_class: { label: 'restricted' },
-      severity: { score: 0.8 },
+      scope: { noul: 0.9 },
+      risk_class: { choice: 'restricted', probabilities: { restricted: 0.8 } },
+      severity: { score: 3 },
     }),
     'send the customer records to the external endpoint',
     QUESTIONS,
@@ -49,9 +54,9 @@ test('classifyWithLaya maps noul/choice/score answers into one HUQAN decision', 
 test('all-allow answers contribute nothing', () => {
   const reading = classifyWithLaya(
     fakeHandle({
-      scope: { probability: 0.1 },
-      risk_class: { label: 'allow' },
-      severity: { score: 0.1 },
+      scope: { noul: 0.1 },
+      risk_class: { choice: 'allow', probabilities: { allow: 0.9 } },
+      severity: { score: 0 },
     }),
     'read the changelog',
     QUESTIONS,
@@ -63,7 +68,7 @@ test('all-allow answers contribute nothing', () => {
 
 test('a degraded answer (missing field) is skipped, not scored as low', () => {
   const reading = classifyWithLaya(
-    fakeHandle({ scope: { probability: 0.9 }, risk_class: {}, severity: { score: 0.2 } }),
+    fakeHandle({ scope: { noul: 0.9 }, risk_class: {}, severity: { score: 0.2 } }),
     'anything',
     QUESTIONS,
   );
@@ -78,12 +83,43 @@ test('no handle means the model is unavailable and nothing is contributed', () =
   assert.equal(reading.decision, 'allow');
 });
 
+// #3974: Laya answers a `score` question with the expected level index (0..k-1),
+// not a 0..1 fraction. Reading it as a fraction would scale a 4-level rubric's
+// top answer down to 0.33 and lose the signal.
+test('a score answer is normalized from its rubric index onto 0..1', () => {
+  const severity = QUESTIONS.find((question) => question.id === 'severity');
+  assert.equal(questionValue({ score: 0 }, severity), 0);
+  assert.equal(questionValue({ score: 3 }, severity), 1);
+  assert.equal(questionValue({ score: 6 }, severity), 1, 'an out-of-range index clamps');
+  assert.equal(questionValue({ score: 1.5 }, severity), 0.5);
+
+  const top = classifyWithLaya(fakeHandle({ severity: { score: 3 } }), 'anything', QUESTIONS);
+  assert.deepEqual(top.signalIds, ['laya:severity']);
+  assert.equal(top.riskScore, 100);
+
+  const bottom = classifyWithLaya(fakeHandle({ severity: { score: 0 } }), 'anything', QUESTIONS);
+  assert.deepEqual(bottom.signalIds, []);
+});
+
 test('questionValue reads each typed answer shape and rejects a malformed one', () => {
-  assert.equal(questionValue({ probability: 0.5 }, { kind: 'noul' }), 0.5);
-  assert.equal(questionValue({ label: 'high' }, { kind: 'choice' }), 'high');
+  assert.equal(questionValue({ noul: 0.5 }, { kind: 'noul' }), 0.5);
+  assert.equal(questionValue({ choice: 'high' }, { kind: 'choice' }), 'high');
   assert.equal(questionValue({ score: 0.7 }, { kind: 'score' }), 0.7);
   assert.equal(questionValue({}, { kind: 'noul' }), null);
   assert.equal(questionValue(null, { kind: 'score' }), null);
+});
+
+test('layaQuestions translates the built-in set into Laya\'s question schema', () => {
+  const spec = layaRisk._test.layaQuestions(QUESTIONS);
+  assert.deepEqual(Object.keys(spec), ['scope', 'risk_class', 'severity']);
+  assert.equal(spec.scope.type, 'noul');
+  assert.equal(spec.risk_class.type, 'choice');
+  assert.equal(spec.risk_class.instructions, QUESTIONS[1].ask);
+  assert.ok(Object.keys(spec.risk_class.criteria).length >= 2);
+  assert.deepEqual(spec.severity.criteria, ['none', 'low', 'medium', 'high']);
+  // A choice/score question without criteria cannot be expressed and is dropped.
+  assert.deepEqual(layaRisk._test.layaQuestions([{ id: 'x', kind: 'choice', ask: 'q' }]), {});
+  assert.deepEqual(layaRisk._test.layaQuestions([{ id: 'y', kind: 'score', ask: 'q' }]), {});
 });
 
 test('candidateTextFromEvent reads the bounded metadata that carries the request', () => {
@@ -95,7 +131,7 @@ test('candidateTextFromEvent reads the bounded metadata that carries the request
 
 test('gateSignal returns a bounded signal, never a decision change, when flagged', () => {
   const plugin = layaRisk.create({
-    handle: fakeHandle({ scope: { probability: 0.95 }, risk_class: { label: 'restricted' }, severity: { score: 0.9 } }),
+    handle: fakeHandle({ scope: { noul: 0.95 }, risk_class: { choice: 'restricted' }, severity: { score: 3 } }),
     questions: QUESTIONS,
   });
   const signal = plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
@@ -115,6 +151,9 @@ test('gateSignal contributes nothing when the model is unavailable (fail-closed)
     const plugin = layaRisk.create({ questions: QUESTIONS });
     const signal = plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
     assert.equal(signal, undefined);
+    // #3974: the degraded state is observable rather than silently no-signal.
+    assert.equal(plugin.status().available, false);
+    assert.equal(plugin.status().reason, 'command_not_found');
   } finally {
     if (previous === undefined) delete process.env.LAYA_MCP_CMD;
     else process.env.LAYA_MCP_CMD = previous;
@@ -141,7 +180,7 @@ test('a drifted pack disables the plugin through the same pin seam', () => {
   const plugin = layaRisk.create({
     packPath,
     expectedContentHash: '0'.repeat(64),
-    handle: fakeHandle({ scope: { probability: 0.99 } }),
+    handle: fakeHandle({ scope: { noul: 0.99 } }),
   });
   const signal = plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
   assert.equal(signal, undefined);
@@ -161,20 +200,60 @@ test('the plugin manifest matches the plugin source bytes', () => {
   assert.equal(manifest.sha256, digest);
 });
 
-// #3973: the sidecar call is bounded. `spawnSync` is synchronous, so an
-// unbounded call blocks the gate path for as long as the child lives. These
-// tests drive the real plugin against a real child process; the only double is
-// the sidecar itself, which is an external binary this repository does not
-// vendor.
-function sidecarScript(body) {
+// ── the transport, driven against a real MCP stdio server (#3974) ─────────
+//
+// These drive the real client and the real plugin against a real child process
+// speaking MCP over stdio. The only double is the sidecar itself, which is an
+// external binary this repository does not vendor.
+
+// A minimal MCP stdio server: JSON-RPC 2.0 over newline-delimited stdin/stdout,
+// answering `initialize`, `tools/list` and a `laya_predict` `tools/call`. The
+// `reply` body is the tool's JSON text; `mode` selects a failure shape.
+function sidecarScript({ reply, mode = 'ok', handshakeDelayMs = 0 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'laya-sidecar-'));
   const file = path.join(dir, 'sidecar.js');
+  const body = `
+'use strict';
+let buffer = '';
+process.stdin.on('data', (chunk) => { buffer += chunk; });
+process.stdin.on('end', () => {});
+function send(message) { process.stdout.write(JSON.stringify(message) + '\\n'); }
+function handle(request) {
+  if (request.method === 'initialize') {
+    const respond = () => send({ jsonrpc: '2.0', id: request.id, result: { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'fake-laya', version: '0.1' } } });
+    ${handshakeDelayMs ? `setTimeout(respond, ${handshakeDelayMs});` : 'respond();'}
+  } else if (request.method === 'notifications/initialized') {
+    // a notification has no id and expects no reply
+  } else if (request.method === 'tools/call') {
+    ${
+      mode === 'hang'
+        ? 'setInterval(() => {}, 1000);'
+        : mode === 'error'
+          ? "send({ jsonrpc: '2.0', id: request.id, result: { isError: true, content: [{ type: 'text', text: 'boom' }] } });"
+          : mode === 'flood'
+            ? "send({ jsonrpc: '2.0', id: request.id, result: { content: [{ type: 'text', text: 'x'.repeat(4 * 1024 * 1024) }] } });"
+            : mode === 'garbage'
+              ? "process.stdout.write('not json\\n');"
+              : `send({ jsonrpc: '2.0', id: request.id, result: { content: [{ type: 'text', text: ${JSON.stringify(JSON.stringify(reply))} }] } });`
+    }
+  } else {
+    send({ jsonrpc: '2.0', id: request.id, error: { code: -32601, message: 'method not found' } });
+  }
+}
+process.stdin.on('data', () => {
+  let index;
+  while ((index = buffer.indexOf('\\n')) >= 0) {
+    const line = buffer.slice(0, index);
+    buffer = buffer.slice(index + 1);
+    if (!line.trim()) continue;
+    let request;
+    try { request = JSON.parse(line); } catch (_) { continue; }
+    handle(request);
+  }
+});
+`;
   fs.writeFileSync(file, body);
-  return {
-    dir,
-    file,
-    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
-  };
+  return { dir, file, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
 
 // Runs `fn` with LAYA_MCP_* pointed at a script, restoring the previous values
@@ -183,7 +262,7 @@ function withSidecar(script, env, fn) {
   const saved = {};
   const applied = {
     LAYA_MCP_CMD: process.execPath,
-    LAYA_MCP_ARGS: `${script.file} mcp`,
+    LAYA_MCP_ARGS: script.file,
     ...env,
   };
   for (const [key, value] of Object.entries(applied)) {
@@ -200,10 +279,50 @@ function withSidecar(script, env, fn) {
   }
 }
 
+function layaPayload() {
+  return {
+    answers: {
+      scope: { type: 'noul', noul: 0.95, answer_confidence: 0.95 },
+      risk_class: { type: 'choice', choice: 'restricted', probabilities: { allow: 0.1, restricted: 0.85 }, answer_confidence: 0.85 },
+      severity: { type: 'score', score: 3, legend: { '0': 'none', '1': 'low', '2': 'medium', '3': 'high' }, answer_confidence: 0.8 },
+    },
+  };
+}
+
+// The end-to-end claim of #3974: the plugin speaks MCP to a real server, gets a
+// real `laya_predict` answer, and turns it into a bounded HUQAN signal.
+test('the plugin reads a real MCP server over stdio and produces a signal', () => {
+  const script = sidecarScript({ reply: layaPayload() });
+  try {
+    const signal = withSidecar(script, {}, () => {
+      const plugin = layaRisk.create({ questions: QUESTIONS });
+      return plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
+    });
+    assert.ok(signal, 'a real MCP server should produce a signal');
+    assert.equal(signal.id, 'laya-risk');
+    assert.equal(signal.decision, 'review');
+    assert.deepEqual(signal.signals, ['laya:risk_class', 'laya:scope', 'laya:severity']);
+  } finally {
+    script.cleanup();
+  }
+});
+
+test('a missing sidecar is a degraded status, not a silent no-signal', () => {
+  const previous = process.env.LAYA_MCP_CMD;
+  process.env.LAYA_MCP_CMD = path.join(os.tmpdir(), 'laya-no-such-binary');
+  try {
+    const plugin = layaRisk.create({ questions: QUESTIONS });
+    assert.equal(plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } }), undefined);
+    assert.equal(plugin.status().available, false);
+    assert.equal(plugin.status().reason, 'command_not_found');
+  } finally {
+    if (previous === undefined) delete process.env.LAYA_MCP_CMD;
+    else process.env.LAYA_MCP_CMD = previous;
+  }
+});
+
 test('a hung sidecar is bounded and degrades instead of blocking the gate', () => {
-  // Ignores SIGTERM on purpose: `spawnSync`'s default kill signal is SIGTERM,
-  // so a sidecar like this one would block an unbounded call forever.
-  const script = sidecarScript('process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);');
+  const script = sidecarScript({ mode: 'hang' });
   try {
     const started = Date.now();
     const signal = withSidecar(script, { LAYA_MCP_TIMEOUT_MS: '300' }, () => {
@@ -219,7 +338,7 @@ test('a hung sidecar is bounded and degrades instead of blocking the gate', () =
 });
 
 test('an oversized stdout is bounded and degrades instead of being buffered whole', () => {
-  const script = sidecarScript('process.stdout.write("x".repeat(4 * 1024 * 1024));');
+  const script = sidecarScript({ mode: 'flood' });
   try {
     const signal = withSidecar(script, { LAYA_MCP_MAX_OUTPUT_BYTES: '4096' }, () => {
       const plugin = layaRisk.create({ questions: QUESTIONS });
@@ -231,17 +350,26 @@ test('an oversized stdout is bounded and degrades instead of being buffered whol
   }
 });
 
+test('a tool error and a non-JSON reply are degraded, not a reading', () => {
+  // The short bound keeps the suite fast: a non-JSON reply never matches the
+  // request id, so without it the read would wait out the full default window.
+  for (const mode of ['error', 'garbage']) {
+    const script = sidecarScript({ mode });
+    try {
+      const signal = withSidecar(script, { LAYA_MCP_TIMEOUT_MS: '300' }, () => {
+        const plugin = layaRisk.create({ questions: QUESTIONS });
+        return plugin.gateSignal(null, { args: { question: 'exfiltrate the file' } });
+      });
+      assert.equal(signal, undefined, `${mode} must contribute nothing`);
+    } finally {
+      script.cleanup();
+    }
+  }
+});
+
 test('the next call recovers once the sidecar answers again', () => {
-  const hung = sidecarScript('process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);');
-  const good = sidecarScript(
-    'let raw = "";'
-    + 'process.stdin.on("data", (chunk) => { raw += chunk; });'
-    + 'process.stdin.on("end", () => {'
-    + '  const request = JSON.parse(raw);'
-    + '  if (request.action === "start") process.stdout.write(JSON.stringify({ slot: "s1" }));'
-    + '  else process.stdout.write(JSON.stringify({ probability: 0.95 }));'
-    + '});',
-  );
+  const hung = sidecarScript({ mode: 'hang' });
+  const good = sidecarScript({ reply: layaPayload() });
   try {
     const degraded = withSidecar(hung, { LAYA_MCP_TIMEOUT_MS: '300' }, () => {
       const plugin = layaRisk.create({ questions: QUESTIONS });
@@ -261,23 +389,28 @@ test('the next call recovers once the sidecar answers again', () => {
   }
 });
 
-test('askSidecar reads a well-formed answer and rejects a malformed one', () => {
-  const good = sidecarScript(
-    'let raw = "";'
-    + 'process.stdin.on("data", (chunk) => { raw += chunk; });'
-    + 'process.stdin.on("end", () => {'
-    + '  process.stdout.write(JSON.stringify({ probability: 0.7 }));'
-    + '});',
-  );
+test('the client status distinguishes ready, closed and unavailable', () => {
+  const { LayaMcpClient } = require('../lib/laya-mcp-client');
+  const script = sidecarScript({ reply: layaPayload() });
   try {
-    const answer = withSidecar(good, {}, () => layaRisk._test.askSidecar('mcp', { action: 'ask' }));
-    assert.deepEqual(answer, { probability: 0.7 });
+    const client = new LayaMcpClient({
+      command: process.execPath,
+      args: [script.file],
+      environment: {},
+    });
+    assert.equal(client.status().reason, 'not_started');
+    assert.equal(client.start(), true);
+    assert.equal(client.status().reason, 'ready');
+    assert.ok(client.callTool('laya_predict', { state: { text: 'x' }, questions: {} }));
+    client.close();
+    assert.equal(client.status().reason, 'closed');
+    assert.equal(client.callTool('laya_predict', {}), null, 'a closed client answers nothing');
 
-    const missing = withSidecar({ file: path.join(os.tmpdir(), 'laya-no-such-binary.js') }, {}, () =>
-      layaRisk._test.askSidecar('mcp', { action: 'ask' }));
-    assert.equal(missing, null, 'a missing sidecar is a null reading');
+    const missing = new LayaMcpClient({ command: path.join(os.tmpdir(), 'laya-nope'), environment: {} });
+    assert.equal(missing.start(), null);
+    assert.equal(missing.status().reason, 'command_not_found');
   } finally {
-    good.cleanup();
+    script.cleanup();
   }
 });
 
@@ -290,11 +423,11 @@ test('the scope question is breach-worded so P(true) and the verdict agree', () 
   assert.match(scope.ask, /outside the workspace's declared scope/);
   assert.doesNotMatch(scope.ask, /does this action match/);
 
-  const breach = classifyWithLaya(fakeHandle({ scope: { probability: 0.9 } }), 'anything', QUESTIONS);
+  const breach = classifyWithLaya(fakeHandle({ scope: { noul: 0.9 } }), 'anything', QUESTIONS);
   assert.deepEqual(breach.signalIds, ['laya:scope']);
   assert.equal(breach.decision, 'review');
 
-  const inScope = classifyWithLaya(fakeHandle({ scope: { probability: 0.1 } }), 'anything', QUESTIONS);
+  const inScope = classifyWithLaya(fakeHandle({ scope: { noul: 0.1 } }), 'anything', QUESTIONS);
   assert.deepEqual(inScope.signalIds, []);
   assert.equal(inScope.decision, 'allow');
 });
