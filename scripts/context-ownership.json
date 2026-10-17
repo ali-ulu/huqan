@@ -2628,6 +2628,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/coder/requirements-parser.js": {
+   "context": "AgentAction",
+   "evidence": "bounded Turkish requirements compiler feeding the existing project recipe"
+  },
   "lib/coder/project-method-memory.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
@@ -4229,6 +4233,10 @@
   "lib/cli-coder.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-coder-requirements.js": {
+   "kind": "entry",
+   "evidence": "bounded UTF-8 requirements file adapter for the Coder CLI"
   },
   "lib/cli-command-handlers.js": {
    "kind": "entry",
@@ -6751,6 +6759,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/requirements-parser.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "pure requirements-to-spec port consumed by the Coder CLI file adapter"
   },
   "lib/coder/learned-candidate.js": {
    "owner": "AgentAction",

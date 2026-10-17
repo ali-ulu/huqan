@@ -131,6 +131,7 @@
       "lib/aura-canary-bridge.js": "Core",
       "lib/aura-signal-pack.js": "Core",
       "lib/authority-anchor-detection.js": "Core",
+      "lib/authority/agent-user-boundary.js": "Core",
       "lib/authority/anchor-statement.js": "Core",
       "lib/authority/approval-registration.js": "Core",
       "lib/authority/approval-view.js": "Core",
@@ -138,6 +139,7 @@
       "lib/authority/authority-mode.js": "Core",
       "lib/authority/authority-pin.js": "Core",
       "lib/authority/authority-service.js": "Core",
+      "lib/authority/authority-status.js": "Adapters",
       "lib/authority/autonomy-activation.js": "Adapters",
       "lib/authority/bundle-manifest.js": "Core",
       "lib/authority/consume-key.js": "Adapters",
@@ -211,6 +213,7 @@
       "lib/cli-coder-format.js": "Core",
       "lib/cli-coder-project-memory.js": "Core",
       "lib/cli-coder-propose.js": "Core",
+      "lib/cli-coder-requirements.js": "Core",
       "lib/cli-coder-verify.js": "Core",
       "lib/cli-coder.js": "Core",
       "lib/cli-command-handlers.js": "Core",
@@ -266,15 +269,18 @@
       "lib/coder/journal-store.js": "Application",
       "lib/coder/learned-candidate.js": "Application",
       "lib/coder/observed-verification.js": "Application",
+      "lib/coder/pipeline-synthesis.js": "Application",
       "lib/coder/project-compute.js": "Application",
       "lib/coder/project-initialization-permission.js": "Application",
       "lib/coder/project-initialization.js": "Application",
       "lib/coder/project-method-memory.js": "Application",
       "lib/coder/project-producer.js": "Application",
       "lib/coder/project-programs.js": "Application",
+      "lib/coder/project-revision-verification.js": "Application",
       "lib/coder/project-spec-data.js": "Application",
       "lib/coder/project-templates.js": "Application",
       "lib/coder/project-verification.js": "Application",
+      "lib/coder/requirements-parser.js": "Application",
       "lib/coder/synthesis-memory.js": "Application",
       "lib/coder/test-execution.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
@@ -424,6 +430,7 @@
       "lib/experience/learning.js": "Application",
       "lib/experience/optimization-hypothesis.js": "Application",
       "lib/experience/personal-execution-model.js": "Application",
+      "lib/experience/procedure-data.js": "Application",
       "lib/experience/procedure-registry.js": "Application",
       "lib/experience/promotion-ci-gate.js": "Application",
       "lib/experience/promotion-staged-eval.js": "Application",
@@ -613,6 +620,7 @@
       "lib/http/core-http-routes.js": "UI",
       "lib/http/crash-recovery-inventory.js": "UI",
       "lib/http/deployment-gated-route-auth.js": "UI",
+      "lib/http/emergency-stop-gate.js": "UI",
       "lib/http/emergency-stop-routes.js": "UI",
       "lib/http/exact-workspace.js": "UI",
       "lib/http/experience-read-route.js": "UI",
@@ -664,6 +672,7 @@
       "lib/http/workflow-data-approval-helpers.js": "UI",
       "lib/http/workflow-data-route-groups.js": "UI",
       "lib/http/workflow-data-routes.js": "UI",
+      "lib/http/workflow-decision-gate.js": "UI",
       "lib/http/workflow-envelope.js": "UI",
       "lib/http/workflow-request-validation.js": "UI",
       "lib/human-approval-toggle.js": "Core",
@@ -766,6 +775,7 @@
       "lib/kernel-v2-verify.js": "Core",
       "lib/learn-admission-request.js": "Core",
       "lib/learn-edge-options.js": "Core",
+      "lib/learn-use-case-negation-conflict.js": "Core",
       "lib/learn-use-case-provenance.js": "Core",
       "lib/learn-use-case-steps.js": "Core",
       "lib/learn-use-case.js": "Core",
@@ -1341,6 +1351,7 @@
       "scripts/check-naming-conformance.js": "UI",
       "scripts/check-package-closure.js": "UI",
       "scripts/check-pr-guardian-webhook-url.js": "UI",
+      "scripts/check-pr-signatures.js": "UI",
       "scripts/check-release-evaluation.js": "UI",
       "scripts/check-security-invariants.js": "UI",
       "scripts/check-structured-log-format.js": "UI",
@@ -1451,6 +1462,7 @@
       "adapters/github-adapter.js": [
         "adapters/github-adapter-utils.js",
         "adapters/github-tree.js",
+        "adapters/utils/learn-entries.js",
         "lib/content-hash.js",
         "lib/github-url.js"
       ],
@@ -1475,6 +1487,7 @@
         "lib/safe-file-walk.js"
       ],
       "adapters/markdown-adapter.js": [
+        "adapters/utils/learn-entries.js",
         "lib/content-hash.js",
         "lib/safe-file-walk.js"
       ],
@@ -1545,6 +1558,7 @@
         "lib/authority/anchor-statement.js",
         "lib/authority/authority-client.js",
         "lib/authority/authority-mode.js",
+        "lib/authority/authority-status.js",
         "lib/authority/consume-key.js",
         "lib/authority/decision-guard.js",
         "lib/authority/operational-guard.js",
@@ -2056,6 +2070,9 @@
       "lib/authority-anchor-detection.js": [
         "lib/authority/anchor-statement.js"
       ],
+      "lib/authority/agent-user-boundary.js": [
+        "lib/authority/install-trust.js"
+      ],
       "lib/authority/approval-registration.js": [
         "lib/mcp-operator-capability.js"
       ],
@@ -2080,6 +2097,11 @@
         "lib/authority/decision-envelope.js",
         "lib/authority/operator-check.js",
         "lib/authority/sealed-request.js"
+      ],
+      "lib/authority/authority-status.js": [
+        "lib/authority/agent-user-boundary.js",
+        "lib/authority/authority-client.js",
+        "lib/authority/authority-mode.js"
       ],
       "lib/authority/autonomy-activation.js": [
         "lib/authority/authority-client.js",
@@ -2406,6 +2428,7 @@
       "lib/cli-gate-evaluation.js": [
         "lib/cli-helpers.js",
         "lib/command-parser.js",
+        "lib/emergency-stop.js",
         "lib/mcp-gate-adapter.js"
       ],
       "lib/cli-help.js": [
@@ -2555,17 +2578,22 @@
         "lib/coder/expression-search.js",
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
+        "lib/coder/pipeline-synthesis.js",
+        "lib/coder/project-spec-data.js",
         "lib/coder/synthesis-memory.js",
         "lib/experience/array-fold-program.js",
         "lib/experience/expression-adaptation.js"
       ],
       "lib/coder/cli-composition.js": [
+        "lib/cli-coder-requirements.js",
         "lib/cli-command-handlers.js",
         "lib/coder/arithmetic-synthesis.js",
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
         "lib/coder/project-initialization.js",
-        "lib/coder/project-producer.js"
+        "lib/coder/project-method-memory.js",
+        "lib/coder/project-producer.js",
+        "lib/coder/requirements-parser.js"
       ],
       "lib/coder/derivation-record.js": [
         "lib/receipt/canonical-receipt.js"
@@ -2578,6 +2606,7 @@
       "lib/coder/fix-loop.js": [
         "lib/coder/apply-derivation.js",
         "lib/coder/project-initialization-permission.js",
+        "lib/coder/project-revision-verification.js",
         "lib/coder/test-execution.js",
         "lib/path-safety.js"
       ],
@@ -2593,6 +2622,12 @@
         "lib/experience/learning-intake.js",
         "lib/path-safety.js",
         "lib/task-identifier-lexer.js"
+      ],
+      "lib/coder/pipeline-synthesis.js": [
+        "lib/coder/expression-search.js",
+        "lib/coder/learned-candidate.js",
+        "lib/coder/project-spec-data.js",
+        "lib/experience/expression-adaptation.js"
       ],
       "lib/coder/project-compute.js": [
         "lib/coder/computed-project-templates.js",
@@ -2628,9 +2663,16 @@
         "lib/experience/array-map-program.js",
         "lib/experience/array-stateful-fold-program.js"
       ],
+      "lib/coder/project-revision-verification.js": [
+        "lib/coder/project-producer.js",
+        "lib/coder/test-execution.js"
+      ],
       "lib/coder/project-verification.js": [
         "lib/coder/project-initialization-permission.js",
         "lib/coder/test-execution.js"
+      ],
+      "lib/coder/requirements-parser.js": [
+        "lib/coder/project-spec-data.js"
       ],
       "lib/coder/synthesis-memory.js": [
         "lib/coder/fix-loop.js",
@@ -3146,6 +3188,7 @@
         "lib/experience/learning-intake.js"
       ],
       "lib/experience/compiler.js": [
+        "lib/experience/procedure-data.js",
         "lib/task-identifier-lexer.js"
       ],
       "lib/experience/effect-boundary.js": [
@@ -3924,7 +3967,8 @@
       ],
       "lib/http/answer-route.js": [
         "lib/error-taxonomy.js",
-        "lib/fluent-answer.js"
+        "lib/fluent-answer.js",
+        "lib/http/emergency-stop-gate.js"
       ],
       "lib/http/claim-read-route.js": [
         "lib/claim-read.js",
@@ -3938,6 +3982,7 @@
       ],
       "lib/http/core-http-routes.js": [
         "lib/error-taxonomy.js",
+        "lib/http/emergency-stop-gate.js",
         "lib/http/http-provenance.js",
         "lib/http/structured-log.js",
         "lib/http/upload-admission-contract.js",
@@ -3945,6 +3990,10 @@
         "lib/verify-status-vocabulary.js",
         "llmAdapter.js",
         "requestGuards.js"
+      ],
+      "lib/http/emergency-stop-gate.js": [
+        "lib/emergency-stop.js",
+        "lib/http/workflow-envelope.js"
       ],
       "lib/http/emergency-stop-routes.js": [
         "lib/emergency-stop.js",
@@ -4052,6 +4101,7 @@
       ],
       "lib/http/read-workflow-actions.js": [
         "lib/entity-resolution.js",
+        "lib/http/emergency-stop-gate.js",
         "lib/http/experience-read-route.js",
         "lib/http/memory-query-route.js",
         "lib/http/workflow-envelope.js",
@@ -4083,12 +4133,15 @@
       ],
       "lib/http/server-ingest-workflow-runtime.js": [
         "lib/collector-seal-config.js",
+        "lib/environment-compat.js",
         "lib/external-action-receipt-collector.js",
         "lib/http/ingest-approval-runtime.js",
         "lib/http/ingest-http-routes.js",
         "lib/http/pr-guardian-config.js",
         "lib/http/read-workflow-actions.js",
         "lib/http/workflow-data-routes.js",
+        "lib/http/workflow-decision-gate.js",
+        "lib/mcp-capability-nonce-store.js",
         "lib/observability/server-runtime.js",
         "lib/receipt/receipt-read-index.js",
         "lib/server-response-helpers.js"
@@ -4124,6 +4177,7 @@
         "requestGuards.js"
       ],
       "lib/http/server-route-runtime.js": [
+        "lib/emergency-stop.js",
         "lib/http/server-ingest-workflow-runtime.js",
         "lib/http/server-read-route-runtime.js",
         "lib/http/v5-route-mounts.js"
@@ -4170,11 +4224,14 @@
         "lib/mcp-tool-names.js"
       ],
       "lib/http/workflow-data-route-groups.js": [
+        "lib/environment-compat.js",
         "lib/http/agent-workflow-routes.js",
+        "lib/http/emergency-stop-gate.js",
         "lib/http/exact-workspace.js",
         "lib/http/http-provenance.js",
         "lib/http/receipt-read-failures.js",
         "lib/http/workflow-data-approval-helpers.js",
+        "lib/http/workflow-decision-gate.js",
         "lib/http/workflow-envelope.js",
         "lib/http/workflow-request-validation.js",
         "lib/ingest-workflow-preview.js",
@@ -4184,6 +4241,10 @@
       "lib/http/workflow-data-routes.js": [
         "lib/http/workflow-data-approval-helpers.js",
         "lib/http/workflow-data-route-groups.js"
+      ],
+      "lib/http/workflow-decision-gate.js": [
+        "lib/mcp-operator-capability.js",
+        "lib/mcp/operator-authorization.js"
       ],
       "lib/http/workflow-envelope.js": [
         "lib/workflow-contract.js"
@@ -4478,7 +4539,8 @@
       ],
       "lib/kernel-read-use-cases-ask.js": [
         "lib/kernel-read-use-cases-language.js",
-        "lib/plugin-manager-events.js"
+        "lib/plugin-manager-events.js",
+        "lib/verify-turkish-text.js"
       ],
       "lib/kernel-read-use-cases.js": [
         "lib/kernel-read-use-cases-analysis.js",
@@ -4517,9 +4579,14 @@
         "lib/human-approval-toggle.js",
         "lib/is-plain-object.js"
       ],
+      "lib/learn-use-case-negation-conflict.js": [
+        "lib/verify-turkish-text.js"
+      ],
       "lib/learn-use-case.js": [
+        "lib/learn-use-case-negation-conflict.js",
         "lib/learn-use-case-provenance.js",
         "lib/learn-use-case-steps.js",
+        "lib/predicate-parser.js",
         "lib/type-lattice.js"
       ],
       "lib/llm-proxy/proxy-config.js": [
