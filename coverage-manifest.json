@@ -1131,7 +1131,7 @@
           "call": "spawn"
         },
         {
-          "line": 256,
+          "line": 264,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
