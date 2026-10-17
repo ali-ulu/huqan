@@ -1,0 +1,40 @@
+{
+  "name": "replayed",
+  "description": "the envelope nonce is already in the consumed set",
+  "expect": {
+    "ok": false,
+    "code": "replayed"
+  },
+  "envelope": {
+    "v": "huqan.mcp.envelope.v1",
+    "client_id": "agent-claude-code",
+    "workspace_id": "default",
+    "op": "huqan.learn",
+    "args_sha256": "2232df77c201e16270b187f0884c775dd2a19ef076cececec1832f1854c7c912",
+    "nonce": "WlpaWlpaWlpaWlpaWlpaWg",
+    "issued_at": "2026-01-01T00:00:00.000Z",
+    "expires_at": "2026-01-01T00:01:00.000Z",
+    "key_id": "fe812c12f3ab4ce6",
+    "sig": "2FlSQDApDaJdOntp5AJcKjGfxJPNTrTZ_WF9Yui8pPt-pdGoLcPfC_S5uLg8CXJQO-1vJ5MbR7JVtMJnyJpEDQ"
+  },
+  "call": {
+    "client_id": "agent-claude-code",
+    "workspace_id": "default",
+    "op": "huqan.learn",
+    "args": {
+      "workspaceId": "default",
+      "statement": "the sky is blue"
+    },
+    "now": "2026-01-01T00:00:30.000Z",
+    "consumed_nonces": [
+      "WlpaWlpaWlpaWlpaWlpaWg"
+    ]
+  },
+  "enrolled": [
+    {
+      "client_id": "agent-claude-code",
+      "key_id": "fe812c12f3ab4ce6",
+      "public_key": "6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw"
+    }
+  ]
+}

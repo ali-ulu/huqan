@@ -2587,7 +2587,8 @@
         "lib/coder/string-synthesis.js",
         "lib/coder/synthesis-memory.js",
         "lib/experience/array-fold-program.js",
-        "lib/experience/expression-adaptation.js"
+        "lib/experience/expression-adaptation.js",
+        "lib/experience/string-program.js"
       ],
       "lib/coder/cli-composition.js": [
         "lib/cli-coder-requirements.js",
@@ -2687,7 +2688,8 @@
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
         "lib/experience/array-fold-program.js",
-        "lib/experience/expression-adaptation.js"
+        "lib/experience/expression-adaptation.js",
+        "lib/experience/string-program.js"
       ],
       "lib/coder/test-execution.js": [
         "lib/command-exec-gate.js"
@@ -3206,7 +3208,8 @@
       ],
       "lib/experience/expression-adaptation.js": [
         "lib/experience/arithmetic-function.js",
-        "lib/experience/array-fold-program.js"
+        "lib/experience/array-fold-program.js",
+        "lib/experience/string-program.js"
       ],
       "lib/experience/journal-connection.js": [
         "lib/memory-store-utils.js",
