@@ -50,10 +50,30 @@ uygulanır. Başarısız kabul testi yamanın geri alınmasını gerektirir; ba�
 test seçimi değiştiren eğitim girdisine dönüştürülmez. İşlem gözlemleri gerçek
 zaman veya toplam öğrenme maliyeti ölçümü değildir.
 
-Bu ilk metin ailesinde `reuseMemory: true` ve `rememberFile` açıkça
-`SYNTHESIS_STRING_MEMORY_UNSUPPORTED` ile reddedilir. Sayısal ailelerin mevcut
-bellek yolu korunur. Metin yöntemlerini süreçler arası öğrenme ve aktarma bu
-değişiklikle tamamlanmış sayılmaz. Çok hedefli ve pipeline kipleri bu yeni
-aileyi henüz kabul etmez.
+## Doğrulanmış yöntemi öğrenme ve aktarma
+
+Bir journal ile `synthesis.rememberFile`, yalnız bağımsız testten geçen ve
+saklanan değişikliği mevcut kaynak mühürlü aday belleğine kaydeder. Örneğin
+`.huqan/coder/candidates/string.json` kullanılabilir. İki negatif kaynak
+eşleşme fikstürü `qualificationPaths` ile verilir; mevcut doğrulama kapısı
+kapsama uygunluğunu ayrıca sınar. Başarısız veya yetkisiz koşum kayıt üretmez.
+
+`synthesis.reuseMemory: true`, kaydedilmiş yöntemin kaynak mühürlerini ve
+programını doğrular, yeni dosyanın eski programıyla eşleştirir, fonksiyon ve
+parametre adlarını bağlar ve yeni eğitim örneklerinde kapalı AST'yi sınar.
+Hedefteki başlangıç işlem zinciri kaynak başlangıcıyla aynı olmalıdır; yalnız
+adların ve biçimin değişmesi desteklenir. Bağımsız kabul testi ve normal
+yetki kapısı yeniden uygulanır. Başarılı yeniden kullanım `enumerated: 0`
+bildirir; bu yalnız yeni aday enumerasyonudur, toplam CPU/süre maliyeti değildir.
+Kaynak kaydı değiştirilmez; yeni bir `rememberFile` verilse de çoğaltılmaz.
+
+Bağımsız kabulde başarısız olan bellek adayı ancak doğrulanmış rollback sonrası
+yeni aramaya geçebilir. Bellek denemesi aynı sekiz aday bütçesinden düşer;
+bütçe birse durur. Başarısız zincirin canonical AST'si yeni adaylardan çıkarılır.
+Kaynak veya kayıt bütünlüğü bozulduğunda yeni aramaya düşülmez. Aynı eğitim
+örneklerine uyan farklı zincirlerin varlığı, genel öğrenme başarısı veya
+genel aktarım başarısı olarak yorumlanmaz. Çok hedefli ve pipeline kipleri
+bu metin ailesini henüz kabul etmez; eski sayısal bellek yolu korunur.
 
 Kontrol: `node --test test/coder-string-synthesis.test.js`.
+Öğrenme/aktarım kontrolü: `node --test test/coder-string-learning.test.js`.

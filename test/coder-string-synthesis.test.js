@@ -62,7 +62,7 @@ test('native string synthesis enforces authorization, independent acceptance and
   assert.equal(fs.readFileSync(path.join(root, 'reject.js'), 'utf8'), content);
   assert.equal(git(['diff', '--exit-code']).toString(), '');
 });
-test('unsupported string programs, invalid observations and unsupported memory options fail closed', () => {
+test('unsupported string programs, invalid observations and missing memory journals fail closed', () => {
   for (const source of [content.replace('value.toUpperCase()', 'process.exit()'),
     content.replace('value.toUpperCase()', 'value["trim"]()'),
     content.replace('value.toUpperCase()', 'value.repeat(1000000000)')])
@@ -75,10 +75,8 @@ test('unsupported string programs, invalid observations and unsupported memory o
   assert.equal(synthesizeArithmetic({ task: sparse, content }).reason, 'SYNTHESIS_EXAMPLES_INVALID');
   const already = request(); already.synthesis.examples = already.synthesis.examples.map(row => ({ ...row, expected: row.input.toUpperCase() }));
   assert.equal(synthesizeArithmetic({ task: already, content }).reason, 'SYNTHESIS_ALREADY_SATISFIED');
-  for (const flag of [{ reuseMemory: true }, { rememberFile: '.huqan/coder/candidates/text.json' }]) {
-    const task = request(); Object.assign(task.synthesis, flag);
-    assert.equal(runArithmeticSynthesis({ task }).reason, 'SYNTHESIS_STRING_MEMORY_UNSUPPORTED');
-  }
+  const remembered = request(); remembered.synthesis.rememberFile = '.huqan/coder/candidates/text.json';
+  assert.equal(runArithmeticSynthesis({ task: remembered }).reason, 'SYNTHESIS_MEMORY_REQUIRES_JOURNAL');
 });
 test('the closed string reader preserves slice semantics, bounds and return line breaks', () => {
   for (const [operation, expected] of [
