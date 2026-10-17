@@ -172,6 +172,7 @@ const CLASSIFIED = Object.freeze({
   }),
 
   // ── the product datastore ──────────────────────────────────────────────
+  'lib/http/operator-grant-routes.js': Object.freeze({ role: 'persistence', why: 'stores the Control Room ask/auto approval preference beside the memory store (ADR-019); the path is derived from memoryPath, never from a request' }),
   'lib/graph-json-snapshot.js': Object.freeze({ role: 'persistence', why: 'writes the JSON graph snapshot to the configured memoryPath; the non-SQLite backend for the canonical graph' }),
   'lib/graph-json-transaction.js': Object.freeze({ role: 'persistence', why: 'the JSON graph write transaction: writes a temp file beside memoryPath and renames it, so a crash cannot leave a half-written graph' }),
   'lib/reason-sandbox.js': Object.freeze({ role: 'persistence', why: 'owns and removes the product-created per-request reasoning sandbox under the OS temp root; the sandbox path is created by HUQAN, never supplied by an agent' }),

@@ -4682,6 +4682,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
+  "lib/http/operator-grant-routes.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
   "lib/http/pr-guardian-auth.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"

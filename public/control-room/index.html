@@ -29,6 +29,7 @@
     <div class="grow"></div>
     <div class="side-foot">
       <div class="live" id="gate-live"><i></i><span>Checking gate&hellip;</span></div>
+      <button class="auto-pill" type="button" data-go="customize" data-auto-indicator hidden>Auto-approve on</button>
       <form id="session-form" class="session-form" hidden>
         <span class="session-note" id="session-note"></span>
         <label for="session-key">API key<input type="password" id="session-key" autocomplete="off" placeholder="HUQAN API key"></label>
@@ -69,32 +70,38 @@
       <div class="ibanner" id="ibanner" hidden role="alert"></div>
       <div class="status" id="ov-status" hidden></div>
 
-      <article class="panel first-run" id="first-run" aria-labelledby="first-run-title" data-complete="false">
-        <div class="panel-head">
-          <div>
-            <h2 id="first-run-title">First run</h2>
-            <span class="hint">Three live outcomes, not three clicks.</span>
-          </div>
-          <button class="btn" id="first-run-check" type="button">Check again</button>
-        </div>
+      <div class="setup-line" id="setup-line" hidden>
+        <button class="setup-toggle" id="setup-toggle" type="button" aria-expanded="false" aria-controls="first-run"><span id="setup-summary">Setup</span><span aria-hidden="true">&rarr;</span></button>
+      </div>
+      <article class="panel first-run" id="first-run" aria-label="Setup" data-complete="false" hidden>
         <ol class="first-run-steps">
           <li data-first-run-step="connect">
             <span class="first-run-mark" aria-hidden="true">1</span>
-            <div><b>Connect this workspace</b><span>HUQAN must accept a real authenticated activity read.</span></div>
+            <div><b>Connect this workspace</b></div>
             <span class="chip c-muted" data-first-run-state>Waiting</span>
             <button class="link" id="first-run-connect" type="button">Connect</button>
           </li>
           <li data-first-run-step="decision">
             <span class="first-run-mark" aria-hidden="true">2</span>
-            <div><b>Observe a real decision</b><span>A recorded allow, review or block with a receipt must exist.</span></div>
+            <div><b>See HUQAN decide on an agent action</b></div>
             <span class="chip c-muted" data-first-run-state>Waiting</span>
             <button class="link" type="button" data-go="activity">Open activity</button>
           </li>
           <li data-first-run-step="receipt">
             <span class="first-run-mark" aria-hidden="true">3</span>
-            <div><b>Open its receipt</b><span>Opening the action only counts after the live receipt endpoint verifies it.</span></div>
+            <div><b>Open its receipt</b></div>
             <span class="chip c-muted" data-first-run-state>Waiting</span>
             <button class="link" type="button" data-go="activity">Find the action</button>
+          </li>
+          <li data-setup-item="observability" hidden>
+            <span class="first-run-mark" aria-hidden="true">!</span>
+            <div><b>Activity counts are off</b><span>The observability policy is not set on this server, so HUQAN cannot count what agents did here yet.</span></div>
+            <span class="chip c-muted">To do</span>
+          </li>
+          <li data-setup-item="operator" hidden>
+            <span class="first-run-mark" aria-hidden="true">!</span>
+            <div><b>Approving from this screen is off</b><span>No operator key is set on this server. Approvals still work from the command line.</span></div>
+            <span class="chip c-muted">To do</span>
           </li>
         </ol>
         <p class="first-run-summary" id="first-run-summary" role="status" aria-live="polite"></p>
@@ -185,10 +192,10 @@
         <div><h1>Approvals</h1><p>Actions HUQAN paused for a person. Approving lets the action run; rejecting stops it for good.</p></div>
         <button class="btn" id="appr-refresh">&#8635; Refresh</button>
       </div>
-      <p class="note-role" id="appr-decided-note">Decisions you make here are real and sent to the approval endpoint. "Decided" below only lists approvals resolved in this browser session &mdash; the runtime does not yet expose a full history of past decisions.</p>
+      <p class="auto-note" data-auto-indicator hidden><span class="chip c-gold">Automatic approval is on</span> Approvals you make on this computer go through without asking for the operator key. <button class="link" type="button" data-go="customize">Change</button></p>
       <div class="seg" role="group" aria-label="Show" id="appr-tabs">
         <button aria-pressed="true" data-qfilter="open">Open</button>
-        <button aria-pressed="false" data-qfilter="done">Decided this session</button>
+        <button aria-pressed="false" data-qfilter="done">Decided</button>
       </div>
       <div class="status" id="appr-status"></div>
       <div class="queue" id="appr-queue"></div>
@@ -224,7 +231,7 @@
 
     <!-- AGENTS -->
     <section class="view" data-view="agents" hidden>
-      <div class="topbar"><div><h1>Agents</h1><p>HUQAN has no agent registry or heartbeat today. This is a best-effort view: every distinct actor seen in recent gate decisions, and when it was last seen. An actor absent here may simply not have made a request recently.</p></div><button class="btn" id="agents-refresh">&#8635; Refresh</button></div>
+      <div class="topbar"><div><h1>Agents</h1><p>Which agents send their actions through HUQAN, and which ones don&rsquo;t. An agent that isn&rsquo;t connected is not being watched.</p></div><button class="btn" id="agents-refresh">&#8635; Refresh</button></div>
       <div class="status" id="agents-status"></div>
       <div class="agents" id="agents-list"></div>
     </section>
@@ -250,6 +257,10 @@
         <div class="panel span-6"><div class="panel-head"><h2>Sidebar</h2><span class="hint">You can also drag items in the sidebar itself</span></div><ul class="order" id="order-nav"></ul></div>
         <div class="panel span-6"><div class="panel-head"><h2>Overview</h2><span class="hint">Top to bottom</span></div><ul class="order" id="order-widgets"></ul></div>
       </div>
+      <div class="panel approvals-setting">
+        <div class="panel-head"><h2>Approvals</h2></div>
+        <label class="switch-row" for="auto-approve"><input type="checkbox" id="auto-approve" role="switch"><span><b>Approve without asking on this computer</b><small id="auto-approve-note">Off. Every approval asks for the operator key.</small></span></label>
+      </div>
       <h2 class="saved-head">Saved views</h2>
       <div class="rows panel" id="saved"></div>
     </section>
@@ -269,6 +280,16 @@
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-label="Action detail" aria-hidden="true"></aside>
+<div class="dialog" id="decide-dialog" role="dialog" aria-modal="true" aria-labelledby="dd-title" hidden>
+  <form id="decide-form">
+    <h2 id="dd-title">Approve this action?</h2>
+    <p id="dd-summary"></p>
+    <label id="dd-reason-field" hidden>Reason (kept with the decision)<textarea id="dd-reason" rows="3" maxlength="500"></textarea></label>
+    <label id="dd-key-field">Operator key<input type="password" id="dd-key" autocomplete="off" spellcheck="false"><small>Used once for this decision and not saved.</small></label>
+    <p class="dialog-error" id="dd-error" role="alert"></p>
+    <div class="dialog-acts"><button class="btn" type="button" id="dd-cancel">Cancel</button><button class="btn primary" type="submit" id="dd-confirm">Approve</button></div>
+  </form>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="/control-room/js/control-room-data.js"></script>

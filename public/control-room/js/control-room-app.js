@@ -176,7 +176,7 @@
     $('#ov-health-chip').className = `chip ${errors.length ? 'c-err' : 'c-pass'}`;
     $('#ov-health-chip').textContent = errors.length ? `${errors.length} system error${errors.length === 1 ? '' : 's'}` : 'No system errors';
     $('#errors').innerHTML = errors.length ? errors.map((err) => `
-      <div class="row"><span class="t"><span class="dot" style="--c:var(--err);margin-right:8px"></span>${esc(err.code)} <span class="mono">${esc(err.path)}</span></span>
+      <div class="row"><span class="t"><span class="dot" style="--c:var(--err);margin-right:8px"></span>${esc(err.code)} <span class="mono">${esc(err.path)}</span>${err.count > 1 ? `<span class="error-count num">&times;${err.count}</span>` : ''}</span>
       <span class="r" style="color:var(--soft);font-size:12.5px">${esc(ago(err.at))}</span>
       <span class="s">${esc(err.message || (err.status ? `HTTP ${err.status}` : 'No answer from HUQAN'))}</span></div>`).join('')
       : '<p class="empty">No problems with HUQAN itself since this page opened.</p>';

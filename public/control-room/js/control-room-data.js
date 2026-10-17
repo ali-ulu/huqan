@@ -12,20 +12,31 @@
   const hasKey = () => Boolean(apiKey());
 
   // HUQAN's own failures (network, 5xx, refused auth) are kept here, apart
-  // from agent decisions, and shown in the Errors view. Bounded: the newest
-  // MAX_SYSTEM_ERRORS only, for this page load.
+  // from agent decisions, and shown in the Errors view. One row per failing
+  // code and endpoint: a poll that keeps failing raises the row's count
+  // instead of filling the list with copies. Bounded to MAX_SYSTEM_ERRORS
+  // distinct rows for this page load.
   const MAX_SYSTEM_ERRORS = 50;
   let systemErrors = [];
   function recordSystemError(path, status, error) {
+    const now = new Date().toISOString();
     const entry = {
-      at: new Date().toISOString(),
       path: String(path).split('?')[0],
       status: status || null,
       code: (error && error.code) || (status ? `HTTP_${status}` : 'NETWORK_ERROR'),
       message: (error && error.message) || '',
     };
-    systemErrors = [entry, ...systemErrors].slice(0, MAX_SYSTEM_ERRORS);
-    global.dispatchEvent(new CustomEvent('huqan:system-error', { detail: entry }));
+    const key = `${entry.code} ${entry.path}`;
+    const previous = systemErrors.find((e) => e.key === key);
+    const merged = {
+      ...entry,
+      key,
+      at: now,
+      firstAt: previous ? previous.firstAt : now,
+      count: previous ? previous.count + 1 : 1,
+    };
+    systemErrors = [merged, ...systemErrors.filter((e) => e.key !== key)].slice(0, MAX_SYSTEM_ERRORS);
+    global.dispatchEvent(new CustomEvent('huqan:system-error', { detail: merged }));
   }
 
   // A request only counts as a system error when HUQAN itself failed: no
@@ -57,7 +68,26 @@
       recordSystemError('/health', response.status, body.error);
       return { ok: false };
     }
-    return { ok: true, apiAuthRequired: body.apiAuthRequired === true };
+    authRequired = body.apiAuthRequired === true;
+    return { ok: true, apiAuthRequired: authRequired };
+  }
+
+  // Whether this server asks for an API key; null until /health answered.
+  let authRequired = null;
+
+  // GET /v2-status is public and says, as one boolean, whether this
+  // deployment configured the observability authorization policy. Without
+  // it every observability read answers 503 by design, so the views ask once
+  // and explain the missing setup instead of reporting a failure.
+  let statusPromise = null;
+  function fetchSetupStatus() {
+    if (!statusPromise) {
+      statusPromise = fetch('/v2-status', { cache: 'no-store' })
+        .then((r) => r.json().catch(() => ({})))
+        .then((body) => ({ ok: true, observabilityConfigured: body?.observability?.configured !== false }))
+        .catch(() => ({ ok: false, observabilityConfigured: true }));
+    }
+    return statusPromise;
   }
 
   function authHeaders(extra) {
@@ -84,7 +114,7 @@
     return { ok: true, body };
   }
 
-  async function postJson(path, payload) {
+  async function postJson(path, payload, extraHeaders) {
     let response;
     try {
       // The approval-decision route reads workspaceId from the query string
@@ -94,7 +124,7 @@
       // string only; the body carries exactly what the caller passed.
       response = await fetch(withWorkspace(path), {
         method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: authHeaders({ 'Content-Type': 'application/json', ...(extraHeaders || {}) }),
         body: JSON.stringify(payload || {}),
       });
     } catch (error) {
@@ -114,6 +144,10 @@
   const PAGE_CAP = 10; // 10 x 100 = up to 1000 events per window
 
   async function fetchGateDecisions({ windowMs }) {
+    const setup = await fetchSetupStatus();
+    if (!setup.observabilityConfigured) {
+      return { ok: false, unconfigured: true, error: { code: 'OBSERVABILITY_NOT_CONFIGURED', message: 'Activity counts are not set up on this server.' } };
+    }
     const items = [];
     let cursor;
     let truncated = false;
@@ -133,17 +167,76 @@
   }
 
   // ---- approval queue ----
+  // One record of what is waiting on a person. The sidebar badge, the
+  // Overview's "Waiting for review" bucket, its "Waiting on you" panel and the
+  // Approvals view all read this list, so they cannot disagree.
+  let queue = { loaded: false, ok: false, approvals: [] };
+  function publishQueue(next) {
+    queue = next;
+    global.dispatchEvent(new CustomEvent('huqan:approvals-changed', { detail: queue }));
+    return queue;
+  }
   async function fetchOpenApprovals() {
     const result = await getJson('/api/v2/approvals');
-    if (!result.ok) return result;
+    if (!result.ok) {
+      publishQueue({ loaded: true, ok: false, approvals: queue.approvals });
+      return result;
+    }
     const data = result.body.data || {};
-    return { ok: true, approvals: data.approvals || [], total: data.total || 0 };
+    publishQueue({ loaded: true, ok: true, approvals: data.approvals || [] });
+    return { ok: true, approvals: queue.approvals, total: queue.approvals.length };
+  }
+  function removeFromQueue(approvalId) {
+    publishQueue({ ...queue, approvals: queue.approvals.filter((a) => a.id !== approvalId) });
   }
 
-  async function decideApproval(approvalId, decision, reason) {
-    const result = await postJson(`/api/v2/approvals/${encodeURIComponent(approvalId)}/decision`, { decision, reason: reason || '' });
+  // ---- operator grant (approve / reject) ----
+  // A decision needs a one-use operator capability bound to exactly this
+  // approval, verdict and reason. The server mints it either because the
+  // person proved operator authority just now (operatorKey, never stored), or
+  // because automatic approval is switched on for this computer.
+  async function fetchGrant() {
+    const result = await getJson('/api/v2/operator/grant');
+    if (!result.ok) return { ok: false, available: result.status !== 404, error: result.error };
+    return { ok: true, available: true, ...(result.body.data || {}) };
+  }
+
+  async function setGrantMode(mode, operatorKey) {
+    let response;
+    try {
+      response = await fetch(withWorkspace('/api/v2/operator/grant'), {
+        method: 'PUT',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(operatorKey ? { mode, operatorToken: operatorKey } : { mode }),
+      });
+    } catch (error) {
+      return { ok: false, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) return failure('/api/v2/operator/grant', response.status, body);
+    global.dispatchEvent(new CustomEvent('huqan:grant-changed', { detail: body.data || {} }));
+    return { ok: true, ...(body.data || {}) };
+  }
+
+  async function decideApproval(approvalId, decision, reason, { operatorKey } = {}) {
+    const grantBody = { approvalId, decision, reason: reason || '' };
+    if (operatorKey) grantBody.operatorToken = operatorKey;
+    const grant = await postJson('/api/v2/operator/capabilities', grantBody);
+    if (!grant.ok) {
+      if (grant.status === 404 && grant.error?.code !== 'APPROVAL_NOT_FOUND') {
+        return { ok: false, error: { code: 'OPERATOR_GRANT_UNAVAILABLE', message: 'Approvals from this screen are not set up on this server yet.' } };
+      }
+      return { ...grant, needsOperator: grant.status === 403 && !operatorKey };
+    }
+    const capability = grant.body.data && grant.body.data.capability;
+    const result = await postJson(
+      `/api/v2/approvals/${encodeURIComponent(approvalId)}/decision`,
+      { decision, reason: reason || '' },
+      { 'x-huqan-operator-capability': String(capability || '') },
+    );
     if (!result.ok) return result;
-    return { ok: true, data: result.body.data || {} };
+    removeFromQueue(approvalId);
+    return { ok: true, data: result.body.data || {}, grantedBy: grant.body.data.grantedBy };
   }
 
   // ---- activity feed ----
@@ -198,7 +291,12 @@
   global.HuqanControlRoomData = {
     workspace,
     hasKey,
+    authRequired: () => authRequired,
     fetchHealth,
+    fetchSetupStatus,
+    approvalQueue: () => queue,
+    fetchGrant,
+    setGrantMode,
     systemErrors: () => systemErrors.slice(),
     setSession(key, ws) {
       if (key !== undefined) sessionStorage.setItem('huqan-api-key', key || '');

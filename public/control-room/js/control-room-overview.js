@@ -63,6 +63,10 @@ if (typeof window !== 'undefined') {
       && ['allow', 'review', 'block'].includes(String(item.receipt.decision || '')));
   }
 
+  // Setup is one line at the top: "Setup: N steps left". The steps open
+  // under it on demand and the line disappears once nothing is left.
+  const setupNeeds = { observability: false, operator: false };
+
   function renderFirstRun(message) {
     const panel = $('#first-run');
     if (!panel) return;
@@ -79,14 +83,18 @@ if (typeof window !== 'undefined') {
       const status = row.querySelector('[data-first-run-state]');
       if (status) status.textContent = done[name] ? 'Done' : current ? 'Next' : 'Waiting';
     }
+    const connect = $('#first-run-connect');
+    if (connect) connect.hidden = done.connect || Data.authRequired() !== true;
+    Object.entries(setupNeeds).forEach(([name, needed]) => {
+      const row = panel.querySelector(`[data-setup-item="${name}"]`);
+      if (row) row.hidden = !needed;
+    });
+    const left = Object.values(done).filter((v) => !v).length + Object.values(setupNeeds).filter(Boolean).length;
     panel.dataset.complete = String(state.complete);
-    $('#first-run-summary').textContent = message || (state.complete
-      ? 'First run complete. The workspace, decision and receipt were all proven by live HUQAN responses.'
-      : state.decisionObserved
-        ? 'A real decision is visible. Open that action in Agent activity so HUQAN can verify its receipt.'
-        : state.connected
-          ? 'Workspace connected. Waiting for a real gate decision.'
-          : 'Connect a workspace. This step completes only after an authenticated runtime read succeeds.');
+    $('#setup-summary').textContent = `Setup: ${left} step${left === 1 ? '' : 's'} left`;
+    $('#setup-line').hidden = left === 0;
+    if (left === 0) panel.hidden = true;
+    $('#first-run-summary').textContent = message || '';
   }
 
   function observeFirstRun(items) {
@@ -101,10 +109,10 @@ if (typeof window !== 'undefined') {
   }
 
   async function probeFirstRun() {
-    renderFirstRun('Checking this workspace against the live activity endpoint…');
+    renderFirstRun('Checking this workspace…');
     const result = await Data.fetchActivity({ limit: 1 });
     if (!result.ok) {
-      renderFirstRun(`Workspace check failed: ${result.error?.message || result.error?.code || 'unknown error'}`);
+      renderFirstRun(`HUQAN did not answer for this workspace: ${result.error?.message || result.error?.code || 'unknown error'}`);
       return;
     }
     observeFirstRun(result.items);
@@ -130,9 +138,7 @@ if (typeof window !== 'undefined') {
     return { counts: c, earliest, agentsSeen };
   }
 
-  function sessionApproved() {
-    return window.HuqanControlRoomApprovals ? window.HuqanControlRoomApprovals.getSessionApprovedCount() : 0;
-  }
+  const sessionApproved = () => (window.HuqanControlRoomApprovals ? window.HuqanControlRoomApprovals.getSessionApprovedCount() : 0);
 
   function renderStatus(message, isError) {
     const el = $('#ov-status');
@@ -142,17 +148,12 @@ if (typeof window !== 'undefined') {
     el.className = `status${isError ? ' bad' : ''}`;
   }
 
-  // `counts.review` is every `review`-status gate_decision recorded in the
-  // window, whether or not it has since been resolved: a gate decision is
-  // only ever recorded once, at the moment the gate ran, and is never
-  // re-emitted when a person later approves or rejects it (confirmed by
-  // exercising the real endpoints while building this view -- see the final
-  // report). Using it keeps the bar's segments summing to the total watched.
-  // `openReviewCount` -- the live approval queue size -- is shown alongside
-  // it as "open now" so a resolved review does not look like it vanished
-  // from the total, and does not look like it is still waiting either.
-  function renderVerdict(counts, openReviewCount, earliest, truncated) {
+  function renderVerdict(gateCounts, openReviewCount, earliest, truncated) {
     const approved = sessionApproved();
+    // "Waiting for review" is the live approval queue -- the same record the
+    // sidebar badge and the Approvals view read -- not a count of past review
+    // events, which never change once recorded.
+    const counts = { ...gateCounts, review: openReviewCount };
     const total = counts.pass + approved + counts.auto + counts.review + counts.block;
     $('#ov-total').textContent = total.toLocaleString();
     $('#ov-total-label').textContent = `agent actions watched in ${WINDOW_LABEL[currentWindowMs] || 'the selected window'}`;
@@ -170,7 +171,7 @@ if (typeof window !== 'undefined') {
       <div class="vl" style="--c:var(--pass)"><b class="num">${counts.pass}</b><span>Passed on policy</span></div>
       <div class="vl" style="--c:color-mix(in oklab, var(--pass) 55%, var(--surface))"><b class="num">${approved}</b><span>Passed after your approval</span></div>
       ${counts.auto ? `<div class="vl" style="--c:var(--gold)"><b class="num">${counts.auto}</b><span>Auto-approved</span></div>` : ''}
-      <div class="vl" style="--c:var(--review)"><b class="num">${counts.review}</b><span>Waiting for review</span>${openReviewCount ? '<br><button class="link" data-go="approvals">Review now</button>' : ''}</div>
+      <div class="vl" style="--c:var(--review)"><b class="num">${counts.review}</b><span>Waiting for review</span>${counts.review ? '<br><button class="link" data-go="approvals">Review now</button>' : ''}</div>
       <div class="vl" style="--c:var(--block)"><b class="num">${counts.block}</b><span>Blocked before they ran</span>${counts.block ? '<br><button class="link" data-jump-verdict="block">See what was stopped</button>' : ''}</div>
     `;
     $('#ov-vlegend').style.gridTemplateColumns = `repeat(${counts.auto ? 5 : 4}, minmax(0, 1fr))`;
@@ -257,15 +258,13 @@ if (typeof window !== 'undefined') {
 
   function renderApprovalsPanel(open) {
     const list = (open || []).slice(0, 4);
-    $('#ov-approvals').innerHTML = list.length ? list.map((a) => `
-      <div class="row"><span class="t">${esc(a.tool || 'action')}</span><span class="r"><button class="btn" data-go="approvals">Review</button></span>
-      <span class="s"><span class="mono">${esc(a.tool)}</span> · ${ago(new Date(a.createdAt).toISOString())}</span></div>`).join('')
+    $('#ov-approvals').innerHTML = list.length ? list.map((a) => {
+      const d = typeof describeApproval === 'function' ? describeApproval(a) : { title: a.tool || 'Action', agent: '' };
+      return `
+      <div class="row"><span class="t">${esc(d.title)}</span><span class="r"><button class="btn" data-go="approvals">Review</button></span>
+      <span class="s">${esc(d.agent)} · ${ago(new Date(a.createdAt).toISOString())}</span></div>`;
+    }).join('')
       : '<p class="empty">Nothing is waiting on you.</p>';
-    const navCount = $('#nav-approvals-count');
-    if (navCount) {
-      if (list.length || (open && open.length)) { navCount.hidden = false; navCount.textContent = String((open || []).length); }
-      else navCount.hidden = true;
-    }
   }
 
   function renderAgentsPanel(agentsSeen) {
@@ -285,8 +284,25 @@ if (typeof window !== 'undefined') {
     }).join('') : '<p class="empty">No activity recorded yet.</p>';
   }
 
+  let lastBucketed = null;
+
+  function renderQueueDependent() {
+    const queue = Data.approvalQueue();
+    if (!lastBucketed) return;
+    renderVerdict(lastBucketed.counts, queue.approvals.length, lastBucketed.earliest, lastBucketed.truncated);
+    if (queue.ok) renderApprovalsPanel(queue.approvals);
+  }
+
+  async function refreshSetupNeeds() {
+    const [setup, grant] = await Promise.all([Data.fetchSetupStatus(), Data.fetchGrant()]);
+    setupNeeds.observability = setup.observabilityConfigured === false;
+    setupNeeds.operator = grant.available === false;
+    renderFirstRun();
+  }
+
   async function load() {
-    renderStatus('Loading…');
+    renderStatus('');
+    refreshSetupNeeds();
     const [decisionsResult, approvalsResult, activityResult, weekResult] = await Promise.all([
       Data.fetchGateDecisions({ windowMs: currentWindowMs }),
       Data.fetchOpenApprovals(),
@@ -294,27 +310,28 @@ if (typeof window !== 'undefined') {
       currentWindowMs === 604800000 ? Promise.resolve(null) : Data.fetchGateDecisions({ windowMs: 604800000 }),
     ]);
 
-    if (!decisionsResult.ok) {
+    // Observability that is simply not set up is a setup step, not a failure.
+    if (!decisionsResult.ok && !decisionsResult.unconfigured) {
       renderStatus(`Could not load gate decisions: ${decisionsResult.error?.message || decisionsResult.error?.code || 'unknown error'}`, true);
-    } else {
-      renderStatus('');
     }
     const bucketed = decisionsResult.ok ? bucketDecisions(decisionsResult.items) : { counts: { pass: 0, auto: 0, review: 0, block: 0 }, earliest: null, agentsSeen: new Map() };
-    const openReviewCount = approvalsResult.ok ? approvalsResult.approvals.length : bucketed.counts.review;
-    renderVerdict(bucketed.counts, openReviewCount, bucketed.earliest, decisionsResult.truncated);
+    lastBucketed = { ...bucketed, truncated: decisionsResult.truncated };
+    renderVerdict(bucketed.counts, approvalsResult.ok ? approvalsResult.approvals.length : 0, bucketed.earliest, decisionsResult.truncated);
     renderAgentsPanel(bucketed.agentsSeen);
 
     const weekItems = weekResult ? (weekResult.ok ? weekResult.items : []) : (decisionsResult.ok ? decisionsResult.items : []);
     renderChart(weekItems);
 
     if (approvalsResult.ok) renderApprovalsPanel(approvalsResult.approvals);
-    else $('#ov-approvals').innerHTML = `<p class="empty">Could not load the approval queue.</p>`;
+    else $('#ov-approvals').innerHTML = '<p class="empty">Could not load the approval queue.</p>';
 
     if (activityResult.ok) {
       renderRecent(activityResult.items);
       observeFirstRun(activityResult.items);
-    } else $('#ov-recent').innerHTML = `<p class="empty">Could not load recent activity.</p>`;
+    } else $('#ov-recent').innerHTML = '<p class="empty">Could not load recent activity.</p>';
   }
+
+  window.addEventListener('huqan:approvals-changed', renderQueueDependent);
 
   $$('#ov-window [data-win]').forEach((btn) => btn.addEventListener('click', () => {
     currentWindowMs = Number(btn.dataset.win);
@@ -351,12 +368,18 @@ if (typeof window !== 'undefined') {
   renderIntegrityBanner(readIntegrityFlag());
   renderFirstRun();
 
-  $('#first-run-check')?.addEventListener('click', probeFirstRun);
+  $('#setup-toggle')?.addEventListener('click', () => {
+    const panel = $('#first-run');
+    panel.hidden = !panel.hidden;
+    $('#setup-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+  });
+  // The key form belongs to servers that ask for a key. With API auth off
+  // there is nothing to enter: the step completes on the next live read.
   $('#first-run-connect')?.addEventListener('click', () => {
     const form = $('#session-form');
-    if (!form) return;
+    if (Data.authRequired() !== true || !form) { probeFirstRun(); return; }
     form.hidden = false;
-    $('#session-note').textContent = 'Enter this server\'s API key and workspace. Completion waits for a successful runtime read.';
+    $('#session-note').textContent = 'This HUQAN server asks for an API key.';
     ($('#session-key') || $('#session-ws'))?.focus();
   });
   window.addEventListener('huqan:first-run-session-changed', probeFirstRun);
