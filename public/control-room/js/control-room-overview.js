@@ -267,14 +267,6 @@ if (typeof window !== 'undefined') {
       : '<p class="empty">Nothing is waiting on you.</p>';
   }
 
-  function renderAgentsPanel(agentsSeen) {
-    const entries = [...agentsSeen.entries()].sort((a, b) => new Date(b[1]) - new Date(a[1])).slice(0, 5);
-    $('#ov-agents').innerHTML = entries.length ? entries.map(([id, seen]) => `
-      <div class="row"><span class="t mono">${esc(id)}</span><span class="r"><span class="chip c-pass">Connected</span></span>
-      <span class="s">last seen ${ago(seen)}</span></div>`).join('')
-      : '<p class="empty">No agent identity has reached a gate yet in this window.</p>';
-  }
-
   function renderRecent(items) {
     $('#ov-recent').innerHTML = items.length ? items.slice(0, 6).map((a) => {
       const decision = a.receipt ? a.receipt.decision : '';
@@ -317,7 +309,7 @@ if (typeof window !== 'undefined') {
     const bucketed = decisionsResult.ok ? bucketDecisions(decisionsResult.items) : { counts: { pass: 0, auto: 0, review: 0, block: 0 }, earliest: null, agentsSeen: new Map() };
     lastBucketed = { ...bucketed, truncated: decisionsResult.truncated };
     renderVerdict(bucketed.counts, approvalsResult.ok ? approvalsResult.approvals.length : 0, bucketed.earliest, decisionsResult.truncated);
-    renderAgentsPanel(bucketed.agentsSeen);
+    window.HuqanControlRoomAgents?.renderOverviewPanel(bucketed.agentsSeen);
 
     const weekItems = weekResult ? (weekResult.ok ? weekResult.items : []) : (decisionsResult.ok ? decisionsResult.items : []);
     renderChart(weekItems);

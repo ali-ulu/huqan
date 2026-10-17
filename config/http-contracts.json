@@ -294,6 +294,15 @@
       "response": {"owner": "lib/http/operator-grant-routes.js"}
     },
     {
+      "family": "agent-registry",
+      "routeIds": ["agent-registry"],
+      "exposure": "deployment-gated",
+      "path": "/api/v2/agents*",
+      "methods": ["GET", "POST", "DELETE"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/agent-registry-routes.js", "evidence": ["parseJsonRequest"]},
+      "response": {"owner": "lib/http/agent-registry-routes.js"}
+    },
+    {
       "family": "pr-guardian-webhook",
       "routeIds": ["pr-guardian-webhook"],
       "exposure": "deployment-gated",

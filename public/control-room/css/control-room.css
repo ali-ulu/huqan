@@ -338,3 +338,12 @@ td .sub { display: block; color: var(--soft); font-size: 12px; }
 .raw summary { cursor: pointer; color: var(--soft); font-size: 13px; }
 .raw pre { margin: 8px 0 0; padding: 10px; border-radius: 10px; background: var(--sunken); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow: auto; }
 .error-count { margin-left: 6px; font-size: 11.5px; color: var(--soft); }
+.agent dl { grid-template-columns: repeat(3, 1fr); }
+.agent-remove { font-size: 12px; margin-left: 6px; }
+.agents-found { margin-bottom: 16px; }
+.found-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.found-list label { display: flex; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--glass-line); cursor: pointer; }
+.found-list input { margin-top: 3px; accent-color: var(--accent); }
+.found-list small { display: block; color: var(--soft); font-size: 12px; }
+.found-note { color: var(--soft); font-size: 12.5px; margin: 10px 0 0; }
+.found-acts { display: flex; justify-content: end; gap: 8px; margin-top: 10px; }

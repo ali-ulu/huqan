@@ -2,18 +2,18 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 75,
-    "sites": 163,
+    "files": 77,
+    "sites": 169,
     "byCapability": {
       "process": 24,
       "egress": 6,
-      "fs_write": 133
+      "fs_write": 139
     },
     "byRole": {
       "enforcement": 37,
       "adapter_read": 8,
       "operator_tool": 51,
-      "persistence": 47,
+      "persistence": 53,
       "evidence": 15,
       "egress_operator_gated": 2,
       "unguarded": 3
@@ -1057,6 +1057,31 @@
       ]
     },
     {
+      "file": "lib/http/agent-registry-routes.js",
+      "role": "persistence",
+      "why": "writes HUQAN's own agent registry beside the memory store when the user confirms an agent; never an agent's configuration",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 55,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 57,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 58,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
+        }
+      ]
+    },
+    {
       "file": "lib/http/operator-grant-routes.js",
       "role": "persistence",
       "why": "stores the Control Room ask/auto approval preference beside the memory store (ADR-019); the path is derived from memoryPath, never from a request",
@@ -1183,6 +1208,31 @@
           "line": 117,
           "capability": "fs_write",
           "call": "fileSystem.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/mcp/agent-presence.js",
+      "role": "persistence",
+      "why": "records when an MCP client last talked to HUQAN, one small file per client beside the memory store; no tool data",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 68,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 72,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 73,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
         }
       ]
     },

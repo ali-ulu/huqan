@@ -31,7 +31,7 @@ const {
 const { operatorCapabilityBinding } = require('./lib/mcp/operator-authorization');
 const { createTransientAgentRunner } = require('./lib/mcp/transient-agent');
 const { createMcpToolDispatch } = require('./lib/mcp/tool-dispatch');
-const { PROTOCOL_VERSION, SERVER_NAME, createJsonRpcHandler } = require('./lib/mcp/json-rpc-handler');
+const { PROTOCOL_VERSION, SERVER_NAME, createJsonRpcHandler, createPresenceRecorderFor } = require('./lib/mcp/json-rpc-handler');
 const { MCP_MAX_FRAME_BYTES, MCP_MAX_JSON_DEPTH, MCP_MAX_JSON_VALUES, serveStdio } = require('./lib/mcp/stdio-transport');
 
 const MCP_OPERATOR_TOKEN_ENV = 'HUQAN_MCP_OPERATOR_TOKEN';
@@ -76,6 +76,7 @@ function createServer(kernelOrOptions = {}) {
     ownsKernel: !options.kernel, ownsApprovalStore: !Object.hasOwn(options, 'approvalStore'),
     ownsOperatorCapabilityNonces: !Object.hasOwn(options, 'operatorCapabilityNonces') });
   const handleRequest = createJsonRpcHandler({
+    onActivity: typeof options.onActivity === 'function' ? options.onActivity : null,
     // A cancelled tools/call leaves its receipt in the kernel's mutation
     // journal: idempotent per operation id, readable by prefix (#3484).
     recordCancellation: (operationId, receipt) => {
@@ -121,7 +122,13 @@ function runStdio() {
   assertBootEnvironment();
   // console.warn writes to stderr, so the stdio JSON-RPC frames on stdout stay intact.
   reportIgnoredBareEnvironment(console);
-  serveStdio(createServer());
+  // Only the stdio entry point records presence, so in-process callers and
+  // tests never write presence files. Bound after creation: the directory
+  // sits beside the memory store the server resolved.
+  let recordPresence = () => {};
+  const server = createServer({ onActivity: event => recordPresence(event) });
+  recordPresence = createPresenceRecorderFor(server.kernel.graph && server.kernel.graph.memoryPath);
+  serveStdio(server);
 }
 
 const mcpProcessFailureHandlers = createProcessFailureHandlers({

@@ -231,8 +231,9 @@
 
     <!-- AGENTS -->
     <section class="view" data-view="agents" hidden>
-      <div class="topbar"><div><h1>Agents</h1><p>Which agents send their actions through HUQAN, and which ones don&rsquo;t. An agent that isn&rsquo;t connected is not being watched.</p></div><button class="btn" id="agents-refresh">&#8635; Refresh</button></div>
+      <div class="topbar"><div><h1>Agents</h1><p>Which agents send their actions through HUQAN, and which ones don&rsquo;t. An agent that isn&rsquo;t connected is not being watched.</p></div><div class="tools"><button class="btn" id="agents-refresh">&#8635; Refresh</button><button class="btn" id="agents-find" type="button" data-role-hide="viewer approver">Find agents</button></div></div>
       <div class="status" id="agents-status"></div>
+      <div class="panel agents-found" id="agents-found" hidden></div>
       <div class="agents" id="agents-list"></div>
     </section>
 

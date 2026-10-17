@@ -239,6 +239,36 @@
     return { ok: true, data: result.body.data || {}, grantedBy: grant.body.data.grantedBy };
   }
 
+  // ---- agent registry ----
+  // Registered agents with connected / disconnected / not connected, and what
+  // discovery found on this computer. Adding or removing an agent changes
+  // HUQAN's own registry only, never the agent's configuration.
+  async function fetchAgents() {
+    const result = await getJson('/api/v2/agents');
+    return result.ok ? { ok: true, ...(result.body.data || {}) } : result;
+  }
+  async function discoverAgents() {
+    const result = await getJson('/api/v2/agents/discovery');
+    return result.ok ? { ok: true, agents: (result.body.data || {}).agents || [] } : result;
+  }
+  async function sendAgentChange(method, path, payload) {
+    let response;
+    try {
+      response = await fetch(withWorkspace(path), {
+        method,
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+    } catch (error) {
+      return { ok: false, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.ok === false) return failure(path, response.status, body);
+    return { ok: true, ...(body.data || {}) };
+  }
+  const registerAgent = (id) => sendAgentChange('POST', '/api/v2/agents', { id });
+  const removeAgent = (id) => sendAgentChange('DELETE', `/api/v2/agents/${encodeURIComponent(id)}`);
+
   // ---- activity feed ----
   async function fetchActivity({ limit, cursor, eventType, actor } = {}) {
     const params = new URLSearchParams();
@@ -297,6 +327,10 @@
     approvalQueue: () => queue,
     fetchGrant,
     setGrantMode,
+    fetchAgents,
+    discoverAgents,
+    registerAgent,
+    removeAgent,
     systemErrors: () => systemErrors.slice(),
     setSession(key, ws) {
       if (key !== undefined) sessionStorage.setItem('huqan-api-key', key || '');
