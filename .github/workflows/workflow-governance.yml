@@ -50,3 +50,21 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100" --paginate --slurp \
             > commits.json
           node scripts/check-pr-signatures.js commits.json "${PR_COMMIT_COUNT}"
+
+      # #4006: a defect fix must point at the regression test that pins the
+      # failure mode, or carry a documented waiver. The issue-numbered test
+      # convention existed but nothing enforced the link, so a `fix(...)` change
+      # could close its issue with no test at all and pass every other gate.
+      # The declaration lives in the pull request body; this step reads it and
+      # refuses a fix that names nothing.
+      - name: Check issue-to-regression-test traceability
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > pull-request.json
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" --paginate --slurp \
+            > pull-request-files.json
+          node scripts/check-issue-regression-traceability.js pull-request.json pull-request-files.json
