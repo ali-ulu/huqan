@@ -46,8 +46,11 @@ tool, no list capability, no emergency-stop capability.
 
 **Ask.** The dialog sends the operator token once with the decision request.
 It is compared in constant time, never stored, logged or echoed. Five wrong
-keys lock the route for five minutes; a request carrying no key is not
-counted as a guess.
+keys throttle wrong guesses for five minutes; a request carrying no key is
+not counted as a guess. The throttle never refuses the operator's own key:
+an accepted key ends the lockout and clears the guess counter, so an agent
+that holds only the transport API key cannot keep a person out of Control
+Room decisions by spamming wrong guesses (the #3926 threat model).
 
 **Auto.** Honoured only when all hold:
 
@@ -89,5 +92,11 @@ shows "Activity counts are off" as a setup step.
   prompt, not a boundary that existed. Where the boundary matters, install the
   authority (ADR-016) — auto then switches off by construction — or run agents
   as a separate OS user (ADR-017).
+- **Residual risk (attempt limiter, stated, not hidden):** the wrong-guess
+  limiter is process-wide, so wrong guesses from any holder of the transport
+  API key share one counter and one lockout: guessing by one agent can
+  throttle wrong guesses made from the Control Room for up to five minutes.
+  Only wrong guesses are throttled, never the operator's own key, so the limiter
+  stays a brute-force guard and not an anti-oversight lever.
 - Tests: `test/control-room-operator-grant.test.js` pins the scope, the
   single use, the lockout, each loopback refusal and the authority override.

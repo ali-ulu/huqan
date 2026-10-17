@@ -84,7 +84,7 @@ test('First run "Connect" only opens the key form when the server asks for a key
   assert.match(listener.slice(0, 400), /Data\.authRequired\(\) !== true/);
 });
 
-function loadDataLayer() {
+function loadDataLayer(fetchImpl) {
   const events = [];
   const window = {
     dispatchEvent: (e) => events.push(e),
@@ -93,7 +93,7 @@ function loadDataLayer() {
     window,
     CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
     sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
-    fetch: async () => ({ ok: false, status: 503, json: async () => ({ ok: false, error: { code: 'X_DOWN', message: 'down' } }) }),
+    fetch: fetchImpl || (async () => ({ ok: false, status: 503, json: async () => ({ ok: false, error: { code: 'X_DOWN', message: 'down' } }) })),
     URLSearchParams,
   });
   vm.runInContext(read('public/control-room/js/control-room-data.js'), context);
@@ -120,4 +120,26 @@ test('the waiting count has one source: the approval queue', async () => {
   assert.match(overview, /huqan:approvals-changed/);
   assert.equal(Data.approvalQueue().approvals.length, 0);
   assert.ok(Array.isArray(events));
+});
+
+test('a refused grant reports needsOperator exactly when no key went out', async () => {
+  const { Data } = loadDataLayer(async () => ({
+    ok: false,
+    status: 403,
+    json: async () => ({ ok: false, error: { code: 'OPERATOR_AUTH_REQUIRED', message: 'needed' } }),
+  }));
+  const withoutKey = await Data.decideApproval('approval-1', 'approved', '');
+  assert.equal(withoutKey.ok, false);
+  assert.equal(withoutKey.needsOperator, true, 'the decision can be retried with a key');
+
+  const withKey = await Data.decideApproval('approval-1', 'approved', '', { operatorKey: 'typed-key' });
+  assert.equal(withKey.ok, false);
+  assert.equal(withKey.needsOperator, false, 'a refused key is not retried through the key field');
+});
+
+test('the automatic-approval fallback dialog offers the key field again', () => {
+  const approvals = read('public/control-room/js/control-room-approvals.js');
+  assert.match(approvals, /forceKey = false/);
+  assert.match(approvals, /askKey = forceKey \|\| purpose === 'enable-auto' \|\| !grant\.autoActive/);
+  assert.match(approvals, /forceKey: result\.needsOperator === true/, 'the failed auto attempt passes decideApproval needsOperator through');
 });

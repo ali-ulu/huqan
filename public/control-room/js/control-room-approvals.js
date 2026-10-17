@@ -219,11 +219,11 @@ if (typeof window !== 'undefined') {
   // here is stored: the key is sent once to mint a one-use grant.
   let pending = null; // { id, decision, purpose }
 
-  function openDialog({ id, decision, purpose = 'decide', message = '' }) {
+  function openDialog({ id, decision, purpose = 'decide', message = '', forceKey = false }) {
     pending = { id, decision, purpose };
     const a = id ? findOpen(id) : null;
     const d = a ? describeApproval(a) : null;
-    const askKey = purpose === 'enable-auto' || !grant.autoActive;
+    const askKey = forceKey || purpose === 'enable-auto' || !grant.autoActive;
     $('#dd-title').textContent = purpose === 'enable-auto'
       ? 'Approve without asking on this computer?'
       : decision === 'approved' ? 'Approve this action?' : 'Reject this action?';
@@ -298,7 +298,9 @@ if (typeof window !== 'undefined') {
       setBusy(id, true);
       const result = await submitDecision(id, decision, '', '');
       setBusy(id, false);
-      if (!result.ok) openDialog({ id, decision, message: explain(result.error) });
+      // A refused automatic approval must leave the retry open: show the key
+      // field whenever the grant answered that operator authority is needed.
+      if (!result.ok) openDialog({ id, decision, message: explain(result.error), forceKey: result.needsOperator === true });
       return;
     }
     openDialog({ id, decision });

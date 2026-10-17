@@ -1065,17 +1065,17 @@
       ],
       "sites": [
         {
-          "line": 117,
+          "line": 118,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 121,
+          "line": 122,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 122,
+          "line": 123,
           "capability": "fs_write",
           "call": "fs.renameSync"
         }

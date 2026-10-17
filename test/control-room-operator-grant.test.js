@@ -156,17 +156,18 @@ test('an installed approval authority disables automatic approval entirely', asy
   assert.equal(res.status, 403, 'a stored auto preference is ignored once an authority is installed');
 });
 
-test('repeated wrong keys lock the grant for a while', async (t) => {
+test('repeated wrong keys lock wrong guesses out, never the operator', async (t) => {
   let now = 1_000_000;
   const { call } = harness(t, { now: () => now });
   for (let i = 0; i < 5; i += 1) {
     await call('POST', '/api/v2/operator/capabilities?workspaceId=default', { body: decision({ operatorToken: `guess-${i}` }) });
   }
-  const locked = await call('POST', '/api/v2/operator/capabilities?workspaceId=default', { body: decision({ operatorToken: TOKEN }) });
-  assert.equal(locked.status, 429, 'even the right key waits out the lockout');
-  now += 5 * 60_000 + 1;
-  const after = await call('POST', '/api/v2/operator/capabilities?workspaceId=default', { body: decision({ operatorToken: TOKEN }) });
-  assert.equal(after.status, 200);
+  const locked = await call('POST', '/api/v2/operator/capabilities?workspaceId=default', { body: decision({ operatorToken: 'another-guess' }) });
+  assert.equal(locked.status, 429, 'wrong guesses still wait out the lockout');
+  const right = await call('POST', '/api/v2/operator/capabilities?workspaceId=default', { body: decision({ operatorToken: TOKEN }) });
+  assert.equal(right.status, 200, 'the lock never keeps the operator out');
+  const again = await call('POST', '/api/v2/operator/capabilities?workspaceId=default', { body: decision({ operatorToken: 'final-guess' }) });
+  assert.equal(again.status, 403, 'the correct key also cleared the guess counter');
 });
 
 test('without an operator token the surface does not exist', () => {
