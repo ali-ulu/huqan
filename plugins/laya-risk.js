@@ -18,9 +18,9 @@
 //
 // The sidecar is an MCP stdio server, not a bespoke one-shot protocol: the
 // documented entry point is `laya-mcp-server` and the documented tool is
-// `laya_predict`. lib/laya-mcp-client.js speaks that protocol and holds one
-// warm session open, because the gate seam this plugin feeds is synchronous
-// (#3974).
+// `laya_predict`. lib/laya-mcp-client.js speaks that protocol in a short-lived
+// helper process, so the synchronous gate seam this plugin feeds is never
+// blocked by a pipe it cannot flush (#3974).
 //
 // This plugin is the read side of that bridge: it asks Laya a small fixed set
 // of typed questions and maps the calibrated answer into HUQAN's vocabulary in
@@ -299,9 +299,9 @@ function loadPack(options = {}) {
   }
 }
 
-// A handle backed by the `laya-mcp-server` sidecar. The underlying client holds
-// one warm MCP session so the loaded model is reused across gate calls; an
-// unreachable sidecar yields a null reading and the plugin contributes nothing.
+// A handle backed by the `laya-mcp-server` sidecar. The client confirms the
+// sidecar once, then runs one bounded MCP exchange per call (see
+// lib/laya-mcp-client.js); an unreachable sidecar yields a null reading.
 function createLayaHandle(options = {}) {
   let client = null;
   return {

@@ -1718,7 +1718,7 @@
   },
   "lib/laya-mcp-client.js": {
    "context": "Knowledge",
-   "evidence": "Laya<->HUQAN bridge transport: holds one MCP stdio session to the local laya-mcp-server sidecar so plugins/laya-risk.js can read a calibrated typed decision on the synchronous gate seam; a Knowledge-side knowledge artifact consumed by the R-PLUGINS-K family, the same shape as lib/aura-signal-pack.js"
+   "evidence": "Laya<->HUQAN bridge transport: runs one bounded MCP stdio exchange with the local laya-mcp-server sidecar (in a short-lived helper process) so plugins/laya-risk.js can read a calibrated typed decision on the synchronous gate seam; a Knowledge-side knowledge artifact consumed by the R-PLUGINS-K family, the same shape as lib/aura-signal-pack.js"
   },
   "lib/mcp-human-oversight-adapter.js": {
    "context": "AgentAction",
