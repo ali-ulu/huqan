@@ -281,6 +281,7 @@
       "lib/coder/project-templates.js": "Application",
       "lib/coder/project-verification.js": "Application",
       "lib/coder/requirements-parser.js": "Application",
+      "lib/coder/string-synthesis.js": "Application",
       "lib/coder/synthesis-memory.js": "Application",
       "lib/coder/test-execution.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
@@ -442,6 +443,7 @@
       "lib/experience/run-repair.js": "Application",
       "lib/experience/runtime-seam.js": "Application",
       "lib/experience/step-lifecycle.js": "Application",
+      "lib/experience/string-program.js": "Application",
       "lib/experience/verifier.js": "Application",
       "lib/experience/write-cost-budget.js": "Application",
       "lib/external-action-action-binding.js": "Core",
@@ -1370,6 +1372,7 @@
       "scripts/container-server.js": "UI",
       "scripts/contradiction-eval-freeze-contract.js": "UI",
       "scripts/contradiction-eval-freeze.js": "UI",
+      "scripts/coverage-gate-history.js": "UI",
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
@@ -2580,6 +2583,7 @@
         "lib/coder/learned-candidate.js",
         "lib/coder/pipeline-synthesis.js",
         "lib/coder/project-spec-data.js",
+        "lib/coder/string-synthesis.js",
         "lib/coder/synthesis-memory.js",
         "lib/experience/array-fold-program.js",
         "lib/experience/expression-adaptation.js"
@@ -2673,6 +2677,10 @@
       ],
       "lib/coder/requirements-parser.js": [
         "lib/coder/project-spec-data.js"
+      ],
+      "lib/coder/string-synthesis.js": [
+        "lib/coder/project-spec-data.js",
+        "lib/experience/string-program.js"
       ],
       "lib/coder/synthesis-memory.js": [
         "lib/coder/fix-loop.js",
@@ -3258,6 +3266,9 @@
         "lib/experience/learn-read-back.js",
         "lib/experience/runtime-seam.js",
         "lib/experience/verifier.js"
+      ],
+      "lib/experience/string-program.js": [
+        "lib/experience/arithmetic-function.js"
       ],
       "lib/experience/verifier.js": [
         "lib/experience/contract.js"

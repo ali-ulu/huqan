@@ -3867,6 +3867,14 @@
   "lib/coder/synthesis-memory.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/string-program.js": {
+   "context": "Trust",
+   "evidence": "closed string AST reader and bounded program enumeration"
+  },
+  "lib/coder/string-synthesis.js": {
+   "context": "AgentAction",
+   "evidence": "model-free string repair planning"
   }
  },
  "platform": {
@@ -7520,6 +7528,13 @@
     "Trust"
    ],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/experience/string-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "string synthesis consumes the closed program grammar"
   }
  },
  "legacyEdges": {

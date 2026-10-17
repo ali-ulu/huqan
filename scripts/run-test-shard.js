@@ -47,6 +47,9 @@ const HEAVY_FILES = Object.freeze(new Set([
   // Four fresh CLI runs exercise authorization, HTTP acceptance and an old-test
   // rollback veto; the first three alone took 80s locally.
   'test/coder-requirements-revision.test.js',
+  // Three native CLI restarts and up to eight failed acceptance/rollback
+  // attempts passed in 151s locally; retain the existing heavy-file deadline.
+  'test/coder-string-synthesis.test.js',
   // Native pipeline authority/refusal and eight acceptance/rollback attempts
   // passed in 133s locally; use the existing install-scale deadline.
   'test/coder-pipeline-synthesis.test.js',
