@@ -299,9 +299,9 @@ const CLASSIFIED = Object.freeze({
   }),
 
   // ── the Laya bridge ────────────────────────────────────────────────────
-  'plugins/laya-risk.js': Object.freeze({
+  'lib/laya-mcp-client.js': Object.freeze({
     role: 'adapter_read',
-    why: 'spawns the local `laya-mcp` sidecar (spawnSync, JSON on stdin/stdout) to read a calibrated typed decision about a candidate action; it performs no write and never decides -- it returns a bounded gate signal, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS). The call itself is bounded by an explicit timeout and output cap (LAYA_MCP_TIMEOUT_MS/LAYA_MCP_MAX_OUTPUT_BYTES), killed with SIGKILL so a child that ignores SIGTERM cannot block the synchronous gate path (#3973)',
+    why: 'runs one bounded MCP stdio exchange with the local `laya-mcp-server` sidecar so plugins/laya-risk.js can ask a calibrated typed question about a candidate action on the synchronous gate seam (#3974). The exchange runs in a short-lived child of this same file (spawnSync of process.execPath, the CHILD_MODE shape scripts/run-test-shard.js already uses) because a synchronous caller cannot flush a Windows pipe write; it performs no write of its own and never decides -- it returns a bounded reading, fails closed when the sidecar is absent, and the spawn target is operator-configured (LAYA_MCP_CMD/LAYA_MCP_ARGS). The call is bounded by an explicit timeout and output cap (LAYA_MCP_TIMEOUT_MS/LAYA_MCP_MAX_OUTPUT_BYTES) and the sidecar is killed with SIGKILL so a child that ignores SIGTERM cannot block the gate path (#3973)',
   }),
 
   // ── outside the boundary, listed ───────────────────────────────────────

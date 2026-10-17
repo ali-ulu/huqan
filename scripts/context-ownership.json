@@ -1716,6 +1716,10 @@
    "context": "Knowledge",
    "evidence": "AURA<->HUQAN signal pack: runs the AURA engine over its case files and writes the deterministic artifact; consumed by plugins/aura-risk.js as a Knowledge-side knowledge artifact (R-PLUGINS-K family)"
   },
+  "lib/laya-mcp-client.js": {
+   "context": "Knowledge",
+   "evidence": "Laya<->HUQAN bridge transport: runs one bounded MCP stdio exchange with the local laya-mcp-server sidecar (in a short-lived helper process) so plugins/laya-risk.js can read a calibrated typed decision on the synchronous gate seam; a Knowledge-side knowledge artifact consumed by the R-PLUGINS-K family, the same shape as lib/aura-signal-pack.js"
+  },
   "lib/mcp-human-oversight-adapter.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -2627,6 +2631,10 @@
   "lib/coder/project-spec-data.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/requirements-parser.js": {
+   "context": "AgentAction",
+   "evidence": "bounded Turkish requirements compiler feeding the existing project recipe"
   },
   "lib/coder/project-method-memory.js": {
    "context": "AgentAction",
@@ -4237,6 +4245,10 @@
   "lib/cli-coder.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-coder-requirements.js": {
+   "kind": "entry",
+   "evidence": "bounded UTF-8 requirements file adapter for the Coder CLI"
   },
   "lib/cli-command-handlers.js": {
    "kind": "entry",
@@ -6759,6 +6771,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md#coder-project-recipe"
+  },
+  "lib/coder/requirements-parser.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "pure requirements-to-spec port consumed by the Coder CLI file adapter"
   },
   "lib/coder/learned-candidate.js": {
    "owner": "AgentAction",

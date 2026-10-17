@@ -44,6 +44,9 @@ const HEAVY_FILES = Object.freeze(new Set([
   // Real revision/update CLI runs, old-test veto and sealed transfer took
   // 166s locally while passing, exceeding the ordinary 90s per-file cap.
   'test/coder-route-updates.test.js',
+  // Four fresh CLI runs exercise authorization, HTTP acceptance and an old-test
+  // rollback veto; the first three alone took 80s locally.
+  'test/coder-requirements-revision.test.js',
   // Three native CLI restarts and up to eight failed acceptance/rollback
   // attempts passed in 151s locally; retain the existing heavy-file deadline.
   'test/coder-string-synthesis.test.js',

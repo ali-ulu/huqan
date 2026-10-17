@@ -1,6 +1,6 @@
 # ADR-017: Agents run as a separate OS user and session
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-16
 - **Deciders:** repository owner
 - **Supersedes:** —
@@ -177,11 +177,10 @@ meaningless for that server.
 
 ## Open questions (owner decision)
 
-- The exact boundary value to report (`os-user` versus reusing an existing
-  vocabulary).
-- Whether the memory store is per-workspace under the protected root or a
-  single protected database.
-- Whether the shared MCP servers share one service account or one per server.
+Answered in [ADR-018](ADR-018-agent-boundary-decisions.md) (#3978): a separate
+`agentBoundary` field that reports `os-user` only on verified evidence, one
+protected database per workspace with an explicit migration, and one virtual
+service account per MCP server.
 
 ## Status of prior claims
 
