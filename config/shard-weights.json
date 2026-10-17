@@ -87,6 +87,7 @@
     "kernel.test.js": 2.153,
     "dream.test.js": 2.149,
     "test/package-closure.test.js": 2.137,
+    "test/coder-mixed-target-synthesis.test.js": 40.5,
     "test/coder-multi-target-synthesis.test.js": 2.132,
     "test/benchmark-competitive.test.js": 2.064,
     "test/signed-bundle.test.js": 2.039,

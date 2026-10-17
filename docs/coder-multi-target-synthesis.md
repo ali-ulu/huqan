@@ -1,6 +1,6 @@
 # Multi-target synthesis
 
-Status: implemented in the Coder synthesis path; bounded independent numeric
+Status: implemented in the Coder synthesis path; bounded independent string and numeric
 repairs, not general repository synthesis or a learning-gain claim.
 
 `huqan coder request.json --synthesize --authorize --root <repository> --json`
@@ -34,17 +34,42 @@ every target in `allowedPaths`, and supplies an independent `test.command`.
 ```
 
 Each target reuses the existing `affine-integer`, `arithmetic-expression`, or
-`array-fold` synthesis grammar and validation. Named functions can declare
+`array-fold`, or `string-expression` synthesis grammar and validation. Named functions can declare
 `functionName` as in single-target synthesis. Paths must be distinct and pass
 the existing root containment and ordinary mutation gate. This mode accepts
 no supplied replacement text or sequence steps.
 
-All retained target candidates are combined into sequence proposals. A child
+By default (or with `synthesis.searchMode: "strict"`), all retained target
+candidates are combined into sequence proposals. A child
 search with omitted matching candidates, or a product exceeding the existing
 eight-candidate loop cap, is refused with `SYNTHESIS_MULTI_TARGET_OVER_CAP`;
 there is no silent Cartesian truncation. A failed test rolls back the whole
 sequence before the next proposal. Training inputs do not substitute for the
 independent declared test.
+
+Explicit `synthesis.searchMode: "bounded"` permits up to eight joint proposals
+when child searches omit matches or the product exceeds eight. Each child still
+runs its full grammar search (string search enumerates 1885 programs); this flag
+bounds joint attempts, not child enumeration. Joint proposals follow increasing
+candidate-index sum, then lexicographic index order. Only a bounded frontier is
+allocated, never the full Cartesian space. Unicode case chains remain distinct
+programs; no equivalence-based candidate merging occurs.
+
+The bounded plan reports per-target omission, `totalCandidateCombinations`
+(including omitted child matches), `retainedCandidateCombinations`,
+`omittedCandidateCombinations`, and `searchComplete`. Counts exceeding the safe
+integer range are exact decimal strings. For example 14 string matches (8
+retained, 6 omitted) and 3 numeric matches report 42 total combinations, 8
+retained and 34 omitted, with `searchComplete: false`. A smaller explicit run
+budget further reduces retained proposals and increases reported omissions.
+Tests and held-out results never select the joint proposals. Ordinary authority,
+eight shared attempts, and whole-sequence rollback remain in force.
+
+Multi-target requests containing a string target currently reject
+`reuseMemory: true` or any `rememberFile` with
+`SYNTHESIS_MULTI_TARGET_STRING_MEMORY_UNSUPPORTED`. They do not fall back to fresh
+search or claim a learned string sequence. The following memory contract applies
+to numeric-only targets.
 
 With a journal, `synthesis.rememberFile` explicitly stores a kept successful
 sequence as a source-bound `replacement_sequence` candidate. Unauthorized,
@@ -70,7 +95,8 @@ The mode does not infer dependencies between targets,
 support arbitrary source grammars, or generate requirements from natural text.
 
 Focused checks: `node --test test/coder-multi-target-synthesis.test.js
-test/coder-multi-target-learning.test.js test/coder-arithmetic-synthesis.test.js`.
+test/coder-multi-target-learning.test.js test/coder-arithmetic-synthesis.test.js
+test/coder-mixed-target-synthesis.test.js`.
 Native coverage includes an
 unauthorized attempt, two successful synthesized files, and independent
 acceptance failure restoring both files. Pure coverage includes unchanged

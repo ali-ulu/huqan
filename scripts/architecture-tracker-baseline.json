@@ -775,6 +775,7 @@
       "lib/kernel-v2-native.js": "Core",
       "lib/kernel-v2-type-negation.js": "Core",
       "lib/kernel-v2-verify.js": "Core",
+      "lib/laya-mcp-client.js": "Core",
       "lib/learn-admission-request.js": "Core",
       "lib/learn-edge-options.js": "Core",
       "lib/learn-use-case-negation-conflict.js": "Core",
@@ -6392,6 +6393,9 @@
       ],
       "plugins/experiment-planner.js": [
         "evidence-ranker.js"
+      ],
+      "plugins/laya-risk.js": [
+        "lib/laya-mcp-client.js"
       ],
       "plugins/llm-memory-plugin.js": [
         "llmAdapter.js"
