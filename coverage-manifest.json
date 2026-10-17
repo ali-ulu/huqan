@@ -1126,12 +1126,12 @@
       ],
       "sites": [
         {
-          "line": 153,
+          "line": 154,
           "capability": "process",
           "call": "spawn"
         },
         {
-          "line": 262,
+          "line": 263,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
