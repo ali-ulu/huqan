@@ -1130,7 +1130,7 @@
           "call": "spawn"
         },
         {
-          "line": 288,
+          "line": 295,
           "capability": "process",
           "call": "spawnSync"
         }
