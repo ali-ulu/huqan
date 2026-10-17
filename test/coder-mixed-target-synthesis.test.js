@@ -54,6 +54,18 @@ test('eight ambiguous targets retain eight deterministic proposals without expan
   assert.equal(new Set(a.plan.targets[0].candidates.map(candidate => JSON.stringify(candidate.program))).size, 8);
   assert.deepEqual(a.task.candidates, b.task.candidates);
 });
+test('large unseen Cartesian counts are exact decimal strings', t => {
+  const options = fixture(t, 8);
+  for (const target of options.task.synthesis.targets)
+    target.examples = ['a', 'b', 'c'].map(input => ({ input, expected: '' }));
+  const result = produceArithmeticRepair(options);
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.plan.targets[0].matchingPrograms, 1065);
+  assert.equal(result.plan.totalCandidateCombinations, '1654995671290405437890625');
+  assert.equal(result.plan.omittedCandidateCombinations, '1654995671290405437890617');
+  assert.equal(result.plan.retainedCandidateCombinations, 8);
+  assert.equal(result.plan.searchComplete, false);
+});
 test('mixed memory requests and invalid search modes fail closed before execution', t => {
   for (const flag of [{ reuseMemory: true }, { rememberFile: 'method.json' }]) {
     const options = fixture(t); Object.assign(options.task.synthesis, flag);
