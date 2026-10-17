@@ -86,7 +86,7 @@ test('unknown, mixed, oversized and executable-looking requirements fail closed 
   assert.equal(produceProject(overlap.spec).reason, 'PROJECT_COMPUTE_HOLDOUT_OVERLAP');
 });
 
-test('explicit CLI text mode previews the same plan and is refused outside create', t => {
+test('explicit CLI text mode previews the same plan and is refused outside project commands', t => {
   const base = directory(t); const file = path.join(base, 'request.txt');
   fs.writeFileSync(file, doubled());
   assert.equal(parseCoderArgs([file, '--requirements-text']).requirementsText, true);
@@ -98,7 +98,7 @@ test('explicit CLI text mode previews the same plan and is refused outside creat
   assert.deepEqual(result.data, produceProject(parseRequirements(doubled()).spec));
   assert.deepEqual(fs.readdirSync(base), ['request.txt']);
   assert.throws(() => runCliCoder(['create', file, '--dry-run'], options), /not valid JSON/);
-  for (const command of ['revise', 'verify', 'propose', 'remember'])
+  for (const command of ['verify', 'propose', 'remember'])
     assert.throws(() => runCliCoder([command, 'absent', '--requirements-text'], options), /requires coder create/);
   assert.throws(() => runCliCoder(['create', file, '--requirements-text'], { json: true }), /parser is unavailable/);
   assert.throws(() => require('../lib/cli-coder-requirements').readRequirements(file), /REQUIREMENTS_READER_UNAVAILABLE/);

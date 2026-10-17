@@ -60,7 +60,36 @@ Birden fazla aile eğitim örneklerine uyarsa `PROJECT_COMPUTE_FAMILY_AMBIGUOUS`
 ile durur; kabul örnekleri seçimde kullanılmaz. Arama ve yeniden kullanım
 maliyeti mevcut plan raporlarında kalır.
 
-Metin modu yalnız `coder create` için geçerlidir. Diğer komutlarda bu bayrak
-reddedilir. Bayraksız JSON görev ve proje girişleri mevcut davranışını korur.
+Metin modu `coder create` ve `coder revise` için geçerlidir. Diğer komutlarda
+bu bayrak reddedilir. Bayraksız JSON görev ve proje girişleri mevcut davranışını korur.
 Dosya adaptörü en fazla 16 KiB + 1 bayt okur, geçersiz UTF-8'i reddeder ve
 ayrıştırıcıya yalnız metin verir; ayrıştırıcı dosya açmaz veya kod çalıştırmaz.
+
+## Mevcut projeyi güncelleme
+
+Önceki ve yeni gereksinimler aynı metin söz dizimini kullanır. İki dosya da tam
+proje belirtimidir; yeni dosya yalnız değişen satırları içeren bir yama değildir.
+
+```sh
+node cli.js coder revise yeni.txt --requirements-text --previous-requirements onceki.txt --root /mevcut/depo --dry-run --json
+node cli.js coder revise yeni.txt --requirements-text --previous-requirements onceki.txt --root /mevcut/depo --authorize --json
+```
+
+Varsayılan revision yalnız yeni rota ekler; önceki rotaların sırası ve davranışı
+korunur. Mevcut rota davranışını değiştirmek için ayrıca `--update-routes`
+verilir. Rota silme, yeniden adlandırma ve sıralama değişikliği mevcut revision
+sözleşmesince reddedilir. Proje adı ve tarif türü aynı kalmalıdır.
+
+`--previous-requirements` ve `--update-routes` yalnız `revise --requirements-text`
+ile geçerlidir. Eksik önceki dosya veya geçersiz metin yazmadan reddedilir.
+Her dosyanın ayrı 16 KiB sınırı vardır. İki girdi dosyası da mevcut JSON görev
+dosyası gibi takip edilmeyen görev girdisi sayılır; takip edilen değişiklikler
+ve diğer takip edilmeyen dosyalar normal depo kapısına tabidir.
+
+Her iki metin mevcut ayrıştırıcıdan geçirilerek `project_revision` oluşturulur;
+üretim, planlama ve uygulama mevcut revision yolunu kullanır. Başlatma izni
+verilmez. Değişecek dosyaların eski içerikleri tam eşleşmelidir. Kullanıcının yazdığı
+testler korunup üretilen HTTP kabul testleriyle birlikte `node --test` altında
+çalıştırılır. Eski bir test yeni davranışı veto ederse yama geri alınır.
+Bellek seçenekleri mevcut revision bellek sözleşmesini izler; bu giriş yeni
+bellek biçimi veya genel amaçlı depo düzenleme yeteneği eklemez.
