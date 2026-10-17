@@ -145,20 +145,20 @@ function scoreLevelCount(question) {
 }
 
 // Read Laya's answer for one question. `noul` -> P(true), `choice` -> the chosen
-// label, `score` -> the expected level index normalized onto 0..1. A missing
-// field is a degraded answer, not a low score, so it returns null.
+// label, `score` -> the expected level index normalized onto 0..1. A malformed
+// or out-of-range field is degraded, not a low score (#4005: no `Number()` coercion).
 function questionValue(answer, question) {
   if (!answer || typeof answer !== 'object') return null;
   if (question.kind === 'noul') {
-    const value = Number(answer.noul);
-    return Number.isFinite(value) ? value : null;
+    const value = answer.noul;
+    return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
   }
   if (question.kind === 'choice') {
     const value = answer.choice;
     return value === undefined || value === null ? null : String(value);
   }
   if (question.kind === 'score') {
-    const raw = Number(answer.score);
+    const raw = answer.score;
     if (!Number.isFinite(raw)) return null;
     const levels = scoreLevelCount(question);
     if (levels > 1) return Math.min(1, Math.max(0, raw / (levels - 1)));

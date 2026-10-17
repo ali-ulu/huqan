@@ -109,6 +109,40 @@ test('questionValue reads each typed answer shape and rejects a malformed one', 
   assert.equal(questionValue(null, { kind: 'score' }), null);
 });
 
+// #4005: `Number()` coerced a malformed field into a confident reading --
+// `Number(null)`, `Number('')` and `Number(false)` are all 0, which is below
+// every threshold and therefore reads as "allow". A reading now requires a
+// primitive JSON number, so a malformed or out-of-range value is degraded like
+// a missing field instead of becoming a low-risk answer.
+test('a malformed noul is degraded, never coerced into a low-risk reading', () => {
+  for (const malformed of [null, '', false, true, '0.9', NaN, -1, 1.5, -0.01, 2, undefined]) {
+    assert.equal(questionValue({ noul: malformed }, { kind: 'noul' }), null, `noul ${String(malformed)} must be degraded`);
+  }
+  // The bounds are inclusive: 0 and 1 are real probabilities.
+  assert.equal(questionValue({ noul: 0 }, { kind: 'noul' }), 0);
+  assert.equal(questionValue({ noul: 1 }, { kind: 'noul' }), 1);
+  assert.equal(questionValue({ noul: 0.37 }, { kind: 'noul' }), 0.37);
+
+  // The degraded reading must be absent, not a 0-valued allow entry: that
+  // distinction is the whole of the issue.
+  const reading = classifyWithLaya(fakeHandle({ scope: { noul: null } }), 'anything', QUESTIONS);
+  assert.deepEqual(reading.readings, [], 'a malformed noul must not become a 0 reading');
+  assert.deepEqual(reading.signalIds, []);
+});
+
+// #4005: the same coercion applied to `score` (`Number(true)` is 1, which
+// normalizes to a plausible-looking 0.33 on the 4-level rubric).
+test('a malformed score is degraded before normalization, not normalized from a coercion', () => {
+  const severity = QUESTIONS.find((question) => question.id === 'severity');
+  for (const malformed of [null, '', false, true, '2', NaN, undefined]) {
+    assert.equal(questionValue({ score: malformed }, severity), null, `score ${String(malformed)} must be degraded`);
+  }
+  // A real numeric index still normalizes (including the intentional clamp).
+  assert.equal(questionValue({ score: 0 }, severity), 0);
+  assert.equal(questionValue({ score: 3 }, severity), 1);
+  assert.equal(questionValue({ score: 6 }, severity), 1);
+});
+
 test('layaQuestions translates the built-in set into Laya\'s question schema', () => {
   const spec = layaRisk._test.layaQuestions(QUESTIONS);
   assert.deepEqual(Object.keys(spec), ['scope', 'risk_class', 'severity']);
