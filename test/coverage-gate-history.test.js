@@ -182,6 +182,12 @@ test('the coverage gate refuses to clear an unresolved alarm after a merge', () 
   assert.match(alarmStep.run, /actions\/workflows\/benchmark\.yml\/runs\?branch=main/);
   assert.match(alarmStep.run, /event != "pull_request"/);
   assert.match(String(alarmStep.env && alarmStep.env.GH_TOKEN), /github\.token/);
+  // The walk stops at the first measured verdict, so the alarm cannot expire
+  // behind a streak of NOT_APPLICABLE commits (#3970 review finding).
+  assert.match(alarmStep.run, /per_page=100/);
+  assert.match(alarmStep.run, /\.\[:100\]\[\]/);
+  assert.match(alarmStep.run, /\[ "\$\{conclusion\}" != "skipped" \]/);
+  assert.match(alarmStep.run, /^\s*break\s*$/m);
 });
 
 test('the alarm checkout stays pinned and credential-free', () => {
