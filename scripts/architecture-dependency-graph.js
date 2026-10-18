@@ -123,31 +123,31 @@ const RULES = [
   },
 ];
 
+/** A directory or pattern catch-all; explicit file entries are matched first, in ruleFor. */
 function matchesRule(rule, file) {
-  if (rule.files && rule.files.includes(file)) return true;
   if (rule.dirs && rule.dirs.some((dir) => file.startsWith(dir))) return true;
   return Boolean(rule.pattern && rule.pattern.test(file));
 }
 
-function assignLayer(file) {
-  // Explicit file entries win over directory catch-alls.
-  for (const rule of RULES) {
-    if (rule.files && rule.files.includes(file)) return rule.layer;
-  }
-  for (const rule of RULES) {
-    if (rule.dirs && rule.dirs.some((dir) => file.startsWith(dir))) return rule.layer;
-    if (rule.pattern && rule.pattern.test(file)) return rule.layer;
-  }
-  return null;
+/** The rule that claimed a module; an explicit file entry beats a directory catch-all. */
+function ruleFor(file) {
+  const pinned = RULES.find((rule) => rule.files && rule.files.includes(file));
+  return pinned || RULES.find((rule) => matchesRule(rule, file)) || null;
 }
 
-/** The rule that claimed a module. */
-function ruleFor(file) {
-  return RULES.find((rule) => matchesRule(rule, file)) || null;
+/**
+ * @param {string} file repo-relative, forward slashes
+ * @returns {'UI'|'Application'|'Adapters'|'Core'|null} null when no rule claims it
+ */
+function assignLayer(file) {
+  const rule = ruleFor(file);
+  return rule ? rule.layer : null;
 }
 
 const isViolation = (fromLayer, toLayer) => RANK[toLayer] < RANK[fromLayer];
+
 const edgeKey = (edge) => `${edge.from}>${edge.to}`;
+
 const describe = (edge) => `${edge.from} (${edge.fromLayer}) -> ${edge.to} (${edge.toLayer})`;
 
 function sortedDict(source) {

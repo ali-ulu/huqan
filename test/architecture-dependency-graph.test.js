@@ -12,6 +12,7 @@ const {
   RULES,
   DEFAULT_DRIFT_THRESHOLD,
   assignLayer,
+  ruleFor,
   isViolation,
   buildDependencySnapshot,
   checkDependencyGraph: checkLiveDependencyGraph,
@@ -411,4 +412,17 @@ test('the committed baseline describes a graph the ring order can read', () => {
     assert.equal(isViolation(edge.fromLayer, edge.toLayer), true, `${edge.from} -> ${edge.to} is not a violation`);
     assert.ok((graph.edges[edge.from] || []).includes(edge.to), `${edge.from} -> ${edge.to} is not a recorded edge`);
   }
+});
+
+test('an explicit file entry pins a module to its ring even inside another ring\'s directory', () => {
+  for (const file of ['lib/mcp/client-envelope.js', 'lib/mcp/client-registry.js', 'lib/mcp/endpoint-pin.js', 'lib/mcp/service-acl.js']) {
+    assert.equal(assignLayer(file), 'Core', file);
+    assert.equal(ruleFor(file).layer, 'Core', file);
+    assert.ok(ruleFor(file).files.includes(file), `${file} is claimed by its pinned entry, not a catch-all`);
+  }
+  // The directory it sits in still belongs to the entry layer.
+  assert.equal(assignLayer('lib/mcp/tool-dispatch.js'), 'UI');
+  assert.equal(ruleFor('lib/mcp/tool-dispatch.js').layer, 'UI');
+  assert.equal(assignLayer('docs/not-a-module.md'), null);
+  assert.equal(ruleFor('docs/not-a-module.md'), null);
 });
