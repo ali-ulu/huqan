@@ -109,7 +109,12 @@ test('workflow-governance.yml runs the signature check on every pull request', (
   const workflow = yaml.load(fs.readFileSync(WORKFLOW_PATH, 'utf8'));
   const on = workflow.on ?? workflow[true];
   assert.ok('pull_request' in on, 'the signature check must run on every pull request, unfiltered');
-  assert.equal(on.pull_request, null, 'a branch filter would let a stacked PR skip the check');
+  // `pull_request` now declares `types` (to include `edited`), so it is an
+  // object; what matters here is that it carries no `branches`/`paths` filter,
+  // which is what would let a stacked or unrelated PR skip the check.
+  const pullRequest = on.pull_request ?? {};
+  assert.equal(pullRequest.branches, undefined, 'a branch filter would let a stacked PR skip the check');
+  assert.equal(pullRequest.paths, undefined, 'a path filter would let an unrelated PR skip the check');
 
   const job = workflow.jobs.governance;
   assert.equal(job.name, 'Workflow governance', 'the required context name is pinned by the ruleset');

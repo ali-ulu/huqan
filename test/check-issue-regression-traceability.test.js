@@ -48,12 +48,16 @@ test('the conventional type is read from the title, ignoring an optional scope',
   assert.equal(conventionalType('Update the thing'), null);
 });
 
-test('only fix, security and hotfix are treated as defect fixes', () => {
-  for (const title of ['fix(a): b', 'security: b', 'hotfix: b']) {
+test('only fix, bugfix, security and hotfix are treated as defect fixes', () => {
+  for (const title of ['fix(a): b', 'bugfix: b', 'security: b', 'hotfix: b']) {
     assert.equal(isDefectFix(title), true, title);
   }
   for (const title of ['feat(a): b', 'test: b', 'chore: b', 'docs: b', 'ci: b', 'perf: b', 'refactor: b', 'Update the thing']) {
     assert.equal(isDefectFix(title), false, title);
+  }
+  // A capital letter must not turn an unambiguous defect fix into an exemption.
+  for (const title of ['Fix(a): b', 'FIX: b', 'Bugfix: b', 'SECURITY: b']) {
+    assert.equal(isDefectFix(title), true, title);
   }
 });
 
@@ -264,7 +268,19 @@ test('workflow-governance.yml runs the traceability check on every pull request'
   ));
   const on = workflow.on ?? workflow[true];
   assert.ok('pull_request' in on, 'the check must run on every pull request, unfiltered');
-  assert.equal(on.pull_request, null, 'a branch filter would let a stacked PR skip the check');
+  // A branch filter would let a stacked PR skip the check, so `pull_request`
+  // must not carry `branches`/`paths`; declaring `types` is the way to add
+  // `edited` without that. `edited` is required because the declaration lives
+  // in the pull request body: adding the missing line is an edit, and without
+  // `edited` nothing re-runs, leaving the required check red after the author
+  // did exactly what the failure message asked.
+  assert.equal(on.pull_request.branches, undefined, 'a branch filter would let a stacked PR skip the check');
+  assert.equal(on.pull_request.paths, undefined, 'a path filter would let an unrelated change skip the check');
+  assert.deepEqual(
+    [...on.pull_request.types].sort(),
+    ['edited', 'opened', 'reopened', 'synchronize'],
+    'the body carries the declaration, so `edited` must re-trigger the check',
+  );
 
   const steps = (workflow.jobs.governance.steps || []).map((step) => step.run || '').join('\n');
   assert.match(steps, /scripts\/check-issue-regression-traceability\.js/);
