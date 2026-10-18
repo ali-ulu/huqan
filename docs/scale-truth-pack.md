@@ -242,6 +242,81 @@ for(const size of [10000,100000]){
 '@ | node
 ```
 
+## 19 Ekim 2026: nedensel etki için hedefli düğüm okumaları
+
+Kaynak baz `dcd1e8b8ffc990d06ce1f5132d5fd5fd8ddc4616`, aday
+`919636e5788ffc1b87e9e05e5777bc832e5369d3`; Windows x64, Node22.22.0,
+better-sqlite3 13.0.3. Aynı lockfile kurulumu kullanıldı. `simulateChange`,
+workspace'in bütün düğümlerini kopyalamak yerine mevcut `getNode` API'sinden
+hedefi ve nedensel zincirlerin son düğümlerini okur. Traversal, puanlama,
+admission ve bütçe kuralları değiştirilmedi.
+
+Yukarıdaki dört-yazmalı SQLite protokolü bu iki kaynakla yeniden çalıştırıldı:
+aynı seed kopyaları, dönüşümlü eski/yeni sıra, her ayakta yeni süreç,
+10k'da 5 çift ve 100k'da 3 çift. Seed yalnız düğüm içerir, kenar içermez;
+Graph API fixtür hazırlığı gerçek öğrenme değildir. İki boyutta toplam
+64 onaylı yazma (sürüm başına 32) yeniden açılışta doğrulandı.
+
+| Seed düğüm | Warm örnek / sürüm | Warm medyan eski → yeni | Oran | Warm maksimum eski → yeni | Cold medyan eski → yeni |
+|---:|---:|---:|---:|---:|---:|
+| 10000 | 15 | 35.093 → 11.800 ms | 2.97x | 75.562 → 111.459 ms | 912.175 → 839.671 ms |
+| 100000 | 9 | 496.266 → 61.403 ms | 8.08x | 561.779 → 130.869 ms | 10024.920 → 9853.326 ms |
+
+Tam `getNodes` çağrıları eski sürümde `[0,1,1,1]`, adayda `[0,0,0,0]` oldu.
+Bu fixtürde son gereksiz tam düğüm kopyası da kaldırıldı. 10k maksimumu
+kötüleşti; bütün çağrıların hızlandığı veya p95/p99 iyileşmesi iddiası yoktur.
+Cold çağrı ilk JSON ayna export'unu içerir ve 100k'da hâlâ yaklaşık
+9.85 saniyedir. Farklı günlerdeki cold süreler doğrudan karşılaştırılamaz.
+Bu sonuç genel O(N) öğrenme maliyetinin çözüldüğünü göstermez.
+
+### Daha uzun onaylı seri, varsayılan bakım açık
+
+Aynı iki sürümde, her ayakta boş SQLite graf ile `serie-i meyvedir`
+öğrenildi. Her çağrı manual provenance ve açık onay-fixtür bağlamı taşıdı;
+admission bypass kullanılmadı. Her `learn` sonrasında `setImmediate` beklendi:
+varsayılan `maintenanceEvery=5` bakımı kapatılmadı. Toplam süre senkron
+öğrenmeyi ve bu beklemeler/bakımı içerir; süreç/veritabanı açılışı ve restart
+kontrolü dışarıdadır. Her sayı tek tamamlanmış koşudur; hız garantisi değildir.
+
+| Gerçek yazma / sürüm | Toplam süre eski → yeni | Yazma/s eski → yeni | Bakım çağrısı / sürüm | Restart sonrası doğrulanan kenar / sürüm |
+|---:|---:|---:|---:|---:|
+| 100 | 928.566 → 1284.700 ms | 107.69 → 77.84 | 20 | 100 |
+| 1000 | 15387.566 → 12340.578 ms | 64.99 → 81.03 | 200 | 1000 |
+
+100 yazmalık seri **yavaşladı**. 1000 yazmalık seri daha kısa sürdü; iki
+ayakta da bakım hatası sıfırdı. Bu iki yükte toplam 2200 tamamlanmış yazma
+yeniden açılışta doğrulandı. 1000'lik serinin senkron `learn` örneklerinde
+gözlenen p50/p95/p99 eski sürümde 12.946/26.560/41.115 ms, adayda
+10.750/20.408/34.045 ms oldu; bakım bu senkron örneklere dahil değildir.
+Bunlar tek koşunun gözlenen yüzdelikleridir, servis SLO'su değildir.
+
+100 yazmada bütün receipt'ler `computed` oldu. 1000 yazmada **her iki sürümde
+500 `computed`, 500 `upper_bound`** vardı: ortak `meyve` düğümünün bağımlıları
+mevcut `maxNodes=500` tarama bütçesini doldurdu. Nedeni receipt'te
+`dependency: the dependents of an existing node were not fully traversed (max_nodes)`
+olarak kaydedildi. `upper_bound` tam ölçülmüş etki değildir. Mevcut sözleşmede
+blast radius receipt metadata'sıdır (`blastRadiusEnforced: false`);
+bu sonuç admission'ın `allow` kararıyla aynı şey değildir. Eşik veya bütçe
+değiştirilmedi. Tam `getNodes` sayısı 100 yazmada 99 → 0, 1000 yazmada
+499 → 0 oldu; baz sürüm bütçe dolduğunda nedensel simulasyona zaten geçmez.
+
+Yeniden üretim: yukarıdaki PowerShell protokolünde baz/adayı bu bölümün
+SHA'larına sabitleyin. Uzun seri için `trial` fonksiyonunu `async` yapın;
+seed kopyalamadan boş SQLite açın; döngüyü 100 veya 1000 çağrı yapın, her çağrıdan sonra
+`await new Promise(setImmediate)` ile varsayılan bakımı çalıştırın.
+Her sonuçta `ok`, `admission.outcome === 'allow'`, `learned === 1` doğrulayın;
+receipt'in `computed`/`upper_bound` sayısını ve nedenlerini ayrı sayın.
+Her 5 yazmada bakım çağrısını ve hatalarını kaydedin, tüm `tür` kenarlarını
+kapatıp yeniden açtıktan sonra doğrulayın. Açılış/restart zamanını seri
+süresine katmayın; bakım dahil toplam süreyi senkron `learn` örneklerinden
+ayrı raporlayın.
+
+Sınırlar: tek ve diğer süreçlerden yalıtılmamış makine, tek süreçli
+onay-fixtürü; HTTP/MCP/kurulu Approval Authority uçtan uca kanıtı değildir.
+1000 yazmalık seri boş grafta büyür; 100k graf üzerinde 1000 yazma veya
+100k yeni olgunun topluca öğrenilmesi ölçülmedi. Eşzamanlı öğrenme,
+production kapasite limiti ve genel throughput artışı doğrulanmadı.
+
 ## Graph label-lookup benchmark (#3009)
 
 `benchmarks/bench-label-lookup.js` contrasts the indexed label lookup against
