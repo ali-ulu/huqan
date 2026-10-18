@@ -66,9 +66,9 @@ async function startStubService(t, { handleRequest, now } = {}) {
   return { port, key, enrolled, dir };
 }
 
-function signedCall(key, { op, args, now, client = 'agent-x', workspace = WORKSPACE_ID } = {}) {
+function signedCall(key, { op, args, now, nonce, client = 'agent-x', workspace = WORKSPACE_ID } = {}) {
   return createClientEnvelope({
-    client_id: client, workspace_id: workspace, op: op ?? 'tools/list', args: args ?? {}, ...(now ? { now } : {}),
+    client_id: client, workspace_id: workspace, op: op ?? 'tools/list', args: args ?? {}, ...(now ? { now } : {}), ...(nonce ? { nonce } : {}),
   }, key.privateKey);
 }
 
@@ -118,7 +118,7 @@ test('an expired envelope is refused and its nonce stays unconsumed for the next
   assert.equal(JSON.parse(response.text).error.code, 'expired');
   // A fresh envelope signed with the SAME nonce must still be accepted: the
   // refused envelope never consumed anything.
-  const fresh = signedCall(key, { op: 'tools/list', args: {}, now: new Date() });
+  const fresh = signedCall(key, { op: 'tools/list', args: {}, now: new Date(), nonce: stale.nonce });
   const second = await post(port, { envelope: fresh, body: message });
   assert.equal(second.status, 200);
 });

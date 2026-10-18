@@ -71,7 +71,7 @@ test('apply is Windows-only and grants exactly the spec on state', () => {
     `${SERVICE}:(OI)(CI)M`,
   ]);
   const dataCall = spawned.find(([, args]) => args[0] === DATA);
-  assert.equal(dataCall[1].includes('/inheritance:r'), false, 'the data root keeps its Users-RX grant via a fresh tree, not inheritance');
+  assert.ok(dataCall[1].includes('/inheritance:r'), 'the data root breaks inheritance too: ProgramData would otherwise pass Users create/append down to it');
   assert.ok(acl.applyMcpServiceAcl({ dataDir: DATA, stateDir: STATE, operatorAccount: OPERATOR, serviceAccount: SERVICE, spawn, platform: 'linux' })
     .reason === 'not_windows');
   assert.equal(acl.applyMcpServiceAcl({ dataDir: "C:\\bad'path", stateDir: STATE, operatorAccount: OPERATOR, serviceAccount: SERVICE, spawn }).reason,
