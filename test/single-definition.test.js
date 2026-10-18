@@ -42,10 +42,12 @@ test('declaresAny matches every declaration shape and no call site', () => {
     'function expression': 'const normalizeWorkspaceId = function (value) { return value; };',
     'async arrow assignment': 'const normalizeWorkspaceId = async (value) => value;',
     'async function expression': 'const normalizeWorkspaceId = async function (value) { return value; };',
+    'single-parameter arrow': 'const normalizeWorkspaceId = value => value;',
     'object property arrow': 'module.exports = { normalizeWorkspaceId: (value) => value };',
     'object property function': 'module.exports = { normalizeWorkspaceId: function (value) { return value; } };',
     'class method': 'class Gate {\n  normalizeWorkspaceId(value) {\n    return value;\n  }\n}',
     'object method shorthand': 'const gate = { normalizeWorkspaceId(value) { return value; } };',
+    'method with default parameter': 'const gate = { normalizeWorkspaceId(value = getDefault()) { return value; } };',
     'declaration split across lines': 'const normalizeWorkspaceId =\n  (value) =>\n  value;',
     'function parameters across lines': 'function normalizeWorkspaceId(\n  value,\n) {\n  return value;\n}',
   };
@@ -119,7 +121,9 @@ test('a new declaration fails the gate, whatever shape it takes', (t) => {
     'function normalizeWorkspaceId(value) {\n  return value;\n}\n',
     'const normalizeWorkspaceId = function (value) { return value; };\n',
     'const normalizeWorkspaceId = async (value) => value;\n',
+    'const normalizeWorkspaceId = value => value;\n',
     'module.exports = { normalizeWorkspaceId: (value) => value };\n',
+    'const gate = { normalizeWorkspaceId(value = getDefault()) { return value; } };\n',
     'const normalizeWorkspaceId =\n  (value) =>\n  value;\n',
   ];
 

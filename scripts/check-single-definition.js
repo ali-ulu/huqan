@@ -43,6 +43,12 @@ const baselinePath = path.join(repoRoot, 'config', 'single-definition-baseline.j
 // (`obj.normalizeWorkspaceId`) and sits at a statement or member boundary.
 const LEADING = String.raw`(?:^|[\s{;,(])`;
 
+// A parenthesised parameter list. Built to a fixed depth because a default
+// parameter can itself contain parentheses (`value = getDefault()`), which a
+// flat `[^()]*` would reject and so miss the method shorthand entirely.
+const parameterGroup = (depth) => (depth === 0 ? '[^()]*' : `(?:[^()]|\\(${parameterGroup(depth - 1)}\\))*`);
+const PARAMETERS = `\\(${parameterGroup(2)}\\)`;
+
 /**
  * One entry per helper that must have exactly one declaration.
  *
@@ -59,11 +65,12 @@ const RULES = [
       // function declaration / expression: `function f(` / `async function f(`
       new RegExp(`${LEADING}(?:async\\s+)?function\\s+normalizeWorkspaceId\\s*\\(`),
       // assignment or object property: `f = (`, `f = async (`, `f = function`,
-      // `f: (`, `f: async function` — the `(`/`function` is what separates a
-      // definition from an alias (`f = require('...').f`).
-      new RegExp(`${LEADING}normalizeWorkspaceId\\s*[:=]\\s*(?:async\\s+)?(?:function\\b|\\()`),
-      // method shorthand: `f(x) {`
-      new RegExp(`${LEADING}normalizeWorkspaceId\\s*\\([^()]*\\)\\s*\\{`),
+      // `f: (`, `f: async function`, and the single-parameter arrow `f = v =>`
+      // — the `(`/`function`/`=>` is what separates a definition from an alias
+      // (`f = require('...').f`).
+      new RegExp(`${LEADING}normalizeWorkspaceId\\s*[:=]\\s*(?:async\\s+)?(?:function\\b|\\(|[\\w$]+\\s*=>)`),
+      // method shorthand: `f(x) {`, including a default parameter.
+      new RegExp(`${LEADING}normalizeWorkspaceId\\s*${PARAMETERS}\\s*\\{`),
     ],
   },
 ];
