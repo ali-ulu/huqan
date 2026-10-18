@@ -18,6 +18,8 @@ const { spawn, spawnSync } = require('node:child_process');
 
 const { deriveWorkspaceId } = require('../lib/protected-store-path');
 const { initService, loadedOutsideRoot, parseOptions, serveService } = require('../lib/mcp/service-main');
+const { createClientEnvelope, createClientKey } = require('../lib/mcp/client-envelope');
+const { registryPath, removeClientRecord, upsertClientRecord } = require('../lib/mcp/client-registry');
 
 const ROOT = path.join(__dirname, '..');
 const MAIN = path.join(ROOT, 'lib', 'mcp', 'service-main.js');
@@ -158,3 +160,69 @@ test('a port already in use is reported as fatal with a failing exit code', asyn
   assert.match(run.stderr, /"event":"fatal".*EADDRINUSE/);
 });
 
+
+test('a revoked client is refused on the next request without restarting the service', async (t) => {
+  const dir = tempDir(t);
+  const publicDir = path.join(dir, 'public');
+  const stateDir = path.join(dir, 'state');
+  const workspaceRoot = fs.mkdtempSync(path.join(dir, 'workspace-'));
+  fs.mkdirSync(publicDir);
+  fs.mkdirSync(stateDir);
+  const port = await freePort();
+  const init = spawnSync(process.execPath, [MAIN, 'init', '--name', 'levh', '--state-dir', stateDir,
+    '--public-dir', publicDir, '--port', String(port), '--operator', 'DESKTOP\operator', '--workspace-root', workspaceRoot],
+  { encoding: 'utf8', env: CHILD_ENV, cwd: dir });
+  assert.equal(init.status, 0, init.stderr);
+
+  // The service starts with NO client enrolled: whatever it serves after the
+  // enrolment below, it read from disk at request time, not at boot.
+  const child = spawn(process.execPath, [MAIN, 'serve', '--name', 'levh', '--state-dir', stateDir,
+    '--public-dir', publicDir, '--port', String(port), '--workspace-root', workspaceRoot, '--app-root', ROOT],
+  { env: CHILD_ENV, cwd: dir });
+  t.after(() => new Promise((resolve) => {
+    child.once('exit', () => resolve());
+    child.kill();
+    setTimeout(resolve, 3000);
+  }));
+  await new Promise((resolve, reject) => {
+    let text = '';
+    child.stderr.on('data', (chunk) => {
+      text += chunk;
+      if (text.includes('"listening"')) resolve();
+      if (text.includes('"fatal"')) reject(new Error(text));
+    });
+    child.on('exit', (code) => reject(new Error(`service exited ${code}: ${text}`)));
+  });
+
+  const workspaceId = deriveWorkspaceId(workspaceRoot);
+  const key = createClientKey();
+  const message = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
+  const call = () => new Promise((resolve, reject) => {
+    const envelope = createClientEnvelope({ client_id: 'agent-x', workspace_id: workspaceId, op: message.method, args: message.params,
+      // Issued a second ago: two processes' clocks can disagree by a tick on Windows.
+      now: new Date(Date.now() - 1000).toISOString() }, key.privateKey);
+    const request = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/', headers: {
+      'x-huqan-client': 'agent-x',
+      'x-huqan-mcp-envelope': Buffer.from(JSON.stringify(envelope), 'utf8').toString('base64url'),
+    } }, (answer) => {
+      let text = '';
+      answer.on('data', (chunk) => { text += chunk; });
+      answer.on('end', () => resolve({ status: answer.statusCode, text }));
+    });
+    request.on('error', reject);
+    request.end(JSON.stringify(message));
+  });
+
+  const record = { client_id: 'agent-x', key_id: key.keyId, public_key: key.publicKeyBase64url };
+  const file = registryPath(stateDir);
+  assert.equal((await call()).status, 403, 'before enrolment the key is unknown');
+
+  assert.equal(upsertClientRecord(file, record).ok, true);
+  const accepted = await call();
+  assert.equal(accepted.status, 200, `a client enrolled while the service runs is accepted: ${accepted.text}`);
+
+  assert.equal(removeClientRecord(file, { client_id: 'agent-x', key_id: key.keyId }).ok, true);
+  const revoked = await call();
+  assert.equal(revoked.status, 403, 'a revoked client is refused on the very next request');
+  assert.equal(JSON.parse(revoked.text).error.code, 'unknown_key');
+});
