@@ -157,6 +157,8 @@
       "lib/authority/sealed-request.js": "Core",
       "lib/authority/service-main.js": "UI",
       "lib/authority/state-store.js": "Adapters",
+      "lib/authority/store-acl.js": "Core",
+      "lib/authority/store-migrate.js": "Core",
       "lib/authority/totp.js": "Core",
       "lib/automation-safety-gate/automation-findings-summary.js": "Application",
       "lib/automation-safety-gate/automation-input-normalizer.js": "Application",
@@ -236,6 +238,7 @@
       "lib/cli-ingest-preview.js": "Core",
       "lib/cli-knowledge-commands.js": "Core",
       "lib/cli-learn-review.js": "Core",
+      "lib/cli-mcp-service-commands.js": "Core",
       "lib/cli-memory-lifecycle.js": "Core",
       "lib/cli-memory-query.js": "Core",
       "lib/cli-mutation-audit-intent.js": "Core",
@@ -247,6 +250,7 @@
       "lib/cli-repl.js": "Core",
       "lib/cli-runtime-methods.js": "Core",
       "lib/cli-status-command.js": "Core",
+      "lib/cli-store-commands.js": "Core",
       "lib/cli-trust-receipt.js": "Core",
       "lib/cli-workflow-adapter.js": "Core",
       "lib/cli-workflow-envelope.js": "Core",
@@ -330,9 +334,11 @@
       "lib/command-exec-gate-targets.js": "Core",
       "lib/command-exec-gate-vocabulary.js": "Core",
       "lib/command-exec-gate.js": "Core",
+      "lib/command-parser-mcp-args.js": "Core",
       "lib/command-parser-memory-lifecycle-args.js": "Core",
       "lib/command-parser-memory-query-args.js": "Core",
       "lib/command-parser-review-args.js": "Core",
+      "lib/command-parser-store-args.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
       "lib/command-shape-log.js": "Core",
@@ -614,6 +620,8 @@
       "lib/http-human-oversight-adapter-input.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
       "lib/http-trust-query.js": "Core",
+      "lib/http/agent-discovery.js": "UI",
+      "lib/http/agent-registry-routes.js": "UI",
       "lib/http/agent-workflow-routes.js": "UI",
       "lib/http/answer-route.js": "UI",
       "lib/http/background-timers.js": "UI",
@@ -637,6 +645,7 @@
       "lib/http/ingest-http-routes.js": "UI",
       "lib/http/memory-approval-routes.js": "UI",
       "lib/http/memory-query-route.js": "UI",
+      "lib/http/operator-grant-routes.js": "UI",
       "lib/http/optional-boundaries.js": "UI",
       "lib/http/pr-guardian-auth.js": "UI",
       "lib/http/pr-guardian-body.js": "UI",
@@ -829,14 +838,19 @@
       "lib/mcp-tool-data-schemas.js": "Core",
       "lib/mcp-tool-names.js": "Core",
       "lib/mcp-tool-policy.js": "Core",
+      "lib/mcp/agent-presence.js": "UI",
       "lib/mcp/approval-detail-tool.js": "UI",
       "lib/mcp/authority-ledger-provider.js": "UI",
+      "lib/mcp/client-envelope.js": "Core",
+      "lib/mcp/client-registry.js": "Core",
       "lib/mcp/compliance-audit-tool.js": "UI",
+      "lib/mcp/endpoint-pin.js": "Core",
       "lib/mcp/experience-learn-tool.js": "UI",
       "lib/mcp/experience-read-tool.js": "UI",
       "lib/mcp/fractal-learn-tool.js": "UI",
       "lib/mcp/gate-refusal.js": "UI",
       "lib/mcp/json-rpc-handler.js": "UI",
+      "lib/mcp/loopback-service.js": "UI",
       "lib/mcp/memory-query-tool.js": "UI",
       "lib/mcp/operator-authorization.js": "UI",
       "lib/mcp/operator-tool-schemas.js": "UI",
@@ -847,7 +861,10 @@
       "lib/mcp/response-builders.js": "UI",
       "lib/mcp/self-evolve-tool.js": "UI",
       "lib/mcp/server-lifecycle.js": "UI",
+      "lib/mcp/service-acl.js": "Core",
+      "lib/mcp/service-main.js": "UI",
       "lib/mcp/session-protocol.js": "UI",
+      "lib/mcp/stdio-proxy.js": "UI",
       "lib/mcp/stdio-transport.js": "UI",
       "lib/mcp/system-status-tool.js": "UI",
       "lib/mcp/tool-dispatch.js": "UI",
@@ -984,6 +1001,7 @@
       "lib/pre-ingest.js": "Core",
       "lib/predicate-parser.js": "Core",
       "lib/prediction-outcome-pairs.js": "Core",
+      "lib/protected-store-path.js": "Core",
       "lib/provenance-drift.js": "Core",
       "lib/provenance-ingest.js": "Core",
       "lib/provenance-query-audit-page.js": "Core",
@@ -1347,6 +1365,7 @@
       "scripts/check-file-size.js": "UI",
       "scripts/check-http-contracts.js": "UI",
       "scripts/check-import-cycles.js": "UI",
+      "scripts/check-issue-regression-traceability.js": "UI",
       "scripts/check-layers.js": "UI",
       "scripts/check-licenses.js": "UI",
       "scripts/check-module-boundary.js": "UI",
@@ -1396,6 +1415,7 @@
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
       "scripts/generate-context-ports.js": "UI",
+      "scripts/generate-mcp-client-envelope-vectors.js": "UI",
       "scripts/generate-protocol-vectors.js": "UI",
       "scripts/huqan-watchdog.js": "UI",
       "scripts/junit-merge.js": "UI",
@@ -1605,6 +1625,7 @@
         "plugins/aura-risk.js"
       ],
       "bin/huqan-mcp.js": [
+        "lib/mcp/stdio-proxy.js",
         "mcpServer.js"
       ],
       "bin/huqan-neural-lab.js": [
@@ -2019,6 +2040,7 @@
         "lib/bounded-step-history.js"
       ],
       "lib/agent-v3-storage-factory.js": [
+        "lib/protected-store-path.js",
         "storage.js"
       ],
       "lib/ai-dependency-ratio.js": [
@@ -2075,7 +2097,10 @@
         "lib/authority/anchor-statement.js"
       ],
       "lib/authority/agent-user-boundary.js": [
-        "lib/authority/install-trust.js"
+        "lib/authority/install-trust.js",
+        "lib/authority/store-acl.js",
+        "lib/authority/store-migrate.js",
+        "lib/protected-store-path.js"
       ],
       "lib/authority/approval-registration.js": [
         "lib/mcp-operator-capability.js"
@@ -2167,6 +2192,10 @@
       ],
       "lib/authority/state-store.js": [
         "lib/authority/totp.js"
+      ],
+      "lib/authority/store-migrate.js": [
+        "lib/authority/store-acl.js",
+        "lib/protected-store-path.js"
       ],
       "lib/automation-safety-gate/automation-findings-summary.js": [
         "lib/automation-safety-gate/automation-input-normalizer.js",
@@ -2398,10 +2427,12 @@
         "lib/cli-help.js",
         "lib/cli-inference-command.js",
         "lib/cli-knowledge-commands.js",
+        "lib/cli-mcp-service-commands.js",
         "lib/cli-memory-lifecycle.js",
         "lib/cli-memory-query.js",
         "lib/cli-promote.js",
-        "lib/cli-status-command.js"
+        "lib/cli-status-command.js",
+        "lib/cli-store-commands.js"
       ],
       "lib/cli-company-ingest.js": [
         "lib/cli-helpers.js"
@@ -2480,6 +2511,13 @@
       "lib/cli-learn-review.js": [
         "lib/cli-helpers.js"
       ],
+      "lib/cli-mcp-service-commands.js": [
+        "lib/authority/store-migrate.js",
+        "lib/mcp/client-envelope.js",
+        "lib/mcp/client-registry.js",
+        "lib/mcp/endpoint-pin.js",
+        "lib/mcp/service-acl.js"
+      ],
       "lib/cli-mutation-audit-intent.js": [
         "lib/is-plain-object.js",
         "lib/workspace-id.js"
@@ -2514,6 +2552,10 @@
         "lib/cli-helpers.js",
         "lib/cli-plugin-status.js",
         "lib/system-status-report.js"
+      ],
+      "lib/cli-store-commands.js": [
+        "lib/authority/store-migrate.js",
+        "lib/protected-store-path.js"
       ],
       "lib/cli-trust-receipt.js": [
         "lib/receipt/receipt-read-index.js"
@@ -2906,9 +2948,11 @@
       ],
       "lib/command-parser.js": [
         "lib/cli-workflow-adapter.js",
+        "lib/command-parser-mcp-args.js",
         "lib/command-parser-memory-lifecycle-args.js",
         "lib/command-parser-memory-query-args.js",
-        "lib/command-parser-review-args.js"
+        "lib/command-parser-review-args.js",
+        "lib/command-parser-store-args.js"
       ],
       "lib/command-policy-editor.js": [
         "lib/external-action-envelope.js"
@@ -3044,6 +3088,9 @@
       "lib/data-egress-gate.js": [
         "lib/is-plain-object.js",
         "lib/tool-call-gate.js"
+      ],
+      "lib/default-persistence-path.js": [
+        "lib/protected-store-path.js"
       ],
       "lib/deterministic-task-runner.js": [
         "lib/task-identifier-lexer.js",
@@ -3975,6 +4022,11 @@
       "lib/http-trust-query.js": [
         "requestGuards.js"
       ],
+      "lib/http/agent-registry-routes.js": [
+        "lib/http/agent-discovery.js",
+        "lib/http/operator-grant-routes.js",
+        "lib/mcp/agent-presence.js"
+      ],
       "lib/http/agent-workflow-routes.js": [
         "lib/http/workflow-envelope.js",
         "lib/http/workflow-request-validation.js",
@@ -4068,12 +4120,21 @@
       "lib/http/memory-query-route.js": [
         "lib/memory-query-read.js"
       ],
+      "lib/http/operator-grant-routes.js": [
+        "lib/api-auth-opt-out.js",
+        "lib/authority/authority-mode.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp/operator-authorization.js",
+        "requestGuards.js"
+      ],
       "lib/http/optional-boundaries.js": [
         "lib/a2a/routes.js",
+        "lib/http/agent-registry-routes.js",
         "lib/http/command-policy-route.js",
         "lib/http/emergency-stop-routes.js",
         "lib/http/external-action-receipt-collector-route.js",
         "lib/http/memory-approval-routes.js",
+        "lib/http/operator-grant-routes.js",
         "lib/http/pr-guardian-routes.js",
         "lib/registry/registry-route.js"
       ],
@@ -4839,6 +4900,9 @@
         "lib/mcp/rekor-anchor-client.js",
         "lib/receipt/receipt-read-index.js"
       ],
+      "lib/mcp/client-envelope.js": [
+        "lib/hash-chain.js"
+      ],
       "lib/mcp/compliance-audit-tool.js": [
         "lib/cli-audit.js",
         "lib/mcp-input-sanitizers.js",
@@ -4867,10 +4931,16 @@
       "lib/mcp/json-rpc-handler.js": [
         "lib/mcp-configuration-errors.js",
         "lib/mcp-envelope-format.js",
+        "lib/mcp/agent-presence.js",
         "lib/mcp/output-conformance-gate.js",
         "lib/mcp/session-protocol.js",
         "lib/mcp/tool-surface-filter-audit.js",
         "lib/mcp/tool-surface.js"
+      ],
+      "lib/mcp/loopback-service.js": [
+        "lib/mcp-envelope-format.js",
+        "lib/mcp/client-envelope.js",
+        "lib/mcp/stdio-transport.js"
       ],
       "lib/mcp/memory-query-tool.js": [
         "lib/mcp/response-builders.js",
@@ -4921,8 +4991,20 @@
         "lib/mcp/response-builders.js",
         "lib/self-evolve-adapter.js"
       ],
+      "lib/mcp/service-main.js": [
+        "lib/mcp-capability-nonce-store.js",
+        "lib/mcp/client-registry.js",
+        "lib/mcp/endpoint-pin.js",
+        "lib/mcp/loopback-service.js",
+        "lib/protected-store-path.js",
+        "mcpServer.js"
+      ],
       "lib/mcp/session-protocol.js": [
         "lib/is-plain-object.js"
+      ],
+      "lib/mcp/stdio-proxy.js": [
+        "lib/mcp/client-envelope.js",
+        "lib/mcp/stdio-transport.js"
       ],
       "lib/mcp/stdio-transport.js": [
         "lib/mcp-envelope-format.js"
@@ -6358,6 +6440,7 @@
       "persistencePaths.js": [
         "lib/environment-compat.js",
         "lib/memory-store-utils.js",
+        "lib/protected-store-path.js",
         "lib/secure-file-write.js"
       ],
       "plugin.js": [
@@ -6661,6 +6744,12 @@
       "scripts/check-http-contracts.js": [
         "lib/http/route-auth-policy.js"
       ],
+      "scripts/check-issue-regression-traceability.js": [
+        "scripts/ci-impact-plan-paths.js",
+        "scripts/ci-impact-plan.js",
+        "scripts/ci-impact-rules.js",
+        "scripts/ci-shard-manifest.js"
+      ],
       "scripts/check-layers.js": [
         "scripts/check-import-cycles.js"
       ],
@@ -6778,6 +6867,9 @@
       "scripts/generate-context-ports.js": [
         "scripts/check-import-cycles.js",
         "scripts/check-module-boundary.js"
+      ],
+      "scripts/generate-mcp-client-envelope-vectors.js": [
+        "lib/hash-chain.js"
       ],
       "scripts/generate-protocol-vectors.js": [
         "lib/receipt/canonical-receipt.js",

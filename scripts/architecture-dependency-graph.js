@@ -114,6 +114,9 @@ const RULES = [
       'lib/authority/operational-guard.js',
       // #3940: the anchor statement is verified by the Core detection, so it sits here too.
       'lib/authority/anchor-statement.js',
+      // #3999: pure domain helpers; the Core CLI command requires them.
+      'lib/mcp/client-envelope.js', 'lib/mcp/client-registry.js',
+      'lib/mcp/endpoint-pin.js', 'lib/mcp/service-acl.js',
     ],
     dirs: ['nlp/', 'lib/errors/', 'schemas/'],
     pattern: /^lib\/[^/]+\.js$/,
@@ -126,26 +129,25 @@ function matchesRule(rule, file) {
   return Boolean(rule.pattern && rule.pattern.test(file));
 }
 
-/**
- * @param {string} file repo-relative, forward slashes
- * @returns {'UI'|'Application'|'Adapters'|'Core'|null} null when no rule claims it
- */
 function assignLayer(file) {
+  // Explicit file entries win over directory catch-alls.
   for (const rule of RULES) {
-    if (matchesRule(rule, file)) return rule.layer;
+    if (rule.files && rule.files.includes(file)) return rule.layer;
+  }
+  for (const rule of RULES) {
+    if (rule.dirs && rule.dirs.some((dir) => file.startsWith(dir))) return rule.layer;
+    if (rule.pattern && rule.pattern.test(file)) return rule.layer;
   }
   return null;
 }
 
-/** The rule that claimed a module, for the failure message that explains it. */
+/** The rule that claimed a module. */
 function ruleFor(file) {
   return RULES.find((rule) => matchesRule(rule, file)) || null;
 }
 
 const isViolation = (fromLayer, toLayer) => RANK[toLayer] < RANK[fromLayer];
-
 const edgeKey = (edge) => `${edge.from}>${edge.to}`;
-
 const describe = (edge) => `${edge.from} (${edge.fromLayer}) -> ${edge.to} (${edge.toLayer})`;
 
 function sortedDict(source) {
