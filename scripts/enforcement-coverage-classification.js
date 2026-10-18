@@ -91,6 +91,26 @@ const CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'the copy/verify/marker core behind `huqan store migrate` (ADR-018 §2), run only by the operator and only when elevated; it copies the profile store into the protected root it resolves, verifies the copy by sha256 and row counts before writing the marker, and never deletes the profile original. No agent action reaches it',
   }),
+  'lib/mcp/service-acl.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the one place a protected MCP server\'s ACL is applied and read back (ADR-018 §3, #3999): apply runs icacls only from the elevated installer on fixed-shape paths it validates, and check runs a fixed PowerShell Get-Acl probe that writes nothing. No agent input reaches either path',
+  }),
+  'lib/mcp/client-registry.js': Object.freeze({
+    role: 'persistence',
+    why: 'the enrolled-client registry of a protected MCP server (#3999): written only by the elevated `huqan mcp enroll`/`revoke` into the server\'s protected state directory through a temp-file-plus-rename, at a path the service resolves; never an agent-supplied path',
+  }),
+  'lib/mcp/endpoint-pin.js': Object.freeze({
+    role: 'persistence',
+    why: 'the endpoint pin of a protected MCP server (#3999): written once with the exclusive wx flag by the elevated `service-main init` into the install\'s public directory; the path is fixed by the installer, and every read is shape-checked fail-closed',
+  }),
+  'lib/mcp/stdio-proxy.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the per-session stdio proxy is the untrusted side of the envelope boundary (#3999): it carries only signed client envelopes to the loopback endpoint the operator\'s pin names, refuses a --url that is not 127.0.0.1, reads no protected state, and gating its one fixed egress with the agent gate would be circular the same way gating the authority client would',
+  }),
+  'lib/cli-mcp-service-commands.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the operator\'s `huqan mcp` surface (#3999), run only under direct human invocation: enroll/revoke write the protected registry only when elevated, the seed file is written where the operator asked, and the status probe is a fixed loopback POST with an empty unsigned body that exists to observe the refusal',
+  }),
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
     why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',

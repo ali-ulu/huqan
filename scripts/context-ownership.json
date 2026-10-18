@@ -5087,6 +5087,42 @@
    "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 \u00a72)"
   }
  },
+  "lib/mcp/client-envelope.js": {
+   "kind": "entry",
+   "evidence": "#3999 production MCP client envelope (ADR-018 section 4)"
+  },
+  "lib/mcp/client-registry.js": {
+   "kind": "entry",
+   "evidence": "#3999 enrolled-client registry for protected MCP servers (ADR-018 section 3/4)"
+  },
+  "lib/mcp/endpoint-pin.js": {
+   "kind": "entry",
+   "evidence": "#3999 endpoint pin of a protected MCP server (ADR-018 section 3)"
+  },
+  "lib/mcp/service-acl.js": {
+   "kind": "entry",
+   "evidence": "#3999 per-server state ACL spec, apply and check (ADR-018 section 3)"
+  },
+  "lib/mcp/loopback-service.js": {
+   "kind": "entry",
+   "evidence": "#3999 protected loopback transport behind the client envelope (ADR-018 section 3/4)"
+  },
+  "lib/mcp/stdio-proxy.js": {
+   "kind": "entry",
+   "evidence": "#3999 per-session stdio proxy at the untrusted agent boundary (ADR-017 section 4)"
+  },
+  "lib/mcp/service-main.js": {
+   "kind": "entry",
+   "evidence": "#3999 service entry point of a protected MCP server (ADR-018 section 3)"
+  },
+  "lib/command-parser-mcp-args.js": {
+   "kind": "entry",
+   "evidence": "#3999 CLI parsing for huqan mcp (ADR-018 section 3)"
+  },
+  "lib/cli-mcp-service-commands.js": {
+   "kind": "entry",
+   "evidence": "#3999 CLI surface for huqan mcp status"
+  },
  "unassigned": {},
  "outOfScope": [
   {

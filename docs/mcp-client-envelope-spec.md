@@ -260,4 +260,7 @@ unrelated change produces no diff. The vectors carry no private key.
 - The envelope does not prove the agent is a separate OS user, or that the
   server is a separate service account. Those are #3948, #3998 and #3999.
 - A published envelope format is not a deployed one. This document specifies the
-  contract; no production server speaks it until #3999 lands.
+  contract; the protected loopback transport that speaks it is #3999
+  (`lib/mcp/loopback-service.js`, `lib/mcp/client-envelope.js`), whose
+  production verifier is kept conformant with the vectors this document
+  defines.
