@@ -19,8 +19,8 @@ Current measured position for AXIOM graph and memory behavior:
   chunks at open, and retains a bounded 2048-entry LRU instead of a full copy
   (#3208). Its non-SQLite backend retains in-memory operational state.
 - Existing benchmark fixtures cover `small`, `medium`, `large`, and `xlarge`.
-- The largest existing benchmark fixture is `xlarge`, with 140 nodes and 131 edges in the current benchmark results.
-- The end-to-end scale benchmark (#3016) measures `scale-10k` with 10000 nodes and 10000 edges (see below).
+- The `small`/`medium`/`large`/`xlarge` family tops out at 140 nodes and 131 edges; it is separate from the scale fixtures.
+- The end-to-end scale benchmark (#3016) defaults to `scale-10k` with 10000 nodes and 10000 edges. The opt-in `scale-100k` fixture was also measured on 18 October 2026 (see the bounded record below).
 
 ## What is not proven
 
@@ -49,10 +49,10 @@ Current measured position for AXIOM graph and memory behavior:
   reports the conflict in `conflicts`. In normal learning the contradiction
   hypothesis therefore does not fire; it fires only when such edges are added
   directly to the graph.
-- `kernel.learn` speed is superlinear in graph size (issue #3911 measurement,
-  one machine): 100 facts 322 ms, 300 facts 1026 ms, 600 facts 2420 ms, and
-  10k facts about 173 s. Read the supported scale below together with this
-  limit.
+- The historical #3911 single-machine learning measurement recorded 100 facts
+  at 322 ms, 300 at 1026 ms, 600 at 2420 ms, and 10k at about 173 s. It is a
+  different version/workload from the paired, approved-learning measurement
+  below, not its before baseline. Large learning batches remain unproven.
 - Graph scale is bounded by its local process, hydrated heap, and fixture
   behavior. MemoryStore's bounded retained cache does not remove its linear
   startup validation cost, synchronous read cost, or SQLite writer contention.
@@ -68,7 +68,7 @@ ve her 100 kayıtta bir rule kullanıldı; ölçüm tek koşudur, p95/p99 değil
 Cache dışındaki retained heap farkı 0.1/0/-0.3 MiB; negatif değer GC/gürültüdür,
 RSS veya sıfır bellek maliyeti iddiası değildir.
 
-DOĞRULANMADI: yoğun eşzamanlı yazma, Graph100k, gerçek admission throughput,
+Bu MemoryStore koşusunun doğrulamadıkları: yoğun eşzamanlı yazma, Graph100k, gerçek admission throughput,
 çok süreçli cache freshness veya sunucu ölçeği. Kapasite ve backend kararının
 kabul sözleşmesi [mühendislik görev paketinde](task-packs/engineering-foundation-20261002.md)
 bulunur; bu ölçüm desteklenen production limit ilan etmez.
@@ -82,6 +82,7 @@ bulunur; bu ölçüm desteklenen production limit ilan etmez.
 | `large` | 49 | 30 |
 | `xlarge` | 140 | 131 |
 | `scale-10k` (#3016) | 10000 | 10000 |
+| `scale-100k` (opt-in, 18 October 2026) | 100000 | 100000 |
 
 ## End-to-end scale benchmark (#3016)
 
@@ -104,13 +105,142 @@ Node majors):
 | save (full SQLite checkpoint) | ~856 ms |
 | heap delta for the 10k seed | ~19 MB |
 
-Supported-scale statement after #3016: the graph engine, the query paths
-(ask/verify/reason) and the save path are measured at 10k nodes on a single
-machine. `kernel.learn` admission is explicitly NOT covered at 10k: its
-per-node cost rises superlinearly (about 19 ms at n=100, 29 ms at n=200,
-41 ms at n=400 on the same machine), so a 10k learn batch does not finish in
-a benchmark budget. 100k remains opt-in only (`--fixtures=scale-100k`) and is
-not a default or CI measurement.
+The pinned #3016 baseline and default CI fixture remain 10k. The separate
+100k measurement below does not change that default. This script's
+`benchLearnCurve` uses `test_fixture_seed` admission bypass and a non-SQLite
+kernel: those small learn-curve numbers are not approved SQLite admission
+throughput. Neither Graph API seeding nor that curve proves a 10k/100k batch
+of admitted facts. `scale-100k` remains opt-in, not a default CI workload.
+
+## 18 Ekim 2026 kapasite ölçümü
+
+GÖZLENDİ: Windows x64, Node 22.22.0, `better-sqlite3` 13.0.3. İki ayrı
+ölçüm vardır; graf fixtürü büyüklüğü öğrenilmiş olgu sayısı değildir.
+
+### Sentetik 100k graf
+
+`e8bdb6f7c6d7c555e3f422ef2790e836c8358eff` üzerinde
+`node benchmarks/bench-scale-10k.js --fixtures=scale-100k --quick --json`
+çıkış `0` verdi: 100000 düğüm ve 100000 kenar. Bir warmup ve bir ölçülen
+tekrar kullanıldı. Bellekte Graph API seed 1313.597 ms, ask 33.507 ms,
+verify 619.564 ms, reason 16.683 ms; ayrı SQLite grafında **reload + checkpoint
+save** 13129.863 ms. Seed sonrası heap artışı 190.65 MiB; bu RSS değildir.
+SQLite grafını ilk doldurma süresi bu seed sayısı içinde değildir. Bu kayıt
+tek makinedeki sentetik graf okuma/yazma kanıtıdır; öğrenme veya üretim SLO'su
+değildir.
+
+### Gerçek, onay bağlamlı öğrenme: aynı fixtürde önce/sonra
+
+Başlangıç `6c22665ab57ab065a7e352b03b82420c64e12ad6`, aday üretim kodu
+`6cd2c35f3db45bf0a4e226e10033b6faaa3fe8a9`. Admission gerekçesi ve öğrenme
+artık bilinen düğüm listesini tembel sağlar. TR ayrıştırıcı, bilinen iki/üç
+kelimeli özne arayacaksa listeyi extraction başına bir kez okur. Kısa metin,
+`bir` ve koordinasyon yollarında kullanılmayan kopyalar oluşmaz. Mevcut
+object/array ve normalize-ID eşleşmesi korunur; yeni indeks veya model yoktur.
+
+Her boyutta aynı SQLite seed dosyasının bağımsız kopyaları kullanıldı. Eski/yeni
+sırası çiftler arasında değiştirildi; her deneme yeni Node sürecinde açıldı.
+Bir denemede dört farklı iki kelimeli olgu (`profil-0 meyvedir` …) öğrenildi.
+İlk çağrı cold, kalan üç çağrı warm örneklerdir. Her çağrıda `ok: true`,
+`admission.outcome: allow`, `learned: 1` ve gerçek kenar geri okuması arandı;
+kapatıp açtıktan sonra dört kenar tekrar doğrulandı. İki boyutta toplam
+64 gerçek yazma (eski/yeni 32'şer) doğrulandı.
+
+| Seed düğüm | Çift / warm örnek (her taraf) | Warm medyan eski → yeni | Yerel oran | Cold medyan eski → yeni |
+|---:|---:|---:|---:|---:|
+| 10000 | 5 / 15 | 42.486 → 18.619 ms | 2.28x | 560.856 → 500.372 ms |
+| 100000 | 3 / 9 | 722.944 → 339.370 ms | 2.13x | 5662.749 → 4906.490 ms |
+
+Tam `getNodes` çağrıları her denemede eski kodda `[2,3,3,3]`, yeni kodda
+`[0,1,1,1]` oldu. Yani bu fixtürde çağrı başına iki gereksiz tam okuma kaldırıldı;
+sonraki çağrılarda başka bir tam okuma hâlâ vardır. Belirsiz çok kelimeli
+metinlerde bilinen düğüm listesi hâlâ okunabilir; genel O(N) öğrenme maliyeti
+çözülmüş değildir.
+
+Zaman yalnız senkron `kernel.learn` çağrısıdır: süreç açılışı, fixtür kopyası,
+veritabanı açılışı ve restart doğrulaması dışarıdadır; ilk JSON ayna export'u
+cold çağrıya dahildir. Seed Graph API ile hazırlanmıştır (100k'da tek fixtür
+transaction'ı), gerçek öğrenme sayısına dahil değildir. Test yükü mevcut
+onaylı-fixtür bağlamını (`approvalStatus: approved`, approval ID, manual
+provenance) kullanır; öğrenmede admission bypass yoktur. Bu, MCP/HTTP veya
+kurulu Approval Authority üzerinden uçtan uca ölçüm değildir. Her denemede
+yalnız dört çağrı olduğundan periyodik beşinci-öğrenme bakımı bu yükte yoktur.
+
+Sınırlar: tek, diğer süreçlerden yalıtılmamış makine; az örnek; CPU maliyeti
+ve p95/p99 garantisi yok. 10k warm maksimumu eski 62.629 ms iken yeni 122.660 ms
+oldu; medyan kazancı her çağrının veya kuyruğun hızlandığı anlamına gelmez.
+100k cold yeni medyanı hâlâ yaklaşık 4.9 saniyedir. 100k **yeni olguluk batch**,
+yoğun paralel öğrenme, çok kelimeli her metin, sunucu kapasitesi veya production
+limit artışı doğrulanmadı. `bench:capacity` varsayılan onay beklemelerini
+`reviewedWrites` sayar; bunlar öğrenme throughput'u olarak kullanılamaz.
+
+Yeniden çalıştırma: eski/yeni worktree'lerde aynı lockfile bağımlılıklarını
+sağlayın. PowerShell'de yolları doldurun; script yalnız kendi geçici
+fixtürlerini oluşturur/siler. Varsayılan çıktı iki boyutun ham örneklerini verir;
+süreler makineye göre değişir.
+
+```powershell
+$env:CAPACITY_BASELINE_ROOT = '<6c22665a worktree>'
+$env:CAPACITY_CANDIDATE_ROOT = '<candidate worktree>'
+$env:NODE_PATH = '<same-lockfile installation>\node_modules'
+@'
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const assert=require('node:assert/strict'),{spawnSync}=require('node:child_process');
+const roots={baseline:process.env.CAPACITY_BASELINE_ROOT,candidate:process.env.CAPACITY_CANDIDATE_ROOT};
+function trial(){
+  const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+  const assert=require('node:assert/strict'),Kernel=require(path.join(process.argv[1],'kernel'));
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'huqan-lazy-trial-'));
+  const opts={useSQLite:true,dbPath:path.join(dir,'graph.db'),memoryPath:path.join(dir,'memory.json'),loadPlugins:false};
+  fs.copyFileSync(process.argv[2],opts.dbPath);let k;const rows=[];
+  try{
+    k=new Kernel(opts);assert.equal(k.graph.getStats().backend,'sqlite');
+    assert.equal(k.graph.nodeCount('capacity-profile'),Number(process.argv[3]));
+    const original=k.graph.getNodes;let reads=0;
+    k.graph.getNodes=function(...args){reads++;return original.apply(this,args);};
+    for(let i=0;i<4;i++){
+      const before=reads,start=process.hrtime.bigint();
+      const result=k.learn('profil-'+i+' meyvedir',{
+        workspaceId:'capacity-profile',approvalRequired:true,approvalStatus:'approved',approvalId:'apr_profile_'+i,
+        provenance:{provenanceId:'prov_profile_'+i,sourceType:'manual',sourceRef:'test:capacity-profile',
+          actor:'kernel-test',workspaceId:'capacity-profile',timestamp:'2026-10-18T00:00:00.000Z',trustPolicyVersion:'1.0.0'}});
+      const ms=Number(process.hrtime.bigint()-start)/1e6;
+      assert.equal(result.ok,true);assert.equal(result.data.admission.outcome,'allow');assert.equal(result.data.learned,1);
+      assert.equal(k.graph.getEdges('profil-'+i,'capacity-profile').length,1);
+      rows.push({ms,getNodesCalls:reads-before});
+    }
+    k.graph.closeSqlite();k.memory.close();k=new Kernel(opts);
+    for(let i=0;i<4;i++)assert.equal(k.graph.getEdges('profil-'+i,'capacity-profile').length,1);
+    console.log(JSON.stringify({rows,restartedEdges:4}));
+  }finally{
+    if(k){k.graph.closeSqlite();k.memory.close();}
+    assert.equal(path.dirname(dir),os.tmpdir());fs.rmSync(dir,{recursive:true,force:true});
+  }
+}
+for(const size of [10000,100000]){
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'huqan-lazy-seed-')),db=path.join(dir,'seed.db');
+  let seed;
+  try{
+    const Kernel=require(path.join(roots.baseline,'kernel'));
+    seed=new Kernel({useSQLite:true,dbPath:db,memoryPath:path.join(dir,'seed.json'),loadPlugins:false});
+    const populate=()=>{for(let i=0;i<size;i++)seed.graph.addNode('seed-'+i,'seed-'+i,null,{workspaceId:'capacity-profile'});return{seedNodes:size};};
+    if(size===100000)seed.graph.runMutationOnce('capacity-fixture-seed',populate);else populate();
+    seed.graph.closeSqlite();seed.memory.close();seed=null;
+    const results={baseline:[],candidate:[]};
+    for(let pair=0;pair<(size===10000?5:3);pair++){
+      for(const mode of(pair%2?['candidate','baseline']:['baseline','candidate'])){
+        const child=spawnSync(process.execPath,['-e','('+trial.toString()+')()',roots[mode],db,String(size)],{encoding:'utf8',timeout:180000});
+        assert.equal(child.status,0,child.stderr);results[mode].push(JSON.parse(child.stdout));
+      }
+    }
+    console.log(JSON.stringify({size,results}));
+  }finally{
+    if(seed){seed.graph.closeSqlite();seed.memory.close();}
+    assert.equal(path.dirname(dir),os.tmpdir());fs.rmSync(dir,{recursive:true,force:true});
+  }
+}
+'@ | node
+```
 
 ## Graph label-lookup benchmark (#3009)
 

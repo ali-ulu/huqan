@@ -95,7 +95,7 @@ When the Approval Authority is installed, the decision itself moves behind an OS
 - The OS boundary needs the Approval Authority (a Windows service today). Code running as your user can still edit runtime files or the local store; the authority's ledger makes that detectable, not impossible. UAC is not a security boundary ([ADR-016 residual risks](./docs/adr/ADR-016-approval-authority-os-boundary.md#residual-risks)).
 - Complements IAM, infrastructure security and human governance — it replaces none of them.
 - The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
-- Scale measured up to 10k graph nodes on one machine.
+- Synthetic graph read/write benchmarks reached 100k nodes and 100k edges on one machine. [Admitted-learning measurements and limits](./docs/scale-truth-pack.md) are separate; this is not a production capacity guarantee.
 
 Full details and edge cases: [docs](./docs).
 
