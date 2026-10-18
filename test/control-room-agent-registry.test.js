@@ -72,10 +72,13 @@ test('JSONC comments are stripped outside strings only', () => {
   assert.deepEqual(JSON.parse(stripJsonComments('{"url":"http://x//y", /* c */ "a":1, // d\n}')), { url: 'http://x//y', a: 1 });
   assert.deepEqual(huqanEntriesInToml('[mcp_servers."huqan"]\ncommand="x"'), ['huqan']);
   assert.deepEqual(huqanEntriesInToml('[mcp_servers.huqan]\ncommand="x"\n[mcp_servers.huqan.env]\nA="1"'), ['huqan'], 'a sub-table is the same server');
+  assert.deepEqual(huqanEntriesInToml('[mcp_servers.huqan-gateway]\nargs = [\n  "C:/huqan/mcpServer.js",\n]\ncommand = "node"'), ['huqan-gateway'], 'HUQAN inside a multi-line args array is found');
+  assert.deepEqual(huqanEntriesInToml('[mcp_servers.other]\nargs = [\n  "plain.js",\n]\ncommand = "node"'), [], 'a multi-line array without HUQAN stays unconfigured');
 });
 
 test('MCP client names map to catalog agents', () => {
   assert.equal(agentIdForClient('claude-code'), 'claude-code');
+  assert.equal(agentIdForClient('claude-ai'), 'claude-ai', 'other Claude clients keep their own id instead of refreshing Claude Code');
   assert.equal(agentIdForClient('codex-mcp-client'), 'codex');
   assert.equal(agentIdForClient('Cline'), 'cline');
   assert.equal(agentIdForClient('Research Crew!'), 'research-crew');
