@@ -172,10 +172,13 @@ function extractFacts(text, knownNodes = null) {
     return subject && predicate ? [{ subject, predicate }] : [];
   }
 
-  if (knownNodes) {
-    const nodeIds = typeof knownNodes === 'object' && !Array.isArray(knownNodes)
-      ? Object.keys(knownNodes)
-      : (Array.isArray(knownNodes) ? knownNodes : []);
+  if (knownNodes && filtered.length > 2) {
+    // Only ambiguous multi-word prefixes need graph IDs. Resolve a supplier
+    // once per extraction; object/array callers retain their existing behavior.
+    const resolvedNodes = typeof knownNodes === 'function' ? knownNodes() : knownNodes;
+    const nodeIds = resolvedNodes && typeof resolvedNodes === 'object' && !Array.isArray(resolvedNodes)
+      ? Object.keys(resolvedNodes)
+      : (Array.isArray(resolvedNodes) ? resolvedNodes : []);
 
     for (let len = Math.min(3, filtered.length - 1); len >= 2; len--) {
       const candidate = normalize(filtered.slice(0, len).join(' '));

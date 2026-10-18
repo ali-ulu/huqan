@@ -11,6 +11,19 @@ const { buildLearnAdmissionRequest } = require('../lib/learn-admission-request')
 const { evaluateMemoryAdmission } = require('../lib/memory-admission-gate');
 const { memoryWriteBlastRadius, memoryWriteJustification } = require('../lib/memory-blast-radius');
 const { isolatedGraphOptions } = require('./helpers/isolated-persistence');
+const tr = require('../nlp/lang-tr');
+
+test('real Turkish blast-radius parsing avoids unused known-node reads', () => {
+  const graph = newGraph();
+  const kernel = { ...kernelWith(graph), extractFacts: tr.extractFacts };
+  const original = graph.getNodes;
+  let reads = 0;
+  graph.getNodes = function(...args) { reads++; return original.apply(this, args); };
+  const result = memoryWriteBlastRadius(kernel, 'kedi hayvandir');
+  assert.equal(result.status, 'computed');
+  assert.equal(result.dimensions.breadth.value, 'single');
+  assert.equal(reads, 0);
+});
 
 // In-memory only: no SQLite file, and the JSON path sits in a temporary root.
 const newGraph = () => new Graph(isolatedGraphOptions('memory-blast-radius'));

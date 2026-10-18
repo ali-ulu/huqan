@@ -2,6 +2,39 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const tr = require('./lang-tr');
 
+test('lazy known nodes preserve object/array subject matching and longest prefix', () => {
+  const cases = [
+    ['New York City büyüktür', ['new york', 'NEW YORK CITY'], 'new york city'],
+    ['Ali Yılmaz doktordur', { 'ALİ YILMAZ': { label: 'different label' } }, 'ali yilmaz'],
+    ['Kırmızı Kedi sevimlidir', ['KIRMIZI KEDİ'], 'kirmizi kedi'],
+  ];
+  for (const [text, knownNodes, subject] of cases) {
+    let reads = 0;
+    const lazy = tr.extractFacts(text, () => { reads++; return knownNodes; });
+    assert.deepEqual(lazy, tr.extractFacts(text, knownNodes));
+    assert.equal(lazy[0].subject, subject);
+    assert.equal(reads, 1, 'resolve once, not once per prefix');
+  }
+});
+
+test('unambiguous Turkish extraction never resolves lazy known nodes', () => {
+  for (const text of ['', 'kedi', 'kedi hayvandır', 'Ali Yılmaz bir doktordur', 'kedi ve köpek hayvandır']) {
+    assert.deepEqual(tr.extractFacts(text, () => { throw new Error('unneeded graph read'); }),
+      tr.extractFacts(text));
+  }
+});
+
+test('lazy known nodes are fresh on every extraction and propagate necessary read failures', () => {
+  let knownNodes = ['ali yilmaz'];
+  const source = () => knownNodes;
+  assert.equal(tr.extractFacts('Ali Yılmaz doktordur', source)[0].subject, 'ali yilmaz');
+  knownNodes = [];
+  assert.equal(tr.extractFacts('Ali Yılmaz doktordur', source)[0].subject, 'ali');
+  assert.throws(() => tr.extractFacts('Ali Yılmaz doktordur', () => {
+    throw new Error('known nodes unavailable');
+  }), /known nodes unavailable/);
+});
+
 test('Turkish extraction retains a multi-word subject before bir (#1171)', () => {
   assert.deepEqual(tr.extractFacts('Ali Yılmaz bir doktordur'), [
     { subject: 'ali yilmaz', predicate: 'doktordur' },
