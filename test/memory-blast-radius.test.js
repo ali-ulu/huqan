@@ -25,6 +25,20 @@ test('real Turkish blast-radius parsing avoids unused known-node reads', () => {
   assert.equal(reads, 0);
 });
 
+test('existing-node causal dependency remains computed without a full-workspace copy', () => {
+  const graph = newGraph();
+  graph.addNode('hayvan', 'Hayvan');
+  graph.addNode('sonuc', 'Sonuç');
+  graph.addEdge('hayvan', 'sonuc', 'CAUSES', { strength: 0.9, confidence: 0.9, evidence: ['observed'] });
+  const kernel = kernelWith(graph);
+  const expected = memoryWriteBlastRadius(kernel, 'kedi > hayvan');
+  graph.getNodes = () => { throw new Error('unexpected full-workspace copy'); };
+  const result = memoryWriteBlastRadius(kernel, 'kedi > hayvan');
+  assert.deepEqual(result, expected);
+  assert.equal(result.status, 'computed');
+  assert.equal(result.dimensions.dependency.value, 'bounded');
+});
+
 // In-memory only: no SQLite file, and the JSON path sits in a temporary root.
 const newGraph = () => new Graph(isolatedGraphOptions('memory-blast-radius'));
 

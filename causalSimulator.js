@@ -65,7 +65,8 @@ class CausalSimulator {
       throw new Error('simulateChange requires nodeId');
     }
 
-    const scopedNodes = this.graph.getNodes(workspaceId);
+    // Scoring needs only the target and terminal labels, not a workspace copy.
+    const scopedNodes = id => this.graph.getNode(id, workspaceId);
     const node = findScopedNode(scopedNodes, nodeId);
     if (!node) {
       return missingNodeResult({ action, nodeId, changeType, newState, maxDepth, workspaceId });

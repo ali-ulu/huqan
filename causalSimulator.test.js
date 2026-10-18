@@ -2,6 +2,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const { Graph } = require('./graph');
 const { CausalSimulator } = require('./causalSimulator');
+const { findScopedNode } = require('./lib/causal-simulator-scoring');
 
 function buildBranchingGraph() {
   const graph = new Graph({ noLoad: true });
@@ -39,6 +40,15 @@ function buildBranchingGraph() {
 }
 
 describe('Causal Simulator - v0.7', () => {
+  it('scoped lookup preserves object-map compatibility and rejects a mismatched callback node', () => {
+    const node = { id: 'A', label: 'Alpha' };
+    assert.strictEqual(findScopedNode({ A: node }, 'A'), node);
+    assert.strictEqual(findScopedNode({ storageKey: node }, 'A'), node);
+    assert.strictEqual(findScopedNode(() => node, 'A'), node);
+    assert.strictEqual(findScopedNode(() => node, 'B'), null);
+    assert.strictEqual(findScopedNode(() => null, 'A'), null);
+    assert.strictEqual(findScopedNode(null, 'A'), null);
+  });
   it('CausalSimulator graph instance gerektirir', () => {
     assert.throws(() => {
       new CausalSimulator(null);
@@ -65,7 +75,7 @@ describe('Causal Simulator - v0.7', () => {
   it('simulateChange olmayan node için güvenli hata döndürür', () => {
     const graph = new Graph({ noLoad: true });
     const simulator = new CausalSimulator(graph);
-    graph.getNode = () => {
+    graph.getCausalChain = () => {
       throw new Error('missing-node path must return before traversal');
     };
 
@@ -77,6 +87,38 @@ describe('Causal Simulator - v0.7', () => {
     assert.ok(result.unknowns[0].includes('nonexistent'));
     assert.strictEqual(result.causalChains, 0);
     assert.deepStrictEqual(result.affectedNodes, []);
+  });
+
+  it('simulation reads only scoped target and terminal nodes without copying the workspace', () => {
+    const graph = buildBranchingGraph();
+    graph.addNode('unrelated', 'Unrelated');
+    const simulator = new CausalSimulator(graph);
+    const expected = simulator.simulateChange({ nodeId: 'A', changeType: 'modify' });
+    const getNode = graph.getNode.bind(graph);
+    const reads = [];
+    graph.getNode = (id, workspaceId) => {
+      reads.push([id, workspaceId]);
+      return getNode(id, workspaceId);
+    };
+    graph.getNodes = () => { throw new Error('unexpected full-workspace copy'); };
+    const result = simulator.simulateChange({ nodeId: 'A', changeType: 'modify' });
+    assert.deepStrictEqual(result, expected);
+    assert.ok(reads.length > 0);
+    assert.ok(reads.every(([id, scope]) => ['A', 'B', 'C', 'D', 'E'].includes(id) && scope === 'default'));
+    assert.deepStrictEqual(new Set(reads.map(([id]) => id)), new Set(['A', 'B', 'C', 'D', 'E']));
+  });
+
+  it('point reads preserve tenant labels and do not find a node in another workspace', () => {
+    const graph = buildBranchingGraph();
+    graph.addNode('A', 'Tenant A', null, { workspaceId: 'tenant' });
+    graph.addNode('B', 'Tenant B', null, { workspaceId: 'tenant' });
+    graph.addEdge('A', 'B', 'CAUSES', { workspaceId: 'tenant', strength: 0.8, confidence: 0.8, evidence: ['tenant'] });
+    graph.getNodes = () => { throw new Error('unexpected full-workspace copy'); };
+    const simulator = new CausalSimulator(graph);
+    const result = simulator.simulateChange({ nodeId: 'A', workspaceId: 'tenant' });
+    assert.deepStrictEqual(result.affectedNodes.map(node => node.label), ['Tenant B']);
+    assert.deepStrictEqual(result.evidence, ['tenant']);
+    assert.strictEqual(simulator.simulateChange({ nodeId: 'C', workspaceId: 'tenant' }).mode, 'missing-node');
   });
 
   it('simulateChange deterministik ve yeni output sözleşmesini taşır', () => {
@@ -308,10 +350,8 @@ it('simulateChange sonucu traversal dahil JSON-serializable (#401)', () => {
     try {
       const result = simulator.simulateChange({ nodeId: 'A' });
       assert.strictEqual(result.ok, true);
-      assert.deepStrictEqual(getNodeCalls, [
-        ['A', 'default'],
-        ['A', 'default'],
-      ]);
+      assert.deepStrictEqual(new Set(getNodeCalls.map(([id]) => id)), new Set(['A', 'B', 'C', 'D', 'E']));
+      assert.ok(getNodeCalls.every(([, workspaceId]) => workspaceId === 'default'));
       assert.strictEqual(graph._nodes.A.lastAccessed, 101);
       assert.strictEqual(graph._nodes.B.lastAccessed, 102);
       assert.strictEqual(touchCalls, 0);

@@ -13,6 +13,20 @@ function makeKernel() {
   return new Kernel(isolatedKernelOptions('kernel-memory-admission-boundary', { noLoad: true, useSQLite: false, loadPlugins: false }));
 }
 
+test('repeated approved learning retains admission receipts without full-workspace node reads', () => {
+  const kernel = makeKernel();
+  kernel.graph.getNodes = () => { throw new Error('unexpected full-workspace copy'); };
+  for (const text of ['elma meyvedir', 'armut meyvedir']) {
+    const result = kernel.learn(text, approvedLazyOpts());
+    assert.equal(result.ok, true);
+    assert.equal(result.data.admission.outcome, 'allow');
+    assert.equal(result.data.learned, 1);
+    assert.equal(result.data.admission.receipt.metadata.justification.blastRadius.status, 'computed');
+  }
+  assert.equal(kernel.graph.getEdges('elma').length, 1);
+  assert.equal(kernel.graph.getEdges('armut').length, 1);
+});
+
 test('short real learn avoids full node reads in both admission and canonical write', () => {
   const kernel = makeKernel();
   const original = kernel.graph.getNodes;
