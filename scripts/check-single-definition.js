@@ -33,26 +33,37 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const { stripCommentsAndStrings } = require('./binding-site-scan');
+
 const repoRoot = path.resolve(__dirname, '..');
 const libDirectory = path.join(repoRoot, 'lib');
 const baselinePath = path.join(repoRoot, 'config', 'single-definition-baseline.json');
+
+// A declaration is only a declaration when the name is not a property access
+// (`obj.normalizeWorkspaceId`) and sits at a statement or member boundary.
+const LEADING = String.raw`(?:^|[\s{;,(])`;
+
 /**
  * One entry per helper that must have exactly one declaration.
  *
  * `canonical` is the file allowed to declare it. `patterns` match a
- * declaration of any shape (`function f()`, `const f = () =>`, a method
- * `f() {`), never a call site — a call has no brace or arrow after the
- * argument list. Each pattern is applied line-by-line, so a mention inside a
- * string or a comment on its own line cannot match.
+ * declaration of any shape and never a call site or an import. They run
+ * against the whole file with comments and string literals blanked and all
+ * whitespace collapsed, so a declaration split across lines is seen whole.
  */
 const RULES = [
   {
     name: 'normalizeWorkspaceId',
     canonical: 'lib/workspace-id.js',
     patterns: [
-      /(?:^|[\s;{,])function\s+normalizeWorkspaceId\s*\(/,
-      /(?:^|[\s;{,])normalizeWorkspaceId\s*=\s*\(/,
-      /(?:^|[\s;{,])normalizeWorkspaceId\s*\([^()]*\)\s*\{/,
+      // function declaration / expression: `function f(` / `async function f(`
+      new RegExp(`${LEADING}(?:async\\s+)?function\\s+normalizeWorkspaceId\\s*\\(`),
+      // assignment or object property: `f = (`, `f = async (`, `f = function`,
+      // `f: (`, `f: async function` — the `(`/`function` is what separates a
+      // definition from an alias (`f = require('...').f`).
+      new RegExp(`${LEADING}normalizeWorkspaceId\\s*[:=]\\s*(?:async\\s+)?(?:function\\b|\\()`),
+      // method shorthand: `f(x) {`
+      new RegExp(`${LEADING}normalizeWorkspaceId\\s*\\([^()]*\\)\\s*\\{`),
     ],
   },
 ];
@@ -66,11 +77,18 @@ function collectJavaScriptFiles(directory, carry = []) {
   return carry;
 }
 
-function declaresAny(text, patterns) {
-  return text
-    .split('\n')
-    .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
-    .some((line) => patterns.some((pattern) => pattern.test(line)));
+/**
+ * Does this source declare the helper in any supported shape?
+ *
+ * Comments and string literals are blanked (length-preserving) before matching
+ * so a documented example, a `require('...')` string, or a `'normalizeWorkspaceId'`
+ * literal cannot be mistaken for a declaration. All whitespace is then collapsed
+ * so a declaration split across lines is seen as one statement. The patterns
+ * themselves never match a call site or a destructured import.
+ */
+function declaresAny(source, patterns) {
+  const normalized = stripCommentsAndStrings(source).replace(/\s+/g, ' ');
+  return patterns.some((pattern) => pattern.test(normalized));
 }
 
 function readBaseline(baselineFile = baselinePath) {

@@ -33,31 +33,51 @@ test('every declared rule names a canonical file that exists', () => {
   }
 });
 
-test('declaresAny matches a declaration and not a call site', () => {
+test('declaresAny matches every declaration shape and no call site', () => {
   const [rule] = RULES;
-  const declaration = 'function normalizeWorkspaceId(value) {\n  return value;\n}';
-  const methodDeclaration = '  normalizeWorkspaceId(value) {\n    return value;\n  }';
-  const arrowDeclaration = 'const normalizeWorkspaceId = (value) => value;';
-  const callSite = "const id = normalizeWorkspaceId(input.workspaceId);";
-  const destructuredImport = "const { normalizeWorkspaceId } = require('./workspace-id');";
+  const declarations = {
+    'function declaration': 'function normalizeWorkspaceId(value) {\n  return value;\n}',
+    'async function declaration': 'async function normalizeWorkspaceId(value) {\n  return value;\n}',
+    'arrow assignment': 'const normalizeWorkspaceId = (value) => value;',
+    'function expression': 'const normalizeWorkspaceId = function (value) { return value; };',
+    'async arrow assignment': 'const normalizeWorkspaceId = async (value) => value;',
+    'async function expression': 'const normalizeWorkspaceId = async function (value) { return value; };',
+    'object property arrow': 'module.exports = { normalizeWorkspaceId: (value) => value };',
+    'object property function': 'module.exports = { normalizeWorkspaceId: function (value) { return value; } };',
+    'class method': 'class Gate {\n  normalizeWorkspaceId(value) {\n    return value;\n  }\n}',
+    'object method shorthand': 'const gate = { normalizeWorkspaceId(value) { return value; } };',
+    'declaration split across lines': 'const normalizeWorkspaceId =\n  (value) =>\n  value;',
+    'function parameters across lines': 'function normalizeWorkspaceId(\n  value,\n) {\n  return value;\n}',
+  };
+  const nonDeclarations = {
+    'call site': 'const id = normalizeWorkspaceId(input.workspaceId);',
+    'destructured import': "const { normalizeWorkspaceId } = require('./workspace-id');",
+    'member call': 'gate.normalizeWorkspaceId(input.workspaceId);',
+    're-export alias': "const normalizeWorkspaceId = require('./workspace-id').normalizeWorkspaceId;",
+    'plain alias': 'const normalizeWorkspaceId = canonicalNormalizeWorkspaceId;',
+  };
 
-  for (const source of [declaration, methodDeclaration, arrowDeclaration]) {
-    assert.equal(declaresAny(source, rule.patterns), true, source);
+  for (const [name, source] of Object.entries(declarations)) {
+    assert.equal(declaresAny(source, rule.patterns), true, name);
   }
-  for (const source of [callSite, destructuredImport]) {
-    assert.equal(declaresAny(source, rule.patterns), false, source);
+  for (const [name, source] of Object.entries(nonDeclarations)) {
+    assert.equal(declaresAny(source, rule.patterns), false, name);
   }
 });
 
-test('declaresAny ignores a declaration shown in a comment', () => {
+test('declaresAny ignores a declaration shown in a comment or a string', () => {
   const [rule] = RULES;
-  const commented = [
+  const quoted = [
     '// function normalizeWorkspaceId(value) { return value; }',
+    '/**',
     ' * normalizeWorkspaceId(value) { return value; }',
+    ' */',
     '/* const normalizeWorkspaceId = (value) => value; */',
+    "const label = 'normalizeWorkspaceId = (value) => value';",
+    'const rendered = `normalizeWorkspaceId: (value) => value`;',
   ].join('\n');
 
-  assert.equal(declaresAny(commented, rule.patterns), false);
+  assert.equal(declaresAny(quoted, rule.patterns), false);
 });
 
 test('the scan finds the canonical declaration', () => {
@@ -89,15 +109,27 @@ test('the committed tree passes the gate', () => {
   assert.equal(status, 0, stdout);
 });
 
-test('a new declaration fails the gate', (t) => {
+test('a new declaration fails the gate, whatever shape it takes', (t) => {
   const scratch = path.join(repoRoot, 'lib', 'zz-scratch-single-definition.js');
-  fs.writeFileSync(scratch, 'function normalizeWorkspaceId(value) {\n  return value;\n}\n');
   t.after(() => fs.rmSync(scratch, { force: true }));
 
-  const { status, stderr } = runGate();
-  assert.equal(status, 1);
-  assert.match(stderr, /new-declaration/);
-  assert.match(stderr, /zz-scratch-single-definition\.js/);
+  // The shapes a line-oriented matcher used to miss (#4033 review). Each one
+  // must be a hard failure, not a silent pass.
+  const shapes = [
+    'function normalizeWorkspaceId(value) {\n  return value;\n}\n',
+    'const normalizeWorkspaceId = function (value) { return value; };\n',
+    'const normalizeWorkspaceId = async (value) => value;\n',
+    'module.exports = { normalizeWorkspaceId: (value) => value };\n',
+    'const normalizeWorkspaceId =\n  (value) =>\n  value;\n',
+  ];
+
+  for (const source of shapes) {
+    fs.writeFileSync(scratch, source);
+    const { status, stderr } = runGate();
+    assert.equal(status, 1, source);
+    assert.match(stderr, /new-declaration/, source);
+    assert.match(stderr, /zz-scratch-single-definition\.js/, source);
+  }
 });
 
 test('--update cannot bless a new declaration', (t) => {
