@@ -40,6 +40,30 @@ function tempDir(t, prefix = 'huqan-protected-resolve-') {
 }
 
 /**
+ * The spelling a path has once the filesystem resolves it: symlinks expanded
+ * and the spelling normalized. `os.tmpdir()` is `/var/folders/...` on macOS
+ * while its real path is `/private/var/folders/...`, and `resolvePersistencePaths`
+ * canonicalizes through its containment gate while `protectedMemoryJsonPath`
+ * composes the raw spelling. Comparing the two spellings directly would then
+ * fail on macOS for a reason unrelated to which store was selected, so both
+ * sides are canonicalized. The target file does not exist yet in these tests,
+ * so the nearest existing ancestor is canonicalized and the missing tail is
+ * re-appended.
+ */
+function canonicalPath(target) {
+  const resolved = path.resolve(target);
+  let existing = resolved;
+  const missing = [];
+  while (!fs.existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) break;
+    missing.unshift(path.basename(existing));
+    existing = parent;
+  }
+  return path.join(fs.realpathSync(existing), ...missing);
+}
+
+/**
  * Select the protected store for `workspace` by writing a marker and the copy
  * it names. The marker's hash must match the copy for check (c) to pass, so the
  * copy is written first and hashed here. The copy is a real SQLite database
@@ -109,9 +133,9 @@ describe('resolution never falls back to cwd once the protected store is selecte
       delete require.cache[require.resolve('../lib/protected-store-path')];
       const { resolvePersistencePaths } = require('../persistencePaths');
       const resolved = resolvePersistencePaths({ rootDir: workspace });
-      assert.equal(resolved.memoryPath, memoryPath);
-      assert.equal(resolved.dbPath, dbPath);
-      assert.equal(resolved.memoryPath.startsWith(workspace), false, 'not derived from cwd');
+      assert.equal(canonicalPath(resolved.memoryPath), canonicalPath(memoryPath));
+      assert.equal(canonicalPath(resolved.dbPath), canonicalPath(dbPath));
+      assert.equal(canonicalPath(resolved.memoryPath).startsWith(canonicalPath(workspace)), false, 'not derived from cwd');
     } finally {
       if (saved === undefined) delete process.env.HUQAN_PROTECTED_STATE_ROOT;
       else process.env.HUQAN_PROTECTED_STATE_ROOT = saved;
@@ -132,7 +156,7 @@ describe('resolution never falls back to cwd once the protected store is selecte
       const { resolvePersistencePaths } = require('../persistencePaths');
       const explicit = path.join(workspace, 'named.json');
       const resolved = resolvePersistencePaths({ rootDir: workspace, memoryPath: explicit });
-      assert.equal(resolved.memoryPath, explicit, 'a caller who named a path is not second-guessed');
+      assert.equal(canonicalPath(resolved.memoryPath), canonicalPath(explicit), 'a caller who named a path is not second-guessed');
     } finally {
       if (saved === undefined) delete process.env.HUQAN_PROTECTED_STATE_ROOT;
       else process.env.HUQAN_PROTECTED_STATE_ROOT = saved;
