@@ -606,6 +606,7 @@
     "lib/experience/budgeted-journal.js",
     "lib/experience/coder-routing-runtime.js",
     "lib/experience/expression-adaptation.js",
+    "lib/experience/replacement-sequence-adaptation.js",
     "lib/experience/arithmetic-function.js",
     "lib/experience/array-guarded-fold-program.js",
     "lib/experience/array-stateful-fold-program.js",

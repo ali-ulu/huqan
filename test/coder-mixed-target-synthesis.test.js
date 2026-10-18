@@ -66,11 +66,11 @@ test('large unseen Cartesian counts are exact decimal strings', t => {
   assert.equal(result.plan.retainedCandidateCombinations, 8);
   assert.equal(result.plan.searchComplete, false);
 });
-test('mixed memory requests and invalid search modes fail closed before execution', t => {
+test('mixed memory requires a journal and invalid search modes fail closed', t => {
   for (const flag of [{ reuseMemory: true }, { rememberFile: 'method.json' }]) {
     const options = fixture(t); Object.assign(options.task.synthesis, flag);
-    assert.equal(runArithmeticSynthesis(options).reason, 'SYNTHESIS_MULTI_TARGET_STRING_MEMORY_UNSUPPORTED');
-    assert.equal(produceArithmeticRepair(options).reason, 'SYNTHESIS_MULTI_TARGET_STRING_MEMORY_UNSUPPORTED');
+    assert.equal(runArithmeticSynthesis(options).reason, 'SYNTHESIS_MEMORY_REQUIRES_JOURNAL');
+    assert.equal(produceArithmeticRepair(options).ok, true);
   }
   const options = fixture(t); options.task.synthesis.searchMode = 'guess';
   assert.equal(produceArithmeticRepair(options).reason, 'SYNTHESIS_MULTI_TARGET_INVALID');

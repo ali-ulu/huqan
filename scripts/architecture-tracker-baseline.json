@@ -439,6 +439,7 @@
       "lib/experience/reconciliation.js": "Application",
       "lib/experience/reflective-promotion.js": "Application",
       "lib/experience/repair.js": "Application",
+      "lib/experience/replacement-sequence-adaptation.js": "Application",
       "lib/experience/router.js": "Application",
       "lib/experience/run-repair.js": "Application",
       "lib/experience/runtime-seam.js": "Application",
@@ -1396,6 +1397,7 @@
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
       "scripts/generate-context-ports.js": "UI",
+      "scripts/generate-mcp-client-envelope-vectors.js": "UI",
       "scripts/generate-protocol-vectors.js": "UI",
       "scripts/huqan-watchdog.js": "UI",
       "scripts/junit-merge.js": "UI",
@@ -2626,6 +2628,7 @@
         "lib/experience/compiler.js",
         "lib/experience/expression-adaptation.js",
         "lib/experience/learning-intake.js",
+        "lib/experience/replacement-sequence-adaptation.js",
         "lib/path-safety.js",
         "lib/task-identifier-lexer.js"
       ],
@@ -3192,6 +3195,7 @@
         "lib/experience/learning-intake.js",
         "lib/experience/personal-execution-model.js",
         "lib/experience/procedure-registry.js",
+        "lib/experience/replacement-sequence-adaptation.js",
         "lib/path-safety.js",
         "lib/task-identifier-lexer.js"
       ],
@@ -3253,6 +3257,11 @@
       "lib/experience/reflective-promotion.js": [
         "lib/experience/canary.js",
         "lib/experience/optimization-hypothesis.js"
+      ],
+      "lib/experience/replacement-sequence-adaptation.js": [
+        "lib/experience/compiler.js",
+        "lib/experience/expression-adaptation.js",
+        "lib/experience/procedure-data.js"
       ],
       "lib/experience/run-repair.js": [
         "lib/agent-exit-reasons.js",
@@ -6778,6 +6787,9 @@
       "scripts/generate-context-ports.js": [
         "scripts/check-import-cycles.js",
         "scripts/check-module-boundary.js"
+      ],
+      "scripts/generate-mcp-client-envelope-vectors.js": [
+        "lib/hash-chain.js"
       ],
       "scripts/generate-protocol-vectors.js": [
         "lib/receipt/canonical-receipt.js",
