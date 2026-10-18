@@ -1062,7 +1062,7 @@
       ],
       "sites": [
         {
-          "line": 48,
+          "line": 45,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         }
@@ -1227,17 +1227,17 @@
       ],
       "sites": [
         {
-          "line": 131,
+          "line": 128,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 132,
+          "line": 129,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 135,
+          "line": 132,
           "capability": "fs_write",
           "call": "fs.renameSync"
         }
