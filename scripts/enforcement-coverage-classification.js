@@ -83,6 +83,14 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 're-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted',
   }),
+  'lib/authority/store-acl.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the one place the protected store ACL is applied (applyStoreAcl) and read back (checkStoreAcl) for ADR-018 §3; apply runs icacls only from the elevated `huqan store migrate`, on paths it validates against a fixed drive-letter shape, and check only runs a fixed PowerShell Get-Acl probe and writes nothing. No agent input reaches either path',
+  }),
+  'lib/authority/store-migrate.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the copy/verify/marker core behind `huqan store migrate` (ADR-018 §2), run only by the operator and only when elevated; it copies the profile store into the protected root it resolves, verifies the copy by sha256 and row counts before writing the marker, and never deletes the profile original. No agent action reaches it',
+  }),
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
     why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',
@@ -172,6 +180,9 @@ const CLASSIFIED = Object.freeze({
   }),
 
   // ── the product datastore ──────────────────────────────────────────────
+  'lib/http/agent-registry-routes.js': Object.freeze({ role: 'persistence', why: "writes HUQAN's own agent registry beside the memory store when the user confirms an agent; never an agent's configuration" }),
+  'lib/mcp/agent-presence.js': Object.freeze({ role: 'persistence', why: 'records when an MCP client last talked to HUQAN, one small file per client beside the memory store; no tool data' }),
+  'lib/http/operator-grant-routes.js': Object.freeze({ role: 'persistence', why: 'stores the Control Room ask/auto approval preference beside the memory store (ADR-019); the path is derived from memoryPath, never from a request' }),
   'lib/graph-json-snapshot.js': Object.freeze({ role: 'persistence', why: 'writes the JSON graph snapshot to the configured memoryPath; the non-SQLite backend for the canonical graph' }),
   'lib/graph-json-transaction.js': Object.freeze({ role: 'persistence', why: 'the JSON graph write transaction: writes a temp file beside memoryPath and renames it, so a crash cannot leave a half-written graph' }),
   'lib/reason-sandbox.js': Object.freeze({ role: 'persistence', why: 'owns and removes the product-created per-request reasoning sandbox under the OS temp root; the sandbox path is created by HUQAN, never supplied by an agent' }),

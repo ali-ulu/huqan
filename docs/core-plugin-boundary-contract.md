@@ -119,9 +119,12 @@ error-prevention rules** (`listRules` on the kernel's error-prevention engine,
 `lib/gate-signal-provider.js`). `plugins/aura-risk.js` is the reference
 implementation of a `gateSignal` producer: it returns a bounded signal (a
 decision plus the signal ids that produced it), never a payload mutation, and
-never a canonical write. A plugin that throws or returns a thenable the
-synchronous seam cannot await is not evidence of safety: it floors the verdict
-at `review` (`lib/gate-signal-provider.js`).
+never a canonical write. `plugins/laya-risk.js` is a second producer, bridging
+the local Laya decision model; its question set, environment variables and
+degraded-answer contract are documented in `docs/laya-risk-plugin.md`. A plugin
+that throws or returns a thenable the synchronous seam cannot await is not
+evidence of safety: it floors the verdict at `review`
+(`lib/gate-signal-provider.js`).
 
 The provider proposes, it does not decide. Its `decision` is merged into the
 existing most-restrictive precedence `block > dry_run_only > review > allow`

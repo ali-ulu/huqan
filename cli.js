@@ -39,10 +39,15 @@ const { fetchAuthorityLedger, recordAuthorityStop } = require('./lib/mcp/authori
 // passes it in rather than letting Core require it.
 const HYPOTHESIS_COGNITION = Object.freeze({ consumeHypothesisCognition, compareHypothesisFrames });
 
+// The store command's profile-path resolver is injected here for the same layer
+// reason: persistencePaths.js is Adapters while lib/cli-store-commands.js is Core.
+const STORE_COMMAND_PATHS = Object.freeze({ resolvePaths: resolvePersistencePaths });
+
 const CLI_COMMAND_HANDLERS = createCliCommandHandlers({
   callMcpTool,
   createApprovalStoreFromKernel,
   hypothesisCognition: HYPOTHESIS_COGNITION,
+  storePaths: STORE_COMMAND_PATHS,
 });
 
 // The receipt collaborators `MemoryLifecycle` cannot require itself: it lives

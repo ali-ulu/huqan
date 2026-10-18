@@ -14,6 +14,26 @@
 - [ ] Conformance / architecture / benchmark checks considered where applicable
 - [ ] Package/install behavior considered if public exports, CLI, MCP, REST, dependencies, or packaging changed
 
+### Regression traceability (`fix`, `security`, `hotfix` only)
+
+A defect fix must point at the regression test that pins the failure mode, or
+carry a documented waiver. Declare it in the body; `Workflow governance` reads
+the line and refuses a fix that names nothing. Ordinary enhancements (`feat`,
+`test`, `chore`, `docs`, `ci`, `perf`, `refactor`) and documentation-only
+changes are exempt.
+
+```text
+Regression-Test: test/check-issue-regression-traceability.test.js
+```
+
+```text
+Regression-Test: none -- only rewords a refusal message; no runtime path changes
+```
+
+A named test must exist, be a discovered test file, and be on the applicable CI
+path for the change (selected by the impact plan, or added by this pull
+request).
+
 Evidence / commands:
 
 ```text
