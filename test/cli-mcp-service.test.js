@@ -118,7 +118,11 @@ test('config points the client at the loopback endpoint through the proxy', asyn
 
 test('status verifies the ACL, the store, the listener and the registry, and refuses when any leg fails', async (t) => {
   const dirs = installedDirs(t);
-  const deps = { resolveDirs: () => dirs, spawn: goodProbe(), platform: 'win32', probe: () => Promise.resolve({ listening: true, failClosed: true, refusalCode: 'malformed' }) };
+  // The ACL probe is injected and only accepts Windows paths, so the ACL and
+  // registry legs read the Windows data root; the endpoint pin is a real file.
+  const winData = 'C:\\ProgramData\\huqan\\mcp\\levh';
+  const statusDirs = { ...dirs, dataDir: winData, stateDir: `${winData}\\state` };
+  const deps = { resolveDirs: () => statusDirs, spawn: goodProbe(), platform: 'win32', probe: () => Promise.resolve({ listening: true, failClosed: true, refusalCode: 'malformed' }) };
   const text = await runMcpServiceCommand({ sub: 'status', name: 'levh' }, {}, deps);
   assert.match(String(text), /State ACL: verified/);
   assert.match(String(text), /Memory store ACE: none/);

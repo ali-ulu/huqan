@@ -9,7 +9,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const acl = require('../lib/mcp/service-acl');
+const realAcl = require('../lib/mcp/service-acl');
+
+// The ACL operations answer not_windows on any other platform. These tests
+// exercise the Windows logic through an injected probe, so they default the
+// platform to win32 on every runner; a test that passes platform overrides it.
+const onWindows = (operation) => (options = {}) => operation({ platform: 'win32', ...options });
+const acl = {
+  ...realAcl,
+  applyMcpServiceAcl: onWindows(realAcl.applyMcpServiceAcl),
+  checkMcpServiceAcl: onWindows(realAcl.checkMcpServiceAcl),
+  checkNoStoreAce: onWindows(realAcl.checkNoStoreAce),
+};
 
 const OPERATOR = 'DESKTOP\\operator';
 const SERVICE = 'NT SERVICE\\huqan-mcp-levh';
