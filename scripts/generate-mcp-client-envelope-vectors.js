@@ -34,6 +34,12 @@ const { stableStringify } = require('../lib/hash-chain');
 const ENVELOPE_VERSION = 'huqan.mcp.envelope.v1';
 const DOMAIN = `${ENVELOPE_VERSION}\n`;
 const MAX_TTL_MS = 60_000;
+// Client and server run as separate processes (on Windows, with different
+// clock reads), so an envelope stamped "now" can reach a verifier whose clock
+// is a few milliseconds behind. This allowance applies to the not-before check
+// ONLY: expiry is not extended, and the nonce store keeps a record for its
+// whole sweep grace (60 s), which exceeds expires_at + this allowance.
+const MAX_CLOCK_SKEW_MS = 5_000;
 const HEX64 = /^[0-9a-f]{64}$/;
 const HEX16 = /^[0-9a-f]{16}$/;
 const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
@@ -123,7 +129,7 @@ function verifyEnvelope(envelope, call, enrolled) {
   if (!verified) return fail('signature_invalid');
 
   // 4. Freshness.
-  if (!(now >= issued)) return fail('not_yet_valid');
+  if (!(now >= issued - MAX_CLOCK_SKEW_MS)) return fail('not_yet_valid');
   if (!(now < expires)) return fail('expired');
 
   // 5. Nonce replay.
@@ -223,8 +229,8 @@ function vectors() {
 
   // not_yet_valid / expired: signature verifies, the clock does not.
   out['not-yet-valid.json'] = vector(
-    'not-yet-valid', 'the verifier clock is before issued_at',
-    { ok: false, code: 'not_yet_valid' }, valid, { now: '2025-12-31T23:59:59.000Z' },
+    'not-yet-valid', 'the verifier clock is before issued_at by more than the allowed skew',
+    { ok: false, code: 'not_yet_valid' }, valid, { now: '2025-12-31T23:59:50.000Z' },
   );
   out['expired.json'] = vector(
     'expired', 'the freshness window has closed',
@@ -268,4 +274,4 @@ if (require.main === module) {
   process.stdout.write(`wrote ${Object.keys(vectors()).length} MCP client envelope vectors to ${path.relative(process.cwd(), dir)}\n`);
 }
 
-module.exports = { vectors, write, verifyEnvelope, argsSha256, keyIdFor, signEnvelope, CODES, OUT_DIR, ENVELOPE_VERSION };
+module.exports = { MAX_CLOCK_SKEW_MS, vectors, write, verifyEnvelope, argsSha256, keyIdFor, signEnvelope, CODES, OUT_DIR, ENVELOPE_VERSION };

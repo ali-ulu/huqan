@@ -287,9 +287,11 @@ test('the signing seed is written last: a refused registry write leaves no key f
   assert.equal(fs.existsSync(third), false, 'no orphaned seed after a refused registry write');
   assert.equal(registryRecords(dirs).length, 2);
 
-  // An existing output file is refused before the registry is touched.
+  // An existing output file is never overwritten, and the record is rolled back.
   const taken = path.join(dirs.dir, 'seed1.txt');
-  assert.match(String(await enroll(taken)), /key_file_exists; no registry change/);
+  const clash = await runMcpServiceCommand({ sub: 'enroll', name: 'levh', client: 'agent-z', out: taken }, {}, elevated);
+  assert.match(String(clash), /key_file_exists; the registry change was rolled back/);
+  assert.equal(fs.readFileSync(taken, 'utf8').length, 44, 'the existing file is untouched');
   assert.equal(registryRecords(dirs).length, 2);
 
   // A seed that cannot be created rolls the new record back out.

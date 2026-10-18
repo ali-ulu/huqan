@@ -19,7 +19,7 @@ const path = require('node:path');
 
 const envelope = require('../lib/mcp/client-envelope');
 const { createDurableCapabilityNonceStore } = require('../lib/mcp-capability-nonce-store');
-const { vectors, verifyEnvelope: referenceVerify, ENVELOPE_VERSION } = require('../scripts/generate-mcp-client-envelope-vectors');
+const { vectors, verifyEnvelope: referenceVerify, MAX_CLOCK_SKEW_MS: REFERENCE_SKEW_MS, ENVELOPE_VERSION } = require('../scripts/generate-mcp-client-envelope-vectors');
 
 function tempDir(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-mcp-envelope-'));
@@ -88,7 +88,7 @@ test('freshness edges: not yet valid before issued_at, expired at expires_at', (
     now: '2026-01-01T00:00:00.000Z', ttlMs: 60000,
   }, privateKey);
   const call = (now) => ({ client_id: 'agent-x', workspace_id: 'w', op: 'tools/list', args: {}, now, consumed_nonces: [] });
-  assert.equal(envelope.verifyClientEnvelope(created, call('2025-12-31T23:59:59.000Z'), enrolled).code, 'not_yet_valid');
+  assert.equal(envelope.verifyClientEnvelope(created, call('2025-12-31T23:59:50.000Z'), enrolled).code, 'not_yet_valid');
   assert.equal(envelope.verifyClientEnvelope(created, call('2026-01-01T00:01:00.000Z'), enrolled).code, 'expired');
   assert.equal(envelope.verifyClientEnvelope(created, call('2026-01-01T00:00:59.999Z'), enrolled).ok, true);
 });
@@ -136,4 +136,24 @@ test('refusal messages are bounded and fixed per code', () => {
     assert.ok(typeof message === 'string' && message.length > 0 && message.length <= 200, code);
   }
   assert.equal(envelope.refusalMessage('nonexistent'), 'the envelope was refused');
+});
+
+test('clock skew: a not-before within MAX_CLOCK_SKEW_MS is accepted, beyond it is not_yet_valid, and expiry gets no allowance', () => {
+  const { privateKey, keyId, publicKeyBase64url } = envelope.createClientKey();
+  const enrolled = [{ client_id: 'agent-x', key_id: keyId, public_key: publicKeyBase64url }];
+  const issuedAt = Date.parse('2026-01-01T00:00:00.000Z');
+  const created = envelope.createClientEnvelope({
+    client_id: 'agent-x', workspace_id: 'w', op: 'tools/list', args: {}, now: new Date(issuedAt), ttlMs: 60000,
+  }, privateKey);
+  const verify = (nowMs, store) => envelope.verifyClientEnvelope(created, {
+    client_id: 'agent-x', workspace_id: 'w', op: 'tools/list', args: {}, now: new Date(nowMs).toISOString(), consumed_nonces: [],
+  }, enrolled, store ? { nonceStore: store } : {});
+  const skew = envelope.MAX_CLOCK_SKEW_MS;
+  assert.ok(skew >= 1000 && skew <= 10000, 'a few seconds, not minutes');
+  assert.equal(verify(issuedAt - skew + 1000).ok, true, 'the verifier clock 1 s inside the allowance');
+  assert.equal(verify(issuedAt - skew).ok, true, 'exactly at the allowance');
+  assert.equal(verify(issuedAt - skew - 1).code, 'not_yet_valid', 'one millisecond beyond the allowance');
+  assert.equal(verify(issuedAt + 60000).code, 'expired', 'the window closes at expires_at, with no skew added');
+  assert.equal(verify(issuedAt + 60000 - 1).ok, true);
+  assert.equal(envelope.MAX_CLOCK_SKEW_MS, REFERENCE_SKEW_MS, 'the reference verifier and the production verifier agree');
 });

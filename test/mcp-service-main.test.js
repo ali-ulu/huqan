@@ -170,7 +170,7 @@ test('a revoked client is refused on the next request without restarting the ser
   fs.mkdirSync(stateDir);
   const port = await freePort();
   const init = spawnSync(process.execPath, [MAIN, 'init', '--name', 'levh', '--state-dir', stateDir,
-    '--public-dir', publicDir, '--port', String(port), '--operator', 'DESKTOP\operator', '--workspace-root', workspaceRoot],
+    '--public-dir', publicDir, '--port', String(port), '--operator', 'DESKTOP\\operator', '--workspace-root', workspaceRoot],
   { encoding: 'utf8', env: CHILD_ENV, cwd: dir });
   assert.equal(init.status, 0, init.stderr);
 
@@ -198,9 +198,7 @@ test('a revoked client is refused on the next request without restarting the ser
   const key = createClientKey();
   const message = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
   const call = () => new Promise((resolve, reject) => {
-    const envelope = createClientEnvelope({ client_id: 'agent-x', workspace_id: workspaceId, op: message.method, args: message.params,
-      // Issued a second ago: two processes' clocks can disagree by a tick on Windows.
-      now: new Date(Date.now() - 1000).toISOString() }, key.privateKey);
+    const envelope = createClientEnvelope({ client_id: 'agent-x', workspace_id: workspaceId, op: message.method, args: message.params }, key.privateKey);
     const request = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/', headers: {
       'x-huqan-client': 'agent-x',
       'x-huqan-mcp-envelope': Buffer.from(JSON.stringify(envelope), 'utf8').toString('base64url'),

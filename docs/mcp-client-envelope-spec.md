@@ -130,7 +130,7 @@ emits.
 | 1 | Structure: required fields, types, bounds, version, TTL window | `malformed` |
 | 2 | Known key: `client_id` is enrolled and `key_id` is the active key for it | `unknown_key` |
 | 3 | Signature: Ed25519 verify over `DOMAIN \|\| canonicalJson(unsigned)` | `signature_invalid` |
-| 4 | Freshness: `issued_at <= now < expires_at` | `not_yet_valid` / `expired` |
+| 4 | Freshness: `issued_at - MAX_CLOCK_SKEW_MS <= now < expires_at` | `not_yet_valid` / `expired` |
 | 5 | Nonce replay: the nonce has not been consumed (§6) | `replayed` |
 | 6 | Binding: `client_id`, `workspace_id` and `op` equal the actual call | `binding_mismatch` |
 | 7 | Arguments: `args_sha256` equals `sha256Hex(canonicalJson(args))` | `args_mismatch` |
@@ -144,6 +144,13 @@ requirement this document carries is only that the envelope is verified
 Step 4 reports two codes because the two ends of the window are different
 conditions: `not_yet_valid` means the envelope's clock is ahead of the server's,
 `expired` means the window has closed. `expired` is inclusive at `expires_at`.
+
+`MAX_CLOCK_SKEW_MS` is 5000. Client and server are separate processes whose
+clock reads can differ by a few milliseconds, so an envelope stamped "now" may
+arrive at a verifier whose clock is slightly behind. The allowance applies to
+the not-before end only: `expires_at` is not extended, so the window never
+grows past `MAX_TTL_MS`, and a nonce store must retain a record at least until
+`expires_at + MAX_CLOCK_SKEW_MS` (the durable store's sweep grace is 60 s).
 
 Step 6 is the refinement ADR-017 §4 asks for when it says the envelope must
 "bind the client and workspace to the operation and its arguments": the

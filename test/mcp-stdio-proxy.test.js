@@ -174,15 +174,15 @@ test('an unreachable endpoint answers a bounded JSON-RPC error instead of crashi
 
 test('parseProxyArgs takes an argv element whole, spaces and all, and never a following option as a value', () => {
   const base = ['--url', 'http://127.0.0.1:47921', '--client', 'agent x', '--workspace', '0123456789abcdef'];
-  const args = proxy.parseProxyArgs([...base, '--key-file', 'C:\Users\John Doe\seed.txt']);
-  assert.equal(args.keyFile, 'C:\Users\John Doe\seed.txt');
+  const args = proxy.parseProxyArgs([...base, '--key-file', 'C:\\Users\\John Doe\\seed.txt']);
+  assert.equal(args.keyFile, 'C:\\Users\\John Doe\\seed.txt');
   assert.equal(args.client, 'agent x');
   // An option name inside another option's value is not an option.
   const tricky = proxy.parseProxyArgs(['--url', 'http://127.0.0.1:47921', '--client', 'a --workspace b', '--workspace', '0123456789abcdef', '--key-file', 'k']);
   assert.equal(tricky.client, 'a --workspace b');
   assert.equal(tricky.workspaceId, '0123456789abcdef');
   assert.throws(() => proxy.parseProxyArgs([...base, '--key-file', '--client']), /--key-file/);
-  assert.equal(proxy.parseProxyArgs('--url http://127.0.0.1:1 --client c --workspace 0123456789abcdef --key-file "C:\k k\s.txt"').keyFile, 'C:\k k\s.txt');
+  assert.equal(proxy.parseProxyArgs('--url http://127.0.0.1:1 --client c --workspace 0123456789abcdef --key-file "C:\\k k\\s.txt"').keyFile, 'C:\\k k\\s.txt');
 });
 
 test('a frame the envelope cannot sign is answered with an error and the proxy keeps serving', async (t) => {
