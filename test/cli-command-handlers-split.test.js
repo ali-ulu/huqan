@@ -27,8 +27,8 @@ describe('the CLI command table lives in lib/ (#3101)', () => {
     const handlers = createCliCommandHandlers({ callMcpTool: () => null, createApprovalStoreFromKernel: () => null });
     assert.ok(Object.isFrozen(handlers));
     assert.equal(Object.getPrototypeOf(handlers), null);
-    // 45 since #3998 added `store` (ADR-018 §2).
-    assert.equal(Object.keys(handlers).length, 45);
+    // 45 since #3998 added `store` (ADR-018 §2); 46 since #3999 added `mcp` (ADR-018 §3).
+    assert.equal(Object.keys(handlers).length, 46);
     assert.equal(typeof handlers.inference, 'function');
     assert.equal(handlers['yardım'](), require('../lib/cli-help').cliHelpText());
   });
