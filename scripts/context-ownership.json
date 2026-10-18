@@ -3895,6 +3895,10 @@
   "lib/command-parser-store-args.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
+  "lib/command-parser-mcp-args.js": {
+   "context": "AgentAction",
+   "evidence": "#3999 CLI parsing for huqan mcp (ADR-018 section 3), same owner as the other command-parser-*-args files"
   }
  },
  "platform": {
@@ -5101,8 +5105,7 @@
   "lib/cli-store-commands.js": {
    "kind": "entry",
    "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 \u00a72)"
-  }
- },
+  },
   "lib/mcp/client-envelope.js": {
    "kind": "entry",
    "evidence": "#3999 production MCP client envelope (ADR-018 section 4)"
@@ -5131,14 +5134,11 @@
    "kind": "entry",
    "evidence": "#3999 service entry point of a protected MCP server (ADR-018 section 3)"
   },
-  "lib/command-parser-mcp-args.js": {
-   "kind": "entry",
-   "evidence": "#3999 CLI parsing for huqan mcp (ADR-018 section 3)"
-  },
   "lib/cli-mcp-service-commands.js": {
    "kind": "entry",
    "evidence": "#3999 CLI surface for huqan mcp status"
-  },
+  }
+ },
  "unassigned": {},
  "outOfScope": [
   {
