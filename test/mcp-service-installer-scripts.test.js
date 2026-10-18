@@ -85,6 +85,19 @@ test('uninstall keeps the registry for audit and removes the program directory',
   assert.match(uninstall, /run this from an elevated PowerShell/);
 });
 
+test('uninstall targets the very program directory the installer creates', () => {
+  const programDir = (source) => /\$ProgramDir = "([^"]+)"/.exec(source)[1];
+  assert.equal(programDir(uninstall), programDir(install));
+});
+
+test('the installer compares SIDs, not account names, and tolerates a service that is still starting', () => {
+  assert.match(install, /function ConvertTo-SidText/);
+  assert.ok(!install.includes('$rule.IdentityReference.Value -eq'), 'no name comparison against the service account');
+  assert.match(install, /\$failure\.PSObject\.Properties\['Response'\]/);
+  assert.ok(install.indexOf("Fail \"the service answered an unsigned request") > install.indexOf('if ($status -eq 403) { return }'),
+    'the unsigned-answer failure is raised outside the try, where its own catch cannot swallow it');
+});
+
 test('the PowerShell parser accepts both scripts', { skip: process.platform !== 'win32' && 'PowerShell is checked on Windows' }, () => {
   for (const name of SCRIPTS) {
     const command = `$errors = $null; [System.Management.Automation.Language.Parser]::ParseFile('${path.join(DIR, name)}', [ref]$null, [ref]$errors) | Out-Null; $errors.Count`;

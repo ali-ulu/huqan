@@ -168,16 +168,39 @@ function Test-Installed {
   # The listener must be up and it must refuse an unsigned request: a server
   # that answers without an envelope is not the boundary this install promises.
   for ($wait = 0; $wait -lt 20; $wait++) {
+    # Read the outcome inside the try, decide outside it: a Fail thrown in the
+    # try would be swallowed by its own catch. A refused connection (the service
+    # is still starting) has no response at all, which strict mode would turn
+    # into a terminating error if the status were read unguarded.
+    $status = $null
     try {
       $response = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -Method POST -Body '{}' -ContentType 'application/json' -UseBasicParsing -TimeoutSec 2
-      Fail "the service answered an unsigned request with HTTP $($response.StatusCode); the envelope check is not in place"
+      $status = [int]$response.StatusCode
     } catch {
-      $code = $_.Exception.Response.StatusCode.value__
-      if ($code -eq 403) { return }
-      Start-Sleep -Seconds 1
+      $failure = $_.Exception
+      if ($failure.PSObject.Properties['Response'] -and $null -ne $failure.Response) {
+        $status = [int]$failure.Response.StatusCode
+      }
     }
+    if ($status -eq 403) { return }
+    if ($null -ne $status -and $status -lt 400) {
+      Fail "the service answered an unsigned request with HTTP $status; the envelope check is not in place"
+    }
+    Start-Sleep -Seconds 1
   }
   Fail "the service did not reach a fail-closed listener on 127.0.0.1:$Port"
+}
+
+# Get-Acl reports account names (NT AUTHORITY\SYSTEM), never the SIDs the
+# allow-list is written in: compare SIDs, falling back to the name only for an
+# identity that does not translate.
+function ConvertTo-SidText([object]$Identity) {
+  try {
+    if ($Identity -is [Security.Principal.IdentityReference]) { $account = $Identity } else { $account = New-Object Security.Principal.NTAccount([string]$Identity) }
+    return $account.Translate([Security.Principal.SecurityIdentifier]).Value
+  } catch {
+    return [string]$Identity
+  }
 }
 
 function Assert-Protected {
@@ -185,12 +208,14 @@ function Assert-Protected {
     $item = Get-Item -LiteralPath $path -Force
     if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { Fail "$path is a link" }
   }
+  $serviceSid = ConvertTo-SidText $ServiceAccount
+  $allowed = @('S-1-5-18', 'S-1-5-32-544', (ConvertTo-SidText $OperatorAccount), $serviceSid)
   $stateAcl = Get-Acl -LiteralPath $StateDir
   foreach ($rule in $stateAcl.Access) {
     if ($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow) { continue }
-    $who = $rule.IdentityReference.Value
-    if ($who -notin @('S-1-5-18', 'S-1-5-32-544', $OperatorAccount, $ServiceAccount)) {
-      Fail "$StateDir grants access to $who; only SYSTEM, Administrators, the operator and the service SID may appear"
+    $who = ConvertTo-SidText $rule.IdentityReference
+    if ($who -notin $allowed) {
+      Fail "$StateDir grants access to $($rule.IdentityReference.Value); only SYSTEM, Administrators, the operator and the service SID may appear"
     }
   }
   # The memory store is the runtime's business: the service SID must hold no
@@ -198,7 +223,7 @@ function Assert-Protected {
   if (Test-Path -LiteralPath $StoreRoot) {
     $storeAcl = Get-Acl -LiteralPath $StoreRoot
     foreach ($rule in $storeAcl.Access) {
-      if ($rule.IdentityReference.Value -eq $ServiceAccount) {
+      if ((ConvertTo-SidText $rule.IdentityReference) -eq $serviceSid) {
         Fail "$ServiceAccount holds an ACE on $StoreRoot; MCP servers reach the store through the runtime"
       }
     }

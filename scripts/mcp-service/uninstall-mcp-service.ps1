@@ -18,7 +18,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3
 
 $ServiceName = "huqan-mcp-$Name"
-$ProgramDir = "C:\Program Files\huqan-mcp-$Name"
+$ProgramDir = "C:\Program Files\huqan-mcp\$Name"
 $DataDir = "C:\ProgramData\huqan\mcp\$Name"
 
 $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
