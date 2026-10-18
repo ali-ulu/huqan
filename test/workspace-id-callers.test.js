@@ -16,7 +16,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { test } = require('node:test');
+const { after, test } = require('node:test');
 
 const { isRecordInWorkspace, WORKSPACE_ID_INVALID } = require('../lib/workspace-id');
 const { buildApprovalRequest } = require('../lib/approval-schema');
@@ -38,9 +38,14 @@ function rejectsWorkspace(fn) {
   assert.throws(fn, (error) => error.code === WORKSPACE_ID_INVALID);
 }
 
+// A private directory, not a fixed name in the shared temp dir: the stores
+// these modules hang off memoryPath must never land somewhere predictable.
+const storeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4032-store-'));
+after(() => fs.rmSync(storeDir, { recursive: true, force: true }));
+
 function graphOf(nodes = [], edges = []) {
   return {
-    memoryPath: path.join(os.tmpdir(), 'huqan-4032-never-written.json'),
+    memoryPath: path.join(storeDir, 'memory.json'),
     getNodes: () => nodes,
     getAllEdges: () => edges,
   };
