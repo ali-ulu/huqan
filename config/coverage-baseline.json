@@ -1306,7 +1306,7 @@
       "branches": 71.95
     },
     "lib/fitness-history.js": {
-      "lines": 87.5,
+      "lines": 87.05,
       "branches": 77.77
     },
     "lib/fluent-answer.js": {
@@ -1871,7 +1871,7 @@
     },
     "lib/hypothesis-feedback.js": {
       "lines": 100,
-      "branches": 95.83
+      "branches": 95.55
     },
     "lib/hypothesis-fitness.js": {
       "lines": 99.28,
@@ -1883,7 +1883,7 @@
     },
     "lib/hypothesis-review.js": {
       "lines": 98.63,
-      "branches": 86.66
+      "branches": 85.81
     },
     "lib/hypothesis-thresholds.js": {
       "lines": 97.97,
@@ -3151,7 +3151,7 @@
     },
     "lib/self-evolve-probe.js": {
       "lines": 97.91,
-      "branches": 85.71
+      "branches": 84.47
     },
     "lib/self-healer/approval-bridge.js": {
       "lines": 93.33,

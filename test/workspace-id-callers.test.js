@@ -162,9 +162,9 @@ test('#4032 through the MCP server an over-long workspace id is INVALID_INPUT, n
   const { createServer } = require('../mcpServer');
   const Kernel = require('../kernel');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4032-mcp-'));
+  const kernel = new Kernel({ noLoad: true, loadPlugins: false, useSQLite: false, memoryPath: path.join(dir, 'k.json') });
+  const server = createServer({ kernel, operatorToken: 'test-operator' });
   try {
-    const kernel = new Kernel({ noLoad: true, loadPlugins: false, useSQLite: false, memoryPath: path.join(dir, 'k.json') });
-    const server = createServer({ kernel, operatorToken: 'test-operator' });
     const response = server.handleRequest({
       jsonrpc: '2.0', id: 1, method: 'tools/call',
       params: { name: 'huqan.self-evolve', arguments: { workspaceId: TOO_LONG_ID } },
@@ -173,6 +173,26 @@ test('#4032 through the MCP server an over-long workspace id is INVALID_INPUT, n
     assert.equal(envelope.ok, false);
     assert.equal(envelope.error.code, 'INVALID_INPUT');
   } finally {
+    // createServer opens the approval store and the experience journal beside
+    // the injected kernel's memoryPath, and the kernel's own graph may open a
+    // handle there too. Windows refuses to unlink a file another handle still
+    // holds, so every handle is released before the temp dir is removed.
+    server.close();
+    kernel.graph.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('#4032 a stop check that fails for a reason other than the id is not swallowed', () => {
+  // Only a TypeError is the canonical rule rejecting the id; any other failure
+  // is internal and must reach the caller unchanged instead of being reported
+  // as an invalid workspace id.
+  const { createMcpToolDispatch } = require('../lib/mcp/tool-dispatch');
+  const { callTool } = createMcpToolDispatch({ withTransientAgent: async () => ({}) });
+  const failure = new Error('the stop ledger could not be read');
+  assert.throws(
+    () => callTool({}, { name: 'huqan.self-evolve', arguments: {} },
+      { emergencyStop: { check() { throw failure; } } }),
+    (error) => error === failure,
+  );
 });
