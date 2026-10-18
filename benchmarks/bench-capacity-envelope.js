@@ -194,6 +194,49 @@ function measureReads(kernel, workspaceId, samples) {
   };
 }
 
+function createLearnState() {
+  return { busyFailures: 0, otherFailures: 0, emptyPages: 0, firstFailure: null,
+    failureExamples: [], learnedWrites: 0, learnedFacts: 0, reviewedWrites: 0,
+    rejectedWrites: 0, quarantinedWrites: 0, skippedWrites: 0 };
+}
+
+function recordLearnFailure(state, error) {
+  if (isSqliteBusyError(error)) state.busyFailures += 1;
+  else state.otherFailures += 1;
+  const message = String(error?.message || error || 'Unknown learn failure');
+  if (!state.firstFailure) state.firstFailure = message;
+  if (state.failureExamples.length < 5) {
+    state.failureExamples.push({ code: String(error?.code || 'LEARN_FAILED'), message });
+  }
+}
+
+// An ok envelope can describe a pending approval without writing any fact.
+// Require the admission decision and fact count to agree before counting a write.
+function recordLearnOutcome(state, result) {
+  if (result?.ok === false) {
+    recordLearnFailure(state, result.error);
+    return false;
+  }
+  const data = result?.data;
+  const admission = data?.admission;
+  if (result?.ok !== true || !Number.isSafeInteger(data?.learned) || data.learned < 0
+    || !admission || (data.learned > 0 && (admission.outcome !== 'allow' || admission.graphWrite !== true))) {
+    recordLearnFailure(state, { code: 'INVALID_LEARN_RESULT', message: 'Missing or inconsistent learn result' });
+    return false;
+  }
+  if (data.learned > 0) {
+    state.learnedWrites += 1;
+    state.learnedFacts += data.learned;
+    return true;
+  }
+  const counters = { review: 'reviewedWrites', reject: 'rejectedWrites',
+    quarantine: 'quarantinedWrites', allow: 'skippedWrites' };
+  const counter = Object.hasOwn(counters, admission.outcome) ? counters[admission.outcome] : null;
+  if (!counter) recordLearnFailure(state, { code: 'INVALID_LEARN_RESULT', message: 'Unknown learn admission outcome' });
+  else state[counter] += 1;
+  return false;
+}
+
 function childMain() {
   const argOf = (name) => {
     const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -219,7 +262,7 @@ function childMain() {
   process.stdout.write('__READY__\n');
   waitForRelease(releasePath);
   const barrierEnd = process.hrtime.bigint();
-  const state = { busyFailures: 0, otherFailures: 0, emptyPages: 0, firstFailure: null };
+  const state = createLearnState();
   const samples = [];
   for (let i = 0; i < writes; i += 1) {
     const t0 = process.hrtime.bigint();
@@ -227,18 +270,15 @@ function childMain() {
     try {
       // No admission bypass: this is the real product learn path.
       const result = kernel.learn(`${label} kapasite olcumu ${i} elma meyvedir`, { workspaceId: WORKSPACE });
-      if (result && result.ok === false) {
-        if (isSqliteBusyError(result.error)) state.busyFailures += 1;
-        else state.otherFailures += 1;
-      } else {
+      const learned = recordLearnOutcome(state, result);
+      if (result?.ok === true) {
         const page = kernel.memory.list({ workspaceId: WORKSPACE, limit: 100, offset: 0 });
-        ok = !!(page && page.ok === true && Array.isArray(page.memories) && page.memories.length === MEMORY_SEED);
-        if (!ok) state.emptyPages += 1;
+        const pageOk = !!(page && page.ok === true && Array.isArray(page.memories) && page.memories.length === MEMORY_SEED);
+        ok = learned && pageOk;
+        if (!pageOk) state.emptyPages += 1;
       }
     } catch (error) {
-      if (isSqliteBusyError(error)) state.busyFailures += 1;
-      else state.otherFailures += 1;
-      if (!state.firstFailure) state.firstFailure = String((error && error.message) || error);
+      recordLearnFailure(state, error);
     }
     const t1 = process.hrtime.bigint();
     // writeAt/endAt are relative to the barrier, so the parent can derive queue
@@ -319,6 +359,8 @@ async function runLearnOnce(dbPath, memoryPath, children, writesPerChild, verbos
     leg,
     children,
     writesPerChild,
+    attemptedWrites: procs.reduce((sum, r) => sum + r.attempts, 0),
+    // Retained for existing report consumers; these are attempts, not learned writes.
     totalWrites: procs.reduce((sum, r) => sum + r.attempts, 0),
     wallMs: Number(wallMs.toFixed(1)),
     writePhaseMs,
@@ -326,6 +368,9 @@ async function runLearnOnce(dbPath, memoryPath, children, writesPerChild, verbos
     ...summarizeLatencies(latencies),
     sqliteBusyFailures: busyFailures,
     otherFailures,
+    ...Object.fromEntries(['learnedWrites', 'learnedFacts', 'reviewedWrites', 'rejectedWrites',
+      'quarantinedWrites', 'skippedWrites'].map(key => [key, procs.reduce((sum, r) => sum + r[key], 0)])),
+    failureExamples: procs.flatMap(r => r.failureExamples.map(error => ({ label: r.label, ...error }))).slice(0, 5),
     emptyPages,
     walDuringWrites,
   };
@@ -423,7 +468,8 @@ async function main() {
     writesPerChild,
     contention,
     read,
-    learn: { workload: 'kernel.learn (admission, no bypass)', perN: learnPerN },
+    learn: { workload: 'kernel.learn (default admission; includes pending reviews, no bypass)',
+      latencyScope: 'all attempts, including review/reject/no-op/failure; not learned-write throughput', perN: learnPerN },
     open: {
       rss: {
         beforeBytes: rssBefore,
@@ -459,4 +505,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseSizes, walSizes, DEFAULT_SIZES };
+module.exports = { parseSizes, walSizes, DEFAULT_SIZES, createLearnState, recordLearnOutcome, recordLearnFailure };
