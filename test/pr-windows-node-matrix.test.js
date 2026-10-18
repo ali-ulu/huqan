@@ -1,14 +1,17 @@
 'use strict';
 
 /**
- * The runtime-test matrix runs Windows on Node 24 only for pull requests and
- * keeps Windows x Node 22 on main pushes, the nightly and manual runs.
+ * The runtime-test matrix runs Windows and macOS on Node 24 only for pull
+ * requests, and keeps Windows x Node 22 (and macOS x Node 22) on main pushes,
+ * the nightly and manual runs.
  *
  * Measured over 3-5 Oct 2026 (1700 runs): Windows shards were 47% of all
  * runner time, and each PR started 20 test jobs. Dropping the PR's Windows x
- * Node 22 legs takes it to 15. These assertions pin the scope of that cut, so
- * it cannot quietly widen to main (losing the post-merge signal) or narrow
- * Linux (losing Node 22 coverage on PRs altogether).
+ * Node 22 legs takes it to 15. #4028 added macOS to the PR arm (seven of the
+ * last nine nightly alarm issues were macOS-only) and cuts its Node 22 leg the
+ * same way, so a PR now starts 20 jobs. These assertions pin the scope of
+ * those cuts, so they cannot quietly widen to main (losing the post-merge
+ * signal) or narrow Linux (losing Node 22 coverage on PRs altogether).
  */
 
 const assert = require('node:assert/strict');
@@ -36,13 +39,24 @@ test('the workflow still parses and carries the exclude expression', () => {
   assert.match(exclude, /^\$\{\{ fromJSON\(github\.event_name == 'pull_request'/);
 });
 
-test('the runtime-test matrix still lists both Node versions and Windows', () => {
+test('the runtime-test matrix still lists both Node versions, Windows and macOS', () => {
   assert.match(runtimeTest, /^\s+node-version: \[22, 24\]$/m);
   assert.match(runtimeTest, /'\["ubuntu-latest", "windows-latest"\]'/);
+  assert.match(runtimeTest, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
 });
 
-test('pull requests drop only the Windows x Node 22 legs', () => {
-  assert.deepEqual(excludeFor('pull_request'), [{ os: 'windows-latest', 'node-version': 22 }]);
+test('pull requests run macOS as well as Windows and Ubuntu', () => {
+  assert.match(
+    runtimeTest,
+    /fromJSON\(\(github\.event_name == 'pull_request' \|\| github\.event_name == 'schedule' \|\| github\.event_name == 'workflow_dispatch'\) && '\["ubuntu-latest", "windows-latest", "macos-latest"\]'/,
+  );
+});
+
+test('pull requests drop the Windows and macOS x Node 22 legs', () => {
+  assert.deepEqual(excludeFor('pull_request'), [
+    { os: 'windows-latest', 'node-version': 22 },
+    { os: 'macos-latest', 'node-version': 22 },
+  ]);
 });
 
 test('main pushes, the nightly and manual runs keep the full matrix', () => {

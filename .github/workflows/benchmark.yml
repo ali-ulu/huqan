@@ -489,22 +489,29 @@ jobs:
         # PRs and main pushes exercise the supported Node 22 and Node 24
         # packages on Linux and Windows. `engines` is >=22.13.0, so Node 24 is a
         # supported runtime; leaving it to the nightly alone let a Node-24-only
-        # regression merge and surface a day later. Only scheduled/manual
-        # runs still widen to macOS.
-        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
+        # regression merge and surface a day later. PRs also run macOS now:
+        # #4028 measured seven of the last nine nightly alarm issues as
+        # macOS-only, each caught a day after the merge because the PR and push
+        # arms both omitted it. The cost is modest (macOS shards averaged 247 s
+        # against Windows' 503 s on run 39134179890), so the merge-time arm
+        # carries it and the nightly keeps macOS on both Node versions.
+        os: ${{ fromJSON((github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
         node-version: [22, 24]
         shard: [1, 2, 3, 4, 5]
-        # Pull requests run Windows on Node 24 only; Linux keeps both Node
-        # versions, and main pushes, the nightly and manual runs keep the
+        # Pull requests run Windows and macOS on Node 24 only; Linux keeps both
+        # Node versions, and main pushes, the nightly and manual runs keep the
         # Windows x Node 22 legs. Measured over 3-5 Oct (1700 runs): Windows
         # shards were 47% of all runner time and every PR started 20 test jobs,
         # enough on its own to fill the hosted concurrency pool -- the likely
         # cause of the "job was not acquired by Runner" cancellations on main.
-        # This drops five PR jobs (20 -> 15). A Node-22-only Windows break now
-        # surfaces on the main push replay instead of the PR. The required
-        # check is the "npm test gate" aggregate, not a per-leg name, so no
-        # ruleset context moves.
-        exclude: ${{ fromJSON(github.event_name == 'pull_request' && '[{"os":"windows-latest","node-version":22}]' || '[]') }}
+        # This drops the Node-22 legs (20 -> 15 before macOS, 25 -> 20 with it).
+        # A Node-22-only break now surfaces on the main push replay instead of
+        # the PR. The macOS x Node 22 leg follows the same rule: the macOS bug
+        # class is OS path/filesystem semantics, not Node-version-specific, so
+        # Node 24 alone catches it at merge time. The required check is the
+        # "npm test gate" aggregate, not a per-leg name, so no ruleset context
+        # moves.
+        exclude: ${{ fromJSON(github.event_name == 'pull_request' && '[{"os":"windows-latest","node-version":22},{"os":"macos-latest","node-version":22}]' || '[]') }}
     defaults:
       run:
         shell: bash

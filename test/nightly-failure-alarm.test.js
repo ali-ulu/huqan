@@ -262,16 +262,19 @@ test('every shard uploads its failure sidecar even when the shard fails', () => 
   assert.match(upload.slice(0, 700), /matrix\.node-version/);
 });
 
-test('workflow runs the selected suite on Ubuntu and Windows for PRs and main pushes', () => {
+test('workflow runs the selected suite on Ubuntu, Windows and macOS for PRs and main pushes', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml'), 'utf8');
   const job = workflow.slice(workflow.indexOf('  runtime-test:'));
-  assert.match(job, /os: \$\{\{ fromJSON\(\(github\.event_name == 'schedule'/);
+  assert.match(job, /os: \$\{\{ fromJSON\(\(github\.event_name == 'pull_request'/);
   // #3157 decision A: the PR arm covers Ubuntu and Windows so Windows-only
   // breakage is caught before merge, not by the nightly. #3177 follow-up: a
   // main push now runs that same arm instead of skipping the shards, because a
   // red PR (including the required gate) demonstrably reached main. The
   // supported Node 24 line runs on the PR path too, so a Node-24-only
-  // regression is caught before merge; only macOS still widens to the nightly.
+  // regression is caught before merge. #4028 decision A: the PR arm also
+  // carries macOS, because seven of the last nine nightly alarm issues were
+  // macOS-only and were caught a day after the merge; only the macOS x Node 22
+  // leg still widens to the nightly (see the exclude below).
   assert.match(job, /github\.event_name == 'workflow_dispatch'\) && '\["ubuntu-latest", "windows-latest", "macos-latest"\]' \|\| '\["ubuntu-latest", "windows-latest"\]'/);
   assert.match(job, /\["ubuntu-latest", "windows-latest", "macos-latest"\]/);
   assert.match(job, /node-version: \[22, 24\]/);
