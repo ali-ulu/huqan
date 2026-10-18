@@ -105,6 +105,16 @@ const ALLOWED = [
       + 'Resolved by injecting the runtime instead of requiring its factory.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/mcp/service-main.js',
+    to: 'mcpServer.js',
+    why: 'The protected MCP service entry point builds the ordinary MCP server '
+      + '(mcpServer.createServer) behind the loopback envelope check, late in '
+      + 'serve() so the app-root guard runs first. The gate and admission '
+      + 'policy stay exactly where they were. Revisit when the service can be '
+      + 'constructed without pulling the whole runtime.',
+    review_by: '2026-12-31',
+  },
 ];
 
 function isAllowed(from, to) {
