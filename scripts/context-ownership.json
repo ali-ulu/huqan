@@ -2808,6 +2808,10 @@
    "context": "Trust",
    "evidence": "coder-experience-runtime.md#runtime-ownership"
   },
+  "lib/experience/replacement-sequence-adaptation.js": {
+   "context": "Trust",
+   "evidence": "source-sealed per-step sequence adaptation and qualification binding"
+  },
   "lib/experience/expression-adaptation.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
@@ -7559,6 +7563,11 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/replacement-sequence-adaptation.js": {
+   "owner": "Trust",
+   "consumers": ["AgentAction"],
+   "evidence": "source-sealed mixed sequence transfer to adapted target methods"
   },
   "lib/experience/expression-adaptation.js": {
    "owner": "Trust",

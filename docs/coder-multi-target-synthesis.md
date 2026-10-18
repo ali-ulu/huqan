@@ -65,11 +65,19 @@ budget further reduces retained proposals and increases reported omissions.
 Tests and held-out results never select the joint proposals. Ordinary authority,
 eight shared attempts, and whole-sequence rollback remain in force.
 
-Multi-target requests containing a string target currently reject
-`reuseMemory: true` or any `rememberFile` with
-`SYNTHESIS_MULTI_TARGET_STRING_MEMORY_UNSUPPORTED`. They do not fall back to fresh
-search or claim a learned string sequence. The following memory contract applies
-to numeric-only targets.
+With a journal, mixed string/numeric sequences can also be remembered and
+reused under different project paths, function names and parameter names.
+Every step reuses the existing closed AST adapter; the sealed method's operators,
+constants and string stages remain fixed. The original candidate bytes and
+schema version stay unchanged. Adapted methods are transient derivatives whose
+parent hash and evidence refer to the sealed source procedure.
+
+The selection stage proposes an adaptation; the runtime independently derives it
+again from the actual target files after checking the source seal and sequence
+hash. Qualification fixtures retain their source paths and names. Their paths
+are mapped to the targets and each file receives only its own identifier and
+function-anchor binding. Property method names remain unchanged. A forged
+proposal, source record or qualification binding supplies no authority.
 
 With a journal, `synthesis.rememberFile` explicitly stores a kept successful
 sequence as a source-bound `replacement_sequence` candidate. Unauthorized,
@@ -79,7 +87,8 @@ as described in [replacement sequence memory](coder-replacement-sequence-memory.
 `synthesis.reuseMemory: true` checks the validated joint source method against
 each target's own training examples before the ordinary routing, qualification,
 trust and mutation gates run. Target paths bind positionally to the stored
-steps while preserving their method text and order. Successful reuse reports zero fresh enumeration and does not create a
+steps while preserving their operators, constants, string stages and order;
+function and parameter names bind to each target. Successful reuse reports zero fresh enumeration and does not create a
 duplicate record, even if `rememberFile` names a different output. This is not
 a total-cost or speedup measurement. If no valid applicable method exists,
 fresh synthesis may run; corrupt source/artifact errors stop immediately.
@@ -96,7 +105,7 @@ support arbitrary source grammars, or generate requirements from natural text.
 
 Focused checks: `node --test test/coder-multi-target-synthesis.test.js
 test/coder-multi-target-learning.test.js test/coder-arithmetic-synthesis.test.js
-test/coder-mixed-target-synthesis.test.js`.
+test/coder-mixed-target-synthesis.test.js test/coder-mixed-target-learning.test.js`.
 Native coverage includes an
 unauthorized attempt, two successful synthesized files, and independent
 acceptance failure restoring both files. Pure coverage includes unchanged

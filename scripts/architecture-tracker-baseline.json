@@ -445,6 +445,7 @@
       "lib/experience/reconciliation.js": "Application",
       "lib/experience/reflective-promotion.js": "Application",
       "lib/experience/repair.js": "Application",
+      "lib/experience/replacement-sequence-adaptation.js": "Application",
       "lib/experience/router.js": "Application",
       "lib/experience/run-repair.js": "Application",
       "lib/experience/runtime-seam.js": "Application",
@@ -2668,6 +2669,7 @@
         "lib/experience/compiler.js",
         "lib/experience/expression-adaptation.js",
         "lib/experience/learning-intake.js",
+        "lib/experience/replacement-sequence-adaptation.js",
         "lib/path-safety.js",
         "lib/task-identifier-lexer.js"
       ],
@@ -3239,6 +3241,7 @@
         "lib/experience/learning-intake.js",
         "lib/experience/personal-execution-model.js",
         "lib/experience/procedure-registry.js",
+        "lib/experience/replacement-sequence-adaptation.js",
         "lib/path-safety.js",
         "lib/task-identifier-lexer.js"
       ],
@@ -3300,6 +3303,11 @@
       "lib/experience/reflective-promotion.js": [
         "lib/experience/canary.js",
         "lib/experience/optimization-hypothesis.js"
+      ],
+      "lib/experience/replacement-sequence-adaptation.js": [
+        "lib/experience/compiler.js",
+        "lib/experience/expression-adaptation.js",
+        "lib/experience/procedure-data.js"
       ],
       "lib/experience/run-repair.js": [
         "lib/agent-exit-reasons.js",
