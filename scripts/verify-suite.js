@@ -48,6 +48,7 @@ const STAGES = [
   { name: 'security-invariants', command: ['npm', 'run', 'check:security-invariants', '--silent'] },
   { name: 'licenses', command: ['npm', 'run', 'check:licenses', '--silent'] },
   { name: 'docs-drift', command: ['npm', 'run', 'check:docs-drift', '--silent'] },
+  { name: 'single-definition', command: ['npm', 'run', 'check:single-definition', '--silent'] },
   // The tracker check compares the committed artifact against the live tree
   // relative to a git ref; without one it refuses to guess. origin/main is
   // the drift baseline a local pre-push run actually wants.

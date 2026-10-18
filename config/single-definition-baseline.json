@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "reasons": {
+    "lib/cross-workspace-access-gate.js": "Deliberate and documented: this gate must report an unusable workspace id as '' so it can refuse the crossing, not throw while deciding.",
+    "lib/observability/helpers.js": "Not a second rule: it wraps the canonical helper with required:true so an observability call cannot silently fall back to the default tenant.",
+    "lib/approval-schema.js": "Pending cleanup in #4032. Listed by #1099 itself but never migrated.",
+    "lib/conflict-candidate-review.js": "Pending cleanup in #4032.",
+    "lib/fitness-history.js": "Pending cleanup in #4032.",
+    "lib/graph-hypotheses.js": "Pending cleanup in #4032.",
+    "lib/hypothesis-feedback.js": "Pending cleanup in #4032.",
+    "lib/hypothesis-fitness.js": "Pending cleanup in #4032.",
+    "lib/hypothesis-review.js": "Pending cleanup in #4032.",
+    "lib/hypothesis-thresholds.js": "Pending cleanup in #4032.",
+    "lib/self-evolve-adapter.js": "Pending cleanup in #4032.",
+    "lib/self-evolve-probe.js": "Pending cleanup in #4032."
+  },
+  "rules": {
+    "normalizeWorkspaceId": [
+      "lib/workspace-id.js",
+      "lib/approval-schema.js",
+      "lib/conflict-candidate-review.js",
+      "lib/cross-workspace-access-gate.js",
+      "lib/fitness-history.js",
+      "lib/graph-hypotheses.js",
+      "lib/hypothesis-feedback.js",
+      "lib/hypothesis-fitness.js",
+      "lib/hypothesis-review.js",
+      "lib/hypothesis-thresholds.js",
+      "lib/observability/helpers.js",
+      "lib/self-evolve-adapter.js",
+      "lib/self-evolve-probe.js"
+    ]
+  }
+}

@@ -87,6 +87,9 @@ jobs:
       - name: Require identity documents to name HUQAN, not AXIOM (#3029)
         run: npm run check:naming-conformance
 
+      - name: Forbid a centralised helper from being re-declared (#4032)
+        run: npm run check:single-definition
+
       # The gates below shipped as `npm run` scripts but no workflow called
       # them, so a regression they exist to catch could land green.
       # Each is dependency-free -- they only read the source tree, the lockfile
