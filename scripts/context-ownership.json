@@ -3875,6 +3875,22 @@
   "lib/coder/string-synthesis.js": {
    "context": "AgentAction",
    "evidence": "model-free string repair planning"
+  },
+  "lib/protected-store-path.js": {
+   "context": "Memory",
+   "evidence": "#3998 ADR-018 \u00a72 protected per-workspace store layout and selection"
+  },
+  "lib/authority/store-migrate.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-018-agent-boundary-decisions.md"
+  },
+  "lib/authority/store-acl.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-018-agent-boundary-decisions.md"
+  },
+  "lib/command-parser-store-args.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
   }
  },
  "platform": {
@@ -5065,6 +5081,10 @@
   "lib/cognitive-lab-comparison-store.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cli-store-commands.js": {
+   "kind": "entry",
+   "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 \u00a72)"
   }
  },
  "unassigned": {},
@@ -7135,6 +7155,21 @@
     "Platform"
    ],
    "evidence": "ADR-017: bin/huqan-authority.js status reports the authority mode and the agent-user boundary together"
+  },
+  "lib/authority/store-migrate.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#3998 ADR-018 \u00a72: the store CLI composes `huqan store migrate` from this module"
+  },
+  "lib/protected-store-path.js": {
+   "owner": "Memory",
+   "consumers": [
+    "AgentAction",
+    "Platform"
+   ],
+   "evidence": "#3998 ADR-018 \u00a72: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
   },
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",

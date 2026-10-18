@@ -4,16 +4,30 @@ const os = require('os');
 const { resolveContainedPath, siblingPersistencePath } = require('./lib/memory-store-utils');
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 const { probeWritablePathSync } = require('./lib/secure-file-write');
+const { protectedMemoryPathIfSelected } = require('./lib/protected-store-path');
 
 function resolvePersistencePaths(opts = {}) {
   const cwd = path.resolve(opts.rootDir || process.cwd());
   const allowedRoots = [cwd, os.tmpdir()];
+  // ADR-018 §2: when the protected store is selected for this workspace it
+  // replaces the *derived* default, so nothing falls back to the working
+  // directory. An explicit `opts.memoryPath` is a choice, not a fallback, and
+  // still wins -- the criterion is about derivation, not about overriding a
+  // caller who named a path. Its directory joins the allowed roots so
+  // resolveContainedPath admits the path that is deliberately outside cwd.
+  const namedMemory = opts.memoryPath || readCompatibleEnvironmentVariable('MEMORY_PATH');
+  const protectedSelection = (opts.protected === false || namedMemory)
+    ? null
+    : protectedMemoryPathIfSelected({ workspaceRoot: cwd });
+  if (protectedSelection) allowedRoots.push(path.dirname(protectedSelection.memoryPath));
   const memoryPath = resolveContainedPath(
-    path.resolve(cwd, opts.memoryPath || readCompatibleEnvironmentVariable('MEMORY_PATH') || 'memory.json'),
+    protectedSelection ? protectedSelection.memoryPath : path.resolve(cwd, namedMemory || 'memory.json'),
     allowedRoots,
   );
   const dbPath = resolveContainedPath(
-    path.resolve(cwd, opts.dbPath || readCompatibleEnvironmentVariable('DB_PATH') || siblingPersistencePath(memoryPath, '.db')),
+    protectedSelection
+      ? protectedSelection.dbPath
+      : path.resolve(cwd, opts.dbPath || readCompatibleEnvironmentVariable('DB_PATH') || siblingPersistencePath(memoryPath, '.db')),
     [...allowedRoots, path.dirname(memoryPath)],
   );
   const backupBaseDir = resolveContainedPath(

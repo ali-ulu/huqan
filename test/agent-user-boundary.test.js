@@ -12,10 +12,15 @@ const { resolveAgentUserBoundary, AGENT_BOUNDARY, DEFAULT_WINDOWS_MARKER_PATH, D
 
 const MARKER = JSON.stringify({ v: MARKER_VERSION, agentUser: 'huqan-agent', session: 2, createdAt: '2026-10-16T00:00:00Z' });
 
-function resolver({ files = {}, platform = 'win32', trust = { ok: true }, trustThrows = false } = {}) {
+function resolver({ files = {}, platform = 'win32', trust = { ok: true }, trustThrows = false,
+  storeAcl = { ok: true }, migration = { ok: true }, storeAclThrows = false, migrationThrows = false } = {}) {
   let trustCalls = 0;
+  let storeAclCalls = 0;
+  let migrationCalls = 0;
   return {
     trustCalls: () => trustCalls,
+    storeAclCalls: () => storeAclCalls,
+    migrationCalls: () => migrationCalls,
     run: () => resolveAgentUserBoundary({
       platform,
       readFile: (file) => {
@@ -27,16 +32,28 @@ function resolver({ files = {}, platform = 'win32', trust = { ok: true }, trustT
         if (trustThrows) throw new Error('probe failed');
         return paths ? trust : { ok: false };
       },
+      checkStoreAclImpl: () => {
+        storeAclCalls += 1;
+        if (storeAclThrows) throw new Error('acl probe failed');
+        return storeAcl;
+      },
+      verifyMigrationImpl: () => {
+        migrationCalls += 1;
+        if (migrationThrows) throw new Error('marker probe failed');
+        return migration;
+      },
     }),
   };
 }
 
-test('a present and trusted marker reports the agent split as an OS boundary', () => {
+test('a marker, a matching store ACL and a verified migration together report the OS boundary', () => {
   const r = resolver({ files: { [DEFAULT_WINDOWS_MARKER_PATH]: MARKER } });
   const boundary = r.run();
   assert.equal(boundary.value, AGENT_BOUNDARY);
   assert.equal(boundary.agentUser, 'huqan-agent');
   assert.equal(r.trustCalls(), 1, 'the marker content alone is never trusted');
+  assert.equal(r.storeAclCalls(), 1, 'the store ACL is checked (ADR-018 §1 (b))');
+  assert.equal(r.migrationCalls(), 1, 'the migration marker is verified (ADR-018 §1 (c))');
 });
 
 test('the trust check inspects the state directory and the marker together', () => {
@@ -45,9 +62,35 @@ test('the trust check inspects the state directory and the marker together', () 
     platform: 'win32',
     readFile: () => MARKER,
     checkTrust: (paths) => { seen = paths; return { ok: true }; },
+    checkStoreAclImpl: () => ({ ok: true }),
+    verifyMigrationImpl: () => ({ ok: true }),
   });
   assert.deepEqual(seen, [DEFAULT_WINDOWS_STATE_DIR, DEFAULT_WINDOWS_MARKER_PATH]);
   assert.equal(result.value, AGENT_BOUNDARY);
+});
+
+test('a trusted marker with an unverified store ACL stays same-user and names (b)', () => {
+  const r = resolver({ files: { [DEFAULT_WINDOWS_MARKER_PATH]: MARKER }, storeAcl: { ok: false, reason: 'acl_broad_writer' } });
+  const boundary = r.run();
+  assert.deepEqual([boundary.value, boundary.reason], [SAME_USER, 'acl_broad_writer']);
+  assert.equal(r.migrationCalls(), 0, 'the first failing check stops the chain');
+});
+
+test('a trusted marker and ACL with no migration marker stays same-user and names (c)', () => {
+  const r = resolver({ files: { [DEFAULT_WINDOWS_MARKER_PATH]: MARKER }, migration: { ok: false, reason: 'no_marker' } });
+  assert.deepEqual([r.run().value, r.run().reason], [SAME_USER, 'no_marker']);
+});
+
+test('a migration marker whose copy hash no longer matches fails closed', () => {
+  const r = resolver({ files: { [DEFAULT_WINDOWS_MARKER_PATH]: MARKER }, migration: { ok: false, reason: 'copy_hash_mismatch' } });
+  assert.deepEqual([r.run().value, r.run().reason], [SAME_USER, 'copy_hash_mismatch']);
+});
+
+test('a store-ACL or migration probe that throws fails closed to same-user', () => {
+  const aclThrows = resolver({ files: { [DEFAULT_WINDOWS_MARKER_PATH]: MARKER }, storeAclThrows: true });
+  assert.deepEqual([aclThrows.run().value, aclThrows.run().reason], [SAME_USER, 'store_acl_probe_failed']);
+  const migrationThrows = resolver({ files: { [DEFAULT_WINDOWS_MARKER_PATH]: MARKER }, migrationThrows: true });
+  assert.deepEqual([migrationThrows.run().value, migrationThrows.run().reason], [SAME_USER, 'migration_verify_failed']);
 });
 
 test('without a marker the boundary stays same-user and no probe runs', () => {

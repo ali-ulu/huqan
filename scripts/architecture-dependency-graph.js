@@ -107,6 +107,9 @@ const RULES = [
       // #3948: the agent-user boundary reuses the install-trust path probe, so it
       // sits beside it rather than reaching Core from the Adapters ring.
       'lib/authority/agent-user-boundary.js',
+      // #3998: the boundary verifies with the store ACL check and the migration
+      // marker, so both sit beside it rather than reaching Core from Adapters.
+      'lib/authority/store-acl.js', 'lib/authority/store-migrate.js',
       // #3892: the operational guard verifies with the decision guard, so it sits beside it.
       'lib/authority/operational-guard.js',
       // #3940: the anchor statement is verified by the Core detection, so it sits here too.
