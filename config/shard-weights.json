@@ -11,6 +11,7 @@
     "test/coder-project-method-memory.test.js": 48.431,
     "test/durable-mutation-journal.test.js": 28.02,
     "test/stress-ingest-scale-smoke.test.js": 26.423,
+    "test/coder-mixed-learning-gain.test.js": 21.133,
     "test/coder-scalar-composition.test.js": 15.764,
     "test/coder-method-transfer.test.js": 15.585,
     "test/external-client-bounds.test.js": 15.282,
