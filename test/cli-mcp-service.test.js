@@ -9,10 +9,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 
-const { runMcpServiceCommand, MCP_USAGE } = require('../lib/cli-mcp-service-commands');
+const { runMcpServiceCommand, MCP_USAGE, loopbackPortOf, probeListener } = require('../lib/cli-mcp-service-commands');
 const { mcpServiceCommandRules, parseMcpServiceArgs } = require('../lib/command-parser-mcp-args');
 const { writeEndpointPin } = require('../lib/mcp/endpoint-pin');
 const { deriveWorkspaceId } = require('../lib/protected-store-path');
@@ -206,4 +207,131 @@ test('enroll accepts an operator-supplied public key file and derives its key id
 test('usage is the answer to help and to a missing name', async () => {
   assert.equal(await runMcpServiceCommand({ sub: 'help' }, {}, {}), MCP_USAGE);
   assert.equal(await runMcpServiceCommand({}, {}, {}), MCP_USAGE);
+});
+
+test('the status probe only ever targets a plain http loopback endpoint', () => {
+  assert.equal(loopbackPortOf('http://127.0.0.1:47921'), 47921);
+  for (const url of ['http://example.com:47921', 'https://127.0.0.1:47921', 'http://127.0.0.1', 'http://127.0.0.1:0',
+    'http://127.0.0.1:99999', 'http://user:pw@127.0.0.1:47921', 'http://localhost:47921', 'not a url', '', undefined]) {
+    assert.equal(loopbackPortOf(url), null, String(url));
+  }
+});
+
+/** A listener answering every request with `handler`, on a free loopback port. */
+async function listenWith(t, handler) {
+  const server = http.createServer(handler);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => { server.closeAllConnections?.(); server.close(); });
+  return `http://127.0.0.1:${server.address().port}`;
+}
+
+test('the probe calls a listener fail-closed only for the envelope refusal, and a dropped response is not a verdict', async (t) => {
+  const refusal = (code, status = 403) => (req, res) => {
+    res.writeHead(status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: { code } }));
+  };
+  const good = await probeListener(await listenWith(t, refusal('malformed')));
+  assert.deepEqual(good, { listening: true, failClosed: true, refusalCode: 'malformed' });
+
+  // Some other local process answering 403 is not the envelope check.
+  const impostor = await probeListener(await listenWith(t, refusal('nope')));
+  assert.equal(impostor.listening, true);
+  assert.equal(impostor.failClosed, false);
+  const open = await probeListener(await listenWith(t, refusal('malformed', 200)));
+  assert.equal(open.failClosed, false);
+
+  // Headers sent, body cut short: the response errors, it never ends.
+  const dropped = await probeListener(await listenWith(t, (req, res) => {
+    res.writeHead(403, { 'content-length': '500' });
+    res.write('{"error"');
+    setTimeout(() => req.socket.destroy(), 20);
+  }));
+  assert.deepEqual(dropped, { listening: false });
+
+  assert.deepEqual(await probeListener('http://evil.example:80'), { listening: false });
+});
+
+test('a flag followed by another option has no operand, and the command refuses it', async (t) => {
+  const parsed = parseMcpServiceArgs('enroll --name levh --client agent-x --out --key-id abc');
+  assert.equal(parsed.out, '');
+  assert.equal(parsed.keyId, 'abc');
+  assert.deepEqual(parsed.missingOperands, ['out']);
+  assert.equal(parseMcpServiceArgs('config --name --client x').name, '');
+  assert.equal(parseMcpServiceArgs('status --name levh').missingOperands, undefined);
+  assert.equal(parseMcpServiceArgs('enroll --name levh --client a --out "C:\\k k\\seed.txt"').out, 'C:\\k k\\seed.txt');
+
+  const dirs = installedDirs(t);
+  const cwd = process.cwd();
+  const refused = await runMcpServiceCommand(parsed, {}, { resolveDirs: () => dirs, isElevated: true });
+  assert.match(String(refused), /Refused: --out needs a value/);
+  assert.equal(fs.existsSync(path.join(cwd, '--key-id')), false);
+  assert.equal(fs.existsSync(path.join(dirs.stateDir, 'clients.json')), false);
+});
+
+const registryRecords = (dirs) => {
+  const file = path.join(dirs.stateDir, 'clients.json');
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')).clients : [];
+};
+
+test('the signing seed is written last: a refused registry write leaves no key file, a refused key file leaves no record', async (t) => {
+  const dirs = installedDirs(t);
+  const elevated = { resolveDirs: () => dirs, isElevated: true };
+  const enroll = (out) => runMcpServiceCommand({ sub: 'enroll', name: 'levh', client: 'agent-x', out }, {}, elevated);
+
+  // Registry full (two live keys for the client): the third enrolment is
+  // refused by the registry and must not leave its seed file behind.
+  assert.match(String(await enroll(path.join(dirs.dir, 'seed1.txt'))), /Enrolled/);
+  assert.match(String(await enroll(path.join(dirs.dir, 'seed2.txt'))), /Enrolled/);
+  const third = path.join(dirs.dir, 'seed3.txt');
+  assert.match(String(await enroll(third)), /rotation_overlap_full.*no key file was written/);
+  assert.equal(fs.existsSync(third), false, 'no orphaned seed after a refused registry write');
+  assert.equal(registryRecords(dirs).length, 2);
+
+  // An existing output file is refused before the registry is touched.
+  const taken = path.join(dirs.dir, 'seed1.txt');
+  assert.match(String(await enroll(taken)), /key_file_exists; no registry change/);
+  assert.equal(registryRecords(dirs).length, 2);
+
+  // A seed that cannot be created rolls the new record back out.
+  const fresh = installedDirs(t);
+  const text = await runMcpServiceCommand({ sub: 'enroll', name: 'levh', client: 'agent-y', out: path.join(fresh.dir, 'absent', 'seed.txt') }, {},
+    { resolveDirs: () => fresh, isElevated: true });
+  assert.match(String(text), /key_file_write_failed; the registry change was rolled back/);
+  assert.deepEqual(registryRecords(fresh), []);
+});
+
+test('on Windows the signing seed is created under an ACL naming only the current account, or not at all', async (t) => {
+  const dirs = installedDirs(t);
+  const calls = [];
+  const sid = 'S-1-5-21-1-2-3-1001';
+  const spawn = (file, args) => {
+    calls.push([path.win32.basename(file), args]);
+    if (/whoami/i.test(file)) return { status: 0, stdout: `"DESKTOP\\operator","${sid}"\r\n` };
+    // The seed must not exist yet with content when the ACL is applied.
+    assert.equal(fs.readFileSync(args[0], 'utf8'), '', 'ACL is applied to the still-empty file');
+    return { status: 0 };
+  };
+  const out = path.join(dirs.dir, 'seed.txt');
+  const done = await runMcpServiceCommand({ sub: 'enroll', name: 'levh', client: 'agent-x', out }, {},
+    { resolveDirs: () => dirs, isElevated: true, spawn, platform: 'win32' });
+  assert.match(String(done), /Enrolled/);
+  const icacls = calls.find(([tool]) => /icacls/i.test(tool));
+  assert.deepEqual(icacls[1].slice(1), ['/inheritance:r', '/grant:r', `*${sid}:F`]);
+  assert.match(fs.readFileSync(out, 'utf8'), /^[A-Za-z0-9_-]{43}\n$/);
+
+  const failed = installedDirs(t);
+  const failOut = path.join(failed.dir, 'seed.txt');
+  const refused = await runMcpServiceCommand({ sub: 'enroll', name: 'levh', client: 'agent-x', out: failOut }, {},
+    { resolveDirs: () => failed, isElevated: true, platform: 'win32', spawn: (file) => (/whoami/i.test(file) ? { status: 0, stdout: `"a\\b","${sid}"` } : { status: 5 }) });
+  assert.match(String(refused), /key_file_acl_failed; the registry change was rolled back/);
+  assert.equal(fs.existsSync(failOut), false, 'a seed that cannot be made private is not left behind');
+  assert.deepEqual(registryRecords(failed), []);
+});
+
+test('on POSIX the signing seed is created owner-only', { skip: process.platform === 'win32' }, async (t) => {
+  const dirs = installedDirs(t);
+  const out = path.join(dirs.dir, 'seed.txt');
+  const done = await runMcpServiceCommand({ sub: 'enroll', name: 'levh', client: 'agent-x', out }, {}, { resolveDirs: () => dirs, isElevated: true });
+  assert.match(String(done), /Enrolled/);
+  assert.equal(fs.statSync(out).mode & 0o777, 0o600);
 });
