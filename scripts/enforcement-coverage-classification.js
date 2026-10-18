@@ -83,6 +83,14 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 're-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted',
   }),
+  'lib/authority/store-acl.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the one place the protected store ACL is applied (applyStoreAcl) and read back (checkStoreAcl) for ADR-018 §3; apply runs icacls only from the elevated `huqan store migrate`, on paths it validates against a fixed drive-letter shape, and check only runs a fixed PowerShell Get-Acl probe and writes nothing. No agent input reaches either path',
+  }),
+  'lib/authority/store-migrate.js': Object.freeze({
+    role: 'operator_tool',
+    why: 'the copy/verify/marker core behind `huqan store migrate` (ADR-018 §2), run only by the operator and only when elevated; it copies the profile store into the protected root it resolves, verifies the copy by sha256 and row counts before writing the marker, and never deletes the profile original. No agent action reaches it',
+  }),
   'lib/authority/state-store.js': Object.freeze({
     role: 'persistence',
     why: 'the approval authority service writes its own keys, TOTP secret and TOTP progress into the state directory named on the service command line, never by an agent; the Windows installer (ADR-016, planned for P5) is to create that directory and ACL it to the service account',

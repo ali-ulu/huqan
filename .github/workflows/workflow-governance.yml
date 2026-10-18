@@ -3,7 +3,15 @@ name: Workflow Governance
 on:
   # This check is intentionally cheap and runs on every PR so it can be a
   # stable required status check rather than a path-filtered optional signal.
+  #
+  # `edited` is in the list on purpose. The traceability declaration lives in
+  # the pull request body, so the red-to-green path for a failing fix is to add
+  # a `Regression-Test:` line to that body -- an edit, not a new commit. Without
+  # `edited` the required check would stay red after the author did exactly what
+  # its message asked, and the only recovery would be an empty commit to force
+  # `synchronize`.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
 concurrency:

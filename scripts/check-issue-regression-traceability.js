@@ -16,9 +16,10 @@
  *
  *   - Only a defect fix is held to it. The type is read from the pull request
  *     title, which is the same string that becomes the squash-commit subject, so
- *     `fix`, `security` and `hotfix` are in scope and `feat`, `test`, `chore`,
- *     `docs`, `ci`, `perf` and `refactor` are not. An ordinary enhancement is
- *     exempt by classification, not by a waiver anyone has to write.
+ *     `fix`, `bugfix`, `security` and `hotfix` are in scope and `feat`, `test`,
+ *     `chore`, `docs`, `ci`, `perf` and `refactor` are not. The comparison is
+ *     case-insensitive, so `Fix(...)` cannot fail open. An ordinary enhancement
+ *     is exempt by classification, not by a waiver anyone has to write.
  *   - A documentation-only change is exempt too: there is no runtime failure
  *     mode to pin, and demanding a test for a prose edit only teaches authors to
  *     write waivers until the gate means nothing.
@@ -57,17 +58,32 @@ const { DOC_ONLY_PATTERNS } = require('./ci-impact-rules');
 const { matchesAny, normalizePath } = require('./ci-impact-plan-paths');
 const { REPO_ROOT, discoverTestFiles } = require('./ci-shard-manifest');
 
-/** Conventional-commit types that assert a defect was fixed. */
-const DEFECT_FIX_TYPES = Object.freeze(['fix', 'security', 'hotfix']);
+/**
+ * Conventional-commit types that assert a defect was fixed.
+ *
+ * `bugfix` is not in the standard conventional-commit set, but it reads as a
+ * defect fix to any author who types it, and this gate must not fail open on a
+ * title whose intent is unambiguous. The type is compared lowercased, so
+ * `Fix(...)` and `FIX(...)` are in scope too.
+ */
+const DEFECT_FIX_TYPES = Object.freeze(['fix', 'bugfix', 'security', 'hotfix']);
 const DECLARATION_LABEL = 'Regression-Test';
 const WAIVER_VALUE = 'none';
 const ISSUE_REFERENCE = /#(\d+)/g;
 const MIN_WAIVER_REASON = 10;
 
-/** The leading conventional-commit type of a title, or null when there is none. */
+/**
+ * The leading conventional-commit type of a title, lowercased, or null when
+ * there is none.
+ *
+ * The repository writes its types lowercase (the changelog parser and every
+ * merged commit agree), but the comparison is case-insensitive on purpose: a
+ * gate that exempts `Fix(...)` because of a capital letter would fail open on
+ * a title that is unambiguously a defect fix.
+ */
 function conventionalType(title) {
-  const match = /^([a-z]+)(?:\([^)]*\))?!?:/.exec(String(title || '').trim());
-  return match ? match[1] : null;
+  const match = /^([A-Za-z]+)(?:\([^)]*\))?!?:/.exec(String(title || '').trim());
+  return match ? match[1].toLowerCase() : null;
 }
 
 function isDefectFix(title) {
