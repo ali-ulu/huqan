@@ -148,23 +148,27 @@ test('a rule whose canonical file stops declaring the helper fails the gate', ()
 });
 
 test('an unreadable baseline is reported, not swallowed', () => {
-  const baselinePath = path.join(repoRoot, 'config', 'single-definition-baseline.json');
-  const original = fs.readFileSync(baselinePath, 'utf8');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'single-definition-'));
+  const baselinePath = path.join(directory, 'single-definition-baseline.json');
   fs.writeFileSync(baselinePath, '{ not json');
   try {
-    assert.throws(() => readBaseline(), /cannot read/);
+    assert.throws(() => readBaseline(baselinePath), /cannot read/);
   } finally {
-    fs.writeFileSync(baselinePath, original);
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });
 
 test('the scan never leaves the lib directory', () => {
-  const scratch = path.join(os.tmpdir(), 'single-definition-outside.js');
-  fs.writeFileSync(scratch, 'function normalizeWorkspaceId(value) {\n  return value;\n}\n');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'single-definition-'));
+  const [rule] = RULES;
+  const outside = path.join(directory, 'outside.js');
+  fs.writeFileSync(outside, 'function normalizeWorkspaceId(value) {\n  return value;\n}\n');
   try {
-    const { status } = runGate();
-    assert.equal(status, 0, 'a declaration outside lib/ must not be reported');
+    // The matcher does see the file when pointed at its directory...
+    assert.equal(scanRule(rule, directory).length, 1);
+    // ...but the gate's own scope is lib/, so it is never reported.
+    assert.equal(scanRule(rule).includes(path.relative(repoRoot, outside)), false);
   } finally {
-    fs.rmSync(scratch, { force: true });
+    fs.rmSync(directory, { recursive: true, force: true });
   }
 });

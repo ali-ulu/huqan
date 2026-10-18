@@ -36,7 +36,6 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..');
 const libDirectory = path.join(repoRoot, 'lib');
 const baselinePath = path.join(repoRoot, 'config', 'single-definition-baseline.json');
-
 /**
  * One entry per helper that must have exactly one declaration.
  *
@@ -74,21 +73,21 @@ function declaresAny(text, patterns) {
     .some((line) => patterns.some((pattern) => pattern.test(line)));
 }
 
-function readBaseline() {
+function readBaseline(baselineFile = baselinePath) {
   try {
-    const parsed = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
     return {
       rules: parsed.rules && typeof parsed.rules === 'object' ? parsed.rules : {},
       reasons: parsed.reasons && typeof parsed.reasons === 'object' ? parsed.reasons : {},
     };
   } catch (error) {
     if (error.code === 'ENOENT') return { rules: {}, reasons: {} };
-    throw new Error(`cannot read ${path.relative(repoRoot, baselinePath)}: ${error.message}`);
+    throw new Error(`cannot read ${path.relative(repoRoot, baselineFile)}: ${error.message}`);
   }
 }
 
-function scanRule(rule) {
-  return collectJavaScriptFiles(libDirectory)
+function scanRule(rule, directory = libDirectory) {
+  return collectJavaScriptFiles(directory)
     .filter((file) => declaresAny(fs.readFileSync(file, 'utf8'), rule.patterns))
     .map((file) => path.relative(repoRoot, file).replaceAll('\\', '/'))
     .sort();
