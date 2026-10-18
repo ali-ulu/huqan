@@ -75,7 +75,7 @@ const MUST_HAVE_PATTERNS = Object.freeze([
   'test/opencodereview-rule-file.test.js',
   'test/operator-token-constant-time.test.js',
   'test/package-closure.test.js',
-  'test/path-containment-*.test.js',
+  'path-containment-*.test.js',
   'test/path-safety.test.js',
   'test/persistence-path-*.test.js',
   'test/plugin-manifest-integrity.test.js',
@@ -101,7 +101,7 @@ const IMPACT_RULES = Object.freeze([
   {
     name: 'graph-kernel-memory',
     changed: ['graph.js', 'kernel.js', 'kernel.v2.js', 'storage.js', 'rustGraph.js', 'lib/graph-*.js', 'lib/memory-*.js', 'lib/ingest*.js'],
-    tests: ['graph.test.js', 'kernel*.test.js', 'test/graph-*.test.js', 'test/kernel-*.test.js', 'test/memory-*.test.js', 'test/receipt-*.test.js', 'test/provenance*.test.js', 'test/reasonSandbox.test.js'],
+    tests: ['graph.test.js', 'kernel*.test.js', 'test/graph-*.test.js', 'test/kernel-*.test.js', 'test/memory-*.test.js', 'test/receipt-*.test.js', 'test/provenance*.test.js', 'reasonSandbox.test.js'],
   },
   {
     name: 'server-mcp-http',

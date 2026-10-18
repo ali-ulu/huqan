@@ -6,6 +6,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
 const {
+  IMPACT_RULES,
+  MUST_HAVE_PATTERNS,
   buildTestImpactPlan,
   discoverKnownTests,
   isRuntimeOrTestFile,
@@ -174,4 +176,29 @@ test('a README-only change runs the tests that pin the README (#3895)', () => {
   assert.equal(plan.fullSuite, false);
   assert.ok(plan.selectedTests.includes('test/readme-inventory-pin.test.js'));
   assert.ok(plan.selectedTests.includes('test/readme-decision-vocabulary.test.js'));
+});
+
+test('every selection pattern matches a discovered test, so none is silently dead', () => {
+  // A pattern that matches no file is worse than a missing one: the plan looks
+  // healthy, the union is a name shorter, and nothing fails. #2610 wrote
+  // `test/path-containment-*.test.js` and `test/reasonSandbox.test.js` for two
+  // tests that have always lived at the repository root, so neither glob ever
+  // matched and both security-critical tests sat outside the mandatory floor
+  // from the day the rules were authored.
+  const patterns = [...new Set([...MUST_HAVE_PATTERNS, ...IMPACT_RULES.flatMap((rule) => rule.tests)])];
+  const dead = patterns.filter((pattern) => !knownTests.some((file) => matchesPattern(file, pattern)));
+  assert.deepEqual(dead, [], `selection patterns match no discovered test: ${dead.join(', ')}`);
+});
+
+test('the mandatory floor keeps the path-containment safety test on an impact-only change', () => {
+  // An impact-only surface (a root document) is exactly where the hand-written
+  // rules are the only selector: the dependency graph reaches nothing, so a dead
+  // pattern in the floor is a silent omission.
+  const plan = buildTestImpactPlan({ changedFiles: ['README.md'], runtimeOrTest: false });
+  assert.equal(plan.runTests, true);
+  assert.equal(plan.fullSuite, false);
+  assert.ok(
+    plan.selectedTests.includes('path-containment-386.test.js'),
+    'the CLI path-containment safety test must stay in the mandatory floor',
+  );
 });
