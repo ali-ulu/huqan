@@ -34,6 +34,15 @@ const { spawnSyncWindowsAware } = require('./spawn-windows-aware');
 const DEFAULT_STAGE_TIMEOUT_MS = 10 * 60 * 1000;
 const TEST_STAGE_TIMEOUT_MS = 60 * 60 * 1000;
 
+// spawnSync's default capture ceiling is 1 MiB, and `npm test` already emits
+// ~1.16 MiB, so an unbounded stage reported ENOBUFS and the summary called a
+// passing stage FAIL (#4034). The ceiling is explicit and generous rather than
+// absent: the suite's output grows with every added test, so it must not be
+// sized to today's byte count. Overflow is reported as its own condition, the
+// way lib/coder/test-execution.js reports OUTPUT_LIMIT_EXCEEDED.
+const STAGE_OUTPUT_LIMIT_BYTES = 64 * 1024 * 1024;
+const OUTPUT_LIMIT_MARKER = 'output limit exceeded';
+
 const STAGES = [
   { name: 'environment', command: ['node', 'scripts/verify-test-environment.js'] },
   { name: 'lint', command: ['npm', 'run', 'lint', '--silent'] },
@@ -83,17 +92,23 @@ function runStage(stage, opts = {}) {
   const result = spawnSyncWindowsAware(command[0], command.slice(1), {
     encoding: 'utf8',
     timeout: timeoutMs,
+    maxBuffer: STAGE_OUTPUT_LIMIT_BYTES,
   });
   const timedOut = Boolean(result.error && result.error.code === 'ETIMEDOUT');
+  const outputCapped = Boolean(result.error && result.error.code === 'ENOBUFS');
   // A stage can end without a usable exit code: killed from outside (signal)
   // or never started (spawn error). Both are failures, but a plain FAIL hides
   // the difference between "the checker found a problem" and "the checker was
   // killed mid-run", which is exactly the difference a red gate must show.
-  const abnormal = result.error
-    ? `spawn error: ${result.error.message}`
-    : result.signal
-      ? `killed by signal ${result.signal}`
-      : null;
+  // A capture overflow is a third case, and naming it is what separates "the
+  // checker failed" from "the harness could not read the checker" (#4034).
+  const abnormal = outputCapped
+    ? `${OUTPUT_LIMIT_MARKER}: stage emitted more than ${STAGE_OUTPUT_LIMIT_BYTES} bytes`
+    : result.error
+      ? `spawn error: ${result.error.message}`
+      : result.signal
+        ? `killed by signal ${result.signal}`
+        : null;
   return {
     name: stage.name,
     ok: !result.error && result.status === 0,
@@ -161,4 +176,4 @@ if (require.main === module) {
   process.exit(results.every((result) => result.ok) ? 0 : 1);
 }
 
-module.exports = { STAGES, runStage, runVerify, renderSummary };
+module.exports = { STAGES, runStage, runVerify, renderSummary, STAGE_OUTPUT_LIMIT_BYTES };
