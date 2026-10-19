@@ -139,7 +139,7 @@ gate where it had a freeze.
 |---|---|---|
 | Line ceiling may not rise | yes | `scripts/check-file-size.js`, 1,419 files measured |
 | No require cycles | yes | `scripts/check-import-cycles.js`, 1,419 files measured |
-| Correctness lint | yes | `npm run lint` (`oxlint`, `correctness` at error): 0 findings over 2,824 files, run by the `Enforce a lint-clean tree` job in `.github/workflows/architecture.yml` |
+| Correctness lint | yes | `npm run lint` (`oxlint`, `correctness` at error): 0 findings over 2,824 files, run by the `Enforce a lint-clean tree` step of the `Architecture source gates` job in `.github/workflows/architecture.yml` |
 | Banded budget (400 hard cap) | yes | `scripts/check-file-size.js`, 0 recorded entries |
 | Line density (400-char cap) | yes | `scripts/check-file-size.js`, 17 recorded exceptions in `LONG_LINE_ALLOWED` |
 | Baseline review dates | yes | both baselines; an expired or missing entry fails the gate |

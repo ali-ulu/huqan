@@ -51,10 +51,14 @@ the seven legacy per-check names.
 
 Since 2026-10-16 (#3969) the live `main` Ruleset matches `main-branch.json`
 exactly: the consolidated contexts, `Coverage gate` and no bypass actors.
-Classic branch protection still requires the seven legacy names, so the seven
-compatibility jobs in `architecture.yml` must keep producing them.
-Remove those compat jobs only after the classic layer drops the legacy names --
-otherwise merges stall.
+Since 2026-10-19 (#4054) classic branch protection no longer requires the seven
+legacy names; it keeps only the five contexts the Ruleset also requires
+(`npm test gate`, `Conformance Gate`, `Validate BDD/Gherkin contracts`,
+`Security Checks`, `Workflow governance`), so the Ruleset alone describes what
+blocks a merge. The seven compatibility jobs that only mirrored the two
+consolidated jobs' results were removed from `architecture.yml` in the same
+change. Never add a required context to the classic layer that this file does
+not carry.
 
 ## Migration safety
 

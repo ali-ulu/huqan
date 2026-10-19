@@ -83,17 +83,16 @@ gate passes on `Coverage (NOT_APPLICABLE)` only when classification found no
 source change; a source change whose measured `Coverage` job is skipped,
 cancelled or failed fails the gate.
 
-The two live layers still do **not** agree. The classic layer requires 12
-contexts: the five shared checks (`npm test gate`, `Conformance Gate`,
-`Validate BDD/Gherkin contracts`, `Security Checks`, `Workflow governance`) plus
-the seven legacy per-check architecture names (`Forbid raw control characters
-in tracked sources`, `Require living documentation to agree with the source`,
-`Require graph is acyclic`, `Require every V5 document to declare its status`,
-`Enforce the large-file threshold`, `Enforce a lint-clean tree`, `Require
-architecture tracker snapshot to be current`). Both layers apply at merge, so
-the effective requirement is their union. Live settings drift, so re-inspect
-before making any claim about them (see the audit rule at the end of this
-document).
+Since 2026-10-19 (#4054) the classic layer requires only five contexts, all of
+which the Ruleset also requires (`npm test gate`, `Conformance Gate`,
+`Validate BDD/Gherkin contracts`, `Security Checks`, `Workflow governance`).
+The seven legacy per-check architecture names it used to require were mirrors
+of `Architecture static gates` / `Architecture source gates`, which the Ruleset
+requires directly, so dropping them removed no enforcement; their compatibility
+jobs are gone from `architecture.yml`. Both layers apply at merge, so the
+effective requirement is their union, which now equals the Ruleset. Live
+settings drift, so re-inspect before making any claim about them (see the audit
+rule at the end of this document).
 
 ## Architecture check consolidation
 
