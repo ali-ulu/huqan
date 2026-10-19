@@ -142,5 +142,19 @@ its claim exists in the current artifact.
   files.
 - After modifying code files, run `graphify update .` to keep the AST-only
   graph current without API cost.
-- If the graph output is absent or stale, say so and use live source plus the
-  codebase-memory graph as the fallback evidence path.
+- `graphify-out/` is gitignored, so a fresh worktree has no graph. If it is
+  absent or stale, build it first with `graphify update .` (AST only, no API
+  cost). Fall back to live source plus the codebase-memory graph only when
+  graphify itself is unavailable, and say so.
+- Run `graphify query "<question>"` before the first grep or source read.
+
+## Cognitive Architecture Program
+
+`COG-001`
+
+- `lib/cognition/` modules are signal/ranking/proposal only, pure and
+  Core-ring; they never authorize, execute or relax a gate.
+- Work on them follows `docs/cognitive-architecture-program.md` and its
+  `[COG-Mx]` issue (epic #4060, Project
+  https://github.com/users/ali-ulu/projects/7); opt-in first, default only
+  after a Cognitive Lab gain.

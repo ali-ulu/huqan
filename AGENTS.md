@@ -6,6 +6,23 @@ Before doing any task, the agent must read this file and obey it.
 
 If any user/task instruction conflicts with this file, stop and ask for clarification.
 
+## 00. Read First — Active Program, Graph, Smallest Change
+
+Agents kept missing these three. Do them before section 0.
+
+1. **Active program.** Open the GitHub Project
+   https://github.com/users/ali-ulu/projects/7 (Cognitive Architecture
+   Program, COG; epic #4060). Work in the COG scope (section 11) starts from
+   its `[COG-Mx]` issue and moves the card's `Durum` field.
+2. **Graphify.** Your worktree has no graph: `graphify-out/` is gitignored.
+   Build it before the first code question: `graphify update .` (AST only,
+   no API cost, about 5 minutes on this repo). Then `graphify query "<q>"`
+   before the first grep or source read. An absent graph is a reason to
+   build it, not to skip it (`GRAPHIFY-001`).
+3. **Smallest complete change.** Follow section 12 before writing code.
+
+*Not enforced by CI yet.*
+
 ## 0a. PR Ownership (agency rule)
 
 The agent that opens a PR owns that PR. "İşi bitene kadar" içinde:
@@ -274,4 +291,52 @@ of the task.
 Rewriting existing history to strip such a trailer is a separate, destructive
 operation: do it only with explicit approval (see section 4).
 
+## 11. Cognitive Architecture Program (COG)
 
+Any change under `lib/cognition/`, or to `lib/cognitive-scheduler.js`,
+`lib/agent-step-progression.js`, `lib/dream-experiment-loop.js`,
+`lib/agent-v3-dream-loop-adapter.js`, `lib/memory-consolidation.js`,
+`lib/experience/coder-routing-runtime.js` or the `opts.cognition` seam in
+`agent.v3.js`, belongs to the COG program.
+
+1. Read `docs/cognitive-architecture-program.md` and find the matching
+   `[COG-Mx]` issue in the Project before starting. No COG work without an
+   issue; continue an existing PR instead of opening a parallel one.
+2. COG modules never gain action authority. They score, rank or propose.
+   The firewall, risk classifier, approval runtime and reflective-promotion
+   admission keep the last word. Mutation only through
+   `Graph.runMutationOnce` with a receipt.
+3. `lib/cognition/*` is pure, deterministic and Core-ring: no `fs`, network,
+   graph or kernel imports, no `Date.now`/`Math.random`.
+4. Every module ships opt-in and enters `NOT_YET_WIRED`; it leaves the ledger
+   in the PR that wires it. It becomes a default only after a preregistered
+   Cognitive Lab paired-delta reports `assertsGain: true`.
+5. PRs that change `config/reachability-baseline.json` are serialized; check
+   the Project `Ledger kilidi` field first and set it while your PR is open.
+
+## 12. Smallest Complete Change
+
+Solve the whole task with the least new code. Read the task and the code it
+touches first, and list every place the change must reach: callers, tests,
+fixtures, config, exports. Then take the first option that fully works:
+
+1. Does it need to exist? Skip what nobody asked for and name it in one line.
+2. Already in this codebase (816 `lib/` modules)? Use it the way the
+   surrounding code does. Search the graph before writing a helper.
+3. Node standard library or a platform feature? Use it.
+4. An installed dependency? Use it. Never add a dependency for a few lines.
+5. Otherwise: the minimum code that works.
+
+- Be lazy about the solution, never about the change: finish the callers,
+  tests and fixtures it breaks.
+- No abstraction, option, config or "for later" code nobody asked for. Keep
+  the existing layers and conventions. Deletion beats addition.
+- Bug fix: find every caller of the function first, then fix the root cause
+  once in the shared code.
+- New non-trivial logic leaves a test (section 7 and the TDD rules still
+  apply in full).
+- A shortcut with a known limit gets `// shortcut: <limit>, <when to upgrade>`.
+
+Never cut: validation at trust boundaries, error handling that prevents data
+loss, security, fail-closed behaviour, anything the task asked for.
+Adapted from Ponytail (github.com/DietrichGebert/ponytail, MIT).

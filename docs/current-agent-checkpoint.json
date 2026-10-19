@@ -37,7 +37,7 @@
     "Canonical #941 trust evidence ledger wiring is present on feat/huqan-p1-refresh at 54924b102485e762e632d06a1fbac58f345ff7bd; refreshed implementation pins are 34e9a82343ab308bbafd7553ab67fbf9fc91bd06 and e049aa158d8301b339f0fa3442a37f71f58e93a5, with MCP ingest approval as the real production mutation-admission caller. The ledger reuses Graph.runMutationOnce and the existing receipt-chain/trust-root vocabulary; no second signer, receipt family or durability authority is claimed. HTTP/workflow and other mutation callers remain outside this issue slice.",
     "Canonical #942 Human Oversight Approval Runtime is present on feat/huqan-p1-refresh at 37f010170348296de711dbdf171ba888813701ac; refreshed implementation pins are e05d37ca431c501055de79a33a200074f1b4a41e (runtime), 5a5afa79674dd474bbb7480798664f8755102838 (MCP ingress), 89ce2be1cadc6f611e3f8339e5a40071a3ea135b (HTTP/workflow ingress) and 13cee40dec391df875db708669f2d4a2f1d2ca10 (CLI approval propagation). Runtime state and transitions reuse Graph.runMutationOnce and existing receipt/ledger authorities; receiver-owned identity, SoD, expiry, scope, firewall revalidation and explicit override boundaries are preserved. Wiring is opt-in; universal ingress, connector IAM, external identity provider and regulatory completion remain non-claims.",
     "Canonical #968 connector firewall closeout is present on feat/huqan-p1-refresh at 08db18d974691d653bd70c6df6995e774274afed for production-reachable github.ingest, markdown.ingest, json.ingest, yaml.ingest, git-log.ingest, pdf.ingest, http.ingest and opt-in http.probe paths; lib/github-connector.js remains library-only because no production caller exists. External connector IAM remains a non-claim",
-    "Canonical #969 Dream Experiment Loop is present on feat/huqan-p1-refresh at e37be6d57f127abbdf01d4c1634b2a0d2a12635a with bounded opt-in hypothesis → verify → observation → next-hypothesis control flow in AgentV3; transition durability reuses Graph.runMutationOnce and verified edge writes reuse _commitBackgroundEdge/background admission. Reject, unknown, missing Graph durability, unavailable capability and budget limits remain fail-closed; workflow tools are not claimed as a general autonomous research engine.",
+    "Canonical #969 Dream Experiment Loop is present on feat/huqan-p1-refresh at e37be6d57f127abbdf01d4c1634b2a0d2a12635a with bounded hypothesis → verify → observation → next-hypothesis control flow in AgentV3, on by default (agent.v3.js disables it only for opts.dreamExperimentLoop === false; the earlier \"opt-in\" wording was wrong, #4060 S4); transition durability reuses Graph.runMutationOnce and verified edge writes reuse _commitBackgroundEdge/background admission. Reject, unknown, missing Graph durability, unavailable capability and budget limits remain fail-closed; workflow tools are not claimed as a general autonomous research engine.",
     "Roadmap #1766 Faz A is closed by #1767: A2A exchange is gated through the Agent Action Firewall at 74ee93f2fde9ea3b33c2c2b2ffc516f09a3b2ee1 (PR #1773). lib/a2a/exchange-route.js resolves the delegated policy before the exchange and refuses when it is absent; an unreadable or malformed firewall decision defaults to block, so the path is fail-closed. docs/a2a-deployment.md and test/a2a-deployment-smoke.test.js carry the block scenario. This gates the delegated path; it does not claim external interoperability.",
     "Roadmap #1766 Faz B is closed by #1768: inter-agent trust receipts are chained at df1eed1ac9831085e966704ba7b0de21f052707d (PR #1774). lib/a2a/inter-agent-receipt-chain.js binds a delegated task to parent_receipt_id and verifies it against the parent's actual publicReceiptId, and aggregateInterAgentReceiptDecision emits cross_agent_decision_contradiction with an aggregate risk score when parent and receiver disagree. test/inter-agent-receipt-chain.test.js and the extended scripts/a2a-conformance/run.js are the source evidence. Cross-agent accountability chaining is claimed; persistent agent identity is not, and remains open as Faz C #1769."
   ],
@@ -55,7 +55,8 @@
     "Certified Node, TrustBench, public badge, reputation economy or marketplace live",
     "HTP is a separate successor protocol to ATP, or HUQAN/AXIOM/ATP/HTP are four current identities. HUQAN Trust Protocol is the canonical current name and HTP is only its abbreviation; ATP 0.1 and AXIOM identifiers are legacy compatibility identifiers until explicitly migrated, and existing ATP receipts and AXIOM package artifacts remain valid",
     "non-default HTTP workspace authority supported",
-    "registry publication or deployment proven by package-install smoke"
+    "registry publication or deployment proven by package-install smoke",
+    "COG modules improve reasoning or behave like a brain, before a preregistered Cognitive Lab paired-delta reports assertsGain true for that module"
   ],
   "notes": [
     "Live source, exact Git SHA, tests and CI outrank this checkpoint.",
@@ -76,5 +77,17 @@
     "Refresh 2026-10-01T19:19:49Z: canonicalMain b81601cb6ff02daa6f7f14b86ef688b4ff620451 had drifted behind live origin/main; pinned to live origin/main fafc3de57243f1650ca748250df97791b6b518a5, ancestry verified locally with git merge-base --is-ancestor. This refresh also corrects one prose count: completedEvidence said NOT_YET_WIRED held 28, but PR #3304 (the retire split) moved lib/http/crash-recovery-inventory.js and lib/http/request-limits.js into the new RETIRED_FILES decision list, so the live ledger holds 26 and config/reachability-baseline.json:measuredNotYetWired reads 26. test/reachability-baseline.test.js pins ledger to baseline, so only the prose was stale -- the same class of drift #3236 and the previous refresh fixed. No completedEvidence claim was re-verified or added; a refresh is not evidence about the code.",
     "Refresh 2026-10-04T04:03:32Z: canonicalMain fafc3de57243f1650ca748250df97791b6b518a5 had drifted behind live origin/main; pinned to live origin/main 715373647ae055380aaf007014ce50ce80cdd9c3 (the current tip observed locally), ancestry recorded as observed rather than re-verified because this connector-only clone is shallow and cannot resolve fafc3de5. This refresh also corrects one prose count: completedEvidence said NOT_YET_WIRED held 26, but the live ledger now holds 9 and config/reachability-baseline.json:measuredNotYetWired reads 9, pinned together by test/reachability-baseline.test.js. The ledger now names lib/code-anchor.js, lib/memory-lifecycle.js, lib/common-semantic-ir.js and six Cognitive Lab surfaces; the four V5 agent-identity schemas, the lib/experience surfaces, lib/self-healer/index.js and the trust-protocol, delegation and provenance primitives have left the list. Issue #3420 asked for this correction but stated 7/7, itself stale; 9/9 is the measured value. No completedEvidence claim was re-verified or added; a refresh is not evidence about the code."
   ],
-  "authorizationArtifact": "docs/v5/v5-implementation-entry-successor-audit.md"
+  "authorizationArtifact": "docs/v5/v5-implementation-entry-successor-audit.md",
+  "activePrograms": [
+    {
+      "id": "COG",
+      "name": "Cognitive Architecture Program",
+      "contract": "docs/cognitive-architecture-program.md",
+      "epic": "#4060",
+      "project": "https://github.com/users/ali-ulu/projects/7",
+      "phase": "Faz 0 / M2 core",
+      "nextIssue": "[COG-M2] #4061",
+      "invariant": "signal/ranking/proposal only; firewall and approval keep the last word"
+    }
+  ]
 }
