@@ -26,17 +26,17 @@ Bunlar planın kararlarını belirliyor. Bazıları görevde verilen öncüllerl
    - `lib/dream-experiment-loop.js:342-346` → `loopEnabled` yalnız `false` verilirse ya da graph'ta `runMutationOnce` yoksa kapanıyor.
    - `docs/current-agent-checkpoint.json` (#969) ve görev tanımı bunu "opt-in" diye anlatıyor. Bu bir kaynak çelişkisi; bakımcıya raporlanmalı.
    - M10 planı döngünün varsayılan açık olduğunu varsayıyor.
-2. **Cognitive Lab manifesti yalnız B1..B8'i kabul ediyor (GÖZLENDİ).** `lib/cognitive-lab-manifest.js` içindeki `MECHANISM_IDS` ve `validateMechanisms` hepsini zorunlu tutuyor, bilinmeyen kimliği reddediyor. Yani yeni modüller manifest değişmeden kendi mekanizma bayrağını alamaz (bkz. Faz 0, Açık soru S1).
+2. **Cognitive Lab manifesti yalnız B1..B8'i kabul ediyor (GÖZLENDİ).** `lib/cognitive-lab-manifest.js` içindeki `MECHANISM_IDS` ve `validateMechanisms` hepsini zorunlu tutuyor, bilinmeyen kimliği reddediyor. Yani yeni modüller manifest değişmeden kendi mekanizma bayrağını alamaz (bkz. Faz 0 PR-0c; S1 kararı: manifest v2).
 3. **`agent.v3.js` 386 satır; 400 satırlık tavan var (GÖZLENDİ).** `docs/architecture-policy.md` §2 ve `scripts/check-file-size.js` bu tavanı uyguluyor. Bağlantı en çok 2 çağrı satırı ekleyebilir; mantık bir seam dosyasına gitmeli.
 4. **`lib/cognition/` dizini hiçbir halka kuralına uymuyor (GÖZLENDİ).** `scripts/architecture-dependency-graph.js` içindeki `RULES` alt dizinleri yakalamıyor; Core yalnız düz `lib/*.js` kalıbını tutuyor. Atanmamış modül gate'i düşürür. Faz 0'da Core `dirs` listesine `lib/cognition/` eklenmeli.
 5. **`lib/memory-*.js` Adapters halkasında (GÖZLENDİ, `pattern: /^lib\/(memory|sqlite)-/`).** Core'daki `lib/cognition/*` modülleri `memory-recency-decay.js`, `memory-consolidation.js` ya da `memory-cognitive-message.js`'i **require edemez**. Karar: yaşlanma faktörünü çağıran (Adapters) hesaplayıp saf çekirdeğe parametre olarak geçer.
-   - **Uygulamadan önce teyit edin:** M1 `memory-cognitive-message.js`'teki `validateCognitiveMessage`'ı yeniden kullanmayı öneriyor. Bu dosya da `memory-` önekli, yani Adapters. Core'daki `percept.js` onu bu kurala göre require edemez. Ya halka ataması değiştirilmeli ya da doğrulama çağırana taşınmalı (bkz. M1 ve S12).
+   - **Uygulamadan önce teyit edin:** M1 `memory-cognitive-message.js`'teki `validateCognitiveMessage`'ı yeniden kullanmayı öneriyor. Bu dosya da `memory-` önekli, yani Adapters. Core'daki `percept.js` onu bu kurala göre require edemez. S12 kararı: dosya Faz 0 PR-0a'da Core `files` listesine açıkça sabitlenir (açık dosya girdisi kalıptan önce eşleşir); M1 doğrulamayı doğrudan yeniden kullanır.
 6. **Bellek kayıtlarında kullanım sayacı yok (GÖZLENDİ).** `lib/memory-*.js` içinde `accessCount`, `lastAccessed` ya da `usageCount` yok. M4'ün "kullanım" boyutu için veri kaynağı yok (Açık soru S6).
 7. **Risk skoru (0–100) kalibre olasılık değil (GÖZLENDİ).**
    - `prediction-outcome-pairs.js` bunu "risk estimate" olarak tanımlıyor.
    - `docs/task-packs/cognitive-lab-entry-20261001.md` "Belief posterior veya verify verdict certainty doğrudan outcome prediction p olamaz" diyor.
    - Bu yüzden M2 risk skorunu yalnız kategorik hataya çevirir.
-8. **Bu alanda zaten bir program var (GÖZLENDİ).** #3306 programı: I1 scheduler #3311, B4 #3310, I5 #3469, K0/K1 #3470/#3471. ENGINEERING-001 gereği issue açmadan önce `gh issue list --search "3306"` ile çakışma kontrol edilmeli (Açık soru S2).
+8. **Bu alanda zaten bir program var (GÖZLENDİ).** #3306 programı: I1 scheduler #3311, B4 #3310, I5 #3469, K0/K1 #3470/#3471. ENGINEERING-001 gereği issue açmadan önce `gh issue list --search "3306"` ile çakışma kontrol edilmeli (S2 kararı: ayrı epic, #3306'nın ardılı).
 9. **Ortak bilişsel zarf zaten var (GÖZLENDİ).** `lib/memory-cognitive-message.js` (K1) içinde `validateCognitiveMessage`, `compareReferenceFrames`, `REFERENCE_FRAME_FIELDS` bulunuyor. M1 yeni bir zarf **icat etmemeli**, bunun üstüne kurulmalı. Halka uyarısı için madde 5'e bakın.
 10. **NOT_YET_WIRED defteri şu an 6 kayıt (GÖZLENDİ).** Kaynak: `config/reachability-baseline.json`, `measuredNotYetWired: 6`, ölçüm 2026-10-19. Checkpoint hâlâ 9 diyor; eskimiş.
     - Bağlama statiktir: bir modül `agent.v3.js` grafına require ile girdiği anda (opt-in olsa bile) erişilebilir sayılır.
@@ -129,12 +129,12 @@ Paralellik: M4, M9 biter bitmez başlayabilir; M1, Faz 1 ile paralel yürüyebil
 ## 6. Faz 0: Ortak altyapı (M2 issue'sunun ilk PR'ları; epic'te de listelenir)
 
 - **PR-0a (runtime-dışı gate):**
-  - `scripts/architecture-dependency-graph.js` → Core kuralının `dirs` listesine `'lib/cognition/'`.
+  - `scripts/architecture-dependency-graph.js` → Core kuralının `dirs` listesine `'lib/cognition/'`; `files` listesine `'lib/memory-cognitive-message.js'` (S12).
   - `scripts/architecture-tracker-baseline.json` güncellenir.
   - `lib/cognition/contract.js`: `COGNITION_STATUS`, `AUTHORITY`, `clamp01`, `round6`, `freezeResult`.
   - `test/cognition-purity.test.js`.
 - **PR-0b:** `lib/cognition/cognition-config.js` (`resolveCognitionConfig`, `COGNITION_FLAGS`) ve `test/cognition-config.test.js`.
-- **PR-0c (Açık soru S1'e bağlı):** Cognitive Lab manifestine bilişsel mekanizma kimlikleri. Öneri:
+- **PR-0c (S1 kararı):** Cognitive Lab manifestine bilişsel mekanizma kimlikleri:
   - `huqan-cognitive-lab-manifest-v2` içinde ek bir `cognitiveMechanisms` bloğu (`M1..M11`: `ENABLED|DISABLED|NOT_MEASURED`).
   - v1 manifestleri aynen kabul edilmeye devam eder.
   - B1..B8 builder'ları değişmez.
@@ -166,8 +166,8 @@ Paralellik: M4, M9 biter bitmez başlayabilir; M1, Faz 1 ile paralel yürüyebil
   - Azaltım: purity testi ve "sinyal → firewall/risk/trust girdisi yok" testleri. Risk yalnız salience'ı artırır.
 - **Dosya boyutu ve fan-out tavanı.** `agent.v3.js` 386 satır, `dream-experiment-loop.js` 368 satır.
   - Azaltım: seam dosyası, satır bütçesi kabul kriterlerinde.
-- **Halka ihlali.** Core → Adapters/Application require'ı. `memory-cognitive-message.js` de Adapters halkasında (S12).
-  - Azaltım: Faz 0'da halka kuralı; çağıran hesaplar ve parametre geçirir.
+- **Halka ihlali.** Core → Adapters/Application require'ı. `memory-cognitive-message.js` kalıp gereği Adapters halkasında.
+  - Azaltım: Faz 0 PR-0a'da halka kuralı; `memory-cognitive-message.js` Core `files` listesine sabitlenir (S12); diğer `memory-*` modülleri için çağıran hesaplar ve parametre geçirir.
 - **Paylaşılan sayaç çatışması.** `config/reachability-baseline.json` paralel PR'larda çakışır.
   - Azaltım: ledger değiştiren PR'lar sıralanır; Project'te "ledger kilidi" alanı.
 - **Checkpoint şişmesi.** `state.cognition` her checkpoint'e yazılır.
@@ -179,14 +179,14 @@ Paralellik: M4, M9 biter bitmez başlayabilir; M1, Faz 1 ile paralel yürüyebil
 - **Kopya otorite.** Value ledger kalıcılaşabilir.
   - Azaltım: Faz 1–3'te yeni `runMutationOnce` öneki yasak; türetilmiş model.
 - **Dream "opt-in" belgesi yanlış** (Bulgu 1).
-  - Azaltım: M10 etkisini bayrağa bağlar; çelişki bakımcıya raporlanır.
+  - Azaltım: S4 kararı: kod doğru, belge düzeltildi; M10 etkisini bayrağa bağlar.
 
 ## 9. Açık sorular
 
-- **S1:** Cognitive Lab mekanizma kimlikleri. Manifest v2 `cognitiveMechanisms` (M1..M11) mi, `MECHANISM_IDS`'e yeni kimlikler (zorunlu alan olduğu için tüm builder'lar değişir) mi, yoksa mevcut B ailelerine eşleme mi?
-- **S2:** #3306 programı ve açık issue'larla örtüşme. Bu program #3306'nın alt programı mı olacak, ayrı epic mi?
+- **S1 (kapandı):** Cognitive Lab mekanizma kimlikleri → manifest v2 `cognitiveMechanisms` (M1..M11); bkz. Kararlar ve PR-0c.
+- **S2 (kapandı):** #3306 ile ilişki → ayrı epic (#4060), #3306'nın ardılı; bkz. Kararlar.
 - **S3:** `opts.cognition` tek ad alanı mı, `cognitiveScheduler` emsali gibi düz bayraklar mı? Plan tek ad alanını öneriyor.
-- **S4:** Dream döngüsünün varsayılan açık olması bilinçli mi? Belge mi düzeltilmeli, kod mu?
+- **S4 (kapandı):** Dream döngüsü varsayılan açık kalır; belge düzeltilir (checkpoint #969 girdisi güncellendi); bkz. Kararlar.
 - **S5:** M10 çapraz koşu geçmişi için dream transition'larına `relation` alanı eklemek kalıcı şema değişikliği sayılır mı?
 - **S6:** M4 "kullanım" verisi nereden gelecek? Seçenekler: recall okumalarını sayan yeni bir sayaç (yeni yazım yolu, ayrı onay gerekir) ya da audit `QUERY` olayları (trust-calibration "QUERY doğrulama değildir" diyor; kullanım için uygun olabilir). Karar verilene kadar kullanım "bilinmiyor = 1" kabul edilir.
 - **S7:** AgentV3 step raporları `effectVerification`/dosya-etkisi gözlemi taşıyor mu? Bu gözlem external-action guard makbuzlarında var; step raporlarında doğrulanmadı.
@@ -194,7 +194,7 @@ Paralellik: M4, M9 biter bitmez başlayabilir; M1, Faz 1 ile paralel yürüyebil
 - **S9:** Maliyet-primer ve non-inferiority deneyleri (M5, M4) için b6 evaluator parametreleştirilmeli mi, yeni evaluator mı yazılmalı?
 - **S10:** `terfi --from-replay` yeni bir operatör bayrağı; ürün yüzeyi kararı gerekir.
 - **S11:** M4 için CLI `memory-lifecycle consolidate` retention bayrağı açılacak mı?
-- **S12:** `lib/memory-cognitive-message.js`'in halka ataması. Dosya saf bir şema/karşılaştırma modülü ama `memory-` öneki yüzünden Adapters'ta. Core'a açıkça sabitlenmeli mi (`scripts/architecture-dependency-graph.js` `files` listesi), yoksa M1 doğrulamayı çağırana mı bırakmalı?
+- **S12 (kapandı):** `lib/memory-cognitive-message.js` Faz 0 PR-0a'da `scripts/architecture-dependency-graph.js` Core `files` listesine sabitlenir; M1 K1 zarfını yeniden kullanır. Bkz. Kararlar.
 
 ---
 
