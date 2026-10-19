@@ -17,6 +17,7 @@ const {
   readExactPullRequest,
 } = require('../lib/github-app-streaming-trust');
 const { toCanonicalVerdict } = require('../lib/verdict/action-verdict');
+const { checkConclusion } = require('../lib/github-app-streaming-trust-receipt');
 
 const SECRET = 'streaming-trust-webhook-secret';
 const DELIVERY = '82d3162e-cc78-11e3-81ab-4c9367dc0958';
@@ -142,14 +143,29 @@ async function run(t, fetchFixture, request = signedRequest(payload())) {
   };
 }
 
-test('authenticated PR event reaches exact-head code-change gate, chained receipt, and success check', async (t) => {
+test('an allow verdict from metadata-only evidence is never shown as success', async (t) => {
+  const github = makeGitHubFetch();
+  const { result } = await run(t, github);
+  const checkCall = github.calls.find(call => call.url.endsWith('/check-runs'));
+  const checkBody = JSON.parse(checkCall.options.body);
+
+  assert.equal(result.trust.receipt.verdict, 'allow');
+  assert.notEqual(result.trust.conclusion, 'success');
+  assert.notEqual(checkBody.conclusion, 'success');
+  assert.equal(checkBody.conclusion, 'neutral');
+  assert.equal(checkBody.output.title, 'HUQAN: no blocking signal (metadata only)');
+  assert.equal(checkConclusion('block'), 'failure');
+  assert.equal(checkConclusion('review'), 'action_required');
+});
+
+test('authenticated PR event reaches exact-head code-change gate, chained receipt, and neutral check', async (t) => {
   const github = makeGitHubFetch();
   const { stores, result } = await run(t, github);
 
   assert.equal(result.observation.receipt.verdict, 'review');
   assert.equal(result.trust.receipt.verdict, 'allow');
   assert.equal(result.trust.receipt.decision, 'allow');
-  assert.equal(result.trust.conclusion, 'success');
+  assert.equal(result.trust.conclusion, 'neutral');
   assert.equal(result.trust.receipt.previousReceiptHash, result.observation.receipt.receiptHash);
   assert.equal(result.trust.receipt.metadata.c7ReceiptHash, result.observation.receipt.receiptHash);
   assert.equal(result.trust.receipt.metadata.repositoryId, REPOSITORY_ID);
@@ -170,9 +186,10 @@ test('authenticated PR event reaches exact-head code-change gate, chained receip
   const checkBody = JSON.parse(checkCall.options.body);
   assert.equal(checkBody.head_sha, HEAD_SHA);
   assert.equal(checkBody.status, 'completed');
-  assert.equal(checkBody.conclusion, 'success');
+  assert.equal(checkBody.conclusion, 'neutral');
   assert.match(checkBody.external_id, /^huqan:c8:[0-9a-f]{64}$/);
   assert.match(checkBody.output.summary, new RegExp(result.trust.receipt.receiptHash));
+  assert.equal(checkBody.output.title, 'HUQAN: no blocking signal (metadata only)');
 
   const evaluation = stores.c8Store.readEvaluation(DELIVERY);
   assert.equal(evaluation.receipt.receiptHash, result.trust.receipt.receiptHash);
@@ -538,6 +555,6 @@ test('a transient read failure is declined but not remembered, so a redelivery c
   // Persisting the decline would have frozen this delivery on its worst moment.
   const second = await call(NOW_MS + 60000, flaky);
   assert.equal(second.trust.receipt.verdict, 'allow');
-  assert.equal(second.trust.conclusion, 'success');
+  assert.equal(second.trust.conclusion, 'neutral');
   assert.equal(stores.c8Store.readWriteback(DELIVERY).state, 'complete');
 });
