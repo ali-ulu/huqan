@@ -7,7 +7,8 @@ and `v1.0.1` tags exist, but neither is published: both Publish runs stopped
 before `npm publish` (`v1.0.0` on a suite failure, `v1.0.1` at the independent
 release evaluation gate, which had no evaluation record and was removed in
 #3867). The `1.1.0` package is on npm with trusted-publisher provenance, but its
-Publish run ended on npm's staged 409 (see "Staged 409" below), so the latest
+Publish run ended on npm's staged 409 (see "A version the registry already
+holds" below), so the latest
 GitHub Release is still `v0.13.2` until `v1.1.1` publishes. Existing version/tag state must
 be checked again immediately before any publication because npm versions and
 Git tags are immutable release identities.
@@ -177,24 +178,44 @@ A manual workflow dispatch is useful for rehearsal. Real publication still
 requires an immutable release tag whose name matches the manifest and whose
 commit is on the default branch.
 
-### Staged 409
+### A version the registry already holds
 
 npm can answer an upload it has accepted with `409 Cannot publish over
 previously staged version "<v>"` and promote that upload a few minutes later.
-That is what happened to `v1.1.0`. The Publish step now treats exactly that
-signature as pending: `scripts/npm-release-state.js settle` polls the registry
-(15 minutes by default) and passes only once `<name>@<v>` is served with
-`gitHead` equal to the tagged commit and the trusted-publisher claim
-`_npmUser.trustedPublisher.id == github`. The republish guard asks the same
-question, so re-running a tag whose upload already landed skips the upload and
-still runs release-verify and Release Distribution. A version from any other
-commit or publisher is refused.
+That is what happened to `v1.1.0`. When the earlier upload was already
+promoted, npm words the same fact differently -- `403 You cannot publish over
+the previously published versions: <v>`, which is what `v1.1.1` answered -- and
+the run failed the same way, with the version already live from that commit.
+Both shapes are the same fact: the registry holds the version.
+
+The Publish step now treats exactly that fact as pending:
+`scripts/npm-release-state.js settle` polls the registry (15 minutes by
+default) and passes only once `<name>@<v>` is served with `gitHead` equal to
+the tagged commit, the trusted-publisher claim
+`_npmUser.trustedPublisher.id == github`, and the registry's `dist.shasum`
+equal to the shasum of the tarball this run packed. The republish guard asks
+the same question, so re-running a tag whose upload already landed skips the
+upload and still runs release-verify and Release Distribution. A version from
+any other commit or publisher is refused, and so is one carrying different
+bytes: the commit and the publisher say *who* published the version, the
+shasum says whether the bytes on the registry are the ones every gate above
+the publish step ran against.
 
 That claim is read from the dotted `npm view` path `_npmUser.trustedPublisher.id`,
 not from `_npmUser` itself. npm 11 renders a `_npmUser` carrying a trusted
 publisher as the string `"GitHub Actions <npm-oidc-no-reply@github.com>"`, so
 the object npm 10 returns is not there to read; the dotted path answers
 `"github"` under both.
+
+The bin targets in `package.json` are written the way npm normalises them
+(`cli.js`, not `./cli.js`). npm 11 rewrites that prefix while it packs and
+announces the rewrite as `bin[huqan] script name cli.js was invalid and
+removed`, which reads as data loss and is not: the bin is kept, the packed
+manifest still carries it, and the install creates the link -- npm 10 makes
+the same rewrite and says only `script name was cleaned`. Writing the
+normalised form means neither version announces anything. The pre-publish
+tarball verifier is the real guard: it installs the packed tarball and fails
+if any declared bin is missing from the install.
 
 A tag's run uses the workflow file *at the tag*, so this only helps releases
 cut after the fix; `v1.1.0`'s run cannot be re-run green.

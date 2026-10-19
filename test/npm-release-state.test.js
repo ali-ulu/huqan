@@ -28,7 +28,8 @@ const path = require('node:path');
 const {
   classifyRegistryVersion,
   parseRegistryView,
-  isStagedConflict,
+  isAlreadyOnRegistry,
+  packedShasum,
   settleStagedPublish,
   main,
 } = require('../scripts/npm-release-state');
@@ -76,10 +77,32 @@ test('npm 12\'s array-shaped reply is read from its last entry', () => {
   assert.equal(classifyRegistryVersion(parseRegistryView(JSON.stringify([record])), SHA), 'published-from-this-commit');
 });
 
-test('only the staged-version conflict counts as a settle candidate', () => {
-  assert.equal(isStagedConflict('npm error code E409\nnpm error 409 Conflict - PUT https://registry.npmjs.org/huqan - Cannot publish over previously staged version "1.1.0".'), true);
-  assert.equal(isStagedConflict('npm error 404 Not Found - PUT https://registry.npmjs.org/huqan'), false);
-  assert.equal(isStagedConflict('npm error 403 You cannot publish over the previously published versions: 1.1.0.'), false);
+test('both of the shapes npm uses for a version the registry already holds count as a settle candidate', () => {
+  // v1.1.0: the earlier upload was still staged, so npm answered 409.
+  assert.equal(isAlreadyOnRegistry('npm error code E409\nnpm error 409 Conflict - PUT https://registry.npmjs.org/huqan - Cannot publish over previously staged version "1.1.0".'), true);
+  // v1.1.1: the earlier upload had already been promoted, so npm answered 403
+  // and worded it differently. Same fact, and the run failed the same way.
+  assert.equal(isAlreadyOnRegistry('npm error code E403\nnpm error 403 You cannot publish over the previously published versions: 1.1.1.'), true);
+  // Every other failure stays a failure.
+  assert.equal(isAlreadyOnRegistry('npm error 404 Not Found - PUT https://registry.npmjs.org/huqan'), false);
+  assert.equal(isAlreadyOnRegistry('npm error 401 Unauthorized - PUT https://registry.npmjs.org/huqan'), false);
+});
+
+test('the shasum of the tarball this run packed is read from the publish log', () => {
+  // npm prints it before the upload attempt, so a run that failed still
+  // knows what it was about to publish (v1.1.0's failed log carries it).
+  const log = 'npm notice shasum: 3c66249e58a8a6e865e3998ae52459fda995861c\nnpm error code E409\n';
+  assert.equal(packedShasum(log), '3c66249e58a8a6e865e3998ae52459fda995861c');
+  assert.equal(packedShasum('npm error 404 Not Found'), '');
+});
+
+test('a version from this commit whose tarball is not the one this run packed is not adopted', () => {
+  const shasum = '17afe43aa68a943fbd70985141124f2f72443606';
+  const record = { ...fromThisCommit, 'dist.shasum': shasum };
+  assert.equal(classifyRegistryVersion(record, SHA, shasum), 'published-from-this-commit');
+  assert.equal(classifyRegistryVersion(record, SHA, '3c66249e58a8a6e865e3998ae52459fda995861c'), 'published-different-tarball');
+  // With nothing to compare against, the commit and the publisher decide.
+  assert.equal(classifyRegistryVersion(record, SHA), 'published-from-this-commit');
 });
 
 test('a staged upload settles once the registry serves it from this commit', async () => {
@@ -105,6 +128,21 @@ test('a staged upload that never appears, or appears from elsewhere, does not se
   assert.equal(await settleStagedPublish({
     lookup: async () => ({ ...fromThisCommit, gitHead: 'f'.repeat(40) }), sha: SHA, timeoutMs: 3_000, intervalMs: 1_000, sleep: async () => {}, now: clock(),
   }), 'published-elsewhere');
+});
+
+test('a settle that finds a different tarball does not adopt the version', async () => {
+  const shasum = '17afe43aa68a943fbd70985141124f2f72443606';
+  const clock = () => { let t = 0; return () => (t += 1_000); };
+  const verdict = await settleStagedPublish({
+    lookup: async () => ({ ...fromThisCommit, 'dist.shasum': '3c66249e58a8a6e865e3998ae52459fda995861c' }),
+    sha: SHA,
+    expectedShasum: shasum,
+    timeoutMs: 3_000,
+    intervalMs: 1_000,
+    sleep: async () => {},
+    now: clock(),
+  });
+  assert.equal(verdict, 'published-different-tarball');
 });
 
 test('settle refuses any other publish failure without waiting on the registry', async () => {

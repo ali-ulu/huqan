@@ -333,9 +333,13 @@ jobs:
           if [ "${publish_status}" -ne 0 ]; then
             # npm can answer the upload it just accepted with `409 Cannot
             # publish over previously staged version` and promote it minutes
-            # later (v1.1.0). Only that signature is waited out, and it passes
-            # only once the registry serves the version from this commit via
-            # the trusted publisher; every other failure stays a failure.
+            # later (v1.1.0), or -- once that earlier upload is already
+            # promoted -- with `403 You cannot publish over the previously
+            # published versions` (v1.1.1). Both are the same fact: the
+            # registry holds the version. Only that fact is waited out, and it
+            # passes only once the registry serves the version from this
+            # commit via the trusted publisher, with the tarball this run
+            # packed; every other failure stays a failure.
             name="$(node -p "require('./package.json').name")"
             if node scripts/npm-release-state.js settle "${name}" "${manifest}" "${GITHUB_SHA}" "${log}"; then
               echo "${name}@${manifest} is live from ${GITHUB_SHA}; the 409 was npm staging this upload."
