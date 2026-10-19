@@ -250,6 +250,71 @@ jobs:
           fi
           echo "Latest main ${latest_sha:0:7}: $verdict"
 
+          # #4055: a required post-merge check that is still MISSING or PENDING
+          # long after its commit landed is an incident, not a wait. The state
+          # script lists a gate as overdue only past its window, so a fresh merge
+          # never alerts. Merges closer together than the window keep the latest
+          # commit young forever, so when it is not past the window yet, the
+          # newest scanned commit that is gets judged instead: a gate that never
+          # runs is MISSING there too, while a run cancelled by a newer push is
+          # FAILED, not overdue. One issue per SHA and context, carrying the
+          # watcher marker so the main_green path below closes it.
+          overdue_sha=""
+          overdue_state=""
+          if [[ "$verdict" != "STATE_UNAVAILABLE" ]] \
+            && [[ "$(jq '.ageSeconds >= .overdueAfterSeconds' /tmp/main-state.json)" == "true" ]]; then
+            overdue_sha="$latest_sha"
+            overdue_state=/tmp/main-state.json
+          else
+            for candidate in "${shas[@]:1}"; do
+              candidate_at="$(gh api "repos/$REPO/commits/$candidate" --jq '.commit.committer.date' || true)"
+              [[ -n "$candidate_at" ]] || continue
+              if gh api "repos/$REPO/actions/runs?head_sha=$candidate&per_page=100" \
+                  --jq '[.workflow_runs[] | {name, status, conclusion, run_number, run_attempt}]' > /tmp/overdue-runs.json \
+                && gh api --paginate "repos/$REPO/commits/$candidate/check-runs?per_page=100" \
+                  --jq '.check_runs[] | {id, name, status, conclusion}' | jq -s '.' > /tmp/overdue-checks.json \
+                && node scripts/main-ci-watch-state.js \
+                  --inventory .github/main-ci-watch-contexts.json \
+                  --check-runs /tmp/overdue-checks.json \
+                  --workflow-runs /tmp/overdue-runs.json \
+                  --committed-at "$candidate_at" > /tmp/overdue-state.json \
+                && [[ "$(jq '.ageSeconds >= .overdueAfterSeconds' /tmp/overdue-state.json)" == "true" ]]; then
+                overdue_sha="$candidate"
+                overdue_state=/tmp/overdue-state.json
+                break
+              fi
+            done
+          fi
+
+          if [[ -n "$overdue_sha" ]]; then
+            short="${overdue_sha:0:7}"
+            while IFS= read -r context; do
+              [[ -n "$context" ]] || continue
+              title="ci(main): $short required check overdue: $context"
+              already="$(
+                { gh issue list --repo "$REPO" --state open --search "$short in:title" --json number,title \
+                    | jq -r --arg t "$title" '.[] | select(.title == $t) | .number'
+                  gh issue list --repo "$REPO" --state closed --search "$short in:title" --json number,title \
+                    | jq -r --arg t "$title" '.[] | select(.title == $t) | .number'
+                } | head -n 1
+              )"
+              if [[ -n "$already" ]]; then
+                echo "$short: $context already alerted as overdue in #$already."
+                continue
+              fi
+              state="$(jq -r --arg c "$context" '.contexts[] | select(.context == $c) | .state' "$overdue_state")"
+              {
+                echo "Required post-merge check **$context** on main commit \`$overdue_sha\` is still $state well after the commit landed."
+                echo
+                echo "Commit: https://github.com/$REPO/commit/$overdue_sha"
+                echo
+                echo "_Created automatically by the repository-native Main CI Watch workflow. It closes this issue once main has every post-merge required check observed and green._"
+              } > /tmp/main-ci-overdue.md
+              gh issue create --repo "$REPO" --title "$title" --body-file /tmp/main-ci-overdue.md
+              alerts=$((alerts + 1))
+            done < <(jq -r '.overdue[]' "$overdue_state")
+          fi
+
           if [[ "$main_green" == "true" ]]; then
             mapfile -t resolved_issues < <(
               gh issue list \

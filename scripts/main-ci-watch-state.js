@@ -30,6 +30,11 @@
 const fs = require('node:fs');
 
 const SETTLE_SECONDS = 300;
+// MISSING and PENDING are ordinary right after a merge (Benchmark Regression
+// alone takes ~40 minutes), so they only become an alert once a commit is this
+// old (#4055). A gate that never appears would otherwise leave main "not
+// verified green" indefinitely with nothing tracking it.
+const OVERDUE_SECONDS = 2 * 60 * 60;
 const PASSING_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
 
 const VERDICTS = Object.freeze({
@@ -102,7 +107,8 @@ function mainCiState({ inventory, checkRuns, workflowRuns, committedAt, now }) {
   const current = now === undefined ? Date.now() : Date.parse(now);
   if (!Number.isFinite(committed)) throw new TypeError('committedAt must be an ISO timestamp');
   if (!Number.isFinite(current)) throw new TypeError('now must be an ISO timestamp');
-  const settled = (current - committed) / 1000 >= SETTLE_SECONDS;
+  const ageSeconds = (current - committed) / 1000;
+  const settled = ageSeconds >= SETTLE_SECONDS;
   const latest = latestCheckRunsByName(checkRuns);
   const states = postMerge.map((context) => ({ context, state: contextState(latest.get(context)) }));
   const workflows = blockingWorkflowRuns(workflowRuns);
@@ -116,6 +122,9 @@ function mainCiState({ inventory, checkRuns, workflowRuns, committedAt, now }) {
     missing: of('MISSING'),
     pending: of('PENDING'),
     failed: of('FAILED'),
+    overdue: ageSeconds >= OVERDUE_SECONDS ? [...of('MISSING'), ...of('PENDING')] : [],
+    ageSeconds,
+    overdueAfterSeconds: OVERDUE_SECONDS,
     blockingWorkflows: workflows.blocking,
     workflowRunCount: workflows.count,
     notObservablePostMerge: prOnly,
@@ -153,4 +162,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { SETTLE_SECONDS, VERDICTS, mainCiState, latestCheckRunsByName, blockingWorkflowRuns, main };
+module.exports = { SETTLE_SECONDS, OVERDUE_SECONDS, VERDICTS, mainCiState, latestCheckRunsByName, blockingWorkflowRuns, main };

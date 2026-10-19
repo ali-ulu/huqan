@@ -11,7 +11,7 @@ const path = require('node:path');
 const test = require('node:test');
 const yaml = require('js-yaml');
 
-const { VERDICTS, mainCiState, main } = require('../scripts/main-ci-watch-state');
+const { VERDICTS, OVERDUE_SECONDS, mainCiState, main } = require('../scripts/main-ci-watch-state');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const INVENTORY_PATH = path.join(REPO_ROOT, '.github', 'main-ci-watch-contexts.json');
@@ -149,6 +149,53 @@ test('a failing latest workflow attempt blocks green even when every gate passed
   const verdict = state({ workflowRuns: workflows });
   assert.equal(verdict.verdict, VERDICTS.WORKFLOW_BLOCKING);
   assert.deepEqual(verdict.blockingWorkflows, ['Publish to npm']);
+});
+
+test('#4055: a gate still missing or pending past the overdue window is reported as overdue', () => {
+  const runs = greenCheckRuns().slice(1);
+  runs[1] = checkRun(3, GATES[2], null, 'in_progress');
+
+  // Shortly after a merge both states are ordinary: Benchmark Regression takes
+  // ~40 minutes and the watcher wakes every 15.
+  assert.deepEqual(state({ checkRuns: runs }).overdue, []);
+
+  const late = new Date(Date.parse(COMMITTED) + OVERDUE_SECONDS * 1000).toISOString();
+  const verdict = state({ checkRuns: runs, now: late });
+  assert.deepEqual(verdict.overdue, [GATES[0], GATES[2]]);
+  assert.equal(verdict.mainGreen, false);
+
+  // A failed gate is already alerted on its own path; a green one is not overdue.
+  const failed = greenCheckRuns();
+  failed[0] = checkRun(1, GATES[0], 'failure');
+  assert.deepEqual(state({ checkRuns: failed, now: late }).overdue, []);
+  assert.deepEqual(state({ now: late }).overdue, []);
+
+  // The watcher finds "the newest commit past the window" from these two
+  // fields instead of restating the window in shell.
+  assert.equal(verdict.overdueAfterSeconds, OVERDUE_SECONDS);
+  assert.equal(verdict.ageSeconds, OVERDUE_SECONDS);
+});
+
+test('#4055: overdue gates alert once per SHA and context, also when newer merges keep main young', () => {
+  const watch = yaml.load(fs.readFileSync(WATCH_PATH, 'utf8'));
+  const run = watch.jobs['inspect-main'].steps.map((step) => step.run || '').join('\n');
+  const start = run.indexOf('# #4055:');
+  const end = run.indexOf('if [[ "$main_green" == "true" ]]; then');
+  assert.ok(start > run.indexOf('node scripts/main-ci-watch-state.js') && start < end);
+  const block = run.slice(start, end);
+
+  // Merges less than the window apart must not hide an older commit's gap.
+  assert.match(block, /for candidate in "\$\{shas\[@\]:1\}"; do/, 'older scanned commits are considered');
+  assert.match(block, /\.ageSeconds >= \.overdueAfterSeconds/, 'it stops at the newest commit past the window');
+
+  // One issue per SHA and context, so a gate that turns overdue later is not swallowed.
+  assert.match(block, /jq -r '\.overdue\[\]'/);
+  assert.match(block, /required check overdue: \$context/);
+  // gh's --jq takes a bare expression; `--jq --arg ...` would run "--arg" as the filter.
+  assert.doesNotMatch(run, /--jq --arg/);
+  assert.match(block, /--state closed/, 'a closed alert for the same SHA and context blocks a duplicate');
+  assert.match(block, /Created automatically by the repository-native Main CI Watch workflow/,
+    'the green close path only closes issues that carry the watcher marker');
 });
 
 test('a malformed inventory or timestamp is refused', () => {

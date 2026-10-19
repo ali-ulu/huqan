@@ -184,10 +184,17 @@ previously staged version "<v>"` and promote that upload a few minutes later.
 That is what happened to `v1.1.0`. The Publish step now treats exactly that
 signature as pending: `scripts/npm-release-state.js settle` polls the registry
 (15 minutes by default) and passes only once `<name>@<v>` is served with
-`gitHead` equal to the tagged commit and `_npmUser.trustedPublisher.id ==
-github`. The republish guard asks the same question, so re-running a tag whose
-upload already landed skips the upload and still runs release-verify and
-Release Distribution. A version from any other commit or publisher is refused.
+`gitHead` equal to the tagged commit and the trusted-publisher claim
+`_npmUser.trustedPublisher.id == github`. The republish guard asks the same
+question, so re-running a tag whose upload already landed skips the upload and
+still runs release-verify and Release Distribution. A version from any other
+commit or publisher is refused.
+
+That claim is read from the dotted `npm view` path `_npmUser.trustedPublisher.id`,
+not from `_npmUser` itself. npm 11 renders a `_npmUser` carrying a trusted
+publisher as the string `"GitHub Actions <npm-oidc-no-reply@github.com>"`, so
+the object npm 10 returns is not there to read; the dotted path answers
+`"github"` under both.
 
 A tag's run uses the workflow file *at the tag*, so this only helps releases
 cut after the fix; `v1.1.0`'s run cannot be re-run green.

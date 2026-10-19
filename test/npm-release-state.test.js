@@ -12,6 +12,12 @@
  * Both decisions now go through scripts/npm-release-state.js, which only ever
  * accepts a registry version that this commit published through the GitHub
  * trusted publisher.
+ *
+ * That claim is read from the dotted `npm view` path `_npmUser.trustedPublisher.id`,
+ * not from `_npmUser` (#4056): npm 11 humanizes the whole `_npmUser` object to
+ * `"GitHub Actions <npm-oidc-no-reply@github.com>"` when it carries a trusted
+ * publisher, so the field this module needs is a string under npm 11 and an
+ * object under npm 10. The dotted path reads `"github"` under both.
  */
 
 const test = require('node:test');
@@ -21,6 +27,7 @@ const path = require('node:path');
 
 const {
   classifyRegistryVersion,
+  parseRegistryView,
   isStagedConflict,
   settleStagedPublish,
   main,
@@ -29,7 +36,7 @@ const {
 const SHA = 'b07de1f14b6656b4d0bc3f03870fb6e272f836a7';
 const fromThisCommit = {
   gitHead: SHA,
-  _npmUser: { name: 'GitHub Actions', trustedPublisher: { id: 'github' } },
+  '_npmUser.trustedPublisher.id': 'github',
 };
 
 test('a version this commit published through the trusted publisher is recognised', () => {
@@ -39,8 +46,34 @@ test('a version this commit published through the trusted publisher is recognise
 
 test('a version from another commit or another publisher is never adopted', () => {
   assert.equal(classifyRegistryVersion({ ...fromThisCommit, gitHead: 'f'.repeat(40) }, SHA), 'published-elsewhere');
-  assert.equal(classifyRegistryVersion({ gitHead: SHA, _npmUser: { name: 'aliulu' } }, SHA), 'published-elsewhere');
-  assert.equal(classifyRegistryVersion({ _npmUser: fromThisCommit._npmUser }, SHA), 'published-elsewhere');
+  assert.equal(classifyRegistryVersion({ gitHead: SHA, '_npmUser.trustedPublisher.id': 'gitlab' }, SHA), 'published-elsewhere');
+  assert.equal(classifyRegistryVersion({ gitHead: SHA }, SHA), 'published-elsewhere');
+  assert.equal(classifyRegistryVersion({ '_npmUser.trustedPublisher.id': 'github' }, SHA), 'published-elsewhere');
+});
+
+test('the registry reply is read the same way under npm 10 and npm 11', () => {
+  // npm 10 answers `_npmUser` as an object; the dotted path is a plain string
+  // on both, which is the only shape this module classifies on.
+  const both = JSON.stringify({ name: 'huqan', version: '1.1.1', gitHead: SHA, '_npmUser.trustedPublisher.id': 'github' });
+  assert.equal(classifyRegistryVersion(parseRegistryView(both), SHA), 'published-from-this-commit');
+
+  // A record with a trusted publisher but no gitHead is the one case where npm
+  // would collapse the reply to a bare scalar if `name`/`version` were not asked
+  // for; it must still parse and still be refused.
+  const noGitHead = JSON.stringify({ name: 'huqan', version: '1.1.1', '_npmUser.trustedPublisher.id': 'github' });
+  assert.equal(classifyRegistryVersion(parseRegistryView(noGitHead), SHA), 'published-elsewhere');
+
+  // A human publish carries no trusted publisher and must not settle.
+  const human = JSON.stringify({ name: 'express', version: '4.19.2', gitHead: SHA });
+  assert.equal(classifyRegistryVersion(parseRegistryView(human), SHA), 'published-elsewhere');
+
+  assert.equal(parseRegistryView(''), null, 'empty stdout is an absent version');
+  assert.equal(parseRegistryView('npm error code E404'), null, 'npm error text is not a record');
+});
+
+test('npm 12\'s array-shaped reply is read from its last entry', () => {
+  const record = { name: 'huqan', version: '1.1.1', gitHead: SHA, '_npmUser.trustedPublisher.id': 'github' };
+  assert.equal(classifyRegistryVersion(parseRegistryView(JSON.stringify([record])), SHA), 'published-from-this-commit');
 });
 
 test('only the staged-version conflict counts as a settle candidate', () => {
