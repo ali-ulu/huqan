@@ -23,7 +23,7 @@ material — but they do not agree on what a route receipt **is**.
 
 ### 1.1 The validator knows two shapes
 
-`lib/v5/shared-trust-package-validator.js` validates two distinct shapes:
+`schemas/v5/shared-trust-package-validator.js` validates two distinct shapes:
 
 | Shape | Location | Required fields | Validator checks |
 |---|---|---|---|
