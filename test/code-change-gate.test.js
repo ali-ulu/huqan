@@ -426,6 +426,64 @@ describe('AB3 code change gate core decisions', () => {
     assert.equal(result.reason, CODE_CHANGE_GATE_REASONS.DIRTY_REPO_REVIEW_REQUIRED);
   });
 
+  // #4042: `known: false` is a caller saying git could not be read. It must not
+  // be normalised into "clean, non-main" and released as an ordinary source
+  // review.
+  it('an unreadable repository state blocks a write-like change', () => {
+    const result = makeResult({
+      repoState: { known: false, branch: '', dirty: false, hasUntracked: false },
+      files: [{ path: 'lib/transformer.js', status: 'modified', changeType: 'source' }],
+      intent: 'apply source edit with unknown repo state',
+    });
+
+    assert.equal(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK);
+    assert.equal(result.reason, CODE_CHANGE_GATE_REASONS.REPO_STATE_UNKNOWN_BLOCKED);
+    assert.equal(result.allowed, false);
+    assert.equal(result.canApply, false);
+  });
+
+  it('operator authorization does not lift the unknown-state block', () => {
+    const result = evaluateCodeChange(makeInput({
+      repoState: { known: false, branch: '', dirty: false, hasUntracked: false },
+      files: [{ path: 'lib/transformer.js', status: 'modified', changeType: 'source' }],
+      intent: 'apply source edit with unknown repo state',
+    }), { authorized: true });
+
+    assert.equal(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK);
+    assert.equal(result.reason, CODE_CHANGE_GATE_REASONS.REPO_STATE_UNKNOWN_BLOCKED);
+  });
+
+  it('an unreadable repository state leaves a non-write operation to its own decision', () => {
+    const result = makeResult({
+      repoState: { known: false, branch: '', dirty: false, hasUntracked: false },
+      operationType: 'preview',
+      files: [{ path: 'lib/transformer.js', status: 'modified', changeType: 'source' }],
+      intent: 'preview a source edit with unknown repo state',
+    });
+
+    assert.notEqual(result.decision, CODE_CHANGE_GATE_DECISIONS.BLOCK);
+    assert.notEqual(result.reason, CODE_CHANGE_GATE_REASONS.REPO_STATE_UNKNOWN_BLOCKED);
+  });
+
+  it('a caller that never reports repo state keeps its previous decision', () => {
+    // Backwards compatibility: only an explicit `known: false` fails closed.
+    const result = makeResult({
+      repoState: { branch: 'feat/no-known-field', dirty: false, hasUntracked: false },
+      files: [{ path: 'lib/transformer.js', status: 'modified', changeType: 'source' }],
+      intent: 'apply source edit on a feature branch',
+    });
+
+    assert.equal(result.decision, CODE_CHANGE_GATE_DECISIONS.REVIEW);
+    assert.equal(result.reason, CODE_CHANGE_GATE_REASONS.SOURCE_CHANGE_REQUIRES_REVIEW);
+  });
+
+  it('normalisation carries the reported repo state through', () => {
+    const unknown = normalizeCodeChangeInput({ files: [], repoState: { known: false, branch: '' } });
+    const silent = normalizeCodeChangeInput({ files: [], repoState: { branch: 'feat/x' } });
+    assert.equal(unknown.repoState.known, false);
+    assert.equal(silent.repoState.known, true);
+  });
+
   it('empty file list returns review or block, not allow', () => {
     const result = evaluateCodeChange(makeInput({
       files: [],

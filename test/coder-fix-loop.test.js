@@ -2,6 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
+const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -413,10 +414,26 @@ describe('runFixLoop', () => {
 });
 
 describe('coder CLI fix-loop wiring', () => {
-  it('the production command composition supplies the loop collaborator', () => {
+  // The command reads the repository state from git, and an unreadable state now
+  // fails closed (#4042), so these tests run against a real clean feature branch
+  // instead of a bare temp directory. What they exercise is the wiring -- the
+  // production composition supplying the loop collaborator, and the loop keeping
+  // or refusing the patch -- not the gate's answer to a missing repository.
+  const fixture = (files) => {
     const root = makeRoot();
-    write(root, 'docs/notes.md', 'greeting: hello v1\n');
-    write(root, 'test/check.js', 'process.exit(0);\n');
+    const git = args => childProcess.execFileSync('git', args, {
+      cwd: root, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true,
+    });
+    git(['init', '-b', 'feat/coder-loop']);
+    for (const [relative, content] of Object.entries(files)) write(root, relative, content);
+    const identity = ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid'];
+    git([...identity, 'add', ...Object.keys(files)]);
+    git([...identity, 'commit', '-m', 'fixture']);
+    return root;
+  };
+
+  it('the production command composition supplies the loop collaborator', () => {
+    const root = fixture({ 'docs/notes.md': 'greeting: hello v1\n', 'test/check.js': 'process.exit(0);\n' });
     const taskFile = path.join(root, 'task.json');
     fs.writeFileSync(taskFile, JSON.stringify(loopTask()), 'utf8');
     const { createCliCommandHandlers } = require('../lib/coder/cli-composition');
@@ -427,9 +444,7 @@ describe('coder CLI fix-loop wiring', () => {
   });
 
   it('runs the loop and keeps the patch when the declared test passes', () => {
-    const root = makeRoot();
-    write(root, 'docs/notes.md', 'greeting: hello v1\n');
-    write(root, 'test/check.js', 'process.exit(0);\n');
+    const root = fixture({ 'docs/notes.md': 'greeting: hello v1\n', 'test/check.js': 'process.exit(0);\n' });
     const taskFile = path.join(root, 'task.json');
     fs.writeFileSync(taskFile, JSON.stringify(loopTask()), 'utf8');
 
@@ -443,8 +458,7 @@ describe('coder CLI fix-loop wiring', () => {
   });
 
   it('refuses and keeps the tree when the declared test command is blocked', () => {
-    const root = makeRoot();
-    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    const root = fixture({ 'docs/notes.md': 'greeting: hello v1\n' });
     const taskFile = path.join(root, 'task.json');
     fs.writeFileSync(taskFile, JSON.stringify(loopTask({ test: { command: 'rm -rf /' } })), 'utf8');
 
