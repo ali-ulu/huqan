@@ -250,6 +250,42 @@ jobs:
           fi
           echo "Latest main ${latest_sha:0:7}: $verdict"
 
+          # #4055: a required post-merge check that is still MISSING or PENDING
+          # long after the commit landed is an incident, not a wait. The state
+          # script only lists a gate as overdue past its window, so a fresh
+          # merge never alerts. One issue per SHA, like the failure alerts, and
+          # it carries the watcher marker so the main_green path below closes it.
+          if [[ "$verdict" != "STATE_UNAVAILABLE" ]] \
+            && [[ "$(jq '.overdue | length' /tmp/main-state.json)" -gt 0 ]]; then
+            short="${latest_sha:0:7}"
+            title="ci(main): $short required check(s) overdue"
+            already="$(
+              { gh issue list --repo "$REPO" --state open --search "$short in:title" --json number,title \
+                  --jq '.[] | select(.title == "'"$title"'") | .number'
+                gh issue list --repo "$REPO" --state closed --search "$short in:title" --json number,title \
+                  --jq '.[] | select(.title == "'"$title"'") | .number'
+              } | head -n 1
+            )"
+            if [[ -n "$already" ]]; then
+              echo "$short: overdue checks already alerted in #$already."
+            else
+              {
+                echo "Required post-merge check(s) on main commit \`$latest_sha\` are still not observed green well after the commit landed ($verdict)."
+                echo
+                echo "Commit: https://github.com/$REPO/commit/$latest_sha"
+                echo
+                echo "### Overdue checks"
+                jq -r '.overdue[]' /tmp/main-state.json | while IFS= read -r context; do
+                  echo "- **$context**: $(jq -r --arg c "$context" '.contexts[] | select(.context == $c) | .state' /tmp/main-state.json)"
+                done
+                echo
+                echo "_Created automatically by the repository-native Main CI Watch workflow. It closes this issue once main has every post-merge required check observed and green._"
+              } > /tmp/main-ci-overdue.md
+              gh issue create --repo "$REPO" --title "$title" --body-file /tmp/main-ci-overdue.md
+              alerts=$((alerts + 1))
+            fi
+          fi
+
           if [[ "$main_green" == "true" ]]; then
             mapfile -t resolved_issues < <(
               gh issue list \
