@@ -397,3 +397,49 @@ test('#4072: benign interpreter payloads stay allowed', () => {
   // Prose mentioning a scoped removal inside an interpreter payload.
   assert.equal(findDestructiveRm('run sh -c "rm -rf ./build" to tidy up'), false);
 });
+
+// ─── #4072 followup: redirection containment without a workspace root ───────
+
+test('#4072 followup: an absolute redirect target without a workspace root is reviewed, not allowed', () => {
+  const r = evaluateCommandExec('echo hi > /etc/passwd');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.REVIEW);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.REDIRECTION_CONTAINMENT_REVIEW);
+  assert.equal(r.redirectionTarget, '/etc/passwd');
+  assert.equal(r.canExecute, false);
+  assert.equal(r.canDryRun, true);
+});
+
+test('#4072 followup: a home redirect target without a workspace root is reviewed', () => {
+  const r = evaluateCommandExec('cat secret > ~/.ssh/authorized_keys');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.REVIEW);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.REDIRECTION_CONTAINMENT_REVIEW);
+  assert.equal(r.redirectionTarget, '~/.ssh/authorized_keys');
+});
+
+test('#4072 followup: relative redirect targets without a workspace root keep semantics', () => {
+  // A relative target resolves against the command's own cwd, which the gate
+  // cannot reason about without a root -- that much stays beyond its reach.
+  const r = evaluateCommandExec('echo hi > out.txt');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.ALLOWED);
+  assert.equal(r.redirectionTarget, null);
+});
+
+test('#4072 followup: denylist still wins over the unreviewable redirect', () => {
+  const r = evaluateCommandExec('rm -rf / > /etc/passwd');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+});
+
+test('#4072 followup: supplying a workspace root keeps the BLOCK verdict, not REVIEW', () => {
+  const r = evaluateCommandExec({ command: 'echo hi > /etc/passwd', workspaceRoot: '/workspace/project' });
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.PATH_OUTSIDE_WORKSPACE_BLOCKED);
+  assert.equal(r.redirectionTarget, null);
+});
+
+test('#4072 followup: expansions stay skipped for the review path', () => {
+  const r = evaluateCommandExec('echo hi > $TMPPATH/build.log');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.ALLOWED);
+});
