@@ -18,6 +18,9 @@
  *
  *   node scripts/npm-release-state.js existing <name> <version> <sha>
  *   node scripts/npm-release-state.js settle   <name> <version> <sha> <publish-log>
+ *
+ * The trusted-publisher half of that question is read from a dotted `npm view`
+ * path, never from `_npmUser`; see VIEW_FIELDS for why (#4056).
  */
 
 const fs = require('node:fs');
@@ -27,11 +30,27 @@ const STAGED_CONFLICT = /409[^\n]*previously staged version/i;
 const DEFAULT_SETTLE_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_SETTLE_INTERVAL_MS = 20 * 1000;
 
+/**
+ * `gitHead` and the trusted-publisher claim, asked for by dotted path (#4056).
+ * npm 11 matches `_npmUser` in `view.js`'s `cleanup()` on `data.trustedPublisher`
+ * too, so it renders that object as the string
+ * `"GitHub Actions <npm-oidc-no-reply@github.com>"`; npm 10 leaves it an
+ * object. The dotted path is the same plain `"github"` on both, so the field
+ * list is one every npm answers identically.
+ *
+ * `name` and `version` are requested alongside so the reply stays an object:
+ * npm collapses it to a bare scalar when exactly one requested field has a
+ * value, which is what a record carrying a trusted publisher but no `gitHead`
+ * would otherwise be.
+ */
+const TRUSTED_PUBLISHER_FIELD = '_npmUser.trustedPublisher.id';
+const VIEW_FIELDS = ['name', 'version', 'gitHead', TRUSTED_PUBLISHER_FIELD];
+
 /** 'absent' | 'published-from-this-commit' | 'published-elsewhere' */
 function classifyRegistryVersion(view, sha) {
   if (!view) return 'absent';
   const fromThisCommit = view.gitHead === sha;
-  const viaTrustedPublisher = view._npmUser?.trustedPublisher?.id === 'github';
+  const viaTrustedPublisher = view[TRUSTED_PUBLISHER_FIELD] === 'github';
   return fromThisCommit && viaTrustedPublisher ? 'published-from-this-commit' : 'published-elsewhere';
 }
 
@@ -54,19 +73,29 @@ async function settleStagedPublish({ lookup, sha, timeoutMs, intervalMs, sleep, 
   }
 }
 
+/** npm's stdout for `npm view` of one version, as this module reads it. */
+function parseRegistryView(output) {
+  if (!output) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    return null;
+  }
+  // npm 12 answers `npm view --json` with an array (#3323).
+  const record = Array.isArray(parsed) ? parsed[parsed.length - 1] : parsed;
+  return record && typeof record === 'object' ? record : null;
+}
+
 /** The registry's record for name@version, or null when it serves none. */
 function registryView(name, version) {
   try {
-    const output = execFileSync('npm', ['view', `${name}@${version}`, 'gitHead', '_npmUser', '--json'], {
+    const output = execFileSync('npm', ['view', `${name}@${version}`, ...VIEW_FIELDS, '--json'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       shell: process.platform === 'win32',
     }).trim();
-    if (!output) return null;
-    const parsed = JSON.parse(output);
-    // npm 12 answers `npm view --json` with an array (#3323).
-    const view = Array.isArray(parsed) ? parsed[parsed.length - 1] : parsed;
-    return view && typeof view === 'object' ? view : null;
+    return parseRegistryView(output);
   } catch {
     // npm exits non-zero with E404 for a version it does not serve.
     return null;
@@ -127,4 +156,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { classifyRegistryVersion, isStagedConflict, settleStagedPublish, main };
+module.exports = { classifyRegistryVersion, parseRegistryView, isStagedConflict, settleStagedPublish, main };
