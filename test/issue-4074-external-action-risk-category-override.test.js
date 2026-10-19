@@ -93,7 +93,7 @@ test('a declared risk category does not downgrade the other shape-graded actions
   // A filesystem write the shape graded as such, and a permission change:
   // both carry a check of their own, and a declared category must not
   // replace it.
-  for (const command of ['echo x > /etc/sudoers', 'chmod 777 /etc/passwd']) {
+  for (const command of ['echo x > /etc/sudoers', 'cp evil /etc/sudoers', 'chmod 777 /etc/passwd']) {
     const honest = runHook(payload(command), directory);
     const forged = runHook(payload(command, { riskCategory: ACTION_CATEGORIES.READ_ONLY }), directory);
 
@@ -142,4 +142,18 @@ test('a declared category that is stricter than a read is honoured', () => {
 
   assert.equal(envelope.kind, 'file_read');
   assert.equal(envelope.riskCategory, ACTION_CATEGORIES.FINANCIAL_TRANSACTION);
+});
+
+test('the filesystem-write and permission shapes are graded as such, whatever is declared', () => {
+  const expected = {
+    'cp evil /etc/sudoers': ACTION_CATEGORIES.FILESYSTEM_WRITE,
+    'chmod 777 /etc/passwd': ACTION_CATEGORIES.PERMISSION_CHANGE,
+  };
+  for (const [command, category] of Object.entries(expected)) {
+    const envelope = normalizeExternalActionEnvelope(
+      payload(command, { riskCategory: ACTION_CATEGORIES.READ_ONLY }),
+      {},
+    );
+    assert.equal(envelope.riskCategory, category, command);
+  }
 });
