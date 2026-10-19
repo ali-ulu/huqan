@@ -99,10 +99,9 @@ rule at the end of this document).
 `.github/workflows/architecture.yml` now runs the architecture gates as two
 jobs, `Architecture static gates` and `Architecture source gates`, instead of
 one job per check. The Ruleset requires those two consolidated contexts. The
-classic layer still requires the seven per-check names above, so seven
-compatibility jobs in `architecture.yml` keep them real and merges do not
-stall. Drop those compat jobs only after the classic layer drops the legacy
-names too.
+seven per-check names are no longer required anywhere (#4054), and the
+compatibility jobs that produced them are gone. Do not reintroduce a per-check
+required context: require the consolidated job instead.
 
 ## Main branch target
 
