@@ -92,6 +92,28 @@ test('the split renders the same DOM as the bundle it replaced', async () => {
   }
 });
 
+test('the pre-split /js/app.js path still serves the bundle, as the modules joined in load order', () => {
+  // The bundle was a public route before #3914; removing it broke anything that
+  // still loaded it. It is served from the modules, so it cannot drift from them.
+  const { handleStaticAssetRequest } = require('../lib/http/static-assets');
+  const { resolveRouteAuthPolicy } = require('../lib/http/route-auth-policy');
+  const sent = {};
+  const res = { writeHead: (status, headers) => Object.assign(sent, { status, headers }), end: (body) => { sent.body = body; } };
+  const handled = handleStaticAssetRequest({ headers: {} }, res, '/js/app.js', {
+    buildCorsHeaders: () => ({}), writeJson: () => assert.fail('must not error'), onError: (_, err) => assert.fail(err),
+  });
+
+  assert.equal(handled, true);
+  assert.equal(sent.status, 200);
+  assert.match(sent.headers['Content-Type'], /^text\/javascript/);
+  const bundle = MODULES.map((name) => fs.readFileSync(path.join(PUBLIC_ROOT, 'js', name), 'utf8')).join('\n');
+  assert.equal(Buffer.from(sent.body).toString('utf8'), bundle);
+
+  const policy = resolveRouteAuthPolicy('/js/app.js', 'GET');
+  assert.equal(policy.ruleId, 'dashboard-script');
+  assert.equal(policy.authRequired, false);
+});
+
 function appErrors(result) {
   // Only the dashboard modules are under test; the unrelated panels ask for
   // browser APIs the minimal document does not implement, identically in both

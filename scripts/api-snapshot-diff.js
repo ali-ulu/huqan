@@ -10,6 +10,52 @@ function addBreaking(list, area, key, reason) {
   list.push({ area, key, reason });
 }
 
+const VALUE_KEYWORDS = new Set(['type', 'const', 'enum', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength']);
+const ANNOTATION_KEYWORDS = new Set(['description', 'title', 'default', 'examples']);
+
+function jsonTypeOf(value) {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (Number.isInteger(value)) return 'integer';
+  return typeof value;
+}
+
+// A pattern this engine cannot compile cannot be judged, so it counts as not
+// accepting -- the change stays breaking instead of the gate throwing.
+function matchesPattern(pattern, value) {
+  try {
+    return new RegExp(pattern, 'u').test(value);
+  } catch {
+    return false;
+  }
+}
+
+// Whether `schema` still accepts the single value a removed `const` pinned. It
+// answers only for the value keywords it can evaluate; any other constraint
+// (format, a union, ...) makes it answer no, so an unjudged schema stays
+// breaking rather than being waved through.
+function acceptsValue(schema, value) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return false;
+  if (Object.keys(schema).some((key) => !VALUE_KEYWORDS.has(key) && !ANNOTATION_KEYWORDS.has(key))) return false;
+  if (Object.hasOwn(schema, 'const') && stableStringify(schema.const, 0) !== stableStringify(value, 0)) return false;
+  if (Array.isArray(schema.enum) && !schema.enum.some((item) => stableStringify(item, 0) === stableStringify(value, 0))) return false;
+  if (Object.hasOwn(schema, 'type')) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const actual = jsonTypeOf(value);
+    if (!types.includes(actual) && !(actual === 'integer' && types.includes('number'))) return false;
+  }
+  if (typeof value === 'string') {
+    if (typeof schema.minLength === 'number' && value.length < schema.minLength) return false;
+    if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) return false;
+    if (typeof schema.pattern === 'string' && !matchesPattern(schema.pattern, value)) return false;
+  }
+  if (typeof value === 'number') {
+    if (typeof schema.minimum === 'number' && value < schema.minimum) return false;
+    if (typeof schema.maximum === 'number' && value > schema.maximum) return false;
+  }
+  return true;
+}
+
 function compareSchema(base, current, context, breaking) {
   if (base === null || current === null || typeof base !== 'object' || typeof current !== 'object') {
     if (stableStringify(base, 0) !== stableStringify(current, 0)) {
@@ -62,6 +108,10 @@ function compareSchema(base, current, context, breaking) {
   }
 
   for (const field of ['type', 'const', 'pattern', 'minimum', 'maximum', 'minLength', 'maxLength']) {
+    if (field === 'const' && context.direction === 'input' && Object.hasOwn(base, 'const')
+      && acceptsValue(current, base.const)) {
+      continue;
+    }
     if (Object.hasOwn(base, field) && stableStringify(base[field], 0) !== stableStringify(current[field], 0)) {
       addBreaking(breaking, context.area, context.key, `${context.path}.${field}: constraint changed`);
     }

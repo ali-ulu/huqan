@@ -78,6 +78,36 @@ test('API diff permits additive optional fields and new tools', () => {
   assert.ok(result.added.some((item) => item.area === 'mcp' && item.key === 'huqan.example_additive'));
 });
 
+test('API diff treats dropping an input const as widening only while the old value is still accepted', () => {
+  const schema = (workspaceId) => ({
+    exports: [], types: [],
+    mcp: [{
+      name: 'huqan.example',
+      inputSchema: { type: 'object', properties: { workspaceId } },
+      outputSchema: { type: 'object', properties: { workspaceId } },
+      annotations: {},
+    }],
+  });
+  const reasons = (before, after) => diffSnapshots(schema(before), schema(after)).breaking.map((item) => item.reason);
+  const locked = { const: 'default' };
+
+  // #3907: `default` was the only accepted workspaceId; any id is now accepted.
+  // Every caller that sent `default` still validates, so the input side widened.
+  assert.deepEqual(reasons(locked, { type: 'string', minLength: 1, maxLength: 128 })
+    .filter((reason) => reason.startsWith('inputSchema')), []);
+
+  // A reader of the output could rely on the value being `default`; it no longer can.
+  assert.ok(reasons(locked, { type: 'string', minLength: 1, maxLength: 128 })
+    .includes('outputSchema.properties.workspaceId.const: constraint changed'));
+
+  // The replacement must still accept the old value, or a former caller breaks.
+  for (const narrower of [{ type: 'string', maxLength: 3 }, { type: 'integer' },
+    { type: 'string', pattern: '^ws_' }, { type: 'string', pattern: '\\-[' }, { enum: ['other'] }, { const: 'other' }]) {
+    assert.ok(reasons(locked, narrower).includes('inputSchema.properties.workspaceId.const: constraint changed'),
+      JSON.stringify(narrower));
+  }
+});
+
 test('API snapshot order does not depend on the host locale', () => {
   // tr-TR sorts `ö` as its own letter after `o`; en-US folds it into `o`.
   // The committed baseline is en-US, so a Turkish host must produce the same
