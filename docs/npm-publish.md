@@ -2,11 +2,12 @@
 
 **Status:** implementation + release runbook
 
-**Source reality at this revision:** `package.json` is `1.0.1`. The `v1.0.0`
+**Source reality at this revision:** `package.json` is `1.1.0`. The `v1.0.0`
 and `v1.0.1` tags exist, but neither is published: both Publish runs stopped
 before `npm publish` (`v1.0.0` on a suite failure, `v1.0.1` at the independent
-release evaluation gate, which had no evaluation record). The latest published
-GitHub Release and npm `latest` are `v0.13.2`. Existing version/tag state must
+release evaluation gate, which had no evaluation record and was removed in
+#3867). Until `v1.1.0` publishes, the latest published GitHub Release and npm
+`latest` are `v0.13.2`. Existing version/tag state must
 be checked again immediately before any publication because npm versions and
 Git tags are immutable release identities.
 

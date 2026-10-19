@@ -317,6 +317,75 @@ onay-fixtürü; HTTP/MCP/kurulu Approval Authority uçtan uca kanıtı değildir
 100k yeni olgunun topluca öğrenilmesi ölçülmedi. Eşzamanlı öğrenme,
 production kapasite limiti ve genel throughput artışı doğrulanmadı.
 
+## 19 Ekim 2026: başlangıç grafı üzerinde onaylı yazma serisi
+
+`benchmarks/bench-admitted-series.js` gerçek `Kernel.learn` admission yolunu,
+SQLite'ı, varsayılan her 5 öğrenmede bakımı ve kapatıp yeniden açmayı birlikte
+ölçer. Kaynak tabanı `2bda9f7c72ff060750c26f3608daaae069a7b277`;
+benchmark SHA256 `D792203B703F3E7AC36B119C12AEB01C6904C4298C028102115B7B70C52EB684`.
+Windows x64, Node 22.22.0, better-sqlite3 13.0.3; lockfile SHA256
+`9F46E7F63EB145C24828451C8281DC25FED470A376474795856B8A703CB7CA4F`.
+
+Her koşu ayrı süreç ve taze geçici SQLite kullanır. Seed yalnız düğüm içerir;
+kenar içermez ve admission'dan geçmiş öğrenme sayılmaz. Seed ile öğrenmeler
+`default` workspace'indedir: varsayılan bakımın `selfEvolve()` çağrısı da bu
+workspace'i hedefler. İlk taslaktaki `capacity-profile` koşuları bu yüzden bu
+tabloya alınmadı; boş `default` alanındaki bakım, dolu öğrenme alanının bakım
+maliyeti olarak sunulamaz.
+
+| Başlangıç düğümü | Onaylı yazma | Bakım dahil seri | Yazma/s | Bakım çağrısı / süre | Cold learn | Warm learn p50 / p95 / p99 |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10000 | 100 | 4669.838 ms | 21.41 | 20 / 3364.211 ms | 507.972 ms | 6.6 / 14.5 / 20.7 ms |
+| 10000 | 1000 | 71235.145 ms | 14.04 | 200 / 55128.573 ms | 478.068 ms | 12.7 / 29.5 / 97.2 ms |
+| 100000 | 100 | 59998.062 ms | 1.67 | 20 / 45038.498 ms | 8648.080 ms | 43.2 / 54.7 / 191.4 ms |
+| 100000 | 1000 | 580146.614 ms | 1.72 | 200 / 511132.902 ms | 8118.740 ms | 47.7 / 91.9 / 553.2 ms |
+
+Tablodaki tamamlanmış koşularda bakım ve mirror hatası sıfırdı. Her koşunun
+bütün yeni `tür` kenarları SQLite kapatılıp yeni Kernel ile açıldıktan sonra
+tek tek doğrulandı. Bu aynı süreçte yeniden açılıştır; süreç çökmesi, elektrik
+kesintisi veya kurulu servis yeniden başlatma kanıtı değildir. Node sayısı da
+seed + yazma sayısı + ortak `meyve` düğümü olarak doğrulandı.
+
+100 yazmalık receipt'lerin tamamı `computed`; 10k / 1000 koşusunda
+500 `computed`, 500 `upper_bound` vardı. 100k / 1000 koşusunda 499 `computed`,
+501 `upper_bound` vardı: 498 `max_nodes`, 3 `timeout`. Ortak hedefin bağımlıları
+mevcut tarama bütçelerini doldurdu. Bu metadata tam etki ölçümü değildir ve admission
+`allow` kararından ayrıdır; politika ve eşikler değiştirilmedi.
+
+Seri süresi senkron öğrenme, receipt kontrolleri ve her yazmadan sonra beklenen
+gerçek bakımı içerir. Seed, açılış, yeniden açılış ve son kalıcılık kontrolleri
+seri süresine dahil değildir. Cold, ilk senkron `learn`; warm kalan senkron
+`learn` örnekleridir. Warm çıktısındaki `maxEventLoopBlockMs` yalnız bu senkron
+örneklerin maksimumudur; bakımın event-loop blokajını kapsamaz. Bakım ile mirror
+ölçümleri iç içe geçebilir; ayrık maliyetler gibi toplanamaz. `getNodesCalls`
+öğrenme ve bakımın birlikte toplamıdır: 100 yazmada 40, 1000 yazmada 400.
+Bu çağrılar kaldırılmış admission kopyalarının geri geldiği anlamına gelmez.
+
+Yeniden üretim (her komut ayrı süreçtir):
+
+```sh
+node --test benchmarks/bench-admitted-series.test.js
+node benchmarks/bench-admitted-series.js --nodes=10000 --writes=100
+node benchmarks/bench-admitted-series.js --nodes=10000 --writes=1000
+node benchmarks/bench-admitted-series.js --nodes=100000 --writes=100
+node benchmarks/bench-admitted-series.js --nodes=100000 --writes=1000
+```
+
+Tek makine ve fixtür başına tek koşu: dağılımlar tekrarlar arası güven aralığı
+veya SLO değildir. Başka süreçlerden yalıtılmış sistem, eşzamanlı öğrenme,
+HTTP/MCP/kurulu Approval Authority, kenarlı 100k seed ve 100k yeni olgunun
+öğrenilmesi kanıtlanmadı. Önceki `capacity-profile` sonuçlarıyla doğrudan hız
+oranı çıkarılamaz. Tamamlanmış seriler, varsayılan bakımın toplam maliyetteki
+payının ayrıca incelenmesi gerektiğini gösterir; genel kapasite garantisi vermez.
+
+100k / 1000 koşusunda bakım süresi toplam serinin yaklaşık %88'iydi. Bu,
+ölçülen fixtürde bakımın baskın olduğunu gösterir; Dream, contradiction,
+consolidation ve optimize adımlarının ayrı süreleri henüz ölçülmedi.
+Bu koşunun warm senkron maksimumu 1119.8 ms; ilk JSON mirror senkronizasyonunu
+da içeren cold çağrı 8118.740 ms sürdü. Mirror 11 kez çağrıldı (14913.211 ms),
+mevcut süreye dayalı export tetiklemesi de açıktır; sayaç 1000/100'e zorlanmadı.
+Reopen 2625.159 ms sürdü. Dört koşuda toplam 2200 yeni kenar doğrulandı.
+
 ## Graph label-lookup benchmark (#3009)
 
 `benchmarks/bench-label-lookup.js` contrasts the indexed label lookup against
