@@ -21,3 +21,7 @@ pointing here; update any new links to use `docs/adr/ADR-0NN-*.md` directly.
 `ADR-015-signed-policy-and-transparency-log.md` records the signed-policy
 object, the transparency-log requirement and the trust/deployment boundary
 taken in #3490 (PR #3604).
+
+`ADR-020-posix-authority-parity.md` records the Linux and macOS approval-authority
+layout, hardening and threat model (#4082). It takes number 020 because ADR-019 was
+already used by the control-room operator grant.
