@@ -2816,6 +2816,14 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
   },
+  "lib/experience/conditional-expression-program.js": {
+   "context": "Trust",
+   "evidence": "docs/coder-conditional-synthesis.md closed reader and source-sealed adaptation"
+  },
+  "lib/experience/integer-expression-ast.js": {
+   "context": "Trust",
+   "evidence": "docs/coder-conditional-synthesis.md shared closed arithmetic AST"
+  },
   "lib/experience/arithmetic-function.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
@@ -3863,6 +3871,10 @@
   "lib/coder/expression-search.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/coder/conditional-expression-search.js": {
+   "context": "AgentAction",
+   "evidence": "docs/coder-conditional-synthesis.md bounded candidate search for arithmetic-synthesis"
   },
   "lib/coder/pipeline-synthesis.js": {
    "context": "AgentAction",
@@ -7575,6 +7587,13 @@
     "AgentAction"
    ],
    "evidence": "ownership-map-2446.md#coder-candidate-memory"
+  },
+  "lib/experience/conditional-expression-program.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "docs/coder-conditional-synthesis.md closed reader used by synthesis, search and memory"
   },
   "lib/experience/array-guarded-fold-program.js": {
    "owner": "Trust",
