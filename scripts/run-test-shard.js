@@ -61,6 +61,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // On Node 22 locally it passes in 11-20s, so the cost is runner/Node
   // variance, not a hang.
   'test/cognitive-lab-b4-transfer.test.js',
+  // production-http-adversarial boots a full server process per case -- seven
+  // of them -- and was SIGTERM-killed at 90.883s on the Windows Node 22 shard
+  // of main (54559c77), reddening a commit that never touched it. It passes
+  // in 7s locally, so the cost is the loaded Windows runner, not a hang: the
+  // same shape as the entry above, and the same remedy.
+  'test/production-http-adversarial.test.js',
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',

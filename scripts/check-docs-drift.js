@@ -68,6 +68,10 @@ const ALLOWED = Object.freeze({
     'lib/delegation-service.js': 'an ADR records the source as it stood when the decision was taken; the module was removed unwired in #3315 and the ADR carries a dated note saying so',
     'lib/agent-capability-report.js': 'an ADR records the source as it stood when the decision was taken; the module was removed unwired in #3315 and the ADR carries a dated note saying so',
   },
+  'docs/adr/ADR-020-posix-authority-parity.md': {
+    'lib/authority/posix-path-trust.js': 'the ADR names the planned module (#4082 PR-1); it is not in the repo yet',
+    'public/authority.json': 'a path relative to the install data root the installer creates on the target machine, not a repo file',
+  },
   'benchmarks/WATCH.md': {
     'benchmarks/memory-snapshot.json': 'the output path the documented command writes, not a file the repo ships',
   },

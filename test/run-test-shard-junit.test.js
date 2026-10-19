@@ -25,6 +25,9 @@ describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
     assert.equal(fileTimeoutMs('test/kernel-facade-contract.test.js'), HEAVY_FILE_TIMEOUT_MS);
     // Restarts the native CLI and runs HTTP heldouts per case; it crossed 90s on Windows.
     assert.equal(fileTimeoutMs('test/coder-project-method-memory.test.js'), HEAVY_FILE_TIMEOUT_MS);
+    // Boots a full server per case, seven of them; it crossed 90s on the
+    // Windows Node 22 shard of main (54559c77) and passes in 7s locally.
+    assert.equal(fileTimeoutMs('test/production-http-adversarial.test.js'), HEAVY_FILE_TIMEOUT_MS);
     assert.ok(HEAVY_FILE_TIMEOUT_MS > DEFAULT_FILE_TIMEOUT_MS);
   });
 

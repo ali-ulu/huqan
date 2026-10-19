@@ -167,6 +167,7 @@ meaningless for that server.
    The equivalent boundary on macOS and Linux (a dedicated system user plus
    systemd hardening, or `su`/`runuser` with a distinct session) is unaddressed
    here and tracked separately.
+   Tracked in [ADR-020 POSIX parity for the approval authority](ADR-020-posix-authority-parity.md) (#4082).
 3. **Migration of existing installs.** An install that predates this decision
    keeps its memory store in the user profile. Moving it is a data migration
    with its own rollback story; until it runs, `boundary` must keep reporting
