@@ -1,5 +1,58 @@
 # Changelog
 
+## v1.1.0
+
+Released 2026-10-19. The first 1.x release on npm: the `v1.0.0` and `v1.0.1`
+tags exist but their Publish runs stopped before `npm publish` (a suite failure,
+then the since-removed independent evaluation gate, #3867), so npm went from
+`0.13.2` straight to this version. Everything under v1.0.0 and v1.0.1 below
+ships here for the first time.
+
+### Added
+- **Approval authority (#3860).** Decisions answer to an approval authority
+  behind an OS boundary: primitives, service, runtime client with pin and mode,
+  a Windows installer and operator client with a runtime pin-trust check.
+  Approved executions can be cancelled at a step boundary (#3880) and an
+  approved-but-unconsumed decision withdrawn (#3883); stops are recorded with
+  the authority (#3939), `audit --authority` detects bypasses against the
+  ledger (#3882), and the ledger head is anchored in Rekor to detect rollback
+  (#3942). The agent/user boundary of ADR-017 is reported at runtime (#3982).
+- **`huqan receipt verify <id>`** checks the chain a Trust Receipt sits in (#3938).
+- **Protected per-workspace memory store** and `huqan store migrate` (#4015).
+- **Shared MCP servers run as per-server virtual service accounts** (ADR-018 §3, #4025).
+- **Configured AI agents are listed as a plain-language registry** (#4014).
+- **`ask` and `advocate` accept any `workspaceId`** (#3958), like the other
+  workspace-bound reads. The request schema widened; `default` still works.
+- **`huqan coder` learns without a model.** Synthesis of scalar compositions,
+  conditional loops and expressions, string transformations, two-stage and
+  multi-target pipelines from examples; verified methods are sealed, persisted
+  and reused across paths and projects; projects can be planned, extended and
+  revised from controlled Turkish requirements (#3869 – #4040).
+- **Gates:** line density, not only line count (#3896); issue-to-regression-test
+  traceability for defect fixes (#4013); no re-declaring a centralized helper (#4033).
+
+### Fixed
+- The emergency stop is enforced on HTTP read/query surfaces (#3937) and CLI
+  read/query commands (#3951).
+- Workflow learn-approval decisions require operator authority (#3955).
+- Approval fails closed without an identity runtime and rechecks identity
+  before execution (#3879).
+- NLP: negation is modelled instead of stored as a positive node (#3952), a
+  refuted fact is no longer answered beside its negation (#3979), and the
+  English pack keeps a real root's trailing `s` (#3929).
+- Adapters report the real learn outcome instead of a false success (#3983).
+- The additive column migration is serialized across processes (#3927).
+- `verify` bounds stage output so a passing test stage cannot hit ENOBUFS (#4037).
+- Loose `normalizeWorkspaceId` copies route through `lib/workspace-id` (#4038).
+- Control Room approvals work end to end with plain-language cards (#4012).
+- `/js/app.js` is served again (as the split dashboard modules joined in load
+  order) after #3914 removed it, and the API semver gate judges a dropped input
+  `const` that still accepts its old value as widening (#4043).
+
+### Performance
+- `ask` on a high-degree hub is linear, not quadratic (#3919); learn defers and
+  narrows causal node reads (#4036, #4039).
+
 ## v1.0.1
 
 The v1.0.0 publish run ended red at the full-suite gate: the gate hook read
