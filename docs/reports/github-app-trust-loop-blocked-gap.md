@@ -59,7 +59,7 @@ None. This audit read live source, tests, and roadmap docs only; no unrelated fi
 
 ## Verdict
 
-BLOCKED (all three connection points). `GITHUB-APP-TRUST-LOOP-0` (this task-pack's authorized contract-only artifact) is the only closeable increment right now.
+SUPERSEDED, bkz. Re-check 2026-10-20 @ 1cc4f0db. (Historical verdict at audit base `37f68cfd`: BLOCKED, all three connection points. `GITHUB-APP-TRUST-LOOP-0` was the only closeable increment at that time.)
 
 ---
 
@@ -107,3 +107,40 @@ answer is no.
 This does not unblock GitHub write-back, and does not touch `beta_observation_only`.
 It supplies the missing input to that decision, so the write-back question can be argued
 about a concrete verdict instead of a hypothetical one.
+
+---
+
+## Re-check 2026-10-20 @ 1cc4f0db
+
+Yeniden kontrol kaynağı: `origin/main @ 1cc4f0db` (`#4081` sonrası). Bu bölüm
+tarihsel metni değiştirmez; yukarıdaki "Verdict" artık güncel değildir.
+
+| Engel (raporun kaydı) | Durum 2026-10-20 | Kanıt (`origin/main`) |
+| --- | --- | --- |
+| `V5_IMPLEMENTATION_ENTRY: FAIL` | KAPANDI (PASS) | `docs/current-operating-roadmap.md:29`, `:163` |
+| GitHub'a geri yazan kod yok | KAPANDI: C8 Streaming Trust check run yazıyor | `lib/github-app-streaming-trust-check-run.js:104-123` (`writeCheckRun`), `lib/github-app-beta-http-boundary.js:110-139` |
+| `createInstallationAccessToken()` çağrılmıyor | KISMEN: C8 kendi kopyasını (`createStreamingTrustAccessToken`) çağırıyor; `createInstallationAccessToken` üretimde hâlâ yalnız testten | `lib/github-app-streaming-trust.js:54`, `lib/github-app-beta-auth.js:120`, `test/gateA-outbound-timeouts.test.js:6` |
+| PR doğrulama kavramı yok | KAPANDI: C8 değişen dosya metadatasını `evaluateCodeChange` ile değerlendiriyor; derivation doğrulaması PR Guardian tarafında | `lib/github-app-streaming-trust-receipt.js:13`, `lib/pr-guardian/derivation-check.js:23` |
+| `beta_observation_only` / `review` her webhook'ta sabit | KISMEN: karar hâlâ sabit (`BETA_DECISION`); verdict artık türetiliyor (`toCanonicalVerdict`) ve `beta_observation_only -> review` eşlemesi tek yerde | `lib/github-app-beta-handler.js:16`, `:131`, `:136`; `lib/verdict/action-verdict.js:47-49`; `test/v5-c7-github-app-beta.test.js:76-90` |
+| Ed25519 anahtar yönetimi yok | KISMEN: issuer seal anahtarı var; GitHub App receipt'leri mühürlenmiyor ve public receipt'e çevrilmiyor | `lib/issuer-seal-config.js:28-53` |
+| Public receipt'in production çağıranı yok | AÇIK: `exportPublicTrustReceipt` yalnız `scripts/a2a-conformance/run-fixture.js:6,68` tarafından çağrılıyor | `lib/receipt/public-trust-receipt.js:132` (export) |
+| Canlı GitHub kanıtı | KAPANDI: #279 kapandı (closure seal PASS). Canlı kanıt: genuine ping, genuine PR delivery, aynı GUID ile idempotent redelivery, check run `101862039574`, installation token create/revoke | Canlı kanıt yorumu: https://github.com/ali-ulu/huqan/issues/279#issuecomment-5575691435 ; kapanış mührü: https://github.com/ali-ulu/huqan/issues/279#issuecomment-5575898097 |
+
+### Satır iddiası düzeltmesi
+
+- Raporun `:136` ve `:158` iddiası artık birebir doğru değil. `lib/github-app-beta-handler.js:136` şimdi `status: 'observed'`, `:158` `appendReceiptToChain(...)` çağrısıdır. `verdict: 'review'` literal'i kalktı; verdict türetiliyor (`:131`).
+- `decision` sabiti (`BETA_DECISION`, `:16`) ve `test/v5-c7-github-app-beta.test.js:76-90` kilidi hâlâ geçerli.
+
+### Yazılmamış dosya
+
+`lib/github-app-writeback-contract.js` `origin/main`'de yok. Rapor bu dosyayı "tek kapatılabilir artefakt" diye önermişti. C8 gerçek write-back'i getirdiği için bu sözleşme dosyası artık gerekli değil ve oluşturulmadı.
+
+### Kalan açıklar
+
+- Non-V5 "verified" tanımı: C8 bunu yapmıyor; `lib/coder/verify-derivation.js` için önceki Re-check'teki aday tanım hâlâ geçerli. Ürün kararı olarak açık.
+- GitHub App receipt'lerinin Ed25519 ile mühürlenmesi ve public receipt üretimi (`exportPublicTrustReceipt` için üretim çağıranı yok).
+- Bu bölüm yeni issue numarası açmaz; izleme `#4084` altında.
+
+### Not: `engineering-foundation-20261002-evidence.json:164`
+
+Bu dosya `fullC8RunVerified: false` alanını `ciRouting` bloğunda taşır. Alan CI yönlendirme (classifier) ölçümünün parçasıdır; GitHub App C8 kanıtını değil. Dosyanın `statusSemantics` alanı kendisini "Immutable local-preparation snapshot" olarak tanımlar. Bu nedenle alan değiştirilmedi. GitHub App kanıtı yukarıdaki #279 linklerindedir.
