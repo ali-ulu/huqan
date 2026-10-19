@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1.1
+
+Released 2026-10-19. `huqan@1.1.0` is on npm with provenance from its release
+commit, but its Publish run ended red and no GitHub Release was cut: npm
+answered the accepted upload with `409 Cannot publish over previously staged
+version` and promoted it minutes later. This release carries the workflow fix
+and is the first 1.x with a GitHub Release.
+
+### Fixed
+- **The publish workflow adopts npm's staged 409 and a same-commit re-run.**
+  `scripts/npm-release-state.js` checks whether `name@version` is on the
+  registry from this commit through the GitHub trusted publisher. A failed
+  upload with the staged-409 signature waits until it is; the republish guard
+  skips the upload when it already is, so release-verify and Release
+  Distribution still run. A version from any other commit or publisher is
+  refused as before.
+- **`huqan coder` fails closed when the repository state cannot be read** (#4045).
+
 ## v1.1.0
 
 Released 2026-10-19. The first 1.x release on npm: the `v1.0.0` and `v1.0.1`
