@@ -199,10 +199,15 @@ test('4C1: package.json manifest', () => {
   assert.ok(pkg.files.includes('index.d.ts'), 'the root declaration must ship');
   assert.ok(pkg.files.includes('kernel.js'), 'the deprecated v1 export must still resolve');
   assert.equal(typeof pkg.bin, 'object');
-  assert.equal(pkg.bin.huqan, './cli.js');
+  // The targets are written the way npm normalises them, so npm 11 does not
+  // announce a rewrite of every bin on each publish (#4056). The leading `./`
+  // is not part of the contract: npm resolves a bin target against the
+  // package root either way, and the packed tarball installs every one of
+  // them.
+  assert.equal(pkg.bin.huqan, 'cli.js');
   // The MCP server is reachable by name, not only by absolute path: this is
   // what lets a Claude Desktop config say `npx -y --package=huqan huqan-mcp`.
-  assert.equal(pkg.bin['huqan-mcp'], './bin/huqan-mcp.js');
+  assert.equal(pkg.bin['huqan-mcp'], 'bin/huqan-mcp.js');
   assert.ok(pkg.files.includes('bin/huqan-mcp.js'), 'the MCP executable must ship');
   assert.ok(Array.isArray(pkg.files), 'files allowlist must be present');
   assert.ok(pkg.files.length > 0, 'files allowlist must not be empty');
