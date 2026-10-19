@@ -154,7 +154,7 @@ its claim exists in the current artifact.
 
 - `lib/cognition/` modules are signal/ranking/proposal only, pure and
   Core-ring; they never authorize, execute or relax a gate.
-- Work on them follows `docs/cognitive-architecture-program.md` and its
+- Work on them follows `docs/cognitive-architecture-plan.md` and its
   `[COG-Mx]` issue (epic #4060, Project
   https://github.com/users/ali-ulu/projects/7); opt-in first, default only
   after a Cognitive Lab gain.

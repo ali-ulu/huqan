@@ -82,7 +82,7 @@
     {
       "id": "COG",
       "name": "Cognitive Architecture Program",
-      "contract": "docs/cognitive-architecture-program.md",
+      "contract": "docs/cognitive-architecture-plan.md",
       "epic": "#4060",
       "project": "https://github.com/users/ali-ulu/projects/7",
       "phase": "Faz 0 / M2 core",

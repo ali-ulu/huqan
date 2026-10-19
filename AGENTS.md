@@ -299,7 +299,7 @@ Any change under `lib/cognition/`, or to `lib/cognitive-scheduler.js`,
 `lib/experience/coder-routing-runtime.js` or the `opts.cognition` seam in
 `agent.v3.js`, belongs to the COG program.
 
-1. Read `docs/cognitive-architecture-program.md` and find the matching
+1. Read `docs/cognitive-architecture-plan.md` and find the matching
    `[COG-Mx]` issue in the Project before starting. No COG work without an
    issue; continue an existing PR instead of opening a parallel one.
 2. COG modules never gain action authority. They score, rank or propose.
