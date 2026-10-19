@@ -102,7 +102,7 @@ test('API diff treats dropping an input const as widening only while the old val
 
   // The replacement must still accept the old value, or a former caller breaks.
   for (const narrower of [{ type: 'string', maxLength: 3 }, { type: 'integer' },
-    { type: 'string', pattern: '^ws_' }, { enum: ['other'] }, { const: 'other' }]) {
+    { type: 'string', pattern: '^ws_' }, { type: 'string', pattern: '\\-[' }, { enum: ['other'] }, { const: 'other' }]) {
     assert.ok(reasons(locked, narrower).includes('inputSchema.properties.workspaceId.const: constraint changed'),
       JSON.stringify(narrower));
   }

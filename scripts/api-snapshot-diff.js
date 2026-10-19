@@ -20,6 +20,16 @@ function jsonTypeOf(value) {
   return typeof value;
 }
 
+// A pattern this engine cannot compile cannot be judged, so it counts as not
+// accepting -- the change stays breaking instead of the gate throwing.
+function matchesPattern(pattern, value) {
+  try {
+    return new RegExp(pattern, 'u').test(value);
+  } catch {
+    return false;
+  }
+}
+
 // Whether `schema` still accepts the single value a removed `const` pinned. It
 // answers only for the value keywords it can evaluate; any other constraint
 // (format, a union, ...) makes it answer no, so an unjudged schema stays
@@ -37,7 +47,7 @@ function acceptsValue(schema, value) {
   if (typeof value === 'string') {
     if (typeof schema.minLength === 'number' && value.length < schema.minLength) return false;
     if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) return false;
-    if (typeof schema.pattern === 'string' && !new RegExp(schema.pattern, 'u').test(value)) return false;
+    if (typeof schema.pattern === 'string' && !matchesPattern(schema.pattern, value)) return false;
   }
   if (typeof value === 'number') {
     if (typeof schema.minimum === 'number' && value < schema.minimum) return false;
