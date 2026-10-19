@@ -65,9 +65,12 @@ function verifyQuickstart(label, binDir, consumer, env) {
  * the closure walk never entered, and quickstart never touched the command.
  * Only an explicit run of the command from the installed package locks it.
  *
- * Runs the task outside the consumer tree so the coder's own dirty-repo gate
- * sees a clean root and returns `applied`; the assertion is only that it exits
- * 0 without a load failure and writes the edit.
+ * Runs the task in its own Git repository outside the consumer tree, on a
+ * feature branch with a clean tree, so the coder's own repo-state gate returns
+ * `applied`; the assertion is only that it exits 0 without a load failure and
+ * writes the edit. #4042 made an unreadable Git state a refusal for write-like
+ * tasks, so a bare temporary directory is no longer a usable root here: the
+ * probe has to look like the repository an operator works in.
  */
 function verifyCoderCommand(label, binDir, consumer, env) {
   const bin = packageBin(binDir, 'huqan');
@@ -85,6 +88,26 @@ function verifyCoderCommand(label, binDir, consumer, env) {
       allowedPaths: ['docs/notes.md'],
       operation: { type: 'replace_text', path: 'docs/notes.md', find: 'v1.0.0', replace: 'v1.1.0' },
     }));
+
+    // #4042: the workspace is the repository root, on a branch that is not
+    // `main`, and both inputs are committed, so the coder's repo-state gate
+    // sees a known, clean, non-main tree. The identity flags are per-command
+    // because the probe must not depend on the runner's global Git config.
+    const gitArgs = (args) => run('git', args, { cwd: workspace, env });
+    const gitSteps = [
+      ['init', '-q', '-b', 'coder-probe'],
+      ['add', 'docs/notes.md', 'task.json'],
+      ['-c', 'user.email=coder-probe@example.invalid', '-c', 'user.name=coder-probe',
+        'commit', '-q', '-m', 'coder probe fixture'],
+    ];
+    for (const step of gitSteps) {
+      const prepared = gitArgs(step);
+      if (prepared.status !== 0) {
+        fail(`${label}: could not prepare a Git workspace for the coder probe: `
+          + `git ${step[0]} exited ${prepared.status}\n${prepared.output.slice(-500)}`);
+        return;
+      }
+    }
 
     const run1 = run(bin, ['coder', taskPath, '--root', workspace], { cwd: consumer, env });
     const loadErrors = run1.output.split(/\r?\n/)
