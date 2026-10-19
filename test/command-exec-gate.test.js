@@ -308,3 +308,63 @@ test('#379: destructive commands stay caught when embedded in prose goals', () =
   // ...but prose mentioning a scoped removal is still not destructive.
   assert.equal(findDestructiveRm('run rm -rf ./build to clean up'), false);
 });
+
+// ─── #4072: interpreter-wrapped denylist bypasses ────────────────────────────
+
+test('#4072: every reproduction form from the audit is blocked', () => {
+  for (const command of [
+    'sh -c "rm -rf /"',
+    'bash -lc "rm -rf /"',
+    'sh -c rm${IFS}-rf${IFS}/',
+    'bash -lc rm${IFS}-rf${IFS}/',
+    'zsh -c "rm -rf /"',
+    'dash -c "rm -rf /*"',
+  ]) {
+    const result = evaluateCommandExec(command);
+    assert.equal(result.decision, COMMAND_EXEC_DECISIONS.BLOCK, `expected BLOCK for: ${command}`);
+    assert.equal(result.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED, `expected denylist block for: ${command}`);
+    assert.equal(result.canExecute, false);
+    assert.equal(result.canDryRun, false);
+    assert.equal(result.denylistMatch, 'rm_rf_root_or_home', `expected rm denylistMatch for: ${command}`);
+  }
+});
+
+test('#4072: wrapper chains and nested interpreters unwrap to the inner command', () => {
+  for (const command of [
+    'sudo sh -c "rm -rf /"',
+    'sudo bash -lc "rm -rf /"',
+    'env sh -c rm${IFS}-rf${IFS}/',
+    "bash -c \"sh -c 'rm -rf /'\"",
+    'doas dash -c "rm -rf /etc"',
+  ]) {
+    assert.equal(findDestructiveRm(command), true, `expected destructive: ${command}`);
+    const result = evaluateCommandExec(command);
+    assert.equal(result.decision, COMMAND_EXEC_DECISIONS.BLOCK, `expected BLOCK for: ${command}`);
+  }
+});
+
+test('#4072: the denylist matches the inner base command, not the wrapper', () => {
+  assert.equal(findDestructiveRm('sh -c "/usr/bin/rm -rf /"'), true);
+  assert.equal(findDenylistMatch('sh -c "/usr/bin/rm --no-preserve-root ./scratch"'), 'rm_rf_root_or_home');
+});
+
+test('#4072: interpreter-wrapped raw disk writes are blocked', () => {
+  assert.equal(findRawDiskWrite('sh -c "cp /etc/hosts /dev/sda"'), true);
+  assert.equal(findRawDiskWrite('bash -c "dd if=/dev/zero of=/dev/sdb"'), true);
+  assert.equal(findRawDiskWrite("zsh -c 'tee /dev/nvme0n1 < img'"), true);
+});
+
+test('#4072: benign interpreter payloads stay allowed', () => {
+  for (const command of [
+    'sh -c "echo SHELL_RAN"',
+    'bash -lc "ls -la"',
+    'node -e "console.log(process.version)"',
+    'python -c "print(1+1)"',
+  ]) {
+    const result = evaluateCommandExec(command);
+    assert.equal(result.decision, COMMAND_EXEC_DECISIONS.ALLOW, `expected ALLOW for: ${command}`);
+    assert.equal(result.denylistMatch, null, `expected no denylistMatch for: ${command}`);
+  }
+  // Prose mentioning a scoped removal inside an interpreter payload.
+  assert.equal(findDestructiveRm('run sh -c "rm -rf ./build" to tidy up'), false);
+});
