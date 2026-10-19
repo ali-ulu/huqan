@@ -123,6 +123,8 @@ function mainCiState({ inventory, checkRuns, workflowRuns, committedAt, now }) {
     pending: of('PENDING'),
     failed: of('FAILED'),
     overdue: ageSeconds >= OVERDUE_SECONDS ? [...of('MISSING'), ...of('PENDING')] : [],
+    ageSeconds,
+    overdueAfterSeconds: OVERDUE_SECONDS,
     blockingWorkflows: workflows.blocking,
     workflowRunCount: workflows.count,
     notObservablePostMerge: prOnly,

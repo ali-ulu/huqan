@@ -169,17 +169,31 @@ test('#4055: a gate still missing or pending past the overdue window is reported
   failed[0] = checkRun(1, GATES[0], 'failure');
   assert.deepEqual(state({ checkRuns: failed, now: late }).overdue, []);
   assert.deepEqual(state({ now: late }).overdue, []);
+
+  // The watcher finds "the newest commit past the window" from these two
+  // fields instead of restating the window in shell.
+  assert.equal(verdict.overdueAfterSeconds, OVERDUE_SECONDS);
+  assert.equal(verdict.ageSeconds, OVERDUE_SECONDS);
 });
 
-test('#4055: the watcher opens one alert per SHA for overdue gates and closes it only behind main_green', () => {
+test('#4055: overdue gates alert once per SHA and context, also when newer merges keep main young', () => {
   const watch = yaml.load(fs.readFileSync(WATCH_PATH, 'utf8'));
   const run = watch.jobs['inspect-main'].steps.map((step) => step.run || '').join('\n');
-  const overdueAlert = run.indexOf('required check(s) overdue');
-  assert.ok(overdueAlert > run.indexOf('node scripts/main-ci-watch-state.js'), 'the overdue alert reads the verdict');
-  assert.ok(overdueAlert < run.indexOf('if [[ "$main_green" == "true" ]]; then'));
-  const block = run.slice(overdueAlert - 400, run.indexOf('if [[ "$main_green" == "true" ]]; then'));
+  const start = run.indexOf('# #4055:');
+  const end = run.indexOf('if [[ "$main_green" == "true" ]]; then');
+  assert.ok(start > run.indexOf('node scripts/main-ci-watch-state.js') && start < end);
+  const block = run.slice(start, end);
+
+  // Merges less than the window apart must not hide an older commit's gap.
+  assert.match(block, /for candidate in "\$\{shas\[@\]:1\}"; do/, 'older scanned commits are considered');
+  assert.match(block, /\.ageSeconds >= \.overdueAfterSeconds/, 'it stops at the newest commit past the window');
+
+  // One issue per SHA and context, so a gate that turns overdue later is not swallowed.
   assert.match(block, /jq -r '\.overdue\[\]'/);
-  assert.match(block, /--state closed/, 'an overdue alert is raised once per SHA');
+  assert.match(block, /required check overdue: \$context/);
+  // gh's --jq takes a bare expression; `--jq --arg ...` would run "--arg" as the filter.
+  assert.doesNotMatch(run, /--jq --arg/);
+  assert.match(block, /--state closed/, 'a closed alert for the same SHA and context blocks a duplicate');
   assert.match(block, /Created automatically by the repository-native Main CI Watch workflow/,
     'the green close path only closes issues that carry the watcher marker');
 });
