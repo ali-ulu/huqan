@@ -26,7 +26,13 @@ test('the scripts are pure ASCII, because a non-UTF-8 locale would misread anyth
   }
 });
 
-test('bash parses both scripts', () => {
+// The scripts are Linux-only, and on Windows `bash` may be the WSL stub, which
+// eats a native `C:\...` path. The text pins above still run everywhere; only
+// the parse needs a POSIX shell, mirroring test/authority-installer-scripts.test.js
+// (which parses the PowerShell pair on Windows instead).
+const noPosixShell = process.platform === 'win32' && 'a POSIX shell is required to parse the scripts';
+
+test('bash parses both scripts', { skip: noPosixShell }, () => {
   for (const name of SCRIPTS) {
     const run = spawnSync('bash', ['-n', path.join(DIR, name)], { encoding: 'utf8' });
     assert.equal(run.status, 0, `${name}: ${run.stderr}`);
@@ -46,8 +52,8 @@ test('the installer writes exactly where the runtime looks, and takes no path fr
 });
 
 test('node is verified against the GPG-signed manifest, with no unverified path', () => {
+  assert.ok(install.includes('NODE_KEYRING_URL=https://github.com/nodejs/release-keys/raw/HEAD/gpg/pubring.kbx'));
   assert.match(install, /SHASUMS256\.txt\.asc/);
-  assert.match(install, /github\.com\/nodejs\/release-keys\/raw\/HEAD\/gpg\/pubring\.kbx/);
   assert.match(install, /gpg --batch --no-default-keyring --keyring[\s\S]*?--decrypt/);
   assert.match(install, /sha256sum -c -/);
   assert.match(install, /MIN_NODE=22\.13\.0/);
