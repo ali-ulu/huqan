@@ -80,12 +80,14 @@ function makeGitHubFetch({
   liveHeadSha = HEAD_SHA,
   checkRunId = 445566,
   checkFailure = null,
+  tokenFailure = false,
 } = {}) {
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url, options });
 
     if (url === `https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens`) {
+      if (tokenFailure) return responseJson({ message: 'Bad credentials' }, false);
       return responseJson({
         token: 'ghs_streaming_test_token',
         expires_at: '2026-08-14T01:30:00.000Z',
@@ -557,4 +559,27 @@ test('a transient read failure is declined but not remembered, so a redelivery c
   assert.equal(second.trust.receipt.verdict, 'allow');
   assert.equal(second.trust.conclusion, 'neutral');
   assert.equal(stores.c8Store.readWriteback(DELIVERY).state, 'complete');
+});
+
+test('a token exchange failure never reaches GitHub reads or check writes', async (t) => {
+  const github = makeGitHubFetch({ tokenFailure: true });
+  const stores = tempStores(t);
+
+  await assert.rejects(
+    () => handleGitHubAppStreamingTrustWebhook({
+      ...signedRequest(payload()),
+      c7Store: stores.c7Store,
+      c8Store: stores.c8Store,
+      appId: '123456',
+      privateKey: privateKey(),
+      fetchImpl: github.fetchImpl,
+      nowMs: NOW_MS,
+    }),
+    error => error.code === ERROR_CODES.TOKEN_UNAVAILABLE,
+  );
+
+  assert.deepEqual(github.calls.map(call => call.url), [
+    `https://api.github.com/app/installations/${INSTALLATION_ID}/access_tokens`,
+  ]);
+  assert.equal(stores.c8Store.readEvaluation(DELIVERY), null);
 });

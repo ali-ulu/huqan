@@ -90,11 +90,13 @@ function githubApi({
   liveHeadSha = HEAD_SHA,
   checkRunId = 778899,
   checkFailure = null,
+  tokenFailure = false,
 } = {}) {
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url, options });
     if (url.endsWith('/access_tokens')) {
+      if (tokenFailure) return responseJson({ message: 'Bad credentials' }, false);
       return responseJson({ token: 'ghs_http_test_token', expires_at: '2099-01-01T00:00:00.000Z' });
     }
     if (url.endsWith(`/pulls/${PR_NUMBER}`)) {
@@ -288,6 +290,33 @@ test('an oversized diff is declined visibly and answered without inviting a rede
   assert.equal(response.body.declined.code, ERROR_CODES.EVIDENCE_TOO_LARGE);
   assert.equal(response.headers['retry-after'], undefined);
   assert.equal(api.calls.filter(call => call.url.endsWith('/check-runs')).length, 1);
+});
+
+test('a token exchange failure is not reported as a signature failure', async (t) => {
+  const { port } = await serve(t, { tokenFailure: true });
+
+  const response = await post(port, { body: payload() });
+
+  assert.notEqual(response.statusCode, 401);
+  assert.equal(response.statusCode, 502);
+  assert.deepEqual(response.body, { ok: false, error: { code: ERROR_CODES.TOKEN_UNAVAILABLE } });
+});
+
+test('a token exchange failure answers a retryable status and leaves no evaluation behind', async (t) => {
+  const root = tempRoot(t);
+  const env = environment(root);
+  const failing = githubApi({ tokenFailure: true });
+  const failingPort = await listen(t, createGitHubAppBetaHttpBoundary({ environment: env, fetchImpl: failing.fetchImpl }));
+
+  assert.equal((await post(failingPort, { body: payload() })).statusCode, 502);
+  assert.equal(failing.calls.length, 1);
+
+  // Same store, healthy GitHub: the redelivery evaluates from scratch.
+  const healthy = githubApi();
+  const healthyPort = await listen(t, createGitHubAppBetaHttpBoundary({ environment: env, fetchImpl: healthy.fetchImpl }));
+  const retried = await post(healthyPort, { body: payload() });
+  assert.equal(retried.statusCode, 200);
+  assert.equal(retried.body.evaluated, true);
 });
 
 test('an ambiguous writeback stops at a conflict instead of looping on 503', async (t) => {
