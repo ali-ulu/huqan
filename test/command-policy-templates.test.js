@@ -189,6 +189,11 @@ test('a declared residency is written as the operator stated it', t => {
   assert.deepEqual(applied.residency, ['example.com.tr', 's3.example.com.tr']);
   assert.deepEqual(readDataResidency(target), { allowedDestinations: ['example.com.tr', 's3.example.com.tr'] });
   assert.equal(applied.requiresResidency, true);
+  // The same value as text, and an entry that is not a host name at all.
+  const text = createCommandPolicyEditor(path.join(directory, 'text.json')).applyTemplate('regulated', { residency: 'a.example.com, b.example.com' });
+  assert.deepEqual(text.residency, ['a.example.com', 'b.example.com']);
+  const mixed = createCommandPolicyEditor(path.join(directory, 'mixed.json')).applyTemplate('regulated', { residency: [42, 'c.example.com'] });
+  assert.deepEqual(mixed.residency, ['c.example.com']);
   // Without a declaration the gate is told nothing, and the template says so.
   const bare = createCommandPolicyEditor(path.join(directory, 'bare.json')).applyTemplate('regulated');
   assert.deepEqual(bare.residency, []);
