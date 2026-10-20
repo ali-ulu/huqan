@@ -121,6 +121,19 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' the loop entrypoint and pass the registry in.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/github-app-streaming-trust-public-receipt.js',
+    to: 'lib/receipt/public-trust-receipt.js',
+    why: 'The C8 bridge hands a Streaming Trust receipt to the public-receipt exporter; the bridge'
+      + ' sits in Core (flat lib/, beside the C8 loop it serves) while the exporter lives with the'
+      + ' receipt family (Application). The same Core -> Application edge is already recorded for'
+      + ' the sibling lib/github-app-streaming-trust-receipt.js -> lib/receipt/*, so this adds no'
+      + ' new kind of debt, only one more instance of it. The follow-up fix is the one every'
+      + ' exception above names: construct the publisher behind the entrypoint that already holds'
+      + ' the configured key (github-app-server.js) and pass it into runGitHubAppStreamingTrust,'
+      + ' which keeps the C8 loop free of the public format entirely.',
+    review_by: '2026-12-31',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {
