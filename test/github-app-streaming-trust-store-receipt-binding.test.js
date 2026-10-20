@@ -115,3 +115,14 @@ test('a stored evaluation whose receipt was swapped on disk is refused on read',
 
   assert.throws(() => store.readEvaluation(BINDING.deliveryId), (error) => error.code === INVALID_RECEIPT);
 });
+
+test('a stored evaluation carrying an unexpected key is refused on read', (t) => {
+  const { rootPath, store } = freshStore(t);
+  store.commitEvaluation(BINDING, receiptFor(BINDING));
+  const file = path.join(rootPath, 'streaming-trust', 'evaluations', `${BINDING.deliveryId}.json`);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  record.unexpected = true;
+  fs.writeFileSync(file, JSON.stringify(record));
+
+  assert.throws(() => store.readEvaluation(BINDING.deliveryId), (error) => error.code === INVALID_RECEIPT);
+});
