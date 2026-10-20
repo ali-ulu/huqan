@@ -244,6 +244,12 @@ test('linux does not probe the state dir for an ACL', () => {
   assert.equal(probed, false);
 });
 
+test('the exported state check gates the platform itself', () => {
+  const result = checkPosixStateDirTrust(STATE_DIR,
+    { platform: 'win32', lstat: () => stat({ uid: SERVICE_UID, mode: 0o700 }), serviceUid: SERVICE_UID });
+  assert.deepEqual(result, { ok: false, reason: 'state_dir_exposed' });
+});
+
 // ─── against the real filesystem ─────────────────────────────────────────────
 //
 // The probe only applies to the fixed POSIX layout, so these two run where the
