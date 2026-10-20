@@ -9,6 +9,9 @@
       "lib/workspace-id.js",
       "lib/cross-workspace-access-gate.js",
       "lib/observability/helpers.js"
+    ],
+    "isPlainObject": [
+      "lib/is-plain-object.js"
     ]
   }
 }

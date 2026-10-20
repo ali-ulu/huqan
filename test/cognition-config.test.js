@@ -58,6 +58,25 @@ test('rejects a namespace that is not a plain object', () => {
   }
 });
 
+test('routes the namespace check through the canonical predicate (#4116)', () => {
+  // A local copy of isPlainObject lived here and read the prototype unguarded,
+  // so a hostile proxy threw out of the resolver instead of being rejected.
+  const throwingProxy = new Proxy({}, {
+    getPrototypeOf() {
+      throw new Error('prototype access denied');
+    },
+  });
+  const { proxy, revoke } = Proxy.revocable({}, {});
+  revoke();
+
+  for (const bad of [throwingProxy, proxy]) {
+    const r = resolveCognitionConfig(bad);
+    assert.equal(r.status, COGNITION_STATUS.REJECT);
+    assert.match(r.reasons.join(' '), /invalid_namespace/);
+    assert.deepEqual(r.flags, ALL_OFF);
+  }
+});
+
 test('rejects impossible combinations: reward without predictionError', () => {
   const r = resolveCognitionConfig({ reward: true });
   assert.equal(r.status, COGNITION_STATUS.REJECT);
