@@ -87,11 +87,6 @@ Expected: most lines `OK`. Two `FAIL` lines are normal on a plain install:
 
 `doctor` exits `0` even with those `FAIL` lines, because both are optional.
 
-The `Usage` line is informational: gate events and approval decisions of the
-last 7 days, read locally from your receipt trail and approval store (no
-network call). Warnings after it — "no agent has called the gate", or an
-approval-fatigue signal — are things worth reading, not failures.
-
 ---
 
 ## Part 4 - Install the gate
