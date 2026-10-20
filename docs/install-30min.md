@@ -85,12 +85,12 @@ Expected: most lines `OK`. Two `FAIL` lines are normal on a plain install:
 - `Server bind FAIL` - only appears inside a container with the default
   loopback bind; set `HUQAN_HOST=0.0.0.0` to serve the UI/API from outside.
 
-`doctor` exits `0` even with those `FAIL` lines, because both are optional.
+The `Usage` line is informational: it reports local gate-event counts, the
+approval decision latency distribution, and an approval-fatigue signal from
+the last 7 days, read only from your local stores (no network, no telemetry).
+It never fails the verdict; its warnings are printed on the same line.
 
-The `Usage` line is informational: gate events and approval decisions of the
-last 7 days, read locally from your receipt trail and approval store (no
-network call). Warnings after it — "no agent has called the gate", or an
-approval-fatigue signal — are things worth reading, not failures.
+`doctor` exits `0` even with the `FAIL` lines above, because both are optional.
 
 ---
 
