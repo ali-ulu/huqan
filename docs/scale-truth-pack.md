@@ -504,7 +504,7 @@ any host other than the 4 vCPU machine above. Nothing here is extrapolated
 beyond the table.
 ## Benchmark commands
 
-### Total-node counter experiment protocol (2026-10-20, results pending)
+### Total-node counter experiment (2026-10-20, local pilot accepted)
 
 Frozen control: `33049d3944ac6f04b56b7b0fe6ea06beee28b83c`. Candidate changes
 only total-node counting to the existing label index's `owner.size`; bare-map
@@ -535,6 +535,43 @@ or profiling load is started during the pairs. Other host activity is not isolat
 On-disk SHA-256: benchmark `993F5BBC08E82F9B1FE6A60AC3A757C93B1E740046887E7D0DFDF78BAA7472C1`;
 package lock `7B7AE600F6AC67FCEE52A318F108E445978AF1870428E1D83780EBFF0094DDF9`;
 candidate counter `41E53B870167C37CB1088E3CC299EF0F53C5B292DCFB04EA4EA18F111E28ED46`.
+
+Measured candidate source: signed commit `44fcc2f8a0f7dd258f1918a558893538c4145de8`.
+The following results were added after the frozen protocol above; its thresholds
+were not changed after observation. All three pairs, including slower candidate
+runs, are retained. The source passed 78 related tests and independent review.
+
+| Seed nodes | Control series ms (C/A, A/C, C/A pairs) | Candidate series ms | Median control → candidate ms |
+| --- | --- | --- | --- |
+| 10,000 | 7199.1658, 9139.4496, 8904.9928 | 4766.9338, 12654.6636, 8168.0987 | 8904.9928 → 8168.0987 |
+| 100,000 | 41456.4691, 62308.7973, 89733.0304 | 60861.9552, 55619.5773, 60837.2276 | 62308.7973 → 60837.2276 |
+
+| Seed nodes | Warm p50 ms, median C → A | Warm p95 ms, median C → A | Warm p99 ms, median C → A | Whole-process maxRSS KiB, median C → A |
+| --- | --- | --- | --- | --- |
+| 10,000 | 10.2 → 7.1 | 19.3 → 15.3 | 29.8 → 20.3 | 215988 → 216260 |
+| 100,000 | 39.9 → 7.1 | 66.9 → 17.5 | 109.0 → 101.9 | 1208564 → 1208420 |
+
+Percentile entries are medians of three run-level percentiles, not pooled
+percentiles. Whole-process maxRSS samples C/A were 215988/216180,
+215760/225552, 216264/216260 KiB at 10k; 1208564/1208420,
+1342528/1322628, 1094404/1160668 KiB at 100k. Median maintenance ms was
+6648.3642 → 6676.0877 at 10k and 47934.9738 → 44728.0120 at 100k.
+
+All 12 runs exited zero; each performed 20 maintenance calls with zero errors,
+zero export-mirror errors, 40 `getNodes` calls and 100 verified reopened edges.
+Across 1,200 writes, 1,199 receipts were computed; the final 100k control run
+returned one conservative `upper_bound` receipt because dependency traversal
+timed out. That write was admitted and persisted; the timeout and unknown were
+not suppressed. All candidate receipts were computed. No budget or threshold
+was relaxed.
+
+Result: **LOCAL_PILOT_ACCEPTED** against the predeclared limits above. Median
+total time fell 8.3% at 10k and 2.4% at 100k; two of three pairs improved at each
+size, not all pairs. Warm delay improved more than total runtime because existing
+maintenance/open/export costs remain. Median maxRSS changed +0.13% and -0.01%.
+This is a bounded local observation, not statistical or production gain proof,
+not an increased admission limit, and not a new 100k-write or concurrent-write
+guarantee. The previous 100k-seed/1,000-write series is not remeasured here.
 
 ```bash
 node benchmarks/bench.js --quick
