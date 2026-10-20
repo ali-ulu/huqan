@@ -20,6 +20,12 @@ No model. No cloud. No API key required for the core gate.
 [![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ali-ulu/huqan/badge)](https://scorecard.dev/viewer/?uri=github.com/ali-ulu/huqan)
 
+## Who it is for
+
+**Individual and community — your agent's emergency brake.** A solo builder does not want a SOC 2 program; they want the agent stopped before it does harm and a plain yes or no. HUQAN holds a mutating call until a person approves it, and `huqan.emergency_stop` stops one agent or a whole workspace. This is the [Agent Brake Layer](./docs/demo-mcp-agent-brake-layer.md).
+
+**Team and enterprise — an audit record the operator does not write.** A platform that audits itself still asks you to trust its own logs. A Trust Receipt is produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it. Where "independent" is claimed, read the boundary under [Limits](#limits-honest).
+
 ## Try it in 30 seconds
 
 ```console
@@ -94,6 +100,7 @@ When the Approval Authority is installed, the decision itself moves behind an OS
 - Only what is wired is governed. An agent that never calls HUQAN is not covered.
 - The OS boundary needs the Approval Authority (a Windows service today). Code running as your user can still edit runtime files or the local store; the authority's ledger makes that detectable, not impossible. UAC is not a security boundary ([ADR-016 residual risks](./docs/adr/ADR-016-approval-authority-os-boundary.md#residual-risks)).
 - Complements IAM, infrastructure security and human governance — it replaces none of them.
+- "Independent" is a bounded word. An issuer signature ([`lib/receipt/issuer-seal.js`](./lib/receipt/issuer-seal.js)) proves a receipt's origin and integrity, not operator honesty: whoever holds the issuing key can edit the trail, re-sign it, and ship a clean history where every signature verifies. Independence needs a collector counter-seal ([`lib/receipt/collector-seal.js`](./lib/receipt/collector-seal.js)) signed with a key the audited host does not have, held by a party the operator does not administer; both keys on one machine means one person holds both ends, and the seal then detects accidental corruption and nothing more.
 - The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
 - Synthetic graph read/write benchmarks reached 100k nodes and 100k edges on one machine. [Admitted-learning measurements and limits](./docs/scale-truth-pack.md) are separate; this is not a production capacity guarantee.
 
