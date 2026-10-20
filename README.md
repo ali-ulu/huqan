@@ -32,12 +32,30 @@ No model. No cloud. No API key required for the core gate.
 $ npx -y huqan quickstart
 HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
   1. OK   propose: huqan.learn -> review (mutating_requires_review), approval approval-…
+      Write held, waiting for approval.
   2. OK   approve: huqan.approve -> approved (actor cli-quickstart)
+      Approved; the write happened now.
   3. OK   verify: verified (confidence 0.90)
+      Verified.
   4. OK   receipt: receiptId … (status canonical)
+      Evidence recorded as a Trust Receipt.
+
+Trust Receipt
+  receiptId          : …
+  claim              : …
+  status             : canonical
+  workspaceId        : default
+  trustPolicyVersion : …
+  provenance         : …
+  auditTrail entries : 1
+
+Your own graph is still empty: the run above used the throwaway store.
+Next: `huqan status` for what is in your graph, `huqan approvals` for pending
+decisions, or `huqan` for the interactive shell.
+Connect your agent: README -> "Connect your agent in one line".
 ```
 
-The write in line 1 **did not happen**. It was held until line 2 approved it. The quickstart uses a throwaway store.
+The write in step 1 **did not happen**. It was held until step 2 approved it. The quickstart uses a throwaway store.
 
 No install needed: the same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
 
