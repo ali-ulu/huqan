@@ -35,6 +35,26 @@ const DEFAULT_FILE_TIMEOUT_MS = 90_000;
 // the paths that do install-scale work, and leaves the hang detection that
 // #1847 added intact everywhere it was aimed.
 const HEAVY_FILE_TIMEOUT_MS = 240_000;
+
+// One heavy file needs more than the shared budget, because its own internal
+// timeouts already sum past it.
+//
+// kernel-facade-contract runs a real `npm pack` + `npm install` of the tarball
+// and then runs the installed binary. On Windows its install alone is allowed
+// 180s per attempt and it retries once, so the path that still succeeds runs
+// 60s (pack) + 15s (npm init) + 180s (the stalled first attempt) + the
+// install that succeeds + 60s (the installed MCP binary over stdio) and the
+// remaining consumers' own timeouts on top: about 535s in the worst case that
+// still ends green.
+//
+// The shared 240s was computed from 60s + 15s + 120s -- the non-Windows
+// numbers, without the retry. So a stalled install was killed mid-work and
+// reddened CI on PRs that never touched the file, which is the same failure
+// #1847 was about, one tier up. The override is scoped to that one file, so
+// every other heavy file keeps the 240s hang detection.
+const HEAVY_FILE_TIMEOUT_OVERRIDES = Object.freeze({
+  'test/kernel-facade-contract.test.js': 540_000,
+});
 const HEAVY_FILES = Object.freeze(new Set([
   'test/kernel-facade-contract.test.js',
   'test/coder-project-method-memory.test.js',
@@ -73,6 +93,9 @@ const HEAVY_FILES = Object.freeze(new Set([
 ]));
 
 function fileTimeoutMs(relativePath) {
+  if (Object.hasOwn(HEAVY_FILE_TIMEOUT_OVERRIDES, relativePath)) {
+    return HEAVY_FILE_TIMEOUT_OVERRIDES[relativePath];
+  }
   return HEAVY_FILES.has(relativePath) ? HEAVY_FILE_TIMEOUT_MS : DEFAULT_FILE_TIMEOUT_MS;
 }
 
@@ -340,6 +363,7 @@ if (require.main === module) {
 module.exports = {
   DEFAULT_FILE_TIMEOUT_MS,
   HEAVY_FILE_TIMEOUT_MS,
+  HEAVY_FILE_TIMEOUT_OVERRIDES,
   HEAVY_FILES,
   defaultReportPath,
   failuresSidecarPath,

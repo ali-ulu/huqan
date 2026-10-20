@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { mergeJunitParts, fileTimeoutMs, DEFAULT_FILE_TIMEOUT_MS, HEAVY_FILE_TIMEOUT_MS, HEAVY_FILES } = require('../scripts/run-test-shard');
+const { mergeJunitParts, fileTimeoutMs, DEFAULT_FILE_TIMEOUT_MS, HEAVY_FILE_TIMEOUT_MS, HEAVY_FILE_TIMEOUT_OVERRIDES, HEAVY_FILES } = require('../scripts/run-test-shard');
 
 function writeTmp(dir, name, content) {
   const p = path.join(dir, name);
@@ -22,7 +22,18 @@ function writeTmp(dir, name, content) {
 // everything else keeps the fast hang detection.
 describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
   test('a file that installs a package gets more than the default deadline', () => {
-    assert.equal(fileTimeoutMs('test/kernel-facade-contract.test.js'), HEAVY_FILE_TIMEOUT_MS);
+    // Its own internal timeouts already sum past the shared heavy budget: on
+    // Windows the install alone is 180s per attempt and it retries once, so a
+    // stalled first attempt is killed while the file is still working. It
+    // gets a budget that covers the path that still ends green.
+    assert.equal(
+      fileTimeoutMs('test/kernel-facade-contract.test.js'),
+      HEAVY_FILE_TIMEOUT_OVERRIDES['test/kernel-facade-contract.test.js'],
+    );
+    assert.ok(
+      HEAVY_FILE_TIMEOUT_OVERRIDES['test/kernel-facade-contract.test.js'] > HEAVY_FILE_TIMEOUT_MS,
+      'the override has to be larger than the shared heavy budget it escapes',
+    );
     // Restarts the native CLI and runs HTTP heldouts per case; it crossed 90s on Windows.
     assert.equal(fileTimeoutMs('test/coder-project-method-memory.test.js'), HEAVY_FILE_TIMEOUT_MS);
     // Boots a full server per case, seven of them; it crossed 90s on the
@@ -38,6 +49,13 @@ describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
       assert.ok(fs.existsSync(path.join(__dirname, '..', file)), `${file} does not exist`);
     }
     assert.ok(HEAVY_FILES.size > 0, 'allowlist must not be empty');
+
+    // The same holds for the deadline overrides, and an override that names a
+    // file nobody runs is a number that buys nothing.
+    for (const file of Object.keys(HEAVY_FILE_TIMEOUT_OVERRIDES)) {
+      assert.ok(fs.existsSync(path.join(__dirname, '..', file)), `${file} does not exist`);
+      assert.ok(HEAVY_FILES.has(file), `${file} is overridden but is not a heavy file`);
+    }
   });
 
   test('an ordinary file keeps the 90s hang cap', () => {
