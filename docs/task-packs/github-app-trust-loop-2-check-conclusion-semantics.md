@@ -28,6 +28,12 @@ Option A was selected:
 | `review`, `dry_run_only` | `action_required` | unchanged |
 | `block` | `failure` | unchanged |
 
+The table is not a total mapping of the canonical verdict set. The canonical
+verdicts in `lib/verdict/action-verdict.js` are `allow`, `review`, `block`,
+`dry_run_only`, `quarantine`, and `disabled`. `quarantine` and `disabled` are
+rejected by `checkConclusion()` with `INVALID_INPUT` — they are not projectable
+to a check conclusion, so they have no row above.
+
 The invariant that matters for this record: **C8 never emits `success`.**
 `checkConclusion()` in `lib/github-app-streaming-trust-receipt.js` returns
 `neutral` for `allow`, and no code path in the C8 write-back path returns
