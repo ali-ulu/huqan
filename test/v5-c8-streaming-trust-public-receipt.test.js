@@ -226,3 +226,93 @@ test('a missing signer skips publication without changing the verdict', async (t
   assert.ok(failed.error instanceof PublicTrustReceiptError);
   assert.equal(failed.error.code, ERROR_CODES.INVALID_SIGNER);
 });
+
+// #4087 PR-3: the C8 integration. The loop, not the bridge, is what the two
+// behaviours below are about: a redelivery must not sign again, and the check
+// run must name the receipt a third party is meant to fetch.
+async function runWithSigner(t, { signer, rootPath }) {
+  const github = makeGitHubFetch();
+  const result = await handleGitHubAppStreamingTrustWebhook({
+    ...signedRequest(payload()),
+    c7Store: createGitHubAppBetaStore({ rootPath }),
+    c8Store: createGitHubAppStreamingTrustStore({ rootPath }),
+    appId: '123456',
+    privateKey: crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey,
+    publicReceiptSigner: signer,
+    fetchImpl: github.fetchImpl,
+    nowMs: NOW_MS,
+  });
+  return { github, result };
+}
+
+function tempRoot(t) {
+  const rootPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-c8-integration-')));
+  t.after(() => fs.rmSync(rootPath, { recursive: true, force: true }));
+  return rootPath;
+}
+
+test('a redelivery returns the stored public receipt instead of signing again', async (t) => {
+  const rootPath = tempRoot(t);
+  const signer = ed25519Signer();
+  const first = await runWithSigner(t, { signer, rootPath });
+  const second = await runWithSigner(t, { signer, rootPath });
+
+  assert.ok(first.result.trust.publicReceipt, 'the first delivery publishes');
+  assert.equal(first.result.trust.duplicate, false);
+  assert.equal(second.result.trust.duplicate, true, 'the second delivery is a duplicate');
+  // The stored bytes are returned untouched: same id, same checksum, same
+  // signature. A re-sign would mint a different receipt for the same delivery.
+  assert.equal(
+    second.result.trust.publicReceipt.publicReceiptId,
+    first.result.trust.publicReceipt.publicReceiptId,
+  );
+  assert.equal(
+    JSON.stringify(second.result.trust.publicReceipt),
+    JSON.stringify(first.result.trust.publicReceipt),
+  );
+  const store = createGitHubAppStreamingTrustStore({ rootPath });
+  const stored = store.readPublicReceipt(DELIVERY);
+  assert.equal(stored.publicReceiptId, first.result.trust.publicReceipt.publicReceiptId);
+});
+
+test('the check run summary carries the public receipt id and checksum', async (t) => {
+  const rootPath = tempRoot(t);
+  const { github, result } = await runWithSigner(t, { signer: ed25519Signer(), rootPath });
+
+  const checkCall = github.calls.find(call => call.url.endsWith('/check-runs'));
+  const checkBody = JSON.parse(checkCall.options.body);
+  assert.match(checkBody.output.summary, new RegExp(`Public receipt: ${result.trust.publicReceipt.publicReceiptId}`));
+  assert.match(
+    checkBody.output.summary,
+    new RegExp(`Checksum: ${result.trust.publicReceipt.integrity.checksum}`),
+  );
+});
+
+test('an unconfigured signer writes the check run without a public receipt', async (t) => {
+  const rootPath = tempRoot(t);
+  const { github, result } = await runWithSigner(t, { signer: null, rootPath });
+
+  assert.equal(result.trust.publicReceipt, null);
+  assert.equal(result.trust.publicReceiptError, null, 'not configured is not a failure');
+  const checkCall = github.calls.find(call => call.url.endsWith('/check-runs'));
+  const checkBody = JSON.parse(checkCall.options.body);
+  assert.equal(checkBody.output.summary.includes('Public receipt:'), false);
+  assert.equal(checkBody.conclusion, 'neutral', 'the verdict is untouched');
+});
+
+test('a publication failure keeps the verdict and reports a code', async (t) => {
+  const rootPath = tempRoot(t);
+  // An RSA key is not Ed25519, so the exporter refuses it: publication fails
+  // while the delivery's own verdict must still be written.
+  const signer = { keyId: KEY_ID, privateKey: crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey };
+  const { github, result } = await runWithSigner(t, { signer, rootPath });
+
+  assert.equal(result.trust.publicReceipt, null);
+  assert.equal(result.trust.publicReceiptError, ERROR_CODES.INVALID_SIGNER);
+  const checkCall = github.calls.find(call => call.url.endsWith('/check-runs'));
+  const checkBody = JSON.parse(checkCall.options.body);
+  assert.equal(checkBody.conclusion, 'neutral');
+  assert.match(checkBody.output.summary, /Public receipt: unavailable/);
+  assert.equal(checkBody.output.summary.includes('Checksum:'), false);
+});
+

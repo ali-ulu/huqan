@@ -65,6 +65,13 @@ function environment(root, overrides = {}) {
   };
 }
 
+function writePublicReceiptKey(root) {
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  const keyPath = path.join(root, 'public-receipt-key.pem');
+  fs.writeFileSync(keyPath, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
+  return keyPath;
+}
+
 function payload() {
   return {
     action: 'opened',
@@ -216,6 +223,54 @@ test('the streaming loop stays off until its own flag is set, even with the beta
   assert.match(response.body.receiptHash, /^[0-9a-f]{64}$/);
   assert.deepEqual(api.calls, []);
 });
+
+test('a configured public receipt key publishes over HTTP and names the receipt on the check run', async (t) => {
+  const root = tempRoot(t);
+  const api = githubApi();
+  const boundary = createGitHubAppBetaHttpBoundary({
+    environment: environment(root, {
+      HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY: writePublicReceiptKey(root),
+      HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY_ID: 'test-key:c8-http',
+    }),
+    fetchImpl: api.fetchImpl,
+  });
+  const port = await listen(t, boundary);
+
+  const response = await post(port, { body: payload() });
+
+  assert.equal(response.statusCode, 200);
+  assert.match(response.body.trust.publicReceiptId, /^[0-9a-f]{64}$/);
+  const checkBody = JSON.parse(api.calls.find(call => call.url.endsWith('/check-runs')).options.body);
+  assert.match(checkBody.output.summary, new RegExp(`Public receipt: ${response.body.trust.publicReceiptId}`));
+  assert.match(checkBody.output.summary, /Checksum: [0-9a-f]{64}/);
+});
+
+test('startup fails closed on a misconfigured public receipt key, without printing its path', async (t) => {
+  const root = tempRoot(t);
+  const api = githubApi();
+  const unusable = path.join(root, 'not-a-receipt-key.pem');
+  fs.writeFileSync(unusable, 'this is not a private key');
+
+  for (const overrides of [
+    { HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY: path.join(root, 'absent.pem'), HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY_ID: 'k' },
+    { HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY: unusable, HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY_ID: 'k' },
+    { HUQAN_GITHUB_APP_PUBLIC_RECEIPT_KEY: writePrivateKey(root) },
+  ]) {
+    let thrown;
+    try {
+      createGitHubAppBetaHttpBoundary({
+        environment: environment(root, overrides),
+        fetchImpl: api.fetchImpl,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    assert.ok(thrown, `expected startup to refuse ${JSON.stringify(overrides)}`);
+    assert.equal(thrown.code, 'GITHUB_APP_PUBLIC_RECEIPT_CONFIG_INVALID');
+    assert.equal(thrown.message.includes('absent.pem'), false, 'the key path is not printed');
+  }
+});
+
 
 test('startup fails closed on a missing or unusable private key rather than on the first delivery', async (t) => {
   const root = tempRoot(t);

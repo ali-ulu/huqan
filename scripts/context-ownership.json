@@ -7128,6 +7128,13 @@
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
+  "lib/github-app-public-receipt-config.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4087 the beta http config composes the public receipt signer from this module and hands it to the C8 loop, so the check run can link the published receipt on the live path"
+  },
   "lib/github-connector-provenance.js": {
    "owner": "Trust",
    "consumers": [
