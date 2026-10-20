@@ -16,8 +16,12 @@ const { posixAuthorityLayout } = require('../lib/authority/posix-path-trust');
 const DIR = path.join(__dirname, '..', 'scripts', 'authority');
 const SCRIPTS = ['install-authority.sh', 'uninstall-authority.sh'];
 const read = name => fs.readFileSync(path.join(DIR, name), 'utf8');
-const install = read('install-authority.sh');
-const uninstall = read('uninstall-authority.sh');
+// .gitattributes pins LF for these files, but a checkout that ignores it would
+// still hand us CRLF; normalise so the multi-line pins below compare content,
+// not line-ending style.
+const lf = text => text.replace(/\r\n/g, '\n');
+const install = lf(read('install-authority.sh'));
+const uninstall = lf(read('uninstall-authority.sh'));
 
 test('the scripts are pure ASCII, because a non-UTF-8 locale would misread anything else', () => {
   for (const name of SCRIPTS) {
@@ -26,15 +30,13 @@ test('the scripts are pure ASCII, because a non-UTF-8 locale would misread anyth
   }
 });
 
-// The scripts are Linux-only, and on Windows `bash` may be the WSL stub, which
-// eats a native `C:\...` path. The text pins above still run everywhere; only
-// the parse needs a POSIX shell, mirroring test/authority-installer-scripts.test.js
-// (which parses the PowerShell pair on Windows instead).
-const noPosixShell = process.platform === 'win32' && 'a POSIX shell is required to parse the scripts';
-
-test('bash parses both scripts', { skip: noPosixShell }, () => {
+// The script text goes in on stdin, not as a path: on Windows `bash` may be the
+// WSL stub, which eats a native `C:\...` argument. The normalised text is the
+// same text .gitattributes guarantees on checkout, so this parses the shipped
+// bytes wherever the checkout happened.
+test('bash parses both scripts', () => {
   for (const name of SCRIPTS) {
-    const run = spawnSync('bash', ['-n', path.join(DIR, name)], { encoding: 'utf8' });
+    const run = spawnSync('bash', ['-n'], { input: lf(read(name)), encoding: 'utf8' });
     assert.equal(run.status, 0, `${name}: ${run.stderr}`);
   }
 });
