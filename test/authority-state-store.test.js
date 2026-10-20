@@ -34,6 +34,16 @@ test('creating over existing state is refused, so a re-run cannot rotate keys si
   assert.deepEqual(openAuthorityState({ dir }).totpSecret, created.totpSecret);
 });
 
+// POSIX only: on Windows the mode is ignored (the installer ACLs the directory
+// instead), so a mode assertion there would describe nothing.
+const posixOnly = process.platform === 'win32' && 'POSIX permission bits required';
+
+test('creates the state directory 0700 on posix', { skip: posixOnly }, (t) => {
+  const dir = path.join(tempDir(t), 'state');
+  createAuthorityState({ dir });
+  assert.equal(fs.statSync(dir).mode & 0o777, 0o700);
+});
+
 test('TOTP progress is written atomically and survives a reopen', (t) => {
   const dir = tempDir(t);
   createAuthorityState({ dir });

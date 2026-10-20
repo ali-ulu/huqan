@@ -397,7 +397,7 @@
           "call": "fs.renameSync"
         },
         {
-          "line": 64,
+          "line": 68,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         }

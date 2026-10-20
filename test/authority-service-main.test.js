@@ -8,7 +8,7 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
-const { loadedOutsideBundle, parseOptions, serveAuthority, initAuthority, enrollCheck, PIN_VERSION } = require('../lib/authority/service-main');
+const { loadedOutsideBundle, parseOptions, serveAuthority, initAuthority, enrollCheck, assertPosixStateDirTrusted, PIN_VERSION } = require('../lib/authority/service-main');
 const { base32Decode, totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
 const { verifyResponse, requestDigestOf } = require('../lib/authority/decision-envelope');
 
@@ -56,6 +56,54 @@ test('options are strict', () => {
   assert.throws(() => parseOptions(['--state-dir', 'x', '--port', '70000']), /port/);
   assert.throws(() => parseOptions(['--port', '1']), /state-dir/);
   assert.throws(() => parseOptions(['--state-dir', 'x', '--port', '1', '--eval', 'y']), /unknown/);
+});
+
+// ─── the POSIX state-directory self-check (ADR-020 §7) ───────────────────────
+//
+// The check is exercised directly with injected platform/getuid/lstat so it can
+// be pinned on every OS: the real guard only fires off Windows, and a CI runner
+// is never root, so the root and ownership branches have no other way to run.
+
+const SERVICE_UID = 1234;
+const stateStat = (over = {}) => Object.assign({
+  uid: SERVICE_UID, mode: 0o700, isSymbolicLink: () => false,
+}, over);
+
+test('a 0700 state dir owned by the service uid is accepted', () => {
+  assert.doesNotThrow(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+    { platform: 'linux', getuid: () => SERVICE_UID, lstat: () => stateStat() }));
+});
+
+test('serve refuses to run as root on posix', () => {
+  assert.throws(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+    { platform: 'linux', getuid: () => 0, lstat: () => stateStat() }), /must not run as root/);
+});
+
+test('serve refuses a state dir not owned by the service uid', () => {
+  assert.throws(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+    { platform: 'linux', getuid: () => SERVICE_UID, lstat: () => stateStat({ uid: 0 }) }), /owned by uid 0/);
+});
+
+test('serve refuses a group- or other-accessible state dir on posix', () => {
+  for (const mode of [0o750, 0o705, 0o755, 0o770]) {
+    assert.throws(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+      { platform: 'linux', getuid: () => SERVICE_UID, lstat: () => stateStat({ mode }) }), /group- or other-accessible/, mode.toString(8));
+  }
+});
+
+test('serve refuses a symlinked state dir and fails closed when the uid is unknown', () => {
+  assert.throws(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+    { platform: 'linux', getuid: () => SERVICE_UID, lstat: () => stateStat({ isSymbolicLink: () => true }) }), /symlink/);
+  assert.throws(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+    { platform: 'linux', getuid: null, lstat: () => stateStat() }), /cannot determine the service uid/);
+  assert.throws(() => assertPosixStateDirTrusted('/var/lib/huqan-authority/state',
+    { platform: 'linux', getuid: () => SERVICE_UID, lstat: () => { throw Object.assign(new Error('gone'), { code: 'ENOENT' }); } }),
+    /cannot inspect the state directory/);
+});
+
+test('the posix state check does not run on win32, where the installer ACLs the dir', () => {
+  assert.doesNotThrow(() => assertPosixStateDirTrusted('C:\\ProgramData\\huqan-authority\\state',
+    { platform: 'win32', getuid: () => 0, lstat: () => { throw new Error('must not be read'); } }));
 });
 
 test('serve starts only from a clean bundle and answers a signed identity', async (t) => {
@@ -124,3 +172,19 @@ test('enroll-check accepts the right code once, so the installer can prove enrol
   assert.deepEqual(enrollCheck({ stateDir, code }), { ok: false, code: 'TOTP_REPLAYED' });
   assert.deepEqual(enrollCheck({ stateDir, code: '000000' }).ok, false);
 });
+
+// POSIX only: on Windows the mode is ignored and the installer ACLs the dir.
+const posixOnly = process.platform === 'win32' && 'POSIX permission bits required';
+
+test('serve refuses a group-readable state dir on posix', { skip: posixOnly }, (t) => {
+  const dir = tempDir(t);
+  const stateDir = path.join(dir, 'state');
+  spawnSync(process.execPath, [MAIN, 'init', '--state-dir', stateDir, '--public-dir', path.join(dir, 'public'), '--port', '47821'],
+    { env: CHILD_ENV });
+  fs.chmodSync(stateDir, 0o755);
+  const run = spawnSync(process.execPath, [MAIN, 'serve', '--state-dir', stateDir, '--port', '0'],
+    { encoding: 'utf8', env: CHILD_ENV, timeout: 15000 });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /"event":"fatal".*group- or other-accessible/);
+});
+
