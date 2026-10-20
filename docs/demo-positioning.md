@@ -42,19 +42,20 @@ The solo developer does not want a SOC 2 program. They want the agent stopped be
 
 Message: **HUQAN: your agent's emergency brake.**
 
-Backed by: a mutating call is held for a person's approval before it runs, and `huqan.emergency_stop` stops one agent or a whole workspace. The public demo makes the hold visible: BLOCK or REVIEW -> human approval -> execution.
+Backed by: a mutating call is held for a person's approval before it runs — the gate returns `REVIEW`, not `BLOCK`, so the call is paused rather than refused — and `huqan.emergency_stop` stops one agent or a whole workspace. The public demo makes the hold visible: REVIEW -> human approval -> execution.
 
 Use on: the community page, the README opening, the static demo landing.
 
-### Enterprise — "an independent auditor"
+### Enterprise — "an independent auditor" (collector-backed)
 
 Even when a platform embeds its own audit, the organization does not trust the record kept by the party that took the action. The auditor rejects the suspect's own ledger.
 
-Message: **An inspector does not accept the ledger the suspect kept.**
+The word has a deployment condition, so state the default claim and the collector-backed claim separately.
 
-Backed by: HUQAN's receipts are produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it.
+- Default (today, no collector deployed): **the audit record is not written by the agent.** Receipts are produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it.
+- Collector-backed (a collector runs where the operator does not administer it): **an inspector does not accept the ledger the suspect kept.**
 
-Use on: the enterprise page and the README enterprise paragraph.
+Use on: the enterprise page and the README enterprise paragraph. Until a collector is deployed, lead with the default claim and keep "independent auditor" for the collector-backed case.
 
 ### The boundary of "independent" (non-claim)
 
