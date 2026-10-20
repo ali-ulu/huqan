@@ -66,6 +66,32 @@ Profiles: `claude-code`, `codex`, `openhands`, `opencode`, `pi`, `hermes`. The g
 
 Operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and require `HUQAN_MCP_OPERATOR_TOKEN` — an agent cannot approve its own proposal.
 
+**Set the operator token (copy-paste):**
+
+1. Generate a token on your machine:
+
+```bash
+node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+2. Put it in the MCP server configuration, so only the `huqan-mcp` server process (and therefore you, the operator) holds it:
+
+```json
+{
+  "mcpServers": {
+    "huqan": {
+      "command": "npx",
+      "args": ["-y", "--package=huqan", "huqan-mcp"],
+      "env": { "HUQAN_MCP_OPERATOR_TOKEN": "<paste the value you generated>" }
+    }
+  }
+}
+```
+
+3. Approve: the operator tools appear in your MCP client only when the token is set. When the agent proposes a mutation, call `huqan.approvals` to see pending decisions and `huqan.approve` to decide — from your side of the client, never from the agent's own tools or shell.
+
+⚠️ Do not put the token where the model can see it — the agent's own environment variables, its prompt, or any file it reads. That breaks the "an agent cannot approve its own proposal" guarantee: keep it in the `huqan-mcp` server block only.
+
 ## Install
 
 ```bash
@@ -110,21 +136,11 @@ Full details and edge cases: [docs](./docs).
 
 ## License
 
-**Open Source:** AGPL-3.0-only  
-Free for open-source use, personal projects, research, and non-commercial evaluation.
+**Single license: AGPL-3.0-only.** No commercial license is offered, quoted, or granted today. The canonical licensing-status record is [docs/legal/dual-licensing-status.md](./docs/legal/dual-licensing-status.md) (decision record 2026-09-28, #3082); this README links to it rather than restating the status.
 
-**Commercial License**  
-Required for:
-- Closed-source / proprietary products
-- Production use inside companies
-- Redistribution as part of a commercial offering
-- Multi-user / team deployments with support
+If your requirement makes a commercial path urgent, the decision record lists explicit revisit conditions; condition 3 (a prospective licensee's requirement makes the commercial path urgent) reopens that decision record before any offer is made. Until a new decision record says otherwise, there is nothing to quote, price, or sign.
 
-Commercial licenses include dual-licensing rights (use HUQAN without AGPL obligations), priority support, and optional future commercial features.
-
-→ Request commercial license: [aliulu@ai-ulu.com](mailto:aliulu@ai-ulu.com)
-
-Until a commercial agreement is signed, this repository grants **no commercial rights**.
+Register interest (no offer implied): [aliulu@ai-ulu.com](mailto:aliulu@ai-ulu.com)
 
 ---
 

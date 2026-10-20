@@ -1,6 +1,6 @@
-# Local Install Guide
+# Knowledge base and CLI from source (contributors)
 
-> Get Huqan running on your machine in under 5 minutes.
+> **You do not need this page to protect your agent.** For the agent gate and MCP, follow the README quickstart: `npx -y huqan quickstart`, then [Connect your agent in one line](../README.md#connect-your-agent-in-one-line). This page is the contributor path for the knowledge base and CLI from a source checkout.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ npm run setup:sqlite
 node egitim.js
 ```
 
-This loads the initial Turkish knowledge base (~5 seconds). You can skip this — Huqan works without it, but queries will return "evidence missing" for most questions.
+This loads the initial Turkish knowledge base (~5 seconds). It exists **only to try the knowledge base from a source checkout** — the agent gate, the MCP server, and approvals do **not** require it. You can skip it; without it, knowledge-base queries will return "evidence missing" for most questions.
 
 ---
 
