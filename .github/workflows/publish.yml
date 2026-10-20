@@ -342,7 +342,7 @@ jobs:
             # packed; every other failure stays a failure.
             name="$(node -p "require('./package.json').name")"
             if node scripts/npm-release-state.js settle "${name}" "${manifest}" "${GITHUB_SHA}" "${log}"; then
-              echo "${name}@${manifest} is live from ${GITHUB_SHA}; the 409 was npm staging this upload."
+              echo "${name}@${manifest} is live from ${GITHUB_SHA}; the registry serves this version from the expected commit."
               exit 0
             fi
             node scripts/explain-npm-publish-failure.js "${log}"
