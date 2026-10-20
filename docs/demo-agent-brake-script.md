@@ -149,9 +149,13 @@ Say these if asked, and volunteer the first one:
   decision and the refusal of the stand-in, not an installed OS boundary.
 - The issuer seal proves a receipt's origin and integrity, not the operator's
   honesty.
-- The workspace is a temporary directory. Real protection depends on the gate
-  being installed in the host the agent runs in (`huqan-gate install --profile
-  claude-code`), which this demo does not do to your machine.
+- The demo drives the gate's own adapter, the one the installed hook calls, so
+  the decision and the receipt are the production ones — but it does not install
+  the hook into a host agent, and it does not run a real agent process. Real
+  protection depends on `huqan-gate install --profile claude-code` in the host
+  the agent runs in, which this demo does not do to your machine.
+- The workspace is a temporary directory under the system temp root, left for
+  the OS to remove. Nothing outside it is read or written.
 
 ## Regenerating the recording
 
