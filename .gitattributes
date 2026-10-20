@@ -24,7 +24,8 @@ test/fixtures/contradiction-eval-v1/*.json text eol=lf
 lib/semantic-model-artifacts/*.json text eol=lf
 
 # The POSIX authority scripts are read byte for byte by
-# test/authority-linux-installer-scripts.test.js, whose pins anchor on "\n", and
+# test/authority-linux-installer-scripts.test.js and
+# test/authority-darwin-installer-scripts.test.js, whose pins anchor on "\n", and
 # they are parsed by `bash -n`. A CRLF checkout on Windows (core.autocrlf=true)
 # both breaks those anchors and leaves stray CR bytes for bash to choke on, so
 # pin LF for the same reason as the entries above.
