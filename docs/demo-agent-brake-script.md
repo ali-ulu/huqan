@@ -139,7 +139,7 @@ Two sentences, then stop:
 - `npm run demo:agent-brake` is the whole claim on your machine, in under two
   seconds, with nothing of yours touched.
 
-Then the call to action you prepared. No price, no licence talk in this slot.
+Then the call to action you prepared. Commercial terms are out of scope for this slot.
 
 ## What this demo does not prove
 
