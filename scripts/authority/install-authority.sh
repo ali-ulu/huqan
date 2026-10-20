@@ -49,10 +49,32 @@ usage() {
 }
 
 # A tiny JSON field reader, so the installer never needs jq. The node used here
-# is the verified copy under $NODE_DIR.
+# is the verified copy under $NODE_DIR. $field may be a dotted path, because the
+# registry puts the integrity under dist.integrity.
 json_field() {
   local file="$1" field="$2"
-  "$NODE_DIR/bin/node" -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s)[process.argv[1]] ?? "")))' "$field" < "$file"
+  "$NODE_DIR/bin/node" -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(process.argv[1].split(".").reduce((v,k)=>v==null?v:v[k],JSON.parse(s)) ?? "")))' "$field" < "$file"
+}
+
+# The nodejs.org tarball is per architecture; on a host this does not recognise
+# the installer stops here rather than verifying a tarball it cannot exec.
+node_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) printf '%s' x64 ;;
+    aarch64|arm64) printf '%s' arm64 ;;
+    *) fail "unsupported architecture: $(uname -m)" ;;
+  esac
+}
+
+# Exactly three numeric components. A shell case glob would also accept a value
+# such as 1.0.0/../../other, which curl would then resolve against the registry.
+validate_version() {
+  local major minor patch extra
+  IFS=. read -r major minor patch extra <<< "$1"
+  for part in "$major" "$minor" "$patch"; do
+    case "$part" in ''|*[!0-9]*) fail '--version must be x.y.z' ;; esac
+  done
+  [ -z "$extra" ] || fail '--version must be x.y.z'
 }
 
 require_root() {
@@ -76,9 +98,10 @@ ensure_service_user() {
 }
 
 install_node() {
-  local staging="$1" ver="${NODE_VERSION#v}" tarball extract_dir
-  tarball="node-v${ver}-linux-x64.tar.xz"
-  extract_dir="node-v${ver}-linux-x64"
+  local staging="$1" ver="${NODE_VERSION#v}" arch tarball extract_dir
+  arch="$(node_arch)"
+  tarball="node-v${ver}-linux-${arch}.tar.xz"
+  extract_dir="node-v${ver}-linux-${arch}"
   mkdir -p "$staging/gnupg"
   chmod 0700 "$staging/gnupg"
   curl -fsSL "$NODE_DIST/v${ver}/SHASUMS256.txt.asc" -o "$staging/SHASUMS256.txt.asc"
@@ -110,14 +133,14 @@ get_verified_package() {
   local staging="$1" meta integrity tarball got
   meta="$staging/registry.json"
   curl -fsSL "$REGISTRY/$VERSION" -o "$meta" || fail "cannot read registry metadata for $VERSION"
-  integrity="$(json_field "$meta" integrity)"
+  integrity="$(json_field "$meta" dist.integrity)"
   tarball="$staging/huqan.tgz"
   case "$integrity" in
     sha512-*) ;;
     *) fail "registry metadata for $VERSION carries no sha512 integrity" ;;
   esac
   local url
-  url="$("$NODE_DIR/bin/node" -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(String(JSON.parse(s).dist.tarball)))' < "$meta")"
+  url="$(json_field "$meta" dist.tarball)"
   curl -fsSL "$url" -o "$tarball"
   got="sha512-$(openssl dgst -sha512 -binary "$tarball" | base64 -w0)"
   if [ "$got" != "$integrity" ]; then fail 'the downloaded package does not match the registry integrity'; fi
@@ -176,7 +199,6 @@ WantedBy=multi-user.target
 EOF
   chmod 0644 "$UNIT_FILE"
   systemctl daemon-reload
-  systemctl enable "$SERVICE_NAME.service" >/dev/null
 }
 
 new_protected_tree() {
@@ -205,6 +227,10 @@ EOF
 # Create the keys and the TOTP secret, prove enrollment, then hand the state to
 # the service user. init and enroll-check run as root, so their files are root's
 # until the chown at the end.
+#
+# Prompts go to stderr and the code is read from the controlling terminal, so
+# the caller can capture the key id from stdout without swallowing the setup
+# key, the URI and the retry message (they must reach the operator's screen).
 invoke_enrollment() {
   local node="$NODE_DIR/bin/node" service_main="$APP_DIR/lib/authority/service-main.js" init uri secret code attempt key_id
   init="$staging/init.json"
@@ -215,18 +241,21 @@ invoke_enrollment() {
   uri="$(json_field "$init" otpauthUri)"
   key_id="$(json_field "$init" keyId)"
   secret="$(printf '%s' "$uri" | sed -E 's/.*secret=([A-Z2-7]+).*/\1/')"
-  echo
-  echo 'Add this to your authenticator app (setup key, time based, 6 digits, 30 seconds):'
-  echo "  Account: HUQAN Authority:operator   Key: $secret"
-  echo "  or the URI: $uri"
+  {
+    echo
+    echo 'Add this to your authenticator app (setup key, time based, 6 digits, 30 seconds):'
+    echo "  Account: HUQAN Authority:operator   Key: $secret"
+    echo "  or the URI: $uri"
+  } >&2
   for attempt in 1 2 3; do
-    read -r -p 'Enter the 6-digit code your app shows now: ' code
+    printf 'Enter the 6-digit code your app shows now: ' >&2
+    read -r code < /dev/tty
     if "$node" "$service_main" enroll-check --state-dir "$STATE_DIR" --code "$code" >/dev/null 2>&1; then
       chown -R "$SERVICE_USER:$SERVICE_USER" "$STATE_DIR"
       printf '%s' "$key_id"
       return 0
     fi
-    echo 'That code did not match; wait for the next one and try again.'
+    echo 'That code did not match; wait for the next one and try again.' >&2
   done
   fail 'enrollment was not confirmed; nothing was started'
 }
@@ -273,10 +302,7 @@ main() {
     esac
   done
   if [ -z "$VERSION" ]; then usage; fail '--version is required'; fi
-  case "$VERSION" in
-    [0-9]*.[0-9]*.[0-9]*) ;;
-    *) fail '--version must be x.y.z' ;;
-  esac
+  validate_version "$VERSION"
   case "$PORT" in
     ''|*[!0-9]*) fail '--port must be a number' ;;
   esac
@@ -300,6 +326,9 @@ main() {
   key_id="$(invoke_enrollment)"
   test_installed "$key_id"
   assert_protected
+  # Enable only now: a failure above leaves nothing that starts at the next boot
+  # with unconfirmed state.
+  systemctl enable "$SERVICE_NAME.service" >/dev/null
 
   echo "HUQAN approval authority $VERSION installed (key $key_id, port $PORT)."
   echo "Decide approvals with: sudo $INSTALL_DIR/huqan-authority-decide"

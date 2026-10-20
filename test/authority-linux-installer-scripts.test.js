@@ -60,10 +60,31 @@ test('node is verified against the GPG-signed manifest, with no unverified path'
   assert.doesNotMatch(install, /allow-unverified-node/);
 });
 
+test('the node tarball is chosen from the host architecture, not a hardcoded x64', () => {
+  assert.match(install, /x86_64\|amd64\) printf '%s' x64/);
+  assert.match(install, /aarch64\|arm64\) printf '%s' arm64/);
+  assert.match(install, /\*\) fail "unsupported architecture: \$\(uname -m\)"/);
+  assert.match(install, /tarball="node-v\$\{ver\}-linux-\$\{arch\}\.tar\.xz"/);
+  assert.match(install, /extract_dir="node-v\$\{ver\}-linux-\$\{arch\}"/);
+  assert.doesNotMatch(install, /linux-x64\.tar\.xz/);
+});
+
 test('the package is checked against the registry integrity before it is unpacked', () => {
+  // The integrity lives under dist in a version document; a top-level read
+  // would yield nothing and the installer would abort.
+  assert.match(install, /integrity="\$\(json_field "\$meta" dist\.integrity\)"/);
+  assert.match(install, /url="\$\(json_field "\$meta" dist\.tarball\)"/);
   assert.match(install, /case "\$integrity" in\s*\n\s*sha512-\*\)/);
   assert.match(install, /openssl dgst -sha512 -binary/);
   assert.match(install, /if \[ "\$got" != "\$integrity" \]; then fail 'the downloaded package does not match the registry integrity'/);
+});
+
+test('--version is exactly three numeric components, so it cannot walk the registry path', () => {
+  assert.match(install, /validate_version\(\)/);
+  assert.match(install, /IFS=\. read -r major minor patch extra <<< "\$1"/);
+  assert.match(install, /\[ -z "\$extra" \] \|\| fail '--version must be x\.y\.z'/);
+  assert.match(install, /case "\$part" in ''\|\*\[!0-9\]\*\) fail '--version must be x\.y\.z'/);
+  assert.doesNotMatch(install, /\[0-9\]\*\.\[0-9\]\*\.\[0-9\]\*/);
 });
 
 test('only the bundle files are installed, from the verified package', () => {
@@ -112,6 +133,28 @@ test('the installer proves the pinned service answers before it declares success
   assert.match(install, /systemctl start "\$SERVICE_NAME\.service"/);
   assert.match(install, /createAuthorityClient\(\{pin:p\.pin\}\)\.identity\(\)/);
   assert.match(install, /the service did not answer under the pinned key/);
+});
+
+test('the unit is enabled only after enrollment and the identity check succeed', () => {
+  // enable is a boot-time commitment: it must follow the proof, not precede it.
+  const enableAt = install.indexOf('systemctl enable "$SERVICE_NAME.service"');
+  const enrollAt = install.indexOf('key_id="$(invoke_enrollment)"');
+  const proofAt = install.indexOf('test_installed "$key_id"');
+  assert.ok(enrollAt !== -1 && proofAt !== -1 && enableAt !== -1, 'expected the enroll/proof/enable sequence');
+  assert.ok(enrollAt < proofAt && proofAt < enableAt, 'enable must come after enrollment and the proof');
+  // The unit writer itself must not enable anything.
+  const installUnitBody = install.slice(install.indexOf('install_unit()'), install.indexOf('new_protected_tree()'));
+  assert.doesNotMatch(installUnitBody, /systemctl enable/);
+});
+
+test('enrollment prompts reach the operator screen even though the caller captures stdout', () => {
+  assert.match(install, /\} >&2\n/);
+  assert.match(install, /printf 'Enter the 6-digit code your app shows now: ' >&2/);
+  assert.match(install, /read -r code < \/dev\/tty/);
+  assert.doesNotMatch(install, /read -r -p/);
+  // The retry message must go to the terminal too, not into $key_id.
+  assert.match(install, /echo 'That code did not match; wait for the next one and try again\.' >&2/);
+  assert.match(install, /printf '%s' "\$key_id"\n\s*return 0/);
 });
 
 test('the operator window is a root-owned wrapper in the protected install', () => {
