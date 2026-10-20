@@ -4574,6 +4574,10 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognition/cognition-config.js": {
+   "kind": "infra",
+   "evidence": "cognitive-architecture-plan.md#5: strict opts.cognition resolver (S3), pure Core with no domain policy; callers land with the AgentV3 cognition seam"
+  },
   "lib/cognition/contract.js": {
    "kind": "infra",
    "evidence": "cognitive-architecture-plan.md#5: shared COG output vocabulary, pure Core helpers with no domain policy; callers land with the Phase 1 modules"
