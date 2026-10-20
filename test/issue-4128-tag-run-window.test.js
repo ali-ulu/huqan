@@ -53,7 +53,7 @@ function findBash() {
 }
 
 function has(command) {
-  const probe = spawnSync(command, ['--version'], { encoding: 'utf8' });
+  const probe = spawnSync(BASH, ['-c', `command -v ${command} >/dev/null 2>&1`], { encoding: 'utf8' });
   return probe.status === 0;
 }
 
@@ -200,10 +200,15 @@ function runWatcher(t, { eventSha = '', seededAlertFor = null } = {}) {
   fixtures(dir, { eventSha, seededAlertFor });
 
   const harness = `${ghShim()}\n${alertScript()}`;
-  // The shell receives this through the environment, so hand it a forward-slash
-  // path: Git Bash accepts `C:/...` but a raw `C:\...` can lose its separators.
+  // The shell receives the fixture through the environment, so hand it a
+  // forward-slash path: Git Bash accepts `C:/...` but a raw `C:\...` can lose
+  // its separators. The script itself is written to a file rather than passed
+  // with `-c`, because MSYS2 mangles a multi-line script that arrives as a
+  // single Windows command-line argument.
   const testDir = dir.replaceAll(path.sep, '/');
-  const result = spawnSync(BASH, ['-e', '-o', 'pipefail', '-c', harness], {
+  const scriptPath = path.join(dir, 'harness.sh');
+  fs.writeFileSync(scriptPath, harness);
+  const result = spawnSync(BASH, ['-e', '-o', 'pipefail', scriptPath], {
     encoding: 'utf8',
     timeout: 20000,
     cwd: REPO_ROOT,
