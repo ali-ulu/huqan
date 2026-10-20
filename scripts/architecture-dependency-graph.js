@@ -117,8 +117,9 @@ const RULES = [
       // #3999: pure domain helpers; the Core CLI command requires them.
       'lib/mcp/client-envelope.js', 'lib/mcp/client-registry.js',
       'lib/mcp/endpoint-pin.js', 'lib/mcp/service-acl.js',
+      'lib/memory-cognitive-message.js', 'lib/memory-schema-checks.js', // #4061 S12: pure K1 envelope, reused by lib/cognition/*
     ],
-    dirs: ['nlp/', 'lib/errors/', 'schemas/'],
+    dirs: ['nlp/', 'lib/errors/', 'schemas/', 'lib/cognition/'],
     pattern: /^lib\/[^/]+\.js$/,
   },
 ];

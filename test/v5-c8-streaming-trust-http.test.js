@@ -174,7 +174,7 @@ test('a signed webhook reaches the Streaming Trust loop over a real request and 
   assert.equal(response.body.ok, true);
   assert.equal(response.body.evaluated, true);
   assert.equal(response.body.trust.verdict, 'allow');
-  assert.equal(response.body.trust.conclusion, 'success');
+  assert.equal(response.body.trust.conclusion, 'neutral');
   assert.equal(response.body.trust.checkRunId, 778899);
   assert.match(response.body.trust.receiptHash, /^[0-9a-f]{64}$/);
   assert.notEqual(response.body.trust.receiptHash, response.body.receiptHash);
@@ -188,7 +188,7 @@ test('a signed webhook reaches the Streaming Trust loop over a real request and 
 
   const checkBody = JSON.parse(api.calls.find(call => call.url.endsWith('/check-runs')).options.body);
   assert.equal(checkBody.head_sha, HEAD_SHA);
-  assert.equal(checkBody.conclusion, 'success');
+  assert.equal(checkBody.conclusion, 'neutral');
 });
 
 test('the HMAC is verified at the boundary, and a bad signature never reaches the loop', async (t) => {

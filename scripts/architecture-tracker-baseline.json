@@ -266,6 +266,7 @@
       "lib/coder/arithmetic-synthesis.js": "Application",
       "lib/coder/cli-composition.js": "Application",
       "lib/coder/computed-project-templates.js": "Application",
+      "lib/coder/conditional-expression-search.js": "Application",
       "lib/coder/derivation-record.js": "Application",
       "lib/coder/experience-reporter.js": "Application",
       "lib/coder/expression-search.js": "Application",
@@ -427,9 +428,11 @@
       "lib/experience/coder-routing-runtime.js": "Application",
       "lib/experience/coder-trust-replay.js": "Application",
       "lib/experience/compiler.js": "Application",
+      "lib/experience/conditional-expression-program.js": "Application",
       "lib/experience/contract.js": "Application",
       "lib/experience/effect-boundary.js": "Application",
       "lib/experience/expression-adaptation.js": "Application",
+      "lib/experience/integer-expression-ast.js": "Application",
       "lib/experience/journal-connection.js": "Application",
       "lib/experience/journal.js": "Application",
       "lib/experience/learn-read-back.js": "Application",
@@ -880,7 +883,7 @@
       "lib/memory-admission-gate.js": "Adapters",
       "lib/memory-archive.js": "Adapters",
       "lib/memory-blast-radius.js": "Adapters",
-      "lib/memory-cognitive-message.js": "Adapters",
+      "lib/memory-cognitive-message.js": "Core",
       "lib/memory-consolidation.js": "Adapters",
       "lib/memory-decontamination.js": "Adapters",
       "lib/memory-event-read.js": "Adapters",
@@ -914,7 +917,7 @@
       "lib/memory-record-read.js": "Adapters",
       "lib/memory-record-utils.js": "Adapters",
       "lib/memory-record-visibility.js": "Adapters",
-      "lib/memory-schema-checks.js": "Adapters",
+      "lib/memory-schema-checks.js": "Core",
       "lib/memory-schema-normalize.js": "Adapters",
       "lib/memory-schema-package.js": "Adapters",
       "lib/memory-schema-types.js": "Adapters",
@@ -1377,6 +1380,7 @@
       "scripts/check-pr-signatures.js": "UI",
       "scripts/check-release-evaluation.js": "UI",
       "scripts/check-security-invariants.js": "UI",
+      "scripts/check-single-definition.js": "UI",
       "scripts/check-structured-log-format.js": "UI",
       "scripts/check-v5-identity-readiness.js": "UI",
       "scripts/check-workflow-governance.js": "UI",
@@ -1434,6 +1438,7 @@
       "scripts/measure-journal-durability.js": "UI",
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
+      "scripts/npm-release-state.js": "UI",
       "scripts/pr-guardian-self-review.js": "UI",
       "scripts/release-verify.js": "UI",
       "scripts/replay-impact-thresholds.js": "UI",
@@ -2065,7 +2070,8 @@
         "lib/json-clone.js"
       ],
       "lib/approval-schema.js": [
-        "lib/json-clone.js"
+        "lib/json-clone.js",
+        "lib/workspace-id.js"
       ],
       "lib/atp-conformance-primitives.js": [
         "lib/is-plain-object.js"
@@ -2622,6 +2628,7 @@
         "lib/path-safety.js"
       ],
       "lib/coder/arithmetic-synthesis.js": [
+        "lib/coder/conditional-expression-search.js",
         "lib/coder/expression-search.js",
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
@@ -2630,6 +2637,7 @@
         "lib/coder/string-synthesis.js",
         "lib/coder/synthesis-memory.js",
         "lib/experience/array-fold-program.js",
+        "lib/experience/conditional-expression-program.js",
         "lib/experience/expression-adaptation.js",
         "lib/experience/string-program.js"
       ],
@@ -2643,6 +2651,11 @@
         "lib/coder/project-method-memory.js",
         "lib/coder/project-producer.js",
         "lib/coder/requirements-parser.js"
+      ],
+      "lib/coder/conditional-expression-search.js": [
+        "lib/coder/expression-search.js",
+        "lib/coder/project-spec-data.js",
+        "lib/experience/conditional-expression-program.js"
       ],
       "lib/coder/derivation-record.js": [
         "lib/receipt/canonical-receipt.js"
@@ -2732,6 +2745,7 @@
         "lib/coder/fix-loop.js",
         "lib/coder/learned-candidate.js",
         "lib/experience/array-fold-program.js",
+        "lib/experience/conditional-expression-program.js",
         "lib/experience/expression-adaptation.js",
         "lib/experience/string-program.js"
       ],
@@ -2994,7 +3008,8 @@
       ],
       "lib/conflict-candidate-review.js": [
         "lib/audit-log.js",
-        "lib/hypothesis-review-audit.js"
+        "lib/hypothesis-review-audit.js",
+        "lib/workspace-id.js"
       ],
       "lib/conflict-claim.js": [
         "lib/is-plain-object.js",
@@ -3252,6 +3267,12 @@
         "lib/experience/procedure-data.js",
         "lib/task-identifier-lexer.js"
       ],
+      "lib/experience/conditional-expression-program.js": [
+        "lib/experience/arithmetic-function.js",
+        "lib/experience/array-filter-program.js",
+        "lib/experience/array-map-program.js",
+        "lib/experience/integer-expression-ast.js"
+      ],
       "lib/experience/effect-boundary.js": [
         "lib/experience/reconciliation.js",
         "lib/experience/runtime-seam.js"
@@ -3259,6 +3280,8 @@
       "lib/experience/expression-adaptation.js": [
         "lib/experience/arithmetic-function.js",
         "lib/experience/array-fold-program.js",
+        "lib/experience/conditional-expression-program.js",
+        "lib/experience/integer-expression-ast.js",
         "lib/experience/string-program.js"
       ],
       "lib/experience/journal-connection.js": [
@@ -3650,7 +3673,8 @@
         "lib/risk-policy-constants.js"
       ],
       "lib/fitness-history.js": [
-        "lib/memory-store-utils.js"
+        "lib/memory-store-utils.js",
+        "lib/workspace-id.js"
       ],
       "lib/fractal-learn.js": [
         "lib/agent-exit-reasons.js",
@@ -3858,7 +3882,8 @@
         "lib/graph-record-utils.js"
       ],
       "lib/graph-hypotheses.js": [
-        "lib/causal-edge-strength.js"
+        "lib/causal-edge-strength.js",
+        "lib/workspace-id.js"
       ],
       "lib/graph-journal-methods.js": [
         "lib/graph-method-install.js",
@@ -4395,18 +4420,22 @@
         "lib/is-plain-object.js"
       ],
       "lib/hypothesis-feedback.js": [
-        "lib/hypothesis-review.js"
+        "lib/hypothesis-review.js",
+        "lib/workspace-id.js"
       ],
       "lib/hypothesis-fitness.js": [
         "lib/graph-hypotheses.js",
-        "lib/hypothesis-feedback.js"
+        "lib/hypothesis-feedback.js",
+        "lib/workspace-id.js"
       ],
       "lib/hypothesis-review.js": [
-        "lib/hypothesis-review-audit.js"
+        "lib/hypothesis-review-audit.js",
+        "lib/workspace-id.js"
       ],
       "lib/hypothesis-thresholds.js": [
         "lib/graph-hypotheses.js",
-        "lib/memory-store-utils.js"
+        "lib/memory-store-utils.js",
+        "lib/workspace-id.js"
       ],
       "lib/hypothesis-tuning.js": [
         "lib/graph-hypotheses.js"
@@ -4997,7 +5026,8 @@
       "lib/mcp/self-evolve-tool.js": [
         "lib/mcp-input-sanitizers.js",
         "lib/mcp/response-builders.js",
-        "lib/self-evolve-adapter.js"
+        "lib/self-evolve-adapter.js",
+        "lib/workspace-id.js"
       ],
       "lib/mcp/service-main.js": [
         "lib/mcp-capability-nonce-store.js",
@@ -5875,10 +5905,12 @@
         "dream.js",
         "lib/fractal-learn.js",
         "lib/kernel-self-evolve.js",
-        "lib/self-evolve-probe.js"
+        "lib/self-evolve-probe.js",
+        "lib/workspace-id.js"
       ],
       "lib/self-evolve-probe.js": [
-        "lib/graph-hypotheses.js"
+        "lib/graph-hypotheses.js",
+        "lib/workspace-id.js"
       ],
       "lib/self-healer/approval-bridge.js": [
         "lib/agent-action-firewall.js"
@@ -6771,6 +6803,9 @@
       "scripts/check-release-evaluation.js": [
         "lib/release-evaluation-record.js",
         "scripts/security-release-evaluation.js"
+      ],
+      "scripts/check-single-definition.js": [
+        "scripts/binding-site-scan.js"
       ],
       "scripts/check-structured-log-format.js": [
         "lib/http/structured-log.js"
