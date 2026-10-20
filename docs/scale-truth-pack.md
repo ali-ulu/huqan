@@ -504,6 +504,38 @@ any host other than the 4 vCPU machine above. Nothing here is extrapolated
 beyond the table.
 ## Benchmark commands
 
+### Total-node counter experiment protocol (2026-10-20, results pending)
+
+Frozen control: `33049d3944ac6f04b56b7b0fe6ea06beee28b83c`. Candidate changes
+only total-node counting to the existing label index's `owner.size`; bare-map
+calls without an index retain enumeration. No new cache, maintenance cadence,
+admission threshold or benchmark workload is introduced.
+
+Before collecting results: three sequential fresh-process C/A, A/C, C/A pairs
+at each of 10k and 100k seed nodes, with 100 approved writes per run. No discarded
+warm-up: the first write is cold, the other 99 form the warm distribution. The
+existing default-workspace maintenance, timed JSON mirror, receipt assertions
+and SQLite reopen checks remain enabled. Both arms use the same inline launcher
+which additionally reports `process.resourceUsage().maxRSS` (KiB, whole process,
+including seed/open/reopen). This is not an allocation trace.
+
+Acceptance for this local pilot: no correctness/receipt/persistence error;
+zero node-map enumeration in the indexed count regression; at each size, median
+total time must improve, warm p95/p99 must not exceed control medians by more
+than 5%, and median maxRSS must not exceed control by more than 10%. Failure
+rejects a capacity-gain claim. Three pairs on a shared host do not establish
+statistical significance or a production capacity ceiling.
+
+Environment: Windows x64, Node 22.22.0, better-sqlite3 13.0.3, Intel i5-1135G7,
+8 logical CPUs. Both arms use the same existing `coder-mixed-learning/node_modules`
+via NODE_PATH; a fresh install from the current lockfile is not verified.
+Graphify preparation and tests finish before measurements; no additional test
+or profiling load is started during the pairs. Other host activity is not isolated.
+
+On-disk SHA-256: benchmark `993F5BBC08E82F9B1FE6A60AC3A757C93B1E740046887E7D0DFDF78BAA7472C1`;
+package lock `7B7AE600F6AC67FCEE52A318F108E445978AF1870428E1D83780EBFF0094DDF9`;
+candidate counter `41E53B870167C37CB1088E3CC299EF0F53C5B292DCFB04EA4EA18F111E28ED46`.
+
 ```bash
 node benchmarks/bench.js --quick
 node benchmarks/bench.js --fixtures=small,medium,large,xlarge
