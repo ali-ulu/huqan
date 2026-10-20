@@ -260,7 +260,9 @@ test('the watcher checks out what the verdict needs and only withholds green whe
   }
 
   const run = steps.map((step) => step.run || '').join('\n');
-  const alertLoop = run.indexOf('for sha in "${shas[@]}"; do');
+  // #4128 renamed the alert loop's array to `candidates` (main window plus the
+  // triggering run); the loop itself must still run before the verdict.
+  const alertLoop = run.indexOf('for sha in "${candidates[@]}"; do');
   const verdictCall = run.indexOf('node scripts/main-ci-watch-state.js');
   const closeGate = run.indexOf('if [[ "$main_green" == "true" ]]; then');
   assert.ok(alertLoop >= 0 && verdictCall > alertLoop, 'the verdict runs after the alert loop, so its failure cannot stop alerts');

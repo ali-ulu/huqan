@@ -45,7 +45,8 @@ jobs:
     # A pull request's Benchmark Regression / API Contract run also completes
     # as a workflow_run event; it says nothing about main.
     if: github.event_name != 'workflow_run' || github.event.workflow_run.event != 'pull_request'
-    # Up to five minutes of settle wait plus the scan of ten commits.
+    # Up to five minutes of settle wait plus the scan of the ten most recent
+    # main commits and the run that triggered the watcher (#4128).
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,6 +60,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          # #4128: the run that woke the watcher. A tag-triggered Publish run
+          # carries the tag as its branch, so its head_sha can sit far outside
+          # the 10-commit main window (v1.1.1's commit is 33 behind) and would
+          # never be inspected. Empty on schedule and workflow_dispatch.
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -70,7 +76,18 @@ jobs:
           alerts=0
           latest_sha="${shas[0]}"
 
-          for sha in "${shas[@]}"; do
+          # #4128: inspect the latest main commits plus the run that triggered
+          # this watcher. The event SHA is an alert candidate only; the
+          # main-health verdict below stays pinned to `latest_sha`, so a
+          # historical tag failure is never read as current-main health.
+          candidates=("${shas[@]}")
+          event_sha="${EVENT_SHA:-}"
+          if [[ "$event_sha" =~ ^[0-9a-f]{40}$ ]] \
+            && [[ ! " ${shas[*]} " == *" $event_sha "* ]]; then
+            candidates+=("$event_sha")
+          fi
+
+          for sha in "${candidates[@]}"; do
             short="${sha:0:7}"
 
             failures="$(
@@ -191,7 +208,7 @@ jobs:
               echo "### Current failing workflows"
               jq -r '.[] | "- **\(.name)**: \(.conclusion) ([run #\(.run_number), attempt \(.run_attempt)](\(.html_url)))"' <<<"$failures"
               echo
-              echo "_Created automatically by the repository-native Main CI Watch workflow. The watcher scans the latest 10 main commits, automatically re-runs eligible failed jobs once, and opens an issue only when the failure persists or cannot be safely re-run._"
+              echo "_Created automatically by the repository-native Main CI Watch workflow. The watcher scans the latest 10 main commits plus the run that triggered it, automatically re-runs eligible failed jobs once, and opens an issue only when the failure persists or cannot be safely re-run._"
             } > /tmp/main-ci-watch.md
 
             gh issue create \
@@ -316,16 +333,30 @@ jobs:
           fi
 
           if [[ "$main_green" == "true" ]]; then
+            # #4128: only close alerts whose commit is in the scanned main
+            # window. A tag-triggered run can alert on a commit far behind main
+            # (that is why it is inspected at all), and main going green says
+            # nothing about that tag's run -- closing it here would hide a real
+            # release failure. Such an alert stays open for a human.
+            main_shorts="$(
+              printf '%s\n' "${shas[@]}" | cut -c1-7 | jq -Rsc 'split("\n") | map(select(length > 0))'
+            )"
             mapfile -t resolved_issues < <(
               gh issue list \
                 --repo "$REPO" \
                 --state open \
                 --limit 100 \
                 --json number,title,body \
-                --jq '.[] | select(
-                  (.title | startswith("ci(main): "))
-                  and (.body | contains("Created automatically by the repository-native Main CI Watch workflow"))
-                ) | .number'
+                | jq -r --argjson shorts "$main_shorts" '
+                    .[]
+                    | select(
+                        (.title | startswith("ci(main): "))
+                        and (.body | contains("Created automatically by the repository-native Main CI Watch workflow"))
+                      )
+                    | (try (.title | capture("^ci\\(main\\): (?<short>[0-9a-f]{7}) ").short) catch "") as $short
+                    | select($short != "" and (($shorts | index($short)) != null))
+                    | .number
+                  '
             )
 
             for issue_number in "${resolved_issues[@]}"; do
@@ -338,4 +369,4 @@ jobs:
             echo "Current main is not verified green ($verdict); CI alert issues remain open."
           fi
 
-          echo "Scanned ${#shas[@]} recent main commits; opened $alerts new alert issue(s)."
+          echo "Scanned ${#candidates[@]} commit(s) (${#shas[@]} recent main plus the triggering run); opened $alerts new alert issue(s)."
