@@ -89,11 +89,12 @@ test('the scan finds the canonical declaration', () => {
 
 test('the committed baseline tolerates exactly the declarations present in the tree', () => {
   const baseline = readBaseline();
-  const [rule] = RULES;
-  const found = scanRule(rule).filter((file) => file !== rule.canonical);
-  const tolerated = (baseline.rules[rule.name] || []).filter((file) => file !== rule.canonical);
+  for (const rule of RULES) {
+    const found = scanRule(rule).filter((file) => file !== rule.canonical);
+    const tolerated = (baseline.rules[rule.name] || []).filter((file) => file !== rule.canonical);
 
-  assert.deepEqual([...tolerated].sort(), [...found].sort());
+    assert.deepEqual([...tolerated].sort(), [...found].sort(), rule.name);
+  }
 });
 
 test('every tolerated declaration carries a reason', () => {
@@ -133,6 +134,23 @@ test('a new declaration fails the gate, whatever shape it takes', (t) => {
     assert.equal(status, 1, source);
     assert.match(stderr, /new-declaration/, source);
     assert.match(stderr, /zz-scratch-single-definition\.js/, source);
+  }
+});
+
+test('a duplicate of any ruled helper fails the gate, not just the first rule', (t) => {
+  const scratch = path.join(repoRoot, 'lib', 'zz-scratch-ruled-helper.js');
+  t.after(() => fs.rmSync(scratch, { force: true }));
+
+  // #4116: a private `function isPlainObject` in lib/cognition/cognition-config.js
+  // reached main because only test/is-plain-object.test.js pinned the predicate,
+  // and the impact plan for that file never selected it. Every rule must fail the
+  // gate on a new declaration, so the guard is the gate itself and not one test.
+  for (const rule of RULES) {
+    fs.writeFileSync(scratch, `function ${rule.name}(value) {\n  return value;\n}\n`);
+    const { status, stderr } = runGate();
+    assert.equal(status, 1, rule.name);
+    assert.match(stderr, /new-declaration/, rule.name);
+    assert.match(stderr, new RegExp(rule.name), rule.name);
   }
 });
 

@@ -1,0 +1,2 @@
+drwxr-xr-x+ 3 root  wheel  96 Oct 20 12:00 /Library/HUQAN
+ 0: user:agent allow list,add_file,search,delete,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,readsecurity

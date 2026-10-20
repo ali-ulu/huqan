@@ -50,6 +50,26 @@ const parameterGroup = (depth) => (depth === 0 ? '[^()]*' : `(?:[^()]|\\(${param
 const PARAMETERS = `\\(${parameterGroup(2)}\\)`;
 
 /**
+ * Every declaration shape a rule must catch, for one helper name.
+ *
+ * Shared by the rules below so a name cannot be guarded more weakly than the
+ * others: the shapes a matcher misses are exactly how a duplicate survives.
+ */
+function declarationPatterns(name) {
+  return [
+    // function declaration / expression: `function f(` / `async function f(`
+    new RegExp(`${LEADING}(?:async\\s+)?function\\s+${name}\\s*\\(`),
+    // assignment or object property: `f = (`, `f = async (`, `f = function`,
+    // `f: (`, `f: async function`, and the single-parameter arrow `f = v =>`
+    // — the `(`/`function`/`=>` is what separates a definition from an alias
+    // (`f = require('...').f`).
+    new RegExp(`${LEADING}${name}\\s*[:=]\\s*(?:async\\s+)?(?:function\\b|\\(|[\\w$]+\\s*=>)`),
+    // method shorthand: `f(x) {`, including a default parameter.
+    new RegExp(`${LEADING}${name}\\s*${PARAMETERS}\\s*\\{`),
+  ];
+}
+
+/**
  * One entry per helper that must have exactly one declaration.
  *
  * `canonical` is the file allowed to declare it. `patterns` match a
@@ -61,17 +81,16 @@ const RULES = [
   {
     name: 'normalizeWorkspaceId',
     canonical: 'lib/workspace-id.js',
-    patterns: [
-      // function declaration / expression: `function f(` / `async function f(`
-      new RegExp(`${LEADING}(?:async\\s+)?function\\s+normalizeWorkspaceId\\s*\\(`),
-      // assignment or object property: `f = (`, `f = async (`, `f = function`,
-      // `f: (`, `f: async function`, and the single-parameter arrow `f = v =>`
-      // — the `(`/`function`/`=>` is what separates a definition from an alias
-      // (`f = require('...').f`).
-      new RegExp(`${LEADING}normalizeWorkspaceId\\s*[:=]\\s*(?:async\\s+)?(?:function\\b|\\(|[\\w$]+\\s*=>)`),
-      // method shorthand: `f(x) {`, including a default parameter.
-      new RegExp(`${LEADING}normalizeWorkspaceId\\s*${PARAMETERS}\\s*\\{`),
-    ],
+    patterns: declarationPatterns('normalizeWorkspaceId'),
+  },
+  {
+    // #4116: the predicate `test/is-plain-object.test.js` has pinned since
+    // f20e22d3, moved into the gate so it is enforced by CI rather than by a
+    // reader who remembers -- a copy in lib/cognition/cognition-config.js
+    // reached main through a PR whose impact plan never selected that test.
+    name: 'isPlainObject',
+    canonical: 'lib/is-plain-object.js',
+    patterns: declarationPatterns('isPlainObject'),
   },
 ];
 
