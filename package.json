@@ -396,6 +396,7 @@
     "lib/cli-helpers.js",
     "lib/cli-company-ingest.js",
     "lib/cli-doctor.js",
+    "lib/cli-doctor-usage.js",
     "lib/server-bind-doctor.js",
     "lib/cli-backup-commands.js",
     "lib/cli-status-command.js",

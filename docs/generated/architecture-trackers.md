@@ -12,7 +12,7 @@ Tracked in total: **1**
 
 | File | Lines | Signals |
 |---|---:|---|
-| `lib/cli-doctor.js` | 432 | — |
+| `lib/cli-doctor.js` | 413 | — |
 
 ## At or under 400 lines, tracked for a signal (0)
 
