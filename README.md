@@ -75,6 +75,8 @@ npm install -g huqan     # Node.js 22.13.0 or newer
 Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.  
 Run `huqan doctor` to see what is configured.
 
+To stand up the gate, approval authority and Trust Receipt chain on a clean server, follow the [30-minute install guide](./docs/install-30min.md). For the knowledge base and CLI only, see the [local install guide](./docs/local-install.md).
+
 ## How it works
 
 ```text
