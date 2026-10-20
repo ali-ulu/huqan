@@ -568,7 +568,7 @@ was relaxed.
 Result: **LOCAL_PILOT_ACCEPTED** against the predeclared limits above. Median
 total time fell 8.3% at 10k and 2.4% at 100k; two of three pairs improved at each
 size, not all pairs. Warm delay improved more than total runtime because existing
-maintenance/open/export costs remain. Median maxRSS changed +0.13% and -0.01%.
+maintenance/export costs remain. Median maxRSS changed +0.13% and -0.01%.
 This is a bounded local observation, not statistical or production gain proof,
 not an increased admission limit, and not a new 100k-write or concurrent-write
 guarantee. The previous 100k-seed/1,000-write series is not remeasured here.
