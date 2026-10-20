@@ -32,13 +32,49 @@ const WATCH_PATH = path.join(REPO_ROOT, '.github', 'workflows', 'main-ci-watch.y
 /** The alert body marker the close path keys on. */
 const MARKER = 'Created automatically by the repository-native Main CI Watch workflow';
 
+/**
+ * The workflow runs on ubuntu-latest (bash 5) and uses `mapfile` plus `jq` and
+ * `sed`, so a harness that executes its shell needs bash >= 4 with those tools.
+ * macOS ships 3.2 at /bin/bash, so look for a newer one before giving up; the
+ * test skips rather than fails where the harness's tools are unavailable.
+ */
+function findBash() {
+  const candidates = [
+    process.env.BASH_FOR_TESTS,
+    '/opt/homebrew/bin/bash',
+    '/usr/local/bin/bash',
+    'bash',
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    const probe = spawnSync(candidate, ['-c', 'printf %s "$BASH_VERSINFO"'], { encoding: 'utf8' });
+    if (probe.status === 0 && Number(probe.stdout) >= 4) return candidate;
+  }
+  return null;
+}
+
+function has(command) {
+  const probe = spawnSync(command, ['--version'], { encoding: 'utf8' });
+  return probe.status === 0;
+}
+
+const BASH = findBash();
+const SKIP = (() => {
+  if (!BASH) return 'the workflow shell needs bash >= 4 (mapfile); only /bin/bash 3.2 found';
+  if (!has('jq')) return 'the workflow shell needs jq';
+  if (!has('sed')) return 'the workflow shell needs sed';
+  return false;
+})();
+
 /** The `run:` block of the alert step, with /tmp redirected into the fixture. */
-function alertScript(tmpDir) {
+function alertScript() {
   const workflow = yaml.load(fs.readFileSync(WATCH_PATH, 'utf8'));
   const step = workflow.jobs['inspect-main'].steps
     .find((candidate) => String(candidate.name).startsWith('Re-run transient'));
   assert.ok(step, 'the alert step must exist');
-  return step.run.replaceAll('/tmp/', `${tmpDir}/tmp/`);
+  // Keep every write inside the fixture. The replacement is a quoted variable
+  // expansion, not a literal path, so a Windows temp directory (backslashes,
+  // possible spaces) cannot be mangled by the shell or the filesystem.
+  return step.run.replaceAll('/tmp/', '"${TEST_DIR}"/');
 }
 
 const sha = (prefix) => prefix.padEnd(40, '0');
@@ -127,7 +163,6 @@ gh() {
 function fixtures(dir, { eventSha, seededAlertFor }) {
   const data = path.join(dir, 'data');
   fs.mkdirSync(data, { recursive: true });
-  fs.mkdirSync(path.join(dir, 'tmp'), { recursive: true });
 
   fs.writeFileSync(path.join(data, 'commits-main.json'),
     JSON.stringify(MAIN_SHAS.map((value) => ({ sha: value }))));
@@ -164,18 +199,21 @@ function runWatcher(t, { eventSha = '', seededAlertFor = null } = {}) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fixtures(dir, { eventSha, seededAlertFor });
 
-  const harness = `${ghShim()}\n${alertScript(dir)}`;
-  const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', harness], {
+  const harness = `${ghShim()}\n${alertScript()}`;
+  // The shell receives this through the environment, so hand it a forward-slash
+  // path: Git Bash accepts `C:/...` but a raw `C:\...` can lose its separators.
+  const testDir = dir.replaceAll(path.sep, '/');
+  const result = spawnSync(BASH, ['-e', '-o', 'pipefail', '-c', harness], {
     encoding: 'utf8',
     timeout: 20000,
     cwd: REPO_ROOT,
     env: {
       ...process.env,
-      TEST_DIR: dir,
+      TEST_DIR: testDir,
       REPO: 'ali-ulu/huqan',
       EVENT_SHA: eventSha,
       GH_TOKEN: 'fixture-token',
-      GITHUB_STEP_SUMMARY: path.join(dir, 'summary.md'),
+      GITHUB_STEP_SUMMARY: path.join(testDir, 'summary.md'),
     },
   });
   assert.ifError(result.error);
@@ -185,7 +223,7 @@ function runWatcher(t, { eventSha = '', seededAlertFor = null } = {}) {
     created: read('created.log'), closed: read('closed.log'), lookedUp: read('looked-up.log') };
 }
 
-test('#4128: the watcher alerts on the triggering run when its SHA is outside the main window', (t) => {
+test('#4128: the watcher alerts on the triggering run when its SHA is outside the main window', { skip: SKIP }, (t) => {
   const result = runWatcher(t, { eventSha: TAG_SHA });
   assert.equal(result.status, 0, result.stderr);
   assert.ok(result.lookedUp.includes(TAG_SHA),
@@ -196,7 +234,7 @@ test('#4128: the watcher alerts on the triggering run when its SHA is outside th
     'a tag failure must not change the verdict for the latest main commit');
 });
 
-test('#4128: a green main does not close an alert that belongs to a commit outside the window', (t) => {
+test('#4128: a green main does not close an alert that belongs to a commit outside the window', { skip: SKIP }, (t) => {
   const result = runWatcher(t, { eventSha: TAG_SHA, seededAlertFor: MAIN_SHAS[4] });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /ALL_EXPECTED_CHECKS_OBSERVED_AND_GREEN/);
@@ -211,7 +249,7 @@ test('#4128: a green main does not close an alert that belongs to a commit outsi
     'the tag alert survives a green main');
 });
 
-test('#4128: a schedule run inspects only the main window', (t) => {
+test('#4128: a schedule run inspects only the main window', { skip: SKIP }, (t) => {
   const result = runWatcher(t);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.created, [], 'no event SHA means no extra candidate');
