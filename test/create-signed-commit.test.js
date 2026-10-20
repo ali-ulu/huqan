@@ -18,7 +18,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const yaml = require('js-yaml');
 
-const { buildCommitInput, parseArgs } = require('../scripts/create-signed-commit');
+const { buildCommitInput, parseArgs, publishCommit } = require('../scripts/create-signed-commit');
 
 const WORKFLOW = path.join(__dirname, '..', '.github', 'workflows', 'benchmark.yml');
 
@@ -85,4 +85,50 @@ test('the refresh job keeps contents:write so the commit and ref can be created'
   const workflow = yaml.load(fs.readFileSync(WORKFLOW, 'utf8'));
   const permissions = workflow.jobs['refresh-shard-weights'].permissions;
   assert.equal(permissions.contents, 'write');
+});
+
+// A failed commit attempt must not strand the branch ref it just cut: no pull
+// request exists yet, and branch-cleanup.yml only fires on a closed PR. But a
+// response can also fail after GitHub created the commit, so the ref may only
+// be deleted while it still points at the base.
+
+test('a failed commit deletes the branch ref while it still points at the base', () => {
+  const calls = [];
+  const run = (args) => {
+    calls.push(args.join(' '));
+    if (args[0] === 'api' && /git\/ref\/heads\//.test(args[1] || '')) {
+      return JSON.stringify({ object: { sha: 'b'.repeat(40) } });
+    }
+    if (args.includes('--input')) throw new Error('graphql exploded');
+    return '';
+  };
+
+  assert.throws(() => publishCommit({
+    repo: 'r/r', branch: 'ci/x', baseOid: 'b'.repeat(40),
+    file: 'f.json', contents: 'x', headline: 'h', run,
+  }), /graphql exploded/);
+
+  assert.ok(calls.some((c) => c.includes('--method DELETE') && c.includes('refs/heads/ci/x')),
+    'the unchanged ref should be deleted');
+});
+
+test('a failed commit keeps a ref that already moved off the base', () => {
+  const calls = [];
+  const run = (args) => {
+    calls.push(args.join(' '));
+    if (args[0] === 'api' && /git\/ref\/heads\//.test(args[1] || '')) {
+      // The ref now carries a commit the attempt did create: not ours to delete.
+      return JSON.stringify({ object: { sha: 'c'.repeat(40) } });
+    }
+    if (args.includes('--input')) throw new Error('response dropped after the commit landed');
+    return '';
+  };
+
+  assert.throws(() => publishCommit({
+    repo: 'r/r', branch: 'ci/x', baseOid: 'b'.repeat(40),
+    file: 'f.json', contents: 'x', headline: 'h', run,
+  }), /response dropped/);
+
+  assert.ok(!calls.some((c) => c.includes('--method DELETE')),
+    'a ref that moved off the base must be preserved');
 });

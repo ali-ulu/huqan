@@ -111,6 +111,52 @@ function report(changed) {
   console.log(line);
 }
 
+/**
+ * Create the signed commit on `branch`, cleaning up the ref we just cut when
+ * the attempt fails.
+ *
+ * The branch ref is created before the mutation, so a failure that no commit
+ * followed leaves a ref with no pull request, and `branch-cleanup.yml` only
+ * fires on a closed pull request -- nothing else would ever remove it. But an
+ * attempt can also fail *after* GitHub created the commit (a dropped response,
+ * say), and deleting the ref then would throw away a commit that exists. So the
+ * cleanup reads the ref back and deletes it only while it still points at
+ * `baseOid`; the original error is always rethrown, and a failed cleanup is
+ * only logged.
+ *
+ * `run` is the `gh` runner, injectable so a test can drive both outcomes.
+ */
+function publishCommit({ repo, branch, baseOid, file, contents, headline, run = gh }) {
+  run(['api', '--method', 'POST', `repos/${repo}/git/refs`,
+    '-f', `ref=refs/heads/${branch}`, '-f', `sha=${baseOid}`]);
+
+  try {
+    const body = JSON.stringify({
+      query: COMMIT_MUTATION,
+      variables: { input: buildCommitInput({ repo, branch, baseOid, file, contents, headline }) },
+    });
+    const response = JSON.parse(run(['api', 'graphql', '--input', '-'], { input: body }));
+    const oid = response && response.data && response.data.createCommitOnBranch
+      && response.data.createCommitOnBranch.commit && response.data.createCommitOnBranch.commit.oid;
+    if (!oid) {
+      throw new Error(`createCommitOnBranch returned no commit: ${JSON.stringify(response)}`);
+    }
+    console.log(`committed ${oid} to ${branch}`);
+    report(true);
+    return oid;
+  } catch (error) {
+    try {
+      const ref = JSON.parse(run(['api', `repos/${repo}/git/ref/heads/${branch}`]));
+      if (ref.object && ref.object.sha === baseOid) {
+        run(['api', '--method', 'DELETE', `repos/${repo}/git/refs/heads/${branch}`]);
+      }
+    } catch (cleanupError) {
+      console.error(`branch cleanup failed: ${cleanupError.message}`);
+    }
+    throw error;
+  }
+}
+
 function main(argv) {
   const { branch, base, file, headline } = parseArgs(argv);
   const absolute = path.resolve(REPO_ROOT, file);
@@ -124,21 +170,7 @@ function main(argv) {
     return 0;
   }
 
-  gh(['api', '--method', 'POST', `repos/${repo}/git/refs`,
-    '-f', `ref=refs/heads/${branch}`, '-f', `sha=${baseOid}`]);
-
-  const body = JSON.stringify({
-    query: COMMIT_MUTATION,
-    variables: { input: buildCommitInput({ repo, branch, baseOid, file, contents, headline }) },
-  });
-  const response = JSON.parse(gh(['api', 'graphql', '--input', '-'], { input: body }));
-  const oid = response && response.data && response.data.createCommitOnBranch
-    && response.data.createCommitOnBranch.commit && response.data.createCommitOnBranch.commit.oid;
-  if (!oid) {
-    throw new Error(`createCommitOnBranch returned no commit: ${JSON.stringify(response)}`);
-  }
-  console.log(`committed ${oid} to ${branch}`);
-  report(true);
+  publishCommit({ repo, branch, baseOid, file, contents, headline });
   return 0;
 }
 
@@ -151,4 +183,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { COMMIT_MUTATION, buildCommitInput, main, parseArgs, readBaseContents, resolveBaseOid };
+module.exports = { COMMIT_MUTATION, buildCommitInput, main, parseArgs, publishCommit, readBaseContents, resolveBaseOid };
