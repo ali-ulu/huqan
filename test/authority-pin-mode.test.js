@@ -34,7 +34,7 @@ test('a pin whose keyId does not match its key, or with the wrong key types, is 
   }
 });
 
-function resolver({ files = {}, env = {}, platform = 'win32', trust = { ok: true } } = {}) {
+function resolver({ files = {}, env = {}, platform = 'win32', trust = { ok: true }, posixTrust = { ok: true } } = {}) {
   return resolveApprovalAuthorityMode({
     platform,
     readEnv: name => env[name],
@@ -44,6 +44,7 @@ function resolver({ files = {}, env = {}, platform = 'win32', trust = { ok: true
       return files[file];
     },
     checkTrust: () => trust,
+    checkPosixTrust: () => posixTrust,
   });
 }
 
@@ -163,4 +164,46 @@ test('a probe that cannot run, or answers garbage, fails closed', () => {
     'install_path_untrusted');
   assert.equal(checkInstallTrust({ spawn: () => ({ error: null, status: 0, stdout: '[]' }) }).reason,
     'install_path_untrusted');
+});
+
+const POSIX_PINS = Object.freeze({
+  linux: '/var/lib/huqan-authority/public/authority.json',
+  darwin: '/Library/HUQAN/authority-data/public/authority.json',
+});
+
+test('a trusted POSIX pin installs the service boundary, per platform (#4082)', () => {
+  for (const [platform, pinPath] of Object.entries(POSIX_PINS)) {
+    const mode = resolver({ platform, files: { [pinPath]: pinText() } });
+    assert.deepEqual([mode.mode, mode.boundary, mode.pinPath], ['service', 'os-service', pinPath], platform);
+  }
+});
+
+test('the POSIX layout is fixed in source, so an override cannot swap in another authority (#4082)', () => {
+  const mode = resolver({ platform: 'linux', files: { [POSIX_PINS.linux]: pinText(), '/srv/pin.json': pinText() },
+    env: { AUTHORITY_PIN_PATH: '/srv/pin.json' } });
+  assert.equal(mode.mode, 'service');
+  assert.equal(mode.pinPath, POSIX_PINS.linux, 'the env override cannot replace an installed POSIX pin');
+});
+
+test('a POSIX pin that is installed but not trusted fails closed, never legacy (#4082)', () => {
+  const mode = resolver({ platform: 'linux', files: { [POSIX_PINS.linux]: pinText() },
+    posixTrust: { ok: false, reason: 'install_path_untrusted' } });
+  assert.deepEqual([mode.mode, mode.reason, mode.pinPath],
+    ['required_unavailable', 'install_path_untrusted', POSIX_PINS.linux]);
+});
+
+test('a POSIX install path that is a link fails closed before the pin is read (#4082)', () => {
+  const linkAt = target => resolveApprovalAuthorityMode({ platform: 'darwin', readEnv: () => undefined,
+    readFile: () => pinText(), lstat: file => ({ isSymbolicLink: () => file === target }) });
+  for (const target of ['/Library/HUQAN/authority-data', '/Library/HUQAN/authority-data/public', POSIX_PINS.darwin]) {
+    assert.deepEqual([linkAt(target).mode, linkAt(target).reason], ['required_unavailable', 'install_path_linked'], target);
+  }
+});
+
+test('without a POSIX pin the runtime stays legacy, and an unknown platform is unchanged (#4082)', () => {
+  assert.deepEqual(resolver({ platform: 'linux' }), { mode: 'legacy', boundary: 'same-user' });
+  assert.deepEqual(resolver({ platform: 'darwin' }), { mode: 'legacy', boundary: 'same-user' });
+  assert.deepEqual(resolver({ platform: 'freebsd' }), { mode: 'legacy', boundary: 'same-user' });
+  const override = resolver({ platform: 'linux', files: { '/srv/pin.json': pinText() }, env: { AUTHORITY_PIN_PATH: '/srv/pin.json' } });
+  assert.deepEqual([override.mode, override.boundary], ['service', 'env-override']);
 });

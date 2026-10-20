@@ -1,6 +1,5 @@
 {
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
-  "lib/authority/posix-path-trust.js": "POSIX install-path trust probe (ADR-020 section 5); the authority-mode resolver reads it when the POSIX installed-pin branch lands in the next slice of the same phase",
   "lib/cognition/cognition-config.js": "COG Phase 0 strict opts.cognition resolver; first production caller is the AgentV3 cognition seam (M7 wiring), which leaves the ledger when it wires",
   "lib/cognition/contract.js": "COG Phase 0 shared output vocabulary; first production caller is the Phase 1 prediction-error module (M2), which leaves the ledger when it wires",
   "lib/github-app-streaming-trust-public-receipt.js": "pure C8-to-public-receipt bridge, deliberately caller-free: a missing signer skips publication and leaves the verdict alone, and a failed publication is reported rather than decided, because only the C8 loop knows the delivery already has a verdict worth keeping; graduates when runGitHubAppStreamingTrust is handed a publisher"

@@ -15,7 +15,8 @@ const { createAuthorityServer } = require('../lib/authority/http-server');
 const { parseAuthorityPin } = require('../lib/authority/authority-pin');
 const { keyIdFor } = require('../lib/authority/decision-envelope');
 const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
-const { runOperatorSession } = require('../lib/authority/operator-cli');
+const { runOperatorSession, installedPinPath } = require('../lib/authority/operator-cli');
+const { posixAuthorityLayout } = require('../lib/authority/posix-path-trust');
 
 const ARGS = Object.freeze({ text: 'cats are animals' });
 
@@ -93,4 +94,13 @@ test('the operator can withdraw an approved decision that nothing has consumed',
   assert.match(io.printed.join('\n'), /approved, not yet consumed/);
   assert.match(io.printed.join('\n'), /withdrawn .*ledger entry/i);
   assert.equal(env.ledger.all().filter(entry => entry.type === 'approval.withdrawn').length, 1);
+});
+
+test('the operator CLI pin path matches the resolver layout, so the two cannot drift (#4082)', () => {
+  const { DEFAULT_WINDOWS_PIN_PATH } = require('../lib/authority/authority-mode');
+  assert.equal(installedPinPath('win32'), DEFAULT_WINDOWS_PIN_PATH);
+  for (const platform of ['linux', 'darwin']) {
+    assert.equal(installedPinPath(platform), posixAuthorityLayout(platform).pinPath, platform);
+  }
+  assert.equal(installedPinPath('freebsd'), posixAuthorityLayout('linux').pinPath, 'an unknown platform keeps the POSIX default');
 });
