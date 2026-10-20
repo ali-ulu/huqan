@@ -54,6 +54,17 @@ test('a platform without POSIX parity has no layout', () => {
   assert.deepEqual(checkPosixInstallTrust({ platform: 'win32' }), { ok: false, reason: 'install_path_untrusted' });
 });
 
+test('an inherited property name is not a platform', () => {
+  // `POSIX_LAYOUT['__proto__']` is Object.prototype, which would make the join
+  // below throw instead of answering null.
+  for (const name of ['__proto__', 'toString', 'constructor', 'hasOwnProperty']) {
+    assert.equal(posixAuthorityLayout(name), null, name);
+  }
+  assert.deepEqual(checkPosixPathTrust(['/opt/huqan-authority/public/authority.json'],
+    { platform: 'toString', lstat: () => stat(), spawn: () => { throw new Error('must not probe'); } }),
+  { ok: false, reason: 'install_path_untrusted' });
+});
+
 // ─── install path trust ──────────────────────────────────────────────────────
 
 test('a root-owned, group/other-closed path is trusted', () => {
@@ -110,6 +121,14 @@ test('a non-absolute path is refused rather than resolved against the cwd', () =
   assert.deepEqual(checkPosixPathTrust([], uniform(stat())), { ok: false, reason: 'install_path_untrusted' });
 });
 
+test('the exported path check gates the platform itself', () => {
+  // A caller that reaches checkPosixPathTrust directly -- not through
+  // checkPosixInstallTrust -- must not get a green light on Windows.
+  const result = checkPosixPathTrust(['C:\\Program Files\\huqan-authority\\public\\authority.json'],
+    { platform: 'win32', lstat: () => stat(), spawn: () => { throw new Error('must not probe'); } });
+  assert.deepEqual(result, { ok: false, reason: 'install_path_untrusted' });
+});
+
 test('the install trust check walks the installed pin path', () => {
   const seen = [];
   const result = checkPosixInstallTrust({
@@ -164,31 +183,65 @@ test('linux does not shell out to a probe', () => {
 });
 
 // ─── the state directory ─────────────────────────────────────────────────────
+//
+// `platform: 'linux'` is pinned so the darwin ACL probe never shells out to a
+// real `/bin/ls`; the darwin state-dir case is covered separately below.
 
 const SERVICE_UID = 1234;
+const STATE_DIR = '/var/lib/huqan-authority/state';
 
 test('a state dir owned by the service uid and closed to group/other is trusted', () => {
-  const result = checkPosixStateDirTrust('/var/lib/huqan-authority/state',
-    { lstat: () => stat({ uid: SERVICE_UID, mode: 0o700 }), serviceUid: SERVICE_UID });
+  const result = checkPosixStateDirTrust(STATE_DIR,
+    { platform: 'linux', lstat: () => stat({ uid: SERVICE_UID, mode: 0o700 }), serviceUid: SERVICE_UID });
   assert.deepEqual(result, { ok: true });
 });
 
 test('refuses a state dir that is not 0700 or not owned by the service uid', () => {
   for (const value of [stat({ uid: SERVICE_UID, mode: 0o750 }), stat({ uid: SERVICE_UID, mode: 0o705 }),
     stat({ uid: 0, mode: 0o700 }), stat({ uid: SERVICE_UID, mode: 0o700, link: true })]) {
-    const result = checkPosixStateDirTrust('/var/lib/huqan-authority/state',
-      { lstat: () => value, serviceUid: SERVICE_UID });
+    const result = checkPosixStateDirTrust(STATE_DIR,
+      { platform: 'linux', lstat: () => value, serviceUid: SERVICE_UID });
     assert.deepEqual(result, { ok: false, reason: 'state_dir_exposed' }, JSON.stringify(value.mode));
   }
 });
 
 test('a state check without a service uid, or over a missing dir, fails closed', () => {
-  assert.deepEqual(checkPosixStateDirTrust('/var/lib/huqan-authority/state', { lstat: () => stat() }),
+  assert.deepEqual(checkPosixStateDirTrust(STATE_DIR, { platform: 'linux', lstat: () => stat() }),
     { ok: false, reason: 'state_dir_exposed' });
-  assert.deepEqual(checkPosixStateDirTrust('/var/lib/huqan-authority/state', {
+  assert.deepEqual(checkPosixStateDirTrust(STATE_DIR, {
+    platform: 'linux',
     serviceUid: SERVICE_UID,
     lstat: () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
   }), { ok: false, reason: 'state_dir_exposed' });
+});
+
+test('a darwin state dir with mode 0700 but an extended ACL is exposed', () => {
+  const withAcl = () => ({ error: null, status: 0, stdout: readFixture('darwin-ls-lde-with-acl.txt') });
+  const result = checkPosixStateDirTrust(STATE_DIR,
+    { platform: 'darwin', lstat: () => stat({ uid: SERVICE_UID, mode: 0o700 }), serviceUid: SERVICE_UID, spawn: withAcl });
+  assert.deepEqual(result, { ok: false, reason: 'state_dir_exposed' });
+});
+
+test('a darwin state dir ACL probe that cannot run fails closed', () => {
+  const result = checkPosixStateDirTrust(STATE_DIR, {
+    platform: 'darwin',
+    lstat: () => stat({ uid: SERVICE_UID, mode: 0o700 }),
+    serviceUid: SERVICE_UID,
+    spawn: () => ({ error: new Error('no ls'), status: 1, stdout: '' }),
+  });
+  assert.deepEqual(result, { ok: false, reason: 'state_dir_exposed' });
+});
+
+test('linux does not probe the state dir for an ACL', () => {
+  let probed = false;
+  const result = checkPosixStateDirTrust(STATE_DIR, {
+    platform: 'linux',
+    lstat: () => stat({ uid: SERVICE_UID, mode: 0o700 }),
+    serviceUid: SERVICE_UID,
+    spawn: () => { probed = true; return { status: 0, stdout: '' }; },
+  });
+  assert.deepEqual(result, { ok: true });
+  assert.equal(probed, false);
 });
 
 // ─── against the real filesystem ─────────────────────────────────────────────

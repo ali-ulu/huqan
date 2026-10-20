@@ -946,6 +946,7 @@
     "lib/authority/operator-check.js",
     "lib/authority/operator-cli.js",
     "lib/authority/install-trust.js",
+    "lib/authority/posix-path-trust.js",
     "lib/authority/store-acl.js",
     "lib/authority/store-migrate.js",
     "lib/authority/service-main.js",
