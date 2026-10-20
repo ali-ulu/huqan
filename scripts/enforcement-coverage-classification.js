@@ -83,6 +83,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 're-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted',
   }),
+  'lib/authority/posix-path-trust.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the POSIX counterpart of install-trust.js: it decides whether the installed pin path is root-owned, closed to group and other, and link-free before a parsed pin is trusted, and on darwin runs a fixed `/bin/ls -lde` probe for extended ACLs. Paths are fixed in source, it writes nothing, and a component it cannot inspect fails closed to install_path_untrusted',
+  }),
   'lib/authority/store-acl.js': Object.freeze({
     role: 'operator_tool',
     why: 'the one place the protected store ACL is applied (applyStoreAcl) and read back (checkStoreAcl) for ADR-018 §3; apply runs icacls only from the elevated `huqan store migrate`, on paths it validates against a fixed drive-letter shape, and check only runs a fixed PowerShell Get-Acl probe and writes nothing. No agent input reaches either path',
