@@ -192,15 +192,22 @@ test('a state check without a service uid, or over a missing dir, fails closed',
 });
 
 // ─── against the real filesystem ─────────────────────────────────────────────
+//
+// The probe only applies to the fixed POSIX layout, so these two run where the
+// real path semantics match it. On Windows a tmp path is not a posix absolute
+// path, and the walk refuses it as `install_path_untrusted` before it can reach
+// the component under test -- correct behaviour, but not what these assert.
 
-test('refuses a real tmp directory owned by the test user', (t) => {
+const posixOnly = process.platform === 'win32' && 'POSIX path semantics required';
+
+test('refuses a real tmp directory owned by the test user', { skip: posixOnly }, (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-posix-trust-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const result = checkPosixPathTrust([path.join(dir, 'public', 'authority.json')]);
   assert.equal(result.ok, false, 'a user-owned path is never an installed authority');
 });
 
-test('refuses a real symlinked component', (t) => {
+test('refuses a real symlinked component', { skip: posixOnly }, (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-posix-link-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const link = path.join(dir, 'authority.json');
