@@ -15,7 +15,7 @@ receipt that records the decision.
 | Layer | What it does | Installed by |
 |-------|--------------|--------------|
 | Gate | Blocks a client action before it runs, per the external-action policy | `huqan-gate install --profile <client>` |
-| Approval Authority | Moves the approval decision behind an OS boundary (Windows service) | `scripts/authority/install-authority.ps1` |
+| Approval Authority | Moves the approval decision behind an OS boundary (Windows service; systemd on Linux) | `scripts/authority/install-authority.ps1`, `scripts/authority/install-authority.sh` |
 | Trust Receipt | Records each admission/rejection in an append-only chain you can verify | written automatically |
 
 ## Requirements
@@ -158,9 +158,11 @@ node bin\huqan-authority.js status
 Expected: `"mode"` is no longer `"legacy"` and `"boundary"` reports the service
 boundary rather than `"same-user"`.
 
-On Linux and macOS there is **no installer yet** - `huqan-authority status`
-answers `"mode": "legacy", "boundary": "same-user"`. That parity gap is tracked
-in [ADR-020](./adr/ADR-020-posix-authority-parity.md) and issue #4082.
+On Linux the same boundary is installed by
+`scripts/authority/install-authority.sh` (systemd, root). On macOS there is
+**no installer yet** - `huqan-authority status` answers `"mode": "legacy",
+"boundary": "same-user"`. The remaining parity work is tracked in
+[ADR-020](./adr/ADR-020-posix-authority-parity.md) and issue #4082.
 
 ---
 

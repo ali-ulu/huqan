@@ -1484,6 +1484,8 @@
     "bin/huqan-authority.js",
     "scripts/authority/install-authority.ps1",
     "scripts/authority/uninstall-authority.ps1",
+    "scripts/authority/install-authority.sh",
+    "scripts/authority/uninstall-authority.sh",
     "scripts/mcp-service/install-mcp-service.ps1",
     "scripts/mcp-service/uninstall-mcp-service.ps1",
     "lib/cognitive-model-port.js",
