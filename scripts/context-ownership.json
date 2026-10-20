@@ -2256,6 +2256,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-GHAPP-T"
   },
+  "lib/github-app-public-receipt-config.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-GHAPP-T"
+  },
   "lib/github-app-streaming-trust-binding.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-GHAPP-T"

@@ -2,5 +2,6 @@
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
   "lib/cognition/cognition-config.js": "COG Phase 0 strict opts.cognition resolver; first production caller is the AgentV3 cognition seam (M7 wiring), which leaves the ledger when it wires",
   "lib/cognition/contract.js": "COG Phase 0 shared output vocabulary; first production caller is the Phase 1 prediction-error module (M2), which leaves the ledger when it wires",
+  "lib/github-app-public-receipt-config.js": "reads the public receipt signing key from deployment configuration and returns the Ed25519 KeyObject the exporter requires; deliberately caller-free, because the module that assembles the signer is the C8 integration slice, and a config reader wired only to its own test would report the same not-yet-wired state this ledger exists to make visible",
   "lib/github-app-streaming-trust-public-receipt.js": "pure C8-to-public-receipt bridge, deliberately caller-free: a missing signer skips publication and leaves the verdict alone, and a failed publication is reported rather than decided, because only the C8 loop knows the delivery already has a verdict worth keeping; graduates when runGitHubAppStreamingTrust is handed a publisher"
 }
