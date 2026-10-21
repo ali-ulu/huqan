@@ -67,6 +67,10 @@ const ROLES = Object.freeze({
 const CLASSIFIED = Object.freeze({
   // ── the boundary itself ────────────────────────────────────────────────
   // ── the approval authority service (ADR-016) ───────────────────────────
+  'lib/authority/http-server.js': Object.freeze({
+    role: 'enforcement',
+    why: 'the authority service\'s own HTTP surface (#3860, #4170): it writes nothing but the unix socket it is about to serve on -- it clears a leftover socket at the path the pin names, and chmods the socket it just bound to 0660 and re-reads the mode. The path is a pin field validated as a plain absolute path, run only by the service (never by an agent), and a symlink or non-socket at the path is refused rather than unlinked, so no agent action reaches it',
+  }),
   'lib/authority/authority-client.js': Object.freeze({
     role: 'enforcement',
     why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',

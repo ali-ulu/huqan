@@ -188,3 +188,58 @@ test('serve refuses a group-readable state dir on posix', { skip: posixOnly }, (
   assert.match(run.stderr, /"event":"fatal".*group- or other-accessible/);
 });
 
+// ─── the unix socket transport (#4170) ───────────────────────────────────────
+
+test('init writes an optional socketPath into the pin, and refuses an unsafe one', (t) => {
+  const dir = tempDir(t);
+  const stateDir = path.join(dir, 'state');
+  const publicDir = path.join(dir, 'public');
+  const created = initAuthority({ stateDir, publicDir, port: 47821, socket: '/run/huqan-authority/authority.sock' });
+  const pin = JSON.parse(fs.readFileSync(created.pinFile, 'utf8'));
+  assert.equal(pin.socketPath, '/run/huqan-authority/authority.sock');
+  assert.equal(pin.port, 47821, 'the port stays in the pin for the TCP fallback');
+  // An init without the socket omits the field entirely, so an existing pin
+  // shape is unchanged.
+  const dir2 = tempDir(t);
+  const created2 = initAuthority({ stateDir: path.join(dir2, 'state'), publicDir: path.join(dir2, 'public'), port: 47821 });
+  assert.equal('socketPath' in JSON.parse(fs.readFileSync(created2.pinFile, 'utf8')), false);
+  // A relative path is refused before anything is written.
+  const dir3 = tempDir(t);
+  assert.throws(() => initAuthority({ stateDir: path.join(dir3, 'state'), publicDir: path.join(dir3, 'public'),
+    port: 47821, socket: 'relative.sock' }), /plain absolute path/);
+  assert.equal(fs.existsSync(path.join(dir3, 'state')), false, 'a refused init wrote nothing');
+});
+
+test('serve answers a signed identity over a unix socket', { skip: posixOnly }, async (t) => {
+  const dir = tempDir(t);
+  const stateDir = path.join(dir, 'state');
+  const socket = path.join(dir, 'authority.sock');
+  const init = spawnSync(process.execPath, [MAIN, 'init', '--state-dir', stateDir, '--public-dir', path.join(dir, 'public'),
+    '--port', '47821', '--socket', socket], { env: CHILD_ENV });
+  assert.equal(init.status, 0, init.stderr);
+  const pin = JSON.parse(fs.readFileSync(path.join(dir, 'public', 'authority.json'), 'utf8'));
+  const child = spawn(process.execPath, [MAIN, 'serve', '--state-dir', stateDir, '--socket', socket], { env: CHILD_ENV });
+  t.after(() => child.kill());
+  await new Promise((resolve, reject) => {
+    let text = '';
+    child.stderr.on('data', (chunk) => {
+      text += chunk;
+      if (text.split('\n').some(l => l.includes('"listening"'))) resolve();
+      if (text.includes('"fatal"')) reject(new Error(text));
+    });
+  });
+  assert.equal(fs.lstatSync(socket).mode & 0o777, 0o660, 'the socket must be 0660');
+  const challenge = crypto.randomBytes(32).toString('hex');
+  const body = await new Promise((resolve, reject) => {
+    http.get({ socketPath: socket, path: '/v1/identity', headers: { host: 'localhost', 'x-huqan-challenge': challenge } }, (res) => {
+      let text = '';
+      res.on('data', c => { text += c; });
+      res.on('end', () => resolve(JSON.parse(text)));
+    }).on('error', reject);
+  });
+  const verified = verifyResponse(body, { publicKey: pin.signingKey, challenge, method: 'GET', path: '/v1/identity',
+    requestDigest: requestDigestOf('') });
+  assert.equal(verified.ok, true);
+  assert.equal(verified.body.body.keyId, pin.keyId);
+});
+

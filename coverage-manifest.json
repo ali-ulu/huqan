@@ -2,15 +2,15 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 87,
-    "sites": 200,
+    "files": 88,
+    "sites": 202,
     "byCapability": {
       "process": 37,
       "egress": 8,
-      "fs_write": 155
+      "fs_write": 157
     },
     "byRole": {
-      "enforcement": 44,
+      "enforcement": 46,
       "adapter_read": 8,
       "operator_tool": 70,
       "persistence": 58,
@@ -322,7 +322,7 @@
       ],
       "sites": [
         {
-          "line": 44,
+          "line": 49,
           "capability": "egress",
           "call": "http.request"
         }
@@ -369,6 +369,26 @@
       ]
     },
     {
+      "file": "lib/authority/http-server.js",
+      "role": "enforcement",
+      "why": "the authority service's own HTTP surface (#3860, #4170): it writes nothing but the unix socket it is about to serve on -- it clears a leftover socket at the path the pin names, and chmods the socket it just bound to 0660 and re-reads the mode. The path is a pin field validated as a plain absolute path, run only by the service (never by an agent), and a symlink or non-socket at the path is refused rather than unlinked, so no agent action reaches it",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 170,
+          "capability": "fs_write",
+          "call": "unlink"
+        },
+        {
+          "line": 186,
+          "capability": "fs_write",
+          "call": "chmod"
+        }
+      ]
+    },
+    {
       "file": "lib/authority/install-trust.js",
       "role": "enforcement",
       "why": "re-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted",
@@ -407,12 +427,12 @@
       ],
       "sites": [
         {
-          "line": 65,
+          "line": 68,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 66,
+          "line": 72,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }

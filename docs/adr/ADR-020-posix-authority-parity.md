@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open question 5 stays open, see the last section)
+- **Status:** Accepted (open question 7 answered by [ADR-021](ADR-021-container-support-model.md); question 5 stays open — its bundle side landed in section 12, its installer side stays open — see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -135,7 +135,8 @@ sealed request, and (iii) the response being verified against the pinned key
 Rejected: peer-credential checks (`SO_PEERCRED`, `getpeereid`). Node's `net`
 module does not expose them, and a native addon would break the closed bundle
 (`bundle-manifest.js:38`). A Unix domain socket with a `0660` group is a
-separate piece of work (open question 5).
+separate piece of work (open question 5); it was implemented as an opt-in
+transport in section 12 (#4170).
 
 ### 5. Runtime path trust: `lib/authority/posix-path-trust.js` (new; runtime only, not in the bundle)
 
@@ -277,6 +278,44 @@ rather than added to the baseline, because the baseline ratchet only shrinks;
 the follow-up it names is to build the checker behind the `cli.js` entrypoint
 and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
 
+### 12. Optional Unix domain socket transport (#4170, answers open question 5)
+
+Section 4 kept the HTTP plus signature model and left the socket as its own
+piece of work. It is now implemented as an **opt-in** transport: the pin may
+name a `socketPath`, and when it does, both the service and the runtime client
+use it instead of the loopback port. The port stays in the pin, so a pin
+written before this change is unchanged and TCP remains the default.
+
+- **What it changes.** TCP loopback is reachable by *every* local user and
+  verifies no caller identity. A `0660` socket is openable only by its owner
+  and one named group (the operator's group), so the set of local users who can
+  reach the service shrinks from "all" to "the group". That is a real
+  narrowing of the flood surface named in the threat model below.
+- **What it does not change.** It does **not** stop a same-uid agent: the agent
+  is in that group by construction. Confidentiality of the TOTP secret, sealing,
+  and the signature check are untouched -- a socket carries the same signed
+  bytes over a narrower channel. The non-claim "the caller's uid is not verified"
+  still stands; the socket narrows *who can connect*, it does not authenticate
+  the caller. Layer B (`os-user`) remains what separates an agent from the
+  operator.
+- **Enumeration over peer credentials.** Rejected in section 4: Node's `net`
+  module does not expose `SO_PEERCRED`/`getpeereid`, and a native addon would
+  break the closed bundle. A `0660` socket gets the same group-level narrowing
+  with `http`'s built-in `socketPath`, so no new builtin enters the bundle.
+- **Fail-closed details.** The socket path is a pin field and is trusted only as
+  a plain absolute path with no `..` segment (`authority-pin.js#isSafeSocketPath`).
+  The server forces the mode to `0660` after `listen` and **re-reads** it, so a
+  chmod that silently did nothing refuses rather than passes. A leftover socket
+  from a crash is cleared first, but a path that is a symlink or is not a socket
+  is refused, never unlinked. The Host check follows the transport: a socket
+  request must name `localhost` (what Node's client sends), a TCP request must
+  name the exact `127.0.0.1:<port>`; a foreign Host or a browser `Origin` is
+  refused on both.
+- **Scope.** This section authorises the bundle transport
+  (`http-server.js`, `authority-client.js`, `authority-pin.js`, `service-main.js`).
+  Creating the group, the socket directory, and writing the pin field belongs to
+  the installers and is a separate change.
+
 ## Threat model
 
 | Scenario | Layer A | Layer B |
@@ -290,6 +329,7 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
 | Enrollment: TOTP seed read off the screen | enroll with agents stopped (ADR-016 risk 4) | closed by a separate session |
 | Injection into the operator terminal (TIOCSTI, ptrace) | the decision window is `sudo .../huqan-authority-decide`; Linux >= 6.2 disables TIOCSTI by default and Yama `ptrace_scope` should be >= 1 (ASSUMED); ADR-016 risk 2 stays partly open | closed by a separate session |
 | Local user reaches the loopback port | registration flood and global TOTP lockout DoS; cannot produce a decision | same |
+| Local user reaches the socket (opt-in, section 12) | narrowed to the operator's group: a local user outside that group cannot connect (`EACCES`); a same-uid agent, already in the group, is unchanged | same |
 
 ### Non-claims (carried verbatim into the user-facing documentation)
 
@@ -380,7 +420,8 @@ Question 7 is answered in writing by [ADR-021](ADR-021-container-support-model.m
 5. Should a Unix domain socket with `0660` (flood-DoS mitigation) be its own work item?
    **Decided 2026-10-21: yes, its own work item, not urgent** (a flood can only
    deny service, never forge a decision; rate limiting and `maxConnections`
-   already blunt it). Tracked as #4170.
+   already blunt it). Tracked as #4170. **Implemented as an opt-in transport in
+   section 12** (bundle side); the installer side is a separate change.
 6. ADR-017 section 3 ("ACL'd to the operator") versus `STORE_ACL_SPEC` (no
    operator ACE): which one is right? **Answered 2026-10-21: the code.**
    ADR-017 section 3's text was stale and is corrected to match
