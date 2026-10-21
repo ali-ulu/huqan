@@ -148,10 +148,16 @@ test('the runner user cannot read the TOTP secret', { skip: SKIP }, () => {
     assert.equal(mode, '600', `the secret file must be 0600, got ${mode}`);
   }
   // Read as the runner user itself, not as root: this is the evidence that the
-  // boundary is a real OS one and not just a mode bit.
-  const read = spawnSync('cat', [SECRET_PATH], { encoding: 'utf8' });
-  assert.notEqual(read.status, 0, 'an unprivileged user read the TOTP secret');
-  assert.match(read.stderr, /Permission denied|Operation not permitted/);
+  // boundary is a real OS one and not just a mode bit. This process runs as the
+  // runner user, so its own read is the unprivileged read.
+  let denial = null;
+  try {
+    fs.readFileSync(SECRET_PATH, 'utf8');
+  } catch (error) {
+    denial = error;
+  }
+  assert.ok(denial, 'an unprivileged user read the TOTP secret');
+  assert.match(denial.code || '', /EACCES|EPERM/, `unexpected read error: ${denial.code}`);
 });
 
 test('status reports os-service and the pinned service answers', { skip: SKIP }, () => {
