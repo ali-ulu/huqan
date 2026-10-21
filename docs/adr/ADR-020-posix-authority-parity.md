@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open questions 3-7 stay open, see the last section)
+- **Status:** Accepted (open questions 3, 5, 6 and 7 stay open, see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -202,6 +202,32 @@ separate piece of work (open question 5).
 | Agent uid is 0 | `same-user`, `agent_uid_is_root` |
 | Container (`/.dockerenv`, `/proc/1/cgroup`, `/run/.containerenv`) | `required_unavailable` / `container_unverified`; not supported in the MVP |
 
+### 10. CI end-to-end (PR-6)
+
+The installers cannot be exercised by the shards: they need root, a real
+service manager and a real npm tarball, and once the authority is installed an
+in-process approval is refused (ADR-016:150-153), so every later test in the
+same process would see the installed pin. The e2e therefore lives in its own
+workflow, `.github/workflows/authority-posix-e2e.yml`, on `ubuntu-latest` and
+`macos-latest`, and its test file
+(`test/authority-posix-install.e2e.test.js`) skips unless
+`HUQAN_AUTHORITY_E2E=1`. That variable is the whole gate: the shards never set
+it, and the workflow does.
+
+To install without reaching the registry, both installers accept
+`--tarball <path> --integrity <sha512-...>` (the answer to open question 4):
+the file is the one `npm pack` just produced and the integrity is its sha512,
+so the trust decision is the same check the registry path performs, only its
+source changes. `--integrity` without `--tarball` is refused rather than
+silently ignored, because an ignored flag reads as a verified install. A CI
+runner also has no controlling terminal for `/dev/tty`, so
+`--enroll-code-stdin` reads the code from stdin instead; the default path still
+prompts on the terminal.
+
+The job is **not** a required status check and does not run on a main push: it
+mutates the runner and says nothing about the ordinary build. It is thrown
+away, so no cleanup is promised beyond the uninstaller the last case runs.
+
 ## Threat model
 
 | Scenario | Layer A | Layer B |
@@ -247,7 +273,10 @@ separate piece of work (open question 5).
   `authority-mode.js` and `operator-cli.js`; PR-3 service self-checks; PR-4
   Linux installer; PR-5 macOS installer; PR-6 `authority-posix-e2e` CI on
   `ubuntu-latest` and `macos-latest` (kept out of the shards: with the
-  authority installed in-process approvals are refused, ADR-016:150-153);
+  authority installed in-process approvals are refused, ADR-016:150-153) --
+  `.github/workflows/authority-posix-e2e.yml` plus
+  `test/authority-posix-install.e2e.test.js` and the installer flags in
+  section 10;
   PR-7 `huqan doctor` and `status` `escalation`; PR-8 docs, `THREAT_MODEL.md`,
   `SECURITY_INVARIANTS.md`. Phase 2 (Layer B): PR-9 `store-acl.js` POSIX
   branch; PR-10 `agent-user-boundary.js` POSIX; PR-11 agent-user installers.
@@ -273,6 +302,8 @@ rest stay open and no default is assumed:
 3. With passwordless sudo, does `boundary` stay `os-service` and warn, or drop
    to a new value?
 4. Is `--tarball <path> --integrity <sha512>` on the install script acceptable for CI?
+   **Answered by PR-6** (section 10): yes, with `--integrity` refused unless
+   `--tarball` is given, and `--enroll-code-stdin` for the terminal-less runner.
 5. Should a Unix domain socket with `0660` (flood-DoS mitigation) be its own work item?
 6. ADR-017 section 3 ("ACL'd to the operator") versus `STORE_ACL_SPEC` (no
    operator ACE): which one is right?
