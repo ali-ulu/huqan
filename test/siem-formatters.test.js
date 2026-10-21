@@ -172,6 +172,15 @@ test('a value that is not a canonical event is refused', () => {
   );
 });
 
+test('a version-matching event with a field outside the allowlist is refused', () => {
+  const event = { ...admissionEvent(), 'huqan.surprise': 'leak' };
+  assert.throws(
+    () => formatSiemEvent(event, 'jsonl'),
+    (error) => error.code === SIEM_FORMATTER_ERRORS.INVALID_EVENT
+      && /unexpected canonical event field: huqan\.surprise/.test(error.message),
+  );
+});
+
 test('no format emits a field outside the canonical allowlist', () => {
   const event = admissionEvent();
   const canonicalKeys = new Set(Object.keys(event));
