@@ -3668,6 +3668,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-WB-T-T"
   },
+  "lib/knowledge-lint.js": {
+   "context": "Knowledge",
+   "evidence": "docs/architecture/knowledge-wiki-scope.md#6: read-only knowledge health lint over the derived view (Knowledge, as lib/graph-candidate-claims-read.js)"
+  },
   "lib/kernel-read-methods.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-KERNEL-K"
