@@ -83,6 +83,10 @@ const CLASSIFIED = Object.freeze({
     role: 'persistence',
     why: 'creates the runtime\'s consume-proof key once, owner-only, at a fixed path under the user\'s home; the path is not taken from agent input',
   }),
+  'lib/authority/agent-user-boundary.js': Object.freeze({
+    role: 'enforcement',
+    why: 'reads the live agent-user boundary (ADR-017, #3948): on Windows it trusts the marker path through the install-trust DACL probe, on POSIX through posix-path-trust ownership and mode, then corroborates the marker uids with fixed `getent`/`dscl` and `id -Gn` probes. The commands and paths are fixed in source, it writes nothing, and any step it cannot establish fails closed to the weaker same-user value',
+  }),
   'lib/authority/install-trust.js': Object.freeze({
     role: 'enforcement',
     why: 're-reads the live owner and DACL of the install directory, the public directory and the pin file through a fixed Get-Acl probe before a parsed pin is trusted; the command and paths are fixed in source, it writes nothing, and a probe that cannot run fails closed to install_path_untrusted',

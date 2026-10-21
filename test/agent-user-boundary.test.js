@@ -5,7 +5,7 @@
 // makes the report honest: only a marker whose path still carries the installer's
 // ACL yields `os-user`; everything else reports the weaker `same-user`.
 
-const { test } = require('node:test');
+const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { resolveAgentUserBoundary, AGENT_BOUNDARY, DEFAULT_WINDOWS_MARKER_PATH, DEFAULT_WINDOWS_STATE_DIR,
   MARKER_VERSION, SAME_USER } = require('../lib/authority/agent-user-boundary');
@@ -119,6 +119,112 @@ test('a malformed or wrong-version marker is not evidence of a split', () => {
   }
 });
 
+const POSIX_MARKER = JSON.stringify({ v: MARKER_VERSION, agentUser: 'huqan-agent', agentUid: 1001, operatorUid: 1000, createdAt: '2026-10-16T00:00:00Z' });
+
+/** A POSIX resolver with injected probes: files, trust, store, migration, spawn. */
+function posixResolver({
+  files = {}, platform = 'linux', trust = { ok: true }, storeAcl = { ok: true }, migration = { ok: true },
+  uid = 1001, groups = ['huqan-agent'], trustThrows = false,
+} = {}) {
+  return resolveAgentUserBoundary({
+    platform,
+    readFile: (file) => {
+      if (!(file in files)) throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+      return files[file];
+    },
+    checkPosixTrust: () => {
+      if (trustThrows) throw new Error('probe failed');
+      return trust;
+    },
+    checkStoreAclImpl: () => storeAcl,
+    verifyMigrationImpl: () => migration,
+    spawn: (cmd, args) => {
+      if (cmd === 'id') return { status: 0, stdout: `${groups.join(' ')}\n` };
+      const line = cmd === 'dscl' ? `UniqueID: ${uid}\n` : `huqan-agent:x:${uid}:${uid}::/nonexistent:/usr/sbin/nologin\n`;
+      return { status: 0, stdout: line };
+    },
+  });
+}
+
+const POSIX_MARKER_PATH = { linux: '/var/lib/huqan/state/agent-boundary.json', darwin: '/Library/HUQAN/state/agent-boundary.json' };
+
+describe('the POSIX agent-user boundary', () => {
+  for (const platform of ['linux', 'darwin']) {
+    test(`on ${platform} with no marker the boundary is same-user no_marker`, () => {
+      const result = posixResolver({ platform, files: {} });
+      assert.deepEqual([result.value, result.reason], [SAME_USER, 'no_marker']);
+    });
+
+    test(`on ${platform} all checks passing reports os-user`, () => {
+      const result = posixResolver({ platform, files: { [POSIX_MARKER_PATH[platform]]: POSIX_MARKER } });
+      assert.deepEqual([result.value, result.agentUser], [AGENT_BOUNDARY, 'huqan-agent']);
+    });
+  }
+
+  test('a posix marker naming uid 0 is refused', () => {
+    const marker = JSON.stringify({ v: MARKER_VERSION, agentUser: 'a', agentUid: 0, operatorUid: 1000 });
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: marker } });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'agent_uid_is_root']);
+  });
+
+  test('a posix marker whose agent uid equals the operator uid is refused', () => {
+    const marker = JSON.stringify({ v: MARKER_VERSION, agentUser: 'a', agentUid: 1000, operatorUid: 1000 });
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: marker } });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'agent_is_operator']);
+  });
+
+  test('a marker whose uid the account database does not confirm is refused', () => {
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, uid: 1002 });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'agent_uid_mismatch']);
+  });
+
+  test('an agent in sudo, wheel or admin is refused', () => {
+    for (const group of ['sudo', 'wheel', 'admin']) {
+      const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, groups: ['huqan-agent', group] });
+      assert.deepEqual([result.value, result.reason], [SAME_USER, 'agent_in_admin_group'], group);
+    }
+  });
+
+  test('a planted but untrusted marker is refused rather than read as os-user', () => {
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, trust: { ok: false, reason: 'install_path_untrusted' } });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'marker_untrusted']);
+    const throwing = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, trustThrows: true });
+    assert.equal(throwing.value, SAME_USER);
+  });
+
+  test('a marker missing the uids is not evidence of a split on posix', () => {
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: MARKER } });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'marker_malformed']);
+  });
+
+  test('a store ACL that does not match the POSIX spec stops the chain', () => {
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, storeAcl: { ok: false, reason: 'store_mode_exposed' } });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'store_mode_exposed']);
+  });
+
+  test('a missing migration marker stops the chain', () => {
+    const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, migration: { ok: false, reason: 'no_marker' } });
+    assert.deepEqual([result.value, result.reason], [SAME_USER, 'no_marker']);
+  });
+
+  test('HUQAN_PROTECTED_STATE_ROOT does not move the posix marker', () => {
+    let read = null;
+    const previous = process.env.HUQAN_PROTECTED_STATE_ROOT;
+    process.env.HUQAN_PROTECTED_STATE_ROOT = '/tmp/attacker-controlled';
+    try {
+      resolveAgentUserBoundary({
+        platform: 'linux',
+        readFile: (file) => { read = file; throw Object.assign(new Error('missing'), { code: 'ENOENT' }); },
+        checkPosixTrust: () => ({ ok: true }),
+      });
+    } finally {
+      if (previous === undefined) delete process.env.HUQAN_PROTECTED_STATE_ROOT;
+      else process.env.HUQAN_PROTECTED_STATE_ROOT = previous;
+    }
+    assert.equal(read, '/var/lib/huqan/state/agent-boundary.json');
+  });
+});
+
 test('a marker that cannot be read is not a marker', () => {
   const result = resolveAgentUserBoundary({
     platform: 'win32',
@@ -129,12 +235,10 @@ test('a marker that cannot be read is not a marker', () => {
 });
 
 test('on a platform with no agent split the boundary is same-user and nothing is read', () => {
-  for (const platform of ['linux', 'darwin']) {
-    const result = resolveAgentUserBoundary({
-      platform,
-      readFile: () => { throw new Error('must not read the marker off Windows'); },
-      checkTrust: () => { throw new Error('must not probe off Windows'); },
-    });
-    assert.deepEqual([result.value, result.reason], [SAME_USER, 'not_windows'], platform);
-  }
+  const result = resolveAgentUserBoundary({
+    platform: 'freebsd',
+    readFile: () => { throw new Error('must not read the marker off a supported platform'); },
+    checkTrust: () => { throw new Error('must not probe off a supported platform'); },
+  });
+  assert.deepEqual([result.value, result.reason], [SAME_USER, 'unsupported_platform']);
 });

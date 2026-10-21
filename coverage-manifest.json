@@ -2,15 +2,15 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 86,
-    "sites": 197,
+    "files": 87,
+    "sites": 200,
     "byCapability": {
-      "process": 34,
+      "process": 37,
       "egress": 8,
       "fs_write": 155
     },
     "byRole": {
-      "enforcement": 41,
+      "enforcement": 44,
       "adapter_read": 8,
       "operator_tool": 70,
       "persistence": 58,
@@ -285,6 +285,31 @@
           "line": 192,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/authority/agent-user-boundary.js",
+      "role": "enforcement",
+      "why": "reads the live agent-user boundary (ADR-017, #3948): on Windows it trusts the marker path through the install-trust DACL probe, on POSIX through posix-path-trust ownership and mode, then corroborates the marker uids with fixed `getent`/`dscl` and `id -Gn` probes. The commands and paths are fixed in source, it writes nothing, and any step it cannot establish fails closed to the weaker same-user value",
+      "capabilities": [
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 137,
+          "capability": "process",
+          "call": "spawn"
+        },
+        {
+          "line": 138,
+          "capability": "process",
+          "call": "spawn"
+        },
+        {
+          "line": 144,
+          "capability": "process",
+          "call": "spawn"
         }
       ]
     },

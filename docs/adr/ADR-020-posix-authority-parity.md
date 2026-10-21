@@ -184,7 +184,9 @@ separate piece of work (open question 5).
   uid neither owner nor group, other bits 0); the migration marker verifies
   (`verifyMigrationMarker`).
 - Reasons: `agent_uid_is_root`, `agent_is_operator`, `agent_uid_mismatch`,
-  `agent_in_admin_group`, `store_mode_exposed`, and `unsupported_platform` for
+  `agent_in_admin_group`, `store_mode_exposed` (and the other store reasons the
+  POSIX `checkStoreAcl` returns: `store_untrusted_owner`, `store_linked`,
+  `acl_unreadable`, `path_untrusted`), and `unsupported_platform` for
   platforms still unsupported.
 - `store-acl.js` gains a POSIX branch (PR-9): `applyStoreAcl` uses
   `chownSync` / `chmodSync` (`huqan store migrate` already requires root,
@@ -300,12 +302,20 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
   second. ADR-017 gains a one-line cross-reference to this ADR.
 - Windows behaviour and tests do not change. The `not_windows` expectations in
   `test/store-acl.test.js:71-74,102-104` and `test/agent-user-boundary.test.js:131-140`
-  are rewritten when the matching POSIX branches land (PR-9, PR-10).
+  are rewritten when the matching POSIX branches land (**done**: PR-9 moved the
+  store-acl cases to `freebsd`/`unsupported_platform`, PR-10 the boundary case).
 - Side findings, each to be tracked outside this decision: ADR-017 section 3
   says the store is ACL'd "to the operator" while `STORE_ACL_SPEC` has no
   operator ACE (`ADR-017:101-103`, `store-acl.js:45-58`; open question 6);
   `canonicalWorkspaceRoot` lower-cases the path (`protected-store-path.js:71`),
   so `/x/Foo` and `/x/foo` collide on case-sensitive Linux (DERIVED);
+  `protectedStateRoot` returns `/var/lib/huqan/state` on darwin as well, but
+  section 8 fixes the Layer B marker (and the store tree the boundary checks)
+  under `/Library/HUQAN/state`, because macOS `/var` is a symlink and the
+  ancestor walk in `posix-path-trust.js` would refuse it -- the runtime's own
+  darwin store root and the boundary's darwin root therefore disagree, and
+  reconciling them (moving `protectedStateRoot` on darwin, or accepting the
+  symlinked tree) is its own change;
   `THREAT_MODEL.md` and `SECURITY_INVARIANTS.md` do not mention the approval
   authority (**closed 2026-10-20, PR-8**: `THREAT_MODEL.md` gains an "Approval
   Authority Bypass" entry under Elevation of Privilege, and `SECURITY_INVARIANTS.md`
