@@ -125,3 +125,15 @@ test('does not mutate its input and freezes the result', () => {
   assert.equal(JSON.stringify(input), snapshot);
   assert.throws(() => { percept.provenance = 'reported'; }, TypeError);
 });
+
+test('fails closed on a message whose accessor throws instead of escaping', () => {
+  const throwing = message();
+  Object.defineProperty(throwing, 'observation', {
+    enumerable: true,
+    get() { throw new Error('getter boom'); },
+  });
+
+  const result = buildPercept({ modality: 'file-effect', provenance: 'observed', message: throwing, frame: frame() });
+  assert.equal(result.status, 'REJECT');
+  assert.equal(result.reason, 'unhashable_input');
+});
