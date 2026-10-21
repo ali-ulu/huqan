@@ -1496,6 +1496,8 @@
     "scripts/authority/uninstall-authority.sh",
     "scripts/authority/install-authority-darwin.sh",
     "scripts/authority/uninstall-authority-darwin.sh",
+    "scripts/agent-user/install-agent-user-linux.sh",
+    "scripts/agent-user/install-agent-user-darwin.sh",
     "scripts/mcp-service/install-mcp-service.ps1",
     "scripts/mcp-service/uninstall-mcp-service.ps1",
     "lib/cognitive-model-port.js",

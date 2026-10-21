@@ -332,7 +332,11 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
   section 10;
   PR-7 `huqan doctor` and `status` `escalation`; PR-8 docs, `THREAT_MODEL.md`,
   `SECURITY_INVARIANTS.md`. Phase 2 (Layer B): PR-9 `store-acl.js` POSIX
-  branch; PR-10 `agent-user-boundary.js` POSIX; PR-11 agent-user installers.
+  branch; PR-10 `agent-user-boundary.js` POSIX; PR-11 agent-user installers
+  (`scripts/agent-user/install-agent-user-{linux,darwin}.sh`, done: they create
+  the standard user and write the root-owned marker the boundary reads, at the
+  fixed path section 8 names; the darwin pair lives under `/Library/HUQAN/state`,
+  not `/var`, for the symlink reason in section 1).
 
 ## Residual risks (kept honest)
 

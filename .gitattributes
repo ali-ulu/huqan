@@ -30,3 +30,4 @@ lib/semantic-model-artifacts/*.json text eol=lf
 # both breaks those anchors and leaves stray CR bytes for bash to choke on, so
 # pin LF for the same reason as the entries above.
 scripts/authority/*.sh text eol=lf
+scripts/agent-user/*.sh text eol=lf
