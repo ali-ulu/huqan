@@ -2432,6 +2432,10 @@
    "context": "AgentAction",
    "evidence": "#4093 PR-B1: maps an external-action admission receipt onto the canonical huqan.siem-event.v1, scrubbing it through AB9 (lib/data-egress-gate.js) on the same egress boundary as lib/external-action-egress-gates.js"
   },
+  "lib/siem/formatters.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B2: renders the canonical huqan.siem-event.v1 into ECS, Splunk HEC, CEF and jsonl; pure, no new egress boundary, so it inherits the AgentAction context its mapper already carries"
+  },
   "lib/data-residency-gate.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
