@@ -2516,6 +2516,10 @@
    "context": "Observability",
    "evidence": "ownership-map-2446.md#R-OBSMISC-O"
   },
+  "lib/cognition/salience.js": {
+   "context": "AgentAction",
+   "evidence": "cognitive-architecture-plan.md section 7: pure COG-M7 candidate attention scoring; first caller is the application scheduler seam, reusing its existing goal matching"
+  },
   "lib/cognition/value-ledger.js": {
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md section 7: pure COG-M9 derived value and support from observed history"

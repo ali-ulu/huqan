@@ -1,9 +1,5 @@
 {
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
-  "lib/evidence-pack/manifest.js": "evidence-pack manifest builder: file inventory, per-file SHA-256, and the packHash seal over the Trust receipt bundle; pure contract, unit-tested, awaiting the pack collector CLI that lands in the next slice",
-  "lib/evidence-pack/verify.js": "evidence-pack verifier: recomputes packHash, checks every listed file's bytes, and re-verifies the receipt bundle through verifyExportedBundle; pure contract, unit-tested, awaiting the `huqan evidence verify` CLI command that lands in the next slice",
-  "lib/knowledge-lint.js": "read-only knowledge health lint over the derived view; the scope note docs/architecture/knowledge-wiki-scope.md section 6 fixes its reporting-only boundary, and its report awaits the caller that renders the derived view, which leaves the ledger when it wires",
-  "lib/siem/siem-event.js": "canonical huqan.siem-event.v1 mapper over external-action admission receipts; pure contract, unit-tested, awaiting the format-specific renderers and the append-only sink that render and move the event, which leave the ledger when they wire",
   "lib/cognition-prediction-error-pairs.js": "COG-M2 graph pairs reader for the signal; first production caller is the M7 seam or the Lab CLI",
   "lib/cognition-value-ledger-pairs.js": "cognitive-architecture-plan.md section 7: read-only COG-M9 journal adapter; awaiting Lab CLI or M7 seam and producer scope/source bindings",
   "lib/cognition/cognition-config.js": "COG Phase 0 strict opts.cognition resolver; first production caller is the AgentV3 cognition seam (M7 wiring), which leaves the ledger when it wires",
@@ -12,5 +8,10 @@
   "lib/cognition/percept.js": "COG-M1 Faz 2 shared perception shape over the K1 CognitiveMessage; first production caller is the M7 seam or the Lab CLI, which leaves the ledger when it wires",
   "lib/cognition/prediction-error.js": "COG-M2 Faz 1 signal; first production caller is the M7 seam or the Lab CLI, which leaves the ledger when it wires",
   "lib/cognition/reward-signal.js": "cognitive-architecture-plan.md section 7: COG-M8 observed reward signal; first production caller is the M9 value ledger or M7 seam; no action authority or measured gain",
-  "lib/cognition/value-ledger.js": "cognitive-architecture-plan.md section 7: pure COG-M9 derived history fold; awaiting Lab CLI or M7 seam, no second persistence authority or measured gain"
+  "lib/cognition/salience.js": "cognitive-architecture-plan.md section 7: pure COG-M7 signal-only candidate ranking; awaiting the AgentV3 scheduler seam, no action authority or measured gain",
+  "lib/cognition/value-ledger.js": "cognitive-architecture-plan.md section 7: pure COG-M9 derived history fold; awaiting Lab CLI or M7 seam, no second persistence authority or measured gain",
+  "lib/evidence-pack/manifest.js": "evidence-pack manifest builder: file inventory, per-file SHA-256, and the packHash seal over the Trust receipt bundle; pure contract, unit-tested, awaiting the pack collector CLI that lands in the next slice",
+  "lib/evidence-pack/verify.js": "evidence-pack verifier: recomputes packHash, checks every listed file's bytes, and re-verifies the receipt bundle through verifyExportedBundle; pure contract, unit-tested, awaiting the `huqan evidence verify` CLI command that lands in the next slice",
+  "lib/knowledge-lint.js": "read-only knowledge health lint over the derived view; the scope note docs/architecture/knowledge-wiki-scope.md section 6 fixes its reporting-only boundary, and its report awaits the caller that renders the derived view, which leaves the ledger when it wires",
+  "lib/siem/siem-event.js": "canonical huqan.siem-event.v1 mapper over external-action admission receipts; pure contract, unit-tested, awaiting the format-specific renderers and the append-only sink that render and move the event, which leave the ledger when they wire"
 }
