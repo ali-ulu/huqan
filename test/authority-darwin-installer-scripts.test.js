@@ -276,7 +276,9 @@ test('--socket creates the operator group and the socket directory', () => {
   // adds; dseditgroup is the idempotent membership tool.
   assert.match(install, /if ! dscl \. -read "\/Groups\/\$SOCKET_GROUP" >\/dev\/null 2>&1; then/);
   assert.match(install, /dscl \. -create "\/Groups\/\$SOCKET_GROUP" PrimaryGroupID "\$gid"/);
-  assert.match(install, /dseditgroup -o edit -a "\$SUDO_UID" -t user "\$SOCKET_GROUP"/);
+  // dseditgroup takes an account name, not a uid, so SUDO_UID is resolved first.
+  assert.match(install, /operator="\$\(id -nu "\$SUDO_UID"\)"/);
+  assert.match(install, /dseditgroup -o edit -a "\$operator" -t user "\$SOCKET_GROUP"/);
   // The socket directory is service-user-owned, group-owned by the operator
   // group, mode 2750.
   assert.match(install, /chown "\$SERVICE_USER:\$SOCKET_GROUP" "\$RUN_DIR"/);

@@ -175,7 +175,10 @@ ensure_socket_group() {
     dscl . -create "/Groups/$SOCKET_GROUP" IsHidden 1
   fi
   # dseditgroup -o edit -a is the idempotent membership edit; it only adds.
-  dseditgroup -o edit -a "$SUDO_UID" -t user "$SOCKET_GROUP" >/dev/null || fail "cannot add uid $SUDO_UID to $SOCKET_GROUP"
+  # It takes an account name, not a uid, so SUDO_UID is resolved first.
+  local operator
+  operator="$(id -nu "$SUDO_UID")" || fail "no account for uid $SUDO_UID"
+  dseditgroup -o edit -a "$operator" -t user "$SOCKET_GROUP" >/dev/null || fail "cannot add $operator to $SOCKET_GROUP"
 }
 
 # The socket directory is owned by the service user and group-owned by the

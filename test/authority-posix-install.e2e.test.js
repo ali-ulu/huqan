@@ -287,7 +287,10 @@ test('--socket installs a 0660 socket the operator group alone can open', { skip
       denial = error;
     }
     assert.ok(denial, 'a non-member reached the socket');
-    assert.match(String(denial.code || denial.message || ''), /EACCES|EPERM/, `unexpected socket error: ${denial && denial.code}`);
+    // The client wraps a refused connect as AUTHORITY_UNAVAILABLE and keeps the
+    // OS error in the message, so the EACCES is what is asserted, not the code.
+    const detail = `${denial.code || ''} ${denial.message || ''}`;
+    assert.match(detail, /EACCES|EPERM/, `unexpected socket error: ${detail}`);
   } finally {
     sudo(['bash', UNINSTALL]);
     state.installed = false;
