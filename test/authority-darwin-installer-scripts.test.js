@@ -83,6 +83,30 @@ test('the node tarball is the darwin build for the host architecture, not a hard
   assert.doesNotMatch(install, /linux-\$\{arch\}/);
 });
 
+test('the verified node is re-owned to root, because the tarball records uid 501', () => {
+  // node-v22.23.3-darwin-arm64.tar.gz stores 501/20, and cp -a would carry that
+  // onto the target: a uid that exists there could then replace the node the
+  // daemon execs.
+  assert.match(install, /cp -a "\$staging\/\$extract_dir\/\." "\$NODE_DIR\/"\n\s*chown -R root:wheel "\$NODE_DIR"\n\s*chmod -R go-w "\$NODE_DIR"/);
+});
+
+test('every chown names the wheel group, because macOS has no root group', () => {
+  // On macOS group 0 is wheel; `chown root:root` fails with "illegal group
+  // name", which `set -e` turns into a dead installer on every host.
+  const chowns = install.match(/^\s*chown[^\n]*$/gm) || [];
+  assert.ok(chowns.length > 0, 'expected chown calls');
+  for (const line of chowns) {
+    assert.doesNotMatch(line, /:root\b/, `macOS has no root group: ${line.trim()}`);
+  }
+  assert.match(install, /chown root:wheel "\$DATA_DIR" "\$PUBLIC_DIR"/);
+  assert.match(install, /chown root:wheel "\$PLIST_FILE"/);
+  assert.match(install, /chown root:wheel "\$wrapper"/);
+});
+
+test('the protected-path check covers the program and the node, not only the data', () => {
+  assert.match(install, /for target in "\$DATA_DIR" "\$PUBLIC_DIR" "\$PIN_FILE" "\$INSTALL_DIR" "\$NODE_DIR" "\$APP_DIR"; do/);
+});
+
 test('the package is checked against the registry integrity before it is unpacked', () => {
   // The integrity lives under dist in a version document; a top-level read
   // would yield nothing and the installer would abort.
@@ -191,7 +215,7 @@ test('the operator window is a root-owned wrapper in the protected install', () 
   assert.match(install, /wrapper="\$INSTALL_DIR\/huqan-authority-decide"/);
   assert.match(install, /exec "\$NODE_DIR\/bin\/node" "\$APP_DIR\/lib\/authority\/operator-cli\.js"/);
   assert.match(install, /chmod 0755 "\$wrapper"/);
-  assert.match(install, /chown root:root "\$wrapper"/);
+  assert.match(install, /chown root:wheel "\$wrapper"/);
 });
 
 test('the ownership assertions read macOS stat, which has no -c', () => {

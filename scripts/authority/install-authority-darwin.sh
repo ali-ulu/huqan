@@ -154,7 +154,13 @@ install_node() {
   ( cd "$staging" && grep " $tarball\$" SHASUMS256.txt | shasum -a 256 -c - ) || fail "the node tarball does not match SHASUMS256.txt"
   tar -xzf "$staging/$tarball" -C "$staging"
   mkdir -p "$NODE_DIR"
+  # The tarball records the release machine's uid (501 on the darwin build), and
+  # cp -a would carry it onto the target. If that uid exists there, its owner
+  # could replace the node the daemon execs, so normalise to root and drop the
+  # group/other write bits.
   cp -a "$staging/$extract_dir/." "$NODE_DIR/"
+  chown -R root:wheel "$NODE_DIR"
+  chmod -R go-w "$NODE_DIR"
   local got
   got="$("$NODE_DIR/bin/node" -p 'process.versions.node')"
   if [ "$(printf '%s\n%s\n' "$MIN_NODE" "$got" | sort -V | head -1)" != "$MIN_NODE" ]; then
@@ -251,7 +257,7 @@ EOF
 
 new_protected_tree() {
   mkdir -p "$DATA_DIR" "$PUBLIC_DIR" "$STATE_DIR" "$LOG_DIR"
-  chown root:root "$DATA_DIR" "$PUBLIC_DIR"
+  chown root:wheel "$DATA_DIR" "$PUBLIC_DIR"
   chmod 0755 "$DATA_DIR" "$PUBLIC_DIR"
   # The service user owns state, and only it: the serve self-check refuses a
   # state directory that is not owned by the running uid or is group-readable.
@@ -271,7 +277,7 @@ install_decide_wrapper() {
 exec "$NODE_DIR/bin/node" "$APP_DIR/lib/authority/operator-cli.js" "\$@"
 EOF
   chmod 0755 "$wrapper"
-  chown root:root "$wrapper"
+  chown root:wheel "$wrapper"
 }
 
 # Create the keys and the TOTP secret, prove enrollment, then hand the state to
@@ -336,7 +342,9 @@ assert_protected() {
   if [ "$(owner_uid "$STATE_DIR")" = 0 ] || [ "$(file_mode "$STATE_DIR")" != 448 ]; then
     fail "$STATE_DIR must be owned by $SERVICE_USER, mode 0700"
   fi
-  for target in "$DATA_DIR" "$PUBLIC_DIR" "$PIN_FILE"; do
+  # The program and the verified node are root's too: an agent that could write
+  # either would run code as the service user.
+  for target in "$DATA_DIR" "$PUBLIC_DIR" "$PIN_FILE" "$INSTALL_DIR" "$NODE_DIR" "$APP_DIR"; do
     if [ -L "$target" ]; then fail "$target is a link"; fi
     if [ "$(owner_uid "$target")" != 0 ]; then fail "$target is not owned by root"; fi
     if [ $(( $(file_mode "$target") & 8#022 )) -ne 0 ]; then fail "$target is writable by group or other"; fi
