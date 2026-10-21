@@ -1944,6 +1944,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/gate-profile-inventory.js": {
+   "context": "AgentAction",
+   "evidence": "#4135 the doctor's Usage check reads which artifact-backed gate profiles are installed; leaf module over the install spec and artifact check"
+  },
   "lib/gate-hook-reports.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -5211,6 +5215,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/gate-profile-inventory.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4135 lib/cli-doctor.js asks the published inventory which installed profiles the Usage check should compare with the receipt trail; the port is a leaf and does not pull the gate CLI closure into doctor tests"
+  },
   "lib/aura-canary-bridge.js": {
    "owner": "Trust",
    "consumers": [

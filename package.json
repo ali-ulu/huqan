@@ -693,6 +693,7 @@
     "lib/gate-hook-identity.js",
     "lib/gate-hook-reports.js",
     "lib/gate-hook-management.js",
+    "lib/gate-profile-inventory.js",
     "lib/gate-hook-evaluate.js",
     "lib/github-connector.js",
     "lib/github-connector-ingest.js",
