@@ -43,10 +43,19 @@ test('the fixed POSIX layout is what the installers and the runtime agree on', (
   assert.equal(linux.pinPath, '/var/lib/huqan-authority/public/authority.json');
   assert.equal(linux.stateDir, '/var/lib/huqan-authority/state');
   assert.equal(linux.serviceUser, 'huqan-authority');
+  // The socket directory and the operator group are what --socket installs
+  // (ADR-020 section 12); they live in the layout so the installers, the tests
+  // and the runtime agree on one definition.
+  assert.equal(linux.socketDir, '/var/lib/huqan-authority/run');
+  assert.equal(linux.socketPath, '/var/lib/huqan-authority/run/authority.sock');
+  assert.equal(linux.socketGroup, 'huqan-authority-ops');
   const darwin = posixAuthorityLayout('darwin');
   assert.equal(darwin.dataDir, '/Library/HUQAN/authority-data');
   assert.equal(darwin.pinPath, '/Library/HUQAN/authority-data/public/authority.json');
   assert.equal(darwin.serviceUser, '_huqanauthority');
+  assert.equal(darwin.socketDir, '/Library/HUQAN/authority-data/run');
+  assert.equal(darwin.socketPath, '/Library/HUQAN/authority-data/run/authority.sock');
+  assert.equal(darwin.socketGroup, '_huqanauthority-ops');
 });
 
 test('a platform without POSIX parity has no layout', () => {

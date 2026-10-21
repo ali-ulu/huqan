@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open question 7 answered by [ADR-021](ADR-021-container-support-model.md); question 5 stays open — its bundle side landed in section 12, its installer side stays open — see the last section)
+- **Status:** Accepted (open question 7 answered by [ADR-021](ADR-021-container-support-model.md); question 5 answered — bundle side in section 12 (#4177), installer side in section 12 (#4170) — see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -311,10 +311,21 @@ written before this change is unchanged and TCP remains the default.
   request must name `localhost` (what Node's client sends), a TCP request must
   name the exact `127.0.0.1:<port>`; a foreign Host or a browser `Origin` is
   refused on both.
-- **Scope.** This section authorises the bundle transport
-  (`http-server.js`, `authority-client.js`, `authority-pin.js`, `service-main.js`).
-  Creating the group, the socket directory, and writing the pin field belongs to
-  the installers and is a separate change.
+- **Scope.** The bundle transport (`http-server.js`, `authority-client.js`,
+  `authority-pin.js`, `service-main.js`) landed in #4177. The installer side
+  landed separately: both POSIX installers take `--socket`, create a dedicated
+  operator group (`huqan-authority-ops` / `_huqanauthority-ops`), add the caller
+  (`SUDO_UID`) to it, create the socket directory `<data>/run` owned by the
+  service user and the operator group at `2750` (setgid, so the socket inherits
+  the group), write the `socketPath` field into the pin through `service-main
+  init --socket`, and assert the directory is `2750` and the socket `0660` and
+  group-owned by the operator group before declaring success. The path and the
+  group are fixed in `posixAuthorityLayout` (`lib/authority/posix-path-trust.js`),
+  the one definition the installers, the tests and the runtime share. Without
+  `--socket` the install is byte-for-byte what it was. A non-member cannot even
+  traverse the directory, so a connection attempt fails with `EACCES`; the
+  operator group is deliberately left behind on uninstall, like the service
+  user, because the archived state directory still refers to it.
 
 ## Threat model
 
@@ -404,9 +415,9 @@ written before this change is unchanged and TCP remains the default.
 ## Open questions (not decided here)
 
 Questions 1 and 2 were decided by the owner on #4082 (sections 1 and 2);
-questions 2b, 3 and 4 were answered by PR-5, PR-7 and PR-6 as noted below.
-Question 7 is answered in writing by [ADR-021](ADR-021-container-support-model.md)
-(model fixed 2026-10-21, no date). Question 5 stays open and no default is assumed:
+questions 2b, 3, 4 and 5 were answered by PR-5, PR-7, PR-6 and #4177/#4170 as
+noted below. Question 7 is answered in writing by
+[ADR-021](ADR-021-container-support-model.md) (model fixed 2026-10-21, no date):
 
 2b. macOS node verification: **answered by PR-5** (section 2): the GPG-signed
    `SHASUMS256.txt`, not `codesign --verify`.
@@ -421,7 +432,8 @@ Question 7 is answered in writing by [ADR-021](ADR-021-container-support-model.m
    **Decided 2026-10-21: yes, its own work item, not urgent** (a flood can only
    deny service, never forge a decision; rate limiting and `maxConnections`
    already blunt it). Tracked as #4170. **Implemented as an opt-in transport in
-   section 12** (bundle side); the installer side is a separate change.
+   section 12**: the bundle side in #4177, the installer side (the operator
+   group, the `2750` socket directory, the pin field, the assertions) in #4170.
 6. ADR-017 section 3 ("ACL'd to the operator") versus `STORE_ACL_SPEC` (no
    operator ACE): which one is right? **Answered 2026-10-21: the code.**
    ADR-017 section 3's text was stale and is corrected to match

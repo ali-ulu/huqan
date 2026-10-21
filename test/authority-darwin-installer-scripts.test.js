@@ -260,9 +260,68 @@ test('the operator window is a root-owned wrapper in the protected install', () 
   assert.match(install, /chown root:wheel "\$wrapper"/);
 });
 
+test('--socket creates the operator group and the socket directory', () => {
+  // ADR-020 section 12: the installer side creates the group, the directory and
+  // the pin field; the bundle only carries the transport.
+  assert.match(install, /--socket\) USE_SOCKET=1; shift ;;/);
+  assert.match(install, /SOCKET_GROUP=_huqanauthority-ops/);
+  assert.match(install, /RUN_DIR="\$DATA_DIR\/run"/);
+  assert.match(install, /SOCKET_PATH="\$RUN_DIR\/authority\.sock"/);
+  // The operator is the caller, carried across sudo as SUDO_UID, and a root
+  // operator is refused.
+  assert.match(install, /if \[ -z "\$\{SUDO_UID:-\}" \]; then fail 'SUDO_UID is unset/);
+  assert.match(install, /SUDO_UID is 0; the operator must not be root/);
+  assert.match(install, /SUDO_UID is not a uid/);
+  // The group is created with dscl only if absent, and the membership edit only
+  // adds; dseditgroup is the idempotent membership tool.
+  assert.match(install, /if ! dscl \. -read "\/Groups\/\$SOCKET_GROUP" >\/dev\/null 2>&1; then/);
+  assert.match(install, /dscl \. -create "\/Groups\/\$SOCKET_GROUP" PrimaryGroupID "\$gid"/);
+  // dseditgroup takes an account name, not a uid, so SUDO_UID is resolved first.
+  assert.match(install, /operator="\$\(id -nu "\$SUDO_UID"\)"/);
+  assert.match(install, /dseditgroup -o edit -a "\$operator" -t user "\$SOCKET_GROUP"/);
+  // The socket directory is service-user-owned, group-owned by the operator
+  // group, mode 2750.
+  assert.match(install, /chown "\$SERVICE_USER:\$SOCKET_GROUP" "\$RUN_DIR"/);
+  assert.match(install, /chmod 2750 "\$RUN_DIR"/);
+});
+
+test('the group and the socket directory exist before the plist is written', () => {
+  // The plist names the socket path, so creating them after install_plist would
+  // leave a daemon that cannot bind.
+  const groupAt = install.lastIndexOf('ensure_socket_group');
+  const runDirAt = install.lastIndexOf('ensure_run_dir');
+  const plistAt = install.lastIndexOf('install_plist');
+  assert.ok(groupAt !== -1 && runDirAt !== -1 && plistAt !== -1, 'expected the group/run-dir/plist sequence');
+  assert.ok(groupAt < plistAt && runDirAt < plistAt, 'the group and run directory must precede install_plist');
+});
+
+test('the plist names the socket only when --socket was given', () => {
+  // The socket args are built conditionally, so a TCP plist is byte-for-byte
+  // what it was.
+  assert.match(install, /if \[ "\$USE_SOCKET" = 1 \]; then\s*\n\s*socket_args="    <string>--socket<\/string>\n    <string>\$SOCKET_PATH<\/string>"/);
+  assert.match(install, /\$socket_args\n\s*<\/array>/);
+});
+
+test('the pin names the socket only when --socket was given', () => {
+  assert.match(install, /if \[ "\$USE_SOCKET" = 1 \]; then\s*\n\s*"\$node" "\$service_main" init --state-dir "\$STATE_DIR" --public-dir "\$PUBLIC_DIR" --port "\$PORT" --socket "\$SOCKET_PATH"/);
+  assert.match(install, /"\$node" "\$service_main" init --state-dir "\$STATE_DIR" --public-dir "\$PUBLIC_DIR" --port "\$PORT" > "\$init"/);
+});
+
+test('the socket and its directory are asserted to be 0660 and 2750 after the proof', () => {
+  assert.match(install, /if \[ "\$USE_SOCKET" = 1 \]; then assert_socket_protected; fi/);
+  assert.match(install, /stat -f '%Sg' "\$1"/);
+  assert.match(install, /\[ ! -S "\$SOCKET_PATH" \]/);
+  assert.match(install, /\[ "\$sock_group" != "\$SOCKET_GROUP" \]/);
+  assert.match(install, /\[ "\$sock_mode" != 432 \]/);
+  assert.match(install, /\[ "\$dir_mode" != 1512 \]/);
+});
+
+
 test('the ownership assertions read macOS stat, which has no -c', () => {
   assert.match(install, /stat -f '%u' "\$1"/);
-  assert.match(install, /stat -f '%Lp' "\$1"/);
+  // %Mp is the setuid/setgid/sticky bits and %Lp the rwx bits; %Lp alone drops
+  // setgid, so a 2750 directory would read as 750.
+  assert.match(install, /stat -f '%Mp%Lp' "\$1"/);
   assert.doesNotMatch(install, /stat -c/);
   // The state directory must be owned by a non-root service user, mode 0700.
   assert.match(install, /if \[ "\$\(owner_uid "\$STATE_DIR"\)" = 0 \] \|\| \[ "\$\(file_mode "\$STATE_DIR"\)" != 448 \]; then/);
@@ -275,6 +334,14 @@ test('the uninstaller boots the daemon out, renames the state instead of deletin
   assert.match(uninstall, /rm -f "\$DATA_DIR\/public\/authority\.json"/);
   assert.match(uninstall, /rm -f "\$PLIST_FILE"/);
   assert.match(uninstall, /rm -rf "\$INSTALL_DIR"/);
+  // The socket file goes before the tree is archived, so a reinstall cannot
+  // find a leftover socket at the path it is about to bind.
+  assert.match(uninstall, /rm -f "\$DATA_DIR\/run\/authority\.sock"/);
+  // The operator group is left behind, like the service user, and named for a
+  // hand removal: the uninstaller never deletes it itself.
+  assert.match(uninstall, /SOCKET_GROUP=_huqanauthority-ops/);
+  assert.doesNotMatch(uninstall, /^\s*dseditgroup -o delete/m);
+  assert.match(uninstall, /The operator group \$SOCKET_GROUP was left in place/);
   // Deleting the service user would orphan the renamed state; it is left alone.
   assert.doesNotMatch(uninstall, /dscl \. -delete/);
 });

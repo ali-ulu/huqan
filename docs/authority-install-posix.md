@@ -49,8 +49,13 @@ The installer writes fixed paths; none of them is taken from the environment.
 | Data root | `/var/lib/huqan-authority` | `/Library/HUQAN/authority-data` | root, 0755 |
 | `public/authority.json` (pin) | `<data>/public/` | same | root, dir 0755, pin 0644 |
 | `state/` | `<data>/state` | same | service user, **0700**, files 0600 |
+| `run/` (`--socket` only) | `<data>/run` | same | service user + operator group, **2750** (setgid) |
 | Log | journald | `/Library/Logs/HUQAN/authority.log` | service user, 0750 |
 | Service definition | `/etc/systemd/system/huqan-authority.service` | `/Library/LaunchDaemons/com.huqan.authority.plist` | root, 0644 |
+
+The `run/` row exists only with `--socket`. Its mode is `2750`: setgid, so the
+socket the service creates inside it is owned by the operator group, and closed
+to other, so a local user outside the group cannot even traverse it.
 
 ## Install
 
@@ -71,6 +76,14 @@ Both take the same flags:
 - `--version <x.y.z>` (required) - the Huqan version whose bundle is installed.
 - `--node-version v22.23.3` - the node build to fetch and verify (default).
 - `--port 47821` - the loopback port the service listens on (default).
+- `--socket` - listen on a Unix domain socket instead of the loopback port
+  (opt-in; [ADR-020](adr/ADR-020-posix-authority-parity.md) section 12). The
+  installer creates a dedicated operator group (`huqan-authority-ops` on Linux,
+  `_huqanauthority-ops` on macOS), adds the invoking user (`SUDO_UID`) to it,
+  creates `<data>/run` owned by the service user and that group at `2750`, and
+  writes the `socketPath` into the pin. The service then forces the socket to
+  `0660`, so only the service user and the operator group can connect. The port
+  stays in the pin; without `--socket` nothing changes.
 - `--tarball <path> --integrity <sha512-...>` - install from a local tarball
   instead of the registry. Both are required together: `--integrity` without
   `--tarball` is refused rather than ignored, and `--tarball` without
@@ -83,11 +96,13 @@ the data tree, so a mistyped path fails without leaving half an install behind.
 
 What it does, in order: refuse unless `euid` is 0; refuse if the install or data
 directory already exists; create the service user; create the protected tree;
-fetch and verify node; fetch and verify the package; install the bundle; write
-the service definition; enroll the operator; test identity under the pinned key;
-verify the runtime path trust; and only then enable the service. Enabling last
-means a failure earlier leaves nothing that starts at the next boot with
-unconfirmed state.
+with `--socket`, create the operator group and the socket directory; fetch and
+verify node; fetch and verify the package; install the bundle; write the service
+definition; enroll the operator; test identity under the pinned key; verify the
+runtime path trust (and, with `--socket`, that the directory is `2750` and the
+socket `0660` and group-owned by the operator group); and only then enable the
+service. Enabling last means a failure earlier leaves nothing that starts at the
+next boot with unconfirmed state.
 
 ### Enrollment
 
@@ -179,9 +194,13 @@ sudo scripts/authority/uninstall-authority.sh          # Linux
 sudo scripts/authority/uninstall-authority-darwin.sh   # macOS
 ```
 
-The uninstaller stops and removes the service, removes the service user, and
-removes the pin. The CI end-to-end test asserts that no unit, user or pin
-remains afterward.
+The uninstaller stops and removes the service, removes the pin, and archives the
+state directory (renamed, not deleted, so the ledger stays auditable). The
+service user and the operator group are left behind on purpose: the archived
+state is owned by the service user, and the operator group owned the socket
+directory, so deleting either would orphan a dangling reference. Remove them by
+hand once no state refers to them. The CI end-to-end test asserts that no unit,
+no pin and no program directory remain, and that the state is archived.
 
 ## Non-claims
 
@@ -197,6 +216,11 @@ Carried verbatim from ADR-020:
 - TOTP proves the operator is present, not what the operator intended (ADR-016
   risk 2).
 - Sudoers rules added after install are visible only when `doctor` runs as root.
+
+The `--socket` transport narrows *who can connect* to the operator group; it does
+not authenticate the caller. An agent running as the same user as the operator is
+in that group by construction, so it can still connect -- the socket is not what
+separates an agent from the operator, Layer B (`os-user`) is.
 
 ## See also
 

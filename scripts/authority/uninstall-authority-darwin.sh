@@ -18,6 +18,7 @@ set -euo pipefail
 
 SERVICE_LABEL=com.huqan.authority
 SERVICE_USER=_huqanauthority
+SOCKET_GROUP=_huqanauthority-ops
 INSTALL_DIR=/Library/HUQAN/authority
 DATA_DIR=/Library/HUQAN/authority-data
 PLIST_FILE="/Library/LaunchDaemons/$SERVICE_LABEL.plist"
@@ -29,6 +30,10 @@ fail() { echo "uninstall-authority-darwin: $*" >&2; exit 1; }
 launchctl bootout "system/$SERVICE_LABEL" >/dev/null 2>&1 || true
 rm -f "$PLIST_FILE"
 
+# The socket dies with the daemon, but a leftover file in the socket directory
+# would make a later reinstall's stale-socket check the only thing standing
+# between a plant and a bind, so it is removed before the tree is archived.
+rm -f "$DATA_DIR/run/authority.sock"
 rm -f "$DATA_DIR/public/authority.json"
 if [ -e "$DATA_DIR" ]; then
   archive="$DATA_DIR.removed-$(date +%Y%m%d%H%M%S)"
@@ -36,4 +41,8 @@ if [ -e "$DATA_DIR" ]; then
   echo "State and ledger kept at $archive (still owned by $SERVICE_USER, mode 0700)."
 fi
 rm -rf "$INSTALL_DIR"
+# The operator group is left in place: the service user is left too, and a group
+# that owned the archived socket directory is the same kind of dangling
+# reference. Remove it by hand once no state refers to it.
 echo 'HUQAN approval authority removed; the runtime is back in legacy mode.'
+echo "The operator group $SOCKET_GROUP was left in place; remove it by hand with 'dseditgroup -o delete $SOCKET_GROUP' if you want it gone."

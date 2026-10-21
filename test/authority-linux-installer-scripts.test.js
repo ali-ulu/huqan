@@ -153,7 +153,6 @@ test('the unit hardens the service the way ADR-020 section 3 specifies', () => {
     'UMask=0077',
     'NoNewPrivileges=yes',
     'ProtectSystem=strict',
-    'ReadWritePaths=$STATE_DIR',
     'ProtectHome=yes',
     'PrivateTmp=yes',
     'CapabilityBoundingSet=',
@@ -164,7 +163,61 @@ test('the unit hardens the service the way ADR-020 section 3 specifies', () => {
   ]) {
     assert.ok(install.includes(line), `the unit is missing ${line}`);
   }
-  assert.match(install, /ExecStart=\$NODE_DIR\/bin\/node \$APP_DIR\/lib\/authority\/service-main\.js serve --state-dir \$STATE_DIR --port \$PORT/);
+  // The exec line and ReadWritePaths are built from a variable so the socket
+  // transport can add to them; the TCP default must still be the bare state
+  // directory (ADR-020 section 12).
+  assert.match(install, /exec_line="ExecStart=\$NODE_DIR\/bin\/node \$APP_DIR\/lib\/authority\/service-main\.js serve --state-dir \$STATE_DIR --port \$PORT"/);
+  assert.match(install, /rw_paths="\$STATE_DIR"/);
+  assert.match(install, /^ReadWritePaths=\$rw_paths$/m);
+  // With --socket the exec line names the socket and the run directory is
+  // writable, or ProtectSystem=strict turns the bind into EROFS.
+  assert.match(install, /exec_line="\$exec_line --socket \$SOCKET_PATH"/);
+  assert.match(install, /rw_paths="\$STATE_DIR \$RUN_DIR"/);
+});
+
+test('--socket creates the operator group and the socket directory', () => {
+  // ADR-020 section 12: the installer side creates the group, the directory and
+  // the pin field; the bundle only carries the transport.
+  assert.match(install, /--socket\) USE_SOCKET=1; shift ;;/);
+  assert.match(install, /SOCKET_GROUP=huqan-authority-ops/);
+  assert.match(install, /RUN_DIR="\$DATA_DIR\/run"/);
+  assert.match(install, /SOCKET_PATH="\$RUN_DIR\/authority\.sock"/);
+  // The operator is the caller, carried across sudo as SUDO_UID, and a root
+  // operator is refused (the same rule the agent-user installer follows).
+  assert.match(install, /if \[ -z "\$\{SUDO_UID:-\}" \]; then fail 'SUDO_UID is unset/);
+  assert.match(install, /SUDO_UID is 0; the operator must not be root/);
+  assert.match(install, /SUDO_UID is not a uid/);
+  // The group is created only if absent, and the membership edit only adds.
+  assert.match(install, /if ! getent group "\$SOCKET_GROUP" >\/dev\/null; then groupadd --system "\$SOCKET_GROUP"; fi/);
+  assert.match(install, /usermod -aG "\$SOCKET_GROUP"/);
+  // The socket directory is service-user-owned, group-owned by the operator
+  // group, mode 2750 (setgid so the socket inherits the group).
+  assert.match(install, /chown "\$SERVICE_USER:\$SOCKET_GROUP" "\$RUN_DIR"/);
+  assert.match(install, /chmod 2750 "\$RUN_DIR"/);
+});
+
+test('the group and the socket directory exist before the unit is written', () => {
+  // The unit names them, so creating them after install_unit would leave a
+  // service that cannot bind.
+  const groupAt = install.lastIndexOf('ensure_socket_group');
+  const runDirAt = install.lastIndexOf('ensure_run_dir');
+  const unitAt = install.lastIndexOf('install_unit');
+  assert.ok(groupAt !== -1 && runDirAt !== -1 && unitAt !== -1, 'expected the group/run-dir/unit sequence');
+  assert.ok(groupAt < unitAt && runDirAt < unitAt, 'the group and run directory must precede install_unit');
+});
+
+test('the pin names the socket only when --socket was given', () => {
+  assert.match(install, /if \[ "\$USE_SOCKET" = 1 \]; then\s*\n\s*"\$node" "\$service_main" init --state-dir "\$STATE_DIR" --public-dir "\$PUBLIC_DIR" --port "\$PORT" --socket "\$SOCKET_PATH"/);
+  // Without --socket the init line is unchanged: no socket in the pin.
+  assert.match(install, /"\$node" "\$service_main" init --state-dir "\$STATE_DIR" --public-dir "\$PUBLIC_DIR" --port "\$PORT" > "\$init"/);
+});
+
+test('the socket and its directory are asserted to be 0660 and 2750 after the proof', () => {
+  assert.match(install, /if \[ "\$USE_SOCKET" = 1 \]; then assert_socket_protected; fi/);
+  assert.match(install, /\[ ! -S "\$SOCKET_PATH" \]/);
+  assert.match(install, /\[ "\$sock_group" != "\$SOCKET_GROUP" \]/);
+  assert.match(install, /\[ "\$sock_mode" != 432 \]/);
+  assert.match(install, /\[ "\$dir_mode" != 1512 \]/);
 });
 
 test('the installer refuses ground it did not prepare and sessions that are not root', () => {
@@ -215,4 +268,12 @@ test('the uninstaller renames the state instead of deleting it, and removes the 
   assert.match(uninstall, /rm -f "\$DATA_DIR\/public\/authority\.json"/);
   assert.match(uninstall, /systemctl disable "\$SERVICE_NAME\.service"/);
   assert.match(uninstall, /rm -rf "\$INSTALL_DIR"/);
+  // The socket file goes before the tree is archived, so a reinstall cannot
+  // find a leftover socket at the path it is about to bind.
+  assert.match(uninstall, /rm -f "\$DATA_DIR\/run\/authority\.sock"/);
+  // The operator group is left behind, like the service user, and named for a
+  // hand removal: the uninstaller never deletes it itself.
+  assert.match(uninstall, /SOCKET_GROUP=huqan-authority-ops/);
+  assert.doesNotMatch(uninstall, /^\s*groupdel/m);
+  assert.match(uninstall, /The operator group \$SOCKET_GROUP was left in place/);
 });

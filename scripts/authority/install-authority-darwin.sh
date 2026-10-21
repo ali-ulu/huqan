@@ -23,7 +23,12 @@
 # runtime trusts the pin at /Library/HUQAN/authority-data/public/authority.json
 # and nothing else.
 #
-# Usage: sudo scripts/authority/install-authority-darwin.sh --version 1.0.2 [--node-version v22.23.3] [--port 47821]
+# With --socket the daemon listens on a unix socket instead of the loopback
+# port: the socket is 0660 and group-owned by a dedicated operator group, so a
+# local user outside that group cannot connect at all (ADR-020 section 12). The
+# port stays in the pin, and without --socket the install is unchanged.
+#
+# Usage: sudo scripts/authority/install-authority-darwin.sh --version 1.0.2 [--node-version v22.23.3] [--port 47821] [--socket]
 
 set -euo pipefail
 
@@ -36,6 +41,9 @@ DATA_DIR=/Library/HUQAN/authority-data
 STATE_DIR="$DATA_DIR/state"
 PUBLIC_DIR="$DATA_DIR/public"
 PIN_FILE="$PUBLIC_DIR/authority.json"
+RUN_DIR="$DATA_DIR/run"
+SOCKET_PATH="$RUN_DIR/authority.sock"
+SOCKET_GROUP=_huqanauthority-ops
 LOG_DIR=/Library/Logs/HUQAN
 LOG_FILE="$LOG_DIR/authority.log"
 PLIST_FILE="/Library/LaunchDaemons/$SERVICE_LABEL.plist"
@@ -49,6 +57,10 @@ MIN_NODE=22.13.0
 NODE_VERSION=v22.23.3
 PORT=47821
 VERSION=
+# The unix socket transport is opt-in (ADR-020 section 12): with --socket the
+# daemon listens on $SOCKET_PATH and the pin names it. The port stays in the pin
+# either way, so a TCP install is byte-for-byte what it was.
+USE_SOCKET=0
 # CI installs the tarball `npm pack` just produced instead of reading the
 # registry metadata, and passes its expected integrity on the command line
 # (ADR-020 open question 4). Enrollment then reads the code from stdin, because
@@ -60,7 +72,7 @@ ENROLL_FROM_STDIN=0
 fail() { echo "install-authority-darwin: $*" >&2; exit 1; }
 
 usage() {
-  echo 'usage: install-authority-darwin.sh --version <x.y.z> [--node-version v22.23.3] [--port 47821] [--tarball <path> --integrity <sha512-...>] [--enroll-code-stdin]' >&2
+  echo 'usage: install-authority-darwin.sh --version <x.y.z> [--node-version v22.23.3] [--port 47821] [--socket] [--tarball <path> --integrity <sha512-...>] [--enroll-code-stdin]' >&2
 }
 
 # A tiny JSON field reader, so the installer never needs jq. The node used here
@@ -136,6 +148,47 @@ ensure_service_user() {
   dscl . -create "/Users/$SERVICE_USER" UserShell /usr/bin/false
   dscl . -create "/Users/$SERVICE_USER" RealName 'HUQAN Approval Authority'
   dscl . -create "/Users/$SERVICE_USER" IsHidden 1
+}
+
+# The operator group narrows who can open the socket (ADR-020 section 12). dscl,
+# not dseditgroup: the group is a hidden system group below gid 500, created only
+# with --socket, and the caller -- the operator, carried across sudo as SUDO_UID
+# -- is added to it. A group that exists is reused, never re-created, so a
+# reinstall keeps the gid the socket directory is owned by.
+require_operator_uid() {
+  if [ -z "${SUDO_UID:-}" ]; then fail 'SUDO_UID is unset; run this with sudo from the operator account'; fi
+  case "$SUDO_UID" in
+    ''|*[!0-9]*) fail "SUDO_UID is not a uid: $SUDO_UID" ;;
+  esac
+  if [ "$SUDO_UID" -eq 0 ]; then fail 'SUDO_UID is 0; the operator must not be root'; fi
+}
+
+ensure_socket_group() {
+  require_operator_uid
+  if ! dscl . -read "/Groups/$SOCKET_GROUP" >/dev/null 2>&1; then
+    local gid
+    gid="$(next_free_id /Groups PrimaryGroupID)"
+    dscl . -create "/Groups/$SOCKET_GROUP"
+    dscl . -create "/Groups/$SOCKET_GROUP" PrimaryGroupID "$gid"
+    dscl . -create "/Groups/$SOCKET_GROUP" RealName 'HUQAN Approval Authority Operators'
+    dscl . -create "/Groups/$SOCKET_GROUP" GroupMembership
+    dscl . -create "/Groups/$SOCKET_GROUP" IsHidden 1
+  fi
+  # dseditgroup -o edit -a is the idempotent membership edit; it only adds.
+  # It takes an account name, not a uid, so SUDO_UID is resolved first.
+  local operator
+  operator="$(id -nu "$SUDO_UID")" || fail "no account for uid $SUDO_UID"
+  dseditgroup -o edit -a "$operator" -t user "$SOCKET_GROUP" >/dev/null || fail "cannot add $operator to $SOCKET_GROUP"
+}
+
+# The socket directory is owned by the service user and group-owned by the
+# operator group, mode 2750: setgid so a socket created inside it inherits the
+# operator group rather than the creator's primary group, and closed to other so
+# a non-member cannot even traverse it.
+ensure_run_dir() {
+  mkdir -p "$RUN_DIR"
+  chown "$SERVICE_USER:$SOCKET_GROUP" "$RUN_DIR"
+  chmod 2750 "$RUN_DIR"
 }
 
 install_node() {
@@ -232,6 +285,14 @@ install_bundle() {
 }
 
 install_plist() {
+  # With --socket the daemon listens on the socket path; the port stays in the
+  # argument list because serveAuthority takes both and the socket wins (ADR-020
+  # section 12). Without --socket the plist is byte-for-byte what it was.
+  local socket_args=''
+  if [ "$USE_SOCKET" = 1 ]; then
+    socket_args="    <string>--socket</string>
+    <string>$SOCKET_PATH</string>"
+  fi
   cat > "$PLIST_FILE" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -250,6 +311,7 @@ install_plist() {
     <string>$STATE_DIR</string>
     <string>--port</string>
     <string>$PORT</string>
+$socket_args
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -311,7 +373,14 @@ EOF
 invoke_enrollment() {
   local node="$NODE_DIR/bin/node" service_main="$APP_DIR/lib/authority/service-main.js" init uri secret code attempt key_id
   init="$staging/init.json"
-  "$node" "$service_main" init --state-dir "$STATE_DIR" --public-dir "$PUBLIC_DIR" --port "$PORT" > "$init" || fail 'service-main init failed'
+  # The pin names the socket only when --socket was given: init validates the
+  # path the same way serve does, so a pin can never name a path the server
+  # would refuse (ADR-020 section 12).
+  if [ "$USE_SOCKET" = 1 ]; then
+    "$node" "$service_main" init --state-dir "$STATE_DIR" --public-dir "$PUBLIC_DIR" --port "$PORT" --socket "$SOCKET_PATH" > "$init" || fail 'service-main init failed'
+  else
+    "$node" "$service_main" init --state-dir "$STATE_DIR" --public-dir "$PUBLIC_DIR" --port "$PORT" > "$init" || fail 'service-main init failed'
+  fi
   # The pin must be readable by every runtime user but writable only by root,
   # whatever the root umask is.
   chmod 0644 "$PIN_FILE"
@@ -359,10 +428,12 @@ test_installed() {
   fail "the service did not answer under the pinned key $key_id"
 }
 
-# macOS stat spells the same questions differently: %u for the owner and %Lp for
-# the permission bits in octal.
+# macOS stat spells the same questions differently: %u for the owner, and the
+# mode in two pieces -- %Lp is the rwx bits alone, %Mp is the setuid/setgid/sticky
+# bits. `%Lp` drops setgid, so a 2750 directory would read as 750; the two are
+# concatenated to get the whole mode the way Linux's `%a` returns it.
 owner_uid() { stat -f '%u' "$1"; }
-file_mode() { printf '%s' "$(( 8#$(stat -f '%Lp' "$1") ))"; }
+file_mode() { printf '%s' "$(( 8#$(stat -f '%Mp%Lp' "$1") ))"; }
 
 assert_protected() {
   local target
@@ -377,6 +448,30 @@ assert_protected() {
     if [ "$(owner_uid "$target")" != 0 ]; then fail "$target is not owned by root"; fi
     if [ $(( $(file_mode "$target") & 8#022 )) -ne 0 ]; then fail "$target is writable by group or other"; fi
   done
+}
+
+# The socket is only as narrow as its directory and its own mode: the directory
+# is 2750 owned by the service user and the operator group, the socket is 0660
+# and group-owned by that same group. A socket whose group is not the operator
+# group would be openable by whoever the umask left it with, so it is checked
+# against the group name, not just the bits (ADR-020 section 12).
+group_name() { stat -f '%Sg' "$1"; }
+
+assert_socket_protected() {
+  local dir_owner dir_group dir_mode sock_owner sock_group sock_mode
+  dir_owner="$(owner_uid "$RUN_DIR")"
+  dir_group="$(group_name "$RUN_DIR")"
+  dir_mode="$(file_mode "$RUN_DIR")"
+  if [ "$dir_owner" != "$(dscl . -read "/Users/$SERVICE_USER" UniqueID | awk '{print $2}')" ] || [ "$dir_group" != "$SOCKET_GROUP" ] || [ "$dir_mode" != 1512 ]; then
+    fail "$RUN_DIR must be owned by $SERVICE_USER:$SOCKET_GROUP, mode 2750"
+  fi
+  if [ ! -S "$SOCKET_PATH" ]; then fail "$SOCKET_PATH is not a socket"; fi
+  sock_owner="$(owner_uid "$SOCKET_PATH")"
+  sock_group="$(group_name "$SOCKET_PATH")"
+  sock_mode="$(file_mode "$SOCKET_PATH")"
+  if [ "$sock_owner" != "$dir_owner" ]; then fail "$SOCKET_PATH must be owned by $SERVICE_USER"; fi
+  if [ "$sock_group" != "$SOCKET_GROUP" ]; then fail "$SOCKET_PATH must be group-owned by $SOCKET_GROUP"; fi
+  if [ "$sock_mode" != 432 ]; then fail "$SOCKET_PATH must be mode 0660"; fi
 }
 
 # A failed run must leave nothing that starts at the next boot with unconfirmed
@@ -397,6 +492,7 @@ main() {
       --version) VERSION="${2:-}"; shift 2 ;;
       --node-version) NODE_VERSION="${2:-}"; shift 2 ;;
       --port) PORT="${2:-}"; shift 2 ;;
+      --socket) USE_SOCKET=1; shift ;;
       --tarball) TARBALL="${2:-}"; shift 2 ;;
       --integrity) INTEGRITY="${2:-}"; shift 2 ;;
       --enroll-code-stdin) ENROLL_FROM_STDIN=1; shift ;;
@@ -432,6 +528,12 @@ main() {
 
   ensure_service_user
   new_protected_tree
+  # The group and the socket directory exist before the daemon is written and
+  # started, because the plist names them (ADR-020 section 12).
+  if [ "$USE_SOCKET" = 1 ]; then
+    ensure_socket_group
+    ensure_run_dir
+  fi
   install_node "$staging"
   local package key_id
   package="$(get_verified_package "$staging")"
@@ -448,8 +550,14 @@ main() {
   launchctl bootstrap system "$PLIST_FILE"
   test_installed "$key_id"
   assert_protected
+  if [ "$USE_SOCKET" = 1 ]; then assert_socket_protected; fi
 
-  echo "HUQAN approval authority $VERSION installed (key $key_id, port $PORT)."
+  if [ "$USE_SOCKET" = 1 ]; then
+    echo "HUQAN approval authority $VERSION installed (key $key_id, socket $SOCKET_PATH, group $SOCKET_GROUP)."
+    echo "Only members of $SOCKET_GROUP can reach the socket; the operator was added to it."
+  else
+    echo "HUQAN approval authority $VERSION installed (key $key_id, port $PORT)."
+  fi
   echo "Decide approvals with: sudo $INSTALL_DIR/huqan-authority-decide"
   echo 'Check the runtime with: node bin/huqan-authority.js status'
 }
