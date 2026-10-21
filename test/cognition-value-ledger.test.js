@@ -128,4 +128,6 @@ test('rejects malformed inputs and bounds instead of manufacturing evidence', ()
     assert.equal(buildValueLedger(rows, options).status, 'REJECT');
   }
   assert.equal(buildValueLedger([], { ...options, workspaceId: '' }).status, 'REJECT');
+  assert.equal(buildValueLedger([], { ...options, asOf: '2026-10-22T00:00:00' }).status, 'REJECT');
+  assert.equal(buildValueLedger([event(1, 'confirmed', { at: '2026-10-21T00:00:00' })], options).status, 'REJECT');
 });
