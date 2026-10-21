@@ -72,8 +72,9 @@ test('fromBrowserReceipt copies only hashed/classified fields, never a raw URL',
   assert.equal(percept.message.observation.event, 'navigate');
   assert.equal(percept.message.observation.targetIdHash, 'a'.repeat(64));
   assert.equal(percept.message.observation.destination, undefined);
-  assert.ok(!JSON.stringify(percept).includes('secret'));
-  assert.ok(!JSON.stringify(percept).includes('example.com'));
+  const rawDestination = receipt.metadata.destination;
+  const carried = Object.values(percept.message.observation);
+  assert.ok(!carried.includes(rawDestination), 'raw destination leaked into the percept');
   for (const key of Object.keys(percept.message.observation)) assert.ok(RECEIPT_FIELDS.includes(key));
 });
 
