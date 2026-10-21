@@ -202,3 +202,45 @@ test('a stored public receipt carrying an unexpected key is refused on read', (t
 
   assert.throws(() => store.readPublicReceipt(BINDING.deliveryId), (error) => error.code === INVALID_RECEIPT);
 });
+
+// #4087 PR-4: the read-only route is handed a publicReceiptId, not the delivery
+// id a record is filed under, so the store grew a lookup by that id. The record
+// still lives at `<deliveryId>.json`; the id is matched against the record's own
+// field, never turned into a path.
+test('a public receipt is found by its publicReceiptId, not by its delivery id', (t) => {
+  const { store, receipt } = decidedStore(t);
+  const publicReceipt = publicReceiptFor(receipt.receiptHash, { publicReceiptId: '1'.repeat(64) });
+  store.commitPublicReceipt(BINDING, receipt.receiptHash, publicReceipt);
+
+  const found = store.readPublicReceiptByPublicReceiptId(publicReceipt.publicReceiptId);
+  assert.equal(found.publicReceiptId, publicReceipt.publicReceiptId);
+  assert.deepEqual(found.publicReceipt, publicReceipt);
+  assert.equal(found.binding.deliveryId, BINDING.deliveryId);
+});
+
+test('an unknown or malformed publicReceiptId reads back as null', (t) => {
+  const { store, receipt } = decidedStore(t);
+  store.commitPublicReceipt(BINDING, receipt.receiptHash, publicReceiptFor(receipt.receiptHash));
+
+  assert.equal(store.readPublicReceiptByPublicReceiptId('9'.repeat(64)), null);
+  // A path-shaped value is refused by the id pattern before any directory read,
+  // which is why it can never address a file.
+  for (const bad of ['../../etc/passwd', `${BINDING.deliveryId}.json`, 'A'.repeat(64), 'a'.repeat(63), '', null, 42]) {
+    assert.equal(store.readPublicReceiptByPublicReceiptId(bad), null, `${bad} must read back as null`);
+  }
+});
+
+test('a store holding two receipts returns each by its own id', (t) => {
+  const { store, receipt } = decidedStore(t);
+  const first = publicReceiptFor(receipt.receiptHash, { publicReceiptId: '2'.repeat(64) });
+  store.commitPublicReceipt(BINDING, receipt.receiptHash, first);
+
+  const other = { ...BINDING, deliveryId: '11111111-2222-4333-8444-555555555555', pullRequestNumber: 8 };
+  const otherReceipt = receiptFor(other);
+  store.commitEvaluation(other, otherReceipt);
+  const second = publicReceiptFor(otherReceipt.receiptHash, { publicReceiptId: '3'.repeat(64) });
+  store.commitPublicReceipt(other, otherReceipt.receiptHash, second);
+
+  assert.deepEqual(store.readPublicReceiptByPublicReceiptId(first.publicReceiptId).publicReceipt, first);
+  assert.deepEqual(store.readPublicReceiptByPublicReceiptId(second.publicReceiptId).publicReceipt, second);
+});

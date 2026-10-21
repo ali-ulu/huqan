@@ -10,6 +10,9 @@ const {
 const {
   createRepoIngestSubmitter,
 } = require('./lib/http/github-app-ingest-submitter');
+const {
+  createPublicReceiptRoute,
+} = require('./lib/http/public-receipt-route');
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = '127.0.0.1';
@@ -48,10 +51,24 @@ function createGitHubAppBetaServer({ boundary } = {}) {
     startupFail('GitHub App beta HTTP boundary is required');
   }
 
+  // #4087 PR-4: the read-only public receipt route is mounted only when the
+  // boundary can read a published receipt. A beta-only observer has nothing to
+  // serve, so the route is absent and its path stays a generic 404 rather than
+  // advertising a surface that would always answer "not found".
+  const publicReceiptRoute = typeof boundary.readPublicReceipt === 'function'
+    ? createPublicReceiptRoute({ readPublicReceipt: boundary.readPublicReceipt })
+    : null;
+
   return http.createServer(async (req, res) => {
     res.setHeader('Connection', 'close');
     try {
       const reqUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+      if (publicReceiptRoute && reqUrl.pathname.startsWith(publicReceiptRoute.prefix)) {
+        const result = await publicReceiptRoute.handle(req, reqUrl);
+        res.writeHead(result.statusCode, result.headers);
+        res.end(result.raw ? result.body : JSON.stringify(result.body));
+        return;
+      }
       if (reqUrl.pathname !== boundary.path) {
         res.writeHead(404, JSON_HEADERS);
         res.end(JSON.stringify({ ok: false, error: { code: 'NOT_FOUND' } }));

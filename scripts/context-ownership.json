@@ -4790,6 +4790,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
+  "lib/http/public-receipt-route.js": {
+   "kind": "entry",
+   "evidence": "#4087 PR-4 read-only route serving a published public trust receipt's canonical bytes; mounted from github-app-server.js, the entrypoint that holds the C8 store"
+  },
   "lib/http/read-workflow-actions.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
