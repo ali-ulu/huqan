@@ -14,6 +14,7 @@ const assert = require('node:assert/strict');
 const {
   RUNTIME_SERVICE_ACCOUNT,
   STORE_ACL_SPEC,
+  POSIX_STORE_ACL_SPEC,
   SYSTEM_SID,
   ADMINISTRATORS_SID,
   applyStoreAcl,
@@ -24,6 +25,8 @@ const {
 
 const STATE = 'C:\\ProgramData\\huqan\\state';
 const WORKSPACES = 'C:\\ProgramData\\huqan\\state\\workspaces';
+const POSIX_STATE = '/var/lib/huqan/state';
+const POSIX_WORKSPACES = '/var/lib/huqan/state/workspaces';
 
 /** A probe answer that satisfies the spec for both trees. */
 function goodEntries() {
@@ -68,10 +71,10 @@ describe('the ACL spec is one definition for both operations', () => {
 });
 
 describe('applyStoreAcl is Windows-only and breaks inheritance first', () => {
-  it('off-platform it reports not_windows and spawns nothing', () => {
+  it('on a platform with no branch it reports unsupported_platform and spawns nothing', () => {
     let spawned = false;
-    const result = applyStoreAcl({ stateDir: STATE, workspacesDir: WORKSPACES, platform: 'linux', spawn: () => { spawned = true; } });
-    assert.deepEqual(result, { applied: false, reason: 'not_windows' });
+    const result = applyStoreAcl({ stateDir: STATE, workspacesDir: WORKSPACES, platform: 'freebsd', spawn: () => { spawned = true; } });
+    assert.deepEqual(result, { applied: false, reason: 'unsupported_platform' });
     assert.equal(spawned, false);
   });
 
@@ -99,9 +102,9 @@ describe('applyStoreAcl is Windows-only and breaks inheritance first', () => {
 });
 
 describe('checkStoreAcl fails closed on every wrong shape', () => {
-  it('off-platform it does not pretend to have verified', () => {
-    const result = checkStoreAcl({ stateDir: STATE, workspacesDir: WORKSPACES, platform: 'linux' });
-    assert.deepEqual(result, { ok: false, reason: 'not_windows' });
+  it('on a platform with no branch it does not pretend to have verified', () => {
+    const result = checkStoreAcl({ stateDir: STATE, workspacesDir: WORKSPACES, platform: 'freebsd' });
+    assert.deepEqual(result, { ok: false, reason: 'unsupported_platform' });
   });
 
   it('a matching ACL passes', () => {
@@ -150,6 +153,106 @@ describe('checkStoreAcl fails closed on every wrong shape', () => {
       checkStoreAcl({ stateDir: STATE, workspacesDir: WORKSPACES, platform: 'win32', spawn: () => ({ status: 0, stdout: 'not json' }) }),
       { ok: false, reason: 'acl_unreadable' },
     );
+  });
+});
+
+describe('the POSIX branch applies and checks the store without a DACL', () => {
+  /** An injected lstat that answers a fixed uid/mode per path. */
+  function lstatOf(byPath) {
+    return (target) => {
+      const entry = byPath[target];
+      if (!entry) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      return { uid: entry.uid, mode: entry.mode, isSymbolicLink: () => entry.link === true };
+    };
+  }
+
+  it('apply sets the state root root-owned and the workspaces 0700 for the runtime', () => {
+    const chowns = [];
+    const chmods = [];
+    const result = applyStoreAcl({
+      stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998,
+      chown: (dir, uid) => { chowns.push([dir, uid]); }, chmod: (dir, mode) => { chmods.push([dir, mode]); },
+    });
+    assert.deepEqual(result, { applied: true });
+    assert.deepEqual(chowns, [[POSIX_STATE, 0], [POSIX_WORKSPACES, 998]]);
+    assert.deepEqual(chmods, [[POSIX_STATE, 0o755], [POSIX_WORKSPACES, 0o700]]);
+  });
+
+  it('apply on darwin behaves the same and reports a chown failure instead of swallowing it', () => {
+    assert.deepEqual(
+      applyStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'darwin', runtimeUid: 998, chown: () => {}, chmod: () => {} }),
+      { applied: true },
+    );
+    const failed = applyStoreAcl({
+      stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998,
+      chown: () => { throw new Error('EPERM'); }, chmod: () => {},
+    });
+    assert.deepEqual(failed, { applied: false, reason: 'acl_apply_failed' });
+  });
+
+  it('apply refuses a relative path rather than chowning the wrong tree', () => {
+    const result = applyStoreAcl({ stateDir: 'relative/state', workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, chown: () => {}, chmod: () => {} });
+    assert.deepEqual(result, { applied: false, reason: 'path_untrusted' });
+  });
+
+  it('check passes a store that matches the POSIX spec', () => {
+    const lstat = lstatOf({
+      [POSIX_STATE]: { uid: 0, mode: 0o755 },
+      [POSIX_WORKSPACES]: { uid: 998, mode: 0o700 },
+    });
+    const result = checkStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, agentUid: 1000, lstat });
+    assert.deepEqual(result, { ok: true });
+  });
+
+  it('check refuses an other-readable workspaces dir', () => {
+    const lstat = lstatOf({
+      [POSIX_STATE]: { uid: 0, mode: 0o755 },
+      [POSIX_WORKSPACES]: { uid: 998, mode: 0o755 },
+    });
+    const result = checkStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, agentUid: 1000, lstat });
+    assert.deepEqual(result, { ok: false, reason: 'store_mode_exposed' });
+  });
+
+  it('check refuses a workspaces dir owned by the agent uid', () => {
+    const lstat = lstatOf({
+      [POSIX_STATE]: { uid: 0, mode: 0o755 },
+      [POSIX_WORKSPACES]: { uid: 1000, mode: 0o700 },
+    });
+    const result = checkStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, agentUid: 1000, lstat });
+    assert.deepEqual(result, { ok: false, reason: 'store_untrusted_owner' });
+  });
+
+  it('check refuses a state root not owned by root, a group-writable root, and a symlinked target', () => {
+    const agentOwnedRoot = lstatOf({ [POSIX_STATE]: { uid: 1000, mode: 0o755 }, [POSIX_WORKSPACES]: { uid: 998, mode: 0o700 } });
+    assert.deepEqual(
+      checkStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, agentUid: 1000, lstat: agentOwnedRoot }),
+      { ok: false, reason: 'store_untrusted_owner' },
+    );
+    const groupWritableRoot = lstatOf({ [POSIX_STATE]: { uid: 0, mode: 0o775 }, [POSIX_WORKSPACES]: { uid: 998, mode: 0o700 } });
+    assert.deepEqual(
+      checkStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, agentUid: 1000, lstat: groupWritableRoot }),
+      { ok: false, reason: 'store_mode_exposed' },
+    );
+    const linked = lstatOf({ [POSIX_STATE]: { uid: 0, mode: 0o755 }, [POSIX_WORKSPACES]: { uid: 998, mode: 0o700, link: true } });
+    assert.deepEqual(
+      checkStoreAcl({ stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998, agentUid: 1000, lstat: linked }),
+      { ok: false, reason: 'store_linked' },
+    );
+  });
+
+  it('check fails closed when lstat throws anything', () => {
+    const result = checkStoreAcl({
+      stateDir: POSIX_STATE, workspacesDir: POSIX_WORKSPACES, platform: 'linux', runtimeUid: 998,
+      lstat: () => { throw new Error('EACCES'); },
+    });
+    assert.deepEqual(result, { ok: false, reason: 'acl_unreadable' });
+  });
+
+  it('the POSIX spec keeps the state root closed to group and other write and workspaces closed entirely', () => {
+    assert.equal(POSIX_STORE_ACL_SPEC.stateRoot.ownerUid, 0);
+    assert.equal(POSIX_STORE_ACL_SPEC.stateRoot.closedBits, 0o022);
+    assert.equal(POSIX_STORE_ACL_SPEC.workspaces.mode, 0o700);
+    assert.equal(POSIX_STORE_ACL_SPEC.workspaces.closedBits, 0o077);
   });
 });
 

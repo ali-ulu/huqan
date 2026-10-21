@@ -93,7 +93,7 @@ const CLASSIFIED = Object.freeze({
   }),
   'lib/authority/store-acl.js': Object.freeze({
     role: 'operator_tool',
-    why: 'the one place the protected store ACL is applied (applyStoreAcl) and read back (checkStoreAcl) for ADR-018 §3; apply runs icacls only from the elevated `huqan store migrate`, on paths it validates against a fixed drive-letter shape, and check only runs a fixed PowerShell Get-Acl probe and writes nothing. No agent input reaches either path',
+    why: 'the one place the protected store ACL is applied (applyStoreAcl) and read back (checkStoreAcl) for ADR-018 §3. On Windows apply runs icacls only from the elevated `huqan store migrate`, on paths it validates against a fixed drive-letter shape, and check only runs a fixed PowerShell Get-Acl probe. On POSIX apply chowns the root-owned state root and the runtime-owned 0700 workspaces and check reads the same uid and mode bits with lstat; both refuse a path that is not absolute. Neither branch writes anything but the store tree, and no agent input reaches either path',
   }),
   'lib/authority/store-migrate.js': Object.freeze({
     role: 'operator_tool',

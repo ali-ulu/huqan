@@ -186,6 +186,22 @@ describe('a verified migration writes the marker (ADR-018 §2)', () => {
     assert.deepEqual([result.ok, result.reason, result.detail], [false, 'ACL_APPLY_FAILED', 'acl_apply_failed']);
     assert.equal(fs.existsSync(migrationMarkerPath(workspace, stateRoot)), false);
   });
+
+  it('a platform with no ACL branch is skipped, not treated as a failure', (t) => {
+    if (!Database) return t.skip('better-sqlite3 unavailable');
+    const workspace = tempDir(t);
+    const stateRoot = tempDir(t);
+    const source = tempDir(t);
+    writeStore(source, { rows: 2 });
+    const result = migrateStore({
+      workspaceRoot: workspace,
+      sourceDir: source,
+      stateRoot,
+      isElevated: true,
+      applyAcl: () => ({ applied: false, reason: 'unsupported_platform' }),
+    });
+    assert.equal(result.ok, true, JSON.stringify(result));
+  });
 });
 
 describe('a failed verification writes NO marker (acceptance criterion)', () => {

@@ -186,10 +186,13 @@ separate piece of work (open question 5).
 - Reasons: `agent_uid_is_root`, `agent_is_operator`, `agent_uid_mismatch`,
   `agent_in_admin_group`, `store_mode_exposed`, and `unsupported_platform` for
   platforms still unsupported.
-- `store-acl.js` gains a POSIX branch: `applyStoreAcl` uses `chownSync` /
-  `chmodSync` (`huqan store migrate` already requires root,
+- `store-acl.js` gains a POSIX branch (PR-9): `applyStoreAcl` uses
+  `chownSync` / `chmodSync` (`huqan store migrate` already requires root,
   `store-migrate.js:150-169`); `checkStoreAcl` uses `lstat`. `STORE_ACL_SPEC`
-  stays the single source for apply and check (`store-acl.js:13-16`).
+  stays the single source for apply and check on Windows, and
+  `POSIX_STORE_ACL_SPEC` is its POSIX counterpart (root-owned `state/`, 0700
+  `workspaces/`), one spec read by both operations on each platform. A platform
+  with neither branch answers `unsupported_platform`.
 
 ### 9. Root and sudo edge cases (all fail closed)
 
