@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open questions 3-7 stay open, see the last section)
+- **Status:** Accepted (open questions 5, 6 and 7 stay open, see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -82,9 +82,13 @@ not used because Homebrew can hand it to the user.
 On Linux the installer downloads the node tarball from nodejs.org and verifies
 it against the GPG-signed `SHASUMS256.txt`. There is **no
 `--allow-unverified-node` path** and no use of a system node. The minimum
-version stays `>=22.13.0` (`package.json` `engines.node`). The macOS node
-verification (for example `codesign --verify`) is not decided here; it
-belongs to the macOS installer PR (open question 2b).
+version stays `>=22.13.0` (`package.json` `engines.node`).
+
+The macOS installer (PR-5) answers open question 2b the same way: it downloads
+the `darwin-<arch>` tarball from nodejs.org and verifies it against the same
+GPG-signed `SHASUMS256.txt`. `codesign --verify` is **not** used: it proves an
+Apple developer signature, not that this is the byte the release published, and
+the GPG manifest already covers both platforms.
 
 ### 3. Service hardening
 
@@ -198,6 +202,69 @@ separate piece of work (open question 5).
 | Agent uid is 0 | `same-user`, `agent_uid_is_root` |
 | Container (`/.dockerenv`, `/proc/1/cgroup`, `/run/.containerenv`) | `required_unavailable` / `container_unverified`; not supported in the MVP |
 
+### 10. CI end-to-end (PR-6)
+
+The installers cannot be exercised by the shards: they need root, a real
+service manager and a real npm tarball, and once the authority is installed an
+in-process approval is refused (ADR-016:150-153), so every later test in the
+same process would see the installed pin. The e2e therefore lives in its own
+workflow, `.github/workflows/authority-posix-e2e.yml`, on `ubuntu-latest` and
+`macos-latest`, and its test file
+(`test/authority-posix-install.e2e.test.js`) skips unless
+`HUQAN_AUTHORITY_E2E=1`. That variable is the whole gate: the shards never set
+it, and the workflow does.
+
+To install without reaching the registry, both installers accept
+`--tarball <path> --integrity <sha512-...>` (the answer to open question 4):
+the file is the one `npm pack` just produced and the integrity is its sha512,
+so the trust decision is the same check the registry path performs, only its
+source changes. `--integrity` without `--tarball` is refused rather than
+silently ignored, because an ignored flag reads as a verified install. A CI
+runner also has no controlling terminal for `/dev/tty`, so
+`--enroll-code-stdin` reads the code from stdin instead; the default path still
+prompts on the terminal.
+
+The job is **not** a required status check and does not run on a main push: it
+mutates the runner and says nothing about the ordinary build. It is thrown
+away, so no cleanup is promised beyond the uninstaller the last case runs.
+
+### 11. Reporting the boundary (PR-7)
+
+Section 9 says `os-service` is kept under passwordless sudo and the state is
+reported. The report has two surfaces and one source:
+
+- `lib/authority/authority-status.js` gains `escalation`, set on every mode
+  (`legacy`, `required_unavailable`, `service`) because it is orthogonal to
+  both the authority boundary and the agent-user boundary: a runtime can answer
+  to a pinned service and still be able to `sudo`. The probe is
+  `sudo -n true` -- non-interactive, read-only, argv fixed in source. It
+  answers `passwordless_sudo`, `none`, `unknown` or `not_applicable`, and a
+  probe that cannot run is `unknown`, never `none`: "could not tell" and "no
+  sudo" are different claims and only one is safe to make. A probe that
+  succeeds can do so through a cached credential as well as a `NOPASSWD` rule,
+  and a probe that fails can hide a narrow `NOPASSWD` rule for one other
+  command; the value is therefore named for what the probe observed, and the
+  doctor detail never claims escalation is impossible from a failed probe.
+- `huqan doctor` gains an `authority` check. It fails only where the boundary
+  is claimed and does not hold: a required authority that is unavailable, a
+  pinned service that does not answer under its own key, or an `os-service`
+  boundary the runtime user can `sudo` past. `legacy` is the documented default
+  and passes with a note, the same shape as the `egress` check. An
+  `env-override` service answers under a pin the operator supplied and claims no
+  OS boundary, so a passwordless sudo is reported there, not failed.
+
+Answering open question 3: `boundary` stays `os-service` and the escalation is
+reported alongside it. Dropping to a new boundary value would say the OS
+boundary is absent, which it is not -- the service still holds the keys and
+still answers; what is lost is the guarantee that only the operator can reach
+it. That is a property of the deployment, so it is reported as one.
+
+The new Core -> Adapters edge (`lib/cli-doctor.js` -> `lib/authority/authority-status.js`)
+is recorded in `scripts/architecture-layer-exceptions.js` with a review date
+rather than added to the baseline, because the baseline ratchet only shrinks;
+the follow-up it names is to build the checker behind the `cli.js` entrypoint
+and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
+
 ## Threat model
 
 | Scenario | Layer A | Layer B |
@@ -243,7 +310,10 @@ separate piece of work (open question 5).
   `authority-mode.js` and `operator-cli.js`; PR-3 service self-checks; PR-4
   Linux installer; PR-5 macOS installer; PR-6 `authority-posix-e2e` CI on
   `ubuntu-latest` and `macos-latest` (kept out of the shards: with the
-  authority installed in-process approvals are refused, ADR-016:150-153);
+  authority installed in-process approvals are refused, ADR-016:150-153) --
+  `.github/workflows/authority-posix-e2e.yml` plus
+  `test/authority-posix-install.e2e.test.js` and the installer flags in
+  section 10;
   PR-7 `huqan doctor` and `status` `escalation`; PR-8 docs, `THREAT_MODEL.md`,
   `SECURITY_INVARIANTS.md`. Phase 2 (Layer B): PR-9 `store-acl.js` POSIX
   branch; PR-10 `agent-user-boundary.js` POSIX; PR-11 agent-user installers.
@@ -264,10 +334,15 @@ separate piece of work (open question 5).
 Questions 1 and 2 were decided by the owner on #4082 (sections 1 and 2). The
 rest stay open and no default is assumed:
 
-2b. macOS node verification: is `codesign --verify` sufficient?
+2b. macOS node verification: **answered by PR-5** (section 2): the GPG-signed
+   `SHASUMS256.txt`, not `codesign --verify`.
 3. With passwordless sudo, does `boundary` stay `os-service` and warn, or drop
-   to a new value?
+   to a new value? **Answered by PR-7** (section 11): `boundary` stays
+   `os-service`; `escalation: 'passwordless_sudo'` is reported beside it, and
+   `doctor` fails on it.
 4. Is `--tarball <path> --integrity <sha512>` on the install script acceptable for CI?
+   **Answered by PR-6** (section 10): yes, with `--integrity` refused unless
+   `--tarball` is given, and `--enroll-code-stdin` for the terminal-less runner.
 5. Should a Unix domain socket with `0660` (flood-DoS mitigation) be its own work item?
 6. ADR-017 section 3 ("ACL'd to the operator") versus `STORE_ACL_SPEC` (no
    operator ACE): which one is right?

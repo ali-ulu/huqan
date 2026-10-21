@@ -118,7 +118,7 @@ test('doctor turns checker exceptions into bounded failures instead of aborting 
   assert.equal(result.checks.config.ok, true);
 });
 
-test('doctor text output keeps the operator-readable line-per-check shape', () => {
+test('doctor text output keeps the operator-readable shape', () => {
   const checks = {};
   for (const [key, name] of CHECK_ORDER) checks[key] = { name, ok: true, detail: key };
   const text = formatDoctorResult({ ok: true, checks });
@@ -132,6 +132,7 @@ test('doctor text output keeps the operator-readable line-per-check shape', () =
   assert.match(text, /^Security\s+OK \(security\)$/m);
   assert.match(text, /^Egress\s+OK \(egress\)$/m);
   assert.match(text, /^Server bind\s+OK \(bind\)$/m);
+  assert.match(text, /^Approval authority\s+OK \(authority\)$/m);
   assert.match(text, /^Usage\s+OK \(usage\)$/m);
 });
 

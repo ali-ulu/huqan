@@ -92,6 +92,13 @@ It never fails the verdict; its warnings are printed on the same line.
 
 `doctor` exits `0` even with the `FAIL` lines above, because both are optional.
 
+The `Approval authority` line reports which authority this runtime answers to
+(#4082, ADR-020). On a plain install it is `OK (no approval authority
+installed ...)`: `legacy` is the documented default and never fails the run. It
+reports `FAIL` only when an authority is required or pinned and does not hold --
+unavailable, not answering, or an `os-service` boundary the runtime user can
+`sudo` past.
+
 ---
 
 ## Part 4 - Install the gate
@@ -164,9 +171,10 @@ Expected: `"mode"` is no longer `"legacy"` and `"boundary"` reports the service
 boundary rather than `"same-user"`.
 
 On Linux the same boundary is installed by
-`scripts/authority/install-authority.sh` (systemd, root). On macOS there is
-**no installer yet** - `huqan-authority status` answers `"mode": "legacy",
-"boundary": "same-user"`. The remaining parity work is tracked in
+`scripts/authority/install-authority.sh` (systemd, root), and on macOS by
+`scripts/authority/install-authority-darwin.sh` (launchd, root). Both verify the
+node tarball against the GPG-signed `SHASUMS256.txt` and install only the
+bundle. The remaining parity work is tracked in
 [ADR-020](./adr/ADR-020-posix-authority-parity.md) and issue #4082.
 
 ---
