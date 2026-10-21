@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open questions 3, 5, 6 and 7 stay open, see the last section)
+- **Status:** Accepted (open questions 5, 6 and 7 stay open, see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -228,6 +228,37 @@ The job is **not** a required status check and does not run on a main push: it
 mutates the runner and says nothing about the ordinary build. It is thrown
 away, so no cleanup is promised beyond the uninstaller the last case runs.
 
+### 11. Reporting the boundary (PR-7)
+
+Section 9 says `os-service` is kept under passwordless sudo and the state is
+reported. The report has two surfaces and one source:
+
+- `lib/authority/authority-status.js` gains `escalation`, set on every mode
+  (`legacy`, `required_unavailable`, `service`) because it is orthogonal to
+  both the authority boundary and the agent-user boundary: a runtime can answer
+  to a pinned service and still be able to `sudo`. The probe is
+  `sudo -n true` -- non-interactive, read-only, argv fixed in source. It
+  answers `passwordless_sudo`, `none`, `unknown` or `not_applicable`, and a
+  probe that cannot run is `unknown`, never `none`: "could not tell" and "no
+  sudo" are different claims and only one is safe to make.
+- `huqan doctor` gains an `authority` check. It fails only where the boundary
+  is claimed and does not hold: a required authority that is unavailable, a
+  pinned service that does not answer under its own key, or an `os-service`
+  boundary the runtime user can `sudo` past. `legacy` is the documented default
+  and passes with a note, the same shape as the `egress` check.
+
+Answering open question 3: `boundary` stays `os-service` and the escalation is
+reported alongside it. Dropping to a new boundary value would say the OS
+boundary is absent, which it is not -- the service still holds the keys and
+still answers; what is lost is the guarantee that only the operator can reach
+it. That is a property of the deployment, so it is reported as one.
+
+The new Core -> Adapters edge (`lib/cli-doctor.js` -> `lib/authority/authority-status.js`)
+is recorded in `scripts/architecture-layer-exceptions.js` with a review date
+rather than added to the baseline, because the baseline ratchet only shrinks;
+the follow-up it names is to build the checker behind the `cli.js` entrypoint
+and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
+
 ## Threat model
 
 | Scenario | Layer A | Layer B |
@@ -300,7 +331,9 @@ rest stay open and no default is assumed:
 2b. macOS node verification: **answered by PR-5** (section 2): the GPG-signed
    `SHASUMS256.txt`, not `codesign --verify`.
 3. With passwordless sudo, does `boundary` stay `os-service` and warn, or drop
-   to a new value?
+   to a new value? **Answered by PR-7** (section 11): `boundary` stays
+   `os-service`; `escalation: 'passwordless_sudo'` is reported beside it, and
+   `doctor` fails on it.
 4. Is `--tarball <path> --integrity <sha512>` on the install script acceptable for CI?
    **Answered by PR-6** (section 10): yes, with `--integrity` refused unless
    `--tarball` is given, and `--enroll-code-stdin` for the terminal-less runner.
