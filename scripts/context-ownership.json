@@ -2528,6 +2528,10 @@
    "context": "Knowledge",
    "evidence": "#4062: pure COG-M8 reward signal over observed prediction outcomes and experience eligibility"
   },
+  "lib/cognition/percept-adapters.js": {
+   "context": "Knowledge",
+   "evidence": "cognitive-architecture-plan.md#5: COG-M1 pure source-to-percept mapping (Knowledge, as lib/cognition/percept.js)"
+  },
   "lib/cognition/percept.js": {
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md#5: COG-M1 shared perception shape over the K1 CognitiveMessage and reference frame (Knowledge, as lib/memory-cognitive-message.js)"
@@ -6565,9 +6569,10 @@
   "lib/browser-session-observer.js": {
    "owner": "AgentAction",
    "consumers": [
+    "Knowledge",
     "Platform"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; Knowledge consumer added by COG-M1 percept adapters (#4064), which read only the receipt kind and hashed fields"
   },
   "lib/command-parser.js": {
    "owner": "AgentAction",
