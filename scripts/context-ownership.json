@@ -2504,6 +2504,10 @@
    "context": "Observability",
    "evidence": "ownership-map-2446.md#R-OBSMISC-O"
   },
+  "lib/cognition/reward-signal.js": {
+   "context": "Knowledge",
+   "evidence": "#4062: pure COG-M8 reward signal over observed prediction outcomes and experience eligibility"
+  },
   "lib/cognition/prediction-error.js": {
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md#5: COG-M2 prediction-error signal over prediction/outcome pairs (Knowledge, as lib/prediction-outcome-pairs.js)"
