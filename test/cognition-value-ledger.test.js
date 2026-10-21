@@ -82,6 +82,9 @@ test('excludes the scored decision, future observations and backdated late arriv
   assert.equal(buildValueLedger(lateRows, historical).status, 'INSUFFICIENT');
   assert.deepEqual(buildValueLedger(lateRows, historical).entries, []);
   assert.deepEqual(buildValueLedger([...rows, event(0, 'confirmed', { availableAt: options.asOf, sourceRefs: [42], extra: true })], cutoff), baseline);
+  const ownId = buildValueLedger([event(1), event(2), event(3, 'confirmed', { decisionId: 'next' })], options);
+  assert.equal(entry(ownId).nObserved, 2);
+  assert.equal(entry(ownId).status, 'INSUFFICIENT');
 });
 
 test('compensation utility is separate from confirmed probability and censored is excluded', () => {

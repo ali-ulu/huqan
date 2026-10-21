@@ -53,6 +53,9 @@ test('scoped journal fixtures rebuild the same ledger after fresh-process reopen
   assert.equal(ledger.entries[0].value, 1);
   assert.equal(ledger.entries[0].nObserved, 3);
   assert.equal(ledger.entries[0].nIndependent, 3);
+  const scoring = readValueLedger(graph, { ...options, historyBoundary: { ...options.historyBoundary, decisionId: 'default-3' } });
+  assert.equal(scoring.entries[0].nObserved, 2);
+  assert.equal(scoring.status, 'INSUFFICIENT');
   const code = `const Graph=require('./graph'); const {readValueLedger}=require('./lib/cognition-value-ledger-pairs'); console.log(JSON.stringify(readValueLedger(new Graph({useSQLite:false,memoryPath:process.argv[1]}),JSON.parse(process.argv[2]))));`;
   const reopened = spawnSync(process.execPath, ['-e', code, memoryPath, JSON.stringify(options)], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
   assert.equal(reopened.status, 0, reopened.stderr);
