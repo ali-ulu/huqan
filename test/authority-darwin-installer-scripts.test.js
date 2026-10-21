@@ -138,8 +138,25 @@ test('--integrity without --tarball is refused rather than silently ignored', ()
 test('--enroll-code-stdin reads the code from stdin instead of the terminal', () => {
   // A CI runner has no controlling terminal, so `/dev/tty` cannot be opened.
   assert.match(install, /--enroll-code-stdin\) ENROLL_FROM_STDIN=1; shift ;;/);
-  assert.match(install, /if \[ "\$ENROLL_FROM_STDIN" = 1 \]; then\s*\n\s*read -r code \|\| code=/);
+  assert.match(install, /if \[ "\$ENROLL_FROM_STDIN" = 1 \]; then\s*\n(?:\s*#.*\n)*\s*read -r code \|\| fail 'stdin closed before an enrollment code was read'/);
   assert.match(install, /read -r code < \/dev\/tty/);
+});
+
+test('a closed stdin aborts enrollment instead of spending the attempts on empty codes', () => {
+  // EOF is an input failure, not a wrong code: looping it would record TOTP
+  // failures in totp-progress.json and change enrollment state (CodeRabbit on #4156).
+  assert.doesNotMatch(install, /read -r code \|\| code=/);
+  assert.match(install, /read -r code \|\| fail 'stdin closed before an enrollment code was read'/);
+});
+
+test('--tarball is validated before the installer changes system state', () => {
+  // A mistyped path must fail before ensure_service_user and new_protected_tree,
+  // or it leaves an account and a data tree that make the next install fail
+  // assert_fresh (CodeRabbit on #4156).
+  assert.match(install, /if \[ -n "\$TARBALL" \] && \[ ! -f "\$TARBALL" \]; then fail "--tarball is not a regular file: \$TARBALL"; fi/);
+  const checkAt = install.indexOf('--tarball is not a regular file');
+  // lastIndexOf finds the call in main(), not the earlier definition.
+  assert.ok(checkAt < install.lastIndexOf('new_protected_tree'), 'the check must precede the new_protected_tree call');
 });
 
 test('--version is exactly three numeric components, so it cannot walk the registry path', () => {

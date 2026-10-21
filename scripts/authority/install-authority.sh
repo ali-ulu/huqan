@@ -270,7 +270,10 @@ invoke_enrollment() {
   } >&2
   for attempt in 1 2 3; do
     if [ "$ENROLL_FROM_STDIN" = 1 ]; then
-      read -r code || code=
+      # EOF is an input failure, not a wrong code: looping it would spend the
+      # three attempts on empty strings and record TOTP failures in
+      # totp-progress.json, so the failed run would change enrollment state.
+      read -r code || fail 'stdin closed before an enrollment code was read'
     else
       printf 'Enter the 6-digit code your app shows now: ' >&2
       read -r code < /dev/tty
@@ -340,6 +343,10 @@ main() {
   # tarball is downloaded.
   if [ -z "$TARBALL" ] && [ -n "$INTEGRITY" ]; then fail '--integrity is only used with --tarball'; fi
   if [ -n "$TARBALL" ] && [ -z "$INTEGRITY" ]; then fail '--tarball needs --integrity sha512-<base64>'; fi
+  # The path is checked here, before require_root and new_protected_tree, so a
+  # mistyped path fails before it can leave an account and a data tree behind
+  # that make the next install fail assert_fresh.
+  if [ -n "$TARBALL" ] && [ ! -f "$TARBALL" ]; then fail "--tarball is not a regular file: $TARBALL"; fi
 
   require_root
   assert_fresh
