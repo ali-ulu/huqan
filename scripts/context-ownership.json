@@ -2420,6 +2420,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/siem/siem-event.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B1: maps an external-action admission receipt onto the canonical huqan.siem-event.v1, scrubbing it through AB9 (lib/data-egress-gate.js) on the same egress boundary as lib/external-action-egress-gates.js"
+  },
   "lib/data-residency-gate.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
