@@ -49,11 +49,18 @@ MIN_NODE=22.13.0
 NODE_VERSION=v22.23.3
 PORT=47821
 VERSION=
+# CI installs the tarball `npm pack` just produced instead of reading the
+# registry metadata, and passes its expected integrity on the command line
+# (ADR-020 open question 4). Enrollment then reads the code from stdin, because
+# a runner has no controlling terminal to type it into.
+TARBALL=
+INTEGRITY=
+ENROLL_FROM_STDIN=0
 
 fail() { echo "install-authority-darwin: $*" >&2; exit 1; }
 
 usage() {
-  echo 'usage: install-authority-darwin.sh --version <x.y.z> [--node-version v22.23.3] [--port 47821]' >&2
+  echo 'usage: install-authority-darwin.sh --version <x.y.z> [--node-version v22.23.3] [--port 47821] [--tarball <path> --integrity <sha512-...>] [--enroll-code-stdin]' >&2
 }
 
 # A tiny JSON field reader, so the installer never needs jq. The node used here
@@ -170,19 +177,33 @@ install_node() {
 
 # Download the npm tarball of $VERSION, check it against the registry's
 # dist.integrity, unpack it and print the package root.
+#
+# With --tarball the registry is not consulted at all: the file is the one the
+# caller built, and --integrity is the sha512 the caller computed from it. The
+# check is the same one the registry path performs, so the trust decision is
+# unchanged -- only its source is.
 get_verified_package() {
   local staging="$1" meta integrity tarball got
-  meta="$staging/registry.json"
-  curl -fsSL "$REGISTRY/$VERSION" -o "$meta" || fail "cannot read registry metadata for $VERSION"
-  integrity="$(json_field "$meta" dist.integrity)"
   tarball="$staging/huqan.tgz"
-  case "$integrity" in
-    sha512-*) ;;
-    *) fail "registry metadata for $VERSION carries no sha512 integrity" ;;
-  esac
-  local url
-  url="$(json_field "$meta" dist.tarball)"
-  curl -fsSL "$url" -o "$tarball"
+  if [ -n "$TARBALL" ]; then
+    case "$INTEGRITY" in
+      sha512-*) ;;
+      *) fail '--tarball needs --integrity sha512-<base64>' ;;
+    esac
+    cp "$TARBALL" "$tarball"
+    integrity="$INTEGRITY"
+  else
+    meta="$staging/registry.json"
+    curl -fsSL "$REGISTRY/$VERSION" -o "$meta" || fail "cannot read registry metadata for $VERSION"
+    integrity="$(json_field "$meta" dist.integrity)"
+    case "$integrity" in
+      sha512-*) ;;
+      *) fail "registry metadata for $VERSION carries no sha512 integrity" ;;
+    esac
+    local url
+    url="$(json_field "$meta" dist.tarball)"
+    curl -fsSL "$url" -o "$tarball"
+  fi
   # -A keeps openssl's base64 on one line; macOS base64 has no -w.
   got="sha512-$(openssl dgst -sha512 -binary "$tarball" | openssl base64 -A)"
   if [ "$got" != "$integrity" ]; then fail 'the downloaded package does not match the registry integrity'; fi
@@ -304,8 +325,15 @@ invoke_enrollment() {
     echo "  or the URI: $uri"
   } >&2
   for attempt in 1 2 3; do
-    printf 'Enter the 6-digit code your app shows now: ' >&2
-    read -r code < /dev/tty
+    if [ "$ENROLL_FROM_STDIN" = 1 ]; then
+      # EOF is an input failure, not a wrong code: looping it would spend the
+      # three attempts on empty strings and record TOTP failures in
+      # totp-progress.json, so the failed run would change enrollment state.
+      read -r code || fail 'stdin closed before an enrollment code was read'
+    else
+      printf 'Enter the 6-digit code your app shows now: ' >&2
+      read -r code < /dev/tty
+    fi
     if "$node" "$service_main" enroll-check --state-dir "$STATE_DIR" --code "$code" >/dev/null 2>&1; then
       chown -R "$SERVICE_USER:$SERVICE_USER" "$STATE_DIR"
       printf '%s' "$key_id"
@@ -369,6 +397,9 @@ main() {
       --version) VERSION="${2:-}"; shift 2 ;;
       --node-version) NODE_VERSION="${2:-}"; shift 2 ;;
       --port) PORT="${2:-}"; shift 2 ;;
+      --tarball) TARBALL="${2:-}"; shift 2 ;;
+      --integrity) INTEGRITY="${2:-}"; shift 2 ;;
+      --enroll-code-stdin) ENROLL_FROM_STDIN=1; shift ;;
       -h|--help) usage; exit 0 ;;
       *) fail "unknown argument: $1" ;;
     esac
@@ -378,6 +409,16 @@ main() {
   case "$PORT" in
     ''|*[!0-9]*) fail '--port must be a number' ;;
   esac
+  # --integrity without --tarball would be silently ignored, which reads as a
+  # verified install; refuse instead. The pairing is checked here, not inside
+  # get_verified_package, so a mistyped invocation fails before the node
+  # tarball is downloaded.
+  if [ -z "$TARBALL" ] && [ -n "$INTEGRITY" ]; then fail '--integrity is only used with --tarball'; fi
+  if [ -n "$TARBALL" ] && [ -z "$INTEGRITY" ]; then fail '--tarball needs --integrity sha512-<base64>'; fi
+  # The path is checked here, before require_root and new_protected_tree, so a
+  # mistyped path fails before it can leave an account and a data tree behind
+  # that make the next install fail assert_fresh.
+  if [ -n "$TARBALL" ] && [ ! -f "$TARBALL" ]; then fail "--tarball is not a regular file: $TARBALL"; fi
 
   require_root
   assert_fresh

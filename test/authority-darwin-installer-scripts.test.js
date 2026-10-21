@@ -117,6 +117,48 @@ test('the package is checked against the registry integrity before it is unpacke
   assert.match(install, /if \[ "\$got" != "\$integrity" \]; then fail 'the downloaded package does not match the registry integrity'/);
 });
 
+test('--tarball installs a locally built package and checks it against --integrity', () => {
+  // CI runs `npm pack` and installs that file; the trust decision is the same
+  // sha512 check, only its source changes (ADR-020 open question 4).
+  assert.match(install, /if \[ -n "\$TARBALL" \]; then/);
+  assert.match(install, /case "\$INTEGRITY" in\s*\n\s*sha512-\*\)/);
+  assert.match(install, /cp "\$TARBALL" "\$tarball"/);
+  assert.match(install, /integrity="\$INTEGRITY"/);
+  assert.match(install, /--tarball needs --integrity sha512-<base64>/);
+  // macOS has no base64 -w0; the digest stays on one line through -A.
+  assert.match(install, /openssl base64 -A/);
+});
+
+test('--integrity without --tarball is refused rather than silently ignored', () => {
+  assert.match(install, /if \[ -z "\$TARBALL" \] && \[ -n "\$INTEGRITY" \]; then fail '--integrity is only used with --tarball'; fi/);
+  // A --tarball with no integrity would otherwise read as a verified install.
+  assert.match(install, /if \[ -n "\$TARBALL" \] && \[ -z "\$INTEGRITY" \]; then fail '--tarball needs --integrity sha512-<base64>'; fi/);
+});
+
+test('--enroll-code-stdin reads the code from stdin instead of the terminal', () => {
+  // A CI runner has no controlling terminal, so `/dev/tty` cannot be opened.
+  assert.match(install, /--enroll-code-stdin\) ENROLL_FROM_STDIN=1; shift ;;/);
+  assert.match(install, /if \[ "\$ENROLL_FROM_STDIN" = 1 \]; then\s*\n(?:\s*#.*\n)*\s*read -r code \|\| fail 'stdin closed before an enrollment code was read'/);
+  assert.match(install, /read -r code < \/dev\/tty/);
+});
+
+test('a closed stdin aborts enrollment instead of spending the attempts on empty codes', () => {
+  // EOF is an input failure, not a wrong code: looping it would record TOTP
+  // failures in totp-progress.json and change enrollment state (CodeRabbit on #4156).
+  assert.doesNotMatch(install, /read -r code \|\| code=/);
+  assert.match(install, /read -r code \|\| fail 'stdin closed before an enrollment code was read'/);
+});
+
+test('--tarball is validated before the installer changes system state', () => {
+  // A mistyped path must fail before ensure_service_user and new_protected_tree,
+  // or it leaves an account and a data tree that make the next install fail
+  // assert_fresh (CodeRabbit on #4156).
+  assert.match(install, /if \[ -n "\$TARBALL" \] && \[ ! -f "\$TARBALL" \]; then fail "--tarball is not a regular file: \$TARBALL"; fi/);
+  const checkAt = install.indexOf('--tarball is not a regular file');
+  // lastIndexOf finds the call in main(), not the earlier definition.
+  assert.ok(checkAt < install.lastIndexOf('new_protected_tree'), 'the check must precede the new_protected_tree call');
+});
+
 test('--version is exactly three numeric components, so it cannot walk the registry path', () => {
   assert.match(install, /validate_version\(\)/);
   assert.match(install, /IFS=\. read -r major minor patch extra <<< "\$1"/);

@@ -71,6 +71,10 @@ const CLASSIFIED = Object.freeze({
     role: 'enforcement',
     why: 'the runtime asking the approval authority for a decision is the admission path itself; it connects only to 127.0.0.1 on the port the admin-only pin names and accepts only answers signed by the pinned key, so gating it would be circular',
   }),
+  'lib/authority/authority-status.js': Object.freeze({
+    role: 'operator_tool',
+    why: '`huqan-authority status` and the doctor\'s authority finding probe the runtime user\'s own privilege with a fixed, non-interactive `sudo -n true`; the argv is fixed in source, the probe writes nothing and reads nothing, and it runs only when a human asks for status, so there is no agent action to admit',
+  }),
   'lib/mcp/rekor-anchor-client.js': Object.freeze({
     role: 'evidence',
     why: 'the external witness of the approval authority ledger (#3940): it posts only a signed sha256 digest of the ledger head with the anchor public key to the fixed rekor.sigstore.dev endpoint, and reads back entries under that key, accepting only those signed by the Rekor key pinned in source. No ledger content, approval or workspace leaves the machine, and the endpoint is not taken from input',

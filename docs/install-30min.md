@@ -87,6 +87,13 @@ Expected: most lines `OK`. Two `FAIL` lines are normal on a plain install:
 
 `doctor` exits `0` even with those `FAIL` lines, because both are optional.
 
+The `Approval authority` line reports which authority this runtime answers to
+(#4082, ADR-020). On a plain install it is `OK (no approval authority
+installed ...)`: `legacy` is the documented default and never fails the run. It
+reports `FAIL` only when an authority is required or pinned and does not hold --
+unavailable, not answering, or an `os-service` boundary the runtime user can
+`sudo` past.
+
 ---
 
 ## Part 4 - Install the gate

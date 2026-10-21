@@ -64,7 +64,7 @@ const RULES = [
     // #3892: the gate hook's activation check reads the authority over its socket.
     // #3948: `status` reports which authority answers and whether agents are split
     // off; it reaches the service through authority-client, so it sits with it.
-    files: ['lib/authority/authority-client.js', 'lib/authority/authority-status.js', 'lib/authority/autonomy-activation.js', 'lib/authority/consume-key.js', 'lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
+    files: ['lib/cognition-prediction-error-pairs.js', 'lib/authority/authority-client.js', 'lib/authority/authority-status.js', 'lib/authority/autonomy-activation.js', 'lib/authority/consume-key.js', 'lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
       'storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js', 'sandboxRunner-child.js', 'sandboxRunner-context.js', 'sandboxRunner-limits.js'],
     dirs: ['adapters/', 'packages/', 'lib/storage/', 'lib/connectors/', 'lib/interop/', 'lib/llm-proxy/'],
     pattern: /^lib\/(memory|sqlite)-/,

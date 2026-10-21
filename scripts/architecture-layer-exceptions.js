@@ -134,6 +134,20 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' which keeps the C8 loop free of the public format entirely.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/cli-doctor.js',
+    to: 'lib/authority/authority-status.js',
+    why: 'The doctor reports which approval authority this runtime answers to (#4082, ADR-020'
+      + ' section 9). Resolving that needs the authority HTTP client to ask the pinned service'
+      + ' whether it answers, so the report lives with authority-status.js in Adapters while the'
+      + ' doctor command lives in Core -- the same Core -> Adapters shape as the four cli-doctor'
+      + ' edges already in the recorded baseline (sqlite-availability, storage/schema,'
+      + ' persistencePaths, rustGraph), which a new edge may not join because the ratchet only'
+      + ' shrinks. The follow-up fix is the shape the exceptions above name: build the authority'
+      + ' checker behind the cli.js entrypoint and pass it into runDoctorCommand as an injected'
+      + ' checker, leaving cli-doctor.js free of the client.',
+    review_by: '2026-12-31',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {

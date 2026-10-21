@@ -1,0 +1,70 @@
+name: Authority POSIX install e2e
+
+# The real install of the POSIX approval authority (ADR-020 sections 1-3,
+# #4082 PR-6). Every other POSIX check reads the installers' text or drives the
+# runtime in-process; this one runs root, a real service manager and a real npm
+# tarball, on an ephemeral runner that is thrown away afterwards.
+#
+# Pull-request only, on purpose. The job mutates the runner (installs a system
+# service, creates a system user, writes /opt and /var/lib or /Library) and
+# ADR-020 risk 4 says the e2e must not run in the shards; running it on every
+# main push would also make Main CI Watch wait on a job that says nothing about
+# the ordinary build. It is not a required status check, so a pull request
+# still merges on the gates that are.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authority-posix-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-e2e:
+    name: Install e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    env:
+      HUQAN_AUTHORITY_E2E: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      # The installer verifies node against the GPG-signed SHASUMS256.txt, so
+      # gnupg and curl have to be present before it runs. Both are on the
+      # ubuntu and macos images already; this makes the requirement explicit
+      # rather than incidental.
+      - name: Check the installer's own prerequisites
+        run: |
+          set -euo pipefail
+          for tool in bash curl gpg openssl tar; do
+            command -v "$tool" >/dev/null || { echo "missing $tool" >&2; exit 1; }
+          done
+
+      # `sudo` on the hosted runners is passwordless, which is what the
+      # installer's root check needs. The test file packs the tarball itself
+      # (`npm pack`), passes its sha512 as --integrity and answers enrollment
+      # from stdin, so no registry access is needed at install time.
+      - name: Run the POSIX install e2e
+        run: node --test test/authority-posix-install.e2e.test.js
