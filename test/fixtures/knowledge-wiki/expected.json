@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "huqan-knowledge-wiki-fixture-v1",
+  "issue": 4144,
+  "note": "The expected finding for each case id in cases.json. A finding is a report, never a mutation: none of these authorize a canonical write, an auto-reconcile or an auto-promotion.",
+  "expected": {
+    "idempotent-reingest": {
+      "finding": "no_duplicate",
+      "mutation": false,
+      "authoritative": false
+    },
+    "source-drift": {
+      "finding": "source_drift",
+      "mutation": false,
+      "authoritative": false
+    },
+    "conflict": {
+      "finding": "conflict",
+      "mutation": false,
+      "canonicalPromotion": false,
+      "authoritative": false
+    },
+    "missing-provenance": {
+      "finding": "missing_provenance",
+      "mutation": false,
+      "authoritative": false
+    },
+    "orphan-page": {
+      "finding": "orphan_page",
+      "mutation": false,
+      "authoritative": false
+    },
+    "lint-read-only": {
+      "finding": "read_only",
+      "mutation": false,
+      "stateChanged": false,
+      "authoritative": false
+    },
+    "restart-idempotency": {
+      "finding": "identical_result",
+      "mutation": false,
+      "authoritative": false
+    }
+  }
+}

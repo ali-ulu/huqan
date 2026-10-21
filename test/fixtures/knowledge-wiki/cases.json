@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "huqan-knowledge-wiki-fixture-v1",
+  "issue": 4144,
+  "note": "Data only. These cases describe a derived, read-only knowledge view over existing records; they define no store and no write path. Every hash here is synthetic and is drift detection, not tamper evidence.",
+  "cases": [
+    {
+      "id": "idempotent-reingest",
+      "condition": "idempotent_reingest",
+      "description": "The same content is ingested twice with the same sourceRef, sourceVersion and contentHash.",
+      "inputs": {
+        "ingestCount": 2,
+        "sourceRef": "https://example.invalid/doc/a",
+        "sourceVersion": "rev-1",
+        "contentHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "contentHashVerified": false
+      }
+    },
+    {
+      "id": "source-drift",
+      "condition": "source_drift",
+      "description": "The content behind an unchanged sourceRef differs from the text hashed at ingest.",
+      "inputs": {
+        "sourceRef": "https://example.invalid/doc/b",
+        "ingestedVersion": "rev-1",
+        "ingestedContentHash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "rereadContentHash": "3333333333333333333333333333333333333333333333333333333333333333"
+      }
+    },
+    {
+      "id": "conflict",
+      "condition": "conflict",
+      "description": "A new source states the opposite of an existing canonical claim.",
+      "inputs": {
+        "canonicalClaim": { "subject": "hiz", "relation": "esittir", "object": "sabit", "status": "canonical" },
+        "candidateClaim": { "subject": "hiz", "relation": "degil_esittir", "object": "sabit", "status": "candidate" }
+      }
+    },
+    {
+      "id": "missing-provenance",
+      "condition": "missing_provenance",
+      "description": "A claim carries no sourceRef and no verified source link.",
+      "inputs": {
+        "sourceRef": "",
+        "sourceVersion": "",
+        "contentHash": "",
+        "contentHashVerified": false
+      }
+    },
+    {
+      "id": "orphan-page",
+      "condition": "orphan_page",
+      "description": "A derived page has no inbound link from the index or any other page.",
+      "inputs": {
+        "page": "topics/yetim",
+        "inboundLinks": 0,
+        "indexed": false
+      }
+    },
+    {
+      "id": "lint-read-only",
+      "condition": "lint_read_only",
+      "description": "Lint runs over a fixed state and must leave canonical memory, graph and policy unchanged.",
+      "inputs": {
+        "beforeStateDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+        "surfaces": ["canonicalMemory", "graph", "policy"]
+      }
+    },
+    {
+      "id": "restart-idempotency",
+      "condition": "restart_idempotency",
+      "description": "Re-running ingest and lint after a restart on the same source versions gives the same result.",
+      "inputs": {
+        "firstRunDigest": "5555555555555555555555555555555555555555555555555555555555555555",
+        "sourceVersions": ["rev-1", "rev-1"]
+      }
+    }
+  ]
+}
