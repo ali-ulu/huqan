@@ -118,18 +118,21 @@ test('doctor turns checker exceptions into bounded failures instead of aborting 
   assert.equal(result.checks.config.ok, true);
 });
 
-test('doctor text output keeps the operator-readable ten-line shape', () => {
+test('doctor text output keeps the operator-readable line-per-check shape', () => {
   const checks = {};
   for (const [key, name] of CHECK_ORDER) checks[key] = { name, ok: true, detail: key };
   const text = formatDoctorResult({ ok: true, checks });
 
-  assert.equal(text.split('\n').length, 10);
+  // One line per check, in CHECK_ORDER order — the count is derived so adding
+  // a check (Usage, #4135) updates the pin instead of silently breaking it.
+  assert.equal(text.split('\n').length, CHECK_ORDER.length);
   assert.match(text, /^SQLite\s+OK \(sqlite\)$/m);
   assert.match(text, /^Rust accelerator\s+OK \(rust\)$/m);
   assert.match(text, /^Config\s+OK \(config\)$/m);
   assert.match(text, /^Security\s+OK \(security\)$/m);
   assert.match(text, /^Egress\s+OK \(egress\)$/m);
   assert.match(text, /^Server bind\s+OK \(bind\)$/m);
+  assert.match(text, /^Usage\s+OK \(usage\)$/m);
 });
 
 test('CLI doctor --json emits raw doctor JSON and exits 1 on any failed check', async () => {

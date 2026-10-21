@@ -1,0 +1,167 @@
+﻿'use strict';
+
+/**
+ * #4135 â€” the Usage doctor check: local usage and approval-fatigue signal.
+ *
+ * These tests are fully offline and dependency-injected: no SQLite backend and
+ * no real filesystem state is required, which is also how the check shows it
+ * makes no network call â€” everything it reads arrives through local readers.
+ */
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+  checkUsage,
+  summarizeGateEvents,
+  USAGE_WINDOW_DAYS,
+  RAPID_APPROVAL_MS,
+  RAPID_APPROVAL_RATIO_WARN,
+  MIN_DECIDED_FOR_RATIO_WARN,
+} = require('../lib/cli-doctor-usage');
+
+const NOW = Date.parse('2026-10-21T12:00:00Z');
+const iso = (msAgo) => new Date(NOW - msAgo).toISOString();
+
+function admissionReceipt({ decision = 'allow', agentType = 'codex', ageMs = 0 }) {
+  const kind = decision === 'allow'
+    ? 'external_action_admission_receipt'
+    : decision === 'review'
+      ? 'external_action_review_receipt'
+      : 'external_action_rejection_receipt';
+  return {
+    receiptKind: kind,
+    decision,
+    createdAt: iso(ageMs),
+    metadata: { host: { agentType }, agentName: 'test-agent' },
+  };
+}
+
+function approvalRow({ createdMsAgo, decidedMsAgo = null }) {
+  return {
+    created_at: NOW - createdMsAgo,
+    decided_at: decidedMsAgo === null ? 0 : NOW - decidedMsAgo,
+    status: decidedMsAgo === null ? 'pending' : 'decided',
+    decision: decidedMsAgo === null ? '' : 'approved',
+  };
+}
+
+test('usage thresholds are named exported constants (#4135)', () => {
+  assert.equal(USAGE_WINDOW_DAYS, 7);
+  assert.equal(typeof RAPID_APPROVAL_MS, 'number');
+  assert.ok(RAPID_APPROVAL_RATIO_WARN > 0 && RAPID_APPROVAL_RATIO_WARN < 1);
+  assert.ok(MIN_DECIDED_FOR_RATIO_WARN >= 1);
+});
+
+test('gate events are counted with decision and host-reported identity split (#4135)', () => {
+  const gate = summarizeGateEvents({
+    now: NOW,
+    receipts: [
+      admissionReceipt({ decision: 'allow', agentType: 'codex' }),
+      admissionReceipt({ decision: 'allow', agentType: 'codex', ageMs: 1000 }),
+      admissionReceipt({ decision: 'review', agentType: 'claude-code' }),
+      admissionReceipt({ decision: 'blocked', agentType: 'codex', ageMs: 8 * 24 * 60 * 60 * 1000 }),
+      { receiptKind: 'external_action_outcome_receipt', createdAt: iso(0) },
+    ],
+  });
+
+  assert.equal(gate.total, 3);
+  assert.deepEqual(gate.byDecision, { allow: 2, review: 1, blocked: 0 });
+  assert.deepEqual(gate.byProfile, { codex: 2, 'claude-code': 1 });
+});
+
+test('a gate with no trail warns that nothing is governed yet (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW, receiptPath: 'Z:/definitely-not-here/external-action-receipts.jsonl' },
+    { readApprovals: () => [] },
+  );
+
+  assert.equal(result.ok, true, 'usage is advisory and never fails the doctor');
+  assert.equal(result.usage.gate.total, 0);
+  assert.ok(
+    result.warnings.some((warning) => /no agent has called it yet/.test(warning)),
+    `expected the unwired-gate warning, got: ${JSON.stringify(result.warnings)}`,
+  );
+});
+
+test('an existing but silent trail warns that the installed gate is unused (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    { readReceipts: () => ({ receipts: [], trailExists: true }), readApprovals: () => [] },
+  );
+
+  assert.ok(
+    result.warnings.some((warning) => /no gate event was recorded/.test(warning)),
+  );
+});
+
+test('approval latency and rapid-approve ratio are derived from existing rows (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [], trailExists: true }),
+      
+      readApprovals: () => [
+        approvalRow({ createdMsAgo: 60000, decidedMsAgo: 58001 }),
+        approvalRow({ createdMsAgo: 120000, decidedMsAgo: 118001 }),
+        approvalRow({ createdMsAgo: 10 * 60 * 1000, decidedMsAgo: 8 * 60 * 1000 }),
+        approvalRow({ createdMsAgo: 60 * 60 * 1000 }),
+      ],
+    },
+  );
+
+  assert.equal(result.usage.approvals.decided, 3);
+  assert.equal(result.usage.approvals.pending, 1);
+  assert.equal(result.usage.approvals.rapid, 2);
+  assert.ok(Math.abs(result.usage.approvals.rapidRatio - 2 / 3) < 1e-9);
+  assert.equal(result.usage.approvals.medianLatencyMs, 1999);
+});
+
+test('a mostly-instant decision history raises the fatigue warning with a suggestion (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [], trailExists: true }),
+     
+      readApprovals: () => Array.from({ length: 6 }, (_, index) => approvalRow({
+        createdMsAgo: (index + 1) * 60 * 1000,
+        decidedMsAgo: (index + 1) * 60 * 1000 - 500,
+      })),
+    },
+  );
+
+  assert.equal(result.usage.approvals.rapid, 6);
+  const fatigue = result.warnings.find((warning) => /Approval fatigue/.test(warning));
+  assert.ok(fatigue, 'the fatigue warning must fire');
+  assert.match(fatigue, /#4102/, 'the warning must point at the policy-template remedy');
+});
+
+test('a read-decision history does not raise the fatigue warning (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [], trailExists: true }),
+     
+      readApprovals: () => [
+        approvalRow({ createdMsAgo: 60 * 1000, decidedMsAgo: 30000 }),
+        approvalRow({ createdMsAgo: 120 * 1000, decidedMsAgo: 60000 }),
+      ],
+    },
+  );
+
+  assert.ok(!result.warnings.some((warning) => /Approval fatigue/.test(warning)));
+});
+
+test('the check makes no network call: it runs with only local readers injected (#4135)', () => {
+  // If this check ever grew a network dependency it would need a transport in
+  // deps; running it with none and getting a full report is the pin.
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [admissionReceipt({ decision: 'allow' })], trailExists: true }),
+      readApprovals: () => [],
+    },
+  );
+  assert.equal(result.ok, true);
+  assert.match(result.detail, /1 gate events in 7d/);
+});
