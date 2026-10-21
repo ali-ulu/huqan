@@ -71,6 +71,9 @@ const ALLOWED = Object.freeze({
   'docs/adr/ADR-020-posix-authority-parity.md': {
     'public/authority.json': 'a path relative to the install data root the installer creates on the target machine, not a repo file',
   },
+  'docs/authority-install-posix.md': {
+    'public/authority.json': 'a path relative to the install data root the installer creates on the target machine, not a repo file',
+  },
   'benchmarks/WATCH.md': {
     'benchmarks/memory-snapshot.json': 'the output path the documented command writes, not a file the repo ships',
   },
