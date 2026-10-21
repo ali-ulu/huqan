@@ -165,7 +165,7 @@ same vocabulary is used on Windows.
 | `install_path_linked` | a component of the install path is a symlink | remove the link; install on a real path |
 | `install_path_untrusted` | a component is not root-owned, or is group/other-writable | `chown root` and `chmod go-w` the path |
 | `state_dir_exposed` | the state directory is not 0700 or not owned by the service user | fix ownership and mode on `state/` |
-| `container_unverified` | a container was detected | not supported in the MVP |
+| `container_unverified` | reserved: a container was detected | **not implemented at this revision.** No probe produces this reason; a container with a trusted pin still resolves `service` today. The model is fixed in [ADR-021](adr/ADR-021-container-support-model.md); the fail-closed rule there is the first implementation step. Until then this row is a placeholder, not a behaviour |
 
 A pin on a path with a symlink, a non-root owner, group/other write bits, or a
 macOS extended ACL resolves to `required_unavailable`, never to `legacy`. The

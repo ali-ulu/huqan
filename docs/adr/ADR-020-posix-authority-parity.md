@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open questions 5 and 7 stay open, see the last section)
+- **Status:** Accepted (open question 5 stays open, see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -212,7 +212,7 @@ separate piece of work (open question 5).
 | Service started as root | `serve` refuses |
 | Runtime user has passwordless sudo | `os-service` is kept; `status` and `doctor` report `escalation: 'passwordless_sudo'` (open question 3) |
 | Agent uid is 0 | `same-user`, `agent_uid_is_root` |
-| Container (`/.dockerenv`, `/proc/1/cgroup`, `/run/.containerenv`) | `required_unavailable` / `container_unverified`; not supported in the MVP |
+| Container (`/.dockerenv`, `/proc/1/cgroup`, `/run/.containerenv`) | not detected and not supported in the MVP; a container with a trusted pin still resolves `service` today. The model is fixed in [ADR-021](ADR-021-container-support-model.md), which records that the probe this row used to promise (`container_unverified`) was never implemented |
 
 ### 10. CI end-to-end (PR-6)
 
@@ -285,7 +285,7 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
 | Agent is a separate user | all of A | store and runtime files are not writable by file permissions; risk 1 closes at file level |
 | Agent has passwordless sudo or is root | **no guarantee** (counterpart of ADR-016 risk 3) | no guarantee |
 | Same-uid keylogger or X11 capture of the sudo password | no guarantee; warned | narrowed by a separate session |
-| Container | not supported in the MVP | not supported |
+| Container | not supported in the MVP (model fixed in [ADR-021](ADR-021-container-support-model.md)) | not supported |
 | macOS SIP / TCC | the design does not rely on them; extra layer only | same |
 | Enrollment: TOTP seed read off the screen | enroll with agents stopped (ADR-016 risk 4) | closed by a separate session |
 | Injection into the operator terminal (TIOCSTI, ptrace) | the decision window is `sudo .../huqan-authority-decide`; Linux >= 6.2 disables TIOCSTI by default and Yama `ptrace_scope` should be >= 1 (ASSUMED); ADR-016 risk 2 stays partly open | closed by a separate session |
@@ -307,6 +307,13 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
 - ADR-017 residual risk 2 is answered: Linux and macOS get a service-user
   boundary (Layer A) first and the separate-agent-user boundary (Layer B)
   second. ADR-017 gains a one-line cross-reference to this ADR.
+- Open question 7 is answered in writing by
+  [ADR-021](ADR-021-container-support-model.md): the model is fixed (the service
+  stays on the host; a container replaces the Layer B user and reaches the
+  service only through the signed channel), with no date. ADR-021 also records
+  that the `container_unverified` probe §9 used to promise was never
+  implemented, and that a container with a trusted pin still resolves `service`
+  today -- the gap the fail-closed rule there closes first.
 - Windows behaviour and tests do not change. The `not_windows` expectations in
   `test/store-acl.test.js:71-74,102-104` and `test/agent-user-boundary.test.js:131-140`
   are rewritten when the matching POSIX branches land (**done**: PR-9 moved the
@@ -358,7 +365,8 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
 
 Questions 1 and 2 were decided by the owner on #4082 (sections 1 and 2);
 questions 2b, 3 and 4 were answered by PR-5, PR-7 and PR-6 as noted below.
-Questions 5 and 7 stay open and no default is assumed:
+Question 7 is answered in writing by [ADR-021](ADR-021-container-support-model.md)
+(model fixed 2026-10-21, no date). Question 5 stays open and no default is assumed:
 
 2b. macOS node verification: **answered by PR-5** (section 2): the GPG-signed
    `SHASUMS256.txt`, not `codesign --verify`.
@@ -384,4 +392,7 @@ Questions 5 and 7 stay open and no default is assumed:
 7. When, and under which model, is container support added?
    **Model fixed 2026-10-21; no date.** The authority service stays on the host;
    a container replaces the Layer B agent user and reaches the service only
-   through the existing HTTP + signature model. Tracked as #4171.
+   through the existing HTTP + signature model. Written up as
+   [ADR-021](ADR-021-container-support-model.md), which also records that the
+   `container_unverified` probe this section's §9 table used to promise was
+   never implemented. Tracked as #4171.

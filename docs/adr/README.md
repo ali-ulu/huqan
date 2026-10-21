@@ -25,3 +25,10 @@ taken in #3490 (PR #3604).
 `ADR-020-posix-authority-parity.md` records the Linux and macOS approval-authority
 layout, hardening and threat model (#4082). It takes number 020 because ADR-019 was
 already used by the control-room operator grant.
+
+`ADR-021-container-support-model.md` records the model for how a container reaches
+the approval authority (#4171, #4082 open question 7): the service stays on the
+host, a container replaces the Layer B agent user and reaches the service only
+through the signed HTTP channel. It is a model only, with no date, and it records
+that the `container_unverified` probe the install documentation used to promise
+was never implemented.

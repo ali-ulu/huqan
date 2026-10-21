@@ -4,7 +4,7 @@
 - **Date:** 2026-10-16
 - **Deciders:** repository owner
 - **Supersedes:** —
-- **Cross-references:** #3948 (this decision), #3860 (epic), [ADR-016 approval authority behind an OS boundary](ADR-016-approval-authority-os-boundary.md), [ADR-008 trust-root boundaries](ADR-008-trust-root-boundaries.md), [ADR-0007 MCP security boundary](0007-mcp-security-boundary.md)
+- **Cross-references:** #3948 (this decision), #3860 (epic), [ADR-016 approval authority behind an OS boundary](ADR-016-approval-authority-os-boundary.md), [ADR-008 trust-root boundaries](ADR-008-trust-root-boundaries.md), [ADR-020 POSIX parity for the approval authority](ADR-020-posix-authority-parity.md), [ADR-021 container support model](ADR-021-container-support-model.md), [ADR-0007 MCP security boundary](0007-mcp-security-boundary.md)
 - **Scope:** agent execution identity, workspace sharing, the memory store location, shared MCP servers. No runtime code changes are authorised by this document.
 
 ## Context
@@ -179,6 +179,12 @@ meaningless for that server.
 4. **Operator convenience.** Fast user switching between sessions is a real
    ergonomic cost. The decision accepts it because the alternative is that
    risks 2 and 4 stay open.
+5. **Container, VM and remote-host callers.** Layer B names a separate host
+   user as the isolation. A container is a different isolation of the same
+   shape: the agent runs isolated, but the host's user split does not describe
+   its boundary. The model for how a container reaches the authority is fixed
+   in [ADR-021](ADR-021-container-support-model.md) (#4171), which also records
+   that no container probe exists in the tree yet.
 
 ## Open questions (owner decision)
 
