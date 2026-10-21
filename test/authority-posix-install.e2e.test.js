@@ -293,16 +293,19 @@ test('--socket installs a 0660 socket the operator group alone can open', { skip
     // the runner would only pass by the accident of Linux's stale group list.
     // `nobody` is a real outsider on both platforms, and a raw connect as it is
     // the boundary itself: the kernel refuses before any HTTP is exchanged.
-    // The probe is inline so no file has to be world-readable, and the assertion
-    // reads the probe's own marker on stdout -- a "cannot execute node" error
-    // would also say EACCES, so the marker, not any EACCES, is what must appear.
+    // The interpreter is the installed node, which is world-executable by design;
+    // the CI runner's own node lives under a 0700 home and cannot be executed as
+    // nobody, which would fail as EACCES for the wrong reason. The probe is
+    // inline so no file has to be world-readable, and the assertion reads the
+    // probe's own marker, so a failed exec cannot be mistaken for the refusal.
+    const probeNode = path.posix.join(LAYOUT.installDir, 'node', 'bin', 'node');
     const probe = [
       "const net=require('node:net');",
       `const s=net.connect(${JSON.stringify(SOCKET_PATH)});`,
       "s.on('connect',()=>{console.log('CONNECTED');process.exit(0)});",
       "s.on('error',e=>{console.log('ERR '+e.code);process.exit(3)});",
     ].join('');
-    const outsider = spawnSync('sudo', ['-n', '-u', 'nobody', process.execPath, '-e', probe], { encoding: 'utf8' });
+    const outsider = spawnSync('sudo', ['-n', '-u', 'nobody', probeNode, '-e', probe], { encoding: 'utf8' });
     assert.match(outsider.stdout, /^ERR (EACCES|EPERM)$/m, `a non-member reached the socket: ${outsider.stdout}${outsider.stderr}`);
   } finally {
     sudo(['bash', UNINSTALL]);
