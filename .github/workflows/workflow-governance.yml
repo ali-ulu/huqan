@@ -59,6 +59,23 @@ jobs:
             > commits.json
           node scripts/check-pr-signatures.js commits.json "${PR_COMMIT_COUNT}"
 
+      # AGENTS.md section 10 bans an agent name in a commit identity or a
+      # co-author trailer, but nothing read the rule: PR #4157 landed every
+      # commit authored and committed by `Claude <noreply@anthropic.com>`, and a
+      # squash carried the trailer into `main`. The commit list is fetched again
+      # here rather than reused from the step above, so the two checks do not
+      # depend on each other's working directory.
+      - name: Check AI attribution
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100" --paginate --slurp \
+            > commits.json
+          node scripts/check-ai-attribution.js commits.json
+
       # #4006: a defect fix must point at the regression test that pins the
       # failure mode, or carry a documented waiver. The issue-numbered test
       # convention existed but nothing enforced the link, so a `fix(...)` change
