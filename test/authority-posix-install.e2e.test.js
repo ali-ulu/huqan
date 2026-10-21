@@ -252,14 +252,20 @@ test('--socket installs a 0660 socket the operator group alone can open', { skip
     // The directory is 2750 owned by the service user and the operator group,
     // the socket is 0660 and group-owned by that same group. Read through sudo:
     // the runner cannot stat inside a 2750 directory it is not a member of.
-    // macOS stat has no -c and spells the mode as %Mp%Lp (%Lp alone drops setgid).
+    // macOS stat has no -c and spells the mode as %Mp%Lp, where %Mp is a single
+    // special-bit digit (%Lp alone drops setgid); a socket reads back as 0660.
+    // The mode is compared numerically so the host's padding does not matter.
     const statArgs = IS_DARWIN ? ['-f', '%Su %Sg %Mp%Lp'] : ['-c', '%U %G %a'];
-    const dir = spawnSync('sudo', ['stat', ...statArgs, RUN_DIR], { encoding: 'utf8' });
-    assert.equal(dir.status, 0, `cannot stat the socket directory: ${dir.stderr}`);
-    assert.match(dir.stdout.trim(), new RegExp(`^${LAYOUT.serviceUser} ${LAYOUT.socketGroup} 2750$`), `unexpected socket directory: ${dir.stdout.trim()}`);
-    const sock = spawnSync('sudo', ['stat', ...statArgs, SOCKET_PATH], { encoding: 'utf8' });
-    assert.equal(sock.status, 0, `cannot stat the socket: ${sock.stderr}`);
-    assert.match(sock.stdout.trim(), new RegExp(`^${LAYOUT.serviceUser} ${LAYOUT.socketGroup} 660$`), `unexpected socket: ${sock.stdout.trim()}`);
+    const statOwner = (target, what) => {
+      const r = spawnSync('sudo', ['stat', ...statArgs, target], { encoding: 'utf8' });
+      assert.equal(r.status, 0, `cannot stat the ${what}: ${r.stderr}`);
+      const [owner, group, mode] = r.stdout.trim().split(/\s+/);
+      assert.equal(owner, LAYOUT.serviceUser, `unexpected ${what} owner: ${r.stdout.trim()}`);
+      assert.equal(group, LAYOUT.socketGroup, `unexpected ${what} group: ${r.stdout.trim()}`);
+      return Number.parseInt(mode, 8);
+    };
+    assert.equal(statOwner(RUN_DIR, 'socket directory'), 0o2750, 'the socket directory must be 2750');
+    assert.equal(statOwner(SOCKET_PATH, 'socket'), 0o660, 'the socket must be 0660');
 
     // The runtime resolves the installed pin to service and answers over the
     // socket. Run it as the runner with the operator group as the effective
