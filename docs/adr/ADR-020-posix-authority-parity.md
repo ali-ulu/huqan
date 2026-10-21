@@ -240,12 +240,18 @@ reported. The report has two surfaces and one source:
   `sudo -n true` -- non-interactive, read-only, argv fixed in source. It
   answers `passwordless_sudo`, `none`, `unknown` or `not_applicable`, and a
   probe that cannot run is `unknown`, never `none`: "could not tell" and "no
-  sudo" are different claims and only one is safe to make.
+  sudo" are different claims and only one is safe to make. A probe that
+  succeeds can do so through a cached credential as well as a `NOPASSWD` rule,
+  and a probe that fails can hide a narrow `NOPASSWD` rule for one other
+  command; the value is therefore named for what the probe observed, and the
+  doctor detail never claims escalation is impossible from a failed probe.
 - `huqan doctor` gains an `authority` check. It fails only where the boundary
   is claimed and does not hold: a required authority that is unavailable, a
   pinned service that does not answer under its own key, or an `os-service`
   boundary the runtime user can `sudo` past. `legacy` is the documented default
-  and passes with a note, the same shape as the `egress` check.
+  and passes with a note, the same shape as the `egress` check. An
+  `env-override` service answers under a pin the operator supplied and claims no
+  OS boundary, so a passwordless sudo is reported there, not failed.
 
 Answering open question 3: `boundary` stays `os-service` and the escalation is
 reported alongside it. Dropping to a new boundary value would say the OS

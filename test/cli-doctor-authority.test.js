@@ -57,7 +57,30 @@ test('passwordless sudo is reported as escalation and fails the os-service claim
   const result = await checkAuthority(deps);
   assert.equal(result.ok, false);
   assert.equal(result.escalation, 'passwordless_sudo');
-  assert.match(result.detail, /passwordless sudo/);
+  assert.match(result.detail, /os-service boundary does not hold/);
+});
+
+test('passwordless sudo does not fail an env-override pin, which claims no OS boundary', async () => {
+  const result = await checkAuthority({
+    resolveMode: () => ({ mode: 'service', boundary: 'env-override', pinPath: 'pin', pin: PIN }),
+    resolveAgentBoundary: () => ({ value: 'same-user' }), detectEscalation: () => 'passwordless_sudo',
+    createClient: () => ({ identity: async () => ({ status: 200, body: { keyId: PIN.keyId } }) }),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.boundary, 'env-override');
+  assert.equal(result.escalation, 'passwordless_sudo');
+  assert.match(result.detail, /password prompt/);
+});
+
+test('an inconclusive probe passes but does not claim escalation is impossible', async () => {
+  const result = await checkAuthority({
+    resolveMode: () => ({ mode: 'service', boundary: 'os-service', pinPath: 'pin', pin: PIN }),
+    resolveAgentBoundary: () => ({ value: 'os-user' }), detectEscalation: () => 'unknown',
+    createClient: () => ({ identity: async () => ({ status: 200, body: { keyId: PIN.keyId } }) }),
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.escalation, 'unknown');
+  assert.match(result.detail, /could not run, so escalation is unverified/);
 });
 
 test('a service that answers with no escalation passes', async () => {
