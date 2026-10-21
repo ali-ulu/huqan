@@ -812,6 +812,14 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-LEARN-T"
   },
+  "lib/evidence-pack/manifest.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A1: pure manifest hash over the Trust receipt bundle, the same context as the export it seals"
+  },
+  "lib/evidence-pack/verify.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A1: re-verifies the Trust receipt bundle through verifyExportedBundle, so it sits with the export it checks"
+  },
   "lib/predicate-parser.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-VERIFY-K"
