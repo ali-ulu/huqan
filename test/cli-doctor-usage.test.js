@@ -70,6 +70,86 @@ test('gate events are counted with decision and host-reported identity split (#4
   assert.deepEqual(gate.byProfile, { codex: 2, 'claude-code': 1 });
 });
 
+test('the REVIEW/ALLOW ratio is null without ALLOW and numeric with it (#4135)', () => {
+  const noAllow = summarizeGateEvents({ now: NOW, receipts: [admissionReceipt({ decision: 'blocked' })] });
+  assert.equal(noAllow.reviewAllowRatio, null);
+
+  const mixed = summarizeGateEvents({
+    now: NOW,
+    receipts: [
+      admissionReceipt({ decision: 'allow' }),
+      admissionReceipt({ decision: 'allow' }),
+      admissionReceipt({ decision: 'review' }),
+      admissionReceipt({ decision: 'blocked' }),
+    ],
+  });
+  assert.equal(mixed.reviewAllowRatio, 0.5);
+
+  const result = checkUsage(
+    { now: NOW },
+    { readReceipts: () => ({ receipts: [], trailExists: true }), readApprovals: () => [] },
+  );
+  assert.match(result.detail, /REVIEW\/ALLOW n\/a/);
+  assert.equal(result.usage.gate.reviewAllowRatio, null);
+});
+
+test('an installed profile with no gate event raises the silent-profile warning (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({
+        receipts: [admissionReceipt({ decision: 'allow', agentType: 'codex' })],
+        trailExists: true,
+      }),
+      readApprovals: () => [],
+      readInstalledProfiles: () => ['codex', 'claude-code'],
+    },
+  );
+
+  assert.deepEqual(result.usage.silentProfiles, ['claude-code']);
+  assert.ok(
+    result.warnings.some((warning) => /Installed gate profile\(s\) claude-code had no gate event/.test(warning)),
+    `expected the silent-profile warning, got: ${JSON.stringify(result.warnings)}`,
+  );
+});
+
+test('an active installed profile raises no silent-profile warning (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({
+        receipts: [admissionReceipt({ decision: 'allow', agentType: 'codex' })],
+        trailExists: true,
+      }),
+      readApprovals: () => [],
+      readInstalledProfiles: () => ['codex'],
+    },
+  );
+
+  assert.deepEqual(result.usage.silentProfiles, []);
+  assert.ok(!result.warnings.some((warning) => /Installed gate profile/.test(warning)));
+});
+
+test('an unreadable installed-profile inventory is a warning, not a failed verdict (#4135)', () => {
+  const error = new Error('gate status unavailable');
+  error.code = 'GATE_STATUS_UNAVAILABLE';
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [admissionReceipt({ decision: 'allow' })], trailExists: true }),
+      readApprovals: () => [],
+      readInstalledProfiles: () => { throw error; },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.usage.installedProfiles, null);
+  assert.ok(
+    result.warnings.some((warning) => /Installed gate profiles could not be read/.test(warning)),
+    `expected the unreadable-inventory warning, got: ${JSON.stringify(result.warnings)}`,
+  );
+});
+
 test('a gate with no trail warns that nothing is governed yet (#4135)', () => {
   const result = checkUsage(
     { now: NOW, receiptPath: 'Z:/definitely-not-here/external-action-receipts.jsonl' },
