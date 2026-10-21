@@ -37,12 +37,12 @@ function admissionReceipt({ decision = 'allow', agentType = 'codex', ageMs = 0 }
   };
 }
 
-function approvalRow({ createdMsAgo, decidedMsAgo = null }) {
+function approvalRow({ createdMsAgo, decidedMsAgo = null, decision = 'approved' }) {
   return {
     created_at: NOW - createdMsAgo,
     decided_at: decidedMsAgo === null ? 0 : NOW - decidedMsAgo,
     status: decidedMsAgo === null ? 'pending' : 'decided',
-    decision: decidedMsAgo === null ? '' : 'approved',
+    decision: decidedMsAgo === null ? '' : decision,
   };
 }
 
@@ -150,6 +150,64 @@ test('a read-decision history does not raise the fatigue warning (#4135)', () =>
   );
 
   assert.ok(!result.warnings.some((warning) => /Approval fatigue/.test(warning)));
+});
+
+test('rejected and cancelled decisions never count as rapid approvals (#4135)', () => {
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [], trailExists: true }),
+      readApprovals: () => [
+        approvalRow({ createdMsAgo: 60000, decidedMsAgo: 59000, decision: 'approved' }),
+        approvalRow({ createdMsAgo: 60000, decidedMsAgo: 59000, decision: 'rejected' }),
+        approvalRow({ createdMsAgo: 60000, decidedMsAgo: 59000, decision: 'cancelled' }),
+        approvalRow({ createdMsAgo: 60000, decidedMsAgo: 59000, decision: '' }),
+      ],
+    },
+  );
+
+  assert.equal(result.usage.approvals.decided, 4);
+  assert.equal(result.usage.approvals.approved, 1);
+  assert.equal(result.usage.approvals.rapid, 1);
+  assert.equal(result.usage.approvals.rapidRatio, 1);
+  assert.ok(
+    !result.warnings.some((warning) => /Approval fatigue/.test(warning)),
+    'one approved decision is below the minimum sample, so no fatigue warning',
+  );
+});
+
+test('an unreadable gate trail is a warning, not a failed verdict (#4135)', () => {
+  const error = new Error('permission denied');
+  error.code = 'EACCES';
+  const result = checkUsage(
+    { now: NOW },
+    { readReceipts: () => { throw error; }, readApprovals: () => [] },
+  );
+
+  assert.equal(result.ok, true);
+  assert.ok(
+    result.warnings.some((warning) => /could not be read \(EACCES\)/.test(warning)),
+    `expected the unreadable-trail warning, got: ${JSON.stringify(result.warnings)}`,
+  );
+});
+
+test('an unreadable approval store is a warning, not a failed verdict (#4135)', () => {
+  const error = new Error('no such table: tool_approvals');
+  error.code = 'SQLITE_ERROR';
+  const result = checkUsage(
+    { now: NOW },
+    {
+      readReceipts: () => ({ receipts: [], trailExists: true }),
+      readApprovals: () => { throw error; },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.usage.approvals, null);
+  assert.ok(
+    result.warnings.some((warning) => /approval rows could not be read/i.test(warning)),
+    `expected the unreadable-approvals warning, got: ${JSON.stringify(result.warnings)}`,
+  );
 });
 
 test('the check makes no network call: it runs with only local readers injected (#4135)', () => {
