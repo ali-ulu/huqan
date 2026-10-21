@@ -252,10 +252,12 @@ test('--socket installs a 0660 socket the operator group alone can open', { skip
     // The directory is 2750 owned by the service user and the operator group,
     // the socket is 0660 and group-owned by that same group. Read through sudo:
     // the runner cannot stat inside a 2750 directory it is not a member of.
-    const dir = spawnSync('sudo', ['stat', '-c', '%U %G %a', RUN_DIR], { encoding: 'utf8' });
+    // macOS stat has no -c and spells the mode as %Mp%Lp (%Lp alone drops setgid).
+    const statArgs = IS_DARWIN ? ['-f', '%Su %Sg %Mp%Lp'] : ['-c', '%U %G %a'];
+    const dir = spawnSync('sudo', ['stat', ...statArgs, RUN_DIR], { encoding: 'utf8' });
     assert.equal(dir.status, 0, `cannot stat the socket directory: ${dir.stderr}`);
     assert.match(dir.stdout.trim(), new RegExp(`^${LAYOUT.serviceUser} ${LAYOUT.socketGroup} 2750$`), `unexpected socket directory: ${dir.stdout.trim()}`);
-    const sock = spawnSync('sudo', ['stat', '-c', '%U %G %a', SOCKET_PATH], { encoding: 'utf8' });
+    const sock = spawnSync('sudo', ['stat', ...statArgs, SOCKET_PATH], { encoding: 'utf8' });
     assert.equal(sock.status, 0, `cannot stat the socket: ${sock.stderr}`);
     assert.match(sock.stdout.trim(), new RegExp(`^${LAYOUT.serviceUser} ${LAYOUT.socketGroup} 660$`), `unexpected socket: ${sock.stdout.trim()}`);
 
