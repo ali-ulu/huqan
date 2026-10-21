@@ -101,18 +101,22 @@ process**.
   code (it needs to reason about it) but cannot *edit* it.
 - **`memory.db` / `memory.json`**: no longer resolved in the per-workspace
   cwd. The canonical store moves to a protected state root
-  (`C:\ProgramData\huqan\state`), ACL'd to the operator, SYSTEM and — when the
-  runtime runs as a service rather than as the operator — the explicitly named
-  runtime service identity that write access requires, **outside the agent
-  user's token** and the same ACL class as the authority's `state-store.js`.
-- The **runtime process** writes `memory.db`. It runs either under the
-  operator identity or under an explicitly named service identity that is
-  granted the state-root access above; the ADR names that identity and its ACL
-  grant when the service variant is chosen, rather than leaving the writer
-  implicit. The agent reaches the store **only through the MCP/HTTP
-  interface**, never by opening the file. This closes ADR-016 residual risk 1
-  at the memory layer: the "agent writes `memory.db` directly" path now fails
-  at the filesystem ACL, not merely at the audit.
+  (`C:\ProgramData\huqan\state`). Access is granted to SYSTEM, Administrators
+  and the explicitly named runtime service identity that write access requires,
+  **outside the agent user's token** and the same ACL class as the authority's
+  `state-store.js`. The operator reaches the store with administrator rights
+  (through Administrators) or through the MCP/HTTP interface; the operator
+  identity holds no ACE of its own. Running the runtime under the operator
+  identity is **not supported**: `STORE_ACL_SPEC` grants nothing to a per-user
+  operator principal, so that variant cannot be reconciled with the applied ACL
+  (`lib/authority/store-acl.js`; ADR-018 §3).
+- The **runtime process** writes `memory.db`. It runs under an explicitly named
+  service identity that is granted the state-root access above; the ADR names
+  that identity and its ACL grant rather than leaving the writer implicit. The
+  agent reaches the store **only through the MCP/HTTP interface**, never by
+  opening the file. This closes ADR-016 residual risk 1 at the memory layer:
+  the "agent writes `memory.db` directly" path now fails at the filesystem ACL,
+  not merely at the audit.
 
 ### 4. Shared MCP servers leave the agent's process tree
 
@@ -190,3 +194,10 @@ change, no installer change and no test change.** Every mechanism above that
 does not already exist (`os-user` reporting, the protected memory root, the
 MCP service conversion) still has to be built and gated in its own scoped
 change with its own evidence.
+
+Section 3 was amended on 2026-10-21 (#4082 open question 6): the store text
+said the state root is "ACL'd to the operator", which never matched
+`STORE_ACL_SPEC` (`lib/authority/store-acl.js`) or ADR-018 §3. It now names the
+identities the code actually grants — SYSTEM, Administrators and the runtime
+service identity — and states that running the runtime under the operator
+identity is not supported. Documentation only; no code changed.

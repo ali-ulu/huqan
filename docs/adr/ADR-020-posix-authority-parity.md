@@ -1,6 +1,6 @@
 # ADR-020: POSIX parity for the approval authority (Linux and macOS)
 
-- **Status:** Accepted (open questions 5, 6 and 7 stay open, see the last section)
+- **Status:** Accepted (open questions 5 and 7 stay open, see the last section)
 - **Date:** 2026-10-20
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -26,7 +26,7 @@ other platform the boundary does not exist, and the runtime says so quietly:
   Windows (GROUNDED `lib/authority/agent-user-boundary.js:97`; test
   `test/agent-user-boundary.test.js:131-140`).
 - ADR-017 admits the gap: "Non-Windows parity ... is unaddressed here and
-  tracked separately" (residual risk 2, `ADR-017-agent-user-boundary.md:166-169`).
+  tracked separately" (residual risk 2, ADR-017 section "Residual risks").
 
 Result: on Linux and macOS an agent runs as the operator and can approve its
 own work. Two layers are handled separately:
@@ -311,9 +311,7 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
   `test/store-acl.test.js:71-74,102-104` and `test/agent-user-boundary.test.js:131-140`
   are rewritten when the matching POSIX branches land (**done**: PR-9 moved the
   store-acl cases to `freebsd`/`unsupported_platform`, PR-10 the boundary case).
-- Side findings, each to be tracked outside this decision: ADR-017 section 3
-  says the store is ACL'd "to the operator" while `STORE_ACL_SPEC` has no
-  operator ACE (`ADR-017:101-103`, `store-acl.js:45-58`; open question 6);
+- Side findings, each to be tracked outside this decision:
   `canonicalWorkspaceRoot` lower-cases the path (`protected-store-path.js:71`),
   so `/x/Foo` and `/x/foo` collide on case-sensitive Linux (DERIVED);
   `protectedStateRoot` returns `/var/lib/huqan/state` on darwin as well, but
@@ -358,8 +356,9 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
 
 ## Open questions (not decided here)
 
-Questions 1 and 2 were decided by the owner on #4082 (sections 1 and 2). The
-rest stay open and no default is assumed:
+Questions 1 and 2 were decided by the owner on #4082 (sections 1 and 2);
+questions 2b, 3 and 4 were answered by PR-5, PR-7 and PR-6 as noted below.
+Questions 5 and 7 stay open and no default is assumed:
 
 2b. macOS node verification: **answered by PR-5** (section 2): the GPG-signed
    `SHASUMS256.txt`, not `codesign --verify`.
@@ -371,6 +370,18 @@ rest stay open and no default is assumed:
    **Answered by PR-6** (section 10): yes, with `--integrity` refused unless
    `--tarball` is given, and `--enroll-code-stdin` for the terminal-less runner.
 5. Should a Unix domain socket with `0660` (flood-DoS mitigation) be its own work item?
+   **Decided 2026-10-21: yes, its own work item, not urgent** (a flood can only
+   deny service, never forge a decision; rate limiting and `maxConnections`
+   already blunt it). Tracked as #4170.
 6. ADR-017 section 3 ("ACL'd to the operator") versus `STORE_ACL_SPEC` (no
-   operator ACE): which one is right?
+   operator ACE): which one is right? **Answered 2026-10-21: the code.**
+   ADR-017 section 3's text was stale and is corrected to match
+   `STORE_ACL_SPEC` (SYSTEM, Administrators and the named runtime service
+   identity; the operator reaches the store with administrator rights or
+   through MCP/HTTP, and holds no ACE of its own). The "runtime runs under the
+   operator identity" variant is not supported, since `STORE_ACL_SPEC` grants
+   nothing to a per-user operator principal. Code unchanged; documentation only.
 7. When, and under which model, is container support added?
+   **Model fixed 2026-10-21; no date.** The authority service stays on the host;
+   a container replaces the Layer B agent user and reaches the service only
+   through the existing HTTP + signature model. Tracked as #4171.
