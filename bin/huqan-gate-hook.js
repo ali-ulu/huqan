@@ -16,6 +16,7 @@ const {
   runAgentsCommand,
   runConnectCommand,
   runGateCommand,
+  runPolicyCommand,
 } = require('../lib/gate-hook-management');
 const { createProcessFailureHandlers, failureCodeFor } = require('../lib/http/process-failure-handlers');
 const { writeStructuredLog } = require('../lib/http/structured-log');
@@ -126,6 +127,12 @@ async function main() {
     }
     if (['install', 'uninstall', 'status'].includes(command)) {
       runGateCommand(command);
+      return;
+    }
+    // `policy` applies one of the built-in command policy templates (#4102) to
+    // the deployment's own policy file. It never runs an action.
+    if (command === 'policy') {
+      runPolicyCommand();
       return;
     }
     if (argumentValue('--identity-log')) return queryIdentityLog();

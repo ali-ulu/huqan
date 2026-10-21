@@ -349,6 +349,7 @@
       "lib/command-parser-store-args.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
+      "lib/command-policy-templates.js": "Core",
       "lib/command-shape-log.js": "Core",
       "lib/common-semantic-ir.js": "Core",
       "lib/company-brain-identity.js": "Core",
@@ -3007,6 +3008,7 @@
         "lib/command-parser-store-args.js"
       ],
       "lib/command-policy-editor.js": [
+        "lib/command-policy-templates.js",
         "lib/external-action-envelope.js"
       ],
       "lib/command-shape-log.js": [
@@ -3740,9 +3742,12 @@
         "lib/gate-hook-input.js"
       ],
       "lib/gate-hook-management.js": [
+        "lib/command-policy-editor.js",
+        "lib/command-policy-templates.js",
         "lib/external-action-adapter-generator.js",
         "lib/external-action-agent-overview.js",
         "lib/external-action-agent-roster.js",
+        "lib/external-action-command-policy.js",
         "lib/external-action-gate-install.js",
         "lib/external-action-receipt-collector.js",
         "lib/external-action-receipt-shipper.js",

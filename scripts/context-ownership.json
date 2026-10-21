@@ -1920,6 +1920,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/command-policy-templates.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/command-shape-log.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"

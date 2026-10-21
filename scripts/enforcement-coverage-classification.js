@@ -170,7 +170,7 @@ const CLASSIFIED = Object.freeze({
   }),
   'lib/command-policy-editor.js': Object.freeze({
     role: 'enforcement',
-    why: 'writes the allowed-command list the gate itself reads, atomically and under a cross-process lock; gating this write through admission would be circular, and the route in front of it requires an operator token the agent API key cannot satisfy',
+    why: 'writes the allowed-command list the gate itself reads, atomically and under a cross-process lock, and applies the built-in policy templates (#4102) by backing the replaced file up before writing over it; gating this write through admission would be circular, and the route in front of it requires an operator token the agent API key cannot satisfy',
   }),
 
   // ── the evidence trail ─────────────────────────────────────────────────

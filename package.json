@@ -511,6 +511,7 @@
     "lib/external-action-adapter-generator.js",
     "lib/external-action-command-policy.js",
     "lib/command-policy-editor.js",
+    "lib/command-policy-templates.js",
     "lib/http/command-policy-route.js",
     "lib/http/deployment-gated-route-auth.js",
     "lib/http/emergency-stop-gate.js",
