@@ -49,7 +49,13 @@ const UNINSTALL = path.join(DIR, IS_DARWIN ? 'uninstall-authority-darwin.sh' : '
 const LAYOUT = POSIX ? posixAuthorityLayout(process.platform) : null;
 const PIN_PATH = LAYOUT ? LAYOUT.pinPath : null;
 const SECRET_PATH = LAYOUT ? path.posix.join(LAYOUT.stateDir, 'totp-secret.json') : null;
+const SOCKET_PATH = LAYOUT ? LAYOUT.socketPath : null;
+const RUN_DIR = LAYOUT ? LAYOUT.socketDir : null;
 const PORT = 47821;
+// The unprivileged account the e2e runs as. `sudo -u <runner> -g <group>` is how
+// the operator side is reached with the group as the effective one: the runner's
+// live session predates `usermod`, and `sg` is Linux-only.
+const RUNNER_USER = os.userInfo().username;
 
 const VERSION = require('../package.json').version;
 
@@ -70,10 +76,10 @@ function integrityOf(file) {
  * the six-digit code from stdin, so both have to be handled at once: reading
  * stderr to completion first would block on a child waiting for input.
  */
-function installWithEnrollment(tarball, integrity) {
+function installWithEnrollment(tarball, integrity, extraArgs = []) {
   return new Promise((resolve) => {
     const child = spawn('sudo', ['bash', INSTALL, '--version', VERSION, '--port', String(PORT),
-      '--tarball', tarball, '--integrity', integrity, '--enroll-code-stdin'], { stdio: ['pipe', 'pipe', 'pipe'] });
+      '--tarball', tarball, '--integrity', integrity, '--enroll-code-stdin', ...extraArgs], { stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
     let err = '';
     let answered = 0;
@@ -233,4 +239,59 @@ test('uninstall leaves no unit, no pin, and archives the state', { skip: SKIP },
   // The state directory is renamed, not deleted, so the ledger stays auditable.
   const archived = fs.readdirSync(path.posix.dirname(LAYOUT.dataDir)).filter(name => name.startsWith(`${path.posix.basename(LAYOUT.dataDir)}.removed-`));
   assert.equal(archived.length, 1, 'the state must be kept under a .removed- name');
+});
+
+// A second cycle with --socket (ADR-020 section 12, #4170). It reuses the
+// tarball and the service user/group the first cycle left behind, which also
+// exercises the "reuse, never re-create" branch of ensure_socket_group.
+test('--socket installs a 0660 socket the operator group alone can open', { skip: SKIP }, async () => {
+  const installed = await installWithEnrollment(state.tarball, state.integrity, ['--socket']);
+  assert.equal(installed.code, 0, `socket installer failed (${installed.code}):\n${installed.out}\n${installed.err}`);
+  state.installed = true;
+  try {
+    // The directory is 2750 owned by the service user and the operator group,
+    // the socket is 0660 and group-owned by that same group. Read through sudo:
+    // the runner cannot stat inside a 2750 directory it is not a member of.
+    const dir = spawnSync('sudo', ['stat', '-c', '%U %G %a', RUN_DIR], { encoding: 'utf8' });
+    assert.equal(dir.status, 0, `cannot stat the socket directory: ${dir.stderr}`);
+    assert.match(dir.stdout.trim(), new RegExp(`^${LAYOUT.serviceUser} ${LAYOUT.socketGroup} 2750$`), `unexpected socket directory: ${dir.stdout.trim()}`);
+    const sock = spawnSync('sudo', ['stat', '-c', '%U %G %a', SOCKET_PATH], { encoding: 'utf8' });
+    assert.equal(sock.status, 0, `cannot stat the socket: ${sock.stderr}`);
+    assert.match(sock.stdout.trim(), new RegExp(`^${LAYOUT.serviceUser} ${LAYOUT.socketGroup} 660$`), `unexpected socket: ${sock.stdout.trim()}`);
+
+    // The runtime resolves the installed pin to service and answers over the
+    // socket. Run it as the runner with the operator group as the effective
+    // group: `usermod` added the runner to the group, but its live session
+    // predates the change, so this is how a member is reached without a
+    // re-login. This is the operator's side.
+    const member = spawnSync('sudo', ['-n', '-u', RUNNER_USER, '-g', LAYOUT.socketGroup,
+      process.execPath, path.join(REPO_ROOT, 'bin', 'huqan-authority.js'), 'status'], { encoding: 'utf8' });
+    assert.equal(member.status, 0, `a group member could not reach the socket: ${member.stdout}${member.stderr}`);
+    const report = JSON.parse(member.stdout);
+    assert.equal(report.mode, 'service');
+    assert.equal(report.boundary, 'os-service');
+    assert.equal(report.answering, true);
+
+    // A local user outside the group cannot even traverse the directory. This
+    // process runs as the runner user with the group it logged in with, so it is
+    // that non-member -- exactly the unprivileged case the group exists to refuse.
+    const { createAuthorityClient } = require('../lib/authority/authority-client');
+    const { parseAuthorityPin } = require('../lib/authority/authority-pin');
+    const pin = parseAuthorityPin(fs.readFileSync(PIN_PATH, 'utf8'));
+    assert.equal(pin.ok, true, `the installed pin does not parse: ${pin.reason}`);
+    assert.equal(pin.pin.socketPath, SOCKET_PATH, 'the pin must name the socket');
+    let denial = null;
+    try {
+      await createAuthorityClient({ pin: pin.pin }).identity();
+    } catch (error) {
+      denial = error;
+    }
+    assert.ok(denial, 'a non-member reached the socket');
+    assert.match(String(denial.code || denial.message || ''), /EACCES|EPERM/, `unexpected socket error: ${denial && denial.code}`);
+  } finally {
+    sudo(['bash', UNINSTALL]);
+    state.installed = false;
+  }
+  // The socket file goes with the tree, so a reinstall cannot find a leftover.
+  assert.equal(fs.existsSync(SOCKET_PATH), false, 'the socket must be gone after uninstall');
 });
