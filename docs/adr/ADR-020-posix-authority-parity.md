@@ -304,7 +304,10 @@ and inject it, which the four existing `cli-doctor` Adapters edges wait on too.
   `canonicalWorkspaceRoot` lower-cases the path (`protected-store-path.js:71`),
   so `/x/Foo` and `/x/foo` collide on case-sensitive Linux (DERIVED);
   `THREAT_MODEL.md` and `SECURITY_INVARIANTS.md` do not mention the approval
-  authority; `install-agent-user.ps1` is referenced but absent from the repo.
+  authority (**closed 2026-10-20, PR-8**: `THREAT_MODEL.md` gains an "Approval
+  Authority Bypass" entry under Elevation of Privilege, and `SECURITY_INVARIANTS.md`
+  SI-01 now names the authority and its POSIX path trust); `install-agent-user.ps1`
+  is referenced but absent from the repo.
 - Implementation plan (each PR single-purpose, test first, AGENTS.md section 8):
   Phase 1 (Layer A): PR-1 `posix-path-trust.js`; PR-2 POSIX pin in
   `authority-mode.js` and `operator-cli.js`; PR-3 service self-checks; PR-4

@@ -169,8 +169,11 @@ On Linux the same boundary is installed by
 `scripts/authority/install-authority.sh` (systemd, root), and on macOS by
 `scripts/authority/install-authority-darwin.sh` (launchd, root). Both verify the
 node tarball against the GPG-signed `SHASUMS256.txt` and install only the
-bundle. The remaining parity work is tracked in
-[ADR-020](./adr/ADR-020-posix-authority-parity.md) and issue #4082.
+bundle. The full POSIX guide -- flags, enrollment, the `escalation` field, the
+reason-to-fix table and the non-claims -- is
+[authority-install-posix.md](./authority-install-posix.md). The remaining parity
+work is tracked in [ADR-020](./adr/ADR-020-posix-authority-parity.md) and issue
+#4082.
 
 ---
 

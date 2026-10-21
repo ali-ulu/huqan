@@ -243,6 +243,60 @@ A control that could not be traced to code is listed under **Planned** or **Not 
 
 ---
 
+### Approval Authority Bypass
+
+**Description**: An agent runs as the same OS user as the operator and approves
+its own protected action, so the decision that admits the action is produced by
+the party the decision is meant to constrain. This is the elevation path ADR-016
+and ADR-020 exist to close: the agent does not need a kernel exploit, only the
+ability to write the runtime or the approval record it is asking to have
+approved.
+
+**Impact**: Self-approval of a protected action: the gate admits what it was
+meant to refuse, and the audit trail records a decision the operator never made.
+
+**Existing Mitigations**:
+- **Implemented** — The approval authority moves the decision out of the agent's
+  process into a service under its own OS user (`scripts/authority/install-authority.ps1`
+  on Windows; `scripts/authority/install-authority.sh` on Linux and
+  `scripts/authority/install-authority-darwin.sh` on macOS, ADR-020). The
+  Ed25519 signing key and the TOTP secret live in a directory the agent cannot
+  read, so code running as the agent's user cannot mint a valid decision.
+- **Implemented** — The runtime resolves the installed pin and refuses to fall
+  back to `legacy` while a pin exists; no environment variable can lower the
+  mode or replace the pin (`lib/authority/authority-mode.js`). A pin on a
+  symlinked, non-root-owned, group/other-writable path, or one carrying a macOS
+  extended ACL, resolves to `required_unavailable` (`lib/authority/posix-path-trust.js`).
+- **Implemented** — A protected action is refused without a decision envelope
+  signed by the pinned key, whatever else the caller holds
+  (`lib/authority/decision-guard.js`).
+- **Partial** — Layer B (`agentBoundary: os-user`, a separate agent user that
+  cannot reach the protected store at the file level) is not implemented on
+  POSIX yet: `lib/authority/agent-user-boundary.js` returns `same-user` there
+  (ADR-020 PR-9 to PR-11). Layer A holds without it.
+- **Partial** — `os-service` is not absolute protection. A runtime user with
+  passwordless sudo can become root and read the TOTP secret; the state is
+  reported as `escalation` by `huqan-authority status` and `huqan doctor`
+  (`lib/authority/authority-status.js`, ADR-020 section 11) rather than assumed
+  to hold.
+
+**Remaining Gaps**:
+- No guarantee against an agent that has root or passwordless sudo.
+- No guarantee against a kernel exploit or a shared kernel (ADR-017 risk 1).
+- Containers, VMs and remote hosts are not supported in the MVP.
+- Layer A alone does not prevent a runtime bypass; it makes it detectable, not
+  impossible.
+- The caller's uid is not verified; TOTP proves the operator is present, not
+  what the operator intended (ADR-016 risk 2).
+
+**Planned Mitigation**:
+- Land Layer B on POSIX (ADR-020 PR-9 to PR-11): a separate agent user with a
+  store ACL the agent cannot write.
+- Track sudoers rules that change after install; today they are visible only
+  when `doctor` runs as root.
+
+---
+
 ## Strategic Outlook
 
 ### Future Threat Landscape
