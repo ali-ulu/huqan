@@ -2496,6 +2496,14 @@
    "context": "Observability",
    "evidence": "ownership-map-2446.md#R-OBSMISC-O"
   },
+  "lib/cognition/prediction-error.js": {
+   "context": "Knowledge",
+   "evidence": "cognitive-architecture-plan.md#5: COG-M2 prediction-error signal over prediction/outcome pairs (Knowledge, as lib/prediction-outcome-pairs.js)"
+  },
+  "lib/cognition-prediction-error-pairs.js": {
+   "context": "Knowledge",
+   "evidence": "cognitive-architecture-plan.md#5: COG-M2 read-only adapter over lib/prediction-outcome-pairs.js (Knowledge)"
+  },
   "lib/prediction-outcome-pairs.js": {
    "context": "Knowledge",
    "evidence": "ownership-map-2446.md#R-LEARN-K"
@@ -5844,6 +5852,7 @@
   "lib/file-effect-sensor.js": {
    "owner": "AgentAction",
    "consumers": [
+    "Knowledge",
     "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
