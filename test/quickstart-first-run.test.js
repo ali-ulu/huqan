@@ -130,6 +130,35 @@ test('formatQuickstartResult surfaces the failure code on failure', () => {
   assert.doesNotMatch(output, /Trust Receipt\n {2}receiptId/);
 });
 
+test('formatQuickstartResult narrates each step in plain language (#4133)', () => {
+  const { callTool, kernel, buildTrustReceipt } = makeFakes();
+  const result = runQuickstart({ kernel, callTool, buildTrustReceipt, approvalStore: {} });
+  const output = formatQuickstartResult(result);
+
+  assert.match(output, /Write held, waiting for approval\./);
+  assert.match(output, /Approved; the write happened now\./);
+  assert.match(output, /Verified\./);
+  assert.match(output, /Evidence recorded as a Trust Receipt\./);
+});
+
+test('formatQuickstartResult ends by pointing at the agent-connect step (#4133)', () => {
+  const { callTool, kernel, buildTrustReceipt } = makeFakes();
+  const result = runQuickstart({ kernel, callTool, buildTrustReceipt, approvalStore: {} });
+  const output = formatQuickstartResult(result);
+
+  assert.match(output, /Connect your agent: README -> "Connect your agent in one line"\./);
+});
+
+test('a failed step is never narrated as success (#4133)', () => {
+  const output = formatQuickstartResult({
+    ok: false,
+    steps: [{ step: 'propose', ok: false, detail: 'blocked' }],
+    error: { code: 'QUICKSTART_NO_APPROVAL', message: 'nothing was written' },
+  });
+
+  assert.doesNotMatch(output, /Write held, waiting for approval\./);
+});
+
 test('formatQuickstartResult says a removed demo store cannot read its receipt back (#3902)', () => {
   const output = formatQuickstartResult({
     ok: true,

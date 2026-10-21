@@ -82,9 +82,13 @@ not used because Homebrew can hand it to the user.
 On Linux the installer downloads the node tarball from nodejs.org and verifies
 it against the GPG-signed `SHASUMS256.txt`. There is **no
 `--allow-unverified-node` path** and no use of a system node. The minimum
-version stays `>=22.13.0` (`package.json` `engines.node`). The macOS node
-verification (for example `codesign --verify`) is not decided here; it
-belongs to the macOS installer PR (open question 2b).
+version stays `>=22.13.0` (`package.json` `engines.node`).
+
+The macOS installer (PR-5) answers open question 2b the same way: it downloads
+the `darwin-<arch>` tarball from nodejs.org and verifies it against the same
+GPG-signed `SHASUMS256.txt`. `codesign --verify` is **not** used: it proves an
+Apple developer signature, not that this is the byte the release published, and
+the GPG manifest already covers both platforms.
 
 ### 3. Service hardening
 
@@ -264,7 +268,8 @@ separate piece of work (open question 5).
 Questions 1 and 2 were decided by the owner on #4082 (sections 1 and 2). The
 rest stay open and no default is assumed:
 
-2b. macOS node verification: is `codesign --verify` sufficient?
+2b. macOS node verification: **answered by PR-5** (section 2): the GPG-signed
+   `SHASUMS256.txt`, not `codesign --verify`.
 3. With passwordless sudo, does `boundary` stay `os-service` and warn, or drop
    to a new value?
 4. Is `--tarball <path> --integrity <sha512>` on the install script acceptable for CI?

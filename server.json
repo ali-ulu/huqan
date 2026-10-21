@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.ali-ulu/huqan",
+  "description": "A local trust boundary that separates the agent from the operator.",
+  "version": "1.1.1",
+  "repository": {
+    "url": "https://github.com/ali-ulu/huqan",
+    "source": "github"
+  },
+  "websiteUrl": "https://huqan.com",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "huqan",
+      "version": "1.1.1",
+      "runtimeHint": "npx",
+      "transport": { "type": "stdio" },
+      "packageArguments": [
+        { "type": "positional", "valueHint": "mcp_binary", "value": "huqan-mcp" }
+      ],
+      "environmentVariables": [
+        {
+          "name": "HUQAN_MCP_OPERATOR_TOKEN",
+          "description": "Optional operator token that unlocks the hidden operator tools (approve, approvals, emergency_stop). Keep it out of any context the model can read.",
+          "format": "string",
+          "isSecret": true,
+          "isRequired": false
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "io.github.ali-ulu/requirements": {
+      "node": ">=22.13.0"
+    }
+  }
+}
