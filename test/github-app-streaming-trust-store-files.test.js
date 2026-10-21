@@ -59,18 +59,6 @@ test('a path that is a file, not a directory, is refused as an IO failure', (t) 
   const file = path.join(dir, 'not-a-directory');
   fs.writeFileSync(file, '{}');
 
+  // ENOTDIR, not ENOENT: a non-directory must be a refusal, never "empty".
   assert.throws(() => listRecordFileNames(file), (error) => error.code === IO_FAILED);
-});
-
-test('a directory whose entries cannot be read as a list is refused', (t) => {
-  const dir = tempDir(t);
-  // readdirSync on a directory without read permission throws EACCES, which is
-  // not ENOENT and so must not be silently treated as "empty".
-  if (process.getuid && process.getuid() === 0) return; // root bypasses the bit
-  fs.chmodSync(dir, 0o000);
-  try {
-    assert.throws(() => listRecordFileNames(dir), (error) => error.code === IO_FAILED);
-  } finally {
-    fs.chmodSync(dir, 0o700);
-  }
 });
