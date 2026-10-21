@@ -17,11 +17,18 @@ const {
   SCHEDULER_ERROR_CODES,
   scheduleCandidates,
   scoreCandidate,
+  keywordRelevance,
 } = require('../lib/cognitive-scheduler');
 
 function candidate(key, over = {}) {
   return { key, family: over.family || key.split(':')[0], ...over };
 }
+
+test('exported keyword relevance preserves the scheduler whole-token rule', () => {
+  assert.equal(keywordRelevance('task', { family: 'ask' }), 0);
+  assert.equal(keywordRelevance('VERIFY files', { family: 'verify' }), 1);
+  assert.equal(keywordRelevance('', { family: 'verify' }), 0);
+});
 
 test('deterministic order with an explicit key tie-break', () => {
   const input = { candidates: [candidate('b:1'), candidate('a:1'), candidate('a:2')], goal: '' };
