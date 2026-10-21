@@ -75,15 +75,17 @@ test('missing source version, availability and malformed scoped pairs fail close
   const { graph } = setup(t);
   scopedPair(graph, 1);
   const rows = graph.getCommittedMutationResultsByPrefix('prediction-outcome:');
+  const prediction = rows.find((row) => row.result.prediction);
   const readRows = (input) => readValueLedger({ getCommittedMutationResultsByPrefix: () => input }, options);
   assert.equal(readRows(null).status, 'INSUFFICIENT');
-  assert.equal(readRows([{ ...rows[0], result: { ...rows[0].result, storeVersion: 'unknown' } }]).reason, 'unsupported_source_version');
-  assert.equal(readRows([{ ...rows[0], committedAt: null }]).reason, 'source_availability_unknown');
-  assert.equal(readRows([{ ...rows[0], result: { ...rows[0].result, prediction: null } }]).status, 'REJECT');
+  assert.equal(readRows([{ ...prediction, result: { ...prediction.result, storeVersion: 'unknown' } }]).reason, 'unsupported_source_version');
+  assert.equal(readRows([{ ...prediction, committedAt: null }]).reason, 'source_availability_unknown');
+  assert.equal(readRows([{ ...prediction, result: { ...prediction.result, prediction: null } }]).status, 'REJECT');
   const invalidOrder = rows.map((row) => row.result.outcome ? { ...row, result: { ...row.result, outcome: { state: 'confirmed', at: '2024-01-01T00:00:00Z' } } } : row);
   assert.equal(readRows(invalidOrder).reason, 'invalid_pair_order');
   assert.deepEqual(readRows([...rows, { ...rows[0], committedAt: null, result: { ...rows[0].result, workspaceId: 'other' } }]), readRows(rows));
   assert.equal(readValueLedger(graph, { ...options, historyBoundary: null }).status, 'REJECT');
+  assert.deepEqual(readRows([...rows].reverse()), readRows(rows));
 });
 
 test('reader rejects conflicting outcomes and handles unavailable journal honestly', (t) => {
