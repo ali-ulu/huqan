@@ -17,7 +17,8 @@
 # The user is deliberately NOT added to admin or wheel: a uid that can become
 # root voids the os-user split (ADR-020 section 9), and the boundary refuses it
 # with agent_in_admin_group. A pre-existing user that is already an
-# administrator is refused rather than silently edited.
+# administrator is refused rather than silently edited. The refusal set matches
+# the boundary's darwin PRIVILEGED_GROUPS.
 #
 # The marker path is fixed in source and never taken from the environment: the
 # agent controls its own environment, so an env variable must not be able to
@@ -58,8 +59,8 @@ require_operator_uid() {
 # was never made.
 assert_agent_user_safe() {
   id -u "$AGENT_USER" >/dev/null 2>&1 || return 0
-  if id -nG "$AGENT_USER" 2>/dev/null | tr ' ' '\n' | grep -qxE 'admin|wheel'; then
-    fail "$AGENT_USER is in admin/wheel; remove it there before installing"
+  if id -nG "$AGENT_USER" 2>/dev/null | tr ' ' '\n' | grep -qxE 'admin|wheel|root'; then
+    fail "$AGENT_USER is in a root-equivalent group (admin/wheel/root); remove it there before installing"
   fi
 }
 

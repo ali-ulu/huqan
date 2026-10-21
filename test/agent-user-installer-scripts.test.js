@@ -16,7 +16,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { POSIX_STATE_ROOT, POSIX_MARKER_FILENAME, MARKER_VERSION, posixMarkerPath } =
+const { POSIX_STATE_ROOT, POSIX_MARKER_FILENAME, MARKER_VERSION, PRIVILEGED_GROUPS, posixMarkerPath } =
   require('../lib/authority/agent-user-boundary');
 
 const DIR = path.join(__dirname, '..', 'scripts', 'agent-user');
@@ -104,7 +104,21 @@ test('the agent user is never put in an admin group, and an existing admin is re
   for (const [name, text] of [[LINUX, linux], [DARWIN, darwin]]) {
     // A uid that can become root voids the os-user split (ADR-020 section 9).
     assert.doesNotMatch(text, /usermod -aG|adduser .*sudo|dscl .* -append .* GroupMembership (?:admin|wheel)/, name);
-    assert.match(text, /is in (?:sudo\/wheel\/admin|admin\/wheel); remove it there before installing/, name);
+    assert.match(text, /is in a root-equivalent group \(sudo\/wheel\/admin\/docker\/lxd\/podman\/disk\/root\); remove it there before installing|is in a root-equivalent group \(admin\/wheel\/root\); remove it there before installing/, name);
+  }
+});
+
+test('the installer refusal set matches the boundary PRIVILEGED_GROUPS', () => {
+  // The two must agree, or an agent installed clean passes the installer and is
+  // then reported same-user by the boundary (the #4082 audit point: a docker
+  // member is root-equivalent on a rootful host).
+  for (const [platform, text] of [['linux', linux], ['darwin', darwin]]) {
+    const match = text.match(/grep -qxE '([^']+)'/);
+    assert.ok(match, `${platform} has no group refusal regex`);
+    const set = match[1].split('|');
+    for (const group of PRIVILEGED_GROUPS[platform]) {
+      assert.ok(set.includes(group), `${platform} installer omits the privileged group ${group}`);
+    }
   }
 });
 

@@ -13,7 +13,9 @@
 # The user is deliberately NOT added to sudo, wheel or admin: a uid that can
 # become root voids the os-user split (ADR-020 section 9), and the boundary
 # refuses it with agent_in_admin_group. A pre-existing user that is already an
-# administrator is refused rather than silently edited.
+# administrator is refused rather than silently edited. The refusal set matches
+# the boundary's platform-aware PRIVILEGED_GROUPS: the container-runtime groups
+# (docker/lxd/podman) and disk are root-equivalent on a rootful host.
 #
 # The marker path is fixed in source and never taken from the environment: the
 # agent controls its own environment, so an env variable must not be able to
@@ -52,8 +54,8 @@ require_operator_uid() {
 # was never made.
 assert_agent_user_safe() {
   id -u "$AGENT_USER" >/dev/null 2>&1 || return 0
-  if id -nG "$AGENT_USER" 2>/dev/null | tr ' ' '\n' | grep -qxE 'sudo|wheel|admin'; then
-    fail "$AGENT_USER is in sudo/wheel/admin; remove it there before installing"
+  if id -nG "$AGENT_USER" 2>/dev/null | tr ' ' '\n' | grep -qxE 'sudo|wheel|admin|docker|lxd|podman|disk|root'; then
+    fail "$AGENT_USER is in a root-equivalent group (sudo/wheel/admin/docker/lxd/podman/disk/root); remove it there before installing"
   fi
 }
 

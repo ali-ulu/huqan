@@ -179,7 +179,7 @@ separate piece of work (open question 5).
   `agentUid` and `operatorUid` (from `SUDO_UID`).
 - `os-user` requires all of: a trusted marker (section 5); `agentUid !== 0` and
   `agentUid !== operatorUid`; the uid from `getent passwd` / `dscl` matches the
-  marker; the agent is not in `sudo` / `wheel` / `admin`; the store matches a
+  marker; the agent is not in a root-equivalent group; the store matches a
   POSIX spec (root-owned state root, a 0700 runtime-owned `workspaces/`, agent
   uid neither owner nor group, other bits 0); the migration marker verifies
   (`verifyMigrationMarker`).
@@ -188,6 +188,13 @@ separate piece of work (open question 5).
   POSIX `checkStoreAcl` returns: `store_untrusted_owner`, `store_linked`,
   `acl_unreadable`, `path_untrusted`), and `unsupported_platform` for
   platforms still unsupported.
+- The root-equivalent group set is platform-aware (`PRIVILEGED_GROUPS` in
+  `agent-user-boundary.js`): `sudo`, `wheel`, `admin`, `docker`, `lxd`, `podman`,
+  `disk`, `root` on linux; `admin`, `wheel`, `root` on darwin. Container-runtime
+  groups grant root-level access on a rootful host (docker.com, the #4082 audit
+  evidence), so membership alone voids the split. The list is a policy
+  approximation, not a proof; a capability probe against the runtime socket is a
+  stronger, separate change.
 - `store-acl.js` gains a POSIX branch (PR-9): `applyStoreAcl` uses
   `chownSync` / `chmodSync` (`huqan store migrate` already requires root,
   `store-migrate.js:150-169`); `checkStoreAcl` uses `lstat`. `STORE_ACL_SPEC`

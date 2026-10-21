@@ -178,11 +178,26 @@ describe('the POSIX agent-user boundary', () => {
     assert.deepEqual([result.value, result.reason], [SAME_USER, 'agent_uid_mismatch']);
   });
 
-  test('an agent in sudo, wheel or admin is refused', () => {
-    for (const group of ['sudo', 'wheel', 'admin']) {
+  test('an agent in a root-equivalent group is refused', () => {
+    // sudo/wheel/admin grant root directly; docker/lxd/podman reach a rootful
+    // daemon socket, and disk reads any block device (ADR-020 section 9; the
+    // docker case is #4082 audit evidence). The list is platform-aware, so the
+    // linux set is exercised here.
+    for (const group of ['sudo', 'wheel', 'admin', 'docker', 'lxd', 'podman', 'disk', 'root']) {
       const result = posixResolver({ files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, groups: ['huqan-agent', group] });
       assert.deepEqual([result.value, result.reason], [SAME_USER, 'agent_in_admin_group'], group);
     }
+  });
+
+  test('the privileged group set follows the platform', () => {
+    // docker is a Linux container-runtime group; on darwin the root-equivalent
+    // set is the admin group. A group outside the platform set does not match.
+    const linuxDocker = posixResolver({ platform: 'linux', files: { [POSIX_MARKER_PATH.linux]: POSIX_MARKER }, groups: ['huqan-agent', 'docker'] });
+    assert.equal(linuxDocker.reason, 'agent_in_admin_group');
+    const darwinDocker = posixResolver({ platform: 'darwin', files: { [POSIX_MARKER_PATH.darwin]: POSIX_MARKER }, groups: ['huqan-agent', 'docker'] });
+    assert.equal(darwinDocker.value, AGENT_BOUNDARY);
+    const darwinAdmin = posixResolver({ platform: 'darwin', files: { [POSIX_MARKER_PATH.darwin]: POSIX_MARKER }, groups: ['huqan-agent', 'admin'] });
+    assert.equal(darwinAdmin.reason, 'agent_in_admin_group');
   });
 
   test('a planted but untrusted marker is refused rather than read as os-user', () => {
