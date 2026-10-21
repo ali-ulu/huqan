@@ -153,6 +153,7 @@
       "lib/authority/operational-guard.js": "Core",
       "lib/authority/operator-check.js": "Core",
       "lib/authority/operator-cli.js": "UI",
+      "lib/authority/posix-path-trust.js": "Core",
       "lib/authority/registration-payload.js": "Core",
       "lib/authority/sealed-request.js": "Core",
       "lib/authority/service-main.js": "UI",
@@ -291,6 +292,10 @@
       "lib/coder/test-execution.js": "Application",
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
+      "lib/cognition-prediction-error-pairs.js": "Adapters",
+      "lib/cognition/cognition-config.js": "Core",
+      "lib/cognition/contract.js": "Core",
+      "lib/cognition/prediction-error.js": "Core",
       "lib/cognitive-lab-b1-manifest.js": "Core",
       "lib/cognitive-lab-b1-replay.js": "Core",
       "lib/cognitive-lab-b4-evaluator.js": "Core",
@@ -342,6 +347,7 @@
       "lib/command-parser-store-args.js": "Core",
       "lib/command-parser.js": "Core",
       "lib/command-policy-editor.js": "Core",
+      "lib/command-policy-templates.js": "Core",
       "lib/command-shape-log.js": "Core",
       "lib/common-semantic-ir.js": "Core",
       "lib/company-brain-identity.js": "Core",
@@ -550,12 +556,14 @@
       "lib/github-app-beta-http-errors.js": "Core",
       "lib/github-app-beta-http-responses.js": "Core",
       "lib/github-app-beta-store.js": "Core",
+      "lib/github-app-public-receipt-config.js": "Core",
       "lib/github-app-streaming-auth.js": "Core",
       "lib/github-app-streaming-trust-binding.js": "Core",
       "lib/github-app-streaming-trust-check-run.js": "Core",
       "lib/github-app-streaming-trust-contract.js": "Core",
       "lib/github-app-streaming-trust-github-api.js": "Core",
       "lib/github-app-streaming-trust-handler.js": "Core",
+      "lib/github-app-streaming-trust-public-receipt.js": "Core",
       "lib/github-app-streaming-trust-receipt.js": "Core",
       "lib/github-app-streaming-trust-store-files.js": "Core",
       "lib/github-app-streaming-trust-store-records.js": "Core",
@@ -661,6 +669,7 @@
       "lib/http/public-api-commands.js": "UI",
       "lib/http/public-api-route.js": "UI",
       "lib/http/public-badge-route.js": "UI",
+      "lib/http/public-receipt-route.js": "UI",
       "lib/http/read-workflow-actions.js": "UI",
       "lib/http/receipt-read-failures.js": "UI",
       "lib/http/receipt-read-route.js": "UI",
@@ -1330,6 +1339,7 @@
       "scripts/a2a-error-depth-mutation.js": "UI",
       "scripts/a2a-handoff-cursor-mutation.js": "UI",
       "scripts/a2a-intervention-mutation.js": "UI",
+      "scripts/agent-brake-demo.js": "UI",
       "scripts/agent-context-baseline.js": "UI",
       "scripts/agent-context-git.js": "UI",
       "scripts/agent-context-primitives.js": "UI",
@@ -1398,6 +1408,7 @@
       "scripts/contradiction-eval-freeze-contract.js": "UI",
       "scripts/contradiction-eval-freeze.js": "UI",
       "scripts/coverage-gate-history.js": "UI",
+      "scripts/create-signed-commit.js": "UI",
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
@@ -1422,6 +1433,7 @@
       "scripts/generate-context-ports.js": "UI",
       "scripts/generate-mcp-client-envelope-vectors.js": "UI",
       "scripts/generate-protocol-vectors.js": "UI",
+      "scripts/github-app-reconcile-writeback.js": "UI",
       "scripts/huqan-watchdog.js": "UI",
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
@@ -1696,7 +1708,8 @@
       "github-app-server.js": [
         "lib/environment-compat.js",
         "lib/github-app-beta-http-boundary.js",
-        "lib/http/github-app-ingest-submitter.js"
+        "lib/http/github-app-ingest-submitter.js",
+        "lib/http/public-receipt-route.js"
       ],
       "graph.js": [
         "lib/graph-consolidate-edges.js",
@@ -2118,6 +2131,7 @@
       "lib/authority/authority-mode.js": [
         "lib/authority/authority-pin.js",
         "lib/authority/install-trust.js",
+        "lib/authority/posix-path-trust.js",
         "lib/environment-compat.js"
       ],
       "lib/authority/authority-pin.js": [
@@ -2453,6 +2467,7 @@
       ],
       "lib/cli-doctor.js": [
         "lib/api-auth-opt-out.js",
+        "lib/authority/authority-status.js",
         "lib/environment-compat.js",
         "lib/server-bind-doctor.js",
         "lib/sqlite-availability.js",
@@ -2758,6 +2773,21 @@
         "lib/path-safety.js",
         "lib/receipt/canonical-receipt.js"
       ],
+      "lib/cognition-prediction-error-pairs.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/prediction-error.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/cognition/cognition-config.js": [
+        "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/prediction-error.js": [
+        "lib/cognition/contract.js",
+        "lib/file-effect-sensor.js",
+        "lib/is-plain-object.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
       "lib/cognitive-lab-b1-manifest.js": [
         "lib/cognitive-lab-manifest.js",
         "lib/content-hash.js",
@@ -2971,6 +3001,7 @@
         "lib/command-parser-store-args.js"
       ],
       "lib/command-policy-editor.js": [
+        "lib/command-policy-templates.js",
         "lib/external-action-envelope.js"
       ],
       "lib/command-shape-log.js": [
@@ -3704,9 +3735,12 @@
         "lib/gate-hook-input.js"
       ],
       "lib/gate-hook-management.js": [
+        "lib/command-policy-editor.js",
+        "lib/command-policy-templates.js",
         "lib/external-action-adapter-generator.js",
         "lib/external-action-agent-overview.js",
         "lib/external-action-agent-roster.js",
+        "lib/external-action-command-policy.js",
         "lib/external-action-gate-install.js",
         "lib/external-action-receipt-collector.js",
         "lib/external-action-receipt-shipper.js",
@@ -3758,6 +3792,7 @@
       "lib/github-app-beta-http-config.js": [
         "lib/environment-compat.js",
         "lib/github-app-beta-auth.js",
+        "lib/github-app-public-receipt-config.js",
         "lib/github-app-streaming-trust-store.js"
       ],
       "lib/github-app-beta-http-errors.js": [
@@ -3775,6 +3810,9 @@
         "lib/is-plain-object.js",
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/receipt-chain.js"
+      ],
+      "lib/github-app-public-receipt-config.js": [
+        "lib/environment-compat.js"
       ],
       "lib/github-app-streaming-auth.js": [
         "lib/github-app-beta-auth.js"
@@ -3798,6 +3836,9 @@
       "lib/github-app-streaming-trust-handler.js": [
         "lib/github-app-beta-handler.js",
         "lib/github-app-streaming-trust.js"
+      ],
+      "lib/github-app-streaming-trust-public-receipt.js": [
+        "lib/receipt/public-trust-receipt.js"
       ],
       "lib/github-app-streaming-trust-receipt.js": [
         "lib/code-change-gate.js",
@@ -3826,6 +3867,7 @@
         "lib/github-app-streaming-trust-check-run.js",
         "lib/github-app-streaming-trust-contract.js",
         "lib/github-app-streaming-trust-github-api.js",
+        "lib/github-app-streaming-trust-public-receipt.js",
         "lib/github-app-streaming-trust-receipt.js"
       ],
       "lib/github-connector-ingest.js": [
@@ -4207,6 +4249,11 @@
       "lib/http/public-badge-route.js": [
         "lib/receipt/receipt-read-index.js",
         "lib/workbench/trust-receipt-inspector.js"
+      ],
+      "lib/http/public-receipt-route.js": [
+        "lib/github-app-beta-http-responses.js",
+        "lib/receipt/public-trust-receipt.js",
+        "requestGuards-rate-limit.js"
       ],
       "lib/http/read-workflow-actions.js": [
         "lib/entity-resolution.js",
@@ -6663,6 +6710,18 @@
       "scripts/a2a-conformance/verifier.js": [
         "lib/a2a/bounded-exchange.js"
       ],
+      "scripts/agent-brake-demo.js": [
+        "lib/authority/authority-mode.js",
+        "lib/authority/decision-guard.js",
+        "lib/external-action-adapter.js",
+        "lib/external-action-identity-issue.js",
+        "lib/external-action-identity-signing.js",
+        "lib/external-action-receipt.js",
+        "lib/kernel-factory.js",
+        "lib/mcp-operator-capability.js",
+        "lib/receipt/receipt-read-index.js",
+        "lib/trust-evidence-ledger.js"
+      ],
       "scripts/agent-context-baseline.js": [
         "scripts/agent-context-primitives.js"
       ],
@@ -6918,6 +6977,17 @@
         "lib/receipt/canonical-receipt.js",
         "lib/receipt/receipt-chain.js",
         "lib/receipt/receipt-export.js"
+      ],
+      "scripts/github-app-reconcile-writeback.js": [
+        "lib/environment-compat.js",
+        "lib/github-app-beta-http-config.js",
+        "lib/github-app-streaming-auth.js",
+        "lib/github-app-streaming-trust-binding.js",
+        "lib/github-app-streaming-trust-check-run.js",
+        "lib/github-app-streaming-trust-contract.js",
+        "lib/github-app-streaming-trust-github-api.js",
+        "lib/github-app-streaming-trust-receipt.js",
+        "lib/is-plain-object.js"
       ],
       "scripts/huqan-watchdog.js": [
         "lib/huqan-state-root.js",
@@ -7341,6 +7411,12 @@
       },
       {
         "from": "lib/cli-doctor.js",
+        "to": "lib/authority/authority-status.js",
+        "fromLayer": "Core",
+        "toLayer": "Adapters"
+      },
+      {
+        "from": "lib/cli-doctor.js",
         "to": "lib/sqlite-availability.js",
         "fromLayer": "Core",
         "toLayer": "Adapters"
@@ -7588,6 +7664,12 @@
       {
         "from": "lib/github-app-beta-store.js",
         "to": "lib/receipt/receipt-chain.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/github-app-streaming-trust-public-receipt.js",
+        "to": "lib/receipt/public-trust-receipt.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
