@@ -428,10 +428,12 @@ test_installed() {
   fail "the service did not answer under the pinned key $key_id"
 }
 
-# macOS stat spells the same questions differently: %u for the owner and %Lp for
-# the permission bits in octal.
+# macOS stat spells the same questions differently: %u for the owner, and the
+# mode in two pieces -- %Lp is the rwx bits alone, %Mp is the setuid/setgid/sticky
+# bits. `%Lp` drops setgid, so a 2750 directory would read as 750; the two are
+# concatenated to get the whole mode the way Linux's `%a` returns it.
 owner_uid() { stat -f '%u' "$1"; }
-file_mode() { printf '%s' "$(( 8#$(stat -f '%Lp' "$1") ))"; }
+file_mode() { printf '%s' "$(( 8#$(stat -f '%Mp%Lp' "$1") ))"; }
 
 assert_protected() {
   local target

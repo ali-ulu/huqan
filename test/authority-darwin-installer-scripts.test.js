@@ -319,7 +319,9 @@ test('the socket and its directory are asserted to be 0660 and 2750 after the pr
 
 test('the ownership assertions read macOS stat, which has no -c', () => {
   assert.match(install, /stat -f '%u' "\$1"/);
-  assert.match(install, /stat -f '%Lp' "\$1"/);
+  // %Mp is the setuid/setgid/sticky bits and %Lp the rwx bits; %Lp alone drops
+  // setgid, so a 2750 directory would read as 750.
+  assert.match(install, /stat -f '%Mp%Lp' "\$1"/);
   assert.doesNotMatch(install, /stat -c/);
   // The state directory must be owned by a non-root service user, mode 0700.
   assert.match(install, /if \[ "\$\(owner_uid "\$STATE_DIR"\)" = 0 \] \|\| \[ "\$\(file_mode "\$STATE_DIR"\)" != 448 \]; then/);
