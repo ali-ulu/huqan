@@ -27,6 +27,7 @@ const test = require('node:test');
 
 const { createGitHubAppBetaHttpBoundary } = require('../lib/github-app-beta-http-boundary');
 const { createGitHubAppBetaServer } = require('../github-app-server');
+const { createPublicReceiptRoute } = require('../lib/http/public-receipt-route');
 const {
   importPublicTrustReceipt,
   toCanonicalPublicReceiptBytes,
@@ -349,4 +350,72 @@ test('the route serves only the published disclosure, never the webhook private 
   ]) {
     assert.equal(body.includes(secret), false, `${secret} must not be served`);
   }
+});
+
+// The error arms below are reached through the route module's own dependency
+// seam, because the HTTP server above always supplies a working store and a
+// working rate limiter. What is under test is the route's own decision, so the
+// two collaborators are the only things replaced.
+test('the route answers 429 without touching the store when the rate limit refuses', async () => {
+  let reads = 0;
+  const route = createPublicReceiptRoute({
+    readPublicReceipt: () => { reads += 1; return null; },
+    rateLimit: () => false,
+  });
+
+  const result = await route.handle(
+    { method: 'GET', socket: { remoteAddress: '127.0.0.1' } },
+    { pathname: `/public-receipts/${'a'.repeat(64)}` },
+  );
+
+  assert.equal(result.statusCode, 429);
+  assert.deepEqual(result.body.error, { code: 'RATE_LIMITED' });
+  assert.equal(reads, 0, 'a rate-limited request must not read the store');
+});
+
+test('the route answers 500 when the store reader throws, and never serves a partial body', async () => {
+  const route = createPublicReceiptRoute({
+    readPublicReceipt: () => { throw new Error('disk on fire'); },
+    rateLimit: () => true,
+  });
+
+  const result = await route.handle(
+    { method: 'GET', socket: { remoteAddress: '127.0.0.1' } },
+    { pathname: `/public-receipts/${'a'.repeat(64)}` },
+  );
+
+  assert.equal(result.statusCode, 500);
+  assert.deepEqual(result.body.error, { code: 'PUBLIC_RECEIPT_READ_FAILED' });
+});
+
+test('the route answers 500 when the stored receipt no longer canonicalizes', async () => {
+  // A record that came back from the store but fails the exporter's own
+  // checksum/shape check is refused: a verifier must never receive bytes this
+  // process could not itself validate.
+  const route = createPublicReceiptRoute({
+    readPublicReceipt: () => ({ publicReceipt: { not: 'a public receipt' } }),
+    rateLimit: () => true,
+  });
+
+  const result = await route.handle(
+    { method: 'GET', socket: { remoteAddress: '127.0.0.1' } },
+    { pathname: `/public-receipts/${'a'.repeat(64)}` },
+  );
+
+  assert.equal(result.statusCode, 500);
+  assert.deepEqual(result.body.error, { code: 'PUBLIC_RECEIPT_INVALID' });
+});
+
+test('the route answers 400 when the path is not under its prefix', async () => {
+  const route = createPublicReceiptRoute({ readPublicReceipt: () => null, rateLimit: () => true });
+
+  for (const pathname of ['/', '/public-receipts', '/other/abc', null, 42]) {
+    const result = await route.handle({ method: 'GET', socket: {} }, { pathname });
+    assert.equal(result.statusCode, 400, `${pathname} must be refused`);
+    assert.deepEqual(result.body.error, { code: 'PUBLIC_RECEIPT_ID_INVALID' });
+  }
+});
+
+test('the route refuses to be constructed without a store reader', () => {
+  assert.throws(() => createPublicReceiptRoute({}), { name: 'TypeError' });
 });
