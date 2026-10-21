@@ -1,5 +1,7 @@
 {
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
+  "lib/cognition-prediction-error-pairs.js": "COG-M2 graph pairs reader for the signal; first production caller is the M7 seam or the Lab CLI",
   "lib/cognition/cognition-config.js": "COG Phase 0 strict opts.cognition resolver; first production caller is the AgentV3 cognition seam (M7 wiring), which leaves the ledger when it wires",
-  "lib/cognition/contract.js": "COG Phase 0 shared output vocabulary; first production caller is the Phase 1 prediction-error module (M2), which leaves the ledger when it wires"
+  "lib/cognition/contract.js": "COG Phase 0 shared output vocabulary; first production caller is the Phase 1 prediction-error module (M2), which leaves the ledger when it wires",
+  "lib/cognition/prediction-error.js": "COG-M2 Faz 1 signal; first production caller is the M7 seam or the Lab CLI, which leaves the ledger when it wires"
 }
