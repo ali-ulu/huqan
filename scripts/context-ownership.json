@@ -2528,6 +2528,10 @@
    "context": "Knowledge",
    "evidence": "#4062: pure COG-M8 reward signal over observed prediction outcomes and experience eligibility"
   },
+  "lib/cognition/percept.js": {
+   "context": "Knowledge",
+   "evidence": "cognitive-architecture-plan.md#5: COG-M1 shared perception shape over the K1 CognitiveMessage and reference frame (Knowledge, as lib/memory-cognitive-message.js)"
+  },
   "lib/cognition/prediction-error.js": {
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md#5: COG-M2 prediction-error signal over prediction/outcome pairs (Knowledge, as lib/prediction-outcome-pairs.js)"
