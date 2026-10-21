@@ -81,10 +81,15 @@ test('each case carries the inputs its condition needs', () => {
   assert.equal(byId['conflict'].inputs.canonicalClaim.status, 'canonical');
   assert.equal(byId['conflict'].inputs.candidateClaim.status, 'candidate');
   assert.equal(byId['missing-provenance'].inputs.sourceRef, '');
+  assert.equal(byId['missing-provenance'].inputs.sourceVersion, '',
+    'a missing version stays missing; the fixture must not invent one');
   assert.equal(byId['orphan-page'].inputs.inboundLinks, 0);
   assert.deepEqual(byId['lint-read-only'].inputs.surfaces, ['canonicalMemory', 'graph', 'policy']);
-  assert.ok(byId['restart-idempotency'].inputs.sourceVersions.length > 1,
+  const versions = byId['restart-idempotency'].inputs.sourceVersions;
+  assert.ok(versions.length > 1,
     'restart idempotency needs the same version seen more than once');
+  assert.ok(versions.every((version) => version === versions[0]),
+    'restart idempotency is a restart on the same source version');
 });
 
 test('no expected finding authorizes a mutation, a promotion or an authoritative claim', () => {

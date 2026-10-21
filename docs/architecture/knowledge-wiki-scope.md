@@ -72,6 +72,12 @@ rewrites the content and recomputes the hash produces a record that agrees with
 itself. A declared hash is therefore never presented as a verified hash, and a
 present hash is never presented as proof that a record is tamper-evident.
 
+A record whose provenance carries no `sourceVersion` is not given one. The view
+omits it from derived claims and reports a `missing_provenance` finding, because
+a version invented at read time would be indistinguishable from a version the
+source actually supplied. The `missing-provenance` fixture pins the empty
+`sourceVersion` and the non-authoritative finding for that case.
+
 ## 5. Conflict policy (no auto-reconcile, no auto-promote)
 
 When a new source contradicts an existing claim:
@@ -96,8 +102,10 @@ The lint surface reports, and only reports:
 - a coverage gap (a source with no derived claim).
 
 Lint performs **no** mutation of canonical memory, of the graph, or of policy.
-The fixture set in `test/fixtures/knowledge-wiki/` proves this by comparing
-before/after state; the fixture expectation is that the two are identical.
+The `lint-read-only` fixture declares the required expectation — a
+`beforeStateDigest` and `stateChanged: false` — rather than proving it: this
+slice runs no lint and compares no before/after state, and section 12 defers
+that proof to the read-only prototype PR.
 
 ## 7. Determinism and idempotency
 
