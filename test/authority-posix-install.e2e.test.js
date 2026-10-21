@@ -280,25 +280,30 @@ test('--socket installs a 0660 socket the operator group alone can open', { skip
     assert.equal(report.boundary, 'os-service');
     assert.equal(report.answering, true);
 
-    // A local user outside the group cannot even traverse the directory. This
-    // process runs as the runner user with the group it logged in with, so it is
-    // that non-member -- exactly the unprivileged case the group exists to refuse.
-    const { createAuthorityClient } = require('../lib/authority/authority-client');
+    // The pin the runtime reads must name the socket, not the port: that is what
+    // routes a later caller to the socket transport at all.
     const { parseAuthorityPin } = require('../lib/authority/authority-pin');
     const pin = parseAuthorityPin(fs.readFileSync(PIN_PATH, 'utf8'));
     assert.equal(pin.ok, true, `the installed pin does not parse: ${pin.reason}`);
     assert.equal(pin.pin.socketPath, SOCKET_PATH, 'the pin must name the socket');
-    let denial = null;
-    try {
-      await createAuthorityClient({ pin: pin.pin }).identity();
-    } catch (error) {
-      denial = error;
-    }
-    assert.ok(denial, 'a non-member reached the socket');
-    // The client wraps a refused connect as AUTHORITY_UNAVAILABLE and keeps the
-    // OS error in the message, so the EACCES is what is asserted, not the code.
-    const detail = `${denial.code || ''} ${denial.message || ''}`;
-    assert.match(detail, /EACCES|EPERM/, `unexpected socket error: ${detail}`);
+
+    // The acceptance criterion is about a user who is not in the operator group.
+    // The runner cannot stand in for one: the installer adds the operator (the
+    // runner) to the group, and macOS reads that membership live, so a check as
+    // the runner would only pass by the accident of Linux's stale group list.
+    // `nobody` is a real outsider on both platforms, and a raw connect as it is
+    // the boundary itself: the kernel refuses before any HTTP is exchanged.
+    // The probe is inline so no file has to be world-readable, and the assertion
+    // reads the probe's own marker on stdout -- a "cannot execute node" error
+    // would also say EACCES, so the marker, not any EACCES, is what must appear.
+    const probe = [
+      "const net=require('node:net');",
+      `const s=net.connect(${JSON.stringify(SOCKET_PATH)});`,
+      "s.on('connect',()=>{console.log('CONNECTED');process.exit(0)});",
+      "s.on('error',e=>{console.log('ERR '+e.code);process.exit(3)});",
+    ].join('');
+    const outsider = spawnSync('sudo', ['-n', '-u', 'nobody', process.execPath, '-e', probe], { encoding: 'utf8' });
+    assert.match(outsider.stdout, /^ERR (EACCES|EPERM)$/m, `a non-member reached the socket: ${outsider.stdout}${outsider.stderr}`);
   } finally {
     sudo(['bash', UNINSTALL]);
     state.installed = false;
