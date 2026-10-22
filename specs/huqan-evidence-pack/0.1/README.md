@@ -93,6 +93,10 @@ huqan evidence pack --from <ISO> --to <ISO> --out <dir> [--sign] [--collector-st
 huqan evidence verify <dir> [--collector-pubkeys <dir>]
 ```
 
+`--from` and `--to` are inclusive instants. A date-only value means 00:00:00Z
+of that day, so `--to 2026-01-31` ends the period at the start of 31 January;
+pass `--to 2026-01-31T23:59:59.999Z` to include the whole day.
+
 The producer runs on the installation's own host and makes no network call. It
 writes a new directory (never into an existing one) through a temporary sibling
 and a rename, so a refusal leaves no output. It packs only the `default`

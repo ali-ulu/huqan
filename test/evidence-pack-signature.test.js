@@ -210,7 +210,7 @@ test('collectEvidencePack signs with the configured issuer key and seals the key
   });
   const base = {
     from: '2026-01-01', to: '2026-01-31', graph, emergencyStopDir: path.join(home, 'stops'),
-    externalReceiptsPath: path.join(home, 'x.jsonl'), backupOptions: { backupDir: path.join(home, 'b') },
+    externalReceiptsPath: path.join(home, 'x.jsonl'), backupOptions: { backupBaseDir: path.join(home, 'b') },
   };
   const pem = newKeyPem();
   const signed = collectEvidencePack({ ...base, outDir: path.join(home, 'signed'), issuerKey: { keyId: 'ignored', privateKeyPem: pem } });
