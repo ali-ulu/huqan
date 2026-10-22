@@ -92,6 +92,14 @@ test('a call through a bound namespace is found', () => {
   assert.equal(found[0].line, 2);
 });
 
+test('a TLS connection is egress, like the plain sockets beside it (#4093)', () => {
+  for (const spec of ['tls', 'node:tls']) {
+    const found = sitesIn('probe.js', `const tls = require('${spec}');\ntls.connect({ host: 'siem.example.com' });\n`);
+    assert.equal(found.length, 1, spec);
+    assert.equal(found[0].capability, 'egress');
+  }
+});
+
 test('a destructured import is found under its local name', () => {
   const source = "const { spawnSync: run } = require('child_process');\nrun('x');\n";
   const found = sitesIn('probe.js', source);

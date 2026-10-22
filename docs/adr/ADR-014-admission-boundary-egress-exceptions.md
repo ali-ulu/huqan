@@ -100,3 +100,45 @@ stay counted as unguarded.
 - The `unguarded` surface is still non-empty, which the manifest test asserts;
   this ADR does not empty it and must not be read as claiming coverage.
 - No code is routed here. The open work is listed above, not scheduled.
+
+## Addendum (#4093 PR-B4): SIEM push transports
+
+The SIEM export (`huqan-gate-hook siem-export`) can push events to the
+deployment's own SIEM. Two new egress sites:
+
+- `lib/siem/siem-syslog-sink.js`: a TLS connection (`tls.connect`) to a
+  `syslog+tls://` collector. Classified `egress_operator_gated`.
+- `lib/siem/siem-http-sink.js`: an HTTPS `POST` to a Splunk HEC or Elastic
+  `_bulk` endpoint. It calls an injected `fetch`, which the scan does not see
+  yet (#4196), so it has no manifest site and no role today. It is the same
+  exception as the syslog sink and has to be classified the same way when
+  #4196 lands.
+
+They fit the exception above for the same reasons:
+
+1. **No agent action reaches them.** The export runs as its own command after
+   the guard has decided and written the receipt; it reads the receipt trail,
+   never the agent's input. A sink that fails cannot change a decision.
+2. **Operator-enabled.** The default transport is the local file and opens no
+   network. A push happens only when the operator names `--sink syslog` or
+   `--sink http` and a URL.
+3. **The destination is judged first.** Each push sink's factory runs the
+   guard's own AB12 data residency and AB13 expected-egress gates on the host
+   (`lib/siem/siem-push-policy.js`) before it returns, so no caller can hold a
+   sink that skipped them. `block` refuses; AB13 `review` refuses too unless
+   the operator passes `--allow-unreviewed-host`, because an unattended export
+   has no human to review; a `--policy` file that does not exist refuses
+   instead of reading as "no residency". HTTP redirects are refused, so the
+   events cannot move to a host nobody judged.
+4. **Bounded payload.** Only the allowlisted, AB9-scrubbed
+   `huqan.siem-event.v1` leaves, over TLS with certificate verification on:
+   syslog sets it explicitly, and the HTTP sink refuses to start when
+   `NODE_TLS_REJECT_UNAUTHORIZED=0` would switch it off for `fetch`. The HTTP
+   token comes from `HUQAN_SIEM_HTTP_TOKEN` and is never logged.
+
+The re-open condition above applies: if a push sink's URL or payload ever
+becomes agent-supplied, the exception is void.
+
+`check:enforcement-coverage` also did not count `node:tls` as egress. This PR
+adds it to the scanned egress modules; no production file used `tls` before,
+so the change adds the syslog sink's site and nothing else.

@@ -13,7 +13,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { exportReceiptsToSiem } = require('../lib/siem/siem-export');
+const { defaultSiemPushCursorPath, exportReceiptsToSiem } = require('../lib/siem/siem-export');
 const { SIEM_EVENT_SCHEMA_VERSION } = require('../lib/siem/siem-event');
 
 function admissionReceipt(index, overrides = {}) {
@@ -53,6 +53,9 @@ function trail(t, receipts) {
     cursorPath: path.join(base, 'siem', 'cursor.json'),
   };
 }
+
+// The verdict a push sink's factory attaches after judging its host.
+const JUDGED = Object.freeze({ allowed: true });
 
 function lines(target) {
   return fs.readFileSync(target, 'utf8').split('\n').filter(Boolean);
@@ -213,4 +216,54 @@ test('a dry run previews the receipt kinds that will not reach the SIEM', async 
   assert.equal(report.skippedReceipts, 1);
   assert.deepEqual(report.skippedReceiptKinds, { external_action_outcome_receipt: 1 },
     'the preview answers the same question a real run answers');
+});
+
+test('a push sink receives each event beside its rendered line and keeps no local log', async t => {
+  const paths = trail(t, [admissionReceipt(1), admissionReceipt(2, { decision: 'block' })]);
+  const received = [];
+  const sink = { kind: 'http', path: 'https://siem.example.com/x', host: 'siem.example.com', policy: JUDGED, write: async (lines, events) => { received.push({ lines, events }); } };
+
+  const report = await exportReceiptsToSiem({ path: paths.path, cursorPath: paths.cursorPath, format: 'ecs', sink });
+  assert.equal(report.exported, 2);
+  assert.equal(report.siemLog, '', 'a push run names no local log');
+  assert.equal(received[0].lines.length, 2);
+  assert.deepEqual(received[0].events.map(event => event['event.id']), ['xact_adm_0001', 'xact_adm_0002']);
+  assert.equal(received[0].events[1]['huqan.decision'], 'block');
+  assert.equal(fs.existsSync(paths.siemPath), false);
+});
+
+test('each push destination keeps its own cursor, apart from the file export', async t => {
+  const paths = trail(t, [admissionReceipt(1)]);
+  const environment = { HUQAN_STATE_ROOT: path.join(paths.base, 'state') };
+  const push = host => ({ kind: 'syslog', path: `syslog+tls://${host}`, host, policy: JUDGED, write: async () => {} });
+
+  const first = await exportReceiptsToSiem({ path: paths.path, format: 'cef', sink: push('a.example.com'), environment });
+  const second = await exportReceiptsToSiem({ path: paths.path, format: 'cef', sink: push('b.example.com'), environment });
+  assert.notEqual(first.cursorPath, second.cursorPath);
+  assert.equal(second.exported, 1, 'pushing to one host does not mark the events delivered to another');
+  assert.equal(first.cursorPath, defaultSiemPushCursorPath(push('a.example.com'), 'cef', environment));
+});
+
+test('two endpoints or two formats on one host do not share a cursor', async t => {
+  const paths = trail(t, [admissionReceipt(1)]);
+  const environment = { HUQAN_STATE_ROOT: path.join(paths.base, 'state') };
+  const index = name => ({ kind: 'http', path: `https://es.example.com/${name}/_bulk`, host: 'es.example.com', policy: JUDGED, write: async () => {} });
+
+  await exportReceiptsToSiem({ path: paths.path, format: 'ecs', sink: index('audit'), environment });
+  const otherIndex = await exportReceiptsToSiem({ path: paths.path, format: 'ecs', sink: index('security'), environment });
+  assert.equal(otherIndex.exported, 1, 'a second index on the same host still receives the events');
+  const otherFormat = await exportReceiptsToSiem({ path: paths.path, format: 'hec', sink: index('audit'), environment });
+  assert.equal(otherFormat.exported, 1, 'the same endpoint in another format keeps its own position');
+});
+
+test('a push sink that was not judged by its factory is refused before anything is read or sent', async t => {
+  const paths = trail(t, [admissionReceipt(1)]);
+  let wrote = false;
+  const forged = { kind: 'http', path: 'https://siem.example.com/x', host: 'siem.example.com', write: async () => { wrote = true; } };
+  await assert.rejects(
+    exportReceiptsToSiem({ path: paths.path, cursorPath: paths.cursorPath, format: 'ecs', sink: forged }),
+    { code: 'SIEM_UNJUDGED_PUSH_SINK' },
+  );
+  assert.equal(wrote, false);
+  assert.equal(fs.existsSync(paths.cursorPath), false);
 });

@@ -45,7 +45,7 @@ const CAPABILITIES = Object.freeze({
     ],
   }),
   egress: Object.freeze({
-    modules: ['http', 'node:http', 'https', 'node:https', 'net', 'node:net', 'dgram', 'node:dgram'],
+    modules: ['http', 'node:http', 'https', 'node:https', 'net', 'node:net', 'tls', 'node:tls', 'dgram', 'node:dgram'],
     members: ['request', 'get', 'createConnection', 'connect', 'createSocket'],
   }),
 });

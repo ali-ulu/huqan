@@ -304,6 +304,7 @@
       "lib/cognition/percept-adapters.js": "Core",
       "lib/cognition/percept.js": "Core",
       "lib/cognition/prediction-error.js": "Core",
+      "lib/cognition/replay-priority.js": "Core",
       "lib/cognition/reward-signal.js": "Core",
       "lib/cognition/salience.js": "Core",
       "lib/cognition/value-ledger.js": "Core",
@@ -428,8 +429,10 @@
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
       "lib/evidence-pack/collect.js": "Application",
+      "lib/evidence-pack/collector-seals.js": "Application",
       "lib/evidence-pack/control-matrix.js": "Application",
       "lib/evidence-pack/manifest.js": "Application",
+      "lib/evidence-pack/signature.js": "Application",
       "lib/evidence-pack/verify.js": "Application",
       "lib/experience/adapter-scope.js": "Application",
       "lib/experience/arithmetic-function.js": "Application",
@@ -715,6 +718,7 @@
       "lib/http/workflow-decision-gate.js": "UI",
       "lib/http/workflow-envelope.js": "UI",
       "lib/http/workflow-request-validation.js": "UI",
+      "lib/https-delivery-rules.js": "Core",
       "lib/human-approval-toggle.js": "Core",
       "lib/human-oversight-approval-runtime-cases.js": "Core",
       "lib/human-oversight-approval-runtime-decide.js": "Core",
@@ -1155,6 +1159,9 @@
       "lib/siem/siem-export-command.js": "Adapters",
       "lib/siem/siem-export.js": "Adapters",
       "lib/siem/siem-file-sink.js": "Adapters",
+      "lib/siem/siem-http-sink.js": "Adapters",
+      "lib/siem/siem-push-policy.js": "Adapters",
+      "lib/siem/siem-syslog-sink.js": "Adapters",
       "lib/sqlite-availability.js": "Adapters",
       "lib/sqlite-busy-retry.js": "Adapters",
       "lib/sqlite-durability.js": "Adapters",
@@ -1990,6 +1997,7 @@
       "lib/agent-cognition-observation.js": [
         "lib/cognition/contract.js",
         "lib/cognition/percept-adapters.js",
+        "lib/cognition/percept.js",
         "lib/file-effect-sensor.js",
         "lib/hash-chain.js",
         "lib/memory-cognitive-message.js",
@@ -2859,6 +2867,11 @@
         "lib/is-plain-object.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/cognition/replay-priority.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/reward-signal.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/cognition/reward-signal.js": [
         "lib/cognition/contract.js",
         "lib/is-plain-object.js"
@@ -3333,7 +3346,10 @@
         "lib/audit-bounded-read.js",
         "lib/data-egress-gate.js",
         "lib/emergency-stop-chain.js",
+        "lib/evidence-pack/collector-seals.js",
+        "lib/evidence-pack/control-matrix.js",
         "lib/evidence-pack/manifest.js",
+        "lib/evidence-pack/signature.js",
         "lib/external-action-receipt-reader.js",
         "lib/receipt/bounded-receipt-export.js",
         "lib/receipt/receipt-export.js",
@@ -3341,15 +3357,27 @@
         "lib/tool-call-gate-secrets.js",
         "lib/workspace-id.js"
       ],
+      "lib/evidence-pack/collector-seals.js": [
+        "lib/external-action-receipt-collector-fleet.js",
+        "lib/external-action-receipt-collector-store.js",
+        "lib/receipt/issuer-seal.js"
+      ],
       "lib/evidence-pack/control-matrix.js": [
         "lib/evidence-pack/manifest.js"
       ],
       "lib/evidence-pack/manifest.js": [
         "lib/hash-chain.js"
       ],
+      "lib/evidence-pack/signature.js": [
+        "lib/hash-chain.js",
+        "lib/receipt/issuer-seal.js"
+      ],
       "lib/evidence-pack/verify.js": [
         "lib/emergency-stop-chain.js",
+        "lib/evidence-pack/collector-seals.js",
         "lib/evidence-pack/manifest.js",
+        "lib/evidence-pack/signature.js",
+        "lib/external-action-receipt-collector-store.js",
         "lib/hash-chain.js",
         "lib/receipt/receipt-export.js"
       ],
@@ -5622,6 +5650,7 @@
         "lib/observability/schema.js"
       ],
       "lib/observability/notification-adapter.js": [
+        "lib/https-delivery-rules.js",
         "lib/observability/helpers.js"
       ],
       "lib/observability/server-runtime.js": [
@@ -6240,7 +6269,9 @@
       ],
       "lib/siem/siem-export-command.js": [
         "lib/gate-hook-input.js",
-        "lib/siem/siem-export.js"
+        "lib/siem/siem-export.js",
+        "lib/siem/siem-http-sink.js",
+        "lib/siem/siem-syslog-sink.js"
       ],
       "lib/siem/siem-export.js": [
         "lib/external-action-identity-log.js",
@@ -6249,6 +6280,18 @@
         "lib/siem/formatters.js",
         "lib/siem/siem-event.js",
         "lib/siem/siem-file-sink.js"
+      ],
+      "lib/siem/siem-http-sink.js": [
+        "lib/https-delivery-rules.js",
+        "lib/siem/siem-push-policy.js"
+      ],
+      "lib/siem/siem-push-policy.js": [
+        "lib/data-residency-gate.js",
+        "lib/external-action-command-policy.js",
+        "lib/unexpected-egress-gate.js"
+      ],
+      "lib/siem/siem-syslog-sink.js": [
+        "lib/siem/siem-push-policy.js"
       ],
       "lib/sqlite-persistence-validation.js": [
         "lib/graph-record-utils.js",
