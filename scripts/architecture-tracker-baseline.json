@@ -227,6 +227,7 @@
       "lib/cli-doctor-usage.js": "Core",
       "lib/cli-doctor.js": "Core",
       "lib/cli-ephemeral-boot.js": "Core",
+      "lib/cli-evidence-commands.js": "Core",
       "lib/cli-experience-learn.js": "Core",
       "lib/cli-experience-read.js": "Core",
       "lib/cli-experience-reconcile.js": "Core",
@@ -295,9 +296,15 @@
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
       "lib/cognition-prediction-error-pairs.js": "Adapters",
+      "lib/cognition-value-ledger-pairs.js": "Adapters",
       "lib/cognition/cognition-config.js": "Core",
       "lib/cognition/contract.js": "Core",
+      "lib/cognition/percept-adapters.js": "Core",
+      "lib/cognition/percept.js": "Core",
       "lib/cognition/prediction-error.js": "Core",
+      "lib/cognition/reward-signal.js": "Core",
+      "lib/cognition/salience.js": "Core",
+      "lib/cognition/value-ledger.js": "Core",
       "lib/cognitive-lab-b1-manifest.js": "Core",
       "lib/cognitive-lab-b1-replay.js": "Core",
       "lib/cognitive-lab-b4-evaluator.js": "Core",
@@ -418,6 +425,9 @@
       "lib/error-taxonomy.js": "Core",
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
+      "lib/evidence-pack/collect.js": "Application",
+      "lib/evidence-pack/manifest.js": "Application",
+      "lib/evidence-pack/verify.js": "Application",
       "lib/experience/adapter-scope.js": "Application",
       "lib/experience/arithmetic-function.js": "Application",
       "lib/experience/array-filter-program.js": "Application",
@@ -549,6 +559,7 @@
       "lib/gate-hook-reports.js": "Core",
       "lib/gate-outcome-history.js": "Core",
       "lib/gate-outcome-projection.js": "Core",
+      "lib/gate-profile-inventory.js": "Core",
       "lib/gate-signal-provider.js": "Core",
       "lib/gate-telemetry.js": "Core",
       "lib/github-app-beta-auth.js": "Core",
@@ -799,6 +810,7 @@
       "lib/kernel-v2-native.js": "Core",
       "lib/kernel-v2-type-negation.js": "Core",
       "lib/kernel-v2-verify.js": "Core",
+      "lib/knowledge-lint.js": "Core",
       "lib/laya-mcp-client.js": "Core",
       "lib/learn-admission-request.js": "Core",
       "lib/learn-edge-options.js": "Core",
@@ -1135,6 +1147,8 @@
       "lib/server-response-helpers.js": "Core",
       "lib/session-impact.js": "Core",
       "lib/shield.js": "Core",
+      "lib/siem/formatters.js": "Adapters",
+      "lib/siem/siem-event.js": "Adapters",
       "lib/sqlite-availability.js": "Adapters",
       "lib/sqlite-busy-retry.js": "Adapters",
       "lib/sqlite-durability.js": "Adapters",
@@ -1371,6 +1385,7 @@
       "scripts/capability-usage.js": "UI",
       "scripts/changelog.js": "UI",
       "scripts/check-action-pins.js": "UI",
+      "scripts/check-ai-attribution.js": "UI",
       "scripts/check-control-chars.js": "UI",
       "scripts/check-coverage.js": "UI",
       "scripts/check-dead-code.js": "UI",
@@ -2120,6 +2135,7 @@
       ],
       "lib/authority/agent-user-boundary.js": [
         "lib/authority/install-trust.js",
+        "lib/authority/posix-path-trust.js",
         "lib/authority/store-acl.js",
         "lib/authority/store-migrate.js",
         "lib/protected-store-path.js"
@@ -2175,6 +2191,7 @@
         "lib/mcp-tool-names.js"
       ],
       "lib/authority/http-server.js": [
+        "lib/authority/authority-pin.js",
         "lib/authority/decision-envelope.js"
       ],
       "lib/authority/ledger-store.js": [
@@ -2476,6 +2493,7 @@
         "lib/cli-doctor-probe.js",
         "lib/cli-doctor-usage.js",
         "lib/environment-compat.js",
+        "lib/gate-profile-inventory.js",
         "lib/server-bind-doctor.js",
         "lib/sqlite-availability.js",
         "lib/storage/schema.js",
@@ -2591,6 +2609,7 @@
       ],
       "lib/cli-workflow-adapter.js": [
         "lib/cli-ephemeral-boot.js",
+        "lib/cli-evidence-commands.js",
         "lib/cli-gate-message.js",
         "lib/cli-ingest-batch.js",
         "lib/cli-ingest-preview.js",
@@ -2785,15 +2804,47 @@
         "lib/cognition/prediction-error.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/cognition-value-ledger-pairs.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/value-ledger.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
       "lib/cognition/cognition-config.js": [
         "lib/cognition/contract.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/cognition/percept-adapters.js": [
+        "lib/browser-session-observer.js",
+        "lib/cognition/contract.js",
+        "lib/cognition/percept.js",
+        "lib/file-effect-sensor.js"
+      ],
+      "lib/cognition/percept.js": [
+        "lib/cognition/contract.js",
+        "lib/content-hash.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js",
+        "lib/memory-cognitive-message.js"
       ],
       "lib/cognition/prediction-error.js": [
         "lib/cognition/contract.js",
         "lib/file-effect-sensor.js",
         "lib/is-plain-object.js",
         "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/cognition/reward-signal.js": [
+        "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/salience.js": [
+        "lib/cognition/contract.js",
+        "lib/cognitive-scheduler.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/value-ledger.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/reward-signal.js",
+        "lib/is-plain-object.js"
       ],
       "lib/cognitive-lab-b1-manifest.js": [
         "lib/cognitive-lab-manifest.js",
@@ -3249,6 +3300,28 @@
       ],
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/evidence-pack/collect.js": [
+        "backupRestore.js",
+        "lib/audit-bounded-read.js",
+        "lib/data-egress-gate.js",
+        "lib/emergency-stop-chain.js",
+        "lib/evidence-pack/manifest.js",
+        "lib/external-action-receipt-reader.js",
+        "lib/receipt/bounded-receipt-export.js",
+        "lib/receipt/receipt-export.js",
+        "lib/secret-scrub-gate.js",
+        "lib/tool-call-gate-secrets.js",
+        "lib/workspace-id.js"
+      ],
+      "lib/evidence-pack/manifest.js": [
+        "lib/hash-chain.js"
+      ],
+      "lib/evidence-pack/verify.js": [
+        "lib/emergency-stop-chain.js",
+        "lib/evidence-pack/manifest.js",
+        "lib/hash-chain.js",
+        "lib/receipt/receipt-export.js"
       ],
       "lib/experience/array-filter-program.js": [
         "lib/experience/array-map-program.js"
@@ -3771,6 +3844,10 @@
         "lib/external-action-receipt-reader.js",
         "lib/gate-outcome-history.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/gate-profile-inventory.js": [
+        "lib/external-action-gate-install-files.js",
+        "lib/external-action-gate-install-spec.js"
       ],
       "lib/gate-signal-provider.js": [
         "lib/error-prevention/decision.js",
@@ -4740,6 +4817,10 @@
         "lib/kernel-v2-type-negation.js",
         "lib/subject-resolution.js",
         "lib/text-safety-scorer.js"
+      ],
+      "lib/knowledge-lint.js": [
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
       ],
       "lib/learn-admission-request.js": [
         "lib/background-provenance.js",
@@ -6119,6 +6200,12 @@
       ],
       "lib/shield.js": [
         "lib/verify-status-vocabulary.js"
+      ],
+      "lib/siem/formatters.js": [
+        "lib/siem/siem-event.js"
+      ],
+      "lib/siem/siem-event.js": [
+        "lib/data-egress-gate.js"
       ],
       "lib/sqlite-persistence-validation.js": [
         "lib/graph-record-utils.js",

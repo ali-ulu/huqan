@@ -5267,6 +5267,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/tool-call-gate-secrets.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#4092 PR-A2: the evidence pack (Trust) reuses this existing function rather than growing a copy"
+  },
   "lib/emergency-stop-chain.js": {
    "owner": "AgentAction",
    "consumers": [
@@ -6078,7 +6085,8 @@
    "owner": "AgentAction",
    "consumers": [
     "Observability",
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6353,7 +6361,8 @@
   "lib/data-egress-gate.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Knowledge"
+    "Knowledge",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6930,7 +6939,8 @@
   "backupRestore.js": {
    "owner": "Memory",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
