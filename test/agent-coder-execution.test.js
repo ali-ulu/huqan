@@ -136,3 +136,16 @@ test('dirty source and executable task properties cannot reach an executor', t =
   assert.equal(adapter.execute({ step: f.step, state: f.state }).ok, false);
   assert.equal(reads, 0);
 });
+
+test('a host approval runtime that throws in authorizeExecution is a blocked step, not an escaped exception', t => {
+  const f = fixture(t);
+  const fault = () => { throw new Error('HOST_RUNTIME_FAULT'); };
+  const throwing = { authorizeExecution: fault, executeApprovedSync: fault };
+  const adapter = createAgentCoderExecution({ ...f.config, approvalRuntime: throwing });
+  const prepared = adapter.prepare({ step: f.step, state: f.state });
+  assert.equal(prepared.ok, false);
+  assert.equal(prepared.reason, 'HOST_RUNTIME_FAULT');
+  const executed = adapter.execute({ step: f.step, state: f.state });
+  assert.equal(executed.ok, false);
+  assert.equal(executed.error.code, 'HOST_RUNTIME_FAULT');
+});
