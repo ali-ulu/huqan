@@ -27,6 +27,8 @@ const { createEmergencyStop } = require('../lib/emergency-stop');
 const { exportMaterializedReceiptBundleBounded } = require('../lib/receipt/bounded-receipt-export');
 const { collectEvidencePack } = require('../lib/evidence-pack/collect');
 const { verifyPack } = require('../lib/evidence-pack/verify');
+const { PACK_NON_CLAIMS } = require('../lib/evidence-pack/manifest');
+const { renderControlMatrixJson, renderAuditorReadme } = require('../lib/evidence-pack/control-matrix');
 
 // Assembled at runtime so no credential-shaped literal exists in the repository: the gitleaks
 // scan reads commit history and its generic-api-key rule fires on the assignment as a whole.
@@ -236,20 +238,38 @@ test('audit file and bundle hold only the requested period', async (t) => {
   assert.equal(bundle.receiptCount, 2);
 });
 
-test('packs exactly the slice-A2 files and none of the later slices', async (t) => {
+test('packs exactly the A2 files plus the control matrix and auditor README', async (t) => {
   const graph = graphWith(t, baseEvents());
   const opts = options(t, graph);
   await collectEvidencePack(opts);
   const manifest = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'manifest.json'), 'utf8'));
   assert.deepEqual(manifest.files.map((file) => file.path).sort(), [
+    'README-AUDITOR.md',
     'audit/audit-events.jsonl',
     'backups/backup-index.json',
     'config/policy-seals.json',
     'config/security-invariants.md',
+    'controls/control-matrix.json',
     'external-actions/receipts.jsonl',
     'receipts/receipt-bundle.json',
     'verification/producer-self-check.json',
   ]);
+  for (const file of manifest.files.filter((f) => f.path === 'README-AUDITOR.md' || f.path === 'controls/control-matrix.json')) {
+    assert.equal(file.integrityClass, 'snapshot_hash_only');
+  }
+  assert.equal(fs.readFileSync(path.join(opts.outDir, 'controls/control-matrix.json'), 'utf8'), renderControlMatrixJson());
+  assert.equal(verifyPack(opts.outDir).valid, true);
+});
+
+test('the auditor README restates exactly the manifest non-claims, period and producer', async (t) => {
+  const graph = graphWith(t, baseEvents());
+  const opts = options(t, graph);
+  await collectEvidencePack(opts);
+  const manifest = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.nonClaims, PACK_NON_CLAIMS);
+  const readme = fs.readFileSync(path.join(opts.outDir, 'README-AUDITOR.md'), 'utf8');
+  assert.equal(readme, renderAuditorReadme({ manifest: { period: manifest.period, generatedAt: manifest.generatedAt, producer: manifest.producer, nonClaims: manifest.nonClaims } }));
+  for (const claim of manifest.nonClaims) assert.ok(readme.includes(`- ${claim}`), claim);
 });
 
 test('does not pack a bundle that fails the verify step it re-runs on the exact bytes', async (t) => {
