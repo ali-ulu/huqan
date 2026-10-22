@@ -376,6 +376,10 @@ const CLASSIFIED = Object.freeze({
     role: 'egress_operator_gated',
     why: 'spawns `ocr review` over the PR base-to-head range on the Guardian path with argv fixed in source (--from/--to/--rule from the snapshot and the base checkout, shell only on Windows for the npm .cmd shim); the change is sent to the operator-configured LLM endpoint and the result is an observed signal that never blocks. No agent action reaches the spawn, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014',
   }),
+  'lib/siem/siem-syslog-sink.js': Object.freeze({
+    role: 'egress_operator_gated',
+    why: 'opens a TLS connection (certificate verification always on, TLS 1.2+) to the syslog collector the operator named with `huqan-gate-hook siem-export --sink syslog --url syslog+tls://...`; it carries only the allowlisted, AB9-scrubbed SIEM event of a decision already made, and the host is judged by AB12 residency and AB13 expected egress before the socket opens. The export runs as its own command after the decision, so no agent tool call reaches the socket. Recorded as a deliberate, written exception in ADR-014 (#4093 addendum)',
+  }),
 });
 
 module.exports = { ROLES, CLASSIFIED };

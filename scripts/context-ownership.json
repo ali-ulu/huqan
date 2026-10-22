@@ -2460,6 +2460,18 @@
    "context": "AgentAction",
    "evidence": "#4093 PR-B3: the huqan-gate-hook siem-export CLI marshal; bin/huqan-gate-hook.js requires it directly because lib/siem/ is the Adapters layer and the Core management module may not require one"
   },
+  "lib/siem/siem-http-sink.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B4: the opt-in HTTPS push sink (Splunk HEC, Elastic _bulk) for the SIEM export; the same AgentAction egress boundary as its file sink, with the destination judged by AB12/AB13 first"
+  },
+  "lib/siem/siem-syslog-sink.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B4: the opt-in RFC 5424 over TLS push sink for the SIEM export; the same AgentAction egress boundary as its file sink, with the destination judged by AB12/AB13 first"
+  },
+  "lib/siem/siem-push-policy.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B4: judges a SIEM push host with the guard's own AB12 data residency and AB13 expected egress gates, the AgentAction context that owns both"
+  },
   "lib/siem/formatters.js": {
    "context": "AgentAction",
    "evidence": "#4093 PR-B2: renders the canonical huqan.siem-event.v1 into ECS, Splunk HEC, CEF and jsonl; pure, no new egress boundary, so it inherits the AgentAction context its mapper already carries"
@@ -4633,6 +4645,10 @@
   "lib/huqan-state-root.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/https-delivery-rules.js": {
+   "kind": "infra",
+   "evidence": "#4093 PR-B4: pure HTTPS endpoint and retry rules shared by the observability webhook and the SIEM push sink, moved out of lib/observability/notification-adapter.js so neither keeps a copy"
   },
   "lib/content-hash.js": {
    "kind": "infra",

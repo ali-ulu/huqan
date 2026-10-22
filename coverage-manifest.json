@@ -2,11 +2,11 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 90,
-    "sites": 209,
+    "files": 91,
+    "sites": 210,
     "byCapability": {
       "process": 37,
-      "egress": 8,
+      "egress": 9,
       "fs_write": 164
     },
     "byRole": {
@@ -15,7 +15,7 @@
       "operator_tool": 75,
       "persistence": 58,
       "evidence": 17,
-      "egress_operator_gated": 2,
+      "egress_operator_gated": 3,
       "unguarded": 3
     }
   },
@@ -1832,6 +1832,21 @@
           "line": 137,
           "capability": "fs_write",
           "call": "fs.renameSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/siem/siem-syslog-sink.js",
+      "role": "egress_operator_gated",
+      "why": "opens a TLS connection (certificate verification always on, TLS 1.2+) to the syslog collector the operator named with `huqan-gate-hook siem-export --sink syslog --url syslog+tls://...`; it carries only the allowlisted, AB9-scrubbed SIEM event of a decision already made, and the host is judged by AB12 residency and AB13 expected egress before the socket opens. The export runs as its own command after the decision, so no agent tool call reaches the socket. Recorded as a deliberate, written exception in ADR-014 (#4093 addendum)",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 135,
+          "capability": "egress",
+          "call": "connect"
         }
       ]
     },
