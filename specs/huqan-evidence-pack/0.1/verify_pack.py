@@ -19,9 +19,13 @@ What a VALID verdict means, and what it does not:
     the operator is honest. Those limits are printed with the verdict.
 
 Usage:
-    python3 verify_pack.py <pack-dir> [...]
+    python3 verify_pack.py <pack-dir> [...] [--collector-pubkeys <dir>]
 
-Exit status is 0 when every pack verifies, 1 otherwise.
+Collector public keys are supplied apart from the pack (a pack never carries
+the keys that vouch for it). Without them a pack that holds collector seals
+is still VALID, with a warning that the seals were not verified.
+
+Exit status is 0 when every pack verifies, 1 otherwise. Warnings never change it.
 """
 
 import base64
@@ -30,6 +34,7 @@ import importlib.util
 import json
 import os
 import posixpath
+import re
 import sys
 
 # Loading the shipped bundle verifier as a module would otherwise write a
@@ -46,6 +51,11 @@ SIGNATURE_NON_CLAIM = ("the issuer signature proves origin, not independence: th
 BUNDLE_RELATIVE_PATH = "receipts/receipt-bundle.json"
 LEDGER_RELATIVE_PATH = "emergency-stop/ledger.jsonl"
 LEDGER_ACTIONS = ("stop", "lift", "integrity_violation")
+COLLECTOR_SEALS_RELATIVE_PATH = "external-actions/collector-seals.jsonl"
+COLLECTOR_SEAL_VERSION = "huqan.collector-seal.v1"
+UNVERIFIED_WARNING = "collector seals present, not verified: no collector public key supplied"
+COLLECTOR_NON_CLAIM = ("collector seals are third-party evidence only if the collector is administered by someone "
+                       "other than the operator; a seal chain whose last seals were removed cannot be told from a quiet period")
 
 INTEGRITY_CLASSES = frozenset([
     "hash_chained",
@@ -281,6 +291,126 @@ def signature_findings(pack_dir, manifest):
 
 
 
+def load_collector_keys(directory):
+    """keyId -> PEM from one file per key; the file name without .pem/.pub/.key is the keyId."""
+    keys = {}
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return keys
+    for name in names:
+        path = os.path.join(directory, name)
+        key = re.sub(r"\.(pem|pub|key)$", "", name, flags=re.IGNORECASE)
+        if not key or not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as handle:
+                keys[key] = handle.read()
+        except (OSError, UnicodeDecodeError):
+            pass
+    return keys
+
+
+def _js_string(value):
+    """String(value || '') for the scalar types a seal field can hold; None when it is something else."""
+    if value is None or value is False or value == "" or value == 0:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return "true"
+    if isinstance(value, int):
+        return str(value)
+    return None
+
+
+def _seal_payload(seal):
+    fields = {}
+    for name in ("batchId", "workspaceId", "ownerActorId", "contentHash", "receivedAt", "previousSealHash"):
+        fields[name] = _js_string(seal.get(name))
+        if fields[name] is None:
+            return None
+    count = seal.get("count")
+    return {
+        "schemaVersion": COLLECTOR_SEAL_VERSION,
+        "batchId": fields["batchId"],
+        "workspaceId": fields["workspaceId"],
+        "ownerActorId": fields["ownerActorId"],
+        "contentHash": fields["contentHash"],
+        "count": int(count) if is_integer(count) else -1,
+        "receivedAt": fields["receivedAt"],
+        "previousSealHash": fields["previousSealHash"],
+    }
+
+
+def collector_seal_valid(seal, public_key_pem):
+    """True only when this key made this seal over this statement (the stored sealHash is recomputed)."""
+    if seal.get("schemaVersion") != COLLECTOR_SEAL_VERSION or seal.get("algorithm") != "ed25519":
+        return False
+    if not isinstance(seal.get("signature"), str):
+        return False
+    payload = _seal_payload(seal)
+    raw_key = spki_ed25519(public_key_pem)
+    if payload is None or raw_key is None:
+        return False
+    message = canonical_json(payload).encode("utf-8")
+    if "sha256:" + hashlib.sha256(message).hexdigest() != seal.get("sealHash"):
+        return False
+    try:
+        signature = base64.b64decode(seal["signature"], validate=True)
+    except Exception:
+        return False
+    return ed25519_verify(raw_key, signature, message)
+
+
+def collector_chain_reason(seals, keys):
+    """Walk one tenant's seals in stored order; the first failing reason, else None (same tokens as verifyCollectorSealChain)."""
+    previous = ""
+    for seal in seals:
+        key_id = seal.get("keyId") if isinstance(seal.get("keyId"), str) else None
+        pem = keys.get(key_id) if key_id is not None else None
+        if not pem:
+            return "seal_key_not_trusted"
+        if not collector_seal_valid(seal, pem):
+            return "seal_signature_invalid"
+        if _js_string(seal.get("previousSealHash")) != previous:
+            return "seal_chain_broken"
+        previous = seal["sealHash"]
+    return None
+
+
+def collector_seal_report(text, keys, issuer_key_id):
+    """(findings, warnings) for collector-seals.jsonl; keys is None when no public key was supplied."""
+    if keys is None:
+        return [], [UNVERIFIED_WARNING]
+    chains = {}
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            parsed = None
+        row = parsed if isinstance(parsed, dict) else {"__corrupt": True}
+        tenant = tuple(row[name] if isinstance(row.get(name), str) else "" for name in ("workspaceId", "ownerActorId"))
+        chains.setdefault(tenant, []).append(row)
+    findings, used, warnings = [], set(), []
+    for seals in chains.values():
+        reason = collector_chain_reason(seals, keys)
+        if reason:
+            findings.append("collector_seal_chain_invalid:%s" % reason)
+        used.update(s["keyId"] for s in seals if isinstance(s.get("keyId"), str) and s["keyId"] in keys)
+    if issuer_key_id:
+        for used_id in sorted(used):
+            raw = spki_ed25519(keys[used_id])
+            if raw is not None and key_id(raw) == issuer_key_id:
+                warnings.append("collector_not_independent: the collector key and the issuer key (%s) are the same key, "
+                                "so the counter-seal adds no independence" % issuer_key_id)
+                break
+    return findings, warnings
+
+
 def manifest_path_invalid(relative):
     """The manifest path policy: a packed file is named by a canonical,
     relative, forward-slash path. An absolute path, a backslash, a `.` or `..`
@@ -359,7 +489,7 @@ def ledger_reason(text):
     return None
 
 
-def verify(pack_dir, bundle_verifier):
+def verify(pack_dir, bundle_verifier, collector_pubkeys=None):
     findings = []
     manifest_path = os.path.join(pack_dir, MANIFEST_FILE)
     try:
@@ -368,18 +498,18 @@ def verify(pack_dir, bundle_verifier):
     except OSError:
         # Every read failure is manifest_unreadable, matching verify.js: a
         # permission error must not escape verify() and skip the verdict line.
-        return ["manifest_unreadable"], [], [], (False, None)
+        return ["manifest_unreadable"], [], [], (False, None), []
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return ["manifest_not_json"], [], [], (False, None)
+        return ["manifest_not_json"], [], [], (False, None), []
 
     if not isinstance(manifest, dict):
-        return ["manifest_not_object"], [], [], (False, None)
+        return ["manifest_not_object"], [], [], (False, None), []
     if manifest.get("schemaVersion") != SCHEMA_VERSION:
         findings.append("manifest_schema_version_mismatch")
     entries_raw = manifest.get("files")
     if not isinstance(entries_raw, list):
         findings.append("manifest_files_missing")
-        return findings, [], manifest.get("nonClaims") or [], (False, None)
+        return findings, [], manifest.get("nonClaims") or [], (False, None), []
 
     if pack_hash(manifest) != manifest.get("packHash"):
         findings.append("pack_hash_mismatch")
@@ -446,21 +576,40 @@ def verify(pack_dir, bundle_verifier):
         except Exception:
             findings.append("emergency_stop_ledger_unreadable")
 
+    warnings = []
+    if COLLECTOR_SEALS_RELATIVE_PATH in entries:
+        try:
+            with open(os.path.join(pack_dir, COLLECTOR_SEALS_RELATIVE_PATH), encoding="utf-8") as handle:
+                seal_text = handle.read()
+            producer = manifest.get("producer")
+            issuer = producer.get("issuerKeyId") if isinstance(producer, dict) else None
+            keys = load_collector_keys(collector_pubkeys) if collector_pubkeys else None
+            seal_findings, warnings = collector_seal_report(seal_text, keys, issuer)
+            findings.extend(seal_findings)
+        except Exception:
+            findings.append("collector_seals_unreadable")
+
     sig_findings, signed, signer = signature_findings(pack_dir, manifest)
     findings.extend(sig_findings)
     non_claims = list(manifest.get("nonClaims") or [])
     if signed:
         non_claims.append(SIGNATURE_NON_CLAIM)
-    return findings, file_reports, non_claims, (signed, signer)
+    if COLLECTOR_SEALS_RELATIVE_PATH in entries:
+        non_claims.append(COLLECTOR_NON_CLAIM)
+    return findings, file_reports, non_claims, (signed, signer), warnings
 
 
-def report(pack_dir, findings, file_reports, non_claims, signature=(False, None)):
+def report(pack_dir, findings, file_reports, non_claims, signature=(False, None), warnings=()):
     name = os.path.basename(os.path.normpath(pack_dir)) or pack_dir
     if findings:
         print("%-40s INVALID  %s" % (name, ", ".join(findings)))
+        for warning in warnings:
+            print("    warning: %s" % warning)
         return False
     print("%-40s VALID" % name)
     print("    signature: %s" % ("signed  keyId: %s" % signature[1] if signature[0] else "unsigned"))
+    for warning in warnings:
+        print("    warning: %s" % warning)
     for relative, integrity_class, _present, _hash_valid in file_reports:
         print("    %-48s %s" % (relative, integrity_class))
     for claim in non_claims:
@@ -469,14 +618,22 @@ def report(pack_dir, findings, file_reports, non_claims, signature=(False, None)
 
 
 def main(argv):
+    pubkeys = None
+    if "--collector-pubkeys" in argv:
+        at = argv.index("--collector-pubkeys")
+        if at + 1 >= len(argv) or argv[at + 1].startswith("--"):
+            print("usage: verify_pack.py <pack-dir> [...] [--collector-pubkeys <dir>]", file=sys.stderr)
+            return 2
+        pubkeys = argv[at + 1]
+        argv = argv[:at] + argv[at + 2:]
     if not argv:
-        print("usage: verify_pack.py <pack-dir> [...]", file=sys.stderr)
+        print("usage: verify_pack.py <pack-dir> [...] [--collector-pubkeys <dir>]", file=sys.stderr)
         return 2
     bundle_verifier = load_bundle_verifier()
     ok = True
     for pack_dir in argv:
-        findings, file_reports, non_claims, signature = verify(pack_dir, bundle_verifier)
-        ok = report(pack_dir, findings, file_reports, non_claims, signature) and ok
+        findings, file_reports, non_claims, signature, warnings = verify(pack_dir, bundle_verifier, pubkeys)
+        ok = report(pack_dir, findings, file_reports, non_claims, signature, warnings) and ok
     return 0 if ok else 1
 
 

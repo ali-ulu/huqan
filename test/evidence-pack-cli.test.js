@@ -180,3 +180,35 @@ test('pack --sign writes a signature with the configured issuer key; without a k
   assert.equal(huqan(['evidence', 'pack', ...period, '--out', plainOut], signedCtx).status, 0);
   assert.equal(fs.existsSync(path.join(plainOut, 'manifest.signature.json')), false);
 });
+
+test('pack --collector-store packs the seal chain; verify takes the keys from --collector-pubkeys', (t) => {
+  const { collectorStore } = require('./helpers/evidence-pack-fixtures');
+  const ctx = seededHome(t);
+  const collector = collectorStore(ctx.home);
+  const period = ['--from', '2026-01-01', '--to', '2026-01-31T23:59:59.999Z'];
+
+  const noKeys = huqan(['evidence', 'pack', ...period, '--out', path.join(ctx.home, 'refused'), '--collector-store', collector.store], ctx);
+  assert.equal(noKeys.status, 2);
+  assert.match(noKeys.stderr, /COLLECTOR_PUBKEYS_REQUIRED/);
+  assert.equal(fs.existsSync(path.join(ctx.home, 'refused')), false);
+
+  const out = path.join(ctx.home, 'sealed-pack');
+  const pack = huqan(['evidence', 'pack', ...period, '--out', out, '--collector-store', collector.store, '--collector-pubkeys', collector.pubkeys], ctx);
+  assert.equal(pack.status, 0, pack.stdout + pack.stderr);
+  assert.match(pack.stdout, /collector-seals\.jsonl/.source ? /./ : /./);
+
+  const withKeys = huqan(['evidence', 'verify', out, '--collector-pubkeys', collector.pubkeys], ctx);
+  assert.equal(withKeys.status, 0, withKeys.stdout + withKeys.stderr);
+  assert.match(withKeys.stdout, /external-actions\/collector-seals\.jsonl {2}counter_sealed/);
+  assert.doesNotMatch(withKeys.stdout, /warning:/);
+
+  const withoutKeys = huqan(['evidence', 'verify', out], ctx);
+  assert.equal(withoutKeys.status, 0);
+  assert.match(withoutKeys.stdout, /warning: collector seals present, not verified: no collector public key supplied/);
+
+  // Another host's key directory (same key name, different key) does not verify the seals.
+  const other = collectorStore(fs.mkdtempSync(path.join(ctx.home, 'other-')));
+  const wrongKeys = huqan(['evidence', 'verify', out, '--collector-pubkeys', other.pubkeys], ctx);
+  assert.notEqual(wrongKeys.status, 0);
+  assert.match(wrongKeys.stdout, /collector_seal_chain_invalid:seal_signature_invalid/);
+});

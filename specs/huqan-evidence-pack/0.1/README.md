@@ -84,8 +84,8 @@ The pack does not redefine it.
 ## Producing a pack
 
 ```
-huqan evidence pack --from <ISO> --to <ISO> --out <dir>
-huqan evidence verify <dir>
+huqan evidence pack --from <ISO> --to <ISO> --out <dir> [--sign] [--collector-store <dir> --collector-pubkeys <dir>]
+huqan evidence verify <dir> [--collector-pubkeys <dir>]
 ```
 
 The producer runs on the installation's own host and makes no network call. It
@@ -130,6 +130,9 @@ The checks are:
    genesis (below).
 7. `manifest.signature.json`, when present, verifies (below). A manifest whose
    `producer.issuerKeyId` is set but which ships no signature file is invalid.
+8. `external-actions/collector-seals.jsonl`, when present, is judged as a
+   collector seal chain (below) against collector public keys the verifier is
+   given apart from the pack.
 
 ### The emergency-stop ledger
 
@@ -144,6 +147,56 @@ is not a JSON object is a corrupt entry and fails the chain. The finding is
 `ledger_seq_gap`, `ledger_prevhash_mismatch`, `ledger_hash_mismatch` or
 `ledger_invalid_action`. A hash chain cannot be cut by period, so the ledger is
 packed whole, not filtered to the pack's period.
+
+### The collector counter-seal chain
+
+`external-actions/collector-seals.jsonl` (integrityClass `counter_sealed`) is
+written only with `--collector-store` and holds the seals a collector stored for
+the `default` workspace, one JSON object per line, one chain per tenant
+(`workspaceId`, `ownerActorId`), each tenant's chain in stored order. A seal is
+`huqan.collector-seal.v1`: `batchId`, `workspaceId`, `ownerActorId`,
+`contentHash`, `count`, `receivedAt`, `previousSealHash`, plus `keyId`,
+`algorithm` (`ed25519`), `sealHash` and `signature`.
+
+The producer verifies every tenant chain with the collector's own chain verifier
+before it writes anything, using the keys in `--collector-pubkeys` (required with
+`--collector-store`). A chain that does not verify refuses the pack
+(`COLLECTOR_SEAL_CHAIN_INVALID`); a store with no seals refuses it
+(`COLLECTOR_SEALS_NOT_FOUND`). A seal chain cannot be cut by period, because each
+seal names its predecessor and the first must name genesis, so the chains are
+packed whole, like the ledger, not filtered to the pack's period.
+
+The collector public keys are **never** in the pack: a key shipped with the
+evidence would let whoever forged the evidence vouch for it. They are one PEM
+file per key in a directory, the file name without `.pem`, `.pub` or `.key`
+being the seal's `keyId`; the auditor obtains that directory from the collector's
+operator, not from the pack.
+
+The verifier groups the lines by (`workspaceId`, `ownerActorId`; a line that is
+not a JSON object is a corrupt entry in the unnamed group) and walks each group
+in order. For each seal, in this order: its `keyId` must name a supplied key
+(`seal_key_not_trusted`); the statement rebuilt from the seal's fields must hash
+to `sealHash` and carry a valid ed25519 `signature` by that key
+(`seal_signature_invalid`); `previousSealHash` must equal the previous seal's
+`sealHash`, empty for the first (`seal_chain_broken`). The finding is
+`collector_seal_chain_invalid:<reason>`, once per failing tenant. A removed seal
+in the middle of a chain, or a removed first seal, surfaces as
+`seal_chain_broken`; a removed last seal is indistinguishable from a quiet period
+and is not detected.
+
+Verdicts also carry `warnings`, which never change the verdict or the exit status:
+
+- no `--collector-pubkeys` given: `collector seals present, not verified: no
+  collector public key supplied`. The pack is not invalid, but the seals have
+  proved nothing; an auditor who needs them must re-run with the keys.
+- `collector_not_independent: ...`: a collector key that signed a seal has the
+  same fingerprint as `manifest.producer.issuerKeyId`. Both ends are then held by
+  one party and the counter-seal adds no independence. An unsigned pack names no
+  issuer key, so this check has nothing to compare and reports nothing.
+
+Non-claim, printed with every pack that carries seals: collector seals are
+third-party evidence only if the collector is administered by someone other than
+the operator.
 
 ## The manifest signature
 

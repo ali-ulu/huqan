@@ -881,27 +881,27 @@
       ],
       "sites": [
         {
-          "line": 212,
+          "line": 229,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 216,
+          "line": 233,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 217,
+          "line": 234,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 219,
+          "line": 236,
           "capability": "fs_write",
           "call": "fs.renameSync"
         },
         {
-          "line": 221,
+          "line": 238,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
