@@ -11,6 +11,7 @@ const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-approval-runtime');
 const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall');
 const { createAgentCoderExecution, buildAgentCoderAction } = require('../lib/agent-coder-execution');
+const { executeStepWithRetry } = require('../lib/agent-step-executor');
 
 function fixture(t, replacement = '2', approve = true, synthesis = false) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-agent-coder-'));
@@ -148,4 +149,34 @@ test('a host approval runtime that throws in authorizeExecution is a blocked ste
   const executed = adapter.execute({ step: f.step, state: f.state });
   assert.equal(executed.ok, false);
   assert.equal(executed.error.code, 'HOST_RUNTIME_FAULT');
+  assert.equal(executed.meta.blocked, true);
+  assert.equal(executed.meta.uncertain, undefined);
+});
+
+test('an execution that ran but lost its outcome is uncertain, not blocked', t => {
+  const f = fixture(t);
+  // The executor runs and changes the repository; the runtime then loses track
+  // of the outcome, which is the reconciliation-required path.
+  const runtime = { ...f.config.approvalRuntime,
+    executeApprovedSync: ({ executor }) => { executor(); return { ok: false, reason: 'approval.execution_reconciliation_required' }; } };
+  const adapter = createAgentCoderExecution({ ...f.config, approvalRuntime: runtime });
+  const result = adapter.execute({ step: f.step, state: f.state });
+  assert.equal(result.ok, false);
+  assert.equal(result.meta.blocked, false);
+  assert.equal(result.meta.uncertain, true);
+  assert.equal(result.error.code, 'approval.execution_reconciliation_required');
+  assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 2/u);
+});
+
+test('an uncertain step is returned without a retry or a failure record', () => {
+  const report = { id: 'coder:repair-value', tool: 'coder', status: 'error',
+    result: { ok: false, error: { code: 'approval.execution_reconciliation_required' }, meta: { blocked: false, uncertain: true } } };
+  let calls = 0;
+  let failures = 0;
+  const returned = executeStepWithRetry({ step: { id: 'coder:repair-value' }, state: {}, opts: { stepRetries: 3 },
+    executeStep: () => { calls += 1; return report; },
+    recordFailure: () => { failures += 1; }, isRetryable: () => true });
+  assert.equal(calls, 1);
+  assert.equal(failures, 0);
+  assert.equal(returned, report);
 });

@@ -117,6 +117,28 @@ test('a stall stops two steps past the Dream recovery point, with its queue kept
   assert.ok(result.data.queuedSteps.length > 0, 'the next step is kept for a resume');
 });
 
+test('a Core-layer uncertain execution pauses for a verdict instead of failing', async (t) => {
+  const agent = freshAgent(t);
+  const real = agent._runtime();
+  // What the Coder adapter returns when its executor ran but the outcome was
+  // lost: not a block, and not a retryable error either.
+  const report = { id: 'coder:repair-value', action: 'code_change', tool: 'coder', input: {}, rationale: 'approved',
+    status: 'error', summary: 'Coder execution requires reconciliation.',
+    result: { ok: false, type: 'coder', data: null, evidence: [],
+      error: { code: 'approval.execution_reconciliation_required', message: 'Coder execution requires reconciliation.' },
+      meta: { blocked: false, uncertain: true } } };
+  let executedStep = null;
+  agent._baseRuntime = { ...real, executeStepWithRetry: (step) => { executedStep = step; return report; } };
+  const result = await agent.run('kedi hayvandir mi?', { dreamExperimentLoop: false });
+  assert.equal(result.data.status, 'paused');
+  assert.equal(result.data.pauseReason, AGENT_PAUSE_REASONS.EXPERIENCE_EFFECT_UNCERTAIN);
+  assert.equal(result.data.terminationReason, R.AWAITING_EFFECT_VERDICT);
+  assert.equal(result.data.uncertainOperation.operationId, null);
+  assert.equal(result.data.uncertainOperation.message, 'Coder execution requires reconciliation.');
+  assert.equal(result.data.steps.length, 0, 'the uncertain step is not a finished step');
+  assert.equal(result.data.queuedSteps[0].id, executedStep.id, 'the uncertain step goes back on the queue');
+});
+
 test('a resume after a stall is not stopped again by its own history', async (t) => {
   const agent = stallingRuntime(freshAgent(t));
   const first = await agent.run('kedi hayvandir mi?', { dreamExperimentLoop: false, maxSteps: 30 });

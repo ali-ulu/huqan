@@ -262,7 +262,10 @@ class AgentV3 {
       // #3033: a step whose effect is uncertain did not finish and is not a
       // block. It goes back on the queue and the run pauses with its
       // checkpoint, so the resume after an operator verdict picks it up again.
-      const uncertain = uncertainOperationOf(report);
+      // The Coder adapter reports the same verdict from Core, with no
+      // Experience operation to name.
+      const uncertain = uncertainOperationOf(report)
+        || (report.result?.meta?.uncertain === true ? { operationId: null } : null);
       if (uncertain) {
         queued.unshift(step);
         state.status = 'paused';
