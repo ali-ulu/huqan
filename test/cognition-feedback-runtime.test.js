@@ -103,6 +103,7 @@ test('actual family streak survives rescheduling and cannot displace a goal-name
   const candidates = [{ key: 'a', family: 'ask', urgency: 1 }, { key: 'b', family: 'compare', urgency: 0 }];
   const opts = { priorStreak: { family: 'ask', count: 2 }, starvationWindow: 2 };
   assert.equal(scheduleCandidates({ candidates }, opts).order[0], 'b');
+  assert.equal(scheduleCandidates({ candidates }, { priorStreak: { family: 'ask', count: 100 }, starvationWindow: 100 }).order[0], 'b');
   assert.equal(scheduleCandidates({ candidates, goal: 'ask' }, opts).order[0], 'a');
   assert.equal(scheduleCandidates({ candidates }, { priorStreak: { family: 'ask', count: -1 } }).status, 'reject');
 });
