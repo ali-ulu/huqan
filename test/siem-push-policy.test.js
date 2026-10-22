@@ -63,7 +63,7 @@ test('an unexpected destination in review mode is refused unless the operator ac
   assert.equal(accepted.allowed, true);
   assert.equal(accepted.expectedEgress.decision, 'review');
   assert.equal(accepted.warnings.length, 1);
-  assert.match(accepted.warnings[0], /siem\.example\.com/);
+  assert.ok(accepted.warnings[0].startsWith('SIEM host siem.example.com '), accepted.warnings[0]);
 });
 
 test('allowReview never relaxes a block', () => {
