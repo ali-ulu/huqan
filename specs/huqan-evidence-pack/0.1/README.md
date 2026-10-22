@@ -41,6 +41,11 @@ evidence-pack/
   README-AUDITOR.md
 ```
 
+`controls/control-matrix.json` and `README-AUDITOR.md` are written into every
+pack by the collector, both as `snapshot_hash_only` (the README is rendered
+before the manifest from the manifest's `period`, `generatedAt`, `producer` and
+`nonClaims`, because the manifest hashes it).
+
 The layout is normative for the files it names; a pack that carries a subset is
 still verifiable, and an extra file is a finding, not a convenience -- a pack
 must contain exactly what its manifest lists.
