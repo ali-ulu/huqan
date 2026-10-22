@@ -2548,6 +2548,10 @@
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md section 7: read-only journal adapter for the derived COG-M9 ledger"
   },
+  "lib/cognition/replay-priority.js": {
+   "context": "Knowledge",
+   "evidence": "#4069: pure COG-M3 PR-1 prioritized replay selection over measured prediction error and reward"
+  },
   "lib/cognition/reward-signal.js": {
    "context": "Knowledge",
    "evidence": "#4062: pure COG-M8 reward signal over observed prediction outcomes and experience eligibility"
