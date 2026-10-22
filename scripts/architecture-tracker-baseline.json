@@ -424,6 +424,7 @@
       "lib/error-taxonomy.js": "Core",
       "lib/errors/provenance-error.js": "Core",
       "lib/evidence-ladder.js": "Core",
+      "lib/evidence-pack/control-matrix.js": "Application",
       "lib/evidence-pack/manifest.js": "Application",
       "lib/evidence-pack/verify.js": "Application",
       "lib/experience/adapter-scope.js": "Application",
@@ -1147,6 +1148,7 @@
       "lib/shield.js": "Core",
       "lib/siem/formatters.js": "Adapters",
       "lib/siem/siem-event.js": "Adapters",
+      "lib/siem/siem-export-command.js": "Adapters",
       "lib/siem/siem-export.js": "Adapters",
       "lib/siem/siem-file-sink.js": "Adapters",
       "lib/sqlite-availability.js": "Adapters",
@@ -1657,6 +1659,7 @@
         "lib/gate-signal-provider.js",
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
+        "lib/siem/siem-export-command.js",
         "plugins/aura-risk.js"
       ],
       "bin/huqan-mcp.js": [
@@ -3299,6 +3302,9 @@
       ],
       "lib/error-prevention/subject.js": [
         "lib/receipt/canonical-receipt.js"
+      ],
+      "lib/evidence-pack/control-matrix.js": [
+        "lib/evidence-pack/manifest.js"
       ],
       "lib/evidence-pack/manifest.js": [
         "lib/hash-chain.js"
@@ -6191,6 +6197,10 @@
       ],
       "lib/siem/siem-event.js": [
         "lib/data-egress-gate.js"
+      ],
+      "lib/siem/siem-export-command.js": [
+        "lib/gate-hook-input.js",
+        "lib/siem/siem-export.js"
       ],
       "lib/siem/siem-export.js": [
         "lib/external-action-identity-log.js",
