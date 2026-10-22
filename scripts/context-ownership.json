@@ -1272,6 +1272,14 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/agent-cognition-seam.js": {
+   "context": "AgentAction",
+   "evidence": "cognitive-architecture-plan.md section 7: AgentV3 per-step observation-to-next-choice orchestration with unchanged action authority"
+  },
+  "lib/agent-cognition-observation.js": {
+   "context": "AgentAction",
+   "evidence": "cognitive-architecture-plan.md section 7: host-bound artifact digest observation before and after an AgentV3 step through the existing sensor and journal"
+  },
   "lib/bounded-step-history.js": {
    "context": "AgentAction",
    "evidence": "#3618 bounded ring of recent step reports plus exact tallies for the agent run's step count"
@@ -3970,7 +3978,7 @@
   },
   "lib/protected-store-path.js": {
    "context": "Memory",
-   "evidence": "#3998 ADR-018 \u00a72 protected per-workspace store layout and selection"
+   "evidence": "#3998 ADR-018 §2 protected per-workspace store layout and selection"
   },
   "lib/authority/store-migrate.js": {
    "context": "AgentAction",
@@ -5212,7 +5220,7 @@
   },
   "lib/cli-store-commands.js": {
    "kind": "entry",
-   "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 \u00a72)"
+   "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 §2)"
   },
   "lib/mcp/client-envelope.js": {
    "kind": "entry",
@@ -6114,7 +6122,8 @@
   "lib/memory-cognitive-message.js": {
    "owner": "Memory",
    "consumers": [
-    "Knowledge"
+    "Knowledge",
+    "AgentAction"
    ],
    "evidence": "#3568 (R49) hypothesis producer validates its CognitiveMessage through the K1 schema"
   },
@@ -7145,7 +7154,8 @@
   "lib/prediction-outcome-pairs.js": {
    "owner": "Knowledge",
    "consumers": [
-    "Platform"
+    "Platform",
+    "AgentAction"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -7337,7 +7347,7 @@
    "consumers": [
     "Platform"
    ],
-   "evidence": "#3998 ADR-018 \u00a72: the store CLI composes `huqan store migrate` from this module"
+   "evidence": "#3998 ADR-018 §2: the store CLI composes `huqan store migrate` from this module"
   },
   "lib/protected-store-path.js": {
    "owner": "Memory",
@@ -7345,7 +7355,7 @@
     "AgentAction",
     "Platform"
    ],
-   "evidence": "#3998 ADR-018 \u00a72: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
+   "evidence": "#3998 ADR-018 §2: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
   },
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",
@@ -7690,7 +7700,9 @@
   },
   "lib/experience/replacement-sequence-adaptation.js": {
    "owner": "Trust",
-   "consumers": ["AgentAction"],
+   "consumers": [
+    "AgentAction"
+   ],
    "evidence": "source-sealed mixed sequence transfer to adapted target methods"
   },
   "lib/experience/expression-adaptation.js": {
@@ -7762,6 +7774,41 @@
     "AgentAction"
    ],
    "evidence": "string synthesis consumes the closed program grammar"
+  },
+  "lib/cognition/percept-adapters.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
+  },
+  "lib/cognition/prediction-error.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
+  },
+  "lib/cognition-prediction-error-pairs.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
+  },
+  "lib/cognition-value-ledger-pairs.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
+  },
+  "lib/cognition/percept.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "cognitive-architecture-plan.md section 7: the artifact observation adapter derives the stable before-observation percept key through the shared M1 contract"
   }
  },
  "legacyEdges": {
