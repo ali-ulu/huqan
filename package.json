@@ -1539,6 +1539,7 @@
     "lib/semantic-model-artifacts/transformer.calibration.json",
     "lib/experience/string-program.js",
     "lib/coder/string-synthesis.js",
+    "lib/evidence-pack/control-matrix.js",
     "lib/evidence-pack/manifest.js",
     "lib/evidence-pack/verify.js",
     "specs/huqan-evidence-pack/0.1/README.md",
