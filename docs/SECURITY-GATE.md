@@ -102,3 +102,8 @@ If any security finding exists:
 - do not merge
 - do not push to main
 - fix in the same PR only if scope-approved
+
+## Privacy
+
+What is stored, what leaves the machine and which obligations stay with the
+operator: see [`docs/data-processing.md`](data-processing.md) (#4206).
