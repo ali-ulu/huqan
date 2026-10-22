@@ -211,13 +211,25 @@ test('selection is narrow rather than degenerate for a leaf helper', () => {
   assert.ok(derived.size < index.tests.length, 'a leaf helper must not select every test');
 });
 
-test('named edges do not fuse the server closure into unrelated tests', () => {
-  // `server.js` is named in prose in several widely-required modules. If those
-  // mentions counted as edges, every test downstream of them would be selected
-  // and the plan would stop being a selection (#2610 measurement: 417 tests
-  // selected for a single change instead of 111).
-  const derived = deriveTestsForChange(['lib/external-action-identity.js'], index);
-  assert.ok(derived.size < 250, `expected a bounded selection, got ${derived.size}`);
+test('named edges do not fuse the server closure into unrelated tests', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-server-closure-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const sources = {
+    'identity.js': 'module.exports = 1;\n',
+    'server.js': "require('./identity.js');\n",
+    'helper.js': "// server.js is only mentioned here\nmodule.exports = 'server.js';\n",
+    'unrelated.test.js': "require('./helper.js');\n",
+    'server.test.js': "require('./server.js');\n",
+    'runner.test.js': "const { execFileSync } = require('node:child_process');\nexecFileSync('server.js');\n",
+  };
+  for (const [file, source] of Object.entries(sources)) fs.writeFileSync(path.join(root, file), source);
+  const synthetic = buildDependencyIndex({ root, trackedFiles: Object.keys(sources) });
+  // Repository growth can add real dependants; only prose must not create one.
+  assert.deepEqual(synthetic.graph.get('helper.js'), []);
+  assert.deepEqual([...deriveTestsForChange(['identity.js'], synthetic).keys()].sort(),
+    ['runner.test.js', 'server.test.js']);
+  assert.ok(deriveTestsForChange(['lib/external-action-identity.js'], index)
+    .has('test/cognition-feedback-runtime.test.js'), 'the real AgentV3 dependency must remain selected');
 });
 
 test('javascript recognition is extension-based', () => {
