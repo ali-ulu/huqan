@@ -40,6 +40,8 @@ SCHEMA_VERSION = "huqan.evidence-pack.v1"
 MANIFEST_FILE = "manifest.json"
 SIGNATURE_FILE = "manifest.signature.json"
 BUNDLE_RELATIVE_PATH = "receipts/receipt-bundle.json"
+LEDGER_RELATIVE_PATH = "emergency-stop/ledger.jsonl"
+LEDGER_ACTIONS = ("stop", "lift", "integrity_violation")
 
 INTEGRITY_CLASSES = frozenset([
     "hash_chained",
@@ -183,6 +185,45 @@ def walk_pack_files(pack_dir):
     return out
 
 
+def ledger_reason(text):
+    """Walk the emergency-stop ledger hash chain from genesis.
+
+    Returns None when the chain holds, else the first failing reason -- the same
+    token, in the same check order, as verify.js. An entry is the ledger line
+    without `hash`, `seq` and `prevHash`; its hash is SHA-256 over the canonical
+    JSON of that payload plus the previous entry's hash as `prevHash`.
+    """
+    entries = []
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            parsed = json.loads(line)
+        except ValueError:
+            parsed = None
+        entries.append(parsed if isinstance(parsed, dict) else None)
+    if any(entry is None for entry in entries):
+        return "ledger_unreadable_or_corrupt"
+    prev_hash = None
+    for index, entry in enumerate(entries):
+        seq = entry.get("seq")
+        if isinstance(seq, bool) or not isinstance(seq, (int, float)) or seq != index:
+            return "ledger_seq_gap"
+        if entry.get("prevHash") != prev_hash:
+            return "ledger_prevhash_mismatch"
+        payload = {k: v for k, v in entry.items() if k not in ("hash", "seq", "prevHash")}
+        payload["prevHash"] = prev_hash
+        digest = hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+        if entry.get("hash") != digest:
+            return "ledger_hash_mismatch"
+        action = entry.get("action")
+        if not action or action not in LEDGER_ACTIONS:
+            return "ledger_invalid_action"
+        prev_hash = entry["hash"]
+    return None
+
+
 def verify(pack_dir, bundle_verifier):
     findings = []
     manifest_path = os.path.join(pack_dir, MANIFEST_FILE)
@@ -260,6 +301,15 @@ def verify(pack_dir, bundle_verifier):
             # missing required field) is a finding, not a crash: the pack is
             # being judged, and the verdict has to be reported either way.
             findings.append("receipt_bundle_unreadable")
+
+    if LEDGER_RELATIVE_PATH in entries:
+        try:
+            with open(os.path.join(pack_dir, LEDGER_RELATIVE_PATH), encoding="utf-8") as handle:
+                reason = ledger_reason(handle.read())
+            if reason:
+                findings.append("emergency_stop_ledger_invalid:%s" % reason)
+        except Exception:
+            findings.append("emergency_stop_ledger_unreadable")
 
     return findings, file_reports, manifest.get("nonClaims") or []
 

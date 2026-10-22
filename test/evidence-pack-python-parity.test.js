@@ -30,10 +30,14 @@ const {
 const { verifyPack, MANIFEST_FILE, BUNDLE_RELATIVE_PATH } = require('../lib/evidence-pack/verify');
 const { exportReceiptBundle } = require('../lib/receipt/receipt-export');
 const { signReceiptBundle } = require('../lib/receipt/signed-bundle');
+const { ledgerBytes } = require('./helpers/evidence-pack-fixtures');
 
 const VERIFIER = path.join(__dirname, '..', 'specs', 'huqan-evidence-pack', '0.1', 'verify_pack.py');
 const BUNDLE_BYTES = JSON.stringify(exportReceiptBundle([], { exportedAt: '2026-01-01T00:00:00.000Z' }));
 const AUDIT_BYTES = '{"event":"gate.decision","decision":"allow"}\n';
+
+const LEDGER_PATH = 'emergency-stop/ledger.jsonl';
+const LEDGER_BYTES = ledgerBytes(3);
 
 function findPython() {
   const candidates = process.platform === 'win32'
@@ -49,6 +53,8 @@ function findPython() {
 function writePack(root) {
   fs.mkdirSync(path.join(root, 'receipts'), { recursive: true });
   fs.mkdirSync(path.join(root, 'audit'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'emergency-stop'), { recursive: true });
+  fs.writeFileSync(path.join(root, LEDGER_PATH), LEDGER_BYTES);
   fs.writeFileSync(path.join(root, BUNDLE_RELATIVE_PATH), BUNDLE_BYTES);
   fs.writeFileSync(path.join(root, 'audit/audit-events.jsonl'), AUDIT_BYTES);
   const manifest = buildManifest({
@@ -59,6 +65,7 @@ function writePack(root) {
     files: [
       fileEntry(BUNDLE_RELATIVE_PATH, BUNDLE_BYTES, INTEGRITY_CLASSES.HASH_CHAINED),
       fileEntry('audit/audit-events.jsonl', AUDIT_BYTES, INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY),
+      fileEntry(LEDGER_PATH, LEDGER_BYTES, INTEGRITY_CLASSES.HASH_CHAINED),
     ],
   });
   fs.writeFileSync(path.join(root, MANIFEST_FILE), JSON.stringify(manifest, null, 2));
@@ -144,6 +151,31 @@ const MUTATIONS = {
       ));
     });
   },
+  'ledger-entry-edited-and-resealed': (root) => {
+    const lines = LEDGER_BYTES.split('\n');
+    const entry = JSON.parse(lines[1]);
+    entry.reason = 'rewritten after the fact';
+    lines[1] = JSON.stringify(entry);
+    resealLedger(root, lines.join('\n'));
+  },
+  'ledger-entry-dropped': (root) => {
+    const lines = LEDGER_BYTES.split('\n');
+    lines.splice(1, 1);
+    resealLedger(root, lines.join('\n'));
+  },
+  'ledger-wrong-action': (root) => {
+    const lines = LEDGER_BYTES.split('\n');
+    const entry = JSON.parse(lines[2]);
+    entry.action = 'launch';
+    lines[2] = JSON.stringify(entry);
+    resealLedger(root, lines.join('\n'));
+  },
+  'ledger-null-line': (root) => {
+    resealLedger(root, `${LEDGER_BYTES}null\n`);
+  },
+  'ledger-not-json': (root) => {
+    resealLedger(root, 'not json\n');
+  },
   'unlisted-symlink': (root) => {
     // A symlink is neither a regular file nor a directory; a verifier that
     // only pushed regular files would silently skip it.
@@ -154,6 +186,15 @@ const MUTATIONS = {
     }
   },
 };
+
+function resealLedger(root, bytes) {
+  fs.writeFileSync(path.join(root, LEDGER_PATH), bytes);
+  rewriteManifest(root, (manifest) => {
+    manifest.files = manifest.files.map((entry) => (
+      entry.path === LEDGER_PATH ? fileEntry(LEDGER_PATH, bytes, INTEGRITY_CLASSES.HASH_CHAINED) : entry
+    ));
+  });
+}
 
 function rewriteManifest(root, mutate) {
   const manifestPath = path.join(root, MANIFEST_FILE);

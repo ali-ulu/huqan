@@ -81,6 +81,30 @@ Canonical JSON is the algorithm `RECEIPT-BUNDLE.md` already defines: object keys
 sorted by UTF-16 code unit, arrays in order, the same string and number escapes.
 The pack does not redefine it.
 
+## Producing a pack
+
+```
+huqan evidence pack --from <ISO> --to <ISO> --out <dir>
+huqan evidence verify <dir>
+```
+
+The producer runs on the installation's own host and makes no network call. It
+writes a new directory (never into an existing one) through a temporary sibling
+and a rename, so a refusal leaves no output. It packs only the `default`
+workspace. The receipt bundle is the bounded export of the period's receipts
+(at most 1024 receipts and 2 MiB; beyond that it fails closed with
+`MAX_RECEIPTS_EXCEEDED` and writes nothing), written byte for byte after the
+bundle verifier accepted those bytes. Content a hash binds (bundle, ledger,
+issuer seals) is never redacted: a secret-looking value there refuses the pack
+(`EVIDENCE_PACK_SECRET_DETECTED`). Files only this manifest hashes are scrubbed
+of secrets; PII classes the egress gate sees are listed in the manifest
+`piiTypes` and are reported, not removed.
+
+Issuer seals are keyed by the receipt hash the graph stored at commit time, which
+is not the re-chained `receiptHash` the bundle shows. `receipts/issuer-seals.jsonl`
+therefore carries each seal as stored, found by `receiptId`; it does not claim
+the seal's hash equals the bundle's.
+
 ## Independent verification
 
 `verify_pack.py` is a clean-room, standard-library-only verifier. It reads only
@@ -102,6 +126,22 @@ The checks are:
 4. Every packed file (other than the manifest and its signature) is listed.
 5. `receipts/receipt-bundle.json`, when present, passes the four bundle checks
    `RECEIPT-BUNDLE.md` defines.
+6. `emergency-stop/ledger.jsonl`, when present, re-walks as a hash chain from
+   genesis (below).
+
+### The emergency-stop ledger
+
+Each ledger line is a JSON object: `seq`, `prevHash`, `hash`, an `action` of
+`stop`, `lift` or `integrity_violation`, and the rest of the record. The chain is
+valid when, entry by entry from the first: `seq` equals the line index; `prevHash`
+equals the previous entry's `hash` (`null` for the first); `hash` equals
+`SHA-256` over the canonical JSON of the entry without `hash`, `seq` and
+`prevHash`, plus `prevHash`; and `action` is one of the three above. A line that
+is not a JSON object is a corrupt entry and fails the chain. The finding is
+`emergency_stop_ledger_invalid:<reason>` with `ledger_unreadable_or_corrupt`,
+`ledger_seq_gap`, `ledger_prevhash_mismatch`, `ledger_hash_mismatch` or
+`ledger_invalid_action`. A hash chain cannot be cut by period, so the ledger is
+packed whole, not filtered to the pack's period.
 
 A manifest entry names a canonical, relative, forward-slash path. An absolute
 path, a backslash, a `.` or `..` segment, or a non-normalized form is rejected as
