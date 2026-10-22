@@ -174,3 +174,12 @@ test('a canonical target changed through a directory link abstains', t => {
   fs.symlinkSync(two, link, process.platform === 'win32' ? 'junction' : 'dir');
   assert.equal(observeStepCognition({ ...f, report: { status: 'done' } }).reason, 'observation_binding_mismatch');
 });
+
+test('a blocked action cannot earn an outcome even when the artifact matches', t => {
+  const f = fixture(t); assert.ok(beginStepCognition(f)); fs.writeFileSync(f.target, 'after');
+  const result = observeStepCognition({ ...f, report: { status: 'blocked', result: { ok: true } } });
+  assert.equal(result.status, 'ABSTAIN');
+  const rows = f.graph.getCommittedMutationResultsByPrefix('prediction-outcome:');
+  assert.equal(rows.filter(row => row.result.outcome).length, 0);
+  assert.equal(f.state.cognition.pending, undefined);
+});
