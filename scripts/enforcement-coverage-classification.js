@@ -182,6 +182,10 @@ const CLASSIFIED = Object.freeze({
   }),
 
   // ── the evidence trail ─────────────────────────────────────────────────
+  'lib/evidence-pack/collect.js': Object.freeze({
+    role: 'operator_tool',
+    why: '`huqan evidence pack` writes a new directory the operator named with --out, through a temporary sibling and a rename; it never overwrites, reads no agent input, and runs only when a human invokes the command (#4092)',
+  }),
   'lib/external-action-receipt.js': Object.freeze({
     role: 'evidence',
     why: 'appends the external-action receipt itself, at the path defaultExternalActionReceiptPath resolves',

@@ -23,10 +23,11 @@ const {
 } = require('../lib/evidence-pack/manifest');
 const { verifyPack, MANIFEST_FILE, BUNDLE_RELATIVE_PATH } = require('../lib/evidence-pack/verify');
 const { exportReceiptBundle } = require('../lib/receipt/receipt-export');
+const { ledgerBytes } = require('./helpers/evidence-pack-fixtures');
 
 const BUNDLE_BYTES = JSON.stringify(exportReceiptBundle([], { exportedAt: '2026-01-01T00:00:00.000Z' }));
 const AUDIT_BYTES = '{"event":"gate.decision","decision":"allow"}\n';
-const LEDGER_BYTES = '{"seq":1,"previousHash":"genesis"}\n';
+const LEDGER_BYTES = ledgerBytes(3);
 
 function writePack(root, extraFiles = {}) {
   fs.mkdirSync(path.join(root, 'receipts'), { recursive: true });
@@ -204,5 +205,54 @@ test('accepts a validly signed receipt bundle without a key resolver', () => {
     const result = verifyPack(root);
     assert.deepEqual(result.findings, []);
     assert.equal(result.valid, true);
+  });
+});
+
+const LEDGER_PATH = 'emergency-stop/ledger.jsonl';
+
+function rewriteLedger(root, bytes) {
+  fs.writeFileSync(path.join(root, LEDGER_PATH), bytes);
+  const manifestPath = path.join(root, MANIFEST_FILE);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.files = manifest.files.map((entry) => (
+    entry.path === LEDGER_PATH ? fileEntry(LEDGER_PATH, bytes, INTEGRITY_CLASSES.HASH_CHAINED) : entry
+  ));
+  const { computePackHash } = require('../lib/evidence-pack/manifest');
+  manifest.packHash = computePackHash(manifest);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+}
+
+test('fails when the emergency-stop ledger chain is broken even though the manifest was resealed', () => {
+  withTempPack((root) => {
+    writePack(root);
+    // Edit one entry's reason and reseal the manifest: only the chain check can notice.
+    const lines = ledgerBytes(3).split('\n');
+    const entry = JSON.parse(lines[1]);
+    entry.reason = 'rewritten after the fact';
+    lines[1] = JSON.stringify(entry);
+    rewriteLedger(root, lines.join('\n'));
+    const result = verifyPack(root);
+    assert.equal(result.valid, false);
+    assert.deepEqual(result.findings, ['emergency_stop_ledger_invalid:ledger_hash_mismatch']);
+  });
+});
+
+test('fails when an emergency-stop ledger entry is dropped from the middle', () => {
+  withTempPack((root) => {
+    writePack(root);
+    const lines = ledgerBytes(3).split('\n');
+    lines.splice(1, 1);
+    rewriteLedger(root, lines.join('\n'));
+    assert.deepEqual(verifyPack(root).findings, ['emergency_stop_ledger_invalid:ledger_seq_gap']);
+  });
+});
+
+test('fails closed on an unparseable or non-object emergency-stop ledger line', () => {
+  withTempPack((root) => {
+    writePack(root);
+    rewriteLedger(root, `${ledgerBytes(1)}null\n`);
+    assert.deepEqual(verifyPack(root).findings, ['emergency_stop_ledger_invalid:ledger_unreadable_or_corrupt']);
+    rewriteLedger(root, 'not json\n');
+    assert.deepEqual(verifyPack(root).findings, ['emergency_stop_ledger_invalid:ledger_unreadable_or_corrupt']);
   });
 });

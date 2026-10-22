@@ -812,6 +812,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-LEARN-T"
   },
+  "lib/evidence-pack/collect.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A2: gathers the Trust receipt bundle, ledger and seals into a pack, the same context as the export it packs"
+  },
   "lib/evidence-pack/manifest.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A1: pure manifest hash over the Trust receipt bundle, the same context as the export it seals"
@@ -4326,6 +4330,10 @@
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
   },
+  "lib/cli-evidence-commands.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-CLI-P; #4092 PR-A2: argv dispatch for `evidence pack|verify`, the same entry role as cli-backup-commands"
+  },
   "lib/cli-capabilities.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
@@ -5259,6 +5267,20 @@
   }
  ],
  "publishedPorts": {
+  "lib/tool-call-gate-secrets.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#4092 PR-A2: the evidence pack (Trust) reuses this existing function rather than growing a copy"
+  },
+  "lib/emergency-stop-chain.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#4092 PR-A2: the evidence pack (Trust) reuses this existing function rather than growing a copy"
+  },
   "lib/gate-profile-inventory.js": {
    "owner": "AgentAction",
    "consumers": [
@@ -6063,7 +6085,8 @@
    "owner": "AgentAction",
    "consumers": [
     "Observability",
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6338,7 +6361,8 @@
   "lib/data-egress-gate.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Knowledge"
+    "Knowledge",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
@@ -6915,7 +6939,8 @@
   "backupRestore.js": {
    "owner": "Memory",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },

@@ -404,6 +404,7 @@
     "lib/cli-doctor-usage.js",
     "lib/server-bind-doctor.js",
     "lib/cli-backup-commands.js",
+    "lib/cli-evidence-commands.js",
     "lib/cli-status-command.js",
     "lib/cli-agent-commands.js",
     "lib/cli-conflicts.js",
@@ -1539,10 +1540,12 @@
     "lib/semantic-model-artifacts/transformer.calibration.json",
     "lib/experience/string-program.js",
     "lib/coder/string-synthesis.js",
+    "lib/evidence-pack/collect.js",
     "lib/evidence-pack/manifest.js",
     "lib/evidence-pack/verify.js",
     "specs/huqan-evidence-pack/0.1/README.md",
-    "specs/huqan-evidence-pack/0.1/verify_pack.py"
+    "specs/huqan-evidence-pack/0.1/verify_pack.py",
+    "SECURITY_INVARIANTS.md"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",

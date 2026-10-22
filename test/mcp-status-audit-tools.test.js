@@ -115,6 +115,8 @@ const NO_MCP_SURFACE_ON_PURPOSE = Object.freeze({
     + 'is partial; huqan.dream is the MCP surface for hypothesis generation',
   recommendation: 'the LLM recommendation path needs a provider key the MCP '
     + 'server deliberately does not carry',
+  'evidence-pack': 'an air-gapped CLI export that writes a directory on the '
+    + 'operator host; #4092 forbids an HTTP route and gives the model no way to start it',
 });
 
 test('a read-only capability reachable from a human surface is reachable from MCP', () => {

@@ -338,6 +338,7 @@ const GOLDEN = {
   // #3187 adds the `conflicts review` command (one line) to the same generated
   // help. Diffing the help text against main shows exactly that one added line
   // and nothing else.
+  // #4092 adds the `evidence` usage line (one line) to the same help; re-recorded.
   // #3044 adds the `experience-learn` usage line (one line) to the same help.
   // #3220 re-recorded it for the single added `inference <JSON request>` usage
   // line; diffing against main shows exactly that one added line and nothing else.
@@ -350,7 +351,7 @@ const GOLDEN = {
   // #3892 adds the `receipt verify <id> [--workspace <id>]` usage line (one line).
   // #3905 re-words the `stop` usage line (one line): the stop now covers every
   // agent, MCP, HTTP and CLI call in a workspace.
-  'yardım': 'a550283cfb4e002ef56dc15fab71ef54461cbb3927c1a26e093ac294b3a36b0a',
+  'yardım': '27df26f412b49365788b972459d4f3d96116ea0b96ae52fe725ed01db050ed84',
   'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
