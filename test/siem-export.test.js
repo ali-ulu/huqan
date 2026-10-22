@@ -141,6 +141,8 @@ test('skips a receipt kind it cannot render instead of aborting the export', asy
   const report = await exportReceiptsToSiem({ ...paths, format: 'jsonl' });
   assert.equal(report.exported, 2, 'the admission receipts still flow');
   assert.equal(report.skippedReceipts, 1);
+  assert.deepEqual(report.skippedReceiptKinds, { external_action_outcome_receipt: 1 },
+    'the report names the kind that was stepped over, so an operator can see why');
   assert.deepEqual(lines(paths.siemPath).map(line => JSON.parse(line)['event.id']),
     ['xact_adm_0001', 'xact_adm_0003']);
 });
