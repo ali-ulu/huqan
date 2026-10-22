@@ -85,6 +85,8 @@
       "lib/agent-action-signals.js": "Core",
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
+      "lib/agent-cognition-observation.js": "Adapters",
+      "lib/agent-cognition-seam.js": "Application",
       "lib/agent-exit-reasons.js": "Core",
       "lib/agent-failure-signature.js": "Core",
       "lib/agent-identity-runtime-resolve.js": "Core",
@@ -1583,6 +1585,7 @@
         "agent.js",
         "dream.js",
         "lib/agent-behavioral-integrity.js",
+        "lib/agent-cognition-seam.js",
         "lib/agent-exit-reasons.js",
         "lib/agent-step-progression.js",
         "lib/agent-v3-approval-methods.js",
@@ -1983,6 +1986,25 @@
       ],
       "lib/agent-behavioral-integrity.js": [
         "lib/self-healer/behavioral-containment.js"
+      ],
+      "lib/agent-cognition-observation.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/percept-adapters.js",
+        "lib/file-effect-sensor.js",
+        "lib/hash-chain.js",
+        "lib/memory-cognitive-message.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
+      "lib/agent-cognition-seam.js": [
+        "lib/agent-cognition-observation.js",
+        "lib/agent-step-progression.js",
+        "lib/cognition-prediction-error-pairs.js",
+        "lib/cognition-value-ledger-pairs.js",
+        "lib/cognition/cognition-config.js",
+        "lib/cognition/percept-adapters.js",
+        "lib/cognition/prediction-error.js",
+        "lib/cognition/salience.js",
+        "lib/prediction-outcome-pairs.js"
       ],
       "lib/agent-exit-reasons.js": [
         "lib/bounded-step-history.js"
@@ -5721,6 +5743,7 @@
         "lib/turkish-copula.js"
       ],
       "lib/prediction-outcome-pairs.js": [
+        "lib/is-plain-object.js",
         "lib/risk-scale.js"
       ],
       "lib/provenance-drift.js": [

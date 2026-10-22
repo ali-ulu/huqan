@@ -17,6 +17,7 @@ const { uncertainOperationOf } = require('./lib/experience/effect-boundary');
 const { proposeRepair, resolvePendingRepair, recordRepairExecuted, REPAIR_PAUSE } = require('./lib/experience/run-repair');
 const { recordStepReport, advanceProgress, shouldForceDream, queueFollowUp, scheduleQueuedSteps, shouldStopStalled } = require('./lib/agent-step-progression');
 const { AGENT_PAUSE_REASONS, AGENT_TERMINATION_REASONS } = require('./lib/agent-exit-reasons');
+const { prepareCognition, beginStepCognition, observeStepCognition } = require('./lib/agent-cognition-seam');
 
 const UNCERTAIN_PAUSE = AGENT_PAUSE_REASONS.EXPERIENCE_EFFECT_UNCERTAIN;
 const V3_RATIONALES = Object.freeze({
@@ -246,6 +247,7 @@ class AgentV3 {
         break;
       }
 
+      prepareCognition({ state, queued, opts, goal, objective: activePlan.objective, graph: this.kernel?.graph });
       const step = queued.shift();
       if (state.pendingRepair && step.id === state.pendingRepair.repairStepId) {
         queued.unshift(step);
@@ -254,6 +256,7 @@ class AgentV3 {
         state.pauseReason = REPAIR_PAUSE;
         break;
       }
+      beginStepCognition({ state, step, opts, graph: this.kernel?.graph });
       const report = this._runtime().executeStepWithRetry(step, state, scopedOpts);
       // #3033: a step whose effect is uncertain did not finish and is not a
       // block. It goes back on the queue and the run pauses with its
@@ -266,6 +269,7 @@ class AgentV3 {
         state.uncertainOperation = { operationId: uncertain.operationId, message: report.result.error.message };
         break;
       }
+      observeStepCognition({ state, step, report, opts, graph: this.kernel?.graph });
       recordRepairExecuted({ agent: this, state, report });
       const repairStep = proposeRepair({ agent: this, state, step, report });
       if (repairStep) {

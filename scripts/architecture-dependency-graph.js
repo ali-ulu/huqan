@@ -64,7 +64,7 @@ const RULES = [
     // #3892: the gate hook's activation check reads the authority over its socket.
     // #3948: `status` reports which authority answers and whether agents are split
     // off; it reaches the service through authority-client, so it sits with it.
-    files: ['lib/cognition-value-ledger-pairs.js', 'lib/cognition-prediction-error-pairs.js', 'lib/authority/authority-client.js', 'lib/authority/authority-status.js', 'lib/authority/autonomy-activation.js', 'lib/authority/consume-key.js', 'lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
+    files: ['lib/agent-cognition-observation.js', 'lib/cognition-value-ledger-pairs.js', 'lib/cognition-prediction-error-pairs.js', 'lib/authority/authority-client.js', 'lib/authority/authority-status.js', 'lib/authority/autonomy-activation.js', 'lib/authority/consume-key.js', 'lib/authority/http-server.js', 'lib/authority/ledger-store.js', 'lib/authority/state-store.js',
       'storage.js', 'persistencePaths.js', 'backupRestore.js', 'llmAdapter.js', 'rustGraph.js', 'sandboxRunner.js', 'sandboxRunner-child.js', 'sandboxRunner-context.js', 'sandboxRunner-limits.js'],
     dirs: ['adapters/', 'packages/', 'lib/storage/', 'lib/connectors/', 'lib/interop/', 'lib/llm-proxy/', 'lib/siem/'],
     pattern: /^lib\/(memory|sqlite)-/,
@@ -73,7 +73,7 @@ const RULES = [
     layer: 'Application',
     why: 'The use cases: the runtimes that drive a turn, the feature packages that implement one capability, and the extension surface plugins are written against.',
     files: [
-      'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js',
+      'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js',
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
