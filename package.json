@@ -1546,7 +1546,8 @@
     "lib/evidence-pack/verify.js",
     "specs/huqan-evidence-pack/0.1/README.md",
     "specs/huqan-evidence-pack/0.1/verify_pack.py",
-    "SECURITY_INVARIANTS.md"
+    "SECURITY_INVARIANTS.md",
+    "lib/evidence-pack/control-matrix.js"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",
