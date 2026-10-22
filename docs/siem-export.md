@@ -42,7 +42,13 @@ retention, buffering and delivery stay with the forwarder you already operate.
 | `jsonl` (default) | the canonical event, one JSON object per line | any JSON-aware forwarder |
 | `ecs` | Elastic Common Schema field names | Elastic Agent, Elastic `_bulk` |
 | `hec` | a Splunk HEC envelope (`time`, `host`, `source=huqan`, `sourcetype=huqan:receipt`, `event`) | Splunk HEC |
-| `cef` | `CEF:0|HUQAN|huqan|<version>|<receipt kind>|<decision>|<severity>|…` | CEF collectors, Microsoft Sentinel |
+| `cef` | one CEF line per event (shape below) | CEF collectors, Microsoft Sentinel |
+
+A CEF line has the shape:
+
+```
+CEF:0|HUQAN|huqan|<version>|<receipt kind>|<decision>|<severity>|<extension>
+```
 
 ## Run it
 
@@ -88,13 +94,17 @@ huqan-gate-hook siem-export --sink syslog --url syslog+tls://siem.example.com:65
 
 ### HTTPS (Splunk HEC or Elastic `_bulk`)
 
+Do not type the token on the command line, where it lands in shell history.
+Put it in the scheduler's secret store (a systemd `EnvironmentFile=` with mode
+`0600`, or your vault agent) or read it without echo:
+
 ```
-HUQAN_SIEM_HTTP_TOKEN=<HEC token> \
-  huqan-gate-hook siem-export --sink http --format hec \
+read -rs HUQAN_SIEM_HTTP_TOKEN && export HUQAN_SIEM_HTTP_TOKEN
+
+huqan-gate-hook siem-export --sink http --format hec \
   --url https://splunk.example.com:8088/services/collector/event
 
-HUQAN_SIEM_HTTP_TOKEN=<Elastic API key> \
-  huqan-gate-hook siem-export --sink http --format ecs \
+huqan-gate-hook siem-export --sink http --format ecs \
   --url https://es.example.com:9200/huqan-events/_bulk
 ```
 
@@ -185,6 +195,20 @@ A `filestream` input with the `ndjson` parser:
 `filestream` identifies a file by its content, so a rotated generation keeps its
 read position. Keep the rotated files inside `paths`, as above.
 
+Check the version. Content identity (the fingerprint) is the default from 9.0.
+From 9.0 to 9.4, a file is not read until it is larger than the fingerprint,
+1024 bytes by default, and one HUQAN event can be smaller than that. On those
+versions, shorten the fingerprint (the minimum is 64 bytes):
+
+```yaml
+  prospector.scanner.fingerprint.length: 64
+```
+
+From 9.5, small files are read at once
+(`file_identity.fingerprint.growing`, on by default), and no setting is
+needed. Either way, check that a one-event file arrives before you rely on the
+input.
+
 ### Microsoft Sentinel (syslog over TLS, `cef`)
 
 Sentinel ingests CEF through the Azure Monitor Agent on a Linux log forwarder
@@ -202,6 +226,12 @@ global(
 module(load="imtcp" StreamDriver.Name="gtls" StreamDriver.Mode="1" StreamDriver.Authmode="anon")
 input(type="imtcp" port="6514")
 ```
+
+This listener authenticates the server only. HUQAN verifies the forwarder's
+certificate, but `Authmode="anon"` lets any host that reaches port 6514 send
+messages, including forged CEF. HUQAN does not present a client certificate, so
+restrict the port with a firewall to the hosts that run the export
+([rsyslog on anonymous TLS](https://docs.rsyslog.com/doc/faq/tls_anon_auth_mitm.html)).
 
 Then push to it:
 
