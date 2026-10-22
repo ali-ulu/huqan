@@ -334,6 +334,10 @@ const CLASSIFIED = Object.freeze({
     role: 'adapter_read',
     why: 'execFileSync of git rev-parse and git status to report branch and dirtiness to the code-change gate; argv is fixed in source, no shell is involved, and nothing outside the process is mutated',
   }),
+  'lib/agent-coder-execution.js': Object.freeze({
+    role: 'adapter_read',
+    why: 'direct process calls only read canonical Git root, branch, HEAD and status using fixed argv with no shell; source writes are delegated to existing Coder sinks after scoped durable approval reservation and the code-change gate',
+  }),
   'adapters/git-log-adapter.js': Object.freeze({
     role: 'adapter_read',
     why: 'execFileSync of git log to ingest history; argv is fixed and the repository path is the configured workspace',
