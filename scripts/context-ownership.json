@@ -1284,6 +1284,10 @@
    "context": "AgentAction",
    "evidence": "cognitive-architecture-plan.md section 7: host-bound artifact digest observation before and after an AgentV3 step through the existing sensor and journal"
   },
+  "lib/agent-coder-execution.js": {
+   "context": "AgentAction",
+   "evidence": "agent-coder-execution.md: constructor-owned exact task binding, durable approval reservation and gated Coder execution"
+  },
   "lib/bounded-step-history.js": {
    "context": "AgentAction",
    "evidence": "#3618 bounded ring of recent step reports plus exact tallies for the agent run's step count"

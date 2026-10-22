@@ -13,7 +13,7 @@ const {
   RUNTIME_REASONS,
 } = require('../lib/human-oversight-approval-runtime');
 
-function fixture() {
+function fixture(firewallEvaluator = () => ({ decision: 'allow', metadata: { firewallVersion: 'agent-action-firewall-v1' } })) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-942-'));
   const clockState = { now: Date.parse('2026-08-19T10:00:00.000Z') };
   const graph = new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
@@ -33,10 +33,10 @@ function fixture() {
     graph,
     ledger,
     resolveIdentity,
-    firewallEvaluator: () => ({ decision: 'allow', metadata: { firewallVersion: 'agent-action-firewall-v1' } }),
+    firewallEvaluator,
     clock: () => clockState.now,
   });
-  return { dir, graph, ledger, runtime, clockState };
+  return { dir, graph, ledger, runtime, clockState, resolveIdentity };
 }
 
 function action(overrides = {}) {
@@ -346,6 +346,107 @@ function approveCase(runtime, overrides = {}) {
   assert.equal(decided.ok, true);
   return created.case.caseId;
 }
+
+test('synchronous execution reserves before effects and shares single-use approval with async execution', async () => {
+  const { runtime, dir } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    let calls = 0;
+    const executor = () => {
+      calls++;
+      assert.equal(runtime.getReviewCase(caseId).case.status, 'executing');
+      assert.equal(runtime.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor: () => { calls++; } }).ok, false);
+      return { ok: true, value: 7 };
+    };
+    const result = runtime.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor });
+    assert.equal(result.ok, true);
+    assert.equal(result.result.value, 7);
+    assert.equal(runtime.getReviewCase(caseId).case.status, 'executed');
+    assert.equal((await runtime.executeApproved({ caseId, action: action(), requesterContext: {}, executor })).ok, false);
+    assert.equal(calls, 1);
+  } finally { cleanup(dir); }
+});
+
+test('synchronous execution refuses mismatched scope, arguments and expiry before effects', () => {
+  const { runtime, dir, clockState } = fixture();
+  try {
+    const approvedAction = action({ argsDigest: 'a'.repeat(64) });
+    const caseId = approveCase(runtime, { argsDigest: 'a'.repeat(64) });
+    let calls = 0;
+    const execute = candidate => runtime.executeApprovedSync({ caseId, action: candidate, requesterContext: {}, executor: () => { calls++; return { ok: true }; } });
+    assert.equal(execute({ ...approvedAction, workspaceId: 'workspace-other' }).ok, false);
+    assert.equal(execute({ ...approvedAction, argsDigest: 'b'.repeat(64) }).ok, false);
+    clockState.now += 24 * 60 * 60 * 1000;
+    assert.equal(execute(approvedAction).ok, false);
+    assert.equal(calls, 0);
+  } finally { cleanup(dir); }
+});
+
+test('synchronous execution requires approval and a fresh allowing firewall', () => {
+  let verdict = 'allow';
+  const { runtime, dir } = fixture(() => ({ decision: verdict }));
+  try {
+    const created = runtime.createReviewCase({ action: action(), firewallDecision: 'review', requesterContext: {} });
+    const executor = () => assert.fail('unauthorized executor reached');
+    const input = { caseId: created.case.caseId, action: action(), requesterContext: {}, executor };
+    assert.equal(runtime.executeApprovedSync(input).reason, RUNTIME_REASONS.APPROVAL_REQUIRED);
+    assert.equal(runtime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: {}, reason: 'operator reviewed', evidenceDigest: created.case.evidenceDigest }).ok, true);
+    verdict = 'block';
+    assert.equal(runtime.executeApprovedSync(input).reason, RUNTIME_REASONS.BLOCKED_BY_FIREWALL);
+    assert.equal(runtime.getReviewCase(created.case.caseId).case.status, 'approved');
+    assert.equal(runtime.executeApprovedSync({ ...input, executor: undefined }).ok, false);
+  } finally { cleanup(dir); }
+});
+
+test('synchronous explicit failure records failure and retains the single-use reservation', async () => {
+  const { runtime, dir } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    const result = runtime.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor: () => ({ ok: false, reason: 'test_failed' }) });
+    assert.equal(result.ok, false);
+    assert.equal(result.execution.execution.outcome, 'failed');
+    assert.equal((await runtime.executeApproved({ caseId, action: action(), requesterContext: {}, executor: () => assert.fail('failed approval reused') })).reason, RUNTIME_REASONS.EXECUTION_ALREADY_RESERVED);
+  } finally { cleanup(dir); }
+});
+
+for (const [name, executor] of [
+  ['throw', () => { throw new Error('effect may have happened'); }],
+  ['promise', () => Promise.reject(new Error('async effect'))],
+  ['thenable', () => ({ then(resolve) { resolve({ ok: true }); } })],
+]) {
+  test(`synchronous ${name} executor requires reconciliation and cannot be retried`, async () => {
+    const { runtime, dir } = fixture();
+    try {
+      const caseId = approveCase(runtime);
+      const result = runtime.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor });
+      assert.equal(result.ok, false);
+      assert.equal(result.reason, RUNTIME_REASONS.EXECUTION_RECONCILIATION_REQUIRED);
+      assert.equal(runtime.getReviewCase(caseId).case.status, 'reconciliation_required');
+      assert.equal(runtime.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor: () => assert.fail('approval reused') }).ok, false);
+      await new Promise(resolve => setImmediate(resolve));
+    } finally { cleanup(dir); }
+  });
+}
+
+test('synchronous reservation and reconciliation survive graph reopening', () => {
+  const { runtime, dir, resolveIdentity, clockState } = fixture();
+  try {
+    const caseId = approveCase(runtime);
+    const reopen = () => {
+      const graph = new Graph({ useSQLite: false, memoryPath: path.join(dir, 'memory.json') });
+      graph.load();
+      return createHumanOversightApprovalRuntime({ graph, ledger: createTrustEvidenceLedger({ graph }), resolveIdentity, clock: () => clockState.now });
+    };
+    const executor = () => {
+      assert.equal(reopen().getReviewCase(caseId).case.status, 'executing');
+      throw new Error('effect uncertain');
+    };
+    assert.equal(runtime.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor }).ok, false);
+    const restored = reopen();
+    assert.equal(restored.getReviewCase(caseId).case.status, 'reconciliation_required');
+    assert.equal(restored.executeApprovedSync({ caseId, action: action(), requesterContext: {}, executor: () => assert.fail('reopened reservation reused') }).ok, false);
+  } finally { cleanup(dir); }
+});
 
 test('concurrent executeApproved runs the executor exactly once', async () => {
   // Issue #1867 repro: authorization passed twice because nothing reserved the

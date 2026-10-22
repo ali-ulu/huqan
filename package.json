@@ -305,6 +305,7 @@
     "lib/agent-step-progression.js",
     "lib/agent-cognition-seam.js",
     "lib/agent-cognition-observation.js",
+    "lib/agent-coder-execution.js",
     "lib/cognition-prediction-error-pairs.js",
     "lib/cognition-value-ledger-pairs.js",
     "lib/cognition/cognition-config.js",

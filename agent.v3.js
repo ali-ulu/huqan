@@ -36,6 +36,7 @@ class AgentV3 {
       maxSteps: opts.maxSteps || 4,
       storage: createToolApprovalSeam(() => this.storage),
       experienceOperationLedger: opts.experienceOperationLedger,
+      coderExecution: opts.coderExecution,
     });
     this.storage = opts.storage || createDefaultAgentV3Storage(this.kernel, opts);
     this.maxSteps = opts.maxSteps || this.baseAgent.maxSteps || 4;

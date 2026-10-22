@@ -11,6 +11,7 @@ const { executeAgentStep, executeStepWithRetry, executeAgentRun, isTransientStep
 const { emitRunLifecycle, writeCostStop } = require('./lib/experience/runtime-seam');
 const { runStepEffect } = require('./lib/experience/effect-boundary');
 const { createStepLifecycleRecorder } = require('./lib/experience/step-lifecycle');
+const { createAgentCoderExecution } = require('./lib/agent-coder-execution');
 const DEFAULT_MAX_STEPS = 4;
 const ALLOWED_TOOLS = INTERNAL_TOOLS;
 class Agent {
@@ -22,6 +23,7 @@ class Agent {
     this.memoryPath = normalizeMemoryPath(opts, this.kernel);
     this.storage = opts.storage || null;
     this.experienceOperationLedger = opts.experienceOperationLedger || null;
+    this.coderExecution = opts.coderExecution ? createAgentCoderExecution(opts.coderExecution) : null;
     this._stepLifecycle = createStepLifecycleRecorder(() => this.experienceJournal || this.kernel?.experienceJournal, () => this.kernel?.graph);
     this.memory = this._loadMemory();
     this.lastPlan = null;
@@ -174,7 +176,7 @@ class Agent {
     // execution_started, memory_update), for the same layering reason.
     const lifecycle = this._stepLifecycle;
     const runEffect = (effectStep, effectState, perform) => runStepEffect({ ledger: this.experienceOperationLedger, state: effectState, step: effectStep, perform: lifecycle.wrapPerform(effectStep, effectState, perform) });
-    return executeAgentStep({ step, state, opts, runtime: { kernel: this.kernel, dream: this.dream, allowedTools: ALLOWED_TOOLS, emit: this._emit.bind(this), runEffect, recordDecision: lifecycle.recordDecision, writeCostStop: runState => writeCostStop(this.experienceJournal || this.kernel?.experienceJournal, runState) } });
+    return executeAgentStep({ step, state, opts, runtime: { kernel: this.kernel, dream: this.dream, allowedTools: ALLOWED_TOOLS, coderExecution: this.coderExecution, emit: this._emit.bind(this), runEffect, recordDecision: lifecycle.recordDecision, writeCostStop: runState => writeCostStop(this.experienceJournal || this.kernel?.experienceJournal, runState) } });
   }
 
   run(goal, opts = {}) {

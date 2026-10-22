@@ -73,7 +73,7 @@ const RULES = [
     layer: 'Application',
     why: 'The use cases: the runtimes that drive a turn, the feature packages that implement one capability, and the extension surface plugins are written against.',
     files: [
-      'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js',
+      'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js', 'lib/agent-coder-execution.js',
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
