@@ -172,6 +172,27 @@ test('refuses a log or cursor that names the receipt trail', async t => {
     'the guard trail is left exactly as it was');
 });
 
+test('refuses a cursor that is a symlink to the receipt trail', async t => {
+  const paths = trail(t, [admissionReceipt(1)]);
+  const link = path.join(paths.base, 'cursor-link.json');
+  try {
+    fs.symlinkSync(paths.path, link);
+  } catch (error) {
+    if (error && (error.code === 'EPERM' || error.code === 'EEXIST')) {
+      t.skip('this platform does not allow symlinks here');
+      return;
+    }
+    throw error;
+  }
+
+  await assert.rejects(
+    () => exportReceiptsToSiem({ ...paths, cursorPath: link, format: 'jsonl' }),
+    (error) => error.code === 'SIEM_PATH_COLLISION',
+  );
+  assert.equal(fs.readFileSync(paths.path, 'utf8').includes('huqan.siem-event.v1'), false,
+    'the guard trail is not truncated through a symlinked cursor');
+});
+
 test('a dry run reports the pending events and writes nothing', async t => {
   const paths = trail(t, [admissionReceipt(1), admissionReceipt(2)]);
   const report = await exportReceiptsToSiem({ ...paths, format: 'jsonl', dryRun: true });
@@ -180,4 +201,16 @@ test('a dry run reports the pending events and writes nothing', async t => {
   assert.equal(report.exported, 0);
   assert.equal(fs.existsSync(paths.siemPath), false);
   assert.equal(fs.existsSync(paths.cursorPath), false);
+});
+
+test('a dry run previews the receipt kinds that will not reach the SIEM', async t => {
+  const paths = trail(t, [
+    admissionReceipt(1),
+    admissionReceipt(2, { receiptKind: 'external_action_outcome_receipt' }),
+  ]);
+
+  const report = await exportReceiptsToSiem({ ...paths, format: 'jsonl', dryRun: true });
+  assert.equal(report.skippedReceipts, 1);
+  assert.deepEqual(report.skippedReceiptKinds, { external_action_outcome_receipt: 1 },
+    'the preview answers the same question a real run answers');
 });
