@@ -166,6 +166,26 @@ test('returns a typed timeout result and never exceeds the attempt bound', async
   assert.equal(calls, 2);
 });
 
+test('an invalid payload is refused with a typed result and never sent', async () => {
+  let calls = 0;
+  const adapter = createWebhookNotificationAdapter({
+    url: 'https://example.test/hook',
+    secret: SIGNING_MATERIAL,
+    fetchImpl: async () => { calls += 1; return response(200); },
+  });
+  for (const input of [
+    { ...BASE_INPUT, notificationId: '' },
+    { ...BASE_INPUT, workspaceId: 'workspace\u0000a' },
+    { ...BASE_INPUT, alert: { ...BASE_INPUT.alert, ruleId: 'rule\nforged' } },
+  ]) {
+    const result = await adapter.deliver(input);
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'NOTIFICATION_INVALID_PAYLOAD');
+    assert.equal(result.attempts, 0);
+  }
+  assert.equal(calls, 0);
+});
+
 test('suppresses sequential duplicate delivery with bounded in-memory state', async () => {
   let calls = 0;
   const adapter = createWebhookNotificationAdapter({
