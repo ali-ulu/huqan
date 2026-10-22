@@ -97,11 +97,16 @@ test('a batch larger than the limit rotates between entries, not once per batch'
   const result = sink.write(batch);
 
   assert.equal(result.rotated, true);
-  assert.ok(fs.statSync(target).size <= maxBytes, 'the active file stays within the limit even for one big batch');
+  // The active file is read once and both facts are derived from the same
+  // bytes: a size check and a later read of the same path is the check-then-
+  // use shape CodeQL's file-system-race query names, and in a test it says
+  // nothing the single read does not.
+  const active = fs.readFileSync(target, 'utf8');
+  assert.ok(Buffer.byteLength(active, 'utf8') <= maxBytes, 'the active file stays within the limit even for one big batch');
   const generations = fs.readdirSync(base).filter(entry => entry.startsWith('huqan-events.jsonl.'));
   const written = generations
     .map(entry => fs.readFileSync(path.join(base, entry), 'utf8').split('\n').filter(Boolean).length)
-    .concat(fs.readFileSync(target, 'utf8').split('\n').filter(Boolean).length);
+    .concat(active.split('\n').filter(Boolean).length);
   assert.equal(written.reduce((sum, count) => sum + count, 0), 20, 'no line is dropped by rotating inside a batch');
 });
 

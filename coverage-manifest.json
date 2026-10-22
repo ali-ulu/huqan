@@ -1789,12 +1789,12 @@
       ],
       "sites": [
         {
-          "line": 125,
+          "line": 116,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 143,
+          "line": 137,
           "capability": "fs_write",
           "call": "fs.renameSync"
         }
