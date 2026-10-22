@@ -222,7 +222,7 @@
       ],
       "sites": [
         {
-          "line": 24,
+          "line": 39,
           "capability": "process",
           "call": "execFileSync"
         }
