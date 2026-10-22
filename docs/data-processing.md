@@ -91,7 +91,7 @@ workspace (`DELETE FROM nodes WHERE id = ? AND workspace_id = ?`).
 Two limits are stated rather than hidden:
 
 - `audit_log` is append-only; SQLite triggers reject updates and deletes
-  (`test/audit-log.test.js`). Deleting a memory node does not rewrite the audit
+  (`lib/audit-log.test.js`). Deleting a memory node does not rewrite the audit
   events that recorded how it was created or approved. Those events are the
   accountability record, and their retention is the operator's decision, made at
   the database file level.
