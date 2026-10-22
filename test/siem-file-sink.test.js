@@ -86,6 +86,37 @@ test('refuses a line that would break the one-event-per-line framing', t => {
   assert.equal(fs.existsSync(sink.path), false);
 });
 
+test('a batch larger than the limit rotates between entries, not once per batch', t => {
+  const base = scratch(t);
+  const target = path.join(base, 'huqan-events.jsonl');
+  const line = n => `{"event":"0123456789abcdef0123456789abcdef","n":${n}}`;
+  const maxBytes = Buffer.byteLength(`${line(0)}\n`, 'utf8') * 4;
+  const sink = createSiemFileSink({ path: target, maxBytes });
+
+  const batch = Array.from({ length: 20 }, (unused, index) => line(index));
+  const result = sink.write(batch);
+
+  assert.equal(result.rotated, true);
+  assert.ok(fs.statSync(target).size <= maxBytes, 'the active file stays within the limit even for one big batch');
+  const generations = fs.readdirSync(base).filter(entry => entry.startsWith('huqan-events.jsonl.'));
+  const written = generations
+    .map(entry => fs.readFileSync(path.join(base, entry), 'utf8').split('\n').filter(Boolean).length)
+    .concat(fs.readFileSync(target, 'utf8').split('\n').filter(Boolean).length);
+  assert.equal(written.reduce((sum, count) => sum + count, 0), 20, 'no line is dropped by rotating inside a batch');
+});
+
+test('an existing log that is not owner-only is corrected before it is written to', t => {
+  const base = scratch(t);
+  const target = path.join(base, 'huqan-events.jsonl');
+  fs.writeFileSync(target, '{"a":1}\n', { mode: 0o644 });
+  if (process.platform === 'win32') {
+    // The mode bits are not the filesystem's business here.
+    return;
+  }
+  createSiemFileSink({ path: target }).write(['{"a":2}']);
+  assert.equal(fs.statSync(target).mode & 0o777, 0o600);
+});
+
 test('writing nothing touches nothing', t => {
   const base = scratch(t);
   const sink = createSiemFileSink({ path: path.join(base, 'huqan-events.jsonl') });

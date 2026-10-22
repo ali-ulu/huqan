@@ -155,6 +155,21 @@ test('refuses an unknown format before it reads or writes anything', async t => 
   assert.equal(fs.existsSync(paths.cursorPath), false);
 });
 
+test('refuses a log or cursor that names the receipt trail', async t => {
+  const paths = trail(t, [admissionReceipt(1)]);
+
+  await assert.rejects(
+    () => exportReceiptsToSiem({ ...paths, siemPath: paths.path, format: 'jsonl' }),
+    (error) => error.code === 'SIEM_PATH_COLLISION',
+  );
+  await assert.rejects(
+    () => exportReceiptsToSiem({ ...paths, cursorPath: paths.path, format: 'jsonl' }),
+    (error) => error.code === 'SIEM_PATH_COLLISION',
+  );
+  assert.equal(fs.readFileSync(paths.path, 'utf8').includes('huqan.siem-event.v1'), false,
+    'the guard trail is left exactly as it was');
+});
+
 test('a dry run reports the pending events and writes nothing', async t => {
   const paths = trail(t, [admissionReceipt(1), admissionReceipt(2)]);
   const report = await exportReceiptsToSiem({ ...paths, format: 'jsonl', dryRun: true });
