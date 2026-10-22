@@ -16,11 +16,15 @@
 const INJECTED_FETCH_CLASSIFIED = Object.freeze({
   'lib/external-action-receipt-shipper.js': Object.freeze({
     role: 'egress_operator_gated',
-    why: 'appends the collector counter-seals beside the trail and ships that trail to the collector (#1781): signed, tenant-separated batches POSTed to the endpoint the operator configured, the cursor left untouched on any send failure so what is on disk stays the source of truth. The cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split, and the fetch reached this manifest through the #4196 scanner fix. Shipping runs as its own command after the fact -- a collector being down, slow or wrong cannot change what an agent is allowed to do. No agent action reaches the send. Recorded as a deliberate, written exception in ADR-014 (#4196)',
+    why: 'appends the collector counter-seals beside the trail and ships that trail to the collector (#1781): signed, tenant-separated batches POSTed to the endpoint the operator configured, the cursor left untouched on any send failure so what is on disk stays the source of truth. '
+      + 'The cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split, and the fetch reached this manifest through the #4196 scanner fix. Shipping runs as its own command after the fact -- a collector being down, slow or wrong cannot change what an agent is allowed to do. '
+      + 'No agent action reaches the send. Recorded as a deliberate, written exception in ADR-014 (#4196)',
   }),
   'lib/siem/siem-http-sink.js': Object.freeze({
     role: 'egress_operator_gated',
-    why: 'the HTTPS twin of the syslog sink (#4093 PR-B4, #4196): it POSTs the same allowlisted, AB9-scrubbed SIEM event of a decision already made to the HTTPS endpoint the operator named with `siem-export --sink https --url ...` (Splunk HEC or Elastic bulk by the operator\'s chosen format), certificate verification always on and the host judged by the same AB12/AB13 checks before the send. The export runs as its own command after the decision, so no agent tool call reaches it. Recorded as a deliberate, written exception in ADR-014 (#4093 addendum)',
+    why: 'the HTTPS twin of the syslog sink (#4093 PR-B4, #4196): it POSTs the same allowlisted, AB9-scrubbed SIEM event of a decision already made to the HTTPS endpoint the operator named with `siem-export --sink https --url ...` (Splunk HEC or Elastic bulk by the operator\'s chosen format), '
+      + 'certificate verification always on and the host judged by the same AB12/AB13 checks before the send. The export runs as its own command after the decision, so no agent tool call reaches it. '
+      + 'Recorded as a deliberate, written exception in ADR-014 (#4093 addendum)',
   }),
   // The GitHub App beta and streaming path runs as its own operator-enabled
   // deployment; its outbound GitHub API calls go through an injected
@@ -31,7 +35,9 @@ const INJECTED_FETCH_CLASSIFIED = Object.freeze({
   }),
   'lib/github-app-beta-http-boundary.js': Object.freeze({
     role: 'egress_operator_gated',
-    why: 'the outbound HTTP boundary the GitHub App beta webhook handler calls api.github.com through, plus the optional best-effort repo-ingest submission whose failure never fails the webhook (#3032). The beta path is operator-enabled and separately deployed; the same seam production reads the global fetch from, tests inject a transport. No agent action reaches its sends. Recorded as a deliberate, written exception in ADR-014',
+    why: 'the outbound HTTP boundary the GitHub App beta webhook handler calls api.github.com through, plus the optional best-effort repo-ingest submission whose failure never fails the webhook (#3032). '
+      + 'The beta path is operator-enabled and separately deployed; the same seam production reads the global fetch from, tests inject a transport. No agent action reaches its sends. '
+      + 'Recorded as a deliberate, written exception in ADR-014',
   }),
   'lib/github-app-streaming-auth.js': Object.freeze({
     role: 'egress_operator_gated',
@@ -39,7 +45,9 @@ const INJECTED_FETCH_CLASSIFIED = Object.freeze({
   }),
   'lib/github-app-streaming-trust-handler.js': Object.freeze({
     role: 'egress_operator_gated',
-    why: 'wires one webhook delivery through streaming trust: the handler itself sends nothing, but it threads the injected fetch transport into runGitHubAppStreamingTrust, so a value read of `globalThis.fetch` lands here too (#4196). The egress its threaded transport performs is the streaming path\'s own PR reading and check-run write, on the operator-enabled separately deployed GitHub App service. Recorded as a deliberate, written exception in ADR-014',
+    why: 'wires one webhook delivery through streaming trust: the handler itself sends nothing, but it threads the injected fetch transport into runGitHubAppStreamingTrust, so a value read of `globalThis.fetch` lands here too (#4196). '
+      + 'The egress its threaded transport performs is the streaming path\'s own PR reading and check-run write, on the operator-enabled separately deployed GitHub App service. '
+      + 'Recorded as a deliberate, written exception in ADR-014',
   }),
   'lib/github-app-streaming-trust.js': Object.freeze({
     role: 'egress_operator_gated',
