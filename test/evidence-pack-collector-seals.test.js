@@ -107,9 +107,10 @@ test('includes collector seal chain and verifies with collector public key', (t)
   assert.ok(verdict.nonClaims.some((claim) => /administered by someone other than the operator/.test(claim)));
 
   // The keys that vouch for the seals never travel with them.
-  for (const file of fs.readdirSync(packDir, { recursive: true })) {
-    const full = path.join(packDir, file);
-    if (fs.statSync(full).isFile()) assert.doesNotMatch(fs.readFileSync(full, 'utf8'), /BEGIN PUBLIC KEY/, file);
+  for (const entry of fs.readdirSync(packDir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const full = path.join(entry.parentPath, entry.name);
+    assert.doesNotMatch(fs.readFileSync(full, 'utf8'), /BEGIN PUBLIC KEY/, path.relative(packDir, full));
   }
 });
 
