@@ -1,5 +1,6 @@
 {
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
+  "lib/cognition/replay-priority.js": "cognitive-architecture-plan.md section 7: pure COG-M3 PR-1 prioritized replay selection; first production caller is the terfi --from-replay dry-run (PR-3), no action authority or measured gain",
   "lib/evidence-pack/control-matrix.js": "evidence-pack SOC 2 control matrix and README-AUDITOR renderers: static supporting-evidence table plus pure deterministic renderers; unit-tested, awaiting the pack collector that writes controls/control-matrix.json and README-AUDITOR.md",
   "lib/evidence-pack/manifest.js": "evidence-pack manifest builder: file inventory, per-file SHA-256, and the packHash seal over the Trust receipt bundle; pure contract, unit-tested, awaiting the pack collector CLI that lands in the next slice",
   "lib/evidence-pack/verify.js": "evidence-pack verifier: recomputes packHash, checks every listed file's bytes, and re-verifies the receipt bundle through verifyExportedBundle; pure contract, unit-tested, awaiting the `huqan evidence verify` CLI command that lands in the next slice",
