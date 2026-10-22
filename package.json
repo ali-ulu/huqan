@@ -1542,6 +1542,7 @@
     "lib/coder/string-synthesis.js",
     "lib/evidence-pack/collect.js",
     "lib/evidence-pack/manifest.js",
+    "lib/evidence-pack/signature.js",
     "lib/evidence-pack/verify.js",
     "specs/huqan-evidence-pack/0.1/README.md",
     "specs/huqan-evidence-pack/0.1/verify_pack.py",

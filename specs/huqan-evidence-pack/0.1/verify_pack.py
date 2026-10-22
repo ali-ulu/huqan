@@ -24,6 +24,7 @@ Usage:
 Exit status is 0 when every pack verifies, 1 otherwise.
 """
 
+import base64
 import hashlib
 import importlib.util
 import json
@@ -39,6 +40,9 @@ sys.dont_write_bytecode = True
 SCHEMA_VERSION = "huqan.evidence-pack.v1"
 MANIFEST_FILE = "manifest.json"
 SIGNATURE_FILE = "manifest.signature.json"
+SIGNATURE_SCHEMA_VERSION = "huqan.evidence-pack-signature.v1"
+SIGNATURE_NON_CLAIM = ("the issuer signature proves origin, not independence: the public key travels "
+                       "inside the pack and the issuing key lives on the operator host")
 BUNDLE_RELATIVE_PATH = "receipts/receipt-bundle.json"
 LEDGER_RELATIVE_PATH = "emergency-stop/ledger.jsonl"
 LEDGER_ACTIONS = ("stop", "lift", "integrity_violation")
@@ -146,6 +150,137 @@ def load_bundle_verifier():
     return module
 
 
+# RFC 8032 Ed25519 verification, pure Python, so the stdlib-only contract holds
+# (the same compact verifier the axiom-trust-protocol bundle verifier ships).
+Q = 2 ** 255 - 19
+L = 2 ** 252 + 27742317777372353535851937790883648493
+D = (-121665 * pow(121666, Q - 2, Q)) % Q
+I = pow(2, (Q - 1) // 4, Q)
+B_Y = (4 * pow(5, Q - 2, Q)) % Q
+
+
+def _xrecover(y):
+    xx = (y * y - 1) * pow(D * y * y + 1, Q - 2, Q) % Q
+    x = pow(xx, (Q + 3) // 8, Q)
+    if (x * x - xx) % Q:
+        x = x * I % Q
+    return x
+
+
+B = (_xrecover(B_Y), B_Y)
+if B[0] & 1:
+    B = (Q - B[0], B[1])
+
+
+def _add(p, q):
+    x1, y1 = p
+    x2, y2 = q
+    x3 = (x1 * y2 + x2 * y1) * pow(1 + D * x1 * x2 * y1 * y2, Q - 2, Q) % Q
+    y3 = (y1 * y2 + x1 * x2) * pow(1 - D * x1 * x2 * y1 * y2, Q - 2, Q) % Q
+    return (x3, y3)
+
+
+def _scalar_mult(p, n):
+    result = (0, 1)
+    while n:
+        if n & 1:
+            result = _add(result, p)
+        p = _add(p, p)
+        n >>= 1
+    return result
+
+
+def _decode_point(raw):
+    if len(raw) != 32:
+        return None
+    value = int.from_bytes(raw, "little")
+    sign = value >> 255
+    y = value & ((1 << 255) - 1)
+    if y >= Q:
+        return None
+    x = _xrecover(y)
+    if (x * x - (y * y - 1) * pow(D * y * y + 1, Q - 2, Q)) % Q:
+        return None
+    if (x & 1) != sign:
+        x = Q - x
+    point = (x, y)
+    return point if _scalar_mult(point, L) == (0, 1) else None
+
+
+def ed25519_verify(raw_key, signature, message):
+    """True when `signature` (64 bytes) is a valid Ed25519 signature of `message`."""
+    if len(signature) != 64:
+        return False
+    r, s, a = _decode_point(signature[:32]), int.from_bytes(signature[32:], "little"), _decode_point(raw_key)
+    if r is None or a is None or s >= L:
+        return False
+    h = int.from_bytes(hashlib.sha512(signature[:32] + raw_key + message).digest(), "little") % L
+    return _scalar_mult(B, s) == _add(r, _scalar_mult(a, h))
+
+
+SPKI_PREFIX = bytes.fromhex("302a300506032b6570032100")
+
+
+def spki_ed25519(pem):
+    """Raw 32-byte key from an Ed25519 SPKI PEM, or None."""
+    if not isinstance(pem, str):
+        return None
+    lines = [line.strip() for line in pem.splitlines() if not line.startswith("---")]
+    try:
+        der = base64.b64decode("".join(lines), validate=True)
+    except Exception:
+        return None
+    return der[len(SPKI_PREFIX):] if len(der) == len(SPKI_PREFIX) + 32 and der.startswith(SPKI_PREFIX) else None
+
+
+def key_id(raw_key):
+    """The issuer key fingerprint: ed25519: + first 32 hex of SHA-256 over the SPKI DER."""
+    return "ed25519:" + hashlib.sha256(SPKI_PREFIX + raw_key).hexdigest()[:32]
+
+
+def signature_findings(pack_dir, manifest):
+    """Check manifest.signature.json against the manifest. Returns (findings, signed, key_id)."""
+    declared = (manifest.get("producer") or {}).get("issuerKeyId") if isinstance(manifest.get("producer"), dict) else None
+    path = os.path.join(pack_dir, SIGNATURE_FILE)
+    if not os.path.exists(path):
+        return (["signature_missing"] if declared else []), False, None
+    try:
+        with open(path, encoding="utf-8") as handle:
+            envelope = json.load(handle)
+    except OSError:
+        return ["signature_unreadable"], True, None
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        envelope = None
+    well_formed = (
+        isinstance(envelope, dict)
+        and envelope.get("schemaVersion") == SIGNATURE_SCHEMA_VERSION
+        and envelope.get("algorithm") == "ed25519"
+        and all(isinstance(envelope.get(k), str) for k in ("keyId", "publicKeyPem", "signature"))
+    )
+    if not well_formed:
+        return ["signature_format_invalid"], True, None
+    findings = []
+    raw_key = spki_ed25519(envelope["publicKeyPem"])
+    if raw_key is None or key_id(raw_key) != envelope["keyId"]:
+        findings.append("signature_key_id_mismatch")
+    if envelope["keyId"] != declared:
+        findings.append("signature_producer_key_mismatch")
+    payload = {
+        "schemaVersion": SIGNATURE_SCHEMA_VERSION,
+        "packHash": manifest.get("packHash"),
+        "period": manifest.get("period"),
+        "generatedAt": manifest.get("generatedAt"),
+    }
+    try:
+        signature = base64.b64decode(envelope["signature"], validate=True)
+    except Exception:
+        signature = b""
+    if raw_key is None or not ed25519_verify(raw_key, signature, canonical_json(payload).encode("utf-8")):
+        findings.append("signature_invalid")
+    return findings, True, envelope["keyId"]
+
+
+
 def manifest_path_invalid(relative):
     """The manifest path policy: a packed file is named by a canonical,
     relative, forward-slash path. An absolute path, a backslash, a `.` or `..`
@@ -233,18 +368,18 @@ def verify(pack_dir, bundle_verifier):
     except OSError:
         # Every read failure is manifest_unreadable, matching verify.js: a
         # permission error must not escape verify() and skip the verdict line.
-        return ["manifest_unreadable"], [], []
+        return ["manifest_unreadable"], [], [], (False, None)
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return ["manifest_not_json"], [], []
+        return ["manifest_not_json"], [], [], (False, None)
 
     if not isinstance(manifest, dict):
-        return ["manifest_not_object"], [], []
+        return ["manifest_not_object"], [], [], (False, None)
     if manifest.get("schemaVersion") != SCHEMA_VERSION:
         findings.append("manifest_schema_version_mismatch")
     entries_raw = manifest.get("files")
     if not isinstance(entries_raw, list):
         findings.append("manifest_files_missing")
-        return findings, [], manifest.get("nonClaims") or []
+        return findings, [], manifest.get("nonClaims") or [], (False, None)
 
     if pack_hash(manifest) != manifest.get("packHash"):
         findings.append("pack_hash_mismatch")
@@ -311,15 +446,21 @@ def verify(pack_dir, bundle_verifier):
         except Exception:
             findings.append("emergency_stop_ledger_unreadable")
 
-    return findings, file_reports, manifest.get("nonClaims") or []
+    sig_findings, signed, signer = signature_findings(pack_dir, manifest)
+    findings.extend(sig_findings)
+    non_claims = list(manifest.get("nonClaims") or [])
+    if signed:
+        non_claims.append(SIGNATURE_NON_CLAIM)
+    return findings, file_reports, non_claims, (signed, signer)
 
 
-def report(pack_dir, findings, file_reports, non_claims):
+def report(pack_dir, findings, file_reports, non_claims, signature=(False, None)):
     name = os.path.basename(os.path.normpath(pack_dir)) or pack_dir
     if findings:
         print("%-40s INVALID  %s" % (name, ", ".join(findings)))
         return False
     print("%-40s VALID" % name)
+    print("    signature: %s" % ("signed  keyId: %s" % signature[1] if signature[0] else "unsigned"))
     for relative, integrity_class, _present, _hash_valid in file_reports:
         print("    %-48s %s" % (relative, integrity_class))
     for claim in non_claims:
@@ -334,8 +475,8 @@ def main(argv):
     bundle_verifier = load_bundle_verifier()
     ok = True
     for pack_dir in argv:
-        findings, file_reports, non_claims = verify(pack_dir, bundle_verifier)
-        ok = report(pack_dir, findings, file_reports, non_claims) and ok
+        findings, file_reports, non_claims, signature = verify(pack_dir, bundle_verifier)
+        ok = report(pack_dir, findings, file_reports, non_claims, signature) and ok
     return 0 if ok else 1
 
 

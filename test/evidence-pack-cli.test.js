@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
 const Graph = require('../graph');
@@ -149,4 +150,33 @@ test('a flag operand that is another flag is invalid input, not a directory name
   assert.equal(run.status, 2);
   assert.match(run.stderr, /--out needs a value/);
   assert.equal(fs.existsSync(path.join(ctx.home, '--workspace')), false);
+});
+
+test('pack --sign writes a signature with the configured issuer key; without a key it is unsigned, not a failure', (t) => {
+  const ctx = seededHome(t);
+  const period = ['--from', '2026-01-01', '--to', '2026-01-31T23:59:59.999Z'];
+
+  const unsignedOut = path.join(ctx.home, 'unsigned-pack');
+  const unsigned = huqan(['evidence', 'pack', ...period, '--out', unsignedOut, '--sign'], ctx);
+  assert.equal(unsigned.status, 0, unsigned.stdout + unsigned.stderr);
+  assert.match(unsigned.stdout, /unsigned: no issuer key is configured/);
+  assert.equal(fs.existsSync(path.join(unsignedOut, 'manifest.signature.json')), false);
+  assert.match(huqan(['evidence', 'verify', unsignedOut], ctx).stdout, /signature: unsigned/);
+
+  const keyPath = path.join(ctx.home, 'issuer.pem');
+  fs.writeFileSync(keyPath, crypto.generateKeyPairSync('ed25519').privateKey.export({ type: 'pkcs8', format: 'pem' }));
+  const signedCtx = { ...ctx, env: { ...ctx.env, HUQAN_ISSUER_SEAL_KEY: keyPath } };
+  const signedOut = path.join(ctx.home, 'signed-pack');
+  const signed = huqan(['evidence', 'pack', ...period, '--out', signedOut, '--sign'], signedCtx);
+  assert.equal(signed.status, 0, signed.stdout + signed.stderr);
+  assert.match(signed.stdout, /signed: ed25519:[0-9a-f]{32}/);
+  const verify = huqan(['evidence', 'verify', signedOut], ctx);
+  assert.equal(verify.status, 0, verify.stdout + verify.stderr);
+  assert.match(verify.stdout, /signature: signed {2}keyId: ed25519:[0-9a-f]{32}/);
+  assert.match(verify.stdout, /proves origin, not independence/);
+
+  // Without --sign a configured key is not used.
+  const plainOut = path.join(ctx.home, 'plain-pack');
+  assert.equal(huqan(['evidence', 'pack', ...period, '--out', plainOut], signedCtx).status, 0);
+  assert.equal(fs.existsSync(path.join(plainOut, 'manifest.signature.json')), false);
 });
