@@ -198,6 +198,10 @@ const CLASSIFIED = Object.freeze({
     role: 'evidence',
     why: 'the shipped-position cursor beside the receipt trail (mode 0o600, dir 0o700); advancing it past an unshipped receipt would lose evidence, which is why the resync check lives beside it',
   }),
+  'lib/siem/siem-file-sink.js': Object.freeze({
+    role: 'evidence',
+    why: 'appends the rendered SIEM event to the deployment\'s own local log (mode 0o600, dir 0o700) at the path the operator resolved, and rotates it to a numbered generation. It is a copy of a fact the receipt already holds, not a new authority: the sink never opens a network, never reads agent input, and the trail it copies from stays the source of truth',
+  }),
   'lib/receipt/public-trust-receipt.js': Object.freeze({
     role: 'evidence',
     why: 'writes the allowlist-projected public form of a trust receipt to a caller-named export path',

@@ -96,6 +96,16 @@ async function main() {
       await runShipCommand();
       return;
     }
+    // `siem-export` moves the guard's decisions into the deployment's own SIEM
+    // (#4093). Separate from the hook path on purpose: a collector or a SIEM
+    // being down must never be able to change what an agent may do. The
+    // marshal is required here rather than in lib/gate-hook-management.js,
+    // because the export is an Adapter and Core may not require one.
+    if (command === 'siem-export') {
+      const { runSiemExportCommand } = require('../lib/siem/siem-export-command');
+      await runSiemExportCommand();
+      return;
+    }
     if (command === 'adapter') {
       runAdapterCommand();
       return;

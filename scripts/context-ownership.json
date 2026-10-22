@@ -2444,6 +2444,18 @@
    "context": "AgentAction",
    "evidence": "#4093 PR-B1: maps an external-action admission receipt onto the canonical huqan.siem-event.v1, scrubbing it through AB9 (lib/data-egress-gate.js) on the same egress boundary as lib/external-action-egress-gates.js"
   },
+  "lib/siem/siem-file-sink.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B3: the append-only local file sink the SIEM export writes through; a file, not a socket, so it adds no egress boundary of its own -- the push sinks of PR-B4 are the ones that will need a residency review"
+  },
+  "lib/siem/siem-export.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B3: reads the guard's external-action receipt trail and appends the canonical huqan.siem-event.v1 to a sink; the egress boundary is the AB9 scrub its mapper already applies, and the default file transport opens no network"
+  },
+  "lib/siem/siem-export-command.js": {
+   "context": "AgentAction",
+   "evidence": "#4093 PR-B3: the huqan-gate-hook siem-export CLI marshal; bin/huqan-gate-hook.js requires it directly because lib/siem/ is the Adapters layer and the Core management module may not require one"
+  },
   "lib/siem/formatters.js": {
    "context": "AgentAction",
    "evidence": "#4093 PR-B2: renders the canonical huqan.siem-event.v1 into ECS, Splunk HEC, CEF and jsonl; pure, no new egress boundary, so it inherits the AgentAction context its mapper already carries"
@@ -5996,6 +6008,13 @@
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
+  "lib/external-action-receipt-cursor.js": {
+   "owner": "Trust",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "#4093 PR-B3: the SIEM export reuses the collector's cursor semantics (count plus the receipt it stopped at, with the same resync) under its own cursor file, so the two consumers stay independent"
+  },
   "lib/external-action-receipt-reader.js": {
    "owner": "Trust",
    "consumers": [
@@ -6586,6 +6605,13 @@
     "Platform"
    ],
    "evidence": "#2505 capability-card issuance invoked by the huqan-gate CLI entry point"
+  },
+  "lib/siem/siem-export-command.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4093 PR-B3: the huqan-gate-hook entry point requires the SIEM export command directly, because lib/siem/ is the Adapters layer and the Core management module may not require one"
   },
   "lib/browser-session-observer.js": {
    "owner": "AgentAction",

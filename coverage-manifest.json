@@ -2,19 +2,19 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 88,
-    "sites": 202,
+    "files": 89,
+    "sites": 204,
     "byCapability": {
       "process": 37,
       "egress": 8,
-      "fs_write": 157
+      "fs_write": 159
     },
     "byRole": {
       "enforcement": 46,
       "adapter_read": 8,
       "operator_tool": 70,
       "persistence": 58,
-      "evidence": 15,
+      "evidence": 17,
       "egress_operator_gated": 2,
       "unguarded": 3
     }
@@ -1777,6 +1777,26 @@
           "line": 101,
           "capability": "fs_write",
           "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/siem/siem-file-sink.js",
+      "role": "evidence",
+      "why": "appends the rendered SIEM event to the deployment's own local log (mode 0o600, dir 0o700) at the path the operator resolved, and rotates it to a numbered generation. It is a copy of a fact the receipt already holds, not a new authority: the sink never opens a network, never reads agent input, and the trail it copies from stays the source of truth",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 116,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 137,
+          "capability": "fs_write",
+          "call": "fs.renameSync"
         }
       ]
     },
