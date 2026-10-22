@@ -100,6 +100,42 @@ test('a TLS connection is egress, like the plain sockets beside it (#4093)', () 
   }
 });
 
+test('an injected globalThis.fetch default is a reference, and egress (#4196)', () => {
+  // The shape ten lib/ files use (#4196): the transport arrives as a parameter
+  // default and is called only through the local name, so the call itself has
+  // no site to find. The read of globalThis.fetch is what the scan can see and
+  // what forces classification.
+  for (const [label, source] of [
+    ['parameter default', 'function deliver(url, fetchImpl = globalThis.fetch) {\n  return fetchImpl(url);\n}\n'],
+    ['options fallback', 'const fetchImpl = options.fetchImpl || globalThis.fetch;\nfetchImpl(url);\n'],
+    ['destructured default', 'function run({ fetchImpl = globalThis.fetch, url }) {\n  return fetchImpl(url);\n}\n'],
+  ]) {
+    const found = sitesIn('probe.js', source);
+    assert.equal(found.length, 1, label);
+    assert.equal(found[0].capability, 'egress', label);
+    assert.equal(found[0].call, 'globalThis.fetch', label);
+    assert.equal(found[0].line, 1, label);
+  }
+
+  // A file that merely calls the global directly stays exactly one site, not
+  // two, and comments and strings read as neither.
+  const direct = sitesIn('probe.js', 'globalThis.fetch("https://x/");\n');
+  assert.equal(direct.length, 1);
+  assert.equal(direct[0].call, 'fetch');
+  const commented = sitesIn('probe.js', '// globalThis.fetch()\nconst d = "globalThis.fetch";\n');
+  assert.deepEqual(commented, []);
+});
+
+test('a bare fetch read and an alias of the reference remain the documented limit', () => {
+  // Honest limit, pinned rather than asserted away: the scanner follows the
+  // globalThis.fetch reference and aliases of resolved bindings, not a bare
+  // global read or a second-level alias made locally.
+  const bare = 'fetchImpl = fetch,\nurl,\n';
+  assert.deepEqual(sitesIn('probe.js', bare), []);
+  const secondLevel = 'function deliver(url, fetchImpl = globalThis.fetch) {\n  const h = fetchImpl;\n  return h(url);\n}\n';
+  assert.equal(sitesIn('probe.js', secondLevel).length, 1);
+});
+
 test('a destructured import is found under its local name', () => {
   const source = "const { spawnSync: run } = require('child_process');\nrun('x');\n";
   const found = sitesIn('probe.js', source);

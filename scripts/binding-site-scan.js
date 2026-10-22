@@ -50,8 +50,21 @@ const CAPABILITIES = Object.freeze({
   }),
 });
 
-/** `fetch` is global, so it has no binding to resolve. */
-const GLOBAL_EGRESS = /(?<![.\w])fetch\s*\(/g;
+/**
+ * `fetch` is global, so it has no binding to resolve (#4196). It is counted in
+ * two shapes: the call itself -- `fetch(...)` or `globalThis.fetch(...)` -- and
+ * the *value read* `globalThis.fetch`. Ten lib/ files take
+ * `fetchImpl = globalThis.fetch` as a parameter default and call only the local
+ * name, so their only addressable site is the reference. Counting the
+ * reference, not the call through the alias, forces the file to be classified:
+ * asking for the global fetch is egress intent.
+ *
+ * shortcut: a bare `fetch` read (`impl = fetch`) or an alias of that alias
+ * (`h = fetchImpl; h(url)`) stays invisible here, <when to upgrade: a file
+ * whose only egress shows that shape is reported by check:enforcement-coverage>.
+ */
+const GLOBAL_EGRESS = /(?<![.\w])(?:globalThis\s*\.\s*)?fetch\s*\(/g;
+const GLOBAL_EGRESS_REF = /(?<![.\w])globalThis\s*\.\s*fetch(?![\w$])(?!\s*\()/g;
 
 /**
  * Blank out comments, and optionally string literals, preserving length and
@@ -328,12 +341,16 @@ function sitesIn(file, source) {
   for (const match of text.matchAll(GLOBAL_EGRESS)) {
     found.push({ file, line: lineOf(text, match.index), capability: 'egress', call: 'fetch' });
   }
+  for (const match of text.matchAll(GLOBAL_EGRESS_REF)) {
+    found.push({ file, line: lineOf(text, match.index), capability: 'egress', call: 'globalThis.fetch' });
+  }
   return found;
 }
 
 module.exports = {
   CAPABILITIES,
   GLOBAL_EGRESS,
+  GLOBAL_EGRESS_REF,
   blankRegions,
   stripComments,
   stripCommentsAndStrings,
