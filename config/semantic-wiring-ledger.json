@@ -7,6 +7,7 @@
   "lib/cognition/percept-adapters.js": "COG-M1 Faz 2 pure source-to-percept mapping (file effect, browser receipt, step report, prediction error, outcome pair); first production caller is the M7 seam, which leaves the ledger when it wires",
   "lib/cognition/percept.js": "COG-M1 Faz 2 shared perception shape over the K1 CognitiveMessage; first production caller is the M7 seam or the Lab CLI, which leaves the ledger when it wires",
   "lib/cognition/prediction-error.js": "COG-M2 Faz 1 signal; first production caller is the M7 seam or the Lab CLI, which leaves the ledger when it wires",
+  "lib/cognition/replay-priority.js": "cognitive-architecture-plan.md section 7: pure COG-M3 PR-1 prioritized replay selection; first production caller is the terfi --from-replay dry-run (PR-3), no action authority or measured gain",
   "lib/cognition/reward-signal.js": "cognitive-architecture-plan.md section 7: COG-M8 observed reward signal; first production caller is the M9 value ledger or M7 seam; no action authority or measured gain",
   "lib/cognition/salience.js": "cognitive-architecture-plan.md section 7: pure COG-M7 signal-only candidate ranking; awaiting the AgentV3 scheduler seam, no action authority or measured gain",
   "lib/cognition/value-ledger.js": "cognitive-architecture-plan.md section 7: pure COG-M9 derived history fold; awaiting Lab CLI or M7 seam, no second persistence authority or measured gain",
