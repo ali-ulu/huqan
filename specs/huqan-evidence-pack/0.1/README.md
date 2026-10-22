@@ -18,7 +18,7 @@ no packed file changed after the manifest was written, and every trust chain the
 pack carries re-walks to its genesis.
 
 Those limits travel with the pack. `manifest.json` carries them in its
-`nonClaims` array, and `README-AUDITOR.md` (a later slice) restates them for a
+`nonClaims` array, and `README-AUDITOR.md` restates them for a
 human reader, so a reader who never opens the manifest is still told.
 
 ## Directory layout
