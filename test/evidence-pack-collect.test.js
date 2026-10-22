@@ -177,6 +177,15 @@ test('refuses to pack when receipts carry secret-looking value', async (t) => {
   assertNothingLeftBehind(opts);
 });
 
+test('a signature nested anywhere in hash-bound content is not read as a secret', async (t) => {
+  // SECRET stands in for the one-in-five random base64 signature the heuristic flags.
+  const sealed = receipt(1, { metadata: { seal: { signature: SECRET } } });
+  const graph = graphWith(t, [auditEvent(1, sealed)]);
+  const opts = options(t, graph);
+  await collectEvidencePack(opts);
+  assert.equal(verifyPack(opts.outDir).valid, true);
+});
+
 test('performs no network call while packing', async (t) => {
   const calls = [];
   const trap = (name) => () => { calls.push(name); throw new Error(`network call attempted: ${name}`); };
