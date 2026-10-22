@@ -11,6 +11,7 @@ const {
 } = require('../lib/gate-hook-reports');
 const {
   runShipCommand,
+  runSiemExportCommand,
   runAdapterCommand,
   runOverviewCommand,
   runAgentsCommand,
@@ -94,6 +95,13 @@ async function main() {
     // Management commands live in lib/gate-hook-management.js (#2248).
     if (command === 'ship') {
       await runShipCommand();
+      return;
+    }
+    // `siem-export` moves the guard's decisions into the deployment's own SIEM
+    // (#4093). Separate from the hook path on purpose: a collector or a SIEM
+    // being down must never be able to change what an agent may do.
+    if (command === 'siem-export') {
+      await runSiemExportCommand();
       return;
     }
     if (command === 'adapter') {
