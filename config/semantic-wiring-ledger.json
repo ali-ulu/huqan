@@ -11,7 +11,5 @@
   "lib/cognition/salience.js": "cognitive-architecture-plan.md section 7: pure COG-M7 signal-only candidate ranking; awaiting the AgentV3 scheduler seam, no action authority or measured gain",
   "lib/cognition/value-ledger.js": "cognitive-architecture-plan.md section 7: pure COG-M9 derived history fold; awaiting Lab CLI or M7 seam, no second persistence authority or measured gain",
   "lib/evidence-pack/control-matrix.js": "evidence-pack SOC 2 control matrix and README-AUDITOR renderers: static supporting-evidence table plus pure deterministic renderers; unit-tested, awaiting the pack collector that writes controls/control-matrix.json and README-AUDITOR.md",
-  "lib/knowledge-lint.js": "read-only knowledge health lint over the derived view; the scope note docs/architecture/knowledge-wiki-scope.md section 6 fixes its reporting-only boundary, and its report awaits the caller that renders the derived view, which leaves the ledger when it wires",
-  "lib/siem/formatters.js": "ECS, Splunk HEC and CEF renderers over the canonical huqan.siem-event.v1; pure, unit-tested, awaiting the sink and cursor that write and move their output, which leave the ledger when they wire",
-  "lib/siem/siem-event.js": "canonical huqan.siem-event.v1 mapper over external-action admission receipts; pure contract, unit-tested, awaiting the append-only sink that moves the event, which leaves the ledger when it wires"
+  "lib/knowledge-lint.js": "read-only knowledge health lint over the derived view; the scope note docs/architecture/knowledge-wiki-scope.md section 6 fixes its reporting-only boundary, and its report awaits the caller that renders the derived view, which leaves the ledger when it wires"
 }

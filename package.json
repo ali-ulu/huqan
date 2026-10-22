@@ -1179,6 +1179,11 @@
     "lib/self-evolve-probe.js",
     "lib/server-graph-data.js",
     "lib/shield.js",
+    "lib/siem/siem-event.js",
+    "lib/siem/formatters.js",
+    "lib/siem/siem-file-sink.js",
+    "lib/siem/siem-export.js",
+    "lib/siem/siem-export-command.js",
     "lib/sqlite-availability.js",
     "lib/sqlite-durability.js",
     "lib/sqlite-persistence-validation.js",
@@ -1541,13 +1546,13 @@
     "lib/experience/string-program.js",
     "lib/coder/string-synthesis.js",
     "lib/evidence-pack/collect.js",
+    "lib/evidence-pack/control-matrix.js",
     "lib/evidence-pack/manifest.js",
     "lib/evidence-pack/signature.js",
     "lib/evidence-pack/verify.js",
     "specs/huqan-evidence-pack/0.1/README.md",
     "specs/huqan-evidence-pack/0.1/verify_pack.py",
-    "SECURITY_INVARIANTS.md",
-    "lib/evidence-pack/control-matrix.js"
+    "SECURITY_INVARIANTS.md"
   ],
   "dependencies": {
     "better-sqlite3": "^13.0.3",
