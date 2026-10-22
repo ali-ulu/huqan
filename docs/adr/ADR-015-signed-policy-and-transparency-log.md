@@ -5,7 +5,7 @@
 - **Deciders:** repository owner
 - **Supersedes:** —
 - **Cross-references:** #3490, #3260, #3259, PR #3604, [ADR-008 trust-root boundaries](ADR-008-trust-root-boundaries.md), [ADR-012 audit evidence and admission](ADR-012-audit-evidence-and-admission.md)
-- **Scope:** `lib/receipt/policy-seal.js`, `lib/receipt/issuer-seal.js`, `lib/issuer-seal-config.js`
+- **Scope:** `lib/receipt/policy-seal.js`, `lib/receipt/issuer-seal.js`, `lib/issuer-seal-config.js`, `lib/evidence-pack/signature.js` (addendum)
 
 ## Context
 
@@ -81,6 +81,40 @@ stand. This keeps a single receipt-verification authority.
 - The signature-envelope v2 change is a tracked follow-up, so a reader of the
   envelope is not told a field exists that does not.
 
+## Addendum (#4092 A4): evidence pack manifest signature
+
+The evidence pack (`huqan evidence pack ... --sign`) signs its manifest with the
+issuer key this ADR already covers. Nothing new is introduced:
+
+- **Same key, no new variable.** The key comes from `readIssuerSealKey()`
+  (`lib/issuer-seal-config.js`, `HUQAN_ISSUER_SEAL_KEY`). There is no new key, no
+  new environment variable and no new signer; the signature is ed25519 over the
+  same key type `signReceiptBundle` uses. Bundles inside the pack keep their own
+  `signReceiptBundle` v2 signature untouched.
+- **Domain separation.** The signed statement is
+  `{schemaVersion: "huqan.evidence-pack-signature.v1", packHash, period, generatedAt}`
+  (stable-stringified). Its `schemaVersion` and field set differ from every
+  receipt-bundle signature payload, so a pack signature does not verify as a
+  bundle signature and the reverse.
+- **Derived key id.** `keyId` is `issuerKeyFingerprint(publicKey)`, never declared.
+  It is written to `manifest.producer.issuerKeyId` before `packHash` is computed,
+  so the seal covers it. Verifiers require that the `keyId` in
+  `manifest.signature.json` derives from the public key in that file and equals
+  `producer.issuerKeyId`; a manifest that names a key but ships no signature is
+  invalid (`signature_missing`).
+- **Unsigned is a state, not an error.** With no issuer key configured, `--sign`
+  writes an unsigned pack with `issuerKeyId: null`, and `evidence verify` reports
+  `signature: unsigned`.
+- **What it proves.** Origin and integrity of the manifest: these bytes were
+  sealed by the holder of that key. **What it does not prove.** Independence:
+  the public key travels inside the pack and the key lives on the operator host,
+  so only a counter-seal by a key the operator does not manage speaks to that.
+  Verifiers print this limit with every signed verdict. It also does not prove
+  that the recorded events happened or that the operator is honest.
+- **Python verifier.** `verify_pack.py` carries a small pure-Python RFC 8032
+  verifier (the standard library has no ed25519), checked against RFC 8032 test
+  vector 1 and against signatures produced by Node.
+
 ## Evidence
 
 - PR #3604, merged into `main` as `b8c8baa7`
@@ -91,3 +125,5 @@ stand. This keeps a single receipt-verification authority.
 - `lib/issuer-seal-config.js` — the deployment-side key line.
 - Tests: `test/policy-seal.test.js`, `test/mutation-receipt-seal-verify.test.js`,
   `test/logmask-erased-trace.test.js`.
+- Addendum (#4092 A4): `lib/evidence-pack/signature.js`,
+  `test/evidence-pack-signature.test.js`.

@@ -128,6 +128,8 @@ The checks are:
    `RECEIPT-BUNDLE.md` defines.
 6. `emergency-stop/ledger.jsonl`, when present, re-walks as a hash chain from
    genesis (below).
+7. `manifest.signature.json`, when present, verifies (below). A manifest whose
+   `producer.issuerKeyId` is set but which ships no signature file is invalid.
 
 ### The emergency-stop ledger
 
@@ -142,6 +144,28 @@ is not a JSON object is a corrupt entry and fails the chain. The finding is
 `ledger_seq_gap`, `ledger_prevhash_mismatch`, `ledger_hash_mismatch` or
 `ledger_invalid_action`. A hash chain cannot be cut by period, so the ledger is
 packed whole, not filtered to the pack's period.
+
+## The manifest signature
+
+`manifest.signature.json` is optional and is not listed in `files`. It holds
+`{schemaVersion: "huqan.evidence-pack-signature.v1", algorithm: "ed25519", keyId,
+publicKeyPem, signature}` where `signature` is base64 ed25519 over the canonical
+JSON of `{schemaVersion: "huqan.evidence-pack-signature.v1", packHash, period,
+generatedAt}`. The payload carries its own `schemaVersion`, so it cannot be
+replayed as a receipt-bundle signature. `keyId` is `ed25519:` plus the first 32
+hex characters of SHA-256 over the DER SubjectPublicKeyInfo of `publicKeyPem`.
+
+The verifier recomputes the payload from `manifest.json`, checks that `keyId`
+derives from the file's public key (`signature_key_id_mismatch`), that it equals
+`manifest.producer.issuerKeyId` (`signature_producer_key_mismatch`), and that the
+signature verifies (`signature_invalid`). A malformed file is
+`signature_format_invalid`; a missing file for a manifest that names a key is
+`signature_missing`. A pack without the file and with `issuerKeyId: null` is
+reported `signature: unsigned` and is not a failure.
+
+The public key is inside the pack, so the signature proves origin (the holder of
+that issuing key sealed this manifest), not independence: the key lives on the
+operator host. Every signed verdict prints that limit.
 
 A manifest entry names a canonical, relative, forward-slash path. An absolute
 path, a backslash, a `.` or `..` segment, or a non-normalized form is rejected as
