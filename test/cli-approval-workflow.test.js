@@ -12,6 +12,7 @@ const {
   projectApprovalRecord,
   projectApprovalDecision,
   formatCliApprovalList,
+  formatCliApprovalDecision,
 } = require('../lib/mcp-approval-views');
 
 // #3560: deciding an approval needs the operator at a terminal typing the
@@ -322,4 +323,68 @@ test('decision projection preserves response attestation, falls back to stored e
     data: { approval: { id: 'approval-without-attestation', context: {} } },
   });
   assert.equal(absent.data.decisionAttestation, null);
+});
+
+test('approval queue formatter covers empty, detail, and JSON response paths', () => {
+  assert.equal(formatCliApprovalList({ pendingCount: 0, approvals: [] }, {}), 'No pending approvals.');
+  const emptyJson = formatCliApprovalList({ pendingCount: 0, unresolvedCount: 0, approvals: [] }, {}, true);
+  assert.equal(emptyJson.data.pendingCount, 0);
+  assert.equal(emptyJson.data.unresolvedCount, 0);
+  assert.deepEqual(emptyJson.data.approvals, []);
+
+  assert.throws(
+    () => formatCliApprovalList({ approvals: [] }, { approvalId: 'missing-id' }),
+    /Approval not found: missing-id/,
+  );
+  const record = {
+    id: 'queue-detail',
+    tool: 'huqan.learn',
+    createdAt: 1000,
+    context: { args: { text: 'detail claim' } },
+  };
+  const detailJson = formatCliApprovalList({ approvals: [record] }, { approvalId: 'queue-detail' }, true);
+  assert.equal(detailJson.data.approval.id, 'queue-detail');
+  assert.equal(detailJson.data.approval.claim, 'detail claim');
+  const detailText = formatCliApprovalList({ approvals: [record] }, { approvalId: 'queue-detail' });
+  assert.match(detailText, /"id": "queue-detail"/);
+});
+
+test('decision formatter covers JSON, idempotent, rejected, and fallback-id paths', () => {
+  const idempotent = formatCliApprovalDecision({
+    data: { idempotent: true, decision: 'approved', approval: { id: 'already-approved' } },
+  }, 'fallback');
+  assert.equal(idempotent, 'Approval already approved: already-approved.');
+
+  const rejected = formatCliApprovalDecision({
+    data: { decision: 'rejected', approval: { id: 'rejected-id' } },
+  }, 'fallback');
+  assert.equal(rejected, 'Approval rejected: rejected-id.');
+
+  const fallback = formatCliApprovalDecision({ data: {} }, 'fallback-id');
+  assert.equal(fallback, 'Approval applied: fallback-id. The learned fact was written to canonical state.');
+
+  const json = formatCliApprovalDecision({
+    data: { decision: 'approved', approval: { id: 'json-id', context: {} } },
+  }, 'fallback', true);
+  assert.equal(json.data.decision, 'approved');
+  assert.equal(json.data.approval.id, 'json-id');
+});
+
+test('approval age and evidence projection handle zero timestamps and missing records', () => {
+  const realNow = Date.now;
+  Date.now = () => 2_000_000_000_000;
+  try {
+    const output = formatCliApprovalList({
+      approvals: [
+        { id: 'zero-age', tool: 'huqan.learn', createdAt: 0 },
+        { id: 'negative-age', tool: 'huqan.learn', createdAt: -1 },
+      ],
+    }, {});
+    assert.match(output, /zero-age .* waiting age unknown/);
+    assert.match(output, /negative-age .* waiting age unknown/);
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(projectApprovalDecision(null).data.approval, null);
+  assert.equal(projectApprovalDecision({ data: { approval: null, result: null } }).data.decisionAttestation, null);
 });

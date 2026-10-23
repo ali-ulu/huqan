@@ -52,6 +52,8 @@ test('decision attestation storage rejects invalid, missing, and non-final appro
   withStore((store) => {
     assert.equal(store.attachApprovalDecisionAttestation('', { decisionAttestation: evidence }).reason, 'invalid_evidence');
     assert.equal(store.attachApprovalDecisionAttestation('id', {}).reason, 'invalid_evidence');
+    assert.equal(store.attachApprovalDecisionAttestation('id', { decisionAttestation: null }).reason, 'invalid_evidence');
+    assert.equal(store.attachApprovalDecisionAttestation('id', { decisionAttestation: 'not-an-object' }).reason, 'invalid_evidence');
     assert.equal(store.attachApprovalDecisionAttestation('id', { decisionAttestation: [] }).reason, 'invalid_evidence');
     assert.equal(store.attachApprovalDecisionAttestation('missing', { decisionAttestation: evidence }).reason, 'not_found');
 
