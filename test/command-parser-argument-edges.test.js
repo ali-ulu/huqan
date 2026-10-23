@@ -81,3 +81,9 @@ test('company ingest arguments default every field that is not given', () => {
     source: 'x', author: 'a', repoUrl: 'u', targetPath: 'p', title: 't', rationale: 'r', text: 'body', date: 'd',
   });
 });
+
+test('approvals show keeps an explicit --workspace in the detail args', () => {
+  for (const text of ['approvals show apr_1 --workspace team-a', 'onaylar detay apr_1 --workspace team-a']) {
+    assert.deepEqual(parseCommand(text).args, { approvalId: 'apr_1', workspaceId: 'team-a' }, text);
+  }
+});

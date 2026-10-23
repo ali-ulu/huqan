@@ -9,7 +9,7 @@ const path = require('node:path');
 const { canonicalActionHash } = require('../lib/mcp-operator-capability');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
-const { createAuthorityService } = require('../lib/authority/authority-service');
+const { createAuthorityService, MAX_ATTEMPTS_PER_MINUTE } = require('../lib/authority/authority-service');
 const { validatePolicy, createOperatorApiKeySalt, createOperatorApiKeyVerifier } = require('../lib/approval-rbac');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
 const { verifyDecision, verifyOutcomeAttestation, OUTCOME_ATTESTATION_VERSION } = require('../lib/authority/decision-envelope');
@@ -415,4 +415,57 @@ test('withdrawal needs the operator code, a pending approval is not withdrawable
   assert.equal(h.service.withdraw('apr_1', h.seal()).body.code, 'SEALED_REQUEST_INVALID', 'a decision request is not a withdrawal');
   assert.equal(h.service.withdraw('apr_1', h.seal({ decision: 'withdrawn', totp: '000000' })).body.code, 'TOTP_INVALID');
   assert.equal(h.service.show('apr_1').body.approval.status, 'approved');
+});
+
+function apiKeyPolicy(extra = {}) {
+  const keys = { alice: `alice-${'a'.repeat(48)}`, bob: `bob-${'b'.repeat(48)}` };
+  const operatorApiKeySalt = createOperatorApiKeySalt();
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver', bob: 'approver' },
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: Object.fromEntries(Object.entries(keys)
+      .map(([id, key]) => [id, createOperatorApiKeyVerifier(key, operatorApiKeySalt)])),
+    quorum: { default: 1 },
+    ...extra,
+  });
+  assert.equal(rbacPolicy.ok, true, rbacPolicy.reason);
+  return { keys, rbacPolicy };
+}
+
+for (const operation of ['decide', 'withdraw']) {
+  test(`a full operator attempt window refuses ${operation} before any scrypt verification`, (t) => {
+    const { keys, rbacPolicy } = apiKeyPolicy();
+    const h = harness(t, rbacPolicy);
+    assert.equal(h.service.register(ACTION).status, 201);
+    if (operation === 'withdraw') {
+      assert.equal(h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.alice, operatorIdHint: 'alice' }).status, 200);
+    }
+    const call = (options, fields) => h.service[operation]('apr_1',
+      h.seal({ totp: null, ...(operation === 'withdraw' ? { decision: 'withdrawn' } : {}), ...fields }), options);
+    // A missing key is denied without scrypt, so the window fills cheaply.
+    for (let i = 0; i < MAX_ATTEMPTS_PER_MINUTE; i += 1) {
+      assert.equal(call({ operatorIdHint: 'alice' }).body.code, 'APPROVAL_RBAC_API_KEY_REQUIRED');
+    }
+    const scrypt = t.mock.method(crypto, 'scryptSync');
+    const limited = call({ apiKey: `alice-${'z'.repeat(48)}`, operatorIdHint: 'alice' });
+    assert.deepEqual([limited.status, limited.body.code], [429, 'RATE_LIMITED']);
+    assert.equal(scrypt.mock.callCount(), 0, 'no scrypt work while the window is full');
+    h.clock.now += 61 * 1000;
+    assert.equal(call({ apiKey: `alice-${'z'.repeat(48)}`, operatorIdHint: 'alice' }).body.code, 'APPROVAL_RBAC_API_KEY_INVALID');
+    assert.equal(scrypt.mock.callCount(), 1, 'verification resumes once the window clears');
+  });
+}
+
+test('under separation of duties the requester cannot cast an early quorum vote', (t) => {
+  const { keys, rbacPolicy } = apiKeyPolicy({ separationOfDuties: true, quorum: { default: 2 } });
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register({ ...ACTION, requesterId: 'alice' }).status, 201);
+  const early = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.alice, operatorIdHint: 'alice' });
+  assert.deepEqual([early.status, early.body.code], [403, 'APPROVAL_RBAC_SEPARATION_OF_DUTIES']);
+  assert.equal(h.service.show('apr_1').body.approval.votes.length, 0, 'the requester vote is not recorded');
+  const other = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.bob, operatorIdHint: 'bob' });
+  assert.deepEqual([other.status, other.body.quorum.received], [202, 1], 'requester plus one other never reaches quorum');
+  assert.equal(h.service.show('apr_1').body.approval.status, 'pending');
 });
