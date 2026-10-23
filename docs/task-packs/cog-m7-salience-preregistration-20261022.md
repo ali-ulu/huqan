@@ -32,6 +32,29 @@ değeridir; Git, bağımsız oracle ve Coder test alt süreçlerinin belleği ö
 Bu ölçü tüm süreç ağacının toplam/ eşzamanlı tepe belleği olarak sunulmaz.
 Pilot testlerinin geçmesi aşağıdaki holdout kilitlerini kapatmaz.
 
+### Gözlenen tek pilot koşusu
+
+2026-10-23, Windows, kaynak `d6615ce606ee243c034edc09c2d98416eac53880`;
+`runM7Pilot()` varsayılan `repair` senaryosu. Bu tek elle kurulmuş görevdir;
+bağımsız grup örneklemi, holdout veya istatistiksel kazanım değildir.
+
+| Ölçü | Kontrol | M7 |
+| --- | --- | --- |
+| Ayrı girdilerde gerçek kabul testi | Başarısız | Geçti |
+| Kaynak değişti | Hayır | Evet |
+| Executor girişi | 1 | 1 |
+| Coder kabul testi çağrısı | 0 | 1 |
+| Bağımsız oracle çağrısı | 1 | 1 |
+| Model / ağ girişimi | 0 / 0 | 0 / 0 |
+| Journal çifti / türetilmiş değer girdisi | 0 / 0 | 1 / 1 |
+| Kol duvar süresi | 1508 ms | 3304 ms |
+| Sınırlı süreç kapsamındaki tepe RSS | 66,265,088 bayt | 87,199,744 bayt |
+
+Süre ve RSS yalnız bu çalıştırmanın gözlemidir; tekrarlı performans kazancı
+iddiası değildir. Yukarıdaki alt süreç belleği ve orchestrator maliyeti sınırları
+geçerlidir. Sonuç etiketi **PILOT_ONLY**, `assertsGain: false`; nihai Lab sonucu
+**NOT_MEASURED** olarak kalır.
+
 ## Kaynak sınırı
 
 İncelenen main: `7e262d49e36b8be70c396c24224ec2eea269cb9a`.
