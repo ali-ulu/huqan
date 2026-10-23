@@ -56,7 +56,7 @@ function fixture(t, replacement = '2', approve = true, synthesis = false) {
   const adapter = createAgentCoderExecution(config);
   const state = { goal, workspaceId };
   const step = adapter.plan(goal, workspaceId)[0];
-  return { root, task, goal, workspaceId, git, config, adapter, state, step, approvalRuntime };
+  return { root, task, goal, workspaceId, git, config, adapter, state, step, approvalRuntime, graph };
 }
 
 test('real approved Coder execution changes source only after reservation and independent test', t => {
@@ -166,6 +166,24 @@ test('an execution that ran but lost its outcome is uncertain, not blocked', t =
   assert.equal(result.meta.uncertain, true);
   assert.equal(result.error.code, 'approval.execution_reconciliation_required');
   assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 2/u);
+});
+
+test('a failed outcome journal write retains the applied result and marks execution uncertain', t => {
+  const f = fixture(t);
+  const mutate = f.graph.runMutationOnce.bind(f.graph);
+  f.graph.runMutationOnce = (operationId, ...args) => {
+    if (operationId.startsWith('human-oversight:execution-outcome:')) throw new Error('OUTCOME_WRITE_FAILED');
+    return mutate(operationId, ...args);
+  };
+  const result = f.adapter.execute({ step: f.step, state: f.state });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'approval.execution_reconciliation_required');
+  assert.equal(result.data.outcome, 'applied_tested');
+  assert.equal(result.meta.blocked, false);
+  assert.equal(result.meta.uncertain, true);
+  assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'executing');
+  assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 2/u);
+  assert.equal(f.adapter.execute({ step: f.step, state: f.state }).ok, false);
 });
 
 test('an uncertain step is returned without a retry or a failure record', () => {

@@ -14,7 +14,7 @@ const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall'
 const { buildAgentCoderAction } = require('../lib/agent-coder-execution');
 const { createEmergencyStop, approvalStopAgentId } = require('../lib/emergency-stop');
 
-test('real AgentV3 Coder plan applies a synthesized repair and observes its independent artifact', t => {
+for (const failOutcome of [false, true]) test(`real AgentV3 Coder plan preserves outcome durability (failure=${failOutcome})`, t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cognition-coder-'));
   const root = path.join(dir, 'repo'); fs.mkdirSync(root);
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
@@ -60,11 +60,27 @@ test('real AgentV3 Coder plan applies a synthesized repair and observes its inde
   const frame = { repo: root, branch: action.args.branch, commit: action.args.head,
     environment: 'test', actor: 'operator', time: new Date().toISOString(), goal, task: task.id };
   const expectedSource = 'module.exports = n => ((n * 3) - 2);\n';
+  if (failOutcome) {
+    const mutate = kernel.graph.runMutationOnce.bind(kernel.graph);
+    kernel.graph.runMutationOnce = (operationId, ...args) => {
+      if (operationId.startsWith('human-oversight:execution-outcome:')) throw new Error('OUTCOME_WRITE_FAILED');
+      return mutate(operationId, ...args);
+    };
+  }
   const run = agent.run(goal, { resume: false, maxIterations: 1, maxSteps: 1, emergencyStop,
     cognition: { predictionError: true, reward: true, value: true, percept: true, salience: true },
     cognitiveScheduler: { budget: 100, starvationWindow: 8 }, cognitionFrame: frame,
     cognitionFileExpectations: { 'coder:affine-repair': { workspaceId, path: path.join(root, 'value.js'),
       sourceGroup: 'affine-source', expectedDigest: createHash('sha256').update(expectedSource).digest('hex') } } });
+  if (failOutcome) {
+    assert.equal(run.data.status, 'paused');
+    assert.equal(run.data.steps.length, 0, 'uncertain effects must not become completed steps');
+    assert.equal(run.data.queuedSteps[0].id, 'coder:affine-repair');
+    assert.equal(approvalRuntime.getReviewCase(created.case.caseId).case.status, 'executing');
+    assert.equal(fs.readFileSync(path.join(root, 'value.js'), 'utf8'), expectedSource);
+    assert.ok(!run.data.cognition.trail.some(row => row.outcome), 'uncertain effects must not become rewards');
+    return;
+  }
   assert.equal(run.data.steps[0].tool, 'coder');
   assert.equal(run.data.steps[0].status, 'done', JSON.stringify(run));
   assert.equal(run.data.steps[0].result.data.outcome, 'applied_tested');
