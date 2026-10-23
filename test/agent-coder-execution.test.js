@@ -318,3 +318,24 @@ test('an uncertain step is returned without a retry or a failure record', () => 
   assert.equal(failures, 0);
   assert.equal(returned, report);
 });
+
+test('a step scope drifting after the approval check is blocked before the decision is recorded', t => {
+  const f = fixture(t);
+  const state = { ...f.state, agentId: 'coder-agent' };
+  const recorded = [];
+  // The action firewall reads allowedTools after prepare() and before the final
+  // recheck, so a host mutating state there is exactly the late-drift window.
+  const allowedTools = new Proxy(new Set(), { get(target, prop) {
+    state.agentId = 'other-agent';
+    const value = Reflect.get(target, prop);
+    return typeof value === 'function' ? value.bind(target) : value;
+  } });
+  const report = executeAgentStep({ step: structuredClone(f.step), state, opts: {},
+    runtime: { kernel: {}, allowedTools, coderExecution: f.adapter, emit: () => ({}),
+      recordDecision: (_step, _state, metadata) => recorded.push(metadata.decision) } });
+  assert.equal(report.status, 'blocked', JSON.stringify(report));
+  assert.equal(report.result.error.code, 'CODER_EXECUTION_SCOPE_MISMATCH');
+  assert.deepEqual(recorded, ['block']);
+  assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 1/u);
+  assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'approved');
+});
