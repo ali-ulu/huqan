@@ -201,7 +201,9 @@ test('companyBrain ranking preserves normalized default scope and insertion orde
     );
     assert.equal(result.evidence.some(edge => edge.workspaceId === 'tenant-a'), false);
     assert.ok(kernel.graph._nodes['tenant-a::match-0']);
-    assert.deepEqual(kernel.graph._nodes, before);
+    // The node map is prototype-less since #4223; compare contents, not the
+    // prototype, since this assertion is about "no node was touched".
+    assert.deepEqual({ ...kernel.graph._nodes }, before);
   } finally {
     kernel.graph.close?.();
     kernel.memory.close?.();

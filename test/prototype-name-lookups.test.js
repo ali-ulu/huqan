@@ -197,3 +197,54 @@ test('#1275 a prototype-named goal does not poison later unrelated goals', () =>
     );
   }
 });
+
+test('#4223 a prototype-named node id cannot pollute Object.prototype', () => {
+  const os = require('node:os');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const Graph = require('../graph');
+
+  // The node map is keyed by a caller-supplied node id, and in the default
+  // workspace the storage key *is* that id (`nodeStorageKey`). On a plain `{}`
+  // the id `__proto__` reached the inherited setter instead of creating a key,
+  // so one addNode rewrote Object.prototype process-wide; the id `constructor`
+  // mutated the global Object constructor. Both also fabricated a node: the
+  // read path had no own-property check, so `toString` resolved as a node on a
+  // graph that never admitted it.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-pp-'));
+  const graph = new Graph({ memoryPath: path.join(dir, 'memory.json'), useSQLite: false });
+  try {
+    const before = Object.keys(Object.prototype).slice();
+
+    graph.addNode('__proto__', 'PWNED_BY_AGENT');
+    graph.addNode('constructor', 'CONSTRUCTOR_PWN');
+
+    // The global built-ins are untouched, and a fresh plain object inherits
+    // nothing the write supplied.
+    assert.deepEqual(Object.keys(Object.prototype), before, 'Object.prototype must stay clean');
+    assert.equal(({}).label, undefined);
+    assert.equal(Object.label, undefined);
+
+    // The map has no prototype, so `__proto__` is an ordinary own key.
+    assert.equal(Object.getPrototypeOf(graph._nodes), null);
+    assert.equal(Object.hasOwn(graph._nodes, '__proto__'), true);
+
+    // An inherited name is not a node, before or after the pollution attempt.
+    assert.equal(graph.getNode('toString'), null);
+    assert.equal(graph.getNode('valueOf'), null);
+    assert.equal(graph.getNode('hasOwnProperty'), null);
+
+    // A prototype-named node is a real, readable node -- not a lost write.
+    assert.equal(graph.getNode('__proto__').label, 'PWNED_BY_AGENT');
+
+    // Ordinary behaviour is preserved: a node updates in place and reinforces.
+    graph.addNode('kedi', 'kedi');
+    graph.addNode('kedi', 'kedi-2');
+    assert.equal(graph.getNode('kedi').label, 'kedi-2');
+    assert.equal(graph.getNode('kedi').weight, 0.6);
+    assert.equal(graph.nodeCount(), 3);
+  } finally {
+    graph.close?.();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
