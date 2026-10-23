@@ -299,7 +299,7 @@ meant to refuse, and the audit trail records a decision the operator never made.
 
 ### Enterprise SSO / OIDC (planned; not implemented)
 
-**Current status**: protected REST routes still use API-key authentication. The repository does not yet implement OIDC login, server-side SSO sessions, claim-to-role mapping, or OIDC-backed Authority decisions. This is a planned control, not a current mitigation.
+**Current status**: protected REST routes use API-key authentication by default. requestGuards.js bypasses this credential check when apiAuthOptOut.isApiAuthDisabled() is true, so deployments that enable the opt-out do not have this API-key guard. The repository does not yet implement OIDC login, server-side SSO sessions, claim-to-role mapping, or OIDC-backed Authority decisions. This is a planned control, not a current mitigation.
 
 **Threats in scope**:
 - Authorization-code interception, forged or replayed callbacks, issuer/audience confusion, token-signature substitution, and malicious discovery endpoints.

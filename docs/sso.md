@@ -32,7 +32,6 @@ Use a versioned, administrator-owned identity mapping file (default example: con
 {
   "version": 1,
   "issuer": "https://idp.example.com/",
-  "subjectClaim": "sub",
   "groupsClaim": "groups",
   "operatorIdStrategy": "issuer-sub-sha256",
   "groupRoles": {
@@ -44,7 +43,7 @@ Use a versioned, administrator-owned identity mapping file (default example: con
 }
 ```
 
-The stable operatorId is derived from the exact validated issuer and subject: hash issuer, a NUL separator, and sub with SHA-256, encode the digest as base64url, and prefix it with oidc:. Do not use email as the principal key: it can change and may be reassigned. Group claims are accepted only from the configured claim in the validated ID token/UserInfo response. A missing mapping, unknown role, conflicting role mappings, oversized claims, or unexpected claim type is denied. Never select a role from an unverified request parameter.
+The stable operatorId is derived from the exact validated issuer and the validated OIDC sub claim: hash issuer, a NUL separator, and sub with SHA-256, encode the digest as base64url, and prefix it with oidc:. The subject claim is fixed to sub; it is not configurable, and any configuration attempting to select another subject claim must be rejected. Do not use email as the principal key: it can change and may be reassigned. Group claims are accepted only from the configured claim in the validated ID token/UserInfo response. A missing mapping, unknown role, conflicting role mappings, oversized claims, or unexpected claim type is denied. Never select a role from an unverified request parameter.
 
 The signed identity assertion must carry the normalized operatorId and mapped role. The Authority must verify the assertion before trusting either field and must check that the role exists in the configured #4205 role/permission policy. This requires an explicit #4205 contract extension; until that extension is reviewed and merged, OIDC must not bypass the existing Authority identity gate.
 
@@ -89,7 +88,7 @@ External errors should be generic 401/403 responses. Detailed diagnostics stay i
 2. **OIDC RP slice:** add the OIDC library and configuration validation; implement login/callback/logout/session routes and a dedicated session store; cover every protocol rejection with deterministic tests.
 3. **Authority identity slice:** extend #4205 to verify the signed, action-bound identity assertion, check role permissions, and durably consume assertion jti values. Preserve the current API-key path only under the explicit fallback switch.
 4. **CLI/MCP slice:** use a separate public OIDC client with loopback Authorization Code + PKCE; do not assume every provider supports Device Authorization. Exchange the validated principal for the same short-lived Authority assertion contract.
-5. **Provider smoke gate:** document a manual smoke test with one real provider (Entra ID, Okta, Keycloak, Auth0, or Google). A mock IdP test is necessary but not a substitute for this gate.
+5. **Provider smoke gate:** document a manual smoke test with one real provider (Entra ID, Okta, Keycloak, Auth0, or Google). Verify that the browser and separate CLI OIDC clients receive the same stable sub for the same person, including the provider's pairwise-subject/sector-identifier configuration where applicable. If the provider cannot guarantee and the smoke test cannot confirm that shared subject, reject cross-client identity use for operator/separation-of-duties decisions; do not infer that two distinct subjects are one person. A mock IdP test is necessary but not a substitute for this gate.
 
 Automated tests must cover successful login/session/logout; invalid issuer, audience, signature, expiry, state, nonce, and PKCE; missing or conflicting group mapping; session expiry/revocation; CSRF and wrong Origin; assertion signature/audience/action mismatch; replayed jti; and explicit API-key fallback behavior. Tests must use a controlled mock IdP and must not require Internet access.
 
