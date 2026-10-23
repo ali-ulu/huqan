@@ -122,6 +122,7 @@
       "lib/approval-execution-evidence.js": "Core",
       "lib/approval-flow-utils.js": "Core",
       "lib/approval-flow.js": "Core",
+      "lib/approval-rbac.js": "Core",
       "lib/approval-receipts.js": "Core",
       "lib/approval-schema.js": "Core",
       "lib/atp-conformance-primitives.js": "Core",
@@ -147,6 +148,7 @@
       "lib/authority/bundle-manifest.js": "Core",
       "lib/authority/consume-key.js": "Adapters",
       "lib/authority/consumption-envelope.js": "Core",
+      "lib/authority/decision-attestation.js": "Application",
       "lib/authority/decision-envelope.js": "Core",
       "lib/authority/decision-guard.js": "Core",
       "lib/authority/http-server.js": "Adapters",
@@ -1638,10 +1640,10 @@
         "lib/authority/authority-mode.js",
         "lib/authority/authority-status.js",
         "lib/authority/consume-key.js",
+        "lib/authority/decision-attestation.js",
         "lib/authority/decision-guard.js",
         "lib/authority/operational-guard.js",
         "lib/authority/registration-payload.js",
-        "lib/cli-audit.js",
         "lib/emergency-stop.js",
         "lib/mcp-approval-expiry.js",
         "lib/mcp-approval-views.js",
@@ -2141,6 +2143,9 @@
         "lib/is-plain-object.js",
         "lib/json-clone.js"
       ],
+      "lib/approval-rbac.js": [
+        "lib/environment-compat.js"
+      ],
       "lib/approval-receipts.js": [
         "lib/approval-flow-utils.js",
         "lib/json-clone.js"
@@ -2204,13 +2209,15 @@
         "lib/authority/keys.js"
       ],
       "lib/authority/authority-service.js": [
+        "lib/approval-rbac.js",
         "lib/authority/anchor-statement.js",
         "lib/authority/approval-registration.js",
         "lib/authority/approval-view.js",
         "lib/authority/consumption-envelope.js",
         "lib/authority/decision-envelope.js",
         "lib/authority/operator-check.js",
-        "lib/authority/sealed-request.js"
+        "lib/authority/sealed-request.js",
+        "lib/hash-chain.js"
       ],
       "lib/authority/authority-status.js": [
         "lib/authority/agent-user-boundary.js",
@@ -2224,6 +2231,10 @@
       "lib/authority/consumption-envelope.js": [
         "lib/authority/decision-envelope.js",
         "lib/authority/keys.js",
+        "lib/hash-chain.js"
+      ],
+      "lib/authority/decision-attestation.js": [
+        "lib/authority/decision-envelope.js",
         "lib/hash-chain.js"
       ],
       "lib/authority/decision-envelope.js": [
@@ -2253,7 +2264,8 @@
       "lib/authority/operator-cli.js": [
         "lib/authority/authority-client.js",
         "lib/authority/authority-pin.js",
-        "lib/authority/sealed-request.js"
+        "lib/authority/sealed-request.js",
+        "lib/environment-compat.js"
       ],
       "lib/authority/registration-payload.js": [
         "lib/json-object.js",
@@ -2274,7 +2286,8 @@
         "lib/authority/ledger-store.js",
         "lib/authority/operator-check.js",
         "lib/authority/state-store.js",
-        "lib/authority/totp.js"
+        "lib/authority/totp.js",
+        "lib/environment-compat.js"
       ],
       "lib/authority/state-store.js": [
         "lib/authority/totp.js"
@@ -4941,6 +4954,7 @@
       ],
       "lib/mcp-approval-decision-handler.js": [
         "lib/approval-execution-evidence.js",
+        "lib/approval-rbac.js",
         "lib/approval-receipts.js",
         "lib/authority/authority-mode.js",
         "lib/authority/decision-guard.js",
