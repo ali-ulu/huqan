@@ -3,16 +3,16 @@
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
     "files": 103,
-    "sites": 232,
+    "sites": 247,
     "byCapability": {
-      "process": 43,
+      "process": 47,
       "egress": 20,
-      "fs_write": 169
+      "fs_write": 180
     },
     "byRole": {
       "enforcement": 46,
       "adapter_read": 10,
-      "operator_tool": 88,
+      "operator_tool": 103,
       "persistence": 58,
       "evidence": 16,
       "egress_operator_gated": 11,
@@ -840,6 +840,11 @@
           "line": 26,
           "capability": "fs_write",
           "call": "fs.rmSync"
+        },
+        {
+          "line": 36,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
         }
       ]
     },
@@ -859,42 +864,112 @@
           "call": "globalThis.fetch"
         },
         {
-          "line": 76,
+          "line": 82,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 86,
+          "line": 92,
           "capability": "process",
           "call": "actualSpawn"
         },
         {
-          "line": 96,
+          "line": 102,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 97,
+          "line": 103,
           "capability": "process",
           "call": "execFileSync"
         },
         {
-          "line": 101,
+          "line": 107,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 102,
+          "line": 108,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 159,
+          "line": 165,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 169,
+          "line": 175,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 209,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 216,
+          "capability": "process",
+          "call": "actualSpawn"
+        },
+        {
+          "line": 224,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 226,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 227,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 241,
+          "capability": "process",
+          "call": "execFileSync"
+        },
+        {
+          "line": 243,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 246,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 247,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 248,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 250,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 311,
+          "capability": "process",
+          "call": "spawnSync"
+        },
+        {
+          "line": 328,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 331,
           "capability": "process",
           "call": "spawnSync"
         }

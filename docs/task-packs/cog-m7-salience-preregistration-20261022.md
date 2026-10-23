@@ -57,6 +57,39 @@ geçerlidir. Sonuç etiketi **PILOT_ONLY**, `assertsGain: false`; nihai Lab sonu
 
 ## Kaynak sınırı
 
+### Ayrı onaylı Coder kuyruğu
+
+İsteğe bağlı host yapılandırması `coderExecution: { queue: [descriptor, ...] }`
+en fazla dört görev kabul eder. Her descriptor mevcut tek görev sözleşmesindeki
+`root`, `task`, `goal`, `action`, `approvalRuntime`, `requesterContext` ve
+`caseId` alanlarını taşır. Aynı hedef ve workspace gerekir; yinelenen görev/adım
+ve onay kimlikleri reddedilir. Eski tek descriptor biçimi korunur.
+
+Sıralama, görevlerin yetkisini değiştirmez. Seçilen adım kendi onayı ve acil
+durdurma kaydıyla denetlenir; görev, dosya kapsamı, test, depo ve HEAD yeniden
+doğrulanır. Başarılı bir yazma depoyu kirli bırakırsa sonraki görev durur.
+Gerçek rollback temiz HEAD'i koruduğunda henüz kullanılmamış ayrı bir onaylı
+görev çalışabilir. Belirsiz sonuçta koşu duraklar. Bu özellik otomatik commit,
+reset veya yeni onay üretmez; varsayılan davranışı değiştirmez.
+
+Bu kuyruk, gözlenen Coder sonucu → sonraki uygun seçim → yeni süreçte yeniden
+karar zincirinin gerçek yürütmeyle sınanmasını sağlar. Özelliğin varlığı veya
+entegrasyon testinin geçmesi, bağımsız holdout kazanımı yerine geçmez.
+
+Geri bildirim pilotu üç kol kullanır: mevcut gözlem ve M7, aynı gözlemle urgency
+sıfırlanmış kontrol, ayrıca gözlem bağlantısını kesen negatif kontrol. İlk native
+görev gerçek kabul testinde başarısız olup rollback yapar. Sonraki seçimde M7
+ayrı onaylı B görevini yürütür; diğer iki kol A2'yi seçer. Başarı B dosyasının
+bağımsız girdilerdeki çıktısıdır; tüm kuyruk tamamlanmış sayılmaz.
+
+Yeni süreç deneyi ilk rollback sonrasındaki gerçek committed journal önekini
+açar ve hash'ini doğrular. Aynı canonical artifact yolları, frame ve HEAD
+korunur; yürütme için yeni, ayrı onay kayıtları gerekir. Yalnız Lab'ın kendi
+geçici reposunda B dosyasının başlangıç baytlarına dönülmesi yeni deney bölümü
+kurulumudur; maliyeti ayrı raporlanır. Kullanıcı reposunu temizleyen bir ürün
+davranışı değildir. Tek bağımsız kaynakla M9 desteği `INSUFFICIENT` kalır;
+bu test M9 arousal kazanımı veya G3 kabulü değildir.
+
 İncelenen main: `7e262d49e36b8be70c396c24224ec2eea269cb9a`.
 Geri bildirim adayı: #4193, `42cfad6b1bfb845ddcdad9f091a45ef1ccc4e16a`.
 Bu SHA deney sürümü olarak kilitlenmemiştir; merge sonrası gerçek aday SHA'sı

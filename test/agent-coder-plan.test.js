@@ -38,3 +38,17 @@ test('constructor-owned Coder approval stop cannot be replaced by run options', 
   assert.equal(report.result.error.code, 'AGENT_EMERGENCY_STOPPED');
   assert.equal(report.result.meta.emergencyStop.approvalId, 'coder-case');
 });
+
+test('queued Coder step uses its own approval stop after reordering', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-queue-stop-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const emergencyStop = createEmergencyStop({ directory });
+  emergencyStop.stop({ scope: 'agent', workspaceId: 'default', agentId: approvalStopAgentId('second-case'),
+    reason: 'operator_cancelled', actor: 'operator' });
+  const report = executeAgentStep({ step: { id: 'coder:second', tool: 'coder', action: 'code_change' },
+    state: { workspaceId: 'default', agentId: 'agent-v3' }, opts: { emergencyStop, approvalId: 'first-case' },
+    runtime: { allowedTools: new Set(), kernel: {}, coderExecution: { approvalIdFor: step => step.id === 'coder:second' ? 'second-case' : 'first-case' },
+      emit() { throw new Error('stopped queued case reached plugins'); } } });
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.result.meta.emergencyStop.approvalId, 'second-case');
+});
