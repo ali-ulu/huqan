@@ -119,3 +119,29 @@ test('#4243 a source without the bounded primitive is never cached (legacy path 
   assert.equal(first.status, 'not_found');
   assert.equal(second.status, 'not_found');
 });
+
+test('#4243 a bounded primitive that throws or returns junk falls back to the uncached read', () => {
+  // countAuditEvents is a storage query; a source may not implement it (array
+  // fixture) or it may fail. Either way the cache must be skipped, not keyed on
+  // a value that is not a count: the read stays correct, only slower.
+  const events = [
+    { auditId: 'a1', workspaceId: 'default', timestamp: '2024-01-01T00:00:00.000Z', details: {} },
+    { auditId: 'a2', workspaceId: 'default', timestamp: '2024-01-02T00:00:00.000Z', details: {} },
+  ];
+
+  const throwing = events.slice();
+  throwing.countAuditEvents = () => { throw new Error('storage unavailable'); };
+  assert.equal(readReceiptById(throwing, 'nope', { workspaceId: 'default' }).status, 'not_found');
+  assert.equal(readReceiptById(throwing, 'nope', { workspaceId: 'default' }).status, 'not_found');
+
+  for (const junk of [-1, Number.NaN, Number.POSITIVE_INFINITY, '12', null]) {
+    const source = events.slice();
+    source.countAuditEvents = () => junk;
+    assert.equal(
+      readReceiptById(source, 'nope', { workspaceId: 'default' }).status,
+      'not_found',
+      `countAuditEvents returning ${String(junk)} must bypass the cache`,
+    );
+  }
+});
+
