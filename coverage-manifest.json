@@ -959,17 +959,17 @@
           "call": "fs.writeFileSync"
         },
         {
-          "line": 306,
+          "line": 311,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 323,
+          "line": 328,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 326,
+          "line": 331,
           "capability": "process",
           "call": "spawnSync"
         }
