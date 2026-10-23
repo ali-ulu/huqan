@@ -3,7 +3,7 @@
 Role-based approval authority (#4205). This page describes the slice that
 ships today: roles and permissions, the signed operator identity a decision
 carries, separation of duties, and the audit record of every governed
-decision. Quorum and the approval queue CLI are named under
+decision. Quorum and execution-receipt identity propagation are named under
 [Not in this slice](#not-in-this-slice).
 
 ## Opt-in
@@ -58,6 +58,16 @@ the shipped example, and `test/approval-rbac.test.js` fails if this table and
 | `operator` | `approvals.view` | Read the queue |
 | `approver` | `approvals.view`, `approvals.decide` | Approve or reject |
 | `admin` | `approvals.view`, `approvals.decide`, `approvals.manage` | Approve, reject, manage the policy |
+
+## Approval queue CLI
+
+`huqan approvals list` lists the same bounded, read-only approval queue as
+`huqan approvals`; the existing spelling remains supported. Add
+`--workspace <id>` to scope the queue to a workspace.
+
+The command is operator-gated, but the policy permission `approvals.view` is
+not yet enforced on the queue read path. The role matrix above describes the
+configured policy; only `approvals.decide` is enforced in this slice.
 
 ## How a decision is authorized
 
@@ -114,14 +124,13 @@ silently allowing the action.
 
 ## Not in this slice
 
-The following parts of #4205 are deliberately not in this change and remain
-open on the issue:
+The following parts of #4205 remain open and are not implemented by this RBAC
+slice:
 
 - N-of-M quorum, including the second approver named in `README.md`;
-- the `huqan approvals list` queue view;
-- embedding the approver identity in the execution receipt. Today the identity
-  is bound in the signed decision envelope and the audit event; the receipt
-  carries the approval id.
+- propagating the verified approver identity into the execution receipt.
+  Today the identity is bound in the signed decision envelope and audit event;
+  the receipt carries the approval id.
 
 ## Tests
 

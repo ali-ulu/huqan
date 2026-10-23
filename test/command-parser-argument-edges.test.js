@@ -44,10 +44,18 @@ test('onayla and receipt keep an empty workspace when --workspace has no value',
   assert.deepEqual(parse('receipt r-1 --workspace w').args, { receiptId: 'r-1', workspaceId: 'w' });
 });
 
-test('approvals scopes to a workspace only when one is named', () => {
+test('approvals list aliases use the same read-only queue command', () => {
   assert.equal(parse('approvals').command, 'onaylar');
+  assert.deepEqual(parse('approvals list').args, { workspaceId: 'default' });
+  assert.deepEqual(parse('approvals list --workspace w').args, { workspaceId: 'w' });
+  assert.deepEqual(parse('approvals listele --workspace w').args, { workspaceId: 'w' });
+  assert.deepEqual(parse('onaylar list --workspace w').args, { workspaceId: 'w' });
   assert.deepEqual(parse('approvals --workspace w').args, { workspaceId: 'w' });
   assert.equal(parse('approvals --workspace').command, 'anlamadım');
+  assert.equal(parse('approvals list --workspace').command, 'anlamadım');
+  assert.equal(parse('approvals list --workspace --json').command, 'anlamadım');
+  assert.equal(parse('approvals list --workspace -w').command, 'anlamadım');
+  assert.equal(parse('onaylar listele --workspace --json').command, 'anlamadım');
 });
 
 test('experience-learn distinguishes an absent --source-runs from a malformed one', () => {
