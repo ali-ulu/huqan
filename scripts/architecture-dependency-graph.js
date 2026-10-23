@@ -78,7 +78,7 @@ const RULES = [
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
       'lib/cognitive-lab-neural-experiment.js', 'lib/cognitive-lab-neural-world.js', 'lib/cognitive-lab-neural-design.js',
-      'lib/cognitive-lab-model-comparison.js',
+      'lib/cognitive-lab-model-comparison.js', 'lib/cognitive-lab-m7-experiment.js', 'lib/cognitive-lab-m7-runtime.js',
       'lib/cognitive-model-local-ssm.js', 'lib/cognitive-model-local-family.js',
       'lib/cognitive-model-local-rwkv.js', 'lib/cognitive-model-local-mamba.js', 'lib/cognitive-model-local-transformer.js',
       'lib/semantic-model-inference.js', 'lib/semantic-model-provider.js',

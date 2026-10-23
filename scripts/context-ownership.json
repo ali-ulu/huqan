@@ -4118,6 +4118,14 @@
    "kind": "infra",
    "evidence": "#3561 I6 B7 model-family comparison over the frozen design and inputs"
   },
+  "lib/cognitive-lab-m7-experiment.js": {
+   "kind": "infra",
+   "evidence": "#4065 isolated paired M7 pilot orchestration; no production default or gain claim"
+  },
+  "lib/cognitive-lab-m7-runtime.js": {
+   "kind": "infra",
+   "evidence": "#4065 child-process Lab workload using the existing approved Coder and cognition runtime"
+  },
   "lib/cognitive-lab-neural-world.js": {
    "kind": "infra",
    "evidence": "#3474 I6 B7 bounded accumulation environment law"
