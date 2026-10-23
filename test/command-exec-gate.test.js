@@ -460,6 +460,14 @@ test('#4202: env -i sh -c "rm -rf /" is blocked', () => {
   assert.equal(r.denylistMatch, 'rm_rf_root_or_home');
 });
 
+test('#4202: bare eval / env wrappers without a payload stay allowed (fail-closed end of the loop)', () => {
+  for (const cmd of ['eval', 'eval "ls"', 'env', 'env -i']) {
+    const r = evaluateCommandExec(cmd);
+    assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW);
+    assert.equal(r.reason, COMMAND_EXEC_REASONS.ALLOWED);
+  }
+});
+
 test('#4202: sh -c "rm -rf \\"/\\"" with escaped quotes is blocked', () => {
   const r = evaluateCommandExec('sh -c "rm -rf \\"/\\""');
   assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
