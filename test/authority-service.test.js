@@ -10,7 +10,7 @@ const { canonicalActionHash } = require('../lib/mcp-operator-capability');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
 const { createAuthorityService } = require('../lib/authority/authority-service');
-const { validatePolicy } = require('../lib/approval-rbac');
+const { validatePolicy, createOperatorApiKeySalt, createOperatorApiKeyVerifier } = require('../lib/approval-rbac');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
 const { verifyDecision, verifyOutcomeAttestation, OUTCOME_ATTESTATION_VERSION } = require('../lib/authority/decision-envelope');
 const { stableStringify } = require('../lib/hash-chain');
@@ -61,13 +61,15 @@ test('register, decide with a sealed code, and the signed decision verifies for 
 test('N-of-M quorum counts authenticated distinct operators and survives restart', (t) => {
   const aliceKey = `alice-${'a'.repeat(48)}`;
   const bobKey = `bob-${'b'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
   const rbacPolicy = validatePolicy({
     version: 1,
     roles: { approver: ['approvals.view', 'approvals.decide'] },
     operators: { alice: 'approver', bob: 'approver' },
-    operatorApiKeyHashes: {
-      alice: crypto.createHash('sha256').update(aliceKey).digest('hex'),
-      bob: crypto.createHash('sha256').update(bobKey).digest('hex'),
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(aliceKey, operatorApiKeySalt),
+      bob: createOperatorApiKeyVerifier(bobKey, operatorApiKeySalt),
     },
     quorum: { default: 1, byTool: { 'huqan.learn': 2 } },
   });
@@ -75,17 +77,17 @@ test('N-of-M quorum counts authenticated distinct operators and survives restart
   const h = harness(t, rbacPolicy);
   assert.equal(h.service.register(ACTION).status, 201);
 
-  const first = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey });
+  const first = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' });
   assert.equal(first.status, 202);
   assert.deepEqual(first.body.quorum, { required: 2, received: 1, approverIds: ['alice'] });
   assert.deepEqual(h.service.getDecision('apr_1').body.quorum, first.body.quorum);
 
   const restarted = h.open();
-  const replay = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey });
+  const replay = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' });
   assert.deepEqual([replay.status, replay.body.code], [409, 'DUPLICATE_APPROVER']);
   assert.equal(restarted.show('apr_1').body.approval.votes.length, 1, 'repeat vote adds no ledger vote');
 
-  const second = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: bobKey });
+  const second = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: bobKey, operatorIdHint: 'bob' });
   assert.equal(second.status, 200);
   assert.deepEqual(second.body.envelope.payload.approverIds, ['alice', 'bob']);
   assert.equal(second.body.envelope.payload.quorumRequired, 2);
@@ -131,19 +133,21 @@ test('N-of-M quorum counts authenticated distinct operators and survives restart
 test('a quorum that reached its threshold before a crash is finalized from the durable vote ledger', (t) => {
   const aliceKey = `alice-${'a'.repeat(48)}`;
   const bobKey = `bob-${'b'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
   const rbacPolicy = validatePolicy({
     version: 1,
     roles: { approver: ['approvals.view', 'approvals.decide'] },
     operators: { alice: 'approver', bob: 'approver' },
-    operatorApiKeyHashes: {
-      alice: crypto.createHash('sha256').update(aliceKey).digest('hex'),
-      bob: crypto.createHash('sha256').update(bobKey).digest('hex'),
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(aliceKey, operatorApiKeySalt),
+      bob: createOperatorApiKeyVerifier(bobKey, operatorApiKeySalt),
     },
     quorum: { default: 2 },
   });
   const h = harness(t, rbacPolicy);
   assert.equal(h.service.register(ACTION).status, 201);
-  assert.equal(h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey }).status, 202);
+  assert.equal(h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' }).status, 202);
 
   // Simulate a process crash after the second vote was durably appended but
   // before approval.decided was appended.
@@ -164,18 +168,20 @@ test('a quorum that reached its threshold before a crash is finalized from the d
 
 test('an invalid operator API key cannot vote or consume a TOTP code', (t) => {
   const key = `alice-${'a'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
   const rbacPolicy = validatePolicy({
     version: 1,
     roles: { approver: ['approvals.view', 'approvals.decide'] },
     operators: { alice: 'approver' },
-    operatorApiKeyHashes: { alice: crypto.createHash('sha256').update(key).digest('hex') },
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: { alice: createOperatorApiKeyVerifier(key, operatorApiKeySalt) },
     quorum: { default: 1 },
   });
   const h = harness(t, rbacPolicy);
   assert.equal(h.service.register(ACTION).status, 201);
   const before = h.service.show('apr_1').body.approval.votes.length;
   const totpBefore = openAuthorityState({ dir: path.join(h.dir, 'state') }).readTotp();
-  const refused = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: 'wrong-key'.padEnd(48, 'x') });
+  const refused = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: 'wrong-key'.padEnd(48, 'x'), operatorIdHint: 'alice' });
   assert.deepEqual([refused.status, refused.body.code], [401, 'APPROVAL_RBAC_API_KEY_INVALID']);
   assert.equal(h.service.show('apr_1').body.approval.votes.length, before, 'invalid credentials add no vote');
   assert.deepEqual(openAuthorityState({ dir: path.join(h.dir, 'state') }).readTotp(), totpBefore,

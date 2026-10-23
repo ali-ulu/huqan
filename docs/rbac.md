@@ -10,10 +10,10 @@ RBAC is off until a policy file is named:
 | Variable | Meaning |
 | --- | --- |
 | `HUQAN_RBAC_POLICY_PATH` | Path to the policy JSON. Unset: no RBAC, single-user behaviour is byte-identical to today. |
-| `HUQAN_AUTHORITY_OPERATOR_ID` | Legacy single-operator identity; must match an `operators` key in the policy. |
-| `HUQAN_AUTHORITY_API_KEY` | Per-operator API credential used by the protected operator CLI. The policy stores only its SHA-256 hash. |
+| `HUQAN_AUTHORITY_OPERATOR_ID` | Legacy single-operator identity, or the operator-id lookup hint paired with an API key; the hint is accepted only after the key verifies. Must match an `operators` key. |
+| `HUQAN_AUTHORITY_API_KEY` | Per-operator random API credential used by the protected operator CLI. The policy stores only a scrypt verifier, not the raw key. |
 
-`AXIOM_RBAC_POLICY_PATH` and `AXIOM_AUTHORITY_API_KEY` are accepted as legacy environment aliases.
+`AXIOM_RBAC_POLICY_PATH`, `AXIOM_AUTHORITY_OPERATOR_ID`, and `AXIOM_AUTHORITY_API_KEY` are accepted as legacy environment aliases.
 
 The policy is local configuration, not a signed document. It maps the identity
 asserted by the authority to a role. Protecting the file is the deployment's
@@ -38,7 +38,7 @@ invalid policy refuses every decision.
     "operator-2": "approver"
   },
   "separationOfDuties": false,
-  "operatorApiKeyHashes": {},
+  "operatorApiKeyVerifiers": {},
   "quorum": {
     "default": 1,
     "byTool": {}
@@ -48,21 +48,25 @@ invalid policy refuses every decision.
 
 ### Distinct operator credentials and quorum
 
-For multi-operator decisions, set `operatorApiKeyHashes` to a map from each
-operator id to the lowercase SHA-256 hash of that operator's 256-bit random API
-key. Generate a key and its hash locally:
+For multi-operator decisions, set operatorApiKeySalt to one random 16-byte
+base64url value and operatorApiKeyVerifiers to a map from each operator id to
+the scrypt verifier of that operator's 256-bit random API key. Reuse the same
+policy salt for every operator so the validator can reject duplicate keys.
+Generate the salt and independent keys/verifiers locally:
 
 ```powershell
-node -e "const c=require('node:crypto'); const k=c.randomBytes(32).toString('base64url'); console.log('HUQAN_AUTHORITY_API_KEY='+k); console.log('sha256='+c.createHash('sha256').update(k).digest('hex'))"
+node -e "const c=require('node:crypto'); const r=require('./lib/approval-rbac'); const s=r.createOperatorApiKeySalt(); console.log('operatorApiKeySalt='+s); for (const id of ['operator-1','operator-2']) { const k=c.randomBytes(32).toString('base64url'); console.log('HUQAN_AUTHORITY_OPERATOR_ID='+id); console.log('HUQAN_AUTHORITY_API_KEY='+k); console.log('operatorApiKeyVerifiers.'+id+'='+r.createOperatorApiKeyVerifier(k,s)); }"
 ```
 
-Put only the hash in the policy file and set the raw key as
-`HUQAN_AUTHORITY_API_KEY` in that operator's protected environment. Restart
-the Authority after policy changes. When API-key hashes are configured, each
-decision must carry a recognized bearer key; the Authority derives the signed
-`operatorId` from that credential. The API key is the operator credential for
-this mode, so the shared legacy TOTP code is not requested or consumed. Protect
-the raw key like a password and never put it in source control or logs.
+Put only the salt and scrypt verifiers in the protected policy file; set each
+raw key and its matching HUQAN_AUTHORITY_OPERATOR_ID in that operator's
+protected environment. Restart the Authority after policy changes. When
+API-key verifiers are configured, each decision must carry a recognized bearer
+key plus the operator-id lookup hint; the Authority trusts the identity only
+after the key verifies against that operator's scrypt verifier. The key is the
+operator credential for this mode, so the shared legacy TOTP code is not
+requested or consumed. Protect raw keys like passwords and never put them in
+source control or logs.
 
 `quorum.default` applies to all tools unless `quorum.byTool` overrides it.
 A threshold above one is valid only when the policy contains at least that
@@ -119,12 +123,12 @@ Refusals are total, with distinct codes:
 | Code | Cause |
 | --- | --- |
 | `APPROVAL_RBAC_POLICY_INVALID` | The policy is missing, unreadable, or malformed. |
-| `APPROVAL_RBAC_OPERATOR_REQUIRED` | A policy is configured but the decision has no signed `operatorId`. |
+| `APPROVAL_RBAC_OPERATOR_REQUIRED` | A policy is configured but the identity source did not supply an operator id. |
 | `APPROVAL_RBAC_OPERATOR_UNKNOWN` | The signed identity has no role. |
 | `APPROVAL_RBAC_PERMISSION_DENIED` | The role exists but lacks `approvals.decide`. |
 | `APPROVAL_RBAC_SEPARATION_OF_DUTIES` | The requester and the approver are the same identity, and separation of duties is on. |
 | `APPROVAL_RBAC_API_KEY_REQUIRED` | This policy requires a per-operator API key. |
-| `APPROVAL_RBAC_API_KEY_INVALID` | The presented API key does not match a configured operator. |
+| `APPROVAL_RBAC_API_KEY_INVALID` | The presented API key does not match the hinted operator identity. |
 | `QUORUM_REQUIRES_OPERATOR_API_KEYS` | Multi-operator quorum cannot use the shared legacy TOTP identity. |
 | `DUPLICATE_APPROVER` | This operator has already voted on the approval. |
 
@@ -133,7 +137,7 @@ retried into an approval without a new decision.
 
 In legacy single-user mode, the authority uses the configured
 `HUQAN_AUTHORITY_OPERATOR_ID` and TOTP flow. A multi-operator quorum refuses
-closed unless distinct per-operator API-key hashes are configured; callers
+closed unless distinct per-operator API-key verifiers are configured; callers
 cannot supply an `operatorId` in the sealed request to choose their own role.
 
 ## Separation of duties

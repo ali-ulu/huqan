@@ -10,7 +10,7 @@ const path = require('node:path');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
 const { createAuthorityService } = require('../lib/authority/authority-service');
-const { validatePolicy } = require('../lib/approval-rbac');
+const { validatePolicy, createOperatorApiKeySalt, createOperatorApiKeyVerifier } = require('../lib/approval-rbac');
 const { createAuthorityServer } = require('../lib/authority/http-server');
 const { parseAuthorityPin } = require('../lib/authority/authority-pin');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
@@ -38,7 +38,8 @@ async function realAuthority(t, rbacPolicy) {
     ...(rbacPolicy ? { rbacPolicy } : {}) });
   const server = createAuthorityServer({ service, signingKey: state.signingKey });
   const observedAuthorization = [];
-  server.on('request', request => observedAuthorization.push({ path: request.url, authorization: request.headers.authorization }));
+  server.on('request', request => observedAuthorization.push({ path: request.url, authorization: request.headers.authorization,
+    operatorIdHint: request.headers['x-huqan-operator-id'] }));
   const port = await listen(t, server);
   return { created, port, service, observedAuthorization };
 }
@@ -54,18 +55,20 @@ test('the client talks to the pinned authority and returns verified answers', as
 
 test('the authority client sends its operator API key and receives a signed identity decision', async (t) => {
   const operatorApiKey = `alice-${'a'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
   const rbacPolicy = validatePolicy({
     version: 1,
     roles: { approver: ['approvals.view', 'approvals.decide'] },
     operators: { alice: 'approver' },
-    operatorApiKeyHashes: {
-      alice: crypto.createHash('sha256').update(operatorApiKey).digest('hex'),
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(operatorApiKey, operatorApiKeySalt),
     },
     quorum: { default: 1 },
   });
   assert.equal(rbacPolicy.ok, true, rbacPolicy.reason);
   const { created, port, service, observedAuthorization } = await realAuthority(t, rbacPolicy);
-  const client = createAuthorityClient({ pin: pinFor(created, port), operatorApiKey });
+  const client = createAuthorityClient({ pin: pinFor(created, port), operatorApiKey, operatorId: 'alice' });
   assert.equal((await client.identity()).status, 200);
   assert.equal(observedAuthorization[0].authorization, undefined, 'the API key is not sent before pinned identity is verified');
   const args = { content: 'remember this' };
@@ -84,8 +87,9 @@ test('the authority client sends its operator API key and receives a signed iden
   }, created.sealingPublicKeyPem, { requireTotp: false });
   const answer = await client.decide(action.approvalId, sealed);
   assert.equal(answer.status, 200);
-  assert.equal(observedAuthorization.find(entry => entry.path === '/v1/approvals/apr_1/decision')?.authorization,
-    `Bearer ${operatorApiKey}`);
+  const decisionRequest = observedAuthorization.find(entry => entry.path === '/v1/approvals/apr_1/decision');
+  assert.equal(decisionRequest?.authorization, `Bearer ${operatorApiKey}`);
+  assert.equal(decisionRequest?.operatorIdHint, 'alice', 'the identity hint is only trusted after key verification');
   assert.equal(answer.body.envelope.payload.operatorId, 'alice');
   assert.equal(verifyDecision(answer.body.envelope, {
     publicKey: crypto.createPublicKey(created.signingPublicKeyPem),

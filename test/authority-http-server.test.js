@@ -11,7 +11,7 @@ const { canonicalActionHash } = require('../lib/mcp-operator-capability');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
 const { createAuthorityService } = require('../lib/authority/authority-service');
-const { validatePolicy } = require('../lib/approval-rbac');
+const { validatePolicy, createOperatorApiKeySalt, createOperatorApiKeyVerifier } = require('../lib/approval-rbac');
 const { createAuthorityServer } = require('../lib/authority/http-server');
 const { verifyResponse, requestDigestOf } = require('../lib/authority/decision-envelope');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
@@ -87,13 +87,15 @@ test('a decision taken over HTTP with a sealed code comes back as a signed envel
 test('the HTTP API-key identity produces a signed two-operator quorum decision', async (t) => {
   const aliceKey = `alice-${'a'.repeat(48)}`;
   const bobKey = `bob-${'b'.repeat(48)}`;
+  const operatorApiKeySalt = createOperatorApiKeySalt();
   const rbacPolicy = validatePolicy({
     version: 1,
     roles: { approver: ['approvals.view', 'approvals.decide'] },
     operators: { alice: 'approver', bob: 'approver' },
-    operatorApiKeyHashes: {
-      alice: crypto.createHash('sha256').update(aliceKey).digest('hex'),
-      bob: crypto.createHash('sha256').update(bobKey).digest('hex'),
+    operatorApiKeySalt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier(aliceKey, operatorApiKeySalt),
+      bob: createOperatorApiKeyVerifier(bobKey, operatorApiKeySalt),
     },
     quorum: { default: 1, byTool: { 'huqan.learn': 2 } },
   });
@@ -105,14 +107,14 @@ test('the HTTP API-key identity produces a signed two-operator quorum decision',
   }, server.created.sealingPublicKeyPem, { requireTotp: false });
   const first = await signedCall(server, {
     method: 'POST', path: '/v1/approvals/apr_1/decision', body: { sealed: makeVote() },
-    headers: { authorization: `Bearer ${aliceKey}` },
+    headers: { authorization: `Bearer ${aliceKey}`, 'x-huqan-operator-id': 'alice' },
   });
   assert.equal(first.status, 202);
   assert.deepEqual(first.verified.body.body.quorum, { required: 2, received: 1, approverIds: ['alice'] });
 
   const second = await signedCall(server, {
     method: 'POST', path: '/v1/approvals/apr_1/decision', body: { sealed: makeVote() },
-    headers: { authorization: `Bearer ${bobKey}` },
+    headers: { authorization: `Bearer ${bobKey}`, 'x-huqan-operator-id': 'bob' },
   });
   assert.equal(second.status, 200);
   assert.deepEqual(second.verified.body.body.envelope.payload.approverIds, ['alice', 'bob']);

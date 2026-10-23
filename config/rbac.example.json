@@ -11,7 +11,7 @@
     "operator-2": "admin"
   },
   "separationOfDuties": false,
-  "operatorApiKeyHashes": {},
+  "operatorApiKeyVerifiers": {},
   "quorum": {
     "default": 1,
     "byTool": {}

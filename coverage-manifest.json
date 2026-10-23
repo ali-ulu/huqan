@@ -392,12 +392,12 @@
       ],
       "sites": [
         {
-          "line": 173,
+          "line": 174,
           "capability": "fs_write",
           "call": "unlink"
         },
         {
-          "line": 189,
+          "line": 190,
           "capability": "fs_write",
           "call": "chmod"
         }
