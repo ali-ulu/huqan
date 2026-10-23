@@ -7876,9 +7876,17 @@
   "lib/cognition-value-ledger-pairs.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
    "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
+  },
+  "lib/agent-coder-execution.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4065 isolated Lab composition root builds the existing approved Coder capability"
   },
   "lib/cognition/percept.js": {
    "owner": "Knowledge",

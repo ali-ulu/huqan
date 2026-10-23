@@ -261,6 +261,13 @@ const BASE_CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: 'the directly invoked calibration CLI creates only its own private lab directory and exclusive state marker beneath the operator root; existing state is bound to a frozen experiment and locked before its Graph journal is opened, without writing canonical memory',
   }),
+  'lib/cognitive-lab-m7-experiment.js': Object.freeze({
+    role: 'operator_tool', why: '#4065 explicitly invoked isolated Lab pilot; creates and removes only its own temporary workspace and spawns the fixed child runner.',
+  }),
+  'lib/cognitive-lab-m7-runtime.js': Object.freeze({
+    role: 'operator_tool',
+    why: '#4065 isolated Lab child builds disposable fixtures; actual Coder writes still require durable approval, the existing gate and independent tests. Network methods are replaced by refusing guards.',
+  }),
   // #2168 split backupRestore.js; its writes and spawns now live in these three.
   'lib/storage/backup-restore-store.js': Object.freeze({
     role: 'operator_tool',
