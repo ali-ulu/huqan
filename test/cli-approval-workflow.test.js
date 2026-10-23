@@ -72,7 +72,7 @@ test('CLI parses approval queue and explicit approval commands', () => {
       command: 'onaylar', args: { approvalId: 'approval-123' }, workflowId: 'approvals',
     });
     assert.deepEqual(cli.parse('approvals list'), {
-      command: 'onaylar', args: '', workflowId: 'approvals',
+      command: 'onaylar', args: { workspaceId: 'default' }, workflowId: 'approvals',
     });
     assert.deepEqual(cli.parse('approvals list --workspace team-a'), {
       command: 'onaylar', args: { workspaceId: 'team-a' }, workflowId: 'approvals',

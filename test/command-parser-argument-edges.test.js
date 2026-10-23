@@ -50,6 +50,8 @@ test('approvals list aliases use the same read-only queue command', () => {
   assert.deepEqual(parse('approvals list --workspace w').args, { workspaceId: 'w' });
   assert.deepEqual(parse('approvals listele --workspace w').args, { workspaceId: 'w' });
   assert.deepEqual(parse('onaylar list --workspace w').args, { workspaceId: 'w' });
+  assert.equal(parse('approvals list unexpected-id').command, 'anlamadım');
+  assert.equal(parse('approvals queue --json').command, 'anlamadım');
   assert.deepEqual(parse('approvals --workspace w').args, { workspaceId: 'w' });
   assert.equal(parse('approvals --workspace').command, 'anlamadım');
   assert.equal(parse('approvals list --workspace').command, 'anlamadım');
