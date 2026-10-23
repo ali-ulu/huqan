@@ -3,7 +3,7 @@
 Role-based approval authority (#4205). This page describes the slice that
 ships today: roles and permissions, the signed operator identity a decision
 carries, separation of duties, and the audit record of every governed
-decision. Quorum and the approval queue CLI are named under
+decision. Quorum and execution-receipt identity propagation are named under
 [Not in this slice](#not-in-this-slice).
 
 ## Opt-in
@@ -124,14 +124,13 @@ silently allowing the action.
 
 ## Not in this slice
 
-The following parts of #4205 are deliberately not in this change and remain
-open on the issue:
+The following parts of #4205 remain open and are not implemented by this RBAC
+slice:
 
 - N-of-M quorum, including the second approver named in `README.md`;
-- the `huqan approvals list` queue view;
-- embedding the approver identity in the execution receipt. Today the identity
-  is bound in the signed decision envelope and the audit event; the receipt
-  carries the approval id.
+- propagating the verified approver identity into the execution receipt.
+  Today the identity is bound in the signed decision envelope and audit event;
+  the receipt carries the approval id.
 
 ## Tests
 

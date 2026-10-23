@@ -53,6 +53,9 @@ test('approvals list aliases use the same read-only queue command', () => {
   assert.deepEqual(parse('approvals --workspace w').args, { workspaceId: 'w' });
   assert.equal(parse('approvals --workspace').command, 'anlamadım');
   assert.equal(parse('approvals list --workspace').command, 'anlamadım');
+  assert.equal(parse('approvals list --workspace --json').command, 'anlamadım');
+  assert.equal(parse('approvals list --workspace -w').command, 'anlamadım');
+  assert.equal(parse('onaylar listele --workspace --json').command, 'anlamadım');
 });
 
 test('experience-learn distinguishes an absent --source-runs from a malformed one', () => {
