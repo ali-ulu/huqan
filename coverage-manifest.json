@@ -2,20 +2,20 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 92,
-    "sites": 211,
+    "files": 101,
+    "sites": 221,
     "byCapability": {
       "process": 38,
-      "egress": 9,
+      "egress": 19,
       "fs_write": 164
     },
     "byRole": {
       "enforcement": 46,
-      "adapter_read": 9,
-      "operator_tool": 75,
+      "adapter_read": 10,
+      "operator_tool": 77,
       "persistence": 58,
-      "evidence": 17,
-      "egress_operator_gated": 3,
+      "evidence": 16,
+      "egress_operator_gated": 11,
       "unguarded": 3
     }
   },
@@ -550,6 +550,21 @@
       ]
     },
     {
+      "file": "lib/browser-session-observer.js",
+      "role": "adapter_read",
+      "why": "observes an already-running browser session (#2155, exposed to the scanner by #4196): one GET of `/json/list` at the caller-supplied CDP endpoint, `redirect: 'error'` and a bounded abort timeout, to read which targets exist. It sends no inputs, mutates nothing, and resolves no URL of its own beyond what the caller configured",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 60,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        }
+      ]
+    },
+    {
       "file": "lib/cli-coder-verify.js",
       "role": "adapter_read",
       "why": "execFileSync of git show to read a file as of a base ref while re-deriving a recorded transform; argv is fixed in source, no shell is involved, and the command only reads history",
@@ -576,6 +591,21 @@
           "line": 140,
           "capability": "process",
           "call": "childProcess.execFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cli-ingest-batch.js",
+      "role": "operator_tool",
+      "why": "the operator's `huqan ingest batch` family (#4196): it reads the `--input` JSON file the operator named, caps the batch by item count and bytes, and posts it to the ingest API the CLI context configures, with bounded timeouts. It runs only under direct CLI invocation and sends only what that file contains",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 137,
+          "capability": "egress",
+          "call": "globalThis.fetch"
         }
       ]
     },
@@ -1171,12 +1201,18 @@
     },
     {
       "file": "lib/external-action-receipt-shipper.js",
-      "role": "evidence",
-      "why": "appends collector counter-seals beside the trail; the cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split",
+      "role": "egress_operator_gated",
+      "why": "appends the collector counter-seals beside the trail and ships that trail to the collector (#1781): signed, tenant-separated batches POSTed to the endpoint the operator configured, the cursor left untouched on any send failure so what is on disk stays the source of truth. The cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split, and the fetch reached this manifest through the #4196 scanner fix. Shipping runs as its own command after the fact -- a collector being down, slow or wrong cannot change what an agent is allowed to do. No agent action reaches the send. Recorded as a deliberate, written exception in ADR-014 (#4196)",
       "capabilities": [
+        "egress",
         "fs_write"
       ],
       "sites": [
+        {
+          "line": 135,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        },
         {
           "line": 165,
           "capability": "fs_write",
@@ -1215,6 +1251,36 @@
       ]
     },
     {
+      "file": "lib/github-app-beta-auth.js",
+      "role": "egress_operator_gated",
+      "why": "mints the installation access token the GitHub App beta path uses: it posts the app's own signed JWT to the fixed api.github.com and reads back the token. The beta path is enabled only by operator configuration and runs as its own deployment, so no agent action reaches the fetch. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 125,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        }
+      ]
+    },
+    {
+      "file": "lib/github-app-beta-http-boundary.js",
+      "role": "egress_operator_gated",
+      "why": "the outbound HTTP boundary the GitHub App beta webhook handler calls api.github.com through, plus the optional best-effort repo-ingest submission whose failure never fails the webhook (#3032). The beta path is operator-enabled and separately deployed; the same seam production reads the global fetch from, tests inject a transport. No agent action reaches its sends. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 45,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        }
+      ]
+    },
+    {
       "file": "lib/github-app-beta-store.js",
       "role": "persistence",
       "why": "the GitHub App beta store, at HUQAN_GITHUB_APP_STORE_PATH; written only on the deployment-gated beta path",
@@ -1240,6 +1306,36 @@
       ]
     },
     {
+      "file": "lib/github-app-streaming-auth.js",
+      "role": "egress_operator_gated",
+      "why": "the streaming trust path's own token exchange: it posts the app's signed JWT to the fixed api.github.com install-token endpoint. The streaming path is operator-enabled and runs inside the same separately deployed GitHub App service, so no agent action reaches the fetch. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 25,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        }
+      ]
+    },
+    {
+      "file": "lib/github-app-streaming-trust-handler.js",
+      "role": "egress_operator_gated",
+      "why": "wires one webhook delivery through streaming trust: the handler itself sends nothing, but it threads the injected fetch transport into runGitHubAppStreamingTrust, so a value read of `globalThis.fetch` lands here too (#4196). The egress its threaded transport performs is the streaming path's own PR reading and check-run write, on the operator-enabled separately deployed GitHub App service. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 15,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        }
+      ]
+    },
+    {
       "file": "lib/github-app-streaming-trust-store-files.js",
       "role": "persistence",
       "why": "the streaming trust store file writes, moved here from lib/github-app-streaming-trust-store.js by #2826 without reclassification; at a configured path and only when the streaming-trust flag is enabled",
@@ -1261,6 +1357,21 @@
           "line": 58,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/github-app-streaming-trust.js",
+      "role": "egress_operator_gated",
+      "why": "reads the exact PR head and its changed files from api.github.com and writes the check run back within a time budget, on the operator-enabled streaming GitHub App path; the sends carry only the evaluation of a delivery the webhook already received, never domain agent input. No agent action reaches the transport. Recorded as a deliberate, written exception in ADR-014",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 20,
+          "capability": "egress",
+          "call": "globalThis.fetch"
         }
       ]
     },
@@ -1595,6 +1706,21 @@
       ]
     },
     {
+      "file": "lib/observability/notification-adapter.js",
+      "role": "operator_tool",
+      "why": "the webhook transport the human-run `huqan integrity --notify` siren sends through (#4196): it POSTs a bounded alert payload (allowlisted alert fields, capped attempts, timeouts and backoff) HMAC-signed with the operator's HUQAN_NOTIFY_WEBHOOK_SECRET to the operator-configured HUQAN_NOTIFY_WEBHOOK_URL, and only when that command is explicitly invoked",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 143,
+          "capability": "egress",
+          "call": "globalThis.fetch"
+        }
+      ]
+    },
+    {
       "file": "lib/pr-guardian/github-client.js",
       "role": "egress_operator_gated",
       "why": "outbound GitHub API calls on the PR Guardian path, which runs as its own deployment and is enabled by operator configuration; no agent action reaches the fetch, so admission has no decision to make here. Recorded as a deliberate, written exception in ADR-014",
@@ -1847,6 +1973,21 @@
           "line": 137,
           "capability": "fs_write",
           "call": "fs.renameSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/siem/siem-http-sink.js",
+      "role": "egress_operator_gated",
+      "why": "the HTTPS twin of the syslog sink (#4093 PR-B4, #4196): it POSTs the same allowlisted, AB9-scrubbed SIEM event of a decision already made to the HTTPS endpoint the operator named with `siem-export --sink https --url ...` (Splunk HEC or Elastic bulk by the operator's chosen format), certificate verification always on and the host judged by the same AB12/AB13 checks before the send. The export runs as its own command after the decision, so no agent tool call reaches it. Recorded as a deliberate, written exception in ADR-014 (#4093 addendum)",
+      "capabilities": [
+        "egress"
+      ],
+      "sites": [
+        {
+          "line": 184,
+          "capability": "egress",
+          "call": "globalThis.fetch"
         }
       ]
     },

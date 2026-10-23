@@ -1,5 +1,7 @@
 'use strict';
 
+const { INJECTED_FETCH_CLASSIFIED } = require('./enforcement-coverage-classification-injected-fetch');
+
 /**
  * Who is allowed to touch the world, and on what grounds.
  *
@@ -64,7 +66,7 @@ const ROLES = Object.freeze({
  * The reasons are specific because a generic one ("internal") would pass review
  * forever without anybody re-reading the code.
  */
-const CLASSIFIED = Object.freeze({
+const BASE_CLASSIFIED = Object.freeze({
   // ── the boundary itself ────────────────────────────────────────────────
   // ── the approval authority service (ADR-016) ───────────────────────────
   'lib/authority/http-server.js': Object.freeze({
@@ -193,10 +195,6 @@ const CLASSIFIED = Object.freeze({
   'lib/external-action-receipt-collector.js': Object.freeze({
     role: 'evidence',
     why: 'append-only receipt store; the tenant-scoped JSONL the fleet view reads',
-  }),
-  'lib/external-action-receipt-shipper.js': Object.freeze({
-    role: 'evidence',
-    why: 'appends collector counter-seals beside the trail; the cursor writes moved to lib/external-action-receipt-cursor.js with the #2252 split',
   }),
   'lib/external-action-receipt-cursor.js': Object.freeze({
     role: 'evidence',
@@ -385,5 +383,11 @@ const CLASSIFIED = Object.freeze({
     why: 'opens a TLS connection (certificate verification always on, TLS 1.2+) to the syslog collector the operator named with `huqan-gate-hook siem-export --sink syslog --url syslog+tls://...`; it carries only the allowlisted, AB9-scrubbed SIEM event of a decision already made, and the host is judged by AB12 residency and AB13 expected egress before the socket opens. The export runs as its own command after the decision, so no agent tool call reaches the socket. Recorded as a deliberate, written exception in ADR-014 (#4093 addendum)',
   }),
 });
+
+// The #4196 cluster lives in enforcement-coverage-classification-injected-fetch.js:
+// this file sat directly under the large-file threshold (#328) and the cluster
+// would have pushed it over. The merge is a plain union -- the modules share no
+// keys, and the stale-entry invariant is checked against the merged map.
+const CLASSIFIED = Object.freeze({ ...BASE_CLASSIFIED, ...INJECTED_FETCH_CLASSIFIED });
 
 module.exports = { ROLES, CLASSIFIED };
