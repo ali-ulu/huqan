@@ -87,6 +87,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // in 7s locally, so the cost is the loaded Windows runner, not a hang: the
   // same shape as the entry above, and the same remedy.
   'test/production-http-adversarial.test.js',
+  // memory-store-sqlite-collection was SIGTERM-killed at 102.266s on the
+  // windows-latest Node 24 shard 2 of PR #4210 (job 120389387431), and it
+  // passes in 2.7s locally. Its sibling memory-store-sqlite took 7.6s for a
+  // single case on the same runner, so the cost is the loaded Windows disk,
+  // not a hang: the same shape as the two entries above.
+  'test/memory-store-sqlite-collection.test.js',
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',
