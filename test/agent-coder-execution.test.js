@@ -12,6 +12,8 @@ const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-
 const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall');
 const { createAgentCoderExecution, buildAgentCoderAction } = require('../lib/agent-coder-execution');
 const { executeStepWithRetry } = require('../lib/agent-step-executor');
+const { executeAgentStep } = require('../lib/agent-step-executor');
+const { createEmergencyStop, approvalStopAgentId } = require('../lib/emergency-stop');
 
 function fixture(t, replacement = '2', approve = true, synthesis = false) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-agent-coder-'));
@@ -74,6 +76,107 @@ test('real approved Coder execution changes source only after reservation and in
   assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'executed');
   assert.equal(f.adapter.execute({ step: f.step, state: f.state }).ok, false);
 });
+
+function approvedQueue(t, firstReplacement = '3') {
+  const f = fixture(t, firstReplacement);
+  const task = { ...f.task, id: 'second-repair', operation: { ...f.task.operation, replace: '2' } };
+  const action = buildAgentCoderAction({ root: f.root, task, goal: f.goal, workspaceId: f.workspaceId,
+    policyVersion: f.config.action.policyVersion, firewallVersion: AGENT_ACTION_FIREWALL_VERSION });
+  const created = f.approvalRuntime.createReviewCase({ action, firewallDecision: 'review', requesterContext: {} });
+  assert.equal(created.ok, true);
+  assert.equal(f.approvalRuntime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: {},
+    reason: 'approve second exact task', evidenceDigest: created.case.evidenceDigest }).ok, true);
+  const second = { ...f.config, task, action, caseId: created.case.caseId };
+  const descriptors = [f.config, second];
+  const queue = createAgentCoderExecution({ queue: descriptors });
+  return { ...f, second, descriptors, queue, steps: queue.plan(f.goal, f.workspaceId) };
+}
+
+test('approved queue preserves task and case bindings through reordering and host mutation', t => {
+  const f = approvedQueue(t);
+  assert.equal(f.steps.length, 2);
+  assert.equal(f.queue.approvalIdFor(f.steps[1]), f.second.caseId);
+  f.second.task.operation.replace = '9';
+  f.descriptors.reverse();
+  const result = f.queue.execute({ step: { ...f.steps[1], urgency: 1 }, state: f.state });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 2/u);
+  assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'approved');
+  assert.equal(f.approvalRuntime.getReviewCase(f.second.caseId).case.status, 'executed');
+  assert.equal(f.queue.execute({ step: f.steps[0], state: f.state }).ok, false, 'successful dirty source blocks another task');
+});
+
+test('rolled back queue task stays single-use while another approved task may run', t => {
+  const f = approvedQueue(t);
+  const failed = f.queue.execute({ step: f.steps[0], state: f.state });
+  assert.equal(failed.ok, false);
+  assert.equal(f.git('status', '--porcelain'), '');
+  assert.equal(f.queue.execute({ step: f.steps[0], state: f.state }).ok, false);
+  assert.equal(f.queue.execute({ step: f.steps[1], state: f.state }).ok, true);
+});
+
+test('uncertain queue outcome stops all remaining approvals even after a clean rollback', t => {
+  const f = approvedQueue(t);
+  const mutate = f.graph.runMutationOnce.bind(f.graph);
+  f.graph.runMutationOnce = (operationId, ...args) => {
+    if (operationId.startsWith('human-oversight:execution-outcome:')) throw new Error('OUTCOME_WRITE_FAILED');
+    return mutate(operationId, ...args);
+  };
+  const result = f.queue.execute({ step: f.steps[0], state: f.state });
+  assert.equal(result.meta.uncertain, true);
+  assert.equal(f.git('status', '--porcelain'), '');
+  f.graph.runMutationOnce = mutate;
+  const next = f.queue.execute({ step: f.steps[1], state: f.state });
+  assert.equal(next.ok, false);
+  assert.equal(next.meta.uncertain, true);
+  assert.equal(f.approvalRuntime.getReviewCase(f.second.caseId).case.status, 'approved');
+});
+
+test('queue rejects duplicate task or case, over-cap, mixed scope and forged steps', t => {
+  const f = approvedQueue(t);
+  for (const entries of [[], [...f.descriptors, f.config], Array(5).fill(f.config),
+    [f.config, { ...f.second, caseId: f.config.caseId }],
+    [f.config, { ...f.second, goal: 'other' }]]) {
+    const queue = createAgentCoderExecution({ queue: entries });
+    assert.deepEqual(queue.plan(f.goal, f.workspaceId), []);
+    assert.equal(queue.prepare({ step: f.steps[0], state: f.state }).ok, false);
+    assert.equal(queue.execute({ step: f.steps[0], state: f.state }).ok, false);
+  }
+  assert.equal(f.queue.execute({ step: { ...f.steps[1], input: f.steps[0].input }, state: f.state }).ok, false);
+  assert.equal(f.queue.execute({ step: { ...f.steps[1], input: { ...f.steps[1].input, authorized: true } }, state: f.state }).ok, false);
+  assert.equal(f.queue.execute({ step: f.steps[1], state: { ...f.state, workspaceId: 'other' } }).ok, false);
+});
+
+test('queue entries do not inherit approval from another descriptor', t => {
+  const f = fixture(t, '2', false);
+  const queue = createAgentCoderExecution({ queue: [f.config] });
+  const step = queue.plan(f.goal, f.workspaceId)[0];
+  assert.equal(queue.prepare({ step, state: f.state }).ok, false);
+  assert.equal(queue.execute({ step, state: f.state }).ok, false);
+  assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 1/u);
+});
+
+for (const [boundary, stopped] of [['beforeTask', true], ['recordDecision', true], ['recordDecision', false]]) {
+  test(`queue case cannot be replaced with a ${stopped ? 'stopped' : 'different'} approval in ${boundary}`, t => {
+    const f = approvedQueue(t);
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-mutation-stop-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const emergencyStop = createEmergencyStop({ directory });
+    if (stopped) emergencyStop.stop({ scope: 'agent', workspaceId: f.workspaceId, agentId: approvalStopAgentId(f.second.caseId),
+      reason: 'operator_cancelled', actor: 'operator' });
+    const step = structuredClone(f.steps[0]);
+    const report = executeAgentStep({ step, state: { ...f.state, agentId: 'coder-agent' }, opts: { emergencyStop },
+      runtime: { kernel: {}, allowedTools: new Set(), coderExecution: f.queue,
+        emit: (event, payload) => { if (boundary === 'beforeTask' && event === 'beforeTask') Object.assign(payload.step, f.steps[1]); },
+        recordDecision: () => { if (boundary === 'recordDecision') Object.assign(step, f.steps[1]); },
+      } });
+    assert.equal(report.status, 'blocked', JSON.stringify(report));
+    assert.equal(report.result.error.code, stopped ? 'AGENT_EMERGENCY_STOPPED' : 'CODER_EXECUTION_SCOPE_MISMATCH');
+    assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 1/u);
+    assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'approved');
+    assert.equal(f.approvalRuntime.getReviewCase(f.second.caseId).case.status, 'approved');
+  });
+}
 
 test('independent failing test restores original source', t => {
   const f = fixture(t, '3');

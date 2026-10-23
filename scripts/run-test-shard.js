@@ -56,6 +56,10 @@ const HEAVY_FILE_TIMEOUT_OVERRIDES = Object.freeze({
   'test/kernel-facade-contract.test.js': 540_000,
 });
 const HEAVY_FILES = Object.freeze(new Set([
+  // Real per-case Git/approval/rollback checks passed in 221s under local load.
+  'test/agent-coder-execution.test.js',
+  // Three feedback arms plus a fresh-process native replay passed in 164s.
+  'test/cognition-coder-runtime.test.js',
   'test/kernel-facade-contract.test.js',
   'test/coder-project-method-memory.test.js',
   // Native CLI restarts, a cold comparator, HTTP acceptance and tamper

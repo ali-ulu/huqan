@@ -14,6 +14,48 @@ const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall'
 const { buildAgentCoderAction } = require('../lib/agent-coder-execution');
 const { createEmergencyStop, approvalStopAgentId } = require('../lib/emergency-stop');
 
+test('native rollback observation changes the next approved Coder choice and survives a fresh process', () => {
+  const { runM7FeedbackPilot } = require('../lib/cognitive-lab-m7-experiment');
+  const result = runM7FeedbackPilot();
+  assert.equal(result.assertsGain, false);
+  const { candidate, control, observationOff } = result.arms;
+  assert.deepEqual(candidate.schedulerInputs[0].before, control.schedulerInputs[0].before);
+  assert.deepEqual(candidate.schedulerInputs[0].before, observationOff.schedulerInputs[0].before);
+  assert.deepEqual(candidate.schedulerInputs[0].exceptUrgency, control.schedulerInputs[0].exceptUrgency);
+  assert.deepEqual(candidate.steps.map(step => step.id), ['coder:first', 'coder:good']);
+  assert.deepEqual(control.steps.map(step => step.id), ['coder:first', 'coder:retry']);
+  assert.deepEqual(observationOff.steps.map(step => step.id), ['coder:first', 'coder:retry']);
+  assert.equal(candidate.perceptKeys.first, candidate.perceptKeys.retry);
+  assert.equal(candidate.firstObservation.perceptKey, candidate.perceptKeys.first);
+  assert.notEqual(candidate.perceptKeys.first, candidate.perceptKeys.good);
+  assert.ok(candidate.outcomes.includes('contradiction'));
+  assert.ok(candidate.outcomes.includes('confirmed'));
+  assert.equal(candidate.oracle.ok, true);
+  assert.equal(control.oracle.ok, false);
+  assert.equal(observationOff.oracle.ok, false);
+  assert.equal(candidate.runStatus, 'paused');
+  assert.ok(candidate.remainingSteps > 0);
+  for (const arm of Object.values(result.arms)) {
+    assert.equal(arm.cost.modelCalls, 0);
+    assert.equal(arm.cost.networkAttempts, 0);
+    assert.equal(arm.cost.executorEntries, 2);
+    assert.equal(arm.cost.nativeTestCalls, 2);
+    assert.equal(arm.cost.oracleCalls, 1);
+    assert.equal(arm.steps[0].rolledBack, true);
+  }
+  assert.equal(candidate.afterFirst.entries.find(entry => entry.key === 'risk:coder').nIndependent, 1);
+  assert.equal(candidate.afterFirst.entries.find(entry => entry.key === 'risk:coder').status, 'INSUFFICIENT');
+  assert.deepEqual(candidate.restarted.steps.map(step => step.id), ['coder:good']);
+  assert.equal(candidate.restarted.oracle.ok, true);
+  assert.deepEqual(candidate.restarted.initialValue, candidate.afterFirst);
+  assert.equal(candidate.restarted.prefixDigest, candidate.snapshotDigest);
+  assert.equal(candidate.restarted.cost.modelCalls, 0);
+  assert.equal(candidate.restarted.cost.executorEntries, 1);
+  assert.ok(candidate.restarted.scopePreserved);
+  assert.ok(candidate.restarted.approvalIds.every(id => !candidate.approvalIds.includes(id)));
+  assert.equal(candidate.reset.kind, 'ephemeral fixture new-episode setup');
+});
+
 for (const failOutcome of [false, true]) test(`real AgentV3 Coder plan preserves outcome durability (failure=${failOutcome})`, t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cognition-coder-'));
   const root = path.join(dir, 'repo'); fs.mkdirSync(root);

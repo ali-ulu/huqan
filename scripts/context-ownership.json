@@ -7892,6 +7892,13 @@
    ],
    "evidence": "#4065 isolated Lab composition root builds the existing approved Coder capability"
   },
+  "lib/agent-cognition-observation.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4065 Lab verifies the real artifact percept identity shared by separately approved Coder steps"
+  },
   "lib/cognition/percept.js": {
    "owner": "Knowledge",
    "consumers": [
