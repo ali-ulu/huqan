@@ -107,8 +107,10 @@ test('N-of-M quorum counts authenticated distinct operators and survives restart
     status: 'executed', receiptId: 'execution-receipt-1', receiptHash, consumeProof: PROOF,
   });
   assert.equal(outcome.status, 200);
+  const storedEnvelope = restarted.getDecision('apr_1').body.envelope;
+  assert.deepEqual(storedEnvelope, second.body.envelope, 'stored decision is the quorum envelope returned to the approver');
   const expectedEnvelopeHash = crypto.createHash('sha256')
-    .update(stableStringify(second.body.envelope), 'utf8').digest('hex');
+    .update(stableStringify(storedEnvelope), 'utf8').digest('hex');
   assert.equal(outcome.body.attestation.payload.operatorId, 'bob');
   assert.equal(outcome.body.attestation.payload.decisionEnvelopeHash, expectedEnvelopeHash,
     'signed execution evidence binds the exact quorum decision envelope');
