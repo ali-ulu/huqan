@@ -189,3 +189,35 @@ Karar etiketleri: şu an **NOT_MEASURED**. Kurulum/örnek yetersizse **INSUFFICI
 geçerli deneyde kazanım gösterilmezse **MEASURED_NO_GAIN**; yalnız önceden
 kilitlenmiş başarı, maliyet ve non-inferiority kapıları birlikte geçerse **GAIN**.
 Bütünlük ihlalinde **REJECT**. Hiçbiri kendiliğinden üretim varsayılanını değiştirmez.
+
+## M9 nedensellik kontrolü — sınırlı Lab kapsamı
+
+Önceki Coder kuyruğunda bütün adaylar aynı `risk:coder` değerini tüketir.
+Dolayısıyla o pilotun seçim farkı tek başına M9 arousal etkisini kanıtlamaz.
+Bu kontrol, farklı güvenli görev ailelerinin gerçek araç çıktısını yalnız Lab'in
+kendi görev artifactına aktarır; mevcut sensör ve journal bu artifactı önceden
+ilan edilmiş beklentiyle karşılaştırır. Araçların dosya yazdığı veya `step.ok`
+değerinin görev başarısı olduğu iddia edilmez.
+
+Karşılaştırma aynı gözlenmiş geçmişi yeniden açar ve yalnız salience'a giren M9
+arousal katkısını sıfırlar. Diğer bileşenler, kuyruk, scheduler, gözlem ve bütçe
+korunur. Kaynak bağımlılık hesabı ve asgari destek eşiği değiştirilmez; kontrollü
+artifact kaynaklarının sayısı bağımsız gerçek engineering görev sayısı değildir.
+
+Bu, mekanizma karakterizasyonudur. Gerçek Coder görevlerinde M9 kaynaklı kazanım,
+bağımsız holdout, değişen ortam ve eski beceri korunumu bu kontrolle kapanmaz.
+Nihai Lab sonucu **NOT_MEASURED**, `assertsGain: false` olarak kalır.
+
+Yerel kabul komutu: `node --test test/cognition-value-feedback-runtime.test.js`.
+Kontrollü `verify` ve `dream` çıktı geçmişinde aile başına üç ayrı artifact
+bağımlılık grubu vardır. Aynı geçmişte M9 arousal değerleri sırasıyla `0.3735`
+ve `0.4335` olur; aday kol gerçek `dream` adımını, yalnız arousal katkısı sıfırlanan
+kol gerçek `verify` adımını yürütür. Üçüncü yeni süreç aynı aday seçimini yeniden
+üretir. Test, arousal dışındaki girdilerin eşitliğini ve kaynak geçmişinin
+değişmediğini denetler. Üç gözlemde M2'nin tam pencere gerektiren `recentMean`
+değeri bilinmeyen kalır; M2 ölçülmüş etkisi iddia edilmez.
+
+Yetersiz destek, ortak kaynak grubu ve kapalı gözlem kontrollerinde M9 katkısı
+ölçülmüş hale gelmez. Model ve ağ engelleri ayrıca gerçek sınır çağrısıyla sınanır.
+Süre kurulumu ve gözlemi içerir; raporlanan tepe bellek yalnız karar çocuk
+sürecine aittir, tüm süreç ağacının bellek maliyeti ölçülmüş değildir.
