@@ -157,7 +157,7 @@ test('queue entries do not inherit approval from another descriptor', t => {
 });
 
 for (const [boundary, stopped] of [['beforeTask', true], ['recordDecision', true], ['recordDecision', false]]) {
-  test(`queue case cannot be replaced with a ${stopped ? 'stopped' : 'different'} approval in ${boundary}`, t => {
+  test('queue case cannot be replaced in ' + boundary + ' (' + (stopped ? 'stopped' : 'different') + ' approval)', t => {
     const f = approvedQueue(t);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'coder-mutation-stop-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -165,16 +165,33 @@ for (const [boundary, stopped] of [['beforeTask', true], ['recordDecision', true
     if (stopped) emergencyStop.stop({ scope: 'agent', workspaceId: f.workspaceId, agentId: approvalStopAgentId(f.second.caseId),
       reason: 'operator_cancelled', actor: 'operator' });
     const step = structuredClone(f.steps[0]);
+    const recorded = [];
     const report = executeAgentStep({ step, state: { ...f.state, agentId: 'coder-agent' }, opts: { emergencyStop },
       runtime: { kernel: {}, allowedTools: new Set(), coderExecution: f.queue,
         emit: (event, payload) => { if (boundary === 'beforeTask' && event === 'beforeTask') Object.assign(payload.step, f.steps[1]); },
-        recordDecision: () => { if (boundary === 'recordDecision') Object.assign(step, f.steps[1]); },
+        recordDecision: (decisionStep, _state, metadata) => {
+          recorded.push(metadata.decision);
+          if (boundary === 'recordDecision') Object.assign(decisionStep, f.steps[1]);
+        },
       } });
-    assert.equal(report.status, 'blocked', JSON.stringify(report));
-    assert.equal(report.result.error.code, stopped ? 'AGENT_EMERGENCY_STOPPED' : 'CODER_EXECUTION_SCOPE_MISMATCH');
-    assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 1/u);
-    assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'approved');
-    assert.equal(f.approvalRuntime.getReviewCase(f.second.caseId).case.status, 'approved');
+    if (boundary === 'beforeTask') {
+      assert.equal(report.status, 'blocked', JSON.stringify(report));
+      assert.equal(report.result.error.code, stopped ? 'AGENT_EMERGENCY_STOPPED' : 'CODER_EXECUTION_SCOPE_MISMATCH');
+      assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 1/u);
+      assert.deepEqual(recorded, ['block']);
+      assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'approved');
+      assert.equal(f.approvalRuntime.getReviewCase(f.second.caseId).case.status, 'approved');
+    } else {
+      // The original selected task (replace with 3) runs and rolls back on its
+      // independent test failure. The observer's changed copy must not retarget
+      // the executor to the other approval (replace with 2).
+      assert.equal(report.status, 'error', JSON.stringify(report));
+      assert.equal(report.result.error.code, 'ALL_CANDIDATES_EXHAUSTED');
+      assert.match(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), /=> 1/u);
+      assert.deepEqual(recorded, ['allow']);
+      assert.equal(f.approvalRuntime.getReviewCase(f.config.caseId).case.status, 'approved');
+      assert.equal(f.approvalRuntime.getReviewCase(f.second.caseId).case.status, 'approved');
+    }
   });
 }
 
