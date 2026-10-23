@@ -488,3 +488,26 @@ test('#4202: python3 -c interpreter code execution is blocked (not REVIEW)', () 
   assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
   assert.equal(r.denylistMatch, 'interpreter_code_python');
 });
+
+test('#4202 review round: env -u consumes its operand before spotting the inner command', () => {
+  const r = evaluateCommandExec("env -u X sh -c 'rm -rf /'");
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'rm_rf_root_or_home');
+  assert.equal(evaluateCommandExec('env -u X ls').decision, COMMAND_EXEC_DECISIONS.ALLOW);
+  assert.equal(evaluateCommandExec('env --unset X ls').decision, COMMAND_EXEC_DECISIONS.ALLOW);
+});
+
+test('#4202 review round: node --eval long flag hits the same denylist entry', () => {
+  const r = evaluateCommandExec("node --eval \"require('fs').rmSync('/etc',{recursive:true})\"");
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'interpreter_code_node');
+});
+
+test('#4202 review round: python flags before -c are skipped but still blocked', () => {
+  const r = evaluateCommandExec("python3 -I -c \"import shutil; shutil.rmtree('/etc')\"");
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'interpreter_code_python');
+});
