@@ -66,6 +66,12 @@ test('CLI parses approval queue and explicit approval commands', () => {
     assert.deepEqual(cli.parse('approvals show approval-123'), {
       command: 'onaylar', args: { approvalId: 'approval-123' }, workflowId: 'approvals',
     });
+    assert.deepEqual(cli.parse('approvals list'), {
+      command: 'onaylar', args: '', workflowId: 'approvals',
+    });
+    assert.deepEqual(cli.parse('approvals list --workspace team-a'), {
+      command: 'onaylar', args: { workspaceId: 'team-a' }, workflowId: 'approvals',
+    });
     assert.deepEqual(cli.parse('onayla approval-123 rejected'), {
       command: 'onayla', args: { approvalId: 'approval-123', decision: 'rejected', invalidDecision: false }, workflowId: 'approval-decision',
     });
@@ -127,6 +133,9 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       const listed = await runCliArgv(['onaylar'], { cli, stdout: value => listedOutput.push(value) });
       assert.equal(listed.exitCode, 0);
       assert.match(listedOutput.join('\n'), new RegExp(queued.approval.id));
+      assert.match(listedOutput.join('\n'), /by unknown|by external-agent/);
+      assert.match(listedOutput.join('\n'), /waiting (?:\d+s|\d+m|\d+h|\d+d|age unknown)/);
+      assert.match(listedOutput.join('\n'), /cli approval workflow sentinel hayvandir/);
       // The approval above was queued through the legacy `axiom.learn` spelling and
       // the row persists that string, but the listing is a writer, so per RFC-001 it
       // renders the canonical name. That the legacy row stays *executable* is what
@@ -141,6 +150,11 @@ test('CLI lists and resolves the same persisted MCP approval without a bypass', 
       assert.equal(jsonListBody.data.approvals[0].context.source, 'mcp');
       assert.ok(Object.hasOwn(jsonListBody.data.approvals[0], 'provenance'));
       assert.ok(Object.hasOwn(jsonListBody.data.approvals[0], 'policy'));
+
+      const aliasListOutput = [];
+      const aliasList = await runCliArgv(['--json', 'approvals', 'list'], { cli, stdout: value => aliasListOutput.push(value) });
+      assert.equal(aliasList.exitCode, 0);
+      assert.equal(JSON.parse(aliasListOutput[0]).data.approvals[0].id, queued.approval.id);
 
       const detailOutput = [];
       await runCliArgv(['--json', 'approvals', 'show', queued.approval.id], { cli, stdout: value => detailOutput.push(value) });

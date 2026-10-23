@@ -122,18 +122,31 @@ unavailable the refusal still stands and the response carries
 `auditRecorded: false`, so a missing audit trail is visible rather than
 silently allowing the action.
 
-## Not in this slice
+## Approval queue and receipt evidence
 
-The following parts of #4205 remain open and are not implemented by this RBAC
-slice:
+The CLI accepts both huqan onaylar and huqan approvals list (also
+approvals queue). The text view includes the approval id, canonical tool,
+declared origin, bounded claim summary, and time waiting. If the origin is not
+known from recorded provenance, it is shown as unknown rather than inferred.
+Use the --workspace option to scope the queue.
 
-- N-of-M quorum, including the second approver named in `README.md`;
-- propagating the verified approver identity into the execution receipt.
-  Today the identity is bound in the signed decision envelope and audit event;
-  the receipt carries the approval id.
+After an approved action runs, the runtime stores a portable
+huqan.approval-decision-attestation.v1 sidecar alongside the original receipt.
+It joins the Authority-signed decision envelope (including operatorId) to a
+separately signed outcome that binds the exact receipt hash. The receipt bytes
+are not modified. Existing receipts remain valid, and legacy decisions without
+a person-level identity do not claim a named approver.
+
+## Remaining in #4205
+
+N-of-M quorum remains open at this stage of the history. It must count distinct,
+authenticated approvers, not repeated requests or caller-supplied identity
+strings. The current authority process asserts one configured operator identity;
+implementing quorum safely requires an authenticated per-request identity source.
 
 ## Tests
 
 `test/approval-rbac.test.js` covers the policy validator, every refusal code,
-separation of duties on and off, and the docs matrix. The decision path is
-exercised end to end in `test/authority-decision-path.integration.test.js`.
+separation of duties on and off, and the docs matrix. Receipt identity and
+recovery are covered by `test/approval-decision-attestation.test.js` and the
+end-to-end apply flow in `test/authority-apply-flow.integration.test.js`.
