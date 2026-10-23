@@ -3,6 +3,7 @@ const {
   STANDARD_RELATIONS,
   normalizeWorkspaceId,
   edgeIndexKey,
+  createNodeMap,
 } = require('./lib/graph-record-utils');
 const { derivePersistenceLayout, resolveDefaultMemoryPath } = require('./lib/memory-store-utils');
 const consolidateEdges = require('./lib/graph-consolidate-edges');
@@ -44,7 +45,7 @@ class Graph {
     this._embeddingPath = this._paths.embeddingPath;
     this._decayLambda = opts.decayLambda || 0.05;
     this._pruneThreshold = opts.pruneThreshold || 0.01;
-    this._nodes = {};
+    this._nodes = createNodeMap();
     this._edges = [];
     this._candidateClaims = [];
     this._auditEvents = [];
