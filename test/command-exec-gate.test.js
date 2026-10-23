@@ -443,3 +443,40 @@ test('#4072 followup: expansions stay skipped for the review path', () => {
   assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW);
   assert.equal(r.reason, COMMAND_EXEC_REASONS.ALLOWED);
 });
+
+// ─── #4202: AB8 command-exec gate bypasses ───────────────────────────────────
+
+test('#4202: eval "rm -rf /" is blocked', () => {
+  const r = evaluateCommandExec('eval "rm -rf /"');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'rm_rf_root_or_home');
+});
+
+test('#4202: env -i sh -c "rm -rf /" is blocked', () => {
+  const r = evaluateCommandExec('env -i sh -c "rm -rf /"');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'rm_rf_root_or_home');
+});
+
+test('#4202: sh -c "rm -rf \\"/\\"" with escaped quotes is blocked', () => {
+  const r = evaluateCommandExec('sh -c "rm -rf \\"/\\""');
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'rm_rf_root_or_home');
+});
+
+test('#4202: node -e interpreter code execution is blocked', () => {
+  const r = evaluateCommandExec("node -e \"require('fs').rmSync('/etc',{recursive:true})\"");
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'interpreter_code_node');
+});
+
+test('#4202: python3 -c interpreter code execution is blocked (not REVIEW)', () => {
+  const r = evaluateCommandExec("python3 -c \"import shutil; shutil.rmtree('/etc')\"");
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.DENYLISTED_COMMAND_BLOCKED);
+  assert.equal(r.denylistMatch, 'interpreter_code_python');
+});
