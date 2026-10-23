@@ -59,6 +59,16 @@ the shipped example, and `test/approval-rbac.test.js` fails if this table and
 | `approver` | `approvals.view`, `approvals.decide` | Approve or reject |
 | `admin` | `approvals.view`, `approvals.decide`, `approvals.manage` | Approve, reject, manage the policy |
 
+## Approval queue CLI
+
+`huqan approvals list` lists the same bounded, read-only approval queue as
+`huqan approvals`; the existing spelling remains supported. Add
+`--workspace <id>` to scope the queue to a workspace.
+
+The command is operator-gated, but the policy permission `approvals.view` is
+not yet enforced on the queue read path. The role matrix above describes the
+configured policy; only `approvals.decide` is enforced in this slice.
+
 ## How a decision is authorized
 
 1. The authority signs a decision envelope for one approval, workspace, tool
