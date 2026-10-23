@@ -170,6 +170,15 @@ install_node() {
   tar -xJf "$staging/$tarball" -C "$staging"
   mkdir -p "$NODE_DIR"
   cp -a "$staging/$extract_dir/." "$NODE_DIR/"
+  # cp -a preserves the uid/gid recorded in the tarball (1000:1000 on linux-x64,
+  # 1001:1001 on linux-arm64), so the tree would be left owned by an ordinary
+  # uid -- the first interactive user on Debian/Ubuntu, whose account the
+  # service ExecStart and the elevated operator window both execute. Normalise
+  # to root and drop the group/other write bits, as install-authority-darwin.sh
+  # does.
+  chown -R root:root "$INSTALL_DIR"
+  chmod -R go-w "$INSTALL_DIR"
+  chmod 0755 "$INSTALL_DIR" "$NODE_DIR"
   local got
   got="$("$NODE_DIR/bin/node" -p 'process.versions.node')"
   if [ "$(printf '%s\n%s\n' "$MIN_NODE" "$got" | sort -V | head -1)" != "$MIN_NODE" ]; then
@@ -228,6 +237,10 @@ install_bundle() {
       *..*) fail "unexpected bundle path $rel" ;;
     esac
     mkdir -p "$APP_DIR/$(dirname "$rel")"
+    # Pin the directory mode instead of inheriting the ambient umask: a
+    # group/other-writable app directory would let an agent replace the bundle
+    # the service executes.
+    chmod 0755 "$APP_DIR" "$APP_DIR/$(dirname "$rel")"
     install -m 0644 "$package/$rel" "$APP_DIR/$rel"
   done <<< "$files"
 }
@@ -370,7 +383,10 @@ assert_protected() {
   owner="$(stat -c '%u' "$STATE_DIR")"
   mode="$(( 8#$(stat -c '%a' "$STATE_DIR") ))"
   if [ "$owner" = 0 ] || [ "$mode" != 448 ]; then fail "$STATE_DIR must be owned by $SERVICE_USER, mode 0700"; fi
-  for target in "$DATA_DIR" "$PUBLIC_DIR" "$PIN_FILE"; do
+  # The program and the verified node are root's too: an agent that could write
+  # either would run code as the service user (see install_node and
+  # install_bundle, which normalise the tree to root and pin the modes).
+  for target in "$INSTALL_DIR" "$APP_DIR" "$NODE_DIR" "$NODE_DIR/bin/node" "$DATA_DIR" "$PUBLIC_DIR" "$PIN_FILE"; do
     if [ -L "$target" ]; then fail "$target is a link"; fi
     owner="$(stat -c '%u' "$target")"
     mode="$(( 8#$(stat -c '%a' "$target") ))"

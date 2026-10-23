@@ -145,6 +145,28 @@ test('the state directory belongs to the service user alone', () => {
   assert.match(install, /chown -R "\$SERVICE_USER:\$SERVICE_USER" "\$STATE_DIR"/);
 });
 
+test('the verified node tree is normalised to root, so the executed binary is not uid-writable (#4228)', () => {
+  // cp -a preserves the tarball's uid (1000 on linux-x64, 1001 on linux-arm64),
+  // leaving NODE_DIR/bin/node -- the binary the unit ExecStart and the decide
+  // wrapper both execute -- writable by an ordinary local account. The darwin
+  // installer already normalises; this pins the Linux equivalent.
+  assert.match(
+    install,
+    /cp -a "\$staging\/\$extract_dir\/\." "\$NODE_DIR\/"\n\s*(?:#.*\n\s*)*chown -R root:root "\$INSTALL_DIR"\n\s*chmod -R go-w "\$INSTALL_DIR"\n\s*chmod 0755 "\$INSTALL_DIR" "\$NODE_DIR"/,
+  );
+});
+
+test('the app directory mode is pinned instead of inheriting the umask (#4228)', () => {
+  assert.match(
+    install,
+    /mkdir -p "\$APP_DIR\/\$\(dirname "\$rel"\)"\n\s*(?:#.*\n\s*)*chmod 0755 "\$APP_DIR" "\$APP_DIR\/\$\(dirname "\$rel"\)"/,
+  );
+});
+
+test('the install tree is asserted root-owned, like the darwin installer (#4228)', () => {
+  assert.match(install, /for target in "\$INSTALL_DIR" "\$APP_DIR" "\$NODE_DIR" "\$NODE_DIR\/bin\/node" "\$DATA_DIR" "\$PUBLIC_DIR" "\$PIN_FILE"; do/);
+});
+
 test('the unit hardens the service the way ADR-020 section 3 specifies', () => {
   for (const line of [
     'User=$SERVICE_USER',
