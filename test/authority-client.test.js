@@ -10,10 +10,13 @@ const path = require('node:path');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
 const { createAuthorityService } = require('../lib/authority/authority-service');
+const { validatePolicy } = require('../lib/approval-rbac');
 const { createAuthorityServer } = require('../lib/authority/http-server');
 const { parseAuthorityPin } = require('../lib/authority/authority-pin');
+const { sealDecisionRequest } = require('../lib/authority/sealed-request');
+const { canonicalActionHash } = require('../lib/mcp-operator-capability');
 const { createAuthorityClient } = require('../lib/authority/authority-client');
-const { signResponse, keyIdFor } = require('../lib/authority/decision-envelope');
+const { signResponse, keyIdFor, verifyDecision } = require('../lib/authority/decision-envelope');
 
 function pinFor(created, port) {
   return parseAuthorityPin(JSON.stringify({ v: 'huqan.authority.pin.v1', port, keyId: keyIdFor(created.signingPublicKeyPem),
@@ -26,14 +29,18 @@ async function listen(t, server) {
   return server.address().port;
 }
 
-async function realAuthority(t) {
+async function realAuthority(t, rbacPolicy) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-authclient-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const created = createAuthorityState({ dir: path.join(dir, 'state') });
   const state = openAuthorityState({ dir: path.join(dir, 'state') });
-  const service = createAuthorityService({ ledger: openLedgerStore({ file: path.join(dir, 'ledger.jsonl') }), state });
-  const port = await listen(t, createAuthorityServer({ service, signingKey: state.signingKey }));
-  return { created, port };
+  const service = createAuthorityService({ ledger: openLedgerStore({ file: path.join(dir, 'ledger.jsonl') }), state,
+    ...(rbacPolicy ? { rbacPolicy } : {}) });
+  const server = createAuthorityServer({ service, signingKey: state.signingKey });
+  const observedAuthorization = [];
+  server.on('request', request => observedAuthorization.push({ path: request.url, authorization: request.headers.authorization }));
+  const port = await listen(t, server);
+  return { created, port, service, observedAuthorization };
 }
 
 test('the client talks to the pinned authority and returns verified answers', async (t) => {
@@ -43,6 +50,49 @@ test('the client talks to the pinned authority and returns verified answers', as
   assert.equal(identity.status, 200);
   assert.equal(identity.body.keyId, keyIdFor(created.signingPublicKeyPem));
   assert.deepEqual(await client.getDecision('nope'), { status: 404, body: { code: 'NOT_FOUND' } });
+});
+
+test('the authority client sends its operator API key and receives a signed identity decision', async (t) => {
+  const operatorApiKey = `alice-${'a'.repeat(48)}`;
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver' },
+    operatorApiKeyHashes: {
+      alice: crypto.createHash('sha256').update(operatorApiKey).digest('hex'),
+    },
+    quorum: { default: 1 },
+  });
+  assert.equal(rbacPolicy.ok, true, rbacPolicy.reason);
+  const { created, port, service, observedAuthorization } = await realAuthority(t, rbacPolicy);
+  const client = createAuthorityClient({ pin: pinFor(created, port), operatorApiKey });
+  assert.equal((await client.identity()).status, 200);
+  assert.equal(observedAuthorization[0].authorization, undefined, 'the API key is not sent before pinned identity is verified');
+  const args = { content: 'remember this' };
+  const approvalId = 'apr_1';
+  const consumeProof = 'runtime-held-consume-proof-0123456789abcdef';
+  const action = {
+    approvalId, workspaceId: 'default', tool: 'huqan.learn', arguments: args,
+    actionHash: canonicalActionHash({ tool: 'huqan.learn', workspaceId: 'default', approvalId, arguments: args }),
+    consumeProofHash: crypto.createHash('sha256').update(consumeProof).digest('hex'),
+    summary: 'learn one fact', expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+  };
+  const registered = service.register(action);
+  assert.equal(registered.status, 201, JSON.stringify(registered));
+  const sealed = sealDecisionRequest({
+    approvalId: action.approvalId, actionHash: action.actionHash, decision: 'approved', reason: 'reviewed', totp: null,
+  }, created.sealingPublicKeyPem, { requireTotp: false });
+  const answer = await client.decide(action.approvalId, sealed);
+  assert.equal(answer.status, 200);
+  assert.equal(observedAuthorization.find(entry => entry.path === '/v1/approvals/apr_1/decision')?.authorization,
+    `Bearer ${operatorApiKey}`);
+  assert.equal(answer.body.envelope.payload.operatorId, 'alice');
+  assert.equal(verifyDecision(answer.body.envelope, {
+    publicKey: crypto.createPublicKey(created.signingPublicKeyPem),
+    expected: { approvalId: action.approvalId, workspaceId: 'default', tool: action.tool,
+      actionHash: action.actionHash, decision: 'approved', operatorId: 'alice' },
+    now: Date.now(),
+  }).ok, true);
 });
 
 test('an impostor signing with its own key is refused', async (t) => {

@@ -11,6 +11,7 @@ const { canonicalActionHash } = require('../lib/mcp-operator-capability');
 const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
 const { openLedgerStore } = require('../lib/authority/ledger-store');
 const { createAuthorityService } = require('../lib/authority/authority-service');
+const { validatePolicy } = require('../lib/approval-rbac');
 const { createAuthorityServer } = require('../lib/authority/http-server');
 const { verifyResponse, requestDigestOf } = require('../lib/authority/decision-envelope');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
@@ -23,11 +24,12 @@ const ACTION = Object.freeze({
   consumeProofHash: 'a'.repeat(64), summary: 'learn one fact', expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 });
 
-async function startServer(t) {
+async function startServer(t, rbacPolicy) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-authhttp-'));
   const created = createAuthorityState({ dir: path.join(dir, 'state') });
   const state = openAuthorityState({ dir: path.join(dir, 'state') });
-  const service = createAuthorityService({ ledger: openLedgerStore({ file: path.join(dir, 'ledger.jsonl') }), state });
+  const service = createAuthorityService({ ledger: openLedgerStore({ file: path.join(dir, 'ledger.jsonl') }), state,
+    ...(rbacPolicy ? { rbacPolicy } : {}) });
   const server = createAuthorityServer({ service, signingKey: state.signingKey });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => server.close(() => { fs.rmSync(dir, { recursive: true, force: true }); resolve(); })));
@@ -80,6 +82,41 @@ test('a decision taken over HTTP with a sealed code comes back as a signed envel
   const decided = await signedCall(server, { method: 'POST', path: '/v1/approvals/apr_1/decision', body: { sealed } });
   assert.equal(decided.status, 200);
   assert.equal(decided.verified.body.body.envelope.payload.decision, 'approved');
+});
+
+test('the HTTP API-key identity produces a signed two-operator quorum decision', async (t) => {
+  const aliceKey = `alice-${'a'.repeat(48)}`;
+  const bobKey = `bob-${'b'.repeat(48)}`;
+  const rbacPolicy = validatePolicy({
+    version: 1,
+    roles: { approver: ['approvals.view', 'approvals.decide'] },
+    operators: { alice: 'approver', bob: 'approver' },
+    operatorApiKeyHashes: {
+      alice: crypto.createHash('sha256').update(aliceKey).digest('hex'),
+      bob: crypto.createHash('sha256').update(bobKey).digest('hex'),
+    },
+    quorum: { default: 1, byTool: { 'huqan.learn': 2 } },
+  });
+  assert.equal(rbacPolicy.ok, true, rbacPolicy.reason);
+  const server = await startServer(t, rbacPolicy);
+  await signedCall(server, { method: 'POST', path: '/v1/approvals', body: ACTION });
+  const makeVote = () => sealDecisionRequest({
+    approvalId: 'apr_1', actionHash: ACTION.actionHash, decision: 'approved', reason: '', totp: null,
+  }, server.created.sealingPublicKeyPem, { requireTotp: false });
+  const first = await signedCall(server, {
+    method: 'POST', path: '/v1/approvals/apr_1/decision', body: { sealed: makeVote() },
+    headers: { authorization: `Bearer ${aliceKey}` },
+  });
+  assert.equal(first.status, 202);
+  assert.deepEqual(first.verified.body.body.quorum, { required: 2, received: 1, approverIds: ['alice'] });
+
+  const second = await signedCall(server, {
+    method: 'POST', path: '/v1/approvals/apr_1/decision', body: { sealed: makeVote() },
+    headers: { authorization: `Bearer ${bobKey}` },
+  });
+  assert.equal(second.status, 200);
+  assert.deepEqual(second.verified.body.body.envelope.payload.approverIds, ['alice', 'bob']);
+  assert.equal(second.verified.body.body.envelope.payload.quorumRequired, 2);
 });
 
 test('requests from a browser or through another host name are refused', async (t) => {

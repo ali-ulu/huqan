@@ -1,11 +1,8 @@
 # Approval RBAC
 
-Role-based approval authority (#4205). This page describes the slice that
-ships today: roles and permissions, the signed operator identity a decision
-carries, separation of duties, and the audit record of every governed
-decision. Quorum and execution-receipt identity propagation are named under
-[Not in this slice](#not-in-this-slice).
-
+Role-based approval authority (#4205). This page describes the opt-in role
+policy, per-operator API-key identity, distinct-operator quorum, queue CLI, and
+the signed evidence attached to the final execution receipt.
 ## Opt-in
 
 RBAC is off until a policy file is named:
@@ -13,9 +10,10 @@ RBAC is off until a policy file is named:
 | Variable | Meaning |
 | --- | --- |
 | `HUQAN_RBAC_POLICY_PATH` | Path to the policy JSON. Unset: no RBAC, single-user behaviour is byte-identical to today. |
-| `HUQAN_AUTHORITY_OPERATOR_ID` | Identity the approval authority writes into every decision it signs. Must match an `operators` key in the policy. |
+| `HUQAN_AUTHORITY_OPERATOR_ID` | Legacy single-operator identity; must match an `operators` key in the policy. |
+| `HUQAN_AUTHORITY_API_KEY` | Per-operator API credential used by the protected operator CLI. The policy stores only its SHA-256 hash. |
 
-`AXIOM_RBAC_POLICY_PATH` is accepted as the legacy alias of the first.
+`AXIOM_RBAC_POLICY_PATH` and `AXIOM_AUTHORITY_API_KEY` are accepted as legacy environment aliases.
 
 The policy is local configuration, not a signed document. It maps the identity
 asserted by the authority to a role. Protecting the file is the deployment's
@@ -26,7 +24,7 @@ mapping.
 
 `config/rbac.example.json` is a complete, valid example. The schema is strict:
 unknown fields, unknown permissions, an operator naming a role that does not
-exist, or a non-boolean `separationOfDuties` make the policy invalid, and an
+exist, or a malformed API-key hash/quorum make the policy invalid, and an
 invalid policy refuses every decision.
 
 ```json
@@ -36,15 +34,51 @@ invalid policy refuses every decision.
     "approver": ["approvals.view", "approvals.decide"]
   },
   "operators": {
-    "operator-1": "approver"
+    "operator-1": "approver",
+    "operator-2": "approver"
   },
-  "separationOfDuties": false
+  "separationOfDuties": false,
+  "operatorApiKeyHashes": {},
+  "quorum": {
+    "default": 1,
+    "byTool": {}
+  }
 }
 ```
 
+### Distinct operator credentials and quorum
+
+For multi-operator decisions, set `operatorApiKeyHashes` to a map from each
+operator id to the lowercase SHA-256 hash of that operator's 256-bit random API
+key. Generate a key and its hash locally:
+
+```powershell
+node -e "const c=require('node:crypto'); const k=c.randomBytes(32).toString('base64url'); console.log('HUQAN_AUTHORITY_API_KEY='+k); console.log('sha256='+c.createHash('sha256').update(k).digest('hex'))"
+```
+
+Put only the hash in the policy file and set the raw key as
+`HUQAN_AUTHORITY_API_KEY` in that operator's protected environment. Restart
+the Authority after policy changes. When API-key hashes are configured, each
+decision must carry a recognized bearer key; the Authority derives the signed
+`operatorId` from that credential. The API key is the operator credential for
+this mode, so the shared legacy TOTP code is not requested or consumed. Protect
+the raw key like a password and never put it in source control or logs.
+
+`quorum.default` applies to all tools unless `quorum.byTool` overrides it.
+A threshold above one is valid only when the policy contains at least that
+many distinct API-key identities, each assigned a role with
+`approvals.decide`. Votes are appended to the Authority ledger. The same
+operator cannot vote twice; a repeated vote returns `DUPLICATE_APPROVER` and
+does not increase the count. An explicit rejection vetoes the pending request.
+Approval is signed only after the required number of distinct operators has
+approved; the envelope carries the distinct `approverIds` and
+`quorumRequired`.
+
 Permissions are a closed list: `approvals.view`, `approvals.decide`,
-`approvals.manage`. Only `approvals.decide` is enforced on this path today;
-the other two describe the queue and policy-management surfaces that follow.
+`approvals.manage`. The Authority enforces `approvals.decide` for each vote.
+The local CLI queue currently remains readable without role gating; the
+`approvals.view` permission is not presented as an enforced boundary yet.
+Policy management is still an administrator-managed configuration file.
 
 ## Role matrix
 
@@ -52,12 +86,12 @@ Both roles and their permissions live in the policy file. The matrix below is
 the shipped example, and `test/approval-rbac.test.js` fails if this table and
 `config/rbac.example.json` diverge.
 
-| Role | Permissions | May do |
+| Role | Permissions | Intended use |
 | --- | --- | --- |
-| `viewer` | none | Read the queue |
-| `operator` | `approvals.view` | Read the queue |
-| `approver` | `approvals.view`, `approvals.decide` | Approve or reject |
-| `admin` | `approvals.view`, `approvals.decide`, `approvals.manage` | Approve, reject, manage the policy |
+| `viewer` | none | Read-only queue role (not enforced by this Authority slice) |
+| `operator` | `approvals.view` | Read the queue (view permission not yet enforced) |
+| `approver` | `approvals.view`, `approvals.decide` | Approve or reject; `approvals.decide` is enforced |
+| `admin` | `approvals.view`, `approvals.decide`, `approvals.manage` | Approve/reject; policy management remains file/OS-admin scoped |
 
 ## Approval queue CLI
 
@@ -72,8 +106,9 @@ configured policy; only `approvals.decide` is enforced in this slice.
 ## How a decision is authorized
 
 1. The authority signs a decision envelope for one approval, workspace, tool
-   and action hash. With `HUQAN_AUTHORITY_OPERATOR_ID` set, the envelope also
-   carries `operatorId`, inside the signature.
+   and action hash. With `HUQAN_AUTHORITY_OPERATOR_ID` set in legacy single-user
+   mode, or a recognized per-operator API key supplied for a decision, the
+   envelope carries `operatorId` inside the signature.
 2. The runtime verifies the envelope against the pinned key (ADR-016). An
    unsigned or foreign decision never reaches RBAC.
 3. RBAC reads `operatorId` from the verified payload and looks up its role.
@@ -88,13 +123,18 @@ Refusals are total, with distinct codes:
 | `APPROVAL_RBAC_OPERATOR_UNKNOWN` | The signed identity has no role. |
 | `APPROVAL_RBAC_PERMISSION_DENIED` | The role exists but lacks `approvals.decide`. |
 | `APPROVAL_RBAC_SEPARATION_OF_DUTIES` | The requester and the approver are the same identity, and separation of duties is on. |
+| `APPROVAL_RBAC_API_KEY_REQUIRED` | This policy requires a per-operator API key. |
+| `APPROVAL_RBAC_API_KEY_INVALID` | The presented API key does not match a configured operator. |
+| `QUORUM_REQUIRES_OPERATOR_API_KEYS` | Multi-operator quorum cannot use the shared legacy TOTP identity. |
+| `DUPLICATE_APPROVER` | This operator has already voted on the approval. |
 
 A refusal leaves the approval pending. It does not reject it and cannot be
 retried into an approval without a new decision.
 
-Because the identity is only asserted once a policy exists, configuring a
-policy while the runtime runs in legacy mode (no authority installed) refuses
-every decision: there is no signed identity to place.
+In legacy single-user mode, the authority uses the configured
+`HUQAN_AUTHORITY_OPERATOR_ID` and TOTP flow. A multi-operator quorum refuses
+closed unless distinct per-operator API-key hashes are configured; callers
+cannot supply an `operatorId` in the sealed request to choose their own role.
 
 ## Separation of duties
 
@@ -137,13 +177,19 @@ separately signed outcome that binds the exact receipt hash. The receipt bytes
 are not modified. Existing receipts remain valid, and legacy decisions without
 a person-level identity do not claim a named approver.
 
-## Remaining in #4205
+## Remaining boundary
 
-N-of-M quorum remains open at this stage of the history. It must count distinct,
-authenticated approvers, not repeated requests or caller-supplied identity
-strings. The current authority process asserts one configured operator identity;
-implementing quorum safely requires an authenticated per-request identity source.
+This slice now counts distinct authenticated operators for N-of-M quorum,
+recovers a quorum completed just before a process crash, and binds the signed
+operator identity and exact decision-envelope digest to the outcome attestation
+without rewriting the original receipt bytes. The huqan approvals list and
+huqan onaylar aliases are covered by CLI tests.
 
+Two policy permissions are still not enforced as runtime boundaries:
+approvals.view does not gate queue reads, and approvals.manage has no
+management API because the policy remains a protected local file. Do not treat
+those role labels as authorization controls until a separate slice implements
+and tests them.
 ## Tests
 
 `test/approval-rbac.test.js` covers the policy validator, every refusal code,

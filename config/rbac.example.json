@@ -10,5 +10,10 @@
     "operator-1": "approver",
     "operator-2": "admin"
   },
-  "separationOfDuties": false
+  "separationOfDuties": false,
+  "operatorApiKeyHashes": {},
+  "quorum": {
+    "default": 1,
+    "byTool": {}
+  }
 }
