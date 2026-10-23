@@ -6,6 +6,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -17,7 +18,13 @@ const { createAuthorityService } = require('../lib/authority/authority-service')
 const { createAuthorityServer } = require('../lib/authority/http-server');
 const { createAuthorityClient, AuthorityError } = require('../lib/authority/authority-client');
 const { parseAuthorityPin } = require('../lib/authority/authority-pin');
-const { keyIdFor } = require('../lib/authority/decision-envelope');
+const {
+  DECISION_VERSION,
+  OUTCOME_ATTESTATION_VERSION,
+  keyIdFor,
+  signDecision,
+  signOutcomeAttestation,
+} = require('../lib/authority/decision-envelope');
 const { buildAuthoritySection, expectedReceiptHash, stableStringify, sha256Hex } = require('../lib/cli-audit');
 const { auditCommand } = require('../lib/cli-approval-commands');
 const { apply } = require('../bin/huqan-authority');
@@ -277,29 +284,62 @@ test('ledgerEntries pages the ledger and rejects bad cursors', async (t) => {
   }
 });
 
-test('apply records the executed receipt binding in the outcome', async () => {
+test('apply records the executed receipt binding and signed operator attestation', async () => {
   const receipt = { receiptId: 'r-9', workspaceId: WS };
+  const signingKeys = crypto.generateKeyPairSync('ed25519');
+  const decidedAt = new Date();
+  const decisionPayload = {
+    v: DECISION_VERSION,
+    approvalId: 'apr_9', workspaceId: WS, tool: 'huqan.learn',
+    actionHash: actionHash('apr_9'), decision: 'approved', reason: 'test operator approved',
+    decidedAt: decidedAt.toISOString(), validUntil: new Date(decidedAt.getTime() + 60_000).toISOString(),
+    ledgerSeq: 2, ledgerHash: 'c'.repeat(64), operator: 'totp:test', operatorId: 'operator-9',
+  };
+  const envelope = signDecision(decisionPayload, signingKeys.privateKey);
+  const envelopeHash = sha256Hex(stableStringify(envelope));
   let recorded = null;
-  const envelope = { payload: { decision: 'approved', actionHash: actionHash('apr_9'), workspaceId: WS } };
+  let attached = null;
+  const runtime = {
+    preflight: () => ({ ok: true }),
+    approve: async () => ({ ok: true, data: { executed: true, receipt } }),
+    approvalStore: {
+      attachApprovalDecisionAttestation: (id, input) => {
+        attached = { id, input };
+        return { attached: true };
+      },
+    },
+    close: () => {},
+  };
   const deps = {
-    resolveMode: () => ({ mode: 'service', boundary: 'os-service', pin: {} }),
+    resolveMode: () => ({ mode: 'service', boundary: 'os-service', pin: { signingKey: signingKeys.publicKey } }),
     createClient: () => ({
       getDecision: async () => ({ status: 200, body: { envelope } }),
       consume: async () => ({ status: 200, body: { consumption: { seq: 3 } } }),
-      recordOutcome: async (id, outcome) => { recorded = { id, outcome }; return { status: 200, body: {} }; },
+      recordOutcome: async (id, outcome) => {
+        recorded = { id, outcome };
+        const attestation = signOutcomeAttestation({
+          v: OUTCOME_ATTESTATION_VERSION,
+          approvalId: id, workspaceId: WS, tool: 'huqan.learn',
+          actionHash: decisionPayload.actionHash, decision: 'approved', operatorId: 'operator-9',
+          decisionEnvelopeHash: envelopeHash, status: outcome.status,
+          receiptId: outcome.receiptId, receiptHash: outcome.receiptHash,
+          recordedAt: new Date().toISOString(), ledgerSeq: 3, ledgerHash: 'e'.repeat(64),
+        }, signingKeys.privateKey);
+        return { status: 200, body: { attestation } };
+      },
     }),
-    openRuntime: () => ({
-      preflight: () => ({ ok: true }),
-      approve: async () => ({ ok: true, data: { executed: true, receipt } }),
-      close: () => {},
-    }),
+    openRuntime: () => runtime,
     loadConsumeKey: () => 'k'.repeat(32),
   };
   const outcome = await apply('apr_9', {}, deps);
-  assert.equal(outcome.code, 0);
+  assert.equal(outcome.code, 0, JSON.stringify(outcome));
+  assert.equal(outcome.report.decisionAttestationStored, true);
   assert.equal(recorded.id, 'apr_9');
   assert.equal(recorded.outcome.receiptId, 'r-9');
   assert.equal(recorded.outcome.receiptHash, expectedReceiptHash(receipt));
+  assert.equal(attached.id, 'apr_9');
+  assert.equal(attached.input.workspaceId, WS);
+  assert.equal(attached.input.decisionAttestation.decisionEnvelope.payload.operatorId, 'operator-9');
 });
 
 function stubKernel() {
