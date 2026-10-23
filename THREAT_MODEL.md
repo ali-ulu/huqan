@@ -356,3 +356,24 @@ Security incidents will be responded to according to the following process:
 - Disclose vulnerabilities before patches are available.
 
 By using HUQAN, you acknowledge and accept these security commitments.
+
+### SAML Assertion Spoofing
+
+**Description**: An attacker presents a forged or replayed SAML 2.0 Assertion to impersonate an operator and obtain a session.
+
+**Impact**: Unauthorized operator login, privilege escalation via mapped RBAC principal.
+
+**Existing Mitigations**:
+- **Implemented** — Signature verification against IdP certificates imported via administrator-controlled metadata (`lib/saml/signature.js`, `lib/saml/assertion.js`).
+- **Implemented** — Issuer, Audience, Destination/Recipient, and time-window validation with 5 min clock skew, max 24h assertion window (`lib/saml/assertion.js`).
+- **Implemented** — Replay protection via in-memory assertion ID store with TTL sweep (`lib/saml/replay-store.js`).
+- **Implemented** — Request correlation via `InResponseTo` binding to SP-issued AuthnRequest ID (`lib/saml/sp-route.js`).
+- **Implemented** — Identity mapping is read-only; NameID or subject attribute maps to existing operator IDs, rejects multi-value attributes and unknown operators (`lib/saml/identity-mapping.js`).
+
+**Remaining Gaps**:
+- IdP metadata is a static JSON file; rotation requires process reload.
+- Assertion attributes are bounded but not cryptographically bound to the signature beyond XML-DSig scope.
+
+**Planned Mitigation**:
+- Support hot-reload of metadata with signature verification of metadata file.
+- Add explicit operator allow-list for SAML-mapped principals.
