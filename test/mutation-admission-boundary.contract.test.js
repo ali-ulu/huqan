@@ -94,6 +94,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
   'lib/external-action-receipt-writer-factory.js': { why: 'audit family (moved from lib/external-action-receipt.js with the writer factory, #2192); the external action guard projects each bounded receipt into the graph append-only audit_log next to its primary crash-safe JSONL trail, mirroring agent.v3/cli-mutation-audit until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
   'lib/hypothesis-review-audit.js': { why: 'audit family; human review verdicts append CLAIM_ACCEPTED/CLAIM_REJECTED via the public graph surface (moved off the kernel-private call, #2345) until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
   'lib/provenance-drift.js': { why: '#3034 audit family; a drift re-check appends CONFLICT_DETECTED with a drift detail next to the finding candidate it queued through the kernel admission seam, sharing the audit-family debt hypothesis-review-audit carries until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
+  'lib/mcp-approval-decision-handler.js': { why: '#4205 audit family; every governed approval decision appends APPROVAL_DECIDED or APPROVAL_RBAC_DENIED so a refused decision leaves a record even when the approval row stays pending, sharing the audit-family debt until the family-independent admission seam covers audit events', sinks: { appendAuditEvent: 1 } },
 
   // --- second sink provider ------------------------------------------------
   // Not a caller in the usual sense: it wraps a Graph and re-exposes the sinks.
@@ -459,7 +460,11 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // queues through the admitted kernel.addCandidateClaim seam (the write
   // itself is routed via that seam's alias and adds no sink). Unrouted rises
   // by one; routed and the shape of every other entry are unchanged.
-  assert.equal(unrouted, 25, 'unrouted sink calls');
+  // #4205: an audit-family surface, lib/mcp-approval-decision-handler.js,
+  // appends APPROVAL_DECIDED / APPROVAL_RBAC_DENIED for every governed
+  // decision, so a refused decision leaves a record while its approval row
+  // stays pending. Unrouted rises by one; routed is unchanged.
+  assert.equal(unrouted, 26, 'unrouted sink calls');
   assert.equal(routed, 33, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces + cross-link derivation + plugin node write)');
-  assert.equal(unrouted + routed, 58, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, the external research candidate surface, and the #3034 drift audit append');
+  assert.equal(unrouted + routed, 59, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, the external research candidate surface, the #3034 drift audit append, and the #4205 approval-decision audit append');
 });
