@@ -2040,6 +2040,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/approval-rbac.js": {
+   "context": "AgentAction",
+   "evidence": "docs/rbac.md"
+  },
   "lib/approval-receipts.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-GATES-T"
