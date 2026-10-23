@@ -56,7 +56,8 @@ function openLocalRuntime() {
     preflight: ({ approvalId, workspaceId, envelope, mode }) => {
       const row = formatApprovalRecord(server.approvalStore.getToolApprovalById(approvalId, workspaceId));
       if (!row) return { ok: false, code: 'APPROVAL_NOT_FOUND' };
-      if (row.status !== 'pending') return { ok: true, alreadyFinal: row.status };
+      if (row.status !== 'pending') return { ok: true, alreadyFinal: row.status,
+        receipt: row.context?.receipt || null, decisionAttestation: row.context?.decisionAttestation || null };
       return requireAuthorityDecision({ mode, existing: row, approvalId, workspaceId, decision: envelope.payload.decision,
         storedArgs: storedArgumentsOf(row), envelope, now: Date.now(), checkConsumption: false });
     },
@@ -281,7 +282,17 @@ async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps 
   try {
     const preflight = runtime.preflight({ approvalId, workspaceId, envelope, mode });
     if (!preflight.ok) return { code: 2, report: { approvalId, decision, error: preflight.code } };
-    if (preflight.alreadyFinal) return { code: 0, report: { approvalId, decision, alreadyFinal: preflight.alreadyFinal } };
+    if (preflight.alreadyFinal) {
+      if (decision === 'approved' && preflight.alreadyFinal === 'approved'
+          && preflight.receipt && !preflight.decisionAttestation) {
+        const { recoverFinalApprovalAttestation } = require('../lib/authority/decision-attestation');
+        return recoverFinalApprovalAttestation({
+          client, approvalId, decisionEnvelope: envelope, receipt: preflight.receipt,
+          consumeProof, publicKey: mode.pin.signingKey, runtime, workspaceId,
+        });
+      }
+      return { code: 0, report: { approvalId, decision, alreadyFinal: preflight.alreadyFinal } };
+    }
     let consumption;
     if (decision === 'approved') {
       const once = await consumeOnce(client, approvalId, fetched, consumeProof);
@@ -294,20 +305,32 @@ async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps 
     } catch (error) {
       result = { ok: false, error: { code: 'EXECUTION_THREW', message: error.message } };
     }
+    let decisionEvidence = null;
     if (decision === 'approved') {
-      // Bind the outcome to the executed receipt (P6 detection joins on it).
-      // A receipt's own hash wins when it carries one; otherwise the hash of
-      // its canonically ordered JSON -- the same value audit recomputes.
-      const { expectedReceiptHash } = require('../lib/cli-audit');
-      const receipt = result.ok && result.data && typeof result.data.receipt === 'object' ? result.data.receipt : null;
-      const receiptId = receipt && typeof receipt.receiptId === 'string' && receipt.receiptId
-        ? receipt.receiptId.slice(0, 256)
-        : String(result.ok ? approvalId : result.error?.code || 'failed').slice(0, 256);
-      await client.recordOutcome(approvalId, { status: result.ok ? 'executed' : 'failed',
-        receiptId, receiptHash: expectedReceiptHash(receipt), consumeProof });
+      const { persistAuthorityOutcomeAndAttestation } = require('../lib/authority/decision-attestation');
+      decisionEvidence = await persistAuthorityOutcomeAndAttestation({
+        client, approvalId, decisionEnvelope: envelope, result,
+        consumeProof, publicKey: mode.pin.signingKey, runtime, workspaceId,
+      });
+      if (!decisionEvidence.ok) return { code: 2, report: {
+        approvalId, decision, executed: result.ok === true && result.data?.executed === true,
+        outcomeRecorded: decisionEvidence.outcomeRecorded,
+        error: decisionEvidence.error || result.error?.code || 'DECISION_EVIDENCE_FAILED',
+        ...(decisionEvidence.note ? { note: decisionEvidence.note } : {}),
+      } };
     }
-    return { code: result.ok ? 0 : 2, report: { approvalId, decision,
-      executed: result.ok === true && result.data?.executed === true, ...(result.ok ? {} : { error: result.error?.code }) } };
+    return { code: result.ok ? 0 : 2,
+      report: {
+        approvalId, decision,
+        executed: result.ok === true && result.data?.executed === true,
+        ...(decisionEvidence ? {
+          outcomeRecorded: decisionEvidence.outcomeRecorded,
+          decisionAttestationStored: decisionEvidence.decisionAttestationStored,
+          ...(decisionEvidence.identityStatus ? { identityStatus: decisionEvidence.identityStatus } : {}),
+        } : {}),
+        ...(result.ok ? {} : { error: result.error?.code }),
+      },
+    };
   } finally {
     runtime.close();
   }

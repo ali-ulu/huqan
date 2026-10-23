@@ -11,7 +11,8 @@ const { createAuthorityState, openAuthorityState } = require('../lib/authority/s
 const { openLedgerStore } = require('../lib/authority/ledger-store');
 const { createAuthorityService } = require('../lib/authority/authority-service');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
-const { verifyDecision } = require('../lib/authority/decision-envelope');
+const { verifyDecision, verifyOutcomeAttestation, OUTCOME_ATTESTATION_VERSION } = require('../lib/authority/decision-envelope');
+const { stableStringify } = require('../lib/hash-chain');
 const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
 const { MAX_FAILURES } = require('../lib/authority/operator-check');
 
@@ -123,15 +124,46 @@ test('an approval is consumed exactly once, only with its hash, and only while t
     'DECISION_EXPIRED');
 });
 
-test('an outcome is recorded only after consumption', (t) => {
+test('an outcome is recorded only after consumption and returns a signed receipt binding', (t) => {
   const h = harness(t);
   h.service.register(ACTION);
   h.service.decide('apr_1', h.seal());
   const outcome = { status: 'executed', receiptId: 'rcpt_1', receiptHash: 'c'.repeat(64), consumeProof: PROOF };
   assert.equal(h.service.recordOutcome('apr_1', outcome).body.code, 'NOT_CONSUMED');
   h.service.consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF });
-  assert.equal(h.service.recordOutcome('apr_1', outcome).status, 200);
-  assert.equal(h.service.recordOutcome('apr_1', outcome).body.code, 'OUTCOME_RECORDED');
+
+  const recorded = h.service.recordOutcome('apr_1', outcome);
+  assert.equal(recorded.status, 200);
+  assert.equal(recorded.body.attestation.payload.receiptId, 'rcpt_1');
+  const decisionEnvelope = h.service.getDecision('apr_1').body.envelope;
+  const decisionEnvelopeHash = crypto.createHash('sha256').update(stableStringify(decisionEnvelope), 'utf8').digest('hex');
+  const verified = verifyOutcomeAttestation(recorded.body.attestation, {
+    publicKey: crypto.createPublicKey(h.created.signingPublicKeyPem),
+    expected: {
+      v: OUTCOME_ATTESTATION_VERSION,
+      approvalId: 'apr_1',
+      workspaceId: 'default',
+      tool: 'huqan.learn',
+      actionHash: ACTION.actionHash,
+      decision: 'approved',
+      operatorId: null,
+      decisionEnvelopeHash,
+      status: 'executed',
+      receiptId: 'rcpt_1',
+      receiptHash: 'c'.repeat(64),
+      recordedAt: recorded.body.attestation.payload.recordedAt,
+      ledgerSeq: recorded.body.outcome.ledgerSeq,
+      ledgerHash: recorded.body.outcome.ledgerHash,
+    },
+  });
+  assert.equal(verified.ok, true, verified.code);
+  const duplicate = h.service.recordOutcome('apr_1', outcome);
+  assert.equal(duplicate.status, 200);
+  assert.equal(duplicate.body.duplicate, true);
+  assert.deepEqual(duplicate.body.attestation, recorded.body.attestation, 'a retry gets the same durable signed outcome');
+  assert.equal(h.service.recordOutcome('apr_1', { ...outcome, receiptId: 'different-receipt' }).body.code, 'OUTCOME_RECORDED');
+  assert.equal(h.service.ledgerEntries().body.entries.filter(entry => entry.type === 'approval.outcome').length, 1,
+    'idempotent recovery does not append twice');
 });
 
 test('registration is bounded: expired, oversized, malformed, or past the rate limit', (t) => {

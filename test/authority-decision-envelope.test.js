@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const {
   keyIdFor, requestDigestOf, signDecision, verifyDecision, signResponse, verifyResponse, DECISION_VERSION,
+  OUTCOME_ATTESTATION_VERSION, signOutcomeAttestation, verifyOutcomeAttestation,
 } = require('../lib/authority/decision-envelope');
 const { stableStringify } = require('../lib/hash-chain');
 
@@ -158,5 +159,46 @@ test('a decision signature cannot be presented as a response signature, or the r
   assert.equal(verifyResponse(asResponse, { publicKey, challenge, ...REQUEST }).code, 'signature_invalid');
   const response = signResponse(PAYLOAD, { challenge, ...REQUEST }, privateKey);
   const asDecision = { alg: 'Ed25519', keyId: response.keyId, sig: response.sig, payload: PAYLOAD };
+  assert.equal(verifyDecision(asDecision, { publicKey, expected: EXPECTED, now: NOW }).code, 'signature_invalid');
+});
+
+
+test('an outcome attestation signs the exact receipt and decision-envelope digest', () => {
+  const payload = {
+    v: OUTCOME_ATTESTATION_VERSION,
+    approvalId: 'apr_1',
+    workspaceId: 'default',
+    tool: 'huqan.learn',
+    actionHash: 'a'.repeat(64),
+    decision: 'approved',
+    operatorId: 'alice',
+    decisionEnvelopeHash: 'c'.repeat(64),
+    status: 'executed',
+    receiptId: 'receipt-1',
+    receiptHash: 'd'.repeat(64),
+    recordedAt: '2026-10-12T12:01:00.000Z',
+    ledgerSeq: 10,
+    ledgerHash: 'e'.repeat(64),
+  };
+  const envelope = signOutcomeAttestation(payload, privateKey);
+  assert.deepEqual(verifyOutcomeAttestation(envelope, { publicKey, expected: payload }), { ok: true, payload });
+
+  assert.equal(verifyOutcomeAttestation({ ...envelope, payload: { ...payload, receiptHash: 'f'.repeat(64) } },
+    { publicKey }).code, 'signature_invalid');
+  assert.deepEqual(verifyOutcomeAttestation(envelope, { publicKey, expected: { ...payload, receiptId: 'other' } }),
+    { ok: false, code: 'binding_mismatch', field: 'receiptId' });
+});
+
+test('outcome attestations reject missing identity fields and cross-domain signatures', () => {
+  assert.throws(() => signOutcomeAttestation({ approvalId: 'apr_1' }, privateKey), TypeError);
+  const outcome = signOutcomeAttestation({
+    v: OUTCOME_ATTESTATION_VERSION,
+    approvalId: 'apr_1', workspaceId: 'default', tool: 'huqan.learn',
+    actionHash: 'a'.repeat(64), decision: 'approved', operatorId: null,
+    decisionEnvelopeHash: 'c'.repeat(64), status: 'failed',
+    receiptId: 'failed', receiptHash: null, recordedAt: '2026-10-12T12:01:00.000Z',
+    ledgerSeq: 10, ledgerHash: 'e'.repeat(64),
+  }, privateKey);
+  const asDecision = { alg: 'Ed25519', keyId: outcome.keyId, sig: outcome.sig, payload: PAYLOAD };
   assert.equal(verifyDecision(asDecision, { publicKey, expected: EXPECTED, now: NOW }).code, 'signature_invalid');
 });

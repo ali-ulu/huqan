@@ -18,6 +18,7 @@ const { createAuthorityServer } = require('../lib/authority/http-server');
 const { parseAuthorityPin } = require('../lib/authority/authority-pin');
 const { createAuthorityClient } = require('../lib/authority/authority-client');
 const { keyIdFor } = require('../lib/authority/decision-envelope');
+const { verifyApprovalDecisionAttestation } = require('../lib/authority/decision-attestation');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
 const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
 const { sync, apply } = require('../bin/huqan-authority');
@@ -28,7 +29,7 @@ async function setup(t) {
   process.env.HUQAN_MEMORY_PATH = path.join(dir, 'memory.json');
   process.env.HUQAN_DB_PATH = path.join(dir, 'memory.db');
   const created = createAuthorityState({ dir: path.join(dir, 'state') });
-  const state = openAuthorityState({ dir: path.join(dir, 'state') });
+  const state = openAuthorityState({ dir: path.join(dir, 'state'), operatorId: 'operator-1' });
   const ledger = openLedgerStore({ file: path.join(dir, 'ledger.jsonl') });
   const httpServer = createAuthorityServer({ service: createAuthorityService({ ledger, state }), signingKey: state.signingKey });
   await new Promise(resolve => httpServer.listen(0, '127.0.0.1', resolve));
@@ -84,6 +85,26 @@ test('register, decide, apply: the action runs once and the ledger holds every s
   const applied = await apply(approvalId, {}, env.deps);
   assert.equal(applied.code, 0, JSON.stringify(applied.report));
   assert.equal(applied.report.executed, true);
+  assert.equal(applied.report.outcomeRecorded, true);
+  assert.equal(applied.report.decisionAttestationStored, true);
+
+  const local = createServer();
+  try {
+    const row = local.approvalStore.getToolApprovalById(approvalId);
+    const proof = row.context.decisionAttestation;
+    assert.ok(proof, 'the portable decision attestation is persisted with the approval');
+    const verified = verifyApprovalDecisionAttestation(proof, {
+      publicKey: env.pin.signingKey,
+      receipt: row.context.receipt,
+      expected: { approvalId, workspaceId: 'default', tool: 'huqan.learn', decision: 'approved' },
+      expectedOutcomeStatus: 'executed',
+    });
+    assert.equal(verified.ok, true, verified.code);
+    assert.equal(verified.decision.operatorId, 'operator-1');
+  } finally {
+    local.kernel.graph?.close?.();
+    local.approvalStore?.close?.();
+  }
 
   const again = await apply(approvalId, {}, env.deps);
   assert.deepEqual([again.code, again.report.alreadyFinal], [0, 'approved'], 'a second apply changes nothing');

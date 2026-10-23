@@ -975,6 +975,7 @@
     "lib/authority/service-main.js",
     "lib/authority/state-store.js",
     "lib/authority/decision-envelope.js",
+    "lib/authority/decision-attestation.js",
     "lib/authority/keys.js",
     "lib/authority/sealed-request.js",
     "lib/authority/totp.js",

@@ -1868,6 +1868,10 @@
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   },
+  "lib/authority/decision-attestation.js": {
+   "context": "AgentAction",
+   "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
   "lib/authority/keys.js": {
    "context": "AgentAction",
    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
@@ -7387,6 +7391,13 @@
     "Platform"
    ],
    "evidence": "ADR-016: bin/huqan-authority.js registers pending approvals with, and applies decisions from, the approval authority"
+  },
+  "lib/authority/decision-attestation.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "ADR-016: bin/huqan-authority.js verifies and persists Authority-signed outcome/receipt sidecars"
   },
   "lib/authority/operational-guard.js": {
    "owner": "AgentAction",
