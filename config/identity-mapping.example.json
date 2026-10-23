@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "issuer": "https://idp.example.com/",
+  "groupsClaim": "groups",
+  "operatorIdStrategy": "issuer-sub-sha256",
+  "groupRoles": {
+    "huqan-approvers": "approver",
+    "huqan-admins": "admin"
+  },
+  "unmappedGroupPolicy": "deny",
+  "roleConflictPolicy": "deny"
+}

@@ -297,6 +297,28 @@ meant to refuse, and the audit trail records a decision the operator never made.
 
 ---
 
+### Enterprise SSO / OIDC (planned; not implemented)
+
+**Current status**: protected REST routes use API-key authentication by default. requestGuards.js bypasses this credential check when apiAuthOptOut.isApiAuthDisabled() is true, so deployments that enable the opt-out do not have this API-key guard. The repository does not yet implement OIDC login, server-side SSO sessions, claim-to-role mapping, or OIDC-backed Authority decisions. This is a planned control, not a current mitigation.
+
+**Threats in scope**:
+- Authorization-code interception, forged or replayed callbacks, issuer/audience confusion, token-signature substitution, and malicious discovery endpoints.
+- Session fixation/theft, CSRF, open redirects, stale sessions after logout, and accidental token disclosure through logs or browser storage.
+- Privilege escalation through untrusted group claims, ambiguous group-to-role mapping, caller-supplied operator identity, or replay of a valid identity assertion against another approval.
+- Legacy API-key fallback silently bypassing the configured SSO policy.
+
+**Planned controls**:
+- OIDC Authorization Code Flow with PKCE S256, state and nonce; fixed HTTPS issuer and redirect configuration; maintained-library validation of ID-token signature and required claims.
+- Opaque server-side sessions, Secure/HttpOnly/SameSite cookie flags, session rotation/revocation, CSRF token plus same-origin checks, and bounded idle/absolute expiry.
+- Explicit allowlisted claim mapping; unknown or conflicting role mappings fail closed. Operator identity is derived from validated issuer + subject, not email or request fields.
+- A short-lived Ed25519-signed assertion bound to the exact approval/workspace/tool/action/decision, verified by the Authority with a durable replay check before the decision is signed.
+- API-key fallback disabled by default in OIDC mode; secrets and signing keys live only in protected environment or key files, never in source control or logs.
+
+**Residual risks and gates**:
+- A compromised IdP, misconfigured group membership, or stolen broker signing key can still grant an attacker an identity; provider trust and key rotation remain deployment responsibilities.
+- OIDC implementation is not complete until mock-IdP tests cover invalid claims/state/nonce/PKCE, session and CSRF failures, assertion replay, and role-mapping denial, followed by a documented real-provider smoke test.
+- SAML 2.0 is not part of this OIDC mitigation. It is tracked separately in issue #4214 and must reuse the same principal/session/Authority assertion contract rather than add a parallel authorization system.
+
 ## Strategic Outlook
 
 ### Future Threat Landscape
