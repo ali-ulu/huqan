@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "roles": {
+    "viewer": [],
+    "operator": ["approvals.view"],
+    "approver": ["approvals.view", "approvals.decide"],
+    "admin": ["approvals.view", "approvals.decide", "approvals.manage"]
+  },
+  "operators": {
+    "operator-1": "approver",
+    "operator-2": "admin"
+  },
+  "separationOfDuties": false
+}

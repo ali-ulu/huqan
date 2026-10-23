@@ -60,6 +60,22 @@ function approve(server, approvalId, runtime, extraArgs = {}) {
   { approvalStore: server.approvalStore, operatorToken: 'operator-secret', approvalAuthorityMode: SERVICE, ...runtime });
 }
 
+// #4205: the policy path never goes through the process environment here, so
+// each test names its own file instead of mutating shared state.
+function withPolicy(t, policy) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-authority-rbac-'));
+  const file = path.join(dir, 'policy.json');
+  fs.writeFileSync(file, JSON.stringify(policy));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  return name => (name === 'RBAC_POLICY_PATH' ? file : undefined);
+}
+
+function consume(row, decided) {
+  return signConsumption({ approvalId: row.id, workspaceId: 'default', tool: decided.payload.tool,
+    actionHash: decided.payload.actionHash, ledgerSeq: 2, ledgerHash: 'c'.repeat(64), consumedAt: new Date().toISOString() },
+  signing.privateKey);
+}
+
 test('an in-process caller holding the operator credential cannot approve without the authority', (t) => {
   const server = withServer(t);
   const row = queue(server, 'authority path sentinel one hayvandir');
@@ -103,4 +119,39 @@ test('a rejection also needs the authority, so an agent cannot discard what the 
   { approvalStore: server.approvalStore, operatorToken: 'operator-secret', approvalAuthorityMode: SERVICE });
   assert.equal(result.error.code, 'AUTHORITY_DECISION_REQUIRED');
   assert.equal(server.approvalStore.getToolApprovalById(row.id).status, 'pending');
+});
+
+test('a configured RBAC policy refuses a decision without a signed operator identity', (t) => {
+  const server = withServer(t);
+  const readEnvironment = withPolicy(t, { version: 1,
+    roles: { approver: ['approvals.decide'] }, operators: { alice: 'approver' } });
+  const row = queue(server, 'authority path sentinel six hayvandir');
+  const decided = envelopeFor(row);
+  const result = approve(server, row.id, { authorityDecision: decided, authorityConsumption: consume(row, decided), readEnvironment });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, 'APPROVAL_RBAC_OPERATOR_REQUIRED');
+  assert.equal(result.meta.auditRecorded, true, 'the refusal is in the audit trail');
+  assert.equal(server.approvalStore.getToolApprovalById(row.id).status, 'pending', 'a refusal does not decide the row');
+});
+
+test('a configured RBAC policy refuses an operator whose role cannot decide', (t) => {
+  const server = withServer(t);
+  const readEnvironment = withPolicy(t, { version: 1,
+    roles: { viewer: [] }, operators: { alice: 'viewer' } });
+  const row = queue(server, 'authority path sentinel seven hayvandir');
+  const decided = envelopeFor(row, { operatorId: 'alice' });
+  const result = approve(server, row.id, { authorityDecision: decided, authorityConsumption: consume(row, decided), readEnvironment });
+  assert.equal(result.error.code, 'APPROVAL_RBAC_PERMISSION_DENIED');
+  assert.equal(server.approvalStore.getToolApprovalById(row.id).status, 'pending');
+});
+
+test('a configured RBAC policy lets an approver decide, and the decision executes', (t) => {
+  const server = withServer(t);
+  const readEnvironment = withPolicy(t, { version: 1,
+    roles: { approver: ['approvals.decide'] }, operators: { alice: 'approver' } });
+  const row = queue(server, 'authority path sentinel eight hayvandir');
+  const decided = envelopeFor(row, { operatorId: 'alice' });
+  const result = approve(server, row.id, { authorityDecision: decided, authorityConsumption: consume(row, decided), readEnvironment });
+  assert.equal(result.ok, true, JSON.stringify(result.error));
+  assert.equal(result.data.executed, true);
 });

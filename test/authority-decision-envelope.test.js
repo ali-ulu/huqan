@@ -74,6 +74,25 @@ test('a decision from another key, or past its validity, is refused', () => {
     { ok: false, code: 'expired' });
 });
 
+test('an optional operator identity is signed and covered by the signature', () => {
+  const withOperator = { ...PAYLOAD, operatorId: 'alice' };
+  const envelope = signDecision(withOperator, privateKey);
+  assert.equal(envelope.payload.operatorId, 'alice');
+  assert.deepEqual(verifyDecision(envelope, { publicKey, expected: EXPECTED, now: NOW }), { ok: true, payload: withOperator });
+  const tampered = { ...envelope, payload: { ...envelope.payload, operatorId: 'bob' } };
+  assert.deepEqual(verifyDecision(tampered, { publicKey, expected: { ...EXPECTED, operatorId: 'bob' }, now: NOW }),
+    { ok: false, code: 'signature_invalid' });
+  // An envelope signed before #4205 has no identity and still verifies; the
+  // RBAC policy, not the envelope, decides whether that is enough.
+  assert.equal(verifyDecision(signDecision(PAYLOAD, privateKey), { publicKey, expected: EXPECTED, now: NOW }).ok, true);
+});
+
+test('signDecision refuses an empty, non-string, or unbounded operatorId', () => {
+  for (const value of ['', 7, null, 'x'.repeat(513)]) {
+    assert.throws(() => signDecision({ ...PAYLOAD, operatorId: value }, privateKey), TypeError, JSON.stringify(value));
+  }
+});
+
 test('signDecision refuses a malformed payload or an unbounded validity window', () => {
   for (const [field, value] of [['decision', 'maybe'], ['actionHash', 'xyz'], ['ledgerSeq', -1], ['validUntil', 'soon'],
     ['approvalId', ''], ['reason', 'r'.repeat(513)], ['v', 'other'], ['validUntil', 'Mon, 12 Oct 2026 12:10:00 GMT'],
