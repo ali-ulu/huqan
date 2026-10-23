@@ -93,6 +93,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // single case on the same runner, so the cost is the loaded Windows disk,
   // not a hang: the same shape as the two entries above.
   'test/memory-store-sqlite-collection.test.js',
+  // plugins/repo-memory spawns git for each fixture and was SIGTERM-killed at
+  // 102.716s on the windows-latest Node 24 shard 4 of PR #4210 (job
+  // 120398835073). The same file finished in about 12s on the same runner an
+  // hour earlier (job 120389387339) and takes 2.5s locally, so the cost is the
+  // loaded runner, not a hang.
+  'plugins/repo-memory.test.js',
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',
