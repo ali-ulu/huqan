@@ -34,6 +34,7 @@ const ENTRYPOINTS = ['cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRu
  * `--check` fails on an expired entry and on one that constructs nothing.
  */
 const COMPOSITION_ROOTS = Object.freeze([
+  { file: 'lib/cognitive-lab-m7-runtime.js', why: '#4065 isolated Lab process entry: assembles the real KernelV2, AgentV3 and replay Graph for each independently scoped pilot arm.', review_by: '2027-03-31' },
   { file: 'lib/kernel-factory.js', why: 'Assembles KernelV2 for the CLI, server and MCP entrypoints.', review_by: '2027-03-31' },
   { file: 'lib/agent-v3-storage-factory.js', why: 'Opens the HuqanStorage an AgentV3 is handed when the caller passes none.', review_by: '2027-03-31' },
   { file: 'lib/mcp-approval-store-factory.js', why: 'Opens the HuqanStorage behind the MCP approval store.', review_by: '2027-03-31' },

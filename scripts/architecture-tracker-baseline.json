@@ -85,6 +85,7 @@
       "lib/agent-action-signals.js": "Core",
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
+      "lib/agent-coder-execution.js": "Application",
       "lib/agent-cognition-observation.js": "Adapters",
       "lib/agent-cognition-seam.js": "Application",
       "lib/agent-exit-reasons.js": "Core",
@@ -328,6 +329,8 @@
       "lib/cognitive-lab-contradiction-policy.js": "Core",
       "lib/cognitive-lab-contradiction-report.js": "Core",
       "lib/cognitive-lab-evaluator.js": "Core",
+      "lib/cognitive-lab-m7-experiment.js": "Application",
+      "lib/cognitive-lab-m7-runtime.js": "Application",
       "lib/cognitive-lab-manifest.js": "Core",
       "lib/cognitive-lab-model-comparison.js": "Application",
       "lib/cognitive-lab-neural-design.js": "Application",
@@ -1441,6 +1444,7 @@
       "scripts/create-signed-commit.js": "UI",
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
+      "scripts/enforcement-coverage-classification-injected-fetch.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
       "scripts/enforcement-coverage.js": "UI",
       "scripts/explain-npm-publish-failure.js": "UI",
@@ -1575,6 +1579,7 @@
       ],
       "agent.js": [
         "dream.js",
+        "lib/agent-coder-execution.js",
         "lib/agent-memory-persistence.js",
         "lib/agent-memory-runtime.js",
         "lib/agent-memory-state.js",
@@ -1993,6 +1998,12 @@
       ],
       "lib/agent-behavioral-integrity.js": [
         "lib/self-healer/behavioral-containment.js"
+      ],
+      "lib/agent-coder-execution.js": [
+        "lib/coder/arithmetic-synthesis.js",
+        "lib/coder/fix-loop.js",
+        "lib/coder/project-spec-data.js",
+        "lib/human-oversight-approval-runtime.js"
       ],
       "lib/agent-cognition-observation.js": [
         "lib/cognition/contract.js",
@@ -3000,6 +3011,18 @@
         "lib/cognitive-lab-b1-replay.js",
         "lib/cognitive-lab-manifest.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-m7-runtime.js": [
+        "agent.v3.js",
+        "graph.js",
+        "kernel.v2.js",
+        "lib/agent-action-firewall.js",
+        "lib/agent-coder-execution.js",
+        "lib/cognition-value-ledger-pairs.js",
+        "lib/human-oversight-approval-runtime.js",
+        "lib/prediction-outcome-pairs.js",
+        "lib/trust-evidence-ledger.js",
+        "llmAdapter.js"
       ],
       "lib/cognitive-lab-manifest.js": [
         "lib/content-hash.js",
@@ -7090,6 +7113,9 @@
       ],
       "scripts/contradiction-eval-freeze.js": [
         "scripts/contradiction-eval-freeze-contract.js"
+      ],
+      "scripts/enforcement-coverage-classification.js": [
+        "scripts/enforcement-coverage-classification-injected-fetch.js"
       ],
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",
