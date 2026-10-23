@@ -4134,6 +4134,10 @@
    "kind": "infra",
    "evidence": "#4065 child-process Lab workload using the existing approved Coder and cognition runtime"
   },
+  "lib/cognitive-lab-m7-value-runtime.js": {
+   "kind": "infra",
+   "evidence": "#4065 isolated M9 arousal causality control over observed Lab task artifacts; no production default or gain claim"
+  },
   "lib/cognitive-lab-neural-world.js": {
    "kind": "infra",
    "evidence": "#3474 I6 B7 bounded accumulation environment law"
