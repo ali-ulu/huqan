@@ -449,10 +449,8 @@ test('#4072 followup: expansions stay skipped for the review path', () => {
 
 // #4234 (CWE-59): tilde expansion in containment check
 test('#4234: tilde-expanded redirection target outside workspace is BLOCK', () => {
-  const fs = require('fs');
-  const path = require('path');
-  // Create workspace root in a temp directory that's definitely NOT under home
-  const workspaceRoot = fs.mkdtempSync(path.join('C:\\Temp', 'huqan-test-ws-'));
+  // A workspace below the temp dir: ~/outside.txt is never inside it.
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-test-ws-'));
   try {
     const r = evaluateCommandExec({ command: 'echo secret > ~/outside.txt', workspaceRoot });
     assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
@@ -464,9 +462,7 @@ test('#4234: tilde-expanded redirection target outside workspace is BLOCK', () =
 });
 
 test('#4234: tilde-expanded write command destination outside workspace is BLOCK', () => {
-  const fs = require('fs');
-  const path = require('path');
-  const workspaceRoot = fs.mkdtempSync(path.join('C:\\Temp', 'huqan-test-ws-'));
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-test-ws-'));
   try {
     const r = evaluateCommandExec({ command: 'cp file ~/outside.txt', workspaceRoot });
     assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);

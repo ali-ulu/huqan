@@ -149,6 +149,30 @@ test('path-safety: resolvePathWithinRoot rejects dangling symlinks', () => {
   }
 });
 
+// #4222 (CWE-59): a missing path below a dangling link would be written through it
+test('path-safety: a missing path below a dangling symlink is rejected, not created through it', () => {
+  const rootDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-dangling-parent-')));
+  const outsideDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-dangling-parent-out-')));
+  try {
+    const danglingLink = path.join(rootDir, 'dangling');
+    fs.symlinkSync(path.join(outsideDir, 'gone'), danglingLink, 'junction');
+    assert.throws(
+      () => resolvePathWithinRoot(rootDir, path.join(danglingLink, 'a', 'b.txt'), { allowMissing: true }),
+      (error) => error.code === 'DANGLING_SYMLINK'
+        && /Dangling symlink target does not exist/.test(error.message)
+        && error.path === danglingLink,
+    );
+    // A plain missing path beside it is still admitted.
+    assert.equal(
+      resolvePathWithinRoot(rootDir, path.join(rootDir, 'new', 'c.txt'), { allowMissing: true }),
+      path.join(rootDir, 'new', 'c.txt'),
+    );
+  } finally {
+    fs.rmSync(rootDir, { recursive: true, force: true });
+    fs.rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
 // #4222 (CWE-59): symlink pointing to existing outside path still blocked by isPathWithinRoot
 test('path-safety: symlink to existing outside path still blocked by containment', () => {
   const rootDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-symlink-outside-')));

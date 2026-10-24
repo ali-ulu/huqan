@@ -139,6 +139,19 @@ test('an MCP tool call in a stopped workspace is refused, and operator tools are
   assert.doesNotMatch(JSON.stringify(operator), /EMERGENCY_STOPPED/, 'operator tools stay reachable during a stop');
 });
 
+test('#4235: a control character in workspaceId cannot slip a call past a workspace stop', (t) => {
+  const { createMcpToolDispatch } = require('../lib/mcp/tool-dispatch');
+  const ledger = ledgerIn(t);
+  ledger.stop({ scope: 'workspace', workspaceId: 'default', reason: 'test', actor: 'operator:test' });
+  const { callTool } = createMcpToolDispatch({ withTransientAgent: () => { throw new Error('no agent may run'); } });
+
+  const forged = callTool({}, { name: 'huqan.ask', arguments: JSON.stringify({ query: 'x', workspaceId: 'default\u0000' }) }, { emergencyStop: ledger });
+  assert.match(JSON.stringify(forged), /INVALID_INPUT/);
+
+  const other = callTool({}, { name: 'huqan.ask', arguments: JSON.stringify({ query: 'x', workspaceId: 'default' }) }, { emergencyStop: ledger });
+  assert.match(JSON.stringify(other), /EMERGENCY_STOPPED/);
+});
+
 test('an authorized operator read in a stopped workspace reaches its handler, not the stop', (t) => {
   // An unauthorized operator call is refused before the stop is consulted, so
   // the exemption itself is only exercised by a call that passes authorization.
