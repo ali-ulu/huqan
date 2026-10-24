@@ -30,9 +30,11 @@ test('http-adapter: pinnedLookup calls back with the records array Node expects 
 test('http-adapter: pinnedLookup lookup works end to end under default autoSelectFamily (#4219)', async () => {
   await withServer((_req, res) => res.end('pinned'), async (baseUrl) => {
     const parsed = new URL(baseUrl);
+    // Hostname must not be an IP literal: Node skips custom lookup for those,
+    // which would make this test pass without ever exercising the callback.
     const status = await new Promise((resolve) => {
       const req = http.request({
-        hostname: parsed.hostname,
+        hostname: 'localhost',
         port: parsed.port,
         path: '/',
         lookup: pinnedLookup('127.0.0.1', 4),
