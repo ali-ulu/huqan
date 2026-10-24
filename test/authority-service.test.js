@@ -39,6 +39,9 @@ function harness(t, rbacPolicy) {
 const ARGS = Object.freeze({ content: 'remember this' });
 const PROOF = 'runtime-held-consume-proof-0123456789abcdef';
 const PROOF_HASH = crypto.createHash('sha256').update(PROOF).digest('hex');
+const readLedger = dir => fs.readFileSync(path.join(dir, 'ledger.jsonl'), 'utf8')
+  .split('\n').filter(Boolean).map(line => JSON.parse(line));
+
 const ACTION = Object.freeze({
   approvalId: 'apr_1', workspaceId: 'default', tool: 'huqan.learn', arguments: ARGS,
   actionHash: canonicalActionHash({ tool: 'huqan.learn', workspaceId: 'default', approvalId: 'apr_1', arguments: ARGS }),
@@ -83,15 +86,36 @@ test('N-of-M quorum counts authenticated distinct operators and survives restart
   assert.deepEqual(h.service.getDecision('apr_1').body.quorum, first.body.quorum);
 
   const restarted = h.open();
+  const aliceVote = restarted.show('apr_1').body.approval.votes[0];
+  assert.deepEqual({
+    workspaceId: aliceVote.workspaceId, tool: aliceVote.tool, actionHash: aliceVote.actionHash,
+    operatorId: aliceVote.operatorId, decision: aliceVote.decision, authMethod: aliceVote.authMethod,
+    policyVersion: aliceVote.policyVersion, policyHash: aliceVote.policyHash,
+  }, {
+    workspaceId: 'default', tool: 'huqan.learn', actionHash: ACTION.actionHash,
+    operatorId: 'alice', decision: 'approved', authMethod: 'api_key',
+    policyVersion: rbacPolicy.policy.version, policyHash: rbacPolicy.policy.hash,
+  }, 'the durable vote names the workspace, tool, credential method and policy');
+
   const replay = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: aliceKey, operatorIdHint: 'alice' });
-  assert.deepEqual([replay.status, replay.body.code], [409, 'DUPLICATE_APPROVER']);
+  assert.deepEqual([replay.status, replay.body.idempotent, replay.body.quorum], [202, true, first.body.quorum],
+    'repeating the same vote is idempotent and reports the same quorum');
   assert.equal(restarted.show('apr_1').body.approval.votes.length, 1, 'repeat vote adds no ledger vote');
+
+  const conflicting = restarted.decide('apr_1', h.seal({ totp: null, decision: 'rejected' }), { apiKey: aliceKey, operatorIdHint: 'alice' });
+  assert.deepEqual([conflicting.status, conflicting.body.code], [409, 'DUPLICATE_APPROVER']);
+  assert.equal(restarted.show('apr_1').body.approval.votes.length, 1, 'the opposite vote is not recorded as a vote');
+  const denial = readLedger(h.dir).filter(entry => entry.type === 'approval.vote_denied').at(-1);
+  assert.deepEqual([denial.body.code, denial.body.operatorId, denial.body.priorDecision, denial.body.attemptedDecision],
+    ['DUPLICATE_APPROVER', 'alice', 'approved', 'rejected'], 'a conflicting replay is refused and audited');
 
   const second = restarted.decide('apr_1', h.seal({ totp: null }), { apiKey: bobKey, operatorIdHint: 'bob' });
   assert.equal(second.status, 200);
   assert.deepEqual(second.body.envelope.payload.approverIds, ['alice', 'bob']);
   assert.equal(second.body.envelope.payload.quorumRequired, 2);
   assert.equal(second.body.envelope.payload.operatorId, 'bob');
+  assert.equal(second.body.envelope.payload.policyVersion, rbacPolicy.policy.version);
+  assert.equal(second.body.envelope.payload.policyHash, rbacPolicy.policy.hash);
   assert.equal(verifyDecision(second.body.envelope, {
     publicKey: crypto.createPublicKey(h.created.signingPublicKeyPem),
     expected: { approvalId: 'apr_1', workspaceId: 'default', tool: 'huqan.learn', actionHash: ACTION.actionHash,
@@ -99,6 +123,10 @@ test('N-of-M quorum counts authenticated distinct operators and survives restart
     now: h.clock.now,
   }).ok, true);
   assert.equal(restarted.show('apr_1').body.approval.votes.length, 2);
+  const bobVote = restarted.show('apr_1').body.approval.votes[1];
+  assert.deepEqual([bobVote.workspaceId, bobVote.tool, bobVote.operatorId, bobVote.authMethod,
+    bobVote.policyVersion, bobVote.policyHash],
+  ['default', 'huqan.learn', 'bob', 'api_key', rbacPolicy.policy.version, rbacPolicy.policy.hash]);
 
   const consumed = restarted.consume('apr_1', { actionHash: ACTION.actionHash, consumeProof: PROOF });
   assert.equal(consumed.status, 200);
@@ -164,6 +192,9 @@ test('a quorum that reached its threshold before a crash is finalized from the d
   assert.equal(recovered.body.recovered, true);
   assert.deepEqual(recovered.body.envelope.payload.approverIds, ['alice', 'bob']);
   assert.equal(recovered.body.envelope.payload.operatorId, 'bob');
+  assert.deepEqual([recovered.body.envelope.payload.policyVersion, recovered.body.envelope.payload.policyHash],
+    [rbacPolicy.policy.version, rbacPolicy.policy.hash],
+    'a vote that predates #4215 recovers under the policy that applied the threshold');
   assert.equal(restarted.show('apr_1').body.approval.status, 'approved');
   assert.equal(restarted.ledgerEntries().body.entries.filter(entry => entry.type === 'approval.decided').length, 1);
 });

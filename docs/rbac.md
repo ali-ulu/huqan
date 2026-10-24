@@ -71,12 +71,18 @@ source control or logs.
 `quorum.default` applies to all tools unless `quorum.byTool` overrides it.
 A threshold above one is valid only when the policy contains at least that
 many distinct API-key identities, each assigned a role with
-`approvals.decide`. Votes are appended to the Authority ledger. The same
-operator cannot vote twice; a repeated vote returns `DUPLICATE_APPROVER` and
-does not increase the count. An explicit rejection vetoes the pending request.
-Approval is signed only after the required number of distinct operators has
-approved; the envelope carries the distinct `approverIds` and
-`quorumRequired`.
+`approvals.decide`. Votes are appended to the Authority ledger as one
+`approval.vote` entry per approval and operator, bound to the approval id,
+workspace, tool, action hash, decision, operator, the authentication method
+(`authMethod`) and the policy fingerprint (`policyVersion`/`policyHash`).
+Repeating the same vote is idempotent: the Authority answers `202` with
+`idempotent: true` and writes nothing. Voting the opposite way after an
+accepted vote is refused with `DUPLICATE_APPROVER` and recorded as an
+`approval.vote_denied` entry, so neither repeat increases the count. An
+explicit rejection vetoes the pending request. Approval is signed only after
+the required number of distinct operators has approved; the envelope carries
+the distinct `approverIds`, `quorumRequired`, and the `policyVersion` and
+`policyHash` of the policy that required the threshold.
 
 Permissions are a closed list: `approvals.view`, `approvals.decide`,
 `approvals.manage`. The Authority enforces `approvals.decide` for each vote.
@@ -130,7 +136,7 @@ Refusals are total, with distinct codes:
 | `APPROVAL_RBAC_API_KEY_REQUIRED` | This policy requires a per-operator API key. |
 | `APPROVAL_RBAC_API_KEY_INVALID` | The presented API key does not match the hinted operator identity. |
 | `QUORUM_REQUIRES_OPERATOR_API_KEYS` | Multi-operator quorum cannot use the shared legacy TOTP identity. |
-| `DUPLICATE_APPROVER` | This operator has already voted on the approval. |
+| `DUPLICATE_APPROVER` | This operator already voted the opposite way on the approval; the attempt is recorded as `approval.vote_denied`. |
 
 A refusal leaves the approval pending. It does not reject it and cannot be
 retried into an approval without a new decision.
@@ -186,7 +192,9 @@ a person-level identity do not claim a named approver.
 This slice now counts distinct authenticated operators for N-of-M quorum,
 recovers a quorum completed just before a process crash, and binds the signed
 operator identity and exact decision-envelope digest to the outcome attestation
-without rewriting the original receipt bytes. The huqan approvals list and
+without rewriting the original receipt bytes. Each vote and each quorum
+decision also name the policy that governed it by hash, so a later policy edit
+cannot be read back onto an earlier approval. The huqan approvals list and
 huqan onaylar aliases are covered by CLI tests.
 
 Two policy permissions are still not enforced as runtime boundaries:

@@ -157,6 +157,27 @@ test('quorum validation refuses thresholds without enough distinct authorized AP
   }
 });
 
+test('the policy hash is canonical and follows the policy it describes', () => {
+  const salt = createOperatorApiKeySalt();
+  const verifiers = {
+    alice: createOperatorApiKeyVerifier('alice-api-key-'.padEnd(48, 'a'), salt),
+    bob: createOperatorApiKeyVerifier('bob-api-key-'.padEnd(48, 'b'), salt),
+  };
+  const operators = { alice: 'approver', bob: 'approver' };
+  const shipped = { operators, operatorApiKeySalt: salt, operatorApiKeyVerifiers: verifiers, quorum: { default: 1 } };
+  const policy = loaded(shipped);
+  assert.match(policy.policy.hash, /^[0-9a-f]{64}$/);
+  assert.equal(loaded(Object.fromEntries(Object.entries(shipped).reverse())).policy.hash, policy.policy.hash,
+    'object key order is not part of the policy');
+  assert.notEqual(loaded({ ...shipped, quorum: { default: 1, byTool: { 'huqan.learn': 2 } } }).policy.hash,
+    policy.policy.hash, 'a threshold change changes the hash');
+  assert.notEqual(loaded({ ...shipped, separationOfDuties: true }).policy.hash, policy.policy.hash);
+  assert.notEqual(loaded({ operators, operatorApiKeySalt: salt, quorum: { default: 1 },
+    operatorApiKeyVerifiers: { alice: verifiers.alice,
+      bob: createOperatorApiKeyVerifier('bob-api-key-'.padEnd(48, 'c'), salt) } }).policy.hash,
+  policy.policy.hash, 'a different credential set changes the hash');
+});
+
 test('separation of duties is off by default and compares requester to approver when on', () => {
   const off = loaded();
   assert.equal(off.policy.separationOfDuties, false);

@@ -94,6 +94,25 @@ test('signDecision refuses an empty, non-string, or unbounded operatorId', () =>
   }
 });
 
+test('a quorum decision names the policy that required the threshold', () => {
+  const quorum = { ...PAYLOAD, approverIds: ['alice', 'bob'], quorumRequired: 2 };
+  assert.throws(() => signDecision(quorum, privateKey), /policy/,
+    'an approved quorum cannot be signed without naming its policy');
+  const named = { ...quorum, policyVersion: 1, policyHash: 'c'.repeat(64) };
+  const envelope = signDecision(named, privateKey);
+  assert.equal(verifyDecision(envelope, { publicKey, expected: EXPECTED, now: NOW }).ok, true);
+  assert.deepEqual(verifyDecision({ ...envelope, payload: { ...envelope.payload, policyHash: 'd'.repeat(64) } },
+    { publicKey, expected: EXPECTED, now: NOW }), { ok: false, code: 'signature_invalid' },
+  'the policy fingerprint is covered by the signature');
+  for (const [field, value] of [['policyVersion', 0], ['policyVersion', 1.5], ['policyVersion', '1'],
+    ['policyHash', 'xyz'], ['policyHash', 'C'.repeat(64)]]) {
+    assert.throws(() => signDecision({ ...named, [field]: value }, privateKey), TypeError, `${field}=${value}`);
+  }
+  assert.throws(() => signDecision({ ...PAYLOAD, policyVersion: 1 }, privateKey), TypeError,
+    'version and hash are present together or not at all');
+  assert.throws(() => signDecision({ ...PAYLOAD, policyHash: 'c'.repeat(64) }, privateKey), TypeError);
+});
+
 test('signDecision refuses a malformed payload or an unbounded validity window', () => {
   for (const [field, value] of [['decision', 'maybe'], ['actionHash', 'xyz'], ['ledgerSeq', -1], ['validUntil', 'soon'],
     ['approvalId', ''], ['reason', 'r'.repeat(513)], ['v', 'other'], ['validUntil', 'Mon, 12 Oct 2026 12:10:00 GMT'],
