@@ -6,6 +6,7 @@ const {
   VERIFIED_PLUGIN,
   hashFile,
   hmacSign,
+  manifestSignaturePayload,
   loadActivationGate,
   verifyPluginFile,
   isRuntimePluginFile,
@@ -202,5 +203,6 @@ installPluginProvenanceMethods(PluginManager.prototype);
 module.exports = PluginManager;
 module.exports.hashFile = hashFile;
 module.exports.hmacSign = hmacSign;
+module.exports.manifestSignaturePayload = manifestSignaturePayload;
 module.exports.verifyPluginFile = verifyPluginFile;
 module.exports.isRuntimePluginFile = isRuntimePluginFile;
