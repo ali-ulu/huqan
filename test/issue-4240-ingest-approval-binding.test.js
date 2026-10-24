@@ -159,3 +159,25 @@ describe('MCP ingest approval binds the reviewed args to the executed payload (#
     assert.equal(approved.error.code, 'APPROVAL_BINDING_MISMATCH');
   });
 });
+
+describe('#4240 the bound approval row reaches whichever store saves it', () => {
+  const { saveMcpIngestApproval } = require('../lib/mcp-ingest-execute-tool');
+
+  it('a store with only saveToolApproval persists the executed payload as context.args', () => {
+    let saved;
+    const store = { saveToolApproval: (approval) => { saved = approval; return { approval, inserted: true }; } };
+    const record = saveMcpIngestApproval(store, decisionArgs());
+    assert.equal(record.persisted, true);
+    assert.deepEqual(saved.context.args, saved.context.snapshot.payload);
+    assert.ok(saved.policy.reviewedBinding, 'the saved row carries the reviewed binding');
+  });
+
+  it('no store, a store that throws, and an unconfirmed write each say why nothing persisted', (t) => {
+    t.mock.method(console, 'error', () => {});
+    assert.equal(saveMcpIngestApproval(null, decisionArgs()).notPersistedReason, 'approval_store_unavailable');
+    const throwing = { saveToolApprovalIfAbsent: () => { throw new Error('disk full'); } };
+    assert.equal(saveMcpIngestApproval(throwing, decisionArgs()).notPersistedReason, 'approval_store_write_failed');
+    const silent = { saveToolApprovalIfAbsent: () => null };
+    assert.equal(saveMcpIngestApproval(silent, decisionArgs()).notPersistedReason, 'approval_store_write_unconfirmed');
+  });
+});

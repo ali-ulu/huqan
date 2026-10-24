@@ -117,3 +117,34 @@ test('a clean durable chain keeps a stable digest across reads (#4233)', () => {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a durable payload overwritten with non-JSON still moves the digest (#4233)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4233-unparseable-'));
+  const graph = new Graph({
+    memoryPath: path.join(root, 'memory.json'),
+    dbPath: path.join(root, 'memory.db'),
+    useSQLite: true,
+  });
+  try {
+    seed(graph);
+    const before = getReceiptStamp(graph, WORKSPACE, 'v4');
+    graph._db.prepare('UPDATE mutation_receipts SET canonical_payload = ? WHERE receipt_id = ?').run('{not json', RECEIPT_ID);
+    const after = getReceiptStamp(graph, WORKSPACE, 'v4');
+    assert.match(after.chainDigest, /^[a-f0-9]{64}$/, 'an unparseable member still yields a digest');
+    assert.notEqual(after.chainDigest, before.chainDigest);
+  } finally {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the cache refuses a stamp whose chainDigest is not a digest (#4233)', () => {
+  const { normalizeStamp } = require('../lib/receipt/receipt-validation-cache');
+  const base = {
+    sourceId: 'graph', workspaceId: WORKSPACE, schemaFamily: 'v4', receiptId: RECEIPT_ID,
+    generation: 1, receiptCount: 1, headHash: 'a'.repeat(64), chainDigest: 'b'.repeat(64),
+  };
+  assert.equal(normalizeStamp(base).chainDigest, 'b'.repeat(64), 'a well-formed digest is kept');
+  assert.equal(normalizeStamp({ ...base, chainDigest: 'not-a-digest' }), null);
+  assert.equal(normalizeStamp({ ...base, chainDigest: null }).chainDigest, undefined, 'null means no chain');
+});
