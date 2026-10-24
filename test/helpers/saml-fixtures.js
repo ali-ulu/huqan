@@ -9,7 +9,7 @@
 // helper, not part of the production code path.
 
 const crypto = require('node:crypto');
-const { signSamlResponse, signSamlAssertion } = require('./signature');
+const { signSamlResponse, signSamlAssertion } = require('../../lib/saml/signature');
 
 const IDP_ENTITY_ID = 'https://idp.example.test';
 const SP_ENTITY_ID = 'https://sp.example.test';

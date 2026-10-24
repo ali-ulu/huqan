@@ -7,7 +7,7 @@ const { validateResponse } = require('../lib/saml/assertion');
 const { mapSamlPrincipal, REFUSED } = require('../lib/saml/identity-mapping');
 const { createSamlReplayStore } = require('../lib/saml/replay-store');
 const { loadSamlSpConfig } = require('../lib/saml/config');
-const { IDP_ENTITY_ID, SP_ENTITY_ID, ACS_URL, NAME_ID, signFixture, buildResponse } = require('../lib/saml/fixtures');
+const { IDP_ENTITY_ID, SP_ENTITY_ID, ACS_URL, NAME_ID, signFixture, buildResponse } = require('./helpers/saml-fixtures');
 const fs = require('node:fs');
 const path = require('node:path');
 

@@ -64,3 +64,12 @@ b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.te
 b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.test.js:generic-api-key:26
 # #3940: Rekor's public log key, PEM-armored in the PR's first commit only; a public key, not a secret.
 60b8a042c56d17b585c9c8c185b02f9838f31609:lib/mcp/rekor-anchor-client.js:generic-api-key:25
+
+# #4214: the SAML SP's XML parser declares which elements it must treat as
+# arrays (an assertion may carry repeated Attribute/Audience/KeyDescriptor
+# nodes). gitleaks' generic-api-key rule reads the quoted element-name list as
+# a high-entropy value and flags 'X509Certificate' (entropy 3.51, threshold
+# 3.5) -- an XML element name, not a credential. Nothing to rotate, and the
+# scan reads commit history, so the finding stays after the list is reshaped.
+a8f9c3b79b76252d5de17428e1cba076177541d1:lib/saml/assertion.js:generic-api-key:30
+a8f9c3b79b76252d5de17428e1cba076177541d1:lib/saml/metadata.js:generic-api-key:20

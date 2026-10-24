@@ -4046,6 +4046,34 @@
   }
  },
  "platform": {
+  "lib/saml/sp-route.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/saml/assertion.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/saml/config.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/saml/identity-mapping.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/saml/replay-store.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/saml/signature.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/saml/xml-util.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
   "bin/huqan-authority.js": {
    "kind": "entry",
    "evidence": "ADR-016 operator view of the approval authority"
@@ -5335,6 +5363,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/approval-rbac.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4214 the SAML SP route (Platform, mounted by the viewer gateway) resolves the operator's role from the local RBAC policy after a validated assertion; the policy stays the only source of authority, never the assertion"
+  },
   "lib/gate-profile-inventory.js": {
    "owner": "AgentAction",
    "consumers": [
