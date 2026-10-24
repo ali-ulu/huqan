@@ -1569,6 +1569,7 @@
     "lib/evidence-pack/collector-seals.js",
     "lib/evidence-pack/control-matrix.js",
     "lib/evidence-pack/manifest.js",
+    "lib/evidence-pack/secret-scan.js",
     "lib/evidence-pack/signature.js",
     "lib/evidence-pack/verify.js",
     "specs/huqan-evidence-pack/0.1/README.md",

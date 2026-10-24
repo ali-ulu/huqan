@@ -4044,6 +4044,10 @@
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A2: gathers the Trust receipt bundle, ledger and seals into a pack, the same context as the export it packs"
   },
+  "lib/evidence-pack/secret-scan.js": {
+   "context": "Trust",
+   "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4253: scans the hash-bound pack content for secrets, the same Trust context as the pack collector it serves"
+  },
   "lib/evidence-pack/signature.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A4: signs and verifies the pack manifest with the issuer key (lib/receipt/issuer-seal.js), the same Trust context as the seals it reuses"
