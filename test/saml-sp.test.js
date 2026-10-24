@@ -9,10 +9,11 @@ const { createSamlReplayStore } = require('../lib/saml/replay-store');
 const { loadSamlSpConfig } = require('../lib/saml/config');
 const { IDP_ENTITY_ID, SP_ENTITY_ID, ACS_URL, NAME_ID, signFixture, buildResponse } = require('./helpers/saml-fixtures');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 function makeConfig(opts = {}) {
-  const metadataFile = fs.mkdtempSync(path.join('/tmp', 'huqan-saml-'));
+  const metadataFile = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-saml-'));
   const { publicKey, privateKey } = require('node:crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
   const certPem = publicKey.export({ type: 'spki', format: 'pem' });
   const metadata = {
@@ -93,7 +94,7 @@ test('SAML SP config', async (t) => {
   });
 
   await t.test('fails with missing entityID in metadata', () => {
-    const metadataFile = fs.mkdtempSync(path.join('/tmp', 'huqan-saml-'));
+    const metadataFile = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-saml-'));
     const { publicKey } = require('node:crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
     const certPem = publicKey.export({ type: 'spki', format: 'pem' });
     const metadata = {
@@ -118,7 +119,7 @@ test('SAML SP config', async (t) => {
   });
 
   await t.test('fails without SP entity ID', () => {
-    const metadataFile = fs.mkdtempSync(path.join('/tmp', 'huqan-saml-'));
+    const metadataFile = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-saml-'));
     const { publicKey, privateKey } = require('node:crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
     const certPem = publicKey.export({ type: 'spki', format: 'pem' });
     const metadata = {

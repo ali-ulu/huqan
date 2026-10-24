@@ -7,6 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -89,7 +90,9 @@ test('#4214: mount recognises SAML paths and routes them ahead of the gateway', 
 
   // With an IdP metadata file in the environment the SAML route is live, so the
   // mount admits its paths and answers them before the gateway.
-  const metadataDir = fs.mkdtempSync(path.join('/tmp', 'huqan-viewer-saml-'));
+  // Under the real temp path: a hardcoded /tmp is not a valid directory on
+  // Windows, so the fixture is created under os.tmpdir() like the other tests.
+  const metadataDir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-viewer-saml-'));
   const { publicKey } = require('node:crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
   fs.writeFileSync(path.join(metadataDir, 'metadata.json'), JSON.stringify({
     entityID: 'https://idp.example.test',
