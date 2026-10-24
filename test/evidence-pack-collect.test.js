@@ -440,3 +440,18 @@ test('a malformed signature value is scanned like any other value', async (t) =>
   assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');
   assertNothingLeftBehind(opts);
 });
+
+test('only a canonical 64-byte encoding is exempt, not text that decodes to 64 bytes', async (t) => {
+  // Buffer.from skips characters it cannot decode, so '.'-padded text still decodes to 64 bytes.
+  const canonical = Buffer.alloc(64, 1).toString('base64url');
+  const padded = `${canonical.slice(0, 40)}...${canonical.slice(40)}`;
+  assert.equal(Buffer.from(padded, 'base64').length, 64);
+  const exemptCount = async (signature) => {
+    const graph = graphWith(t, [auditEvent(1, receipt(1, { metadata: { seal: { signature } } }))]);
+    const opts = options(t, graph);
+    await collectEvidencePack(opts);
+    return JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8')).secretScan.signatureExempt;
+  };
+  assert.equal(await exemptCount(canonical), 1);
+  assert.equal(await exemptCount(padded), 0);
+});
