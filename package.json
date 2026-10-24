@@ -1149,6 +1149,7 @@
     "lib/risk-rules.js",
     "lib/risk-target-markers.js",
     "lib/safe-file-walk.js",
+    "lib/saml",
     "lib/secure-file-write.js",
     "lib/sandbox-escape-ledger.js",
     "lib/sandbox-escape-producer.js",
