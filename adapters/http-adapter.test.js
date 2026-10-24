@@ -12,6 +12,46 @@ const {
   ingestAndLearn,
 } = require('./http-adapter');
 
+// #4219 regression: pinnedLookup must hand Node the records-array callback
+// format, not the legacy scalar (err, address, family) form.
+const { pinnedLookup } = require('./http-adapter-transport');
+
+test('http-adapter: pinnedLookup calls back with the records array Node expects (#4219)', () => {
+  const lookup = pinnedLookup('127.0.0.1', 4);
+  return new Promise((resolve) => {
+    lookup('127.0.0.1', {}, (err, records) => {
+      assert.ifError(err);
+      assert.deepEqual(records, [{ address: '127.0.0.1', family: 4 }]);
+      resolve();
+    });
+  });
+});
+
+test('http-adapter: pinnedLookup lookup works end to end under default autoSelectFamily (#4219)', async () => {
+  await withServer((_req, res) => res.end('pinned'), async (baseUrl) => {
+    const parsed = new URL(baseUrl);
+    // Hostname must not be an IP literal: Node skips custom lookup for those,
+    // which would make this test pass without ever exercising the callback.
+    const status = await new Promise((resolve) => {
+      const req = http.request({
+        hostname: 'localhost',
+        port: parsed.port,
+        path: '/',
+        lookup: pinnedLookup('127.0.0.1', 4),
+      }, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on('error', (err) => {
+        if (err.code === 'ERR_INVALID_IP_ADDRESS') resolve(`FAIL:${err.code}`);
+        else throw err;
+      });
+      req.end();
+    });
+    assert.equal(status, 200);
+  });
+});
+
 /**
  * Starts an http server on 127.0.0.1 for the duration of `run(baseUrl)`,
  * then closes it. 127.0.0.1 is a private address, so every call site below

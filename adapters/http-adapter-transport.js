@@ -17,7 +17,10 @@ const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 function pinnedLookup(pinnedAddress, family) {
   return (hostname, options, callback) => {
     const cb = typeof options === 'function' ? options : callback;
-    cb(null, pinnedAddress, family);
+    // Records-array form: what autoSelectFamily handling is written against
+    // (#4219) -- the scalar (err, address, family) compat shim is a patch edge,
+    // not the documented contract.
+    cb(null, [{ address: pinnedAddress, family }]);
   };
 }
 
@@ -140,4 +143,4 @@ async function fetchUrl(urlString, options = {}) {
   }
 }
 
-module.exports = { fetchUrl, setBoundedCache, DEFAULT_USER_AGENT };
+module.exports = { fetchUrl, pinnedLookup, setBoundedCache, DEFAULT_USER_AGENT };
