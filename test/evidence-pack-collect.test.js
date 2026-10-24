@@ -392,6 +392,7 @@ test('a write failure is a coded refusal and leaves nothing behind', async (t) =
 // placed in a `signature` field left the pack raw. It is format-based now.
 const crypto = require('node:crypto');
 const { signPackManifest } = require('../lib/evidence-pack/signature');
+const { scanHashBound, looksLikeEd25519Signature } = require('../lib/evidence-pack/secret-scan');
 
 const issuerKey = crypto.generateKeyPairSync('ed25519');
 const ISSUER_PRIVATE_KEY_PEM = issuerKey.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
@@ -417,7 +418,7 @@ test('a well-formed ed25519 signature in a `signature` field is still exempt', a
   const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
   assert.equal(selfCheck.secretScan.secretFound, false);
   assert.equal(selfCheck.secretScan.signatureExempt, 1);
-  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json']);
 });
 
 test('the producer self-check records what the secret scan actually ran over', async (t) => {
@@ -427,7 +428,7 @@ test('the producer self-check records what the secret scan actually ran over', a
   const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
   assert.equal(typeof selfCheck.secretScan.secretFound, 'boolean');
   assert.equal(selfCheck.secretScan.secretFound, false);
-  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json']);
   assert.equal(selfCheck.secretScan.signatureExempt, 0);
 });
 
@@ -439,4 +440,34 @@ test('a malformed signature value is scanned like any other value', async (t) =>
   const error = await collectFailure(opts);
   assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');
   assertNothingLeftBehind(opts);
+});
+
+test('a credential appended to a valid signature is not exempt', () => {
+  // Buffer.from decodes only the first 64 bytes, so a length-only check let a
+  // credential ride behind a real signature and hide from the scan.
+  const withCredential = VALID_SIGNATURE + SECRET;
+  assert.equal(looksLikeEd25519Signature(VALID_SIGNATURE), true);
+  assert.equal(looksLikeEd25519Signature(withCredential), false);
+  const scan = scanHashBound([['b.json', { signature: withCredential }]]);
+  assert.equal(scan.signatureExempt, 0);
+  assert.equal(scan.secretFound, true);
+});
+
+test('an own __proto__ key is scanned, not swallowed by the prototype', () => {
+  // Assigning `out.__proto__` would set the prototype, and hasSecretLookingValue
+  // then treats the object as non-plain and skips its contents.
+  const payload = JSON.parse(`{"__proto__":{"token":"${SECRET}"}}`);
+  assert.equal(Object.prototype.hasOwnProperty.call(payload, '__proto__'), true);
+  assert.equal(scanHashBound([['b.json', payload]]).secretFound, true);
+});
+
+test('an unsealed pack records only the files it wrote as scanned', async (t) => {
+  const graph = graphWith(t, baseEvents());
+  const opts = options(t, graph);
+  await collectEvidencePack(opts);
+  const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
+  assert.equal(selfCheck.emergencyStopLedger, 'absent');
+  assert.equal(selfCheck.counts.issuerSeals, 0);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json']);
+  assert.equal(fs.existsSync(path.join(opts.outDir, 'emergency-stop', 'ledger.jsonl')), false);
 });
