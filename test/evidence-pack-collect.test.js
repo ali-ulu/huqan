@@ -180,12 +180,14 @@ test('refuses to pack when receipts carry secret-looking value', async (t) => {
 });
 
 test('a signature nested anywhere in hash-bound content is not read as a secret', async (t) => {
-  // SECRET stands in for the one-in-five random base64 signature the heuristic flags.
+  // The exemption is now format-based: only well-formed ed25519 signatures are exempt.
+  // SECRET is a credential-shaped string, not a valid signature, so it is refused.
   const sealed = receipt(1, { metadata: { seal: { signature: SECRET } } });
   const graph = graphWith(t, [auditEvent(1, sealed)]);
   const opts = options(t, graph);
-  await collectEvidencePack(opts);
-  assert.equal(verifyPack(opts.outDir).valid, true);
+  const error = await collectFailure(opts);
+  assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');
+  assertNothingLeftBehind(opts);
 });
 
 test('performs no network call while packing', async (t) => {
@@ -384,4 +386,57 @@ test('a write failure is a coded refusal and leaves nothing behind', async (t) =
   const blocked = { ...opts, outDir: path.join(path.dirname(opts.outDir) + '-file', 'pack') };
   assert.equal((await collectFailure(blocked)).code, 'PACK_WRITE_FAILED');
   fs.rmSync(path.dirname(opts.outDir) + '-file');
+});
+
+// #4253 (CWE-693): the signature exemption used to be name-based, so a secret
+// placed in a `signature` field left the pack raw. It is format-based now.
+const crypto = require('node:crypto');
+const { signPackManifest } = require('../lib/evidence-pack/signature');
+
+const issuerKey = crypto.generateKeyPairSync('ed25519');
+const ISSUER_PRIVATE_KEY_PEM = issuerKey.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+const VALID_SIGNATURE = signPackManifest({ packHash: 'x'.repeat(64), period: { from: 'a', to: 'b' }, generatedAt: NOW }, ISSUER_PRIVATE_KEY_PEM).signature;
+
+test('a secret placed in a `signature` field is refused, not silently packed', async (t) => {
+  // Before the fix this packed with scrubbedFiles:[] and 'no secret-looking value'.
+  const sealed = receipt(1, { metadata: { signature: SECRET } });
+  const graph = graphWith(t, [auditEvent(1, sealed)]);
+  const opts = options(t, graph);
+  const error = await collectFailure(opts);
+  assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');
+  assert.doesNotMatch(error.message, /sk-live/);
+  assertNothingLeftBehind(opts);
+});
+
+test('a well-formed ed25519 signature in a `signature` field is still exempt', async (t) => {
+  const sealed = receipt(1, { metadata: { seal: { signature: VALID_SIGNATURE } } });
+  const graph = graphWith(t, [auditEvent(1, sealed)]);
+  const opts = options(t, graph);
+  await collectEvidencePack(opts);
+  assert.equal(verifyPack(opts.outDir).valid, true);
+  const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
+  assert.equal(selfCheck.secretScan.secretFound, false);
+  assert.equal(selfCheck.secretScan.signatureExempt, 1);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']);
+});
+
+test('the producer self-check records what the secret scan actually ran over', async (t) => {
+  const graph = graphWith(t, baseEvents());
+  const opts = options(t, graph, { issuerKey: { privateKeyPem: ISSUER_PRIVATE_KEY_PEM } });
+  await collectEvidencePack(opts);
+  const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
+  assert.equal(typeof selfCheck.secretScan.secretFound, 'boolean');
+  assert.equal(selfCheck.secretScan.secretFound, false);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']);
+  assert.equal(selfCheck.secretScan.signatureExempt, 0);
+});
+
+test('a malformed signature value is scanned like any other value', async (t) => {
+  // base64url, but not 64 bytes -- a credential-shaped string in a signature field.
+  const sealed = receipt(1, { metadata: { signature: SECRET } });
+  const graph = graphWith(t, [auditEvent(1, sealed)]);
+  const opts = options(t, graph);
+  const error = await collectFailure(opts);
+  assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');
+  assertNothingLeftBehind(opts);
 });

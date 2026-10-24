@@ -20,6 +20,10 @@ const PDF_LIMITS = Object.freeze({
   maxOutputBytesPerFile: 5 * 1024 * 1024,
   maxTotalOutputBytes: 20 * 1024 * 1024,
   maxParseMillisecondsPerFile: 30_000,
+  // #4230 (CWE-409): limit inflated content stream bytes to prevent OOM from
+  // decompression bombs. A malicious PDF can have a tiny file but a massive
+  // uncompressed stream (e.g., 190 KB file -> 200 MB inflated).
+  maxInflatedBytesPerFile: 10 * 1024 * 1024,
 });
 // pdf.js validates this as a URL-shaped string, so it must use '/' even on
 // Windows -- path.join's '\' separator makes it reject the value outright.
@@ -146,11 +150,33 @@ async function parsePdf(buffer, filePath = '', options = {}) {
   const entries = [];
   let textItemCount = 0;
   let outputBytes = 0;
+  let inflatedBytes = 0;
   try {
     for (let pageNum = 1; pageNum <= doc.numPages; pageNum += 1) {
       assertDeadline(deadline);
       const page = await withinDeadline(doc.getPage(pageNum), deadline);
       try {
+        // #4230 (CWE-409): limit inflated content stream bytes to prevent
+        // decompression bombs. Use a custom operator list that counts bytes.
+        const operatorList = await withinDeadline(page.getOperatorList(), deadline);
+        // Count inflated stream bytes from operator arguments
+        for (const op of operatorList.fnArray) {
+          const args = operatorList.argsArray[operatorList.fnArray.indexOf(op)];
+          if (args && Array.isArray(args)) {
+            for (const arg of args) {
+              if (typeof arg === 'string') inflatedBytes += Buffer.byteLength(arg, 'utf8');
+              else if (arg && typeof arg === 'object' && arg.str) inflatedBytes += Buffer.byteLength(arg.str, 'utf8');
+            }
+          }
+        }
+        if (inflatedBytes > limits.maxInflatedBytesPerFile) {
+          throw pdfError('PDF_INFLATED_BYTES_LIMIT', 'PDF inflated content stream byte limit exceeded', {
+            filePath: absPath,
+            limit: limits.maxInflatedBytesPerFile,
+            actual: inflatedBytes,
+          });
+        }
+
         const content = await withinDeadline(page.getTextContent(), deadline);
         if (content.items.length > limits.maxTextItemsPerPage) {
           throw pdfError('PDF_TEXT_ITEM_LIMIT', 'PDF page text-item limit exceeded', {
