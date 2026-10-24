@@ -177,3 +177,58 @@ test('a host claim of verified does not make the collector agree', t => {
   assert.equal(stored.metadata.identity.signatureVerified, true, 'the sender claim is preserved as written');
   assert.equal(stored.collector.identitySignature, 'unverified', 'the collector must not repeat it');
 });
+
+// #4250: `taskScope` is part of the signed card, so the rebuilt card must
+// carry it. Dropping it on the way out of the receipt made the signature
+// verify over a card the issuer never signed.
+const SCOPED_CARD = Object.freeze({ ...CARD, taskScope: { taskId: 'T-1', runId: null } });
+
+function scopedIdentityFor({ signature, trustedPublicKeys = [] } = {}) {
+  const envelope = {
+    kind: 'shell',
+    workspaceId: 'default',
+    agent: { name: 'writer', instanceId: 'writer-1', version: '1.0.0' },
+    session: { id: 's-1', turnId: 't-1' },
+    identityCard: { ...SCOPED_CARD },
+    ...(signature ? { identityCardSignature: signature } : {}),
+  };
+  return evaluateAgentIdentity(envelope, { trustedPublicKeys, now: () => '2026-09-05T00:00:00.000Z', taskId: 'T-1' }).identity;
+}
+
+test('#4250: a legitimately scoped card rebuilds with its taskScope and verifies', () => {
+  const keys = generateIdentityCardKeyPair();
+  const identity = scopedIdentityFor({ signature: signAgentIdentityCard(SCOPED_CARD, keys.privateKeyPem), trustedPublicKeys: [keys.publicKeyPem] });
+
+  assert.equal(identity.attested, true);
+  assert.deepEqual(identity.taskScope, { taskId: 'T-1', runId: null });
+  assert.deepEqual(agentIdentityCardFromReceiptIdentity(identity).taskScope, { taskId: 'T-1', runId: null },
+    'the rebuilt card must carry the field the signature covered');
+  assert.equal(verifyReceiptIdentityCardSignature(identity, [keys.publicKeyPem]), true,
+    'a legitimately scoped card must verify, not be rejected for a missing field');
+});
+
+test('#4250: an injected taskScope on an unscoped signature is not verified', () => {
+  const keys = generateIdentityCardKeyPair();
+  // A real signature over the *unscoped* card, then a scope bolted onto the
+  // receipt's identity block afterwards. The signature must not cover it.
+  const signedUnscoped = signAgentIdentityCard(CARD, keys.privateKeyPem);
+  const identity = identityFor({ signature: signedUnscoped, trustedPublicKeys: [keys.publicKeyPem] });
+  const forged = { ...identity, taskScope: { taskId: 'T-ADMIN', runId: null } };
+
+  assert.equal(verifyReceiptIdentityCardSignature(forged, [keys.publicKeyPem]), false,
+    'a taskScope the signature never covered must fail closed');
+});
+
+test('#4250: editing the taskScope of a scoped signature is not verified', () => {
+  const keys = generateIdentityCardKeyPair();
+  const identity = scopedIdentityFor({ signature: signAgentIdentityCard(SCOPED_CARD, keys.privateKeyPem), trustedPublicKeys: [keys.publicKeyPem] });
+
+  for (const edit of [
+    { taskScope: { taskId: 'T-ADMIN', runId: null } },
+    { taskScope: { taskId: 'T-1', runId: 'r-evil' } },
+    { taskScope: null },
+  ]) {
+    assert.equal(verifyReceiptIdentityCardSignature({ ...identity, ...edit }, [keys.publicKeyPem]), false,
+      `editing taskScope to ${JSON.stringify(edit.taskScope)} must break the signature`);
+  }
+});
