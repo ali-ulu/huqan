@@ -81,6 +81,7 @@ test('#4221: rewriting an identity field breaks a bound signature', t => {
   const dir = scratch(t);
   const filePath = writeManifest(dir, IDENTITY, { signatureOver: 'bound' });
   const manifestPath = path.join(dir, 'plugin.manifest.json');
+  const signed = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
   // The forgery the issue describes: keep the bytes and the signature, swap
   // the publisher (or version, workspace, capabilities, expiry).
@@ -91,12 +92,16 @@ test('#4221: rewriting an identity field breaks a bound signature', t => {
     { capabilities: [{ name: 'acmeCap', command: 'acmeCap' }, { name: 'net', command: 'net' }] },
     { expiresAt: '2030-01-01T00:00:00.000Z' },
   ]) {
-    const tampered = { ...JSON.parse(fs.readFileSync(manifestPath, 'utf8')), ...edit };
+    // Each case edits only its own field of the signed manifest.
+    const tampered = { ...signed, ...edit };
     fs.writeFileSync(manifestPath, JSON.stringify(tampered));
     const v = PluginManager.verifyPluginFile(filePath, { signatureKey: KEY, strict: true });
     assert.equal(v.ok, false, `editing ${Object.keys(edit)[0]} must break the signature`);
     assert.equal(v.status, 'rejected');
   }
+  fs.writeFileSync(manifestPath, JSON.stringify(signed));
+  assert.equal(PluginManager.verifyPluginFile(filePath, { signatureKey: KEY, strict: true }).ok, true,
+    'the untouched manifest still verifies, so each rejection came from its edit');
 });
 
 test('#4221: key order does not change the bound signature (canonical payload)', t => {

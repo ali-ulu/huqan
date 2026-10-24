@@ -98,7 +98,7 @@ test('an unsigned or malformed checkpoint is refused (#4220)', () => {
   const cases = [
     [null, 'checkpoint_missing'],
     [{ treeSize: 9, rootHash }, 'checkpoint_unsigned'],
-    [{ treeSize: 9, rootHash, signature: 'not-base64!!' }, 'checkpoint_signature_invalid'],
+    [{ log: LOG, treeSize: 9, rootHash, signature: 'not-base64!!' }, 'checkpoint_signature_invalid'],
     [{ treeSize: -1, rootHash, signature: 'AAAA' }, 'checkpoint_malformed'],
   ];
   for (const [checkpoint, reason] of cases) {
@@ -114,6 +114,17 @@ test('the checkpoint verifier is fail-closed on a missing key (#4220)', () => {
   assert.equal(verifyTransparencyCheckpoint(checkpoint, { log: 'tlog:other', logPublicKeyPem: publicKeyPem }).reason,
     'checkpoint_log_mismatch');
   assert.equal(verifyTransparencyCheckpoint(checkpoint, { log: LOG, logPublicKeyPem: publicKeyPem }).ok, true);
+});
+
+test('the checkpoint must name the expected log; neither side may leave it out (#4220)', () => {
+  const checkpoint = checkpointFor({ rootHash: rootOf('leaf:abc123', ['s']) });
+  assert.equal(verifyTransparencyCheckpoint(checkpoint, { logPublicKeyPem: publicKeyPem }).reason, 'checkpoint_log_missing');
+  const { log: _omitted, ...unnamed } = checkpoint;
+  assert.equal(verifyTransparencyCheckpoint(unnamed, { log: LOG, logPublicKeyPem: publicKeyPem }).reason, 'checkpoint_log_mismatch');
+  const proof = proofFor('leaf:abc123', ['s']);
+  const verified = verifyInclusionProof('leaf:abc123', proof, { checkpoint, log: LOG, logPublicKeyPem: publicKeyPem });
+  assert.equal(verified.ok, true);
+  assert.equal('logIndex' in verified, false, 'the proof\'s logIndex is not covered by the checkpoint, so it is not reported');
 });
 
 test('no inclusion proof returned fails closed', async () => {

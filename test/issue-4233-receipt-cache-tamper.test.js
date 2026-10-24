@@ -148,3 +148,22 @@ test('the cache refuses a stamp whose chainDigest is not a digest (#4233)', () =
   assert.equal(normalizeStamp({ ...base, chainDigest: 'not-a-digest' }), null);
   assert.equal(normalizeStamp({ ...base, chainDigest: null }).chainDigest, undefined, 'null means no chain');
 });
+
+test('an edit of only the stored receipt_hash column also moves the digest (#4233)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4233-stored-'));
+  const graph = new Graph({
+    memoryPath: path.join(root, 'memory.json'),
+    dbPath: path.join(root, 'memory.db'),
+    useSQLite: true,
+  });
+  try {
+    seed(graph);
+    const before = getReceiptStamp(graph, WORKSPACE, 'v4');
+    graph._db.prepare('UPDATE mutation_receipts SET receipt_hash = ? WHERE receipt_id = ?').run('f'.repeat(64), RECEIPT_ID);
+    const after = getReceiptStamp(graph, WORKSPACE, 'v4');
+    assert.notEqual(after.chainDigest, before.chainDigest, 'the stored hash is part of what the cache keys on');
+  } finally {
+    graph.close?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

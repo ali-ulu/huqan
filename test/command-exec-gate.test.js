@@ -473,6 +473,15 @@ test('#4234: tilde-expanded write command destination outside workspace is BLOCK
   }
 });
 
+test('#4234: ~user is another account\'s home, never the workspace beside this one', () => {
+  // Expanding `~root` as `<home>root` would land inside a workspace named that way.
+  const workspaceRoot = `${os.homedir()}root`;
+  const r = evaluateCommandExec({ command: 'echo secret > ~root/file', workspaceRoot });
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.PATH_OUTSIDE_WORKSPACE_BLOCKED);
+  assert.equal(r.outOfWorkspaceTarget, '~root/file');
+});
+
 test('#4234: tilde-expanded target inside workspace is ALLOW', () => {
   const workspaceRoot = os.homedir();
   const r = evaluateCommandExec({ command: 'echo secret > ~/inside.txt', workspaceRoot });
