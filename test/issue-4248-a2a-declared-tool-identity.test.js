@@ -88,6 +88,14 @@ test('a read tool with a mutating suffix or a conflicting operation field is ref
     surface: 'agent', tool: 'verify', action: 'deploy', input: {},
   });
   assert.equal(emptyInput.decision, 'block');
+
+  // `operation` is a structured action field even though it is not in the
+  // clipped projection.
+  const operation = evaluateAgentActionFirewall({
+    surface: 'agent', tool: 'verify', action: 'verify',
+    input: { action: 'verify', operation: 'repo.remove' },
+  });
+  assert.notEqual(operation.decision, 'allow');
 });
 
 test('a read subject that merely names a deployment is still a read', () => {
