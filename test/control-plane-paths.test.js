@@ -86,6 +86,64 @@ test('leaves read-only inspection of the control plane alone', () => {
   }
 });
 
+test('#4249 flags a target hidden behind wrappers, chains and a newline', () => {
+  const wrapped = [
+    // Wrapper commands that prefix the real verb.
+    'sudo rm .claude/settings.json',
+    'doas rm .claude/settings.json',
+    'command rm .claude/settings.json',
+    'nohup rm .claude/settings.json',
+    'nice rm .claude/settings.json',
+    'ionice rm .claude/settings.json',
+    'time rm .claude/settings.json',
+    'env FOO=1 rm .claude/settings.json',
+    'env -u NAME rm .claude/settings.json',
+    'xargs rm .claude/settings.json',
+    'xargs -0 rm .claude/settings.json',
+    'sudo -u root rm .claude/settings.json',
+    'nice -n 5 rm .claude/settings.json',
+    // A script a launcher is told to run.
+    'bash -c "rm .claude/settings.json"',
+    'sh -c "echo {} > .claude/settings.json"',
+    'bash -lc "mv .codex/hooks.json /tmp/x"',
+    'eval "rm .claude/settings.json"',
+    'cmd /c "del .claude\\settings.json"',
+    'powershell -Command "Remove-Item .claude\\settings.json"',
+    // A command substitution.
+    'echo $(rm .claude/settings.json)',
+    'echo `rm .claude/settings.json`',
+    // Chains: `;`, `&&`, `|` and a newline each start a new command.
+    'echo hi; rm .claude/settings.json',
+    'true && rm .claude/settings.json',
+    'cat x | tee .claude/settings.json',
+    'cd repo && rm .claude/settings.json',
+    'echo start\nrm .claude/settings.json',
+    'true; sudo bash -c "rm .claude/settings.json"',
+  ];
+  for (const command of wrapped) {
+    assert.ok(findControlPlaneCommandTarget(command), `expected ${command} to be flagged`);
+  }
+});
+
+test('#4249 still leaves reads and quoted text alone', () => {
+  const benign = [
+    'cat .claude/settings.json',
+    'grep -n huqan-gate .claude/settings.json',
+    'git diff .claude/settings.json',
+    'bash -c "cat .claude/settings.json"',
+    'xargs echo .claude/settings.json',
+    'cat .claude/settings.json && echo done',
+    'echo hi\ncat .claude/settings.json',
+    // Separators inside quotes are text, not commands.
+    'echo "a; rm .claude/settings.json"',
+    "echo 'example | rm .claude/settings.json'",
+    'git commit -m "docs: rm .claude/settings.json"',
+  ];
+  for (const command of benign) {
+    assert.equal(findControlPlaneCommandTarget(command), null, `expected ${command} to pass`);
+  }
+});
+
 test('every rule carries the profile it protects', () => {
   for (const rule of CONTROL_PLANE_PATH_RULES) {
     assert.ok(rule.profile, 'rule is missing a profile');
