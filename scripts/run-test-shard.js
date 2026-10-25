@@ -58,6 +58,12 @@ const HEAVY_FILE_TIMEOUT_OVERRIDES = Object.freeze({
 const HEAVY_FILES = Object.freeze(new Set([
   // Real per-case Git/approval/rollback checks passed in 221s under local load.
   'test/agent-coder-execution.test.js',
+  // Native project approvals, HTTP acceptance and sealed-memory restarts exceeded 108s locally.
+  'test/agent-coder-project-execution.test.js',
+  // Approved project creation, HTTP-tested history and process replay passed in 95s locally.
+  'test/cognition-coder-project-runtime.test.js',
+  // Real sealed history, two native acceptance arms and process replay exceed 90s.
+  'test/cognition-coder-outcome-runtime.test.js',
   // Three feedback arms plus a fresh-process native replay passed in 164s.
   'test/cognition-coder-runtime.test.js',
   'test/kernel-facade-contract.test.js',

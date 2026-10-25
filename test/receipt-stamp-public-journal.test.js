@@ -48,11 +48,11 @@ test('2352: stamp and family resolve from the JSON journal without private acces
       details: { receipt: committed.receipt.canonicalPayload },
     }, { workspaceId: 'workspace-a' });
     const reader = graph.readJsonJournal.bind(graph);
-    assert.deepEqual(getReceiptStamp(graph, 'workspace-a', 'v4', { readJsonJournal: reader }), {
-      generation: 1,
-      receiptCount: 1,
-      headHash: committed.receipt.receiptHash,
-    });
+    const journalStamp = getReceiptStamp(graph, 'workspace-a', 'v4', { readJsonJournal: reader });
+    assert.equal(journalStamp.generation, 1);
+    assert.equal(journalStamp.receiptCount, 1);
+    assert.equal(journalStamp.headHash, committed.receipt.receiptHash);
+    assert.match(journalStamp.chainDigest, /^[a-f0-9]{64}$/);
     assert.equal(
       getReceiptFamilyById(graph, committed.receipt.receiptId, 'workspace-a', { readJsonJournal: reader }), 'v4');
   } finally {

@@ -268,11 +268,10 @@ test('receipt stamp utility follows materialized audit receipts and invalidates 
     materialize(firstCommitted);
     const firstStamp = getReceiptStamp(graph, 'workspace-a', 'v4');
 
-    assert.deepEqual(firstStamp, {
-      generation: 1,
-      receiptCount: 1,
-      headHash: firstCommitted.receipt.receiptHash,
-    });
+    assert.equal(firstStamp.generation, 1);
+    assert.equal(firstStamp.receiptCount, 1);
+    assert.equal(firstStamp.headHash, firstCommitted.receipt.receiptHash);
+    assert.match(firstStamp.chainDigest, /^[a-f0-9]{64}$/);
 
     const cache = createReceiptValidationCache();
     const options = {
@@ -291,11 +290,11 @@ test('receipt stamp utility follows materialized audit receipts and invalidates 
     materialize(secondCommitted);
     const secondStamp = getReceiptStamp(graph, 'workspace-a', 'v4');
 
-    assert.deepEqual(secondStamp, {
-      generation: 2,
-      receiptCount: 2,
-      headHash: secondCommitted.receipt.receiptHash,
-    });
+    assert.equal(secondStamp.generation, 2);
+    assert.equal(secondStamp.receiptCount, 2);
+    assert.equal(secondStamp.headHash, secondCommitted.receipt.receiptHash);
+    assert.match(secondStamp.chainDigest, /^[a-f0-9]{64}$/);
+    assert.notEqual(secondStamp.chainDigest, firstStamp.chainDigest);
     assert.equal(inspectTrustReceipt(options).status, 'found');
     assert.equal(cache.stats().hits, 1, 'a new materialized head must force a validation miss');
   } finally {
@@ -343,11 +342,11 @@ test('receipt stamp uses the durable SQLite receipt when materialization omits c
     }, { workspaceId: 'workspace-a' });
 
     assert.equal(receipt.receiptHash, undefined);
-    assert.deepEqual(getReceiptStamp(graph, 'workspace-a', 'v4'), {
-      generation: 1,
-      receiptCount: 1,
-      headHash: committed.receipt.receiptHash,
-    });
+    const stampAfterMaterialize = getReceiptStamp(graph, 'workspace-a', 'v4');
+    assert.equal(stampAfterMaterialize.generation, 1);
+    assert.equal(stampAfterMaterialize.receiptCount, 1);
+    assert.equal(stampAfterMaterialize.headHash, committed.receipt.receiptHash);
+    assert.match(stampAfterMaterialize.chainDigest, /^[a-f0-9]{64}$/);
 
     const cache = createReceiptValidationCache();
     const options = {

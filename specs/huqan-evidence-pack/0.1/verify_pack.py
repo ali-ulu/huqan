@@ -29,12 +29,14 @@ Exit status is 0 when every pack verifies, 1 otherwise. Warnings never change it
 """
 
 import base64
+import errno
 import hashlib
 import importlib.util
 import json
 import os
 import posixpath
 import re
+import stat as stat_module
 import sys
 
 # Loading the shipped bundle verifier as a module would otherwise write a
@@ -131,14 +133,6 @@ def canonical_json(value):
             _encode_string(k) + ":" + canonical_json(value[k]) for k in keys
         ) + "}"
     raise TypeError("unsupported value: %r" % (value,))
-
-
-def sha256_file(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def pack_hash(manifest):
@@ -251,13 +245,11 @@ def key_id(raw_key):
 def signature_findings(pack_dir, manifest):
     """Check manifest.signature.json against the manifest. Returns (findings, signed, key_id)."""
     declared = (manifest.get("producer") or {}).get("issuerKeyId") if isinstance(manifest.get("producer"), dict) else None
-    path = os.path.join(pack_dir, SIGNATURE_FILE)
-    if not os.path.exists(path):
-        return (["signature_missing"] if declared else []), False, None
     try:
-        with open(path, encoding="utf-8") as handle:
-            envelope = json.load(handle)
-    except OSError:
+        envelope = json.loads(read_listed_file(pack_dir, SIGNATURE_FILE).decode("utf-8"))
+    except UnsafePackFile as unsafe:
+        if unsafe.code == "PATH_NOT_FOUND":
+            return (["signature_missing"] if declared else []), False, None
         return ["signature_unreadable"], True, None
     except (json.JSONDecodeError, UnicodeDecodeError):
         envelope = None
@@ -434,6 +426,84 @@ def is_integer(value):
     return isinstance(value, float) and value.is_integer()
 
 
+class UnsafePackFile(Exception):
+    """A manifest path that is not the regular file inside the pack it claimed to be.
+
+    Mirrors readFileWithinRoot in lib/path-safety.js (#4247, CWE-22). `code` is
+    the shared token the JS side uses, so the two verifiers report the same
+    finding for the same fixture.
+    """
+
+    def __init__(self, code, relative):
+        super().__init__("%s:%s" % (code, relative))
+        self.code = code
+        self.relative = relative
+
+
+def read_listed_file(pack_dir, relative):
+    """Read one manifest-named file, or raise UnsafePackFile.
+
+    A path the manifest lists is a claim the pack can lie about. Containment
+    alone is not enough: a final symlink would be realpathed and admitted, a
+    FIFO would block `open` forever (the denial of service in #4247), and a
+    device is not the regular file the manifest promised. Each is refused
+    fail-closed instead of being hashed or opened.
+    """
+    absolute = os.path.join(pack_dir, relative)
+    try:
+        info = os.lstat(absolute)
+    except OSError as error:
+        raise UnsafePackFile("PATH_NOT_FOUND" if error.errno == errno.ENOENT else "PATH_UNREADABLE", relative) from None
+    except ValueError:
+        # An embedded NUL or unencodable character in a manifest-named path
+        # makes os.lstat raise ValueError, not OSError. The JS reader maps the
+        # same input to PATH_UNREADABLE, so the verdict has to match.
+        raise UnsafePackFile("PATH_UNREADABLE", relative) from None
+    if stat_module.S_ISLNK(info.st_mode):
+        raise UnsafePackFile("PATH_SYMLINK", relative)
+    if not stat_module.S_ISREG(info.st_mode):
+        raise UnsafePackFile("PATH_NOT_REGULAR", relative)
+
+    root_real = os.path.realpath(pack_dir)
+    target_real = os.path.realpath(absolute)
+    if target_real != root_real and not target_real.startswith(root_real + os.sep):
+        raise UnsafePackFile("PATH_OUTSIDE_ALLOWED_ROOT", relative)
+
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    # O_NONBLOCK makes a FIFO open return so the descriptor can be judged; it is
+    # not a deadline for a regular-file read (no flag bounds that). The type gate
+    # below is what refuses the FIFO in #4247, so the special-file denial of
+    # service cannot stall the verifier.
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
+    # os.open defaults to text mode on Windows, which would translate CRLF to LF
+    # and make every Windows pack's bytes differ from the ones the manifest
+    # hashed. O_BINARY pins the raw bytes the manifest is a claim about.
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    try:
+        descriptor = os.open(absolute, flags)
+    except OSError as error:
+        raise UnsafePackFile("PATH_SYMLINK" if error.errno == errno.ELOOP else "PATH_UNREADABLE", relative) from None
+    try:
+        opened = os.fstat(descriptor)
+        if not stat_module.S_ISREG(opened.st_mode):
+            raise UnsafePackFile("PATH_NOT_REGULAR", relative)
+        if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+            raise UnsafePackFile("PATH_CHANGED", relative)
+        chunks = []
+        while True:
+            chunk = os.read(descriptor, 65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        os.close(descriptor)
+
+
 def walk_pack_files(pack_dir):
     out = []
     for root, dirs, files in os.walk(pack_dir):
@@ -491,13 +561,9 @@ def ledger_reason(text):
 
 def verify(pack_dir, bundle_verifier, collector_pubkeys=None):
     findings = []
-    manifest_path = os.path.join(pack_dir, MANIFEST_FILE)
     try:
-        with open(manifest_path, encoding="utf-8") as handle:
-            manifest = json.load(handle)
-    except OSError:
-        # Every read failure is manifest_unreadable, matching verify.js: a
-        # permission error must not escape verify() and skip the verdict line.
+        manifest = json.loads(read_listed_file(pack_dir, MANIFEST_FILE).decode("utf-8"))
+    except UnsafePackFile:
         return ["manifest_unreadable"], [], [], (False, None), []
     except (json.JSONDecodeError, UnicodeDecodeError):
         return ["manifest_not_json"], [], [], (False, None), []
@@ -531,13 +597,17 @@ def verify(pack_dir, bundle_verifier, collector_pubkeys=None):
             findings.append("manifest_unknown_integrity_class:%s" % relative)
 
     for relative, entry in entries.items():
-        absolute = os.path.join(pack_dir, relative)
-        if not os.path.isfile(absolute):
-            findings.append("missing_file:%s" % relative)
+        try:
+            data = read_listed_file(pack_dir, relative)
+        except UnsafePackFile as unsafe:
+            if unsafe.code == "PATH_NOT_FOUND":
+                findings.append("missing_file:%s" % relative)
+            else:
+                findings.append("unsafe_file:%s" % relative)
             file_reports.append((relative, entry.get("integrityClass"), False, None))
             continue
-        actual_hash = sha256_file(absolute)
-        actual_bytes = os.path.getsize(absolute)
+        actual_hash = hashlib.sha256(data).hexdigest()
+        actual_bytes = len(data)
         hash_valid = actual_hash == entry.get("sha256")
         if not hash_valid:
             findings.append("file_hash_mismatch:%s" % relative)
@@ -554,10 +624,8 @@ def verify(pack_dir, bundle_verifier, collector_pubkeys=None):
     if BUNDLE_RELATIVE_PATH in entries and bundle_verifier is None:
         findings.append("receipt_bundle_verifier_unavailable")
     elif BUNDLE_RELATIVE_PATH in entries:
-        bundle_path = os.path.join(pack_dir, BUNDLE_RELATIVE_PATH)
         try:
-            with open(bundle_path, encoding="utf-8") as handle:
-                bundle = json.load(handle)
+            bundle = json.loads(read_listed_file(pack_dir, BUNDLE_RELATIVE_PATH).decode("utf-8"))
             ok, _bundle_findings = bundle_verifier.verify(bundle)
             if not ok:
                 findings.append("receipt_bundle_invalid")
@@ -569,8 +637,7 @@ def verify(pack_dir, bundle_verifier, collector_pubkeys=None):
 
     if LEDGER_RELATIVE_PATH in entries:
         try:
-            with open(os.path.join(pack_dir, LEDGER_RELATIVE_PATH), encoding="utf-8") as handle:
-                reason = ledger_reason(handle.read())
+            reason = ledger_reason(read_listed_file(pack_dir, LEDGER_RELATIVE_PATH).decode("utf-8"))
             if reason:
                 findings.append("emergency_stop_ledger_invalid:%s" % reason)
         except Exception:
@@ -579,8 +646,7 @@ def verify(pack_dir, bundle_verifier, collector_pubkeys=None):
     warnings = []
     if COLLECTOR_SEALS_RELATIVE_PATH in entries:
         try:
-            with open(os.path.join(pack_dir, COLLECTOR_SEALS_RELATIVE_PATH), encoding="utf-8") as handle:
-                seal_text = handle.read()
+            seal_text = read_listed_file(pack_dir, COLLECTOR_SEALS_RELATIVE_PATH).decode("utf-8")
             producer = manifest.get("producer")
             issuer = producer.get("issuerKeyId") if isinstance(producer, dict) else None
             keys = load_collector_keys(collector_pubkeys) if collector_pubkeys else None

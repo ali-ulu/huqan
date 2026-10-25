@@ -20,6 +20,7 @@ const {
   INTEGRITY_CLASSES,
   fileEntry,
   buildManifest,
+  computePackHash,
 } = require('../lib/evidence-pack/manifest');
 const { verifyPack, MANIFEST_FILE, BUNDLE_RELATIVE_PATH } = require('../lib/evidence-pack/verify');
 const { exportReceiptBundle } = require('../lib/receipt/receipt-export');
@@ -182,6 +183,93 @@ test('reports a symlink in the pack directory as an unlisted file', () => {
     const result = verifyPack(root);
     assert.equal(result.valid, false);
     assert.ok(result.findings.includes('unlisted_file:receipts/link-out.jsonl'));
+  });
+});
+
+/** #4247: a manifest path is a claim the pack can lie about. */
+function listedPath(root, relative, bytes, { integrityClass = INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY } = {}) {
+  fs.mkdirSync(path.dirname(path.join(root, relative)), { recursive: true });
+  fs.writeFileSync(path.join(root, relative), bytes);
+  const manifestPath = path.join(root, MANIFEST_FILE);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.files.push(fileEntry(relative, bytes, integrityClass));
+  manifest.packHash = computePackHash(manifest);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+}
+
+test('#4247: a listed path that is a symlink is refused, not hashed through', () => {
+  withTempPack((root) => {
+    writePack(root);
+    const outside = path.join(root, '..', `outside-${path.basename(root)}.jsonl`);
+    fs.writeFileSync(outside, '{"outside":true}\n');
+    try {
+      fs.symlinkSync(outside, path.join(root, 'audit/link.jsonl'));
+    } catch {
+      fs.rmSync(outside, { force: true });
+      return; // some environments forbid symlinks
+    }
+    const manifestPath = path.join(root, MANIFEST_FILE);
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    // The manifest records the OUTSIDE bytes, so a verifier that followed the
+    // link would hash them and report VALID.
+    manifest.files.push(fileEntry('audit/link.jsonl', '{"outside":true}\n', INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY));
+    manifest.packHash = computePackHash(manifest);
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    try {
+      const result = verifyPack(root);
+      assert.equal(result.valid, false);
+      assert.ok(result.findings.includes('unsafe_file:audit/link.jsonl'), JSON.stringify(result.findings));
+      const reported = result.files.find((file) => file.path === 'audit/link.jsonl');
+      assert.equal(reported.present, false);
+      assert.equal(reported.hashValid, null);
+    } finally {
+      fs.rmSync(outside, { force: true });
+    }
+  });
+});
+
+test('#4247: a listed path that is a FIFO is refused without blocking', () => {
+  withTempPack((root) => {
+    writePack(root);
+    const fifo = path.join(root, 'audit/fifo.jsonl');
+    try {
+      require('node:child_process').execFileSync('mkfifo', [fifo]);
+    } catch {
+      return; // no mkfifo (Windows, or a filesystem that forbids FIFOs)
+    }
+    // Git for Windows ships an `mkfifo` that reports success but leaves no
+    // FIFO on NTFS (it makes a `.lnk` shortcut, or nothing at all). Only a real
+    // FIFO proves the point, so skip when the path is absent or not a FIFO.
+    let isRealFifo = false;
+    try {
+      isRealFifo = fs.lstatSync(fifo).isFIFO();
+    } catch {
+      isRealFifo = false;
+    }
+    if (!isRealFifo) return;
+    const manifestPath = path.join(root, MANIFEST_FILE);
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.files.push(fileEntry('audit/fifo.jsonl', '', INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY));
+    manifest.packHash = computePackHash(manifest);
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    // The test itself would hang if the verifier opened the FIFO for reading,
+    // so reaching the assertion is half the proof.
+    const result = verifyPack(root);
+    assert.equal(result.valid, false);
+    assert.ok(result.findings.includes('unsafe_file:audit/fifo.jsonl'), JSON.stringify(result.findings));
+  });
+});
+
+test('#4247: a listed path is still read when it is an ordinary file', () => {
+  withTempPack((root) => {
+    writePack(root);
+    listedPath(root, 'audit/plain.jsonl', '{"plain":true}\n');
+    const result = verifyPack(root);
+    assert.deepEqual(result.findings, []);
+    assert.equal(result.valid, true);
+    const reported = result.files.find((file) => file.path === 'audit/plain.jsonl');
+    assert.equal(reported.present, true);
+    assert.equal(reported.hashValid, true);
   });
 });
 

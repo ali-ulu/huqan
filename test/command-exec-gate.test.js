@@ -1,5 +1,8 @@
 'use strict';
 
+const os = require('node:os');
+const path = require('node:path');
+const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -442,6 +445,49 @@ test('#4072 followup: expansions stay skipped for the review path', () => {
   const r = evaluateCommandExec('echo hi > $TMPPATH/build.log');
   assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW);
   assert.equal(r.reason, COMMAND_EXEC_REASONS.ALLOWED);
+});
+
+// #4234 (CWE-59): tilde expansion in containment check
+test('#4234: tilde-expanded redirection target outside workspace is BLOCK', () => {
+  // A workspace below the temp dir: ~/outside.txt is never inside it.
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-test-ws-'));
+  try {
+    const r = evaluateCommandExec({ command: 'echo secret > ~/outside.txt', workspaceRoot });
+    assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+    assert.equal(r.reason, COMMAND_EXEC_REASONS.PATH_OUTSIDE_WORKSPACE_BLOCKED);
+    assert.ok(r.outOfWorkspaceTarget);
+  } finally {
+    fs.rmSync(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test('#4234: tilde-expanded write command destination outside workspace is BLOCK', () => {
+  const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-test-ws-'));
+  try {
+    const r = evaluateCommandExec({ command: 'cp file ~/outside.txt', workspaceRoot });
+    assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+    assert.equal(r.reason, COMMAND_EXEC_REASONS.PATH_OUTSIDE_WORKSPACE_BLOCKED);
+    assert.ok(r.outOfWorkspaceTarget);
+  } finally {
+    fs.rmSync(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test('#4234: ~user is another account\'s home, never the workspace beside this one', () => {
+  // Expanding `~root` as `<home>root` would land inside a workspace named that way.
+  const workspaceRoot = `${os.homedir()}root`;
+  const r = evaluateCommandExec({ command: 'echo secret > ~root/file', workspaceRoot });
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.BLOCK);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.PATH_OUTSIDE_WORKSPACE_BLOCKED);
+  assert.equal(r.outOfWorkspaceTarget, '~root/file');
+});
+
+test('#4234: tilde-expanded target inside workspace is ALLOW', () => {
+  const workspaceRoot = os.homedir();
+  const r = evaluateCommandExec({ command: 'echo secret > ~/inside.txt', workspaceRoot });
+  assert.equal(r.decision, COMMAND_EXEC_DECISIONS.ALLOW);
+  assert.equal(r.reason, COMMAND_EXEC_REASONS.ALLOWED);
+  assert.equal(r.outOfWorkspaceTarget, null);
 });
 
 // ─── #4202: AB8 command-exec gate bypasses ───────────────────────────────────

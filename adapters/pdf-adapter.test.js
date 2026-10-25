@@ -221,3 +221,41 @@ test('pdf-adapter: ingestAndLearn forwards provenance per page', async () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// #4230 (CWE-409): a FlateDecode bomb is refused before pdf.js inflates it.
+function flatePdf(text, { padding = 0, eol = '\n', image = null, truncate = false } = {}) {
+  const zlib = require('zlib');
+  const content = zlib.deflateSync(Buffer.from(`BT /F1 18 Tf 20 100 Td (${text}) Tj ET${' '.repeat(padding)}`));
+  const stream = (dict, body) => Buffer.concat([
+    Buffer.from(`${dict}\nstream${eol}`, 'latin1'), body, Buffer.from('\nendstream\nendobj\n', 'latin1'),
+  ]);
+  const parts = [
+    Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'
+      + '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n'
+      + '3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 300 144] /Contents 5 0 R >>\nendobj\n'
+      + '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n', 'latin1'),
+  ];
+  if (image) parts.push(stream('6 0 obj\n<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /Filter /FlateDecode >>', image));
+  const contentObject = stream(`5 0 obj\n<< /Length ${content.length} /Filter /FlateDecode >>`, content);
+  parts.push(truncate ? contentObject.subarray(0, contentObject.length - 40) : contentObject);
+  if (!truncate) parts.push(Buffer.from('trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n0\n%%EOF', 'latin1'));
+  return Buffer.concat(parts);
+}
+
+test('pdf-adapter: a Flate stream that inflates past the limit is refused before pdf.js reads it (#4230)', async () => {
+  const limit = { maxInflatedBytesPerFile: 1024 * 1024 };
+  const entries = await parsePdf(flatePdf('Flate text'), '/tmp/flate.pdf', limit);
+  assert.equal(entries[0].content, 'Flate text', 'a Flate content stream under the limit still parses');
+
+  for (const [label, options] of [['LF', {}], ['CRLF', { eol: '\r\n' }], ['truncated', { truncate: true }]]) {
+    await assert.rejects(
+      () => parsePdf(flatePdf('bomb', { padding: 2 * 1024 * 1024, ...options }), '/tmp/bomb.pdf', limit),
+      (error) => error.code === 'PDF_INFLATED_BYTES_LIMIT' && error.limit === limit.maxInflatedBytesPerFile,
+      `${label} stream`,
+    );
+  }
+
+  const image = require('zlib').deflateSync(Buffer.alloc(2 * 1024 * 1024));
+  const withImage = await parsePdf(flatePdf('Image page', { image }), '/tmp/image.pdf', limit);
+  assert.equal(withImage[0].content, 'Image page', 'text extraction never decodes an image, so it is not counted');
+});

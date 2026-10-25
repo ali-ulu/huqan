@@ -398,6 +398,12 @@ const issuerKey = crypto.generateKeyPairSync('ed25519');
 const ISSUER_PRIVATE_KEY_PEM = issuerKey.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
 const VALID_SIGNATURE = signPackManifest({ packHash: 'x'.repeat(64), period: { from: 'a', to: 'b' }, generatedAt: NOW }, ISSUER_PRIVATE_KEY_PEM).signature;
 
+// The hash-bound files this pack actually wrote, in scan order.
+function packedHashBoundFiles(outDir) {
+  return ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']
+    .filter((file) => fs.existsSync(path.join(outDir, file)));
+}
+
 test('a secret placed in a `signature` field is refused, not silently packed', async (t) => {
   // Before the fix this packed with scrubbedFiles:[] and 'no secret-looking value'.
   const sealed = receipt(1, { metadata: { signature: SECRET } });
@@ -418,7 +424,7 @@ test('a well-formed ed25519 signature in a `signature` field is still exempt', a
   const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
   assert.equal(selfCheck.secretScan.secretFound, false);
   assert.equal(selfCheck.secretScan.signatureExempt, 1);
-  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, packedHashBoundFiles(opts.outDir), 'only files the pack holds are named');
 });
 
 test('the producer self-check records what the secret scan actually ran over', async (t) => {
@@ -428,7 +434,7 @@ test('the producer self-check records what the secret scan actually ran over', a
   const selfCheck = JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8'));
   assert.equal(typeof selfCheck.secretScan.secretFound, 'boolean');
   assert.equal(selfCheck.secretScan.secretFound, false);
-  assert.deepEqual(selfCheck.secretScan.scannedFiles, ['receipts/receipt-bundle.json', 'emergency-stop/ledger.jsonl', 'receipts/issuer-seals.jsonl']);
+  assert.deepEqual(selfCheck.secretScan.scannedFiles, packedHashBoundFiles(opts.outDir), 'only files the pack holds are named');
   assert.equal(selfCheck.secretScan.signatureExempt, 0);
 });
 
@@ -436,6 +442,31 @@ test('a malformed signature value is scanned like any other value', async (t) =>
   // base64url, but not 64 bytes -- a credential-shaped string in a signature field.
   const sealed = receipt(1, { metadata: { signature: SECRET } });
   const graph = graphWith(t, [auditEvent(1, sealed)]);
+  const opts = options(t, graph);
+  const error = await collectFailure(opts);
+  assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');
+  assertNothingLeftBehind(opts);
+});
+
+test('only a canonical 64-byte encoding is exempt, not text that decodes to 64 bytes', async (t) => {
+  // Buffer.from skips characters it cannot decode, so '.'-padded text still decodes to 64 bytes.
+  const canonical = Buffer.alloc(64, 1).toString('base64url');
+  const padded = `${canonical.slice(0, 40)}...${canonical.slice(40)}`;
+  assert.equal(Buffer.from(padded, 'base64').length, 64);
+  const exemptCount = async (signature) => {
+    const graph = graphWith(t, [auditEvent(1, receipt(1, { metadata: { seal: { signature } } }))]);
+    const opts = options(t, graph);
+    await collectEvidencePack(opts);
+    return JSON.parse(fs.readFileSync(path.join(opts.outDir, 'verification', 'producer-self-check.json'), 'utf8')).secretScan.signatureExempt;
+  };
+  assert.equal(await exemptCount(canonical), 1);
+  assert.equal(await exemptCount(padded), 0);
+});
+
+test('a secret under an own `__proto__` key is still refused', async (t) => {
+  // JSON keeps `__proto__` as an own key; assigning it on a plain copy would set the prototype instead.
+  const metadata = JSON.parse(`{"__proto__": {"note": "${SECRET}"}}`);
+  const graph = graphWith(t, [auditEvent(1, receipt(1, { metadata }))]);
   const opts = options(t, graph);
   const error = await collectFailure(opts);
   assert.equal(error.code, 'EVIDENCE_PACK_SECRET_DETECTED');

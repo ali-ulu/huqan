@@ -221,3 +221,63 @@ Yetersiz destek, ortak kaynak grubu ve kapalı gözlem kontrollerinde M9 katkıs
 ölçülmüş hale gelmez. Model ve ağ engelleri ayrıca gerçek sınır çağrısıyla sınanır.
 Süre kurulumu ve gözlemi içerir; raporlanan tepe bellek yalnız karar çocuk
 sürecine aittir, tüm süreç ağacının bellek maliyeti ölçülmüş değildir.
+
+## Yeni proje artifactı için yaratım gözlemi
+
+`initialize_project` boş hedefte çalıştığından, önceden var olan dosya isteyen
+gözlem bağlantısı yeni `src/logic.js` dosyasını izleyemiyordu. Host beklentisi artık
+eksik yaprağı mevcut gerçek üst dizinlerin kimliğine bağlar. Yeni sıradan dizinler
+oluşabilir; link/junction veya üst dizin değişimi, eksik/okunamayan çıktı ve
+engellenmiş adım gözlenmiş başarı sayılmaz. Mevcut sensörün `absent → created`
+ölçümü kullanılır; Coder'ın bildirdiği başarı bağımsız gözlemin yerine geçmez.
+
+Yerel kabul: `node --test test/cognition-coder-project-runtime.test.js`.
+Kontrollü fixture gerçek tek kullanımlık onaylar, kaynak Git/HEAD bağı, HTTP kabul
+testleri ve mühürlü yöntem kaydı üzerinden proje üretir. Mevcut M2 penceresi gerçek
+gözlemlerle doldurulur; aynı tarifin tekrarları tek kaynak grubunda tutulur.
+Sonraki gerçek üretimde host'un bilerek yanlış bildirdiği artifact özeti bir
+çelişki oluşturur: bu proje kabul testinin başarısız olduğu iddiası değildir.
+Bu gözlem açıkken sonraki Coder önerisi, kapalıyken sıradaki güvenli `verify`
+adımı seçilmelidir. Yeni süreç aynı geçmişi okuyup seçimi yeniden kurmalı;
+salt okuma ve sıralama journal'da gözlemleri çoğaltmamalıdır.
+
+M9 desteği bu fixture'da `INSUFFICIENT`, arousal bilinmeyen kalır. Seçim farkı
+M9 kazanımı değildir. Tekrarlanan tarifler bağımsız gerçek görev örneklemi,
+kilitlenmiş holdout veya genel kodlama üstünlüğü sayılmaz; G3 ve nihai
+`NOT_MEASURED` / `assertsGain: false` sınırı değişmez.
+
+## G1: mühürlü native kabul sonucu bağlantısı
+
+Açık host bildirimiyle gerçek `initialize_project` HTTP kabul sonucu mevcut
+journal'dan AgentV3 prediction/outcome zincirine bağlanır. Başarı ve geri alınmış
+kabul başarısızlığı ayrı gözlemlerdir; dosya özeti beklentisi gerektirmez.
+`test/cognition-coder-outcome-runtime.test.js` gerçek kabul/rollback, rapor klonu,
+onay reddi, kapsam, eksik/bozuk kanıt ve yeni süreçte aynı geçmiş okumasını sınar.
+Timeout ve eksik alan kontrolleri journal sınırına hata enjeksiyonudur; gerçek
+zaman aşımı performans ölçümü değildir. Bağlantı yalnız proje oluşturmayı kapsar.
+Bu teslim G1 geri bildirim bağlantısıdır; bağımsız holdout, M7/M9 genel kazanımı
+ve G3 kapanışı değildir. `NOT_MEASURED` / `assertsGain: false` korunur.
+
+## G1: native kabul başarısızlığından sonraki seçim ve restart
+
+`test/cognition-coder-outcome-runtime.test.js` içindeki davranış kontrolü, bilerek
+yanlış artifact özeti yerine gerçekten başarısız HTTP kabul testi kullanır.
+İlk proje geri alınır; aynı koşuda sonraki uygun ve ayrıca onaylanmış Coder görevi
+ile güvenli verify adımı yarışır. İki kolun başlangıç beklentileri ve ilk salience
+sıralaması/değerleri aynı kalmalıdır. Kontrol kolunda yalnız native kabul gözlemi
+alıcıdan cognition'a verilmez; test yürütmesi ve rollback yine gerçektir.
+
+Mevcut sekizli M2 penceresinin ilk yedi kaydı gerçek, onaylı ve HTTP kabulü geçmiş
+proje üretimlerinden gelir. Bu ortak geçmiş bir kez üretilir; journal bağlantısı
+kapatıldıktan sonra Graph ve SQLite dosyaları iki ayrı kola kopyalanır. Her kol
+aynı kayıtlarla başlamalı ve kaynak geçmişin dosyalarını değiştirmemelidir.
+Tekrarlanan tarifler aynı kaynak grubunda kalır: M9 bağımsız destek sayısı 1,
+durumu INSUFFICIENT ve arousal bilinmeyen olmalıdır. Bu kontrol M9 kazanımı değildir.
+
+Gözlem açıkken gerçek başarısız kabul, sekizinci eşlenmiş sonuç olarak sonraki
+Coder seçimini etkilemelidir; kapalıyken önceden sıradaki verify seçilmelidir.
+Seçilen ikinci Coder gerçek bağımsız kabul testinden geçmeli; kontrol kolundaki
+seçilmemiş projenin hedefi boş kalmalıdır. İki ayrı yeni süreç aynı geçmişlerden
+aynı seçimleri kurmalı ve yeniden okuma gözlem kayıtlarını çoğaltmamalıdır.
+Bu davranış kontrolü bağımsız holdout, genel görev başarısı üstünlüğü veya G1/G3
+kapanışı değildir. NOT_MEASURED / assertsGain: false sınırı korunur.

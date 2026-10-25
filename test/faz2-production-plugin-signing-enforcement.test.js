@@ -90,13 +90,16 @@ function writeActivationPlugin(dir, name, { capabilityName = `${name}Capability`
   const manifestPath = filePath.replace(/\.js$/i, '.manifest.json');
   const record = {
     sha256,
-    signature: PluginManager.hmacSign(sha256, signingKey),
     version: '1.0.0',
     issuer: 'operator',
     workspaceId: 'workspace-a',
     capabilities: [{ name: capabilityName, command: capabilityName }],
     ...manifest,
   };
+  // #4221: the signature must cover the manifest identity fields, not just the
+  // file hash, or a rewritten `issuer`/`workspaceId`/`capabilities` would still
+  // validate. Sign the same canonical payload the verifier checks.
+  record.signature = PluginManager.hmacSign(PluginManager.manifestSignaturePayload(record), signingKey);
   fs.writeFileSync(manifestPath, JSON.stringify(record));
   return { filePath, manifestPath, capabilityName, manifest: record };
 }

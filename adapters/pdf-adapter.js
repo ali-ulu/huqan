@@ -2,6 +2,7 @@ const { contentHash, CONTENT_HASH_ALGORITHM } = require('../lib/content-hash');
 const { learnEntriesSync } = require('./utils/learn-entries');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { listFilesWithinRoot } = require('../lib/safe-file-walk');
 
 function toAbs(p) {
@@ -20,6 +21,10 @@ const PDF_LIMITS = Object.freeze({
   maxOutputBytesPerFile: 5 * 1024 * 1024,
   maxTotalOutputBytes: 20 * 1024 * 1024,
   maxParseMillisecondsPerFile: 30_000,
+  // #4230 (CWE-409): total Flate output of a file's non-image streams. A
+  // 190 KB file can inflate to 200 MB; fonts and content of a long text PDF
+  // stay well under this.
+  maxInflatedBytesPerFile: 64 * 1024 * 1024,
 });
 // pdf.js validates this as a URL-shaped string, so it must use '/' even on
 // Windows -- path.join's '\' separator makes it reject the value outright.
@@ -90,6 +95,38 @@ async function withinDeadline(promise, deadline) {
   }
 }
 
+// #4230 (CWE-409): pdf.js inflates a stream whole in memory, so a ~1000:1
+// FlateDecode stream kills the process with a native OOM before any check that
+// runs after it. Each raw stream body is inflated here first, with zlib bounded
+// by what the file may still expand to. Image XObjects are skipped: text
+// extraction never decodes them. A body zlib cannot read is not Flate data.
+const STREAM_DICT_WINDOW = 4096;
+function assertInflatedWithinLimit(buffer, limit, filePath) {
+  let inflated = 0;
+  let at = 0;
+  while ((at = buffer.indexOf('stream', at)) !== -1) {
+    const before = buffer.toString('latin1', Math.max(0, at - STREAM_DICT_WINDOW), at);
+    let bodyStart = at + 'stream'.length;
+    if (buffer[bodyStart] === 0x0d) bodyStart += 1;
+    at = bodyStart;
+    if (before.endsWith('end') || buffer[bodyStart] !== 0x0a) continue;
+    if (/\/Subtype\s*\/Image\b/.test(before.slice(before.lastIndexOf('obj') + 1))) continue;
+    const bodyEnd = buffer.indexOf('endstream', bodyStart);
+    const body = buffer.subarray(bodyStart + 1, bodyEnd === -1 ? buffer.length : bodyEnd);
+    try {
+      inflated += zlib.inflateSync(body, {
+        maxOutputLength: limit - inflated + 1,
+        finishFlush: zlib.constants.Z_SYNC_FLUSH,
+      }).length;
+    } catch (error) {
+      if (error.code === 'ERR_BUFFER_TOO_LARGE') inflated = limit + 1;
+    }
+    if (inflated > limit) {
+      throw pdfError('PDF_INFLATED_BYTES_LIMIT', 'PDF inflated content stream byte limit exceeded', { filePath, limit });
+    }
+  }
+}
+
 let pdfjsLibPromise = null;
 function loadPdfjs() {
   // pdfjs-dist ships ESM-only; this module stays CommonJS like every other
@@ -119,6 +156,8 @@ async function parsePdf(buffer, filePath = '', options = {}) {
       actual: inputBytes,
     });
   }
+
+  assertInflatedWithinLimit(buffer, limits.maxInflatedBytesPerFile, absPath);
 
   const deadline = Date.now() + limits.maxParseMillisecondsPerFile;
   const pdfjsLib = await loadPdfjs();

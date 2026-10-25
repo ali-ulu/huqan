@@ -55,7 +55,7 @@ const RULES = [
     why: 'Process entrypoints, and the inbound surfaces a caller drives HUQAN through. Nothing may require these; they require everything below.',
     files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js',
       'lib/authority/operator-cli.js'],
-    dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/saml/', 'lib/workbench/'],
+    dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/saml/', 'lib/oidc/', 'lib/workbench/'],
   },
   {
     layer: 'Adapters',
@@ -73,7 +73,7 @@ const RULES = [
     layer: 'Application',
     why: 'The use cases: the runtimes that drive a turn, the feature packages that implement one capability, and the extension surface plugins are written against.',
     files: [
-      'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js', 'lib/agent-coder-execution.js',
+      'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js', 'lib/agent-coder-execution.js', 'lib/agent-coder-project-task.js',
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
@@ -102,7 +102,7 @@ const RULES = [
       'lib/authority/bundle-manifest.js', 'lib/authority/decision-envelope.js', 'lib/authority/keys.js',
       'lib/authority/sealed-request.js', 'lib/authority/totp.js', 'lib/authority/approval-registration.js',
       'lib/authority/approval-view.js', 'lib/authority/authority-service.js', 'lib/authority/operator-check.js',
-      'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
+      'lib/authority/authority-inputs.js', 'lib/authority/quorum-progress.js', 'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
       'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js', 'lib/authority/install-trust.js', 'lib/authority/posix-path-trust.js', // #4082: the POSIX counterpart of install-trust.js
       // #3948: the agent-user boundary reuses the install-trust path probe, so it
       // sits beside it rather than reaching Core from the Adapters ring.

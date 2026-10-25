@@ -222,7 +222,7 @@
       ],
       "sites": [
         {
-          "line": 41,
+          "line": 42,
           "capability": "process",
           "call": "execFileSync"
         }
@@ -726,7 +726,7 @@
           "call": "execFileSync"
         },
         {
-          "line": 128,
+          "line": 142,
           "capability": "fs_write",
           "call": "fs.rmdirSync"
         }
@@ -1141,27 +1141,27 @@
       ],
       "sites": [
         {
-          "line": 232,
+          "line": 259,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 236,
+          "line": 263,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 237,
+          "line": 264,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 239,
+          "line": 266,
           "capability": "fs_write",
           "call": "fs.renameSync"
         },
         {
-          "line": 241,
+          "line": 268,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
