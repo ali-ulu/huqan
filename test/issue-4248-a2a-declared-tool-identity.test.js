@@ -99,6 +99,18 @@ test('a read subject that merely names a deployment is still a read', () => {
   assert.equal(decision.reason, 'AGENT_READ_ONLY_ACTION_ALLOWED');
 });
 
+test('a step label in the action field is not read as a capability', () => {
+  // The step-enforcement surface passes the step's *label* as `action`
+  // (`dream-experiment-verify`) with the hypothesis as free-form input. That
+  // label is not a capability, so an honest dream-verify step keeps its read
+  // allow (#4248).
+  const decision = evaluateAgentActionFirewall({
+    surface: 'agent', tool: 'verify', action: 'dream-experiment-verify', input: 'kopek benzer kedi',
+  });
+  assert.equal(decision.decision, 'allow');
+  assert.equal(decision.reason, 'AGENT_READ_ONLY_ACTION_ALLOWED');
+});
+
 test('a genuine read-shaped action on a read tool keeps its read-only allow', () => {
   const decision = evaluateAgentActionFirewall({
     surface: 'agent',
