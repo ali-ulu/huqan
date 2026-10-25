@@ -64,7 +64,9 @@ test('the REPL runs stop/lift through the argv dispatcher (#3638)', async (t) =>
   assert.match(stopped, /Stopped: workspace w-repl/, 'stop from the prompt must reach the ledger');
 
   const lifted = await runLine('lift --scope workspace --workspace w-repl', { HUQAN_EMERGENCY_STOP_DIR: dir });
-  assert.match(lifted, /Lifted: workspace w-repl/, 'lift from the prompt must reach the ledger');
+  // #4237: the lift is fail-closed without an installed authority; printing the
+  // ledger's own refusal proves the dispatcher routed the line to the ledger.
+  assert.match(lifted, /AUTHORITY_DECISION_REQUIRED/, 'lift from the prompt must reach the ledger, which refuses it fail-closed');
 });
 
 test('the REPL runs the read-only integrity check (#3638)', async (t) => {
