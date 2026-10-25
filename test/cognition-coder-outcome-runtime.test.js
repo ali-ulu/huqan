@@ -47,7 +47,11 @@ function environment(t, { fail = false, approve = true, shared = null } = {}) {
     memoryPath: path.join(directory, 'graph.json') });
   if (shared) assert.deepEqual(readPredictionPairs(kernel.graph), shared.pairs);
   connection = openJournalConnection({ dbPath: path.join(directory, 'journal.db') });
-  const nativeJournal = createExperienceJournal({ store: connection });
+  let nativeJournal = createExperienceJournal({ store: connection });
+  const reopenJournal = () => {
+    connection = openJournalConnection({ dbPath: path.join(directory, 'journal.db') });
+    nativeJournal = createExperienceJournal({ store: connection });
+  };
   const faults = { read: rows => rows, manifest: value => value };
   const journal = { ...nativeJournal,
     read(...args) { return faults.read(nativeJournal.read(...args)); },
@@ -81,7 +85,8 @@ function environment(t, { fail = false, approve = true, shared = null } = {}) {
       environment: 'test', actor: 'operator', time: '2026-10-25T00:00:00Z', goal, task: task.id },
     cognitionCoderExpectations: { 'coder:project': { workspaceId, expected: 'passed',
       sourceGroup: 'native-project-acceptance', riskScore: 0 } } };
-  return { agent, journal, faults, captured, kernel, root, sourceRoot, goal, opts, git, directory, extraAgents, closeJournal,
+  return { agent, journal, faults, captured, kernel, root, sourceRoot, goal, opts, git, directory, extraAgents,
+    closeJournal, reopenJournal,
     spec, approvalRuntime, coderConfig: { root: sourceRoot, task, goal, action, approvalRuntime,
       requesterContext: {}, caseId: created.case.caseId, journal } };
 }
@@ -102,10 +107,12 @@ function approvedProject(f, id) {
 }
 
 function acceptanceHistory(t) {
-  const f = environment(t, { fail: true });
+  const f = environment(t);
+  const run = f.agent.run(f.goal, f.opts);
+  assert.equal(run.data.steps[0].result.data.attempts[0].test.exitCode, 0);
   const declaration = f.opts.cognitionCoderExpectations['coder:project'];
   // Repeated native projects fill the existing error window, not independent task support.
-  for (let index = 0; index < DEFAULT_SUMMARY_WINDOW - 1; index++) {
+  for (let index = 1; index < DEFAULT_SUMMARY_WINDOW - 1; index++) {
     const coder = createAgentCoderExecution(approvedProject(f, `history-${index}`));
     const step = coder.plan(f.goal, 'default')[0];
     const state = { workspaceId: 'default', goal: f.goal, observabilityRunId: `history-${index}` };
@@ -117,7 +124,7 @@ function acceptanceHistory(t) {
     assert.equal(finishObservation({ ...args, pending, report: { status: 'done', result } }).outcome, 'confirmed');
   }
   f.closeJournal();
-  return { ...f, pairs: readPredictionPairs(f.kernel.graph) };
+  return { ...f, run, pairs: readPredictionPairs(f.kernel.graph) };
 }
 
 function acceptanceEpisode(t, observe, shared) {
@@ -126,6 +133,12 @@ function acceptanceEpisode(t, observe, shared) {
   const agent = new AgentV3({ kernel: f.kernel, dbPath: path.join(f.directory, 'episode.db'), dreamExperimentLoop: false,
     coderExecution: { queue: [f.coderConfig, next] }, timeBudgetMs: 60000 });
   f.extraAgents.push(agent);
+  agent.baseAgent.plugins = { emit(event, data) {
+    if (data.step?.id !== 'coder:project') return;
+    if (event === 'beforeTask') Object.assign(f.captured, { state: data.state, step: data.step,
+      pending: data.state.cognition?.pending });
+    if (event === 'afterTask') f.captured.report = data.step;
+  } };
   if (!observe) {
     const coder = agent.baseAgent.coderExecution;
     agent.baseAgent.coderExecution = { ...coder, observeAcceptance: () => null };
@@ -147,7 +160,7 @@ function acceptanceEpisode(t, observe, shared) {
   return { ...f, run, nextRoot: next.task.operation.targetRoot, pairs: readPredictionPairs(f.kernel.graph) };
 }
 
-test('native acceptance failure changes the next authorized choice and the choice survives restart', t => {
+test('native acceptance failure changes the next authorized choice and the choice survives restart', async t => {
   const history = acceptanceHistory(t);
   const files = ['graph.json', 'graph.mutations.json', 'journal.db'];
   const before = files.map(file => fs.readFileSync(path.join(history.directory, file)));
@@ -187,15 +200,21 @@ test('native acceptance failure changes the next authorized choice and the choic
     assert.deepEqual(replayed.after, f.pairs);
     assert.equal(replayed.order[0], f.run.data.steps[1].id);
   }
+  await t.test('failed native HTTP acceptance remains a contradiction despite fake reported success', () => {
+    assertNativeFailure(candidate, candidate.run);
+  });
+  history.reopenJournal();
+  await t.test('sealed native success rejects cloned, uncertain, corrupt and wrong-scope evidence', () => {
+    assertNativeSuccess(history, history.run);
+  });
 });
 
-test('a sealed native HTTP acceptance pass becomes a scoped observed outcome', t => {
-  const f = environment(t); const run = f.agent.run(f.goal, f.opts);
+function assertNativeSuccess(f, run) {
   assert.equal(run.data.steps[0].result.data.outcome, 'applied_tested');
   assert.equal(run.data.steps[0].result.data.attempts[0].test.exitCode, 0);
   const outcomes = Object.values(readPredictionPairs(f.kernel.graph)).filter(pair => pair.outcome);
-  assert.equal(outcomes.length, 1, 'native journal proof must reach cognition without a file-digest expectation');
-  assert.equal(outcomes[0].outcome.state, 'confirmed');
+  assert.equal(outcomes.length, DEFAULT_SUMMARY_WINDOW - 1);
+  assert.ok(outcomes.every(pair => pair.outcome.state === 'confirmed'));
   assert.equal(f.git('status', '--porcelain'), '');
   const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
   const persisted = JSON.parse(execFileSync(process.execPath, ['-e',
@@ -234,22 +253,21 @@ test('a sealed native HTTP acceptance pass becomes a scoped observed outcome', t
   f.faults.read = rows => rows;
   f.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-m', 'new head');
   assert.equal(finishObservation(args).status, 'ABSTAIN');
-  assert.equal(Object.values(readPredictionPairs(f.kernel.graph)).filter(pair => pair.outcome).length, 1);
-});
+  assert.equal(Object.values(readPredictionPairs(f.kernel.graph)).filter(pair => pair.outcome).length, outcomes.length);
+}
 
-test('failed native HTTP acceptance with verified rollback is observed as a test failure', t => {
-  const f = environment(t, { fail: true }); const run = f.agent.run(f.goal, f.opts);
+function assertNativeFailure(f, run) {
   const attempt = run.data.steps[0].result.data.attempts[0];
   assert.equal(attempt.test.exitCode, 1);
   assert.equal(attempt.rolledBack, true);
   assert.deepEqual(fs.readdirSync(f.root), []);
   const outcomes = Object.values(readPredictionPairs(f.kernel.graph)).filter(pair => pair.outcome);
-  assert.equal(outcomes.length, 1, 'native acceptance failure is distinct from absent artifact evidence');
-  assert.equal(outcomes[0].outcome.state, 'contradiction');
+  assert.equal(outcomes.length, DEFAULT_SUMMARY_WINDOW);
+  assert.equal(outcomes.filter(pair => pair.outcome.state === 'contradiction').length, 1);
   f.captured.report.result.ok = true;
   assert.equal(finishObservation({ ...f.captured, graph: f.kernel.graph,
-    coder: f.agent.baseAgent.coderExecution }).outcome, 'contradiction');
-});
+    coder: f.extraAgents[0].baseAgent.coderExecution }).outcome, 'contradiction');
+}
 
 test('denied approval and fake reported success produce no observed outcome', t => {
   const f = environment(t, { approve: false });
