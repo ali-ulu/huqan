@@ -29,12 +29,23 @@ test('a URL userinfo pair is a secret and only the credential part is masked', (
   assert.equal(masked, 'postgres://[REDACTED_SECRET:url_userinfo]@db.internal:5432/huqan');
 });
 
+test('a token in the username part of a URL userinfo is also a secret', () => {
+  const USERNAME = ['tok', 'enapi'].join('');
+  assert.deepEqual(typesIn(`https://${USERNAME}@api.example/v1`), ['url_userinfo']);
+  const masked = maskSecretsInText(`https://${USERNAME}@api.example/v1`);
+  assert.equal(masked.includes(USERNAME), false);
+  assert.equal(masked, 'https://[REDACTED_SECRET:url_userinfo]@api.example/v1');
+});
+
 test('an Authorization: Basic header is a secret', () => {
   const header = `Authorization: Basic ${Buffer.from('app_user:p4ssw0rd').toString('base64')}`;
   assert.deepEqual(typesIn(header), ['basic_auth']);
   const masked = maskSecretsInText(header);
   assert.equal(masked, 'Authorization: Basic [REDACTED_SECRET:basic_auth]');
   assert.deepEqual(typesIn(`Proxy-Authorization: Basic ${Buffer.from('app_user:otherPassword').toString('base64')}`), ['basic_auth']);
+  // The shortest decodable Basic credential is 4 base64 characters.
+  assert.deepEqual(typesIn(`Authorization: Basic ${Buffer.from('a:b').toString('base64')}`), ['basic_auth']);
+  assert.equal(maskSecretsInText(`Authorization: Basic ${Buffer.from('a:b').toString('base64')}`), 'Authorization: Basic [REDACTED_SECRET:basic_auth]');
 });
 
 test('a named cookie pair in a header is a secret, a bare label is not', () => {
@@ -43,12 +54,19 @@ test('a named cookie pair in a header is a secret, a bare label is not', () => {
   assert.equal(maskSecretsInText(header), '[REDACTED_SECRET:cookie_header]');
   assert.deepEqual(typesIn('Cookie: theme=dark'), []);
   assert.deepEqual(typesIn('Cookie: chocolate chip recipe'), []);
+  // A short pair before the guarded one must not hide the guarded value.
+  const mixed = `Cookie: theme=dark; sid=${'abcdef123456'}`;
+  assert.deepEqual(typesIn(mixed), ['cookie_header']);
+  assert.equal(maskSecretsInText(mixed), '[REDACTED_SECRET:cookie_header]');
 });
 
 test('an unsigned or truncated JWT is a secret, a complete one keeps its own type', () => {
   const unsigned = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0In0';
   assert.deepEqual(typesIn(unsigned), ['jwt_like']);
   assert.equal(maskSecretsInText(unsigned), '[REDACTED_SECRET:jwt_like]');
+  // The unsigned form may also carry the trailing empty-signature dot.
+  assert.deepEqual(typesIn(`${unsigned}.`), ['jwt_like']);
+  assert.equal(maskSecretsInText(`${unsigned}.`), '[REDACTED_SECRET:jwt_like]');
   assert.deepEqual(typesIn(FULL_JWT), ['jwt']);
 });
 
@@ -57,6 +75,7 @@ test('ordinary prose, plain URLs and version strings are still not secrets', () 
     'Connect to https://db.internal:5432/huqan for details.',
     'Basic authentication is enough for the local console.',
     'See https://example.com/path@anchor.',
+    'A query-delimited colon is not userinfo: https://db.internal?filter=x:y@z.',
     'huqan 1.2.3 is released.',
   ];
   for (const value of clean) assert.deepEqual(findSecretsInText(value), [], value);
