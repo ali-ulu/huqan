@@ -336,6 +336,11 @@ test('runtime: undeclared route is denied without a key, declared public routes 
   const undeclared = await request(port, '/some-unreviewed-endpoint');
   assert.equal(undeclared.status, 404, 'undeclared route must stay 404, not leak via 401');
 
+  // #4267: with no OIDC configuration the mount claims none of its paths, so
+  // the SSO endpoints are unknown routes exactly as they were before the slice.
+  const ssoUnconfigured = await request(port, '/auth/oidc/login');
+  assert.equal(ssoUnconfigured.status, 404, 'an unconfigured OIDC route is not a live endpoint');
+
   // Declared-public routes are unaffected.
   const health = await request(port, '/health');
   assert.equal(health.status, 200);

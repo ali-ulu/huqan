@@ -1151,6 +1151,7 @@
     "lib/risk-rules.js",
     "lib/risk-target-markers.js",
     "lib/safe-file-walk.js",
+    "lib/oidc",
     "lib/saml",
     "lib/secure-file-write.js",
     "lib/sandbox-escape-ledger.js",
@@ -1580,6 +1581,7 @@
     "better-sqlite3": "^13.0.3",
     "fast-xml-parser": "^5.2.5",
     "js-yaml": "^5.2.3",
+    "openid-client": "^6.8.8",
     "proper-lockfile": "4.1.2",
     "xml-crypto": "^6.4.0"
   },

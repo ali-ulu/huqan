@@ -1,6 +1,23 @@
 # OIDC SSO and Corporate Identity (#4204)
 
-**Status: design slice only.** The current server still authenticates protected REST routes with an API key. OIDC login, browser sessions, claim mapping, and OIDC-backed Authority decisions are not implemented by this document. Do not advertise SSO as available until the implementation and provider smoke test pass.
+**Status: contract slice, plus the OIDC Relying Party (#4267).** The
+`lib/oidc/` module set implements the login, callback, session and logout
+routes, the dedicated session store and the claim mapping this document
+describes, and the shared authentication gate consults it beside the API key.
+It is **not advertised as available**: the mount reports `enabled: false` until
+a provider smoke test (slice 5) passes. The Authority identity slice (#4205
+extension) and the CLI/MCP slice are not implemented here; until the #4205
+extension is merged, OIDC must not bypass the existing Authority identity gate.
+Do not advertise SSO as available until the implementation and provider smoke
+test pass.
+
+Implemented paths (#4267): `GET /auth/oidc/login`, `GET /auth/oidc/callback`,
+`GET /auth/session`, `POST /auth/logout`. A cookie-authenticated state change
+carries the per-session CSRF token in the `x-huqan-csrf` header. Configuration
+is read from `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
+`OIDC_REDIRECT_URI`, `OIDC_IDENTITY_MAPPING_PATH`, `OIDC_SESSION_DB_PATH`,
+`OIDC_ALLOWED_ORIGIN`, `OIDC_API_KEY_FALLBACK` and `OIDC_INSECURE_LOOPBACK`
+(loopback-only, for a mock provider in tests).
 
 SAML 2.0 is explicitly separate under [#4214](https://github.com/ali-ulu/huqan/issues/4214). It must reuse the principal, session, role-mapping, and Authority assertion contracts below; it must not create a second authorization system.
 

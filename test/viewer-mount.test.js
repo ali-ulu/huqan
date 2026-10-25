@@ -17,6 +17,8 @@ const {
   VIEWER_RATE_LIMIT_MAX,
   VIEWER_RATE_LIMIT_MAX_ENTRIES,
 } = require('../lib/http/viewer-mount');
+const { createOidcMount } = require('../lib/oidc/mount');
+const { createOidcSessionStore } = require('../lib/oidc/session-store');
 
 const reqFrom = (ip) => ({ socket: { remoteAddress: ip } });
 
@@ -147,6 +149,63 @@ test('#4214: mount recognises SAML paths and routes them ahead of the gateway', 
       else delete process.env[k];
     }
     fs.rmSync(metadataDir, { recursive: true, force: true });
+  }
+});
+
+test('#4267: mount recognises OIDC paths and routes them ahead of the gateway', async () => {
+  // Unconfigured OIDC is a no-op router: the mount stays a pure viewer mount
+  // and an OIDC-shaped path is not admitted.
+  const bare = createViewerMount({ readReceipt: () => null });
+  assert.equal(bare.isViewerPath('/auth/oidc/login'), false);
+  assert.equal(bare.oidcMount.configured, false);
+  assert.equal(bare.oidcMount.enabled, false);
+  // Reset must survive an unconfigured mount (no session store to close) and a
+  // store whose close throws, because reset is called on the shutdown path.
+  bare.reset();
+  createViewerMount({
+    readReceipt: () => null,
+    oidc: { isOidcPath: () => false, sessionStore: { close() { throw new Error('already closed'); } } },
+  }).reset();
+
+  // A configured mount admits its four paths and answers them before the
+  // gateway. A `:memory:` session store keeps the test off the filesystem.
+  const calls = [];
+  const oidc = createOidcMount({
+    configResult: {
+      ok: true,
+      configured: true,
+      config: {
+        issuer: 'https://idp.example.test/',
+        allowedOrigin: 'http://app.example.test',
+        apiKeyFallback: false,
+        allowInsecureRequests: false,
+        sessionDbPath: ':memory:',
+        identityMapping: { groupRoles: { 'huqan-approvers': 'approver' } },
+      },
+    },
+    createSessionStore: () => createOidcSessionStore({ dbPath: ':memory:' }),
+    rbacPolicy: { roles: { approver: {} } },
+  });
+  const live = createViewerMount({ readReceipt: (...args) => { calls.push(args); return null; }, oidc });
+  try {
+    for (const path of ['/auth/oidc/login', '/auth/oidc/callback', '/auth/session', '/auth/logout']) {
+      assert.equal(live.isViewerPath(path), true, `${path} must be admitted by the mount`);
+    }
+    assert.equal(live.isViewerPath('/viewer/index.html'), true);
+
+    const req = { method: 'GET', url: '/auth/session', socket: { remoteAddress: '1.2.3.4' } };
+    const res = {
+      statusCode: null,
+      headers: null,
+      writeHead(status, headers) { this.statusCode = status; this.headers = headers; },
+      end() {},
+      write() {},
+    };
+    assert.equal(live.handle(req, res, new URL('http://host/auth/session')), true);
+    assert.equal(res.statusCode, 401, 'an unauthenticated session read is refused');
+    assert.equal(calls.length, 0, 'the gateway receipt reader is not consulted for an OIDC path');
+  } finally {
+    live.reset();
   }
 });
 
