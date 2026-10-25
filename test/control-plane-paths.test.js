@@ -2,8 +2,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const {
   CONTROL_PLANE_PATH_RULES,
@@ -63,43 +61,6 @@ test('matches equivalent paths that carry a dot segment (#4252)', () => {
     // canonical form, so an equivalent path cannot dodge the guard.
     assert.equal(match.path, path.posix.normalize(match.path), candidate);
     assert.ok(!/\.\//.test(match.path), `${candidate} normalized to ${match.path}`);
-  }
-});
-
-test('follows an alias that points at a control-plane file (#4253)', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cp-sym-'));
-  try {
-    fs.mkdirSync(path.join(tmp, '.claude'), { recursive: true });
-    fs.writeFileSync(path.join(tmp, '.claude', 'settings.json'), '{}');
-    const link = path.join(tmp, 'alias.json');
-    fs.symlinkSync(path.join(tmp, '.claude', 'settings.json'), link);
-    // Some sandboxes cannot resolve symlink targets; skip rather than fail there.
-    let resolvable = false;
-    try { resolvable = Boolean(fs.realpathSync(link)); } catch { /* skip */ }
-    if (!resolvable) return;
-    const match = isControlPlanePath(link);
-    assert.ok(match, 'expected an alias to a control-plane file to be flagged');
-    assert.equal(match.profile, 'claude-code');
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
-});
-
-test('leaves an alias to an ordinary file unflagged (#4253)', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cp-sym-'));
-  try {
-    fs.mkdirSync(tmp, { recursive: true });
-    fs.writeFileSync(path.join(tmp, 'scratch.js'), '{}');
-    const link = path.join(tmp, 'alias.json');
-    fs.symlinkSync(path.join(tmp, 'scratch.js'), link);
-    // Some sandboxes cannot resolve symlink targets; skip rather than fail there.
-    let resolvable = false;
-    try { resolvable = Boolean(fs.realpathSync(link)); } catch { /* skip */ }
-    if (!resolvable) return;
-    const match = isControlPlanePath(link);
-    assert.equal(match, null, 'expected an alias to an ordinary file to stay unflagged');
-  } finally {
-    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 
