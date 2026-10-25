@@ -13,6 +13,22 @@ Görev mevcut `replace_text` ailesinden olmalı ve bağımsız test komutu taş�
 Sentez örnekleri içeren görevler mevcut modelsiz `runArithmeticSynthesis` yolunu;
 diğer görevler mevcut `runFixLoop` yolunu kullanır.
 
+Çok dosyalı üretim için kapalı görev biçimi
+`{ id, operation: { type: 'initialize_project', targetRoot, spec, projectMemory? } }`
+kullanılır. `root` temiz kaynak Git deposudur; `targetRoot` ayrı, boş ve başka bir
+Git deposunun dışında olmalıdır. Genel `sequence` veya `create_file` görevleri bu
+bağlantıyla yetki kazanmaz. Kaynak HEAD'i, hedef, üretilen görev özeti ve varsa
+belleğin canonical yolu/içerik özeti aynı onaya bağlanır; yürütmeden önce yeniden
+doğrulanır. Spec onay zarfında JSON metni olarak tutulur; mevcut derinlik sınırı
+değişmez.
+
+Proje görevi mevcut initializer, bağımsız HTTP kabul testi ve tüm çıktıların
+rollback yolunu kullanır. İsteğe bağlı tek `projectMemory` dosyası için journal
+host tarafından sağlanır. Başarılı, mühürlü yöntem mevcut biçimde kaydedilir veya
+yeniden doğrulanıp kullanılır. Bellek yazımı kısmen başarısızsa görev tamamlandı
+sayılmaz; sonuç uzlaşma gerektirir ve kalan kuyruk yürütülmez. Bu bağlantı bellek
+havuzu veya bellek üzerine yazma yetkisi eklemez.
+
 Host mevcut Human Oversight Runtime'da bu eylem için review case oluşturup gerçek
 operatör kararını alır. Sonra AgentV3 kurucusuna `coderExecution` verir:
 `{ root, task, goal, action, caseId, approvalRuntime, requesterContext, journal? }`.

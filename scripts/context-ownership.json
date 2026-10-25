@@ -1288,6 +1288,10 @@
    "context": "AgentAction",
    "evidence": "agent-coder-execution.md: constructor-owned exact task binding, durable approval reservation and gated Coder execution"
   },
+  "lib/agent-coder-project-task.js": {
+   "context": "AgentAction",
+   "evidence": "agent-coder-execution.md: existing approval adapter binds closed project requirements to live source, target, task and verified method memory before initialization"
+  },
   "lib/bounded-step-history.js": {
    "context": "AgentAction",
    "evidence": "#3618 bounded ring of recent step reports plus exact tallies for the agent run's step count"

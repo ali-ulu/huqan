@@ -222,7 +222,7 @@
       ],
       "sites": [
         {
-          "line": 41,
+          "line": 42,
           "capability": "process",
           "call": "execFileSync"
         }
@@ -726,7 +726,7 @@
           "call": "execFileSync"
         },
         {
-          "line": 128,
+          "line": 142,
           "capability": "fs_write",
           "call": "fs.rmdirSync"
         }
