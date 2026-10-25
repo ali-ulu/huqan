@@ -59,6 +59,15 @@ test('a read tool that carries a shell command falls through to AB5 instead of t
   assert.notEqual(shellOnly.reason, 'AGENT_READ_ONLY_ACTION_ALLOWED');
 });
 
+test('an A2A exchange that declares a read tool but asks for a write capability is refused at the seam', () => {
+  const { authority, request } = buildFixture();
+  const forged = clone(request);
+  forged.requestedAction.capability = 'learn';
+  const decision = evaluateA2aAgentActionFirewall(forged, authority, evaluateAgentActionFirewall);
+  assert.notEqual(decision.decision, 'allow');
+  assert.notEqual(decision.reason, 'AGENT_READ_ONLY_ACTION_ALLOWED');
+});
+
 test('a genuine read-shaped action on a read tool keeps its read-only allow', () => {
   const decision = evaluateAgentActionFirewall({
     surface: 'agent',
