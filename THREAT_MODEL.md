@@ -177,6 +177,37 @@ A control that could not be traced to code is listed under **Planned** or **Not 
 - Implement intelligent rate limiting based on usage patterns.
 - Add DDoS protection via cloud provider WAF (if deployed in cloud).
 
+### Evidence-Pack Verification Blocked by a Named File
+
+**Description**: An evidence pack's manifest names a path that is not an ordinary
+file â€” a FIFO, a device node, or a symlink pointing outside the pack. A verifier
+that opens the path before judging its type either blocks forever on the FIFO or
+hashes bytes the pack does not contain (CWE-22, #4247).
+
+**Impact**: The auditor's verifier hangs (denial of service) or reports VALID over
+external bytes, so the pack's integrity claim no longer rests on its own contents.
+
+**Existing Mitigations**:
+- **Implemented** â€” `readFileWithinRoot` (`lib/path-safety.js`) and its Python mirror
+  `read_listed_file` (`specs/huqan-evidence-pack/0.1/verify_pack.py`) are the only
+  readers of manifest-named paths. They refuse a symlink, a non-regular file, or a
+  path that resolves outside the pack as `unsafe_file:<path>`, without hashing
+  anything, and both open the path once and compare the descriptor's `dev`/`ino`
+  against the `lstat` that admitted it, so a swap between check and read is caught
+  as `PATH_CHANGED`. `O_NONBLOCK` makes the FIFO open return so the descriptor can
+  be judged; a regular-file read never blocks, so the type gate is also the read
+  timeout.
+- **Implemented** â€” The JS and Python verifiers share the fixture matrix in
+  `test/evidence-pack-python-parity.test.js`, so a divergence in the refusal is a
+  test failure, not a silent disagreement.
+
+**Remaining Gaps**:
+- A pack whose root directory itself is a symlink is still accepted; the reader
+  judges entries relative to whatever the caller passed.
+
+**Planned Mitigation**:
+- None outstanding for this finding.
+
 ---
 
 ## Elevation of Privilege
@@ -297,9 +328,9 @@ meant to refuse, and the audit trail records a decision the operator never made.
 
 ---
 
-### Enterprise SSO / OIDC (planned; not implemented)
+### Enterprise SSO / OIDC (Relying Party implemented, not yet advertised)
 
-**Current status**: protected REST routes use API-key authentication by default. requestGuards.js bypasses this credential check when apiAuthOptOut.isApiAuthDisabled() is true, so deployments that enable the opt-out do not have this API-key guard. The repository does not yet implement OIDC login, server-side SSO sessions, claim-to-role mapping, or OIDC-backed Authority decisions. This is a planned control, not a current mitigation.
+**Current status**: protected REST routes use API-key authentication by default. requestGuards.js bypasses this credential check when apiAuthOptOut.isApiAuthDisabled() is true, so deployments that enable the opt-out do not have this API-key guard. The OIDC Relying Party (#4267) now implements login/callback/session/logout, a dedicated hashed session store, claim-to-role mapping, and the shared `denyIfUnauthorized` seam (`lib/oidc/`), with API-key fallback off by default when OIDC is configured. It is **not advertised as available**: the mount reports `enabled: false` until the provider smoke test passes, and OIDC-backed Authority decisions are still unimplemented (slice 3, blocked on the #4205 contract extension). Until then, OIDC must not bypass the existing Authority identity gate; treat this as an implemented-but-unadvertised control, not yet a production mitigation.
 
 **Threats in scope**:
 - Authorization-code interception, forged or replayed callbacks, issuer/audience confusion, token-signature substitution, and malicious discovery endpoints.
@@ -316,7 +347,7 @@ meant to refuse, and the audit trail records a decision the operator never made.
 
 **Residual risks and gates**:
 - A compromised IdP, misconfigured group membership, or stolen broker signing key can still grant an attacker an identity; provider trust and key rotation remain deployment responsibilities.
-- OIDC implementation is not complete until mock-IdP tests cover invalid claims/state/nonce/PKCE, session and CSRF failures, assertion replay, and role-mapping denial, followed by a documented real-provider smoke test.
+- The mock-IdP tests now cover the valid flow and invalid claims/state/nonce/PKCE, session and CSRF failures, and role-mapping denial (`test/oidc-rp.test.js`). The slice is not complete until a documented real-provider smoke test passes; assertion replay belongs to slice 3 (Authority identity assertion).
 - SAML 2.0 is not part of this OIDC mitigation. It is tracked separately in issue #4214 and must reuse the same principal/session/Authority assertion contract rather than add a parallel authorization system.
 
 ## Strategic Outlook
@@ -386,11 +417,11 @@ By using HUQAN, you acknowledge and accept these security commitments.
 **Impact**: Unauthorized operator login, privilege escalation via mapped RBAC principal.
 
 **Existing Mitigations**:
-- **Implemented** — Signature verification against IdP certificates imported via administrator-controlled metadata (`lib/saml/signature.js`, `lib/saml/assertion.js`).
-- **Implemented** — Issuer, Audience, Destination/Recipient, and time-window validation with 5 min clock skew, max 24h assertion window (`lib/saml/assertion.js`).
-- **Implemented** — Replay protection via in-memory assertion ID store with TTL sweep (`lib/saml/replay-store.js`).
-- **Implemented** — Request correlation via `InResponseTo` binding to SP-issued AuthnRequest ID (`lib/saml/sp-route.js`).
-- **Implemented** — Identity mapping is read-only; NameID or subject attribute maps to existing operator IDs, rejects multi-value attributes and unknown operators (`lib/saml/identity-mapping.js`).
+- **Implemented** â€” Signature verification against IdP certificates imported via administrator-controlled metadata (`lib/saml/signature.js`, `lib/saml/assertion.js`).
+- **Implemented** â€” Issuer, Audience, Destination/Recipient, and time-window validation with 5 min clock skew, max 24h assertion window (`lib/saml/assertion.js`).
+- **Implemented** â€” Replay protection via in-memory assertion ID store with TTL sweep (`lib/saml/replay-store.js`).
+- **Implemented** â€” Request correlation via `InResponseTo` binding to SP-issued AuthnRequest ID (`lib/saml/sp-route.js`).
+- **Implemented** â€” Identity mapping is read-only; NameID or subject attribute maps to existing operator IDs, rejects multi-value attributes and unknown operators (`lib/saml/identity-mapping.js`).
 
 **Remaining Gaps**:
 - IdP metadata is a static JSON file; rotation requires process reload.

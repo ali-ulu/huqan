@@ -49,20 +49,41 @@ const { buildGraphData } = require('./lib/server-graph-data');
 const { writeStructuredLog } = require('./lib/http/structured-log');
 
 function denyIfUnauthorized(req, res, extraHeaders = {}, options = {}) {
+  const oidcMount = viewerMount.oidcMount;
   const auth = requireApiKey(req);
-  if (auth.ok) {
+  // The API key is a credential only while the deployment allows it: with OIDC
+  // configured, fallback is off unless the operator turned it on.
+  if (auth.ok && (!oidcMount?.configured || oidcMount.apiKeyFallback)) {
     req.huqanAuth = Object.freeze({ subject: 'local-api-key' });
     return true;
   }
-  writeJson(
-    req,
-    res,
-    auth.status,
-    options.errorCode
-      ? { ok: false, error: { code: options.errorCode, message: 'Unauthorized.' } }
-      : auth.error,
-    { ...auth.headers, ...extraHeaders },
-  );
+  // An OIDC session authenticates through this same gate, so it is not a
+  // second authorization system. The seam is only consulted when OIDC is
+  // configured; it decides whether the cookie is a valid credential for this
+  // method and origin. A configured-but-unusable mount carries no seam, and
+  // must not crash the gate it sits in front of.
+  const session = oidcMount?.configured === true && typeof oidcMount.authorize === 'function'
+    ? oidcMount.authorize(req)
+    : null;
+  if (session?.ok) {
+    req.huqanAuth = Object.freeze({
+      subject: session.principal.operatorId,
+      operatorId: session.principal.operatorId,
+      role: session.principal.role,
+    });
+    return true;
+  }
+  // A refused OIDC cookie answers with its stable failure code; a valid API key
+  // that OIDC mode does not accept is still a 401, not an undefined status.
+  const status = session ? 401 : (auth.ok ? 401 : auth.status);
+  const error = session
+    ? { ok: false, error: { code: session.code, message: 'Unauthorized.' } }
+    : (auth.ok
+      ? { ok: false, error: { code: 'unauthorized', message: 'Unauthorized' } }
+      : (options.errorCode
+        ? { ok: false, error: { code: options.errorCode, message: 'Unauthorized.' } }
+        : auth.error));
+  writeJson(req, res, status, error, { ...auth.headers, ...extraHeaders });
   return false;
 }
 

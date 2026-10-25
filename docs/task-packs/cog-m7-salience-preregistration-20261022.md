@@ -221,3 +221,27 @@ Yetersiz destek, ortak kaynak grubu ve kapalı gözlem kontrollerinde M9 katkıs
 ölçülmüş hale gelmez. Model ve ağ engelleri ayrıca gerçek sınır çağrısıyla sınanır.
 Süre kurulumu ve gözlemi içerir; raporlanan tepe bellek yalnız karar çocuk
 sürecine aittir, tüm süreç ağacının bellek maliyeti ölçülmüş değildir.
+
+## Yeni proje artifactı için yaratım gözlemi
+
+`initialize_project` boş hedefte çalıştığından, önceden var olan dosya isteyen
+gözlem bağlantısı yeni `src/logic.js` dosyasını izleyemiyordu. Host beklentisi artık
+eksik yaprağı mevcut gerçek üst dizinlerin kimliğine bağlar. Yeni sıradan dizinler
+oluşabilir; link/junction veya üst dizin değişimi, eksik/okunamayan çıktı ve
+engellenmiş adım gözlenmiş başarı sayılmaz. Mevcut sensörün `absent → created`
+ölçümü kullanılır; Coder'ın bildirdiği başarı bağımsız gözlemin yerine geçmez.
+
+Yerel kabul: `node --test test/cognition-coder-project-runtime.test.js`.
+Kontrollü fixture gerçek tek kullanımlık onaylar, kaynak Git/HEAD bağı, HTTP kabul
+testleri ve mühürlü yöntem kaydı üzerinden proje üretir. Mevcut M2 penceresi gerçek
+gözlemlerle doldurulur; aynı tarifin tekrarları tek kaynak grubunda tutulur.
+Sonraki gerçek üretimde host'un bilerek yanlış bildirdiği artifact özeti bir
+çelişki oluşturur: bu proje kabul testinin başarısız olduğu iddiası değildir.
+Bu gözlem açıkken sonraki Coder önerisi, kapalıyken sıradaki güvenli `verify`
+adımı seçilmelidir. Yeni süreç aynı geçmişi okuyup seçimi yeniden kurmalı;
+salt okuma ve sıralama journal'da gözlemleri çoğaltmamalıdır.
+
+M9 desteği bu fixture'da `INSUFFICIENT`, arousal bilinmeyen kalır. Seçim farkı
+M9 kazanımı değildir. Tekrarlanan tarifler bağımsız gerçek görev örneklemi,
+kilitlenmiş holdout veya genel kodlama üstünlüğü sayılmaz; G3 ve nihai
+`NOT_MEASURED` / `assertsGain: false` sınırı değişmez.

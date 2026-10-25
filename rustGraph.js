@@ -333,7 +333,7 @@ class RustGraph {
 
   async learn(text, opts = {}) {
     const cmd = { cmd: 'learn', text };
-    if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
+    for (const field of ['workspaceId', 'provenance']) if (opts?.[field] !== undefined) cmd[field] = opts[field]; // #4236: mirror parity with the JS graph path
     const res = await this.send(cmd);
     return res && res.ok;
   }
