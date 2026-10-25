@@ -5,7 +5,58 @@ const os = require('os');
 const path = require('path');
 const RustGraph = require('../rustGraph');
 const Graph = require('../graph');
+const Kernel = require('../kernel');
 const { commitLearnOutcome } = require('../lib/learn-use-case-steps');
+
+// The caller path must be pinned, not only the bridge: dropping either option
+// in lib/learn-use-case-steps.js leaves the direct RustGraph.learn tests green.
+// The CI coverage job builds no Rust binary, so a real Kernel carries
+// `_rust = null` there; the stub keeps this path executing in every job.
+test('Kernel.learn forwards workspaceId and provenance to the native mirror (#4236)', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-provenance-kernel-'));
+  const kernel = new Kernel({
+    noLoad: true,
+    loadPlugins: false,
+    useSQLite: false,
+    memoryPath: path.join(tempDir, 'memory.json'),
+  });
+  const native = kernel._rust;
+  const calls = [];
+  native?.destroy();
+  kernel._rust = {
+    learn: (text, options) => {
+      calls.push({ text, options });
+      return Promise.resolve(true);
+    },
+  };
+
+  try {
+    const provenance = {
+      provenanceId: 'caller-path-test',
+      sourceRef: 'test:si-04',
+      sourceType: 'manual',
+      actor: 'test',
+      workspaceId: 'ws-caller-path',
+    };
+    kernel.learn('kedi memelidir', {
+      ...Kernel.createAdmissionBypassOpts('SI-04 caller-path test'),
+      workspaceId: 'ws-caller-path',
+      provenance,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].text, 'kedi memelidir');
+    assert.equal(calls[0].options.workspaceId, 'ws-caller-path');
+    // buildProvenance normalizes the caller's record; the identity fields must
+    // survive into the mirror call.
+    assert.equal(calls[0].options.provenance.provenanceId, 'caller-path-test');
+    assert.equal(calls[0].options.provenance.workspaceId, 'ws-caller-path');
+  } finally {
+    kernel.graph.close();
+    fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  }
+});
 
 test('commitLearnOutcome forwards workspaceId and provenance to the native learn mirror (#4236)', async () => {
   const mirror = [];
