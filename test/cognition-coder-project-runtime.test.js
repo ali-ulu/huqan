@@ -66,6 +66,26 @@ test('replacing the real parent directory invalidates the creation binding', t =
   assert.equal(finishObservation({ ...f, pending, report: { status: 'done' } }).status, 'ABSTAIN');
 });
 
+test('distinct large directory identities cannot collapse into the same creation anchor', t => {
+  const f = environment(t);
+  const original = fs.lstatSync;
+  let identity = 9007199254740992n;
+  fs.lstatSync = (file, options) => {
+    const stat = original(file, options);
+    if (file === f.root) Object.defineProperty(stat, 'ino', {
+      value: options?.bigint ? identity : Number(identity), configurable: true,
+    });
+    return stat;
+  };
+  try {
+    const pending = beginObservation(f); assert.ok(pending);
+    assert.doesNotThrow(() => JSON.stringify(pending));
+    identity += 1n;
+    fs.mkdirSync(path.dirname(f.target)); fs.writeFileSync(f.target, f.content);
+    assert.equal(finishObservation({ ...f, pending, report: { status: 'done' } }).status, 'ABSTAIN');
+  } finally { fs.lstatSync = original; }
+});
+
 test('denial, rollback and unreadable output do not become observed successes', t => {
   for (const scenario of ['denied', 'rollback', 'directory']) {
     const f = environment(t); const pending = beginObservation(f); assert.ok(pending);
