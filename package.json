@@ -979,6 +979,8 @@
     "lib/authority/decision-attestation.js",
     "lib/authority/keys.js",
     "lib/authority/sealed-request.js",
+    "lib/authority/quorum-progress.js",
+    "lib/authority/authority-inputs.js",
     "lib/authority/totp.js",
     "lib/mcp/read-workflow-tools.js",
     "lib/mcp/trust-receipt-detail-tool.js",
