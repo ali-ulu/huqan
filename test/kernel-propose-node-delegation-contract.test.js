@@ -21,6 +21,14 @@ test('Kernel.proposeNode is a one-line, cycle-free delegation (#2127)', () => {
   assert.deepEqual(Object.keys(require('../lib/kernel-propose-node')), ['runProposeNode']);
 });
 
+/**
+ * Builds a fake collaborator set for the delegation-contract tests.
+ *
+ * @param {object} [overrides] - Optional per-test overrides.
+ * @param {string} [overrides.trustPolicyPath] - Path to the trust-policy JSON.
+ * @param {Function} [overrides.evaluateLearnAdmission] - Admission-gate stub.
+ * @returns {{ deps: object, calls: object }} The fake deps plus a recorder.
+ */
 function collaborators(overrides = {}) {
   const calls = { audits: [] };
   const graph = {
@@ -87,7 +95,7 @@ test('proposeNode writes and audits LEARN when admission allows', () => {
 // plugin that declared its own confidence sailed through with an admission
 // risk of zero. The policy now scores both branches; a low-trust sourceType
 // (llm, 0.4) maps to a medium risk and earns review instead of allow.
-test('proposeNode scores caller-supplied provenance through the trust policy (#4251)', () => {
+test('proposeNode scores caller-supplied provenance through the trust policy (#4251)', (t) => {
   const { deps, calls } = collaborators({
     evaluateLearnAdmission: (text, admissionOpts, provenance, workspaceId) => {
       const risk = admissionRiskFromConfidence(provenance?.confidence);
@@ -96,15 +104,18 @@ test('proposeNode scores caller-supplied provenance through the trust policy (#4
         : { outcome: 'allow', reason: 'provenance_present_low_risk' };
     },
   });
+  const addNode = t.mock.method(deps.graph, 'addNode');
   const lowTrust = runProposeNode(deps, 'n4', 'label', {
-    provenanceId: 'p4', actor: 'plugin', sourceType: 'llm',
+    provenanceId: 'p4', actor: 'plugin', sourceType: 'llm', confidence: 1,
   }, { workspaceId: 'default' });
   assert.equal(lowTrust.decision, 'review');
   assert.equal(lowTrust.node, null);
   assert.equal(lowTrust.admission.outcome, 'review');
+  assert.equal(addNode.mock.callCount(), 0);
   // The policy score reached the provenance that the admission gate read.
-  assert.equal(lowTrust.admission.provenanceId, undefined);
-  assert.equal(lowTrust.admission.trustPolicyVersion, undefined);
+  assert.equal(calls.audits[0].provenance.confidence, 0.4);
+  assert.equal(calls.audits[0].provenance.declaredConfidence, 1);
+  assert.equal(calls.audits[0].provenance.confidenceSource, 'policy_default');
 
   const scored = runProposeNode(deps, 'n5', 'label', {
     provenanceId: 'p5', actor: 'plugin', sourceType: 'document',
