@@ -472,8 +472,10 @@ def read_listed_file(pack_dir, relative):
     flags = os.O_RDONLY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    # O_NONBLOCK makes a FIFO open return so the descriptor can be judged; a
-    # regular-file read never blocks, so the type gate is also the timeout.
+    # O_NONBLOCK makes a FIFO open return so the descriptor can be judged; it is
+    # not a deadline for a regular-file read (no flag bounds that). The type gate
+    # below is what refuses the FIFO in #4247, so the special-file denial of
+    # service cannot stall the verifier.
     if hasattr(os, "O_NONBLOCK"):
         flags |= os.O_NONBLOCK
     # os.open defaults to text mode on Windows, which would translate CRLF to LF

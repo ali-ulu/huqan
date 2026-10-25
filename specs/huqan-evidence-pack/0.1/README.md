@@ -244,8 +244,11 @@ anything:
   pack does not contain;
 - a FIFO or device node. `open` on a FIFO would otherwise block the verifier
   forever, so the reader opens with `O_NONBLOCK` and rejects anything that is
-  not a regular file. For a regular file that gate *is* the read timeout: a
-  regular-file read never blocks.
+  not a regular file. That gate is the timeout for the special-file denial of
+  service: the FIFO the manifest names cannot stall the verifier. It is not a
+  deadline for a regular-file read -- no flag bounds one -- and the pack is a
+  local directory the auditor names, so a read from a stalled network or
+  userspace filesystem is out of scope.
 - a path that resolves outside the pack root through a symlinked parent.
 
 `missing_file:<path>` stays reserved for a path that is simply absent.
