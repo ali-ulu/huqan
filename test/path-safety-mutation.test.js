@@ -155,6 +155,26 @@ test('readFileWithinRoot reports PATH_UNREADABLE when lstat fails for a reason o
   }
 });
 
+test('readFileWithinRoot reports PATH_UNREADABLE when the file cannot be read', () => {
+  // Only a non-root POSIX user is denied by mode bits; root ignores them and
+  // Windows has no equivalent, so the case cannot be exercised there.
+  if (process.platform === 'win32' || (process.getuid && process.getuid() === 0)) return;
+  const root = scratchRoot();
+  const unreadable = path.join(root, 'unreadable');
+  try {
+    fs.writeFileSync(unreadable, 'secret');
+    fs.chmodSync(unreadable, 0o000);
+    assert.throws(() => readFileWithinRoot(root, 'unreadable'), (error) => {
+      assert.equal(error.code, 'PATH_UNREADABLE');
+      assert.equal(error.message, 'Path is not readable');
+      return true;
+    });
+  } finally {
+    fs.chmodSync(unreadable, 0o600);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('readFileWithinRoot refuses a symbolic link to a file inside the root', () => {
   const root = scratchRoot();
   try {
