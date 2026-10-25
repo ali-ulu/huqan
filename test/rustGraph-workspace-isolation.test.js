@@ -172,3 +172,65 @@ test('learn and ask stay inside their workspace', { skip }, withGraph(async (rg)
   assert.equal(await rg.ask('kedi nedir'), 'Bilmiyorum',
     'a scoped fact answered an unscoped question');
 }));
+
+/**
+ * #4238: the storage key is lossy across workspaces, so a caller-supplied id
+ * can name another tenant's record.
+ *
+ * `storage_key` maps `default` to the bare id and every other workspace to
+ * `<ws>::<id>`. The id `ws-a::secret` in `default` and the id `secret` in
+ * `ws-a` therefore share one key. Before this fix the native read/delete paths
+ * trusted the key alone, so a caller in `ws-a` could read and delete a
+ * `default` record by naming it `secret`. The JS backend already refuses this
+ * (`lib/graph-node-read.js#getNode` compares `node.workspaceId` to the scope);
+ * these tests pin the native parity.
+ */
+test('#4238 an aliased key does not let a workspace read another tenant\'s node',
+  { skip }, withGraph(async (rg) => {
+    // `default` owns the id `ws-a::secret`; its storage key is `ws-a::secret`,
+    // which is exactly what `ws-a`'s id `secret` maps to.
+    await rg.addNode('ws-a::secret', 'VICTIM-default', { workspaceId: 'default' });
+
+    assert.equal(await rg.getNode('secret', 'ws-a'), null,
+      'ws-a read a default record through the colliding key');
+    assert.equal(await rg.getWeight('secret', 'ws-a'), 0,
+      'ws-a read a default record\'s weight through the colliding key');
+
+    // The victim is untouched and still readable by its real owner.
+    const victim = await rg.getNode('ws-a::secret', 'default');
+    assert.equal(victim.label, 'VICTIM-default');
+  }));
+
+test('#4238 an aliased key does not let a workspace delete another tenant\'s node',
+  { skip }, withGraph(async (rg) => {
+    await rg.addNode('ws-a::secret', 'VICTIM-default', { workspaceId: 'default' });
+
+    assert.equal(await rg.removeNode('secret', 'ws-a'), false,
+      'ws-a deleted a default record through the colliding key');
+    assert.ok(await rg.getNode('ws-a::secret', 'default'),
+      'the victim record was destroyed by another workspace');
+  }));
+
+test('#4238 an edge cannot be drawn to an endpoint aliased from another workspace',
+  { skip }, withGraph(async (rg) => {
+    // `default` owns `ws-a::secret`; `ws-a` owns `kedi`.
+    await rg.addNode('ws-a::secret', 'VICTIM-default', { workspaceId: 'default' });
+    await rg.addNode('kedi', 'kedi', { workspaceId: 'ws-a' });
+
+    // ws-a tries to connect its own node to `secret`, which in ws-a's key space
+    // collides with default's record.
+    const edge = await rg.addEdge('kedi', 'secret', 'is', { workspaceId: 'ws-a' });
+    assert.equal(edge, null, 'an edge crossed the tenant boundary through an aliased key');
+    assert.deepEqual(await rg.getEdges('kedi', 'ws-a'), []);
+  }));
+
+test('#4238 similarity does not cross tenants through an aliased key',
+  { skip }, withGraph(async (rg) => {
+    // Identical vectors: keyed globally these score 1.0, so any non-zero
+    // similarity here proves the comparison reached the other tenant.
+    await rg.learn('ws-a::secret hayvandir', { workspaceId: 'default' });
+    await rg.learn('kedi hayvandir', { workspaceId: 'ws-a' });
+
+    assert.equal(await rg.cosineSimilarity('kedi', 'secret', 'ws-a'), 0,
+      'ws-a compared its node against a default record through the colliding key');
+  }));

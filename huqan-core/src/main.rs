@@ -42,6 +42,42 @@ fn storage_key(id: &str, workspace: &str) -> String {
     }
 }
 
+/// A node lookup that also checks the record's own workspace (#4238).
+///
+/// `storage_key` maps `default` to the bare id and every other workspace to
+/// `<ws>::<id>`, so the id `ws-a::secret` in `default` and the id `secret` in
+/// `ws-a` share one key. A lookup by key alone would then answer with, or
+/// delete, the other tenant's record. Mirrors `lib/graph-node-read.js#getNode`,
+/// which returns null when `normalizeWorkspaceId(node.workspaceId) != scope`.
+fn node_in_workspace<'a>(
+    nodes: &'a HashMap<String, Node>,
+    id: &str,
+    workspace: &str,
+) -> Option<&'a Node> {
+    let ws = normalize_workspace(workspace);
+    match nodes.get(&storage_key(id, &ws)) {
+        Some(node) if normalize_workspace(&node.workspace_id) == ws => Some(node),
+        _ => None,
+    }
+}
+
+fn node_in_workspace_mut<'a>(
+    nodes: &'a mut HashMap<String, Node>,
+    id: &str,
+    workspace: &str,
+) -> Option<&'a mut Node> {
+    let ws = normalize_workspace(workspace);
+    let key = storage_key(id, &ws);
+    let owned = matches!(
+        nodes.get(&key),
+        Some(node) if normalize_workspace(&node.workspace_id) == ws
+    );
+    if !owned {
+        return None;
+    }
+    nodes.get_mut(&key)
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Node {
     pub id: String,
@@ -149,7 +185,12 @@ impl Graph {
         let provenance = opts.get("provenance").filter(|p| !p.is_null()).cloned();
         let workspace_id = normalize_workspace(&get_str(opts, "workspaceId"));
         let key = storage_key(id, &workspace_id);
-        if let Some(n) = self.nodes.get_mut(&key) {
+        // #4238: the key is lossy across workspaces, so an existing record at
+        // this key belongs to *this* workspace only when its own workspace_id
+        // says so. An aliased record from another workspace is not "existing"
+        // here; the write starts a fresh record, as lib/graph-node-write.js does
+        // when `normalizeWorkspaceId(current.workspaceId) !== workspaceId`.
+        if let Some(n) = node_in_workspace_mut(&mut self.nodes, id, &workspace_id) {
             n.label = label.to_string();
             n.weight = (n.weight + 0.1).min(1.0);
             n.last_accessed = now;
@@ -176,9 +217,12 @@ impl Graph {
 
     fn remove_node(&mut self, id: &str, workspace: &str) -> bool {
         let ws = normalize_workspace(workspace);
-        if self.nodes.remove(&storage_key(id, &ws)).is_none() {
+        // #4238: only a record whose own workspace_id matches may be deleted. The
+        // key alone would also match another tenant's aliased record.
+        if node_in_workspace(&self.nodes, id, &ws).is_none() {
             return false;
         }
+        self.nodes.remove(&storage_key(id, &ws));
         let before = self.edges.len();
         // Only this workspace's edges follow the node out; an identically named
         // node in another workspace keeps its own relationships.
@@ -192,8 +236,11 @@ impl Graph {
 
     fn add_edge(&mut self, from: &str, to: &str, relation: &str, opts: &Value) -> bool {
         let workspace_id = normalize_workspace(&get_str(opts, "workspaceId"));
-        if !self.nodes.contains_key(&storage_key(from, &workspace_id))
-            || !self.nodes.contains_key(&storage_key(to, &workspace_id))
+        // #4238: both endpoints must belong to this workspace. A key-only check
+        // would accept an endpoint aliased from another tenant, drawing an edge
+        // across the boundary.
+        if node_in_workspace(&self.nodes, from, &workspace_id).is_none()
+            || node_in_workspace(&self.nodes, to, &workspace_id).is_none()
         {
             return false;
         }
@@ -253,31 +300,43 @@ impl Graph {
     }
 
     fn get_edges(&self, node: &str, workspace: &str) -> Vec<&Edge> {
+        let ws = normalize_workspace(workspace);
         let mut res = Vec::new();
-        if let Some(indices) = self.out_index.get(&storage_key(node, workspace)) {
+        if let Some(indices) = self.out_index.get(&storage_key(node, &ws)) {
             for &idx in indices {
-                res.push(&self.edges[idx]);
+                // #4238: the bucket key is lossy across workspaces, so it can
+                // hold another tenant's edges; return only this workspace's,
+                // exactly as lib/graph-edge-read.js filters by edge.workspaceId.
+                if normalize_workspace(&self.edges[idx].workspace_id) == ws {
+                    res.push(&self.edges[idx]);
+                }
             }
         }
         res
     }
 
     fn get_in_edges(&self, node: &str, workspace: &str) -> Vec<&Edge> {
+        let ws = normalize_workspace(workspace);
         let mut res = Vec::new();
-        if let Some(indices) = self.in_index.get(&storage_key(node, workspace)) {
+        if let Some(indices) = self.in_index.get(&storage_key(node, &ws)) {
             for &idx in indices {
-                res.push(&self.edges[idx]);
+                // #4238: same cross-workspace filter as get_edges above.
+                if normalize_workspace(&self.edges[idx].workspace_id) == ws {
+                    res.push(&self.edges[idx]);
+                }
             }
         }
         res
     }
 
     fn cosine_similarity(&self, a: &str, b: &str, workspace: &str) -> f64 {
-        let an = match self.nodes.get(&storage_key(a, workspace)) {
+        // #4238: resolve through the ownership-checked lookup, not the raw key,
+        // so an aliased record in another workspace cannot be compared.
+        let an = match node_in_workspace(&self.nodes, a, workspace) {
             Some(n) => n,
             None => return 0.0,
         };
-        let bn = match self.nodes.get(&storage_key(b, workspace)) {
+        let bn = match node_in_workspace(&self.nodes, b, workspace) {
             Some(n) => n,
             None => return 0.0,
         };
@@ -386,10 +445,13 @@ impl Graph {
         }
         if removed > 0 {
             // Edges of a removed node would otherwise dangle in the indexes.
+            // #4238: an endpoint counts as present only when its own record is
+            // in the edge's own workspace; a key match alone could be another
+            // tenant's aliased record and would keep a stale edge alive.
             self.edges.retain(|e| {
                 let ws = normalize_workspace(&e.workspace_id);
-                self.nodes.contains_key(&storage_key(&e.from, &ws))
-                    && self.nodes.contains_key(&storage_key(&e.to, &ws))
+                node_in_workspace(&self.nodes, &e.from, &ws).is_some()
+                    && node_in_workspace(&self.nodes, &e.to, &ws).is_some()
             });
             self.rebuild_index();
         }
@@ -592,7 +654,9 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let id = get_str(cmd, "id");
             let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
             let now = now_ms();
-            if let Some(n) = graph.nodes.get_mut(&storage_key(&id, &workspace)) {
+            // #4238: ownership-checked lookup; a record aliased under another
+            // workspace must read as not_found here.
+            if let Some(n) = node_in_workspace_mut(&mut graph.nodes, &id, &workspace) {
                 n.last_accessed = now;
                 json!({ "ok": true, "node": node_to_json(n) })
             } else {
@@ -633,7 +697,9 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
         "get_weight" => {
             let id = get_str(cmd, "id");
             let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
-            match graph.nodes.get(&storage_key(&id, &workspace)) {
+            // #4238: ownership-checked; another tenant's aliased record must not
+            // answer this workspace's weight read.
+            match node_in_workspace(&graph.nodes, &id, &workspace) {
                 Some(n) => {
                     let elapsed = (now_ms() - n.last_accessed) as f64 / 1000.0;
                     let decayed = n.weight * (-graph.decay_lambda * elapsed).exp();
@@ -646,8 +712,10 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             let a = get_str(cmd, "a");
             let b = get_str(cmd, "b");
             let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
-            if !graph.nodes.contains_key(&storage_key(&a, &workspace))
-                || !graph.nodes.contains_key(&storage_key(&b, &workspace))
+            // #4238: both operands must belong to the caller's workspace; the
+            // ownership-checked lookup rejects an aliased record.
+            if node_in_workspace(&graph.nodes, &a, &workspace).is_none()
+                || node_in_workspace(&graph.nodes, &b, &workspace).is_none()
             {
                 return json!({ "ok": false });
             }
@@ -702,7 +770,10 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
                 graph.add_node(&parsed.object, &parsed.object, cmd);
                 graph.add_edge(&subject, &parsed.object, &parsed.relation, cmd);
                 let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
-                if let Some(n) = graph.nodes.get_mut(&storage_key(&subject, &workspace)) {
+                // #4238: the subject was just written to this workspace, but the
+                // lookup still checks ownership so an aliased record cannot be
+                // touched here.
+                if let Some(n) = node_in_workspace_mut(&mut graph.nodes, &subject, &workspace) {
                     *n.vector.entry(parsed.object.clone()).or_insert(0.0) += 0.3;
                 }
             }
@@ -718,7 +789,10 @@ fn run_command(graph: &mut Graph, cmd: &Value) -> Value {
             };
             let workspace = normalize_workspace(&get_str(cmd, "workspaceId"));
             let mut edge_list = graph.get_edges(&subject, &workspace);
-            if !graph.nodes.contains_key(&storage_key(&subject, &workspace)) || edge_list.is_empty()
+            // #4238: ownership-checked subject lookup, so an aliased record from
+            // another workspace cannot answer this question.
+            if node_in_workspace(&graph.nodes, &subject, &workspace).is_none()
+                || edge_list.is_empty()
             {
                 return json!({
                     "ok": true,
