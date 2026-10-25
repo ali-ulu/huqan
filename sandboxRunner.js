@@ -1,6 +1,7 @@
 const childProcess = require('node:child_process');
 
 const { evaluateSandboxIsolation } = require('./lib/sandbox-isolation');
+const { MAX_TIMEOUT_MS } = require('./lib/sandbox-timeout-policy');
 const {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_MAX_SOURCE_BYTES,
@@ -144,7 +145,11 @@ function admitSandboxRequest(sourceText, timeoutMs, opts) {
 }
 
 function runSandboxed(source, bindings = {}, opts = {}) {
-  const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : DEFAULT_TIMEOUT_MS;
+  // Cap the raw timeout at a single point: both the AB6 admission decision
+  // and the spawnSync execution must use the same, bounded value. Capping
+  // here prevents a raw (uncapped) timeout from leaking past the gate
+  // into the child process timeout (#4231).
+  const timeoutMs = Math.min(MAX_TIMEOUT_MS, Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : DEFAULT_TIMEOUT_MS);
   const sourceText = String(source || '');
 
   const isolation = admitSandboxRequest(sourceText, timeoutMs, opts);

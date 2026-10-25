@@ -90,6 +90,24 @@ test('an operator policy can raise the timeout ceiling, up to the hard cap', () 
   assert.equal(beyond.meta.ab6.reason, 'TIMEOUT_EXCEEDED_BLOCK');
 });
 
+test('a timeout far above the hard cap is executed at the capped value, not the raw one', () => {
+  // A caller requesting 3600000ms (1 hour) with a policy that allows the hard
+  // cap must not run for an hour. normalizeSandboxInput caps timeoutMs to
+  // MAX_TIMEOUT_MS (5000), so the AB6 decision is based on the capped value,
+  // and spawnSync must use the same capped value -- the raw value never
+  // reaches the child process.
+  const result = runSandboxed(TRUSTED_SOURCE, BINDINGS, {
+    sourceTrust: 'validated',
+    timeoutMs: 3600000,
+    isolationPolicy: { maximumTimeoutMs: MAX_TIMEOUT_MS },
+  });
+
+  assert.equal(result.ok, true, 'capped timeout is within limits, so the request runs');
+  assert.equal(result.meta.ab6.decision, 'allow');
+  // The receipt must record the capped timeout, not the raw requested one.
+  assert.equal(result.meta.timeoutMs, MAX_TIMEOUT_MS, 'the recorded timeout is the hard cap, not the raw request');
+});
+
 test('a policy minimum decision can hold back a request the source alone would allow', () => {
   const result = runSandboxed(TRUSTED_SOURCE, BINDINGS, {
     sourceTrust: 'validated',
