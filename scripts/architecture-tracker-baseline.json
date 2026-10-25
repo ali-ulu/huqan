@@ -86,6 +86,7 @@
       "lib/agent-action-step-enforcement.js": "Core",
       "lib/agent-behavioral-integrity.js": "Core",
       "lib/agent-coder-execution.js": "Application",
+      "lib/agent-coder-project-task.js": "Application",
       "lib/agent-cognition-observation.js": "Adapters",
       "lib/agent-cognition-seam.js": "Application",
       "lib/agent-exit-reasons.js": "Core",
@@ -333,6 +334,7 @@
       "lib/cognitive-lab-evaluator.js": "Core",
       "lib/cognitive-lab-m7-experiment.js": "Application",
       "lib/cognitive-lab-m7-runtime.js": "Application",
+      "lib/cognitive-lab-m7-value-runtime.js": "Application",
       "lib/cognitive-lab-manifest.js": "Core",
       "lib/cognitive-lab-model-comparison.js": "Application",
       "lib/cognitive-lab-neural-design.js": "Application",
@@ -1109,6 +1111,13 @@
       "lib/rust-graph-fallback-factory.js": "Core",
       "lib/rust-graph-store-port.js": "Core",
       "lib/safe-file-walk.js": "Core",
+      "lib/saml/assertion.js": "UI",
+      "lib/saml/config.js": "UI",
+      "lib/saml/identity-mapping.js": "UI",
+      "lib/saml/replay-store.js": "UI",
+      "lib/saml/signature.js": "UI",
+      "lib/saml/sp-route.js": "UI",
+      "lib/saml/xml-util.js": "UI",
       "lib/sandbox-escape-ledger.js": "Core",
       "lib/sandbox-escape-producer.js": "Core",
       "lib/sandbox-isolation-input.js": "Core",
@@ -2002,10 +2011,18 @@
         "lib/self-healer/behavioral-containment.js"
       ],
       "lib/agent-coder-execution.js": [
+        "lib/agent-coder-project-task.js",
         "lib/coder/arithmetic-synthesis.js",
         "lib/coder/fix-loop.js",
         "lib/coder/project-spec-data.js",
         "lib/human-oversight-approval-runtime.js"
+      ],
+      "lib/agent-coder-project-task.js": [
+        "lib/coder/project-initialization-permission.js",
+        "lib/coder/project-initialization.js",
+        "lib/coder/project-method-memory.js",
+        "lib/coder/project-producer.js",
+        "lib/coder/project-spec-data.js"
       ],
       "lib/agent-cognition-observation.js": [
         "lib/cognition/contract.js",
@@ -2144,7 +2161,8 @@
         "lib/json-clone.js"
       ],
       "lib/approval-rbac.js": [
-        "lib/environment-compat.js"
+        "lib/environment-compat.js",
+        "lib/hash-chain.js"
       ],
       "lib/approval-receipts.js": [
         "lib/approval-flow-utils.js",
@@ -3031,11 +3049,22 @@
         "kernel.v2.js",
         "lib/agent-action-firewall.js",
         "lib/agent-coder-execution.js",
+        "lib/agent-cognition-observation.js",
         "lib/cognition-value-ledger-pairs.js",
         "lib/human-oversight-approval-runtime.js",
         "lib/prediction-outcome-pairs.js",
         "lib/trust-evidence-ledger.js",
         "llmAdapter.js"
+      ],
+      "lib/cognitive-lab-m7-value-runtime.js": [
+        "agent.v3.js",
+        "kernel.v2.js",
+        "lib/cognition-value-ledger-pairs.js",
+        "lib/cognition/contract.js",
+        "lib/hash-chain.js",
+        "lib/prediction-outcome-pairs.js",
+        "llmAdapter.js",
+        "storage.js"
       ],
       "lib/cognitive-lab-manifest.js": [
         "lib/content-hash.js",
@@ -3700,6 +3729,8 @@
         "lib/external-action-identity-signing.js"
       ],
       "lib/external-action-identity-signing.js": [
+        "lib/external-action-identity-card.js",
+        "lib/is-plain-object.js",
         "lib/receipt/canonical-receipt.js"
       ],
       "lib/external-action-identity.js": [
@@ -4362,6 +4393,9 @@
       ],
       "lib/http/ingest-http-routes.js": [
         "lib/http/structured-log.js",
+        "lib/mcp-capability-nonce-store.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp/operator-authorization.js",
         "lib/server-response-helpers.js",
         "requestGuards.js"
       ],
@@ -4545,6 +4579,7 @@
         "lib/http/v5-preflight-route.js"
       ],
       "lib/http/viewer-mount.js": [
+        "lib/saml/sp-route.js",
         "lib/viewer/session-store.js",
         "lib/viewer/viewer-gateway.js"
       ],
@@ -5070,6 +5105,7 @@
       "lib/mcp-ingest-execute-tool.js": [
         "lib/ingest.js",
         "lib/mcp-approval-views.js",
+        "lib/mcp-call-binding.js",
         "lib/mcp-input-sanitizers.js",
         "lib/mutation-admission.js",
         "lib/workbench/ingest-approval-action.js",
@@ -5760,6 +5796,7 @@
       ],
       "lib/plugin-verification.js": [
         "lib/environment-compat.js",
+        "lib/hash-chain.js",
         "lib/supply-chain-activation-gate.js"
       ],
       "lib/post-action-monitor.js": [
@@ -5980,6 +6017,7 @@
       ],
       "lib/receipt/receipt-stamp.js": [
         "lib/graph-record-utils.js",
+        "lib/hash-chain.js",
         "lib/receipt/canonical-receipt-v2.js",
         "lib/receipt/receipt-chain.js"
       ],
@@ -6080,6 +6118,22 @@
       ],
       "lib/safe-file-walk.js": [
         "lib/path-safety.js"
+      ],
+      "lib/saml/assertion.js": [
+        "lib/saml/signature.js"
+      ],
+      "lib/saml/config.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/saml/sp-route.js": [
+        "lib/approval-rbac.js",
+        "lib/environment-compat.js",
+        "lib/saml/assertion.js",
+        "lib/saml/config.js",
+        "lib/saml/identity-mapping.js",
+        "lib/saml/replay-store.js",
+        "lib/saml/xml-util.js",
+        "lib/viewer/session-cookie.js"
       ],
       "lib/sandbox-escape-ledger.js": [
         "lib/trust-evidence-ledger.js"

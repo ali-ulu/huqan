@@ -4054,6 +4054,50 @@
   }
  },
  "platform": {
+  "lib/oidc/route.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/auth-seam.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/client.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/config.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/failure-codes.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/identity-mapping.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/mount.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/route-constants.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/session-cookie.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/session-store.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
+  "lib/oidc/transaction-store.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-VIEWER-P"
+  },
   "lib/saml/sp-route.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-VIEWER-P"

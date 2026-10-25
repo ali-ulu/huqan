@@ -297,9 +297,9 @@ meant to refuse, and the audit trail records a decision the operator never made.
 
 ---
 
-### Enterprise SSO / OIDC (planned; not implemented)
+### Enterprise SSO / OIDC (Relying Party implemented, not yet advertised)
 
-**Current status**: protected REST routes use API-key authentication by default. requestGuards.js bypasses this credential check when apiAuthOptOut.isApiAuthDisabled() is true, so deployments that enable the opt-out do not have this API-key guard. The repository does not yet implement OIDC login, server-side SSO sessions, claim-to-role mapping, or OIDC-backed Authority decisions. This is a planned control, not a current mitigation.
+**Current status**: protected REST routes use API-key authentication by default. requestGuards.js bypasses this credential check when apiAuthOptOut.isApiAuthDisabled() is true, so deployments that enable the opt-out do not have this API-key guard. The OIDC Relying Party (#4267) now implements login/callback/session/logout, a dedicated hashed session store, claim-to-role mapping, and the shared `denyIfUnauthorized` seam (`lib/oidc/`), with API-key fallback off by default when OIDC is configured. It is **not advertised as available**: the mount reports `enabled: false` until the provider smoke test passes, and OIDC-backed Authority decisions are still unimplemented (slice 3, blocked on the #4205 contract extension). Until then, OIDC must not bypass the existing Authority identity gate; treat this as an implemented-but-unadvertised control, not yet a production mitigation.
 
 **Threats in scope**:
 - Authorization-code interception, forged or replayed callbacks, issuer/audience confusion, token-signature substitution, and malicious discovery endpoints.
@@ -316,7 +316,7 @@ meant to refuse, and the audit trail records a decision the operator never made.
 
 **Residual risks and gates**:
 - A compromised IdP, misconfigured group membership, or stolen broker signing key can still grant an attacker an identity; provider trust and key rotation remain deployment responsibilities.
-- OIDC implementation is not complete until mock-IdP tests cover invalid claims/state/nonce/PKCE, session and CSRF failures, assertion replay, and role-mapping denial, followed by a documented real-provider smoke test.
+- The mock-IdP tests now cover the valid flow and invalid claims/state/nonce/PKCE, session and CSRF failures, and role-mapping denial (`test/oidc-rp.test.js`). The slice is not complete until a documented real-provider smoke test passes; assertion replay belongs to slice 3 (Authority identity assertion).
 - SAML 2.0 is not part of this OIDC mitigation. It is tracked separately in issue #4214 and must reuse the same principal/session/Authority assertion contract rather than add a parallel authorization system.
 
 ## Strategic Outlook
