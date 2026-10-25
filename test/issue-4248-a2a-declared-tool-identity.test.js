@@ -68,6 +68,37 @@ test('an A2A exchange that declares a read tool but asks for a write capability 
   assert.notEqual(decision.reason, 'AGENT_READ_ONLY_ACTION_ALLOWED');
 });
 
+test('a read tool with a mutating suffix or a conflicting operation field is refused', () => {
+  // `verify.remove` shares a read-tool prefix but names a mutation.
+  const suffix = evaluateAgentActionFirewall({
+    surface: 'agent', tool: 'verify', action: 'verify.remove', input: { action: 'verify.remove' },
+  });
+  assert.notEqual(suffix.decision, 'allow');
+
+  // The selected action is `verify`, but a second operation field names the
+  // real mutation.
+  const conflict = evaluateAgentActionFirewall({
+    surface: 'agent', tool: 'verify', action: 'verify',
+    input: { action: 'verify', operationType: 'repo.remove' },
+  });
+  assert.notEqual(conflict.decision, 'allow');
+
+  // An explicit request action must be classified even with an empty input.
+  const emptyInput = evaluateAgentActionFirewall({
+    surface: 'agent', tool: 'verify', action: 'deploy', input: {},
+  });
+  assert.equal(emptyInput.decision, 'block');
+});
+
+test('a read subject that merely names a deployment is still a read', () => {
+  const decision = evaluateAgentActionFirewall({
+    surface: 'agent', tool: 'verify', action: 'verify claim',
+    input: { action: 'verify claim', target: 'deploy' },
+  });
+  assert.equal(decision.decision, 'allow');
+  assert.equal(decision.reason, 'AGENT_READ_ONLY_ACTION_ALLOWED');
+});
+
 test('a genuine read-shaped action on a read tool keeps its read-only allow', () => {
   const decision = evaluateAgentActionFirewall({
     surface: 'agent',
