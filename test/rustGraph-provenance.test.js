@@ -5,6 +5,48 @@ const os = require('os');
 const path = require('path');
 const RustGraph = require('../rustGraph');
 const Graph = require('../graph');
+const { commitLearnOutcome } = require('../lib/learn-use-case-steps');
+
+test('commitLearnOutcome forwards workspaceId and provenance to the native learn mirror (#4236)', async () => {
+  const mirror = [];
+  const kernel = {
+    plugins: { emit: () => {} },
+    _admissionReceiptDetails: (admission) => ({ admission }),
+    graph: { save: () => {} },
+    _autoMaintain: () => {},
+    ok: (kind, payload, evidence, meta) => ({ kind, payload, evidence, meta }),
+    // The stub stands in for the native accelerator: the coverage job runs
+    // without a Rust binary, so this is the only way the mirror call executes.
+    _rust: {
+      learn: (text, opts) => {
+        mirror.push({ text, opts });
+        return Promise.resolve(true);
+      },
+    },
+  };
+  const provenance = { provenanceId: 'prov-mirror', source: 'unit-test' };
+  const state = {
+    conflicts: [],
+    alternatives: [],
+    metadata: {},
+    workspaceId: 'ws-mirror-kernel',
+    admission: null,
+    learned: 1,
+    parsed: [{ subject: 'kedi', relation: 'is', object: 'memeli' }],
+    evidence: { facts: 1 },
+    provenance,
+    provenanceWarnings: [],
+    afterCommitEffects: null,
+  };
+
+  const result = commitLearnOutcome.call(kernel, 'kedi memelidir', { deferSave: true }, state);
+
+  assert.equal(result.kind, 'learn');
+  assert.deepEqual(mirror, [{
+    text: 'kedi memelidir',
+    opts: { workspaceId: 'ws-mirror-kernel', provenance },
+  }]);
+});
 
 test('rustGraph addNode/addEdge forward provenance/workspaceId/weight/confidence/evidence/sourceRef to the JS fallback graph (#361)', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-provenance-'));
