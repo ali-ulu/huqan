@@ -234,3 +234,25 @@ test('#4238 similarity does not cross tenants through an aliased key',
     assert.equal(await rg.cosineSimilarity('kedi', 'secret', 'ws-a'), 0,
       'ws-a compared its node against a default record through the colliding key');
   }));
+
+test('#4238 a stale edge is not returned after its endpoint is replaced by another tenant',
+  { skip }, withGraph(async (rg) => {
+    // ws-a owns the edge kedi --is--> evcil.
+    await rg.addNode('kedi', 'kedi', { workspaceId: 'ws-a' });
+    await rg.addNode('evcil', 'evcil', { workspaceId: 'ws-a' });
+    await rg.addEdge('kedi', 'evcil', 'is', { workspaceId: 'ws-a', confidence: 0.9 });
+
+    // default then writes the colliding id `ws-a::evcil`, replacing the record
+    // at the endpoint's storage key. ws-a can no longer read `evcil`, so the
+    // edge to it is stale and must not be returned.
+    await rg.addNode('ws-a::evcil', 'VICTIM-default', { workspaceId: 'default' });
+    assert.equal(await rg.getNode('evcil', 'ws-a'), null,
+      'precondition: ws-a must no longer own the endpoint record');
+
+    assert.deepEqual(await rg.getEdges('kedi', 'ws-a'), [],
+      'a stale edge survived its endpoint being replaced by another tenant');
+    assert.deepEqual(await rg.getInEdges('evcil', 'ws-a'), [],
+      'a stale in-edge survived its endpoint being replaced by another tenant');
+    assert.equal(await rg.ask('kedi nedir', { workspaceId: 'ws-a' }), 'Bilmiyorum',
+      'a stale edge answered a question in the workspace whose endpoint it lost');
+  }));

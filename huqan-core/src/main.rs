@@ -305,9 +305,11 @@ impl Graph {
         if let Some(indices) = self.out_index.get(&storage_key(node, &ws)) {
             for &idx in indices {
                 // #4238: the bucket key is lossy across workspaces, so it can
-                // hold another tenant's edges; return only this workspace's,
-                // exactly as lib/graph-edge-read.js filters by edge.workspaceId.
-                if normalize_workspace(&self.edges[idx].workspace_id) == ws {
+                // hold another tenant's edges, and an endpoint record may since
+                // have been replaced by another tenant's colliding id. Return
+                // only edges whose own workspace matches *and* whose both
+                // endpoints still belong to it.
+                if self.edge_in_workspace(&self.edges[idx], &ws) {
                     res.push(&self.edges[idx]);
                 }
             }
@@ -321,12 +323,25 @@ impl Graph {
         if let Some(indices) = self.in_index.get(&storage_key(node, &ws)) {
             for &idx in indices {
                 // #4238: same cross-workspace filter as get_edges above.
-                if normalize_workspace(&self.edges[idx].workspace_id) == ws {
+                if self.edge_in_workspace(&self.edges[idx], &ws) {
                     res.push(&self.edges[idx]);
                 }
             }
         }
         res
+    }
+
+    /// Whether `edge` is visible in `ws`: its own workspace matches and both
+    /// endpoint records still belong to `ws` (#4238).
+    ///
+    /// The endpoint check is what rejects a stale edge: a colliding write in
+    /// another workspace replaces the record at an endpoint's storage key, so
+    /// the edge survives in the index pointing at a node this workspace can no
+    /// longer read.
+    fn edge_in_workspace(&self, edge: &Edge, ws: &str) -> bool {
+        normalize_workspace(&edge.workspace_id) == ws
+            && node_in_workspace(&self.nodes, &edge.from, ws).is_some()
+            && node_in_workspace(&self.nodes, &edge.to, ws).is_some()
     }
 
     fn cosine_similarity(&self, a: &str, b: &str, workspace: &str) -> f64 {
