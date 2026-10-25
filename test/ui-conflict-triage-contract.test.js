@@ -42,14 +42,14 @@ const sandbox = vm.runInNewContext([
   region('function rel(v){', 'const CONFLICT_PAGE='),
   region('function nodeLabel(n){', 'function mesh()'),
   region('const CONFLICT_PAGE=', 'function renderConflicts()'),
-  '({triageConflicts,filterConflicts,CONFLICT_PAGE,CONFLICT_TYPES,CONFLICT_SEVERITY})',
+  '({triageConflicts,filterConflicts,CONFLICT_PAGE,CONFLICT_TYPES,CONFLICT_SEVERITY,TYPE_RELATIONS})',
 // The signal vocabulary is catalogue-backed since #1958. This realm carries no
 // catalogue, which is also a browser's state before one loads: the lookup hands
 // back the English fallback compiled into the source, so the labels asserted
 // below stay exactly the strings the dashboard ships.
 ].join('\n'), { M: (key, fallback) => fallback, T: (key, fallback) => fallback, Tx: value => value });
 
-const { triageConflicts, filterConflicts, CONFLICT_PAGE, CONFLICT_TYPES, CONFLICT_SEVERITY } = sandbox;
+const { triageConflicts, filterConflicts, CONFLICT_PAGE, CONFLICT_TYPES, CONFLICT_SEVERITY, TYPE_RELATIONS } = sandbox;
 
 // The helpers run inside a vm realm, so their arrays and objects do not share
 // this realm's prototypes; deepStrictEqual would fail on that alone. Comparing
@@ -157,6 +157,45 @@ test('every declared signal type carries a severity and a human label', () => {
     assert.ok(CONFLICT_SEVERITY[meta.severity], `${type} maps to unknown severity ${meta.severity}`);
     assert.ok(meta.label && meta.label !== type, `${type} must carry a human-readable label`);
   }
+});
+
+// #4291: the type-relation set was the Turkish spelling alone, so a workspace
+// whose edges use `is_a` (the standard relation, lib/graph-record-utils-edges.js
+// STANDARD_RELATIONS) got no multi-type signal at all. The canonical family
+// lives in lib/type-lattice.js; this set has to cover it, normalised the way
+// rel() normalises an incoming relation.
+test('the type-relation set covers every canonical type relation', () => {
+  const { TYPE_LATTICE_RELATIONS } = require('../lib/type-lattice');
+  const normalize = value => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  for (const relation of TYPE_LATTICE_RELATIONS) {
+    assert.ok(TYPE_RELATIONS.has(normalize(relation)),
+      `the dashboard must treat ${JSON.stringify(relation)} as a type relation, or its edges are invisible to triage`);
+  }
+});
+
+test('a multi-type signal is raised for non-Turkish type relations too', () => {
+  const nodes = [{ id: 'x', label: 'Ambiguous', confidence: 0.9, last_seen: RECENT }];
+  // is_a / is-a / isa are one family; two distinct targets is the signal.
+  for (const relation of ['is_a', 'is-a', 'isa']) {
+    const links = [
+      { source: 'x', target: 'kind-a', relation },
+      { source: 'x', target: 'kind-b', relation },
+    ];
+    const { findings } = triageConflicts(nodes, links, NOW);
+    assert.deepEqual(plain(findings).map(f => f.type), ['multi-type'],
+      `${relation} edges must raise multi-type, not silence`);
+  }
+});
+
+test('multi-type counts distinct targets, so a duplicate edge is not a signal', () => {
+  const nodes = [{ id: 'x', label: 'Single kind', confidence: 0.9, last_seen: RECENT }];
+  const links = [
+    { source: 'x', target: 'kind-a', relation: 'tür' },
+    { source: 'x', target: 'kind-a', relation: 'tür' },
+  ];
+  const { findings } = triageConflicts(nodes, links, NOW);
+  assert.deepEqual(plain(findings), [],
+    'two edges to the same target are one type, not a conflict');
 });
 
 test('the signal list is rendered as a bounded page, never as the whole set', () => {
