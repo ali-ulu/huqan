@@ -13,6 +13,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { createEmergencyStop } = require('../lib/emergency-stop');
+const { authorityLift } = require('./helpers/authority-lift');
 const {
   runReadWorkflow,
   createReadWorkflowHttpRouter,
@@ -75,7 +76,7 @@ test('lifting the stop lets the same read workflow through again', async (t) => 
   const stopped = await runReadWorkflow({ workflowId: 'ask', kernel, input: { question: 'q', workspaceId: 'default' }, ensureCapabilities: NO_CAPABILITY_ENSURE, emergencyStop: ledger });
   assert.equal(stopped.statusCode, EMERGENCY_STOPPED_STATUS);
 
-  ledger.lift({ scope: 'workspace', workspaceId: 'default', reason: 'reviewed', actor: 'test' });
+  authorityLift(ledger)({ scope: 'workspace', workspaceId: 'default', reason: 'reviewed', actor: 'test' });
   const lifted = await runReadWorkflow({ workflowId: 'ask', kernel, input: { question: 'q', workspaceId: 'default' }, ensureCapabilities: NO_CAPABILITY_ENSURE, emergencyStop: ledger });
   assert.equal(lifted.statusCode, 200);
   assert.equal(kernel.reads.ask, 1);

@@ -159,10 +159,15 @@ test('a lift with a decision for another reason is refused', () => withStopDir((
   assert.equal(ledger.check({ workspaceId: 'ws-1' }).stopped, true);
 }));
 
-test('legacy lift is unchanged', () => withStopDir((dir) => {
+test('legacy lift is fail-closed (#4237): no authority means no lift, and the stop holds', () => withStopDir((dir) => {
   const ledger = createEmergencyStop({ directory: dir, resolveAuthorityMode: () => LEGACY });
   ledger.stop({ scope: 'workspace', workspaceId: 'ws-1', reason: 'incident', actor: 'operator:cli' });
-  assert.equal(ledger.lift({ scope: 'workspace', workspaceId: 'ws-1', reason: 'done', actor: 'operator:cli' }).lifted, true);
+  const refused = ledger.lift({ scope: 'workspace', workspaceId: 'ws-1', reason: 'done', actor: 'operator:cli' });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.lifted, false);
+  assert.equal(refused.authorityRefusal.code, 'AUTHORITY_DECISION_REQUIRED');
+  assert.match(refused.authorityRefusal.message, /No approval authority is installed/);
+  assert.equal(ledger.check({ workspaceId: 'ws-1' }).stopped, true, 'the refused lift changed nothing');
 }));
 
 test('MCP lift carries the envelopes apply hands it into the guarded ledger', () => withStopDir((dir) => {

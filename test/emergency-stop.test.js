@@ -16,6 +16,7 @@ const {
   EMERGENCY_STOP_INTEGRITY_VIOLATION_REASON,
   createEmergencyStop,
 } = require('../lib/emergency-stop');
+const { authorityLift } = require('./helpers/authority-lift');
 
 function ledgerIn(t) {
   const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'huqan-emergency-stop-'));
@@ -67,11 +68,21 @@ test('a second stop of the same scope keeps the first record and writes no secon
 test('lifting a stop reopens the scope and is receipted; lifting nothing records nothing', (t) => {
   const ledger = ledgerIn(t);
   ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment', actor: 'operator:ali' });
-  const lifted = ledger.lift({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed', actor: 'operator:ali' });
+  const lifted = authorityLift(ledger)({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed', actor: 'operator:ali' });
   assert.equal(lifted.lifted, true);
   assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).stopped, false);
   assert.equal(ledger.lift({ scope: 'agent', workspaceId: 'w', agentId: 'a1', actor: 'operator:ali' }).lifted, false);
   assert.deepEqual(receiptsOf(ledger).map((receipt) => receipt.action), ['stop', 'lift']);
+});
+
+test('a lift without a consumed operator decision is refused, even in legacy mode (#4237)', (t) => {
+  const ledger = ledgerIn(t);
+  ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment', actor: 'operator:ali' });
+  const refused = ledger.lift({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed', actor: 'operator:ali' });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.lifted, false);
+  assert.equal(refused.authorityRefusal.code, 'AUTHORITY_DECISION_REQUIRED');
+  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).stopped, true, 'the refused lift changed nothing');
 });
 
 test('a stop record that cannot be read keeps the scope stopped', (t) => {
@@ -204,7 +215,7 @@ test('an A2A exchange naming a stopped agent is refused', (t) => {
     const refused = evaluateInterAgentReceiptAdmission(fixture.request, receiver, { emergencyStop: ledger });
     assert.equal(refused.decision.decision, 'block');
     assert.equal(refused.decision.reason, 'AGENT_EMERGENCY_STOPPED');
-    ledger.lift({ scope: 'agent', workspaceId: fixture.request.workspaceId, agentId, actor: 'operator:test' });
+    authorityLift(ledger)({ scope: 'agent', workspaceId: fixture.request.workspaceId, agentId, actor: 'operator:test' });
   }
 });
 
@@ -221,7 +232,7 @@ test('stop and lift carry an operator identity claim on the record, ledger entry
   assert.equal(stopped.record.actor, 'operator:cli');
   assert.equal(stopped.receipt.operatorIdentity, 'human:alice');
   assert.equal(stopped.ledgerEntry.operatorIdentity, 'human:alice');
-  const lifted = ledger.lift({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed', actor: 'operator:cli', operatorIdentity: 'human:alice' });
+  const lifted = authorityLift(ledger)({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed', actor: 'operator:cli', operatorIdentity: 'human:alice' });
   assert.equal(lifted.receipt.operatorIdentity, 'human:alice');
   assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).record, null, 'lift clears the replayed record');
   const restopped = ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'again', actor: 'operator:cli', operatorIdentity: 'human:bob' });

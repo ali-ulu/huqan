@@ -17,7 +17,7 @@ every referenced test file to exist.
 | SI-04 | The native/Rust graph path does not bypass provenance requirements enforced by the trusted graph boundary. | `test/rustGraph-provenance.test.js` |
 | SI-05 | Untrusted memory is not promoted to canonical memory without admission policy evaluation and a recorded decision. | `test/memory-admission-gate.test.js` |
 | SI-06 | Blast-radius computation records unknown inputs explicitly rather than treating missing risk as zero. | `test/blast-radius.test.js` |
-| SI-07 | Emergency stop is durable and is read by the enforcement points that can execute agent, MCP, external-action, or A2A work. | `test/emergency-stop.test.js` |
+| SI-07 | Emergency stop is durable and is read by the enforcement points that can execute agent, MCP, external-action, or A2A work, and it is lifted only through a consumed operator decision: without an installed authority a lift is refused (fail-closed, #4237). | `test/emergency-stop.test.js`, `test/authority-operational-guard.test.js` |
 
 SI-01 is the approval-authority invariant (ADR-016, ADR-020). The authority moves
 the decision into a service under its own OS user, so the agent's process cannot

@@ -24,6 +24,7 @@ const tls = require('node:tls');
 
 const Graph = require('../graph');
 const { createEmergencyStop } = require('../lib/emergency-stop');
+const { authorityLift } = require('./helpers/authority-lift');
 const { exportMaterializedReceiptBundleBounded } = require('../lib/receipt/bounded-receipt-export');
 const { collectEvidencePack } = require('../lib/evidence-pack/collect');
 const { verifyPack } = require('../lib/evidence-pack/verify');
@@ -307,7 +308,7 @@ test('packs the emergency-stop ledger byte for byte and refuses a broken chain',
   const ledgerDir = path.join(scratch(t), 'stops');
   const stop = createEmergencyStop({ directory: ledgerDir, now: () => '2026-01-12T00:00:00.000Z' });
   stop.stop({ scope: 'workspace', workspaceId: 'default', reason: 'drill', actor: 'operator:test' });
-  stop.lift({ scope: 'workspace', workspaceId: 'default', actor: 'operator:test' });
+  authorityLift(stop)({ scope: 'workspace', workspaceId: 'default', actor: 'operator:test' });
   const opts = options(t, graph, { emergencyStopDir: ledgerDir });
   await collectEvidencePack(opts);
   const source = fs.readFileSync(path.join(ledgerDir, 'ledger.jsonl'));

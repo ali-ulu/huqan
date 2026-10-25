@@ -21,8 +21,8 @@ const { createAuthorityClient } = require('../lib/authority/authority-client');
 const { keyIdFor } = require('../lib/authority/decision-envelope');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
 const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
-const { createEmergencyStop } = require('../lib/emergency-stop');
-const { readLedgerEntries } = require('../lib/emergency-stop-chain');
+const { createEmergencyStop, EMERGENCY_STOP_SCHEMA_VERSION } = require('../lib/emergency-stop');
+const { readLedgerEntries, computeEntryHash } = require('../lib/emergency-stop-chain');
 const { compareStopsWithAuthority } = require('../lib/emergency-stop-detection');
 const { fetchAuthorityLedger, recordAuthorityStop } = require('../lib/mcp/authority-ledger-provider');
 const { runCliArgv } = require('../lib/cli-workflow-adapter');
@@ -202,10 +202,21 @@ test('audit reports a lift written past the guard, and not one the operator deci
   assert.equal((await apply(requested.report.approvalId, {}, env.deps)).code, 0);
   assert.deepEqual(await detect(env, 'ws-8'), [], 'a decided lift is no finding');
 
-  // The agent stops nothing new but lifts a second stop with the guard skipped.
+  // #4237: the module API can no longer lift past the guard -- the legacy
+  // pass-through is refused -- so the past-guard lift the audit exists for is
+  // written the way a tamperer would: straight into the ledger file, chain
+  // hash and all.
   env.stops.stop({ scope: 'workspace', workspaceId: 'ws-8', reason: 'again', actor: 'operator:cli' });
   const bypass = createEmergencyStop({ directory: env.stopsDir, resolveAuthorityMode: LEGACY });
-  assert.equal(bypass.lift({ scope: 'workspace', workspaceId: 'ws-8', reason: 'quiet', actor: 'operator:cli' }).lifted, true);
+  const bypassLift = bypass.lift({ scope: 'workspace', workspaceId: 'ws-8', reason: 'quiet', actor: 'operator:cli' });
+  assert.equal(bypassLift.ok, false, '#4237: a lift without a consumed decision is refused');
+  assert.equal(env.stops.check({ workspaceId: 'ws-8' }).stopped, true, 'the refused lift changed nothing');
+  const entries = readLedgerEntries(env.stopsDir);
+  const prev = entries[entries.length - 1];
+  const payload = { schemaVersion: EMERGENCY_STOP_SCHEMA_VERSION, action: 'lift', scope: 'workspace', workspaceId: 'ws-8',
+    agentId: null, actor: 'operator:cli', operatorIdentity: null, reason: 'quiet', createdAt: new Date().toISOString() };
+  fs.appendFileSync(path.join(env.stopsDir, 'ledger.jsonl'),
+    `${JSON.stringify({ seq: entries.length, prevHash: prev.hash, hash: computeEntryHash(payload, prev.hash), ...payload })}\n`, 'utf8');
   const findings = await detect(env, 'ws-8');
   assert.deepEqual(findings.map(f => [f.code, f.localLifts, f.consumedLifts]), [['LIFT_WITHOUT_AUTHORITY', 2, 1]]);
 });

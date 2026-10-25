@@ -13,6 +13,7 @@ const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-
 const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall');
 const { buildAgentCoderAction } = require('../lib/agent-coder-execution');
 const { createEmergencyStop, approvalStopAgentId } = require('../lib/emergency-stop');
+const { authorityLift } = require('./helpers/authority-lift');
 
 test('native rollback observation changes the next approved Coder choice and survives a fresh process', () => {
   const { runM7FeedbackPilot } = require('../lib/cognitive-lab-m7-experiment');
@@ -98,7 +99,7 @@ for (const failOutcome of [false, true]) test(`real AgentV3 Coder plan preserves
   assert.equal(stopped.data.steps[0].result.error.code, 'AGENT_EMERGENCY_STOPPED');
   assert.equal(approvalRuntime.getReviewCase(created.case.caseId).case.status, 'approved');
   assert.equal(fs.readFileSync(path.join(root, 'value.js'), 'utf8'), 'module.exports = n => n + 1;\n');
-  assert.equal(emergencyStop.lift(stopTarget).ok, true);
+  assert.equal(authorityLift(emergencyStop)(stopTarget).ok, true);
   const frame = { repo: root, branch: action.args.branch, commit: action.args.head,
     environment: 'test', actor: 'operator', time: new Date().toISOString(), goal, task: task.id };
   const expectedSource = 'module.exports = n => ((n * 3) - 2);\n';

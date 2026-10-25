@@ -117,7 +117,7 @@ test('the HTTP route refuses a call without a capability bound to its exact argu
   assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).stopped, false, 'a refused call writes nothing');
 });
 
-test('the HTTP route stops, reports and lifts an agent with operator capabilities', async (t) => {
+test('the HTTP route stops and reports an agent, and refuses a legacy lift fail-closed (#4237)', async (t) => {
   const { routes, ledger } = routesWith(t);
   const stopBody = { action: 'stop', scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment' };
   const stopped = await call(routes, { method: 'POST', body: stopBody, capability: capabilityFor(changeArguments(stopBody)) });
@@ -132,8 +132,9 @@ test('the HTTP route stops, reports and lifts an agent with operator capabilitie
 
   const liftBody = { action: 'lift', scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'reviewed' };
   const lifted = await call(routes, { method: 'POST', body: liftBody, capability: capabilityFor(changeArguments(liftBody)) });
-  assert.equal(lifted.body.data.lifted, true);
-  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).stopped, false);
+  assert.equal(lifted.status, 403);
+  assert.equal(lifted.body.error.code, 'AUTHORITY_DECISION_REQUIRED');
+  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).stopped, true, 'a refused lift leaves the stop in place');
 });
 
 test('the HTTP route rejects an unknown action and an invalid stop with 400', async (t) => {
@@ -147,7 +148,7 @@ test('the HTTP route rejects an unknown action and an invalid stop with 400', as
   assert.equal((await call(routes, { method: 'PUT', body: {} })).status, 405);
 });
 
-test('the CLI stops and lifts through the ledger, with the operator recorded', async (t) => {
+test('the CLI stops through the ledger, with the operator recorded, and refuses a legacy lift fail-closed (#4237)', async (t) => {
   const ledger = ledgerIn(t);
   const out = [];
   const stop = await runCliArgv(
@@ -163,9 +164,8 @@ test('the CLI stops and lifts through the ledger, with the operator recorded', a
   assert.equal(ledger.check({ workspaceId: 'w-cli', agentId: 'any' }).stopped, true);
 
   const lift = await runCliArgv(['lift', '--scope', 'workspace', '--workspace', 'w-cli'], { stdout: (value) => out.push(value) }, { emergencyStop: ledger });
-  assert.equal(lift.exitCode, CLI_EXIT_CODES.completed);
-  assert.equal(out[1], 'Lifted: workspace w-cli');
-  assert.equal(ledger.check({ workspaceId: 'w-cli' }).stopped, false);
+  assert.equal(lift.exitCode, CLI_EXIT_CODES.unauthorized);
+  assert.equal(ledger.check({ workspaceId: 'w-cli' }).stopped, true, 'a refused lift leaves the stop in place');
 });
 
 test('the CLI reports an invalid stop as invalid input and writes nothing', async (t) => {
