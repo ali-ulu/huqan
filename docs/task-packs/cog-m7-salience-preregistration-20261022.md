@@ -245,3 +245,15 @@ M9 desteği bu fixture'da `INSUFFICIENT`, arousal bilinmeyen kalır. Seçim fark
 M9 kazanımı değildir. Tekrarlanan tarifler bağımsız gerçek görev örneklemi,
 kilitlenmiş holdout veya genel kodlama üstünlüğü sayılmaz; G3 ve nihai
 `NOT_MEASURED` / `assertsGain: false` sınırı değişmez.
+
+## G1: mühürlü native kabul sonucu bağlantısı
+
+Açık host bildirimiyle gerçek `initialize_project` HTTP kabul sonucu mevcut
+journal'dan AgentV3 prediction/outcome zincirine bağlanır. Başarı ve geri alınmış
+kabul başarısızlığı ayrı gözlemlerdir; dosya özeti beklentisi gerektirmez.
+`test/cognition-coder-outcome-runtime.test.js` gerçek kabul/rollback, rapor klonu,
+onay reddi, kapsam, eksik/bozuk kanıt ve yeni süreçte aynı geçmiş okumasını sınar.
+Timeout ve eksik alan kontrolleri journal sınırına hata enjeksiyonudur; gerçek
+zaman aşımı performans ölçümü değildir. Bağlantı yalnız proje oluşturmayı kapsar.
+Bu teslim G1 geri bildirim bağlantısıdır; bağımsız holdout, M7/M9 genel kazanımı
+ve G3 kapanışı değildir. `NOT_MEASURED` / `assertsGain: false` korunur.

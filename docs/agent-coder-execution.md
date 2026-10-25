@@ -79,3 +79,26 @@ Entegrasyon testi gerçek AgentV3 planı, onay, sentez, dosya değişikliği, ay
 girdileri, artifact gözlemi ve fresh-process journal okumasını doğrular. Bu bir
 test ortamı kanıtıdır. Holdout başarısı, toplam maliyet veya genel kazanım iddiası
 değildir; M7 deney protokolünün açık kilitleri ayrıca tamamlanmalıdır.
+
+## Mühürlü yerel kabul sonucu gözlemi
+
+Host, cognition bayrakları ve scheduler yanında açıkça
+`cognitionCoderExpectations[stepId] = { workspaceId, expected: 'passed', sourceGroup, riskScore }`
+bildirirse `initialize_project` kabul sonucu mevcut journal'dan salt okunur gözlenir.
+`riskScore` mevcut 0–100 risk birimindedir; eksik değer bilinmeyen kalır.
+Aynı adımda dosya beklentisiyle birlikte bildirim belirsizdir ve gözlem kurulmaz.
+Diğer Coder görev türleri bu bağlantı kapsamında değildir.
+
+Alıcı görev/onay/HEAD/workspace bağını kendi kapalı kapsamından kurar. Yalnız
+kendi yürüttüğü sonuç nesnesini kabul eder; rapor klonu veya `step.ok` kanıt olmaz.
+Boş, göreve özgü run kimliği yürütmeden önce ayrılır. Kapalı journal'ın görev,
+operasyon ve dosya özetleri, nedensel zinciri ve gerçek kabul komutu doğrulanır.
+Başarılı kabul `confirmed`; exit 1/TEST_FAILED ve doğrulanmış rollback
+`contradiction` olur. İkinci sonuç yalnız kabul testinin başarısızlığıdır:
+journal'ın genel `unknown` işlem sonucu değiştirilmez.
+
+Denial, eksik/bozuk/açık journal, timeout/signal, kısmi veya belirsiz sonuç,
+yanlış kapsam ve değiştirilmiş HEAD gözlenmiş başarı oluşturmaz. Mevcut onay,
+bağımsız test, rollback ve varsayılan kapalı cognition davranışı korunur.
+Sonuç mevcut prediction/outcome deposuna yazılır; yeni depo veya yöntem terfisi yoktur.
+Yerel regresyon: `node --test test/cognition-coder-outcome-runtime.test.js`.
