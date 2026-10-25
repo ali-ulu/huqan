@@ -5,10 +5,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { execFileSync } = require('node:child_process');
 const {
   canonicalizePath,
   createPathError,
   isPathWithinRoot,
+  readFileWithinRoot,
   resolvePathWithinRoot,
   withRealpathSpellings,
 } = require('../lib/path-safety');
@@ -45,6 +47,7 @@ test('canonicalizePath distinguishes existing, missing-allowed and missing-forbi
     assert.equal(canonicalizePath(missing, true), path.join(fs.realpathSync(root), 'a', 'b', 'c.txt'));
     assert.throws(() => canonicalizePath(missing, false), (error) => {
       assert.equal(error.code, 'PATH_NOT_FOUND');
+      assert.equal(error.message, 'Path does not exist');
       assert.equal(error.path, path.resolve(missing));
       return true;
     });
@@ -81,6 +84,167 @@ test('resolvePathWithinRoot validates root and missing-path policy exactly', () 
       resolvePathWithinRoot(root, missing, { allowMissing: true }),
       path.join(fs.realpathSync(root), 'new', 'file.txt'),
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// readFileWithinRoot (#4247). Every branch below is a mutant target: the type
+// gate, the symlink refusal, the containment call and the error-code mapping
+// each have to be observed, not merely executed, or the mutant survives.
+// ---------------------------------------------------------------------------
+
+function scratchRoot() {
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-read-within-')));
+}
+
+test('readFileWithinRoot returns the exact bytes of a regular file inside the root', () => {
+  const root = scratchRoot();
+  try {
+    const file = path.join(root, 'a', 'b.txt');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const bytes = Buffer.from('hello\nworld\n');
+    fs.writeFileSync(file, bytes);
+    const read = readFileWithinRoot(root, path.join('a', 'b.txt'));
+    assert.equal(Buffer.isBuffer(read), true);
+    assert.deepEqual(read, bytes);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot accepts an absolute candidate spelled through the root', () => {
+  const root = scratchRoot();
+  try {
+    const file = path.join(root, 'plain.txt');
+    fs.writeFileSync(file, 'x');
+    assert.equal(readFileWithinRoot(root, file).toString(), 'x');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot reports PATH_NOT_FOUND for a path that is not there', () => {
+  const root = scratchRoot();
+  try {
+    assert.throws(() => readFileWithinRoot(root, 'missing.txt'), (error) => {
+      assert.equal(error.code, 'PATH_NOT_FOUND');
+      assert.equal(error.message, 'Path is not readable');
+      assert.equal(error.path, path.resolve(root, 'missing.txt'));
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot reports PATH_UNREADABLE when lstat fails for a reason other than absence', () => {
+  const root = scratchRoot();
+  const tooLong = path.join(root, 'x'.repeat(5000));
+  try {
+    assert.throws(() => readFileWithinRoot(root, tooLong), (error) => {
+      assert.equal(error.code, 'PATH_UNREADABLE');
+      assert.equal(error.message, 'Path is not readable');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot refuses a symbolic link to a file inside the root', () => {
+  const root = scratchRoot();
+  try {
+    const target = path.join(root, 'target.txt');
+    fs.writeFileSync(target, 'inside');
+    const link = path.join(root, 'link.txt');
+    fs.symlinkSync(target, link);
+    assert.throws(() => readFileWithinRoot(root, 'link.txt'), (error) => {
+      assert.equal(error.code, 'PATH_SYMLINK');
+      assert.equal(error.message, 'Path is a symbolic link');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot refuses a directory as PATH_NOT_REGULAR', () => {
+  const root = scratchRoot();
+  try {
+    fs.mkdirSync(path.join(root, 'dir'));
+    assert.throws(() => readFileWithinRoot(root, 'dir'), (error) => {
+      assert.equal(error.code, 'PATH_NOT_REGULAR');
+      assert.equal(error.message, 'Path is not a regular file');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot refuses a FIFO as PATH_NOT_REGULAR without blocking', () => {
+  const root = scratchRoot();
+  const fifo = path.join(root, 'pipe');
+  try {
+    try {
+      execFileSync('mkfifo', [fifo]);
+    } catch {
+      return; // no mkfifo (Windows, or a filesystem that forbids FIFOs)
+    }
+    if (!fs.lstatSync(fifo).isFIFO()) return;
+    const started = Date.now();
+    assert.throws(() => readFileWithinRoot(root, 'pipe'), (error) => {
+      assert.equal(error.code, 'PATH_NOT_REGULAR');
+      assert.equal(error.message, 'Path is not a regular file');
+      return true;
+    });
+    assert.ok(Date.now() - started < 5000, 'reading a FIFO must not block');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot refuses a candidate outside the root', () => {
+  const root = scratchRoot();
+  const outside = scratchRoot();
+  try {
+    const file = path.join(outside, 'outside.txt');
+    fs.writeFileSync(file, 'outside');
+    assert.throws(() => readFileWithinRoot(root, file), (error) => {
+      assert.equal(error.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+      assert.equal(error.message, 'Path escapes allowed root');
+      return true;
+    });
+    assert.throws(() => readFileWithinRoot(root, path.join('..', path.basename(outside), 'outside.txt')), (error) => {
+      assert.equal(error.code, 'PATH_OUTSIDE_ALLOWED_ROOT');
+      assert.equal(error.message, 'Path escapes allowed root');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot treats an empty root or candidate as a contained-but-absent path', () => {
+  const root = scratchRoot();
+  try {
+    const file = path.join(root, 'here.txt');
+    fs.writeFileSync(file, 'here');
+    // `path.resolve(root, '')` is the root itself, which is a directory.
+    assert.throws(() => readFileWithinRoot(root, ''), (error) => {
+      assert.equal(error.code, 'PATH_NOT_REGULAR');
+      assert.equal(error.message, 'Path is not a regular file');
+      return true;
+    });
+    // An empty root fails the shared root gate before any read is attempted.
+    assert.throws(() => readFileWithinRoot('', path.relative(process.cwd(), file)), (error) => {
+      assert.equal(error.code, 'ROOT_PATH_REQUIRED');
+      assert.equal(error.message, 'rootPath is required');
+      return true;
+    });
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -471,6 +471,11 @@ def read_listed_file(pack_dir, relative):
     # regular-file read never blocks, so the type gate is also the timeout.
     if hasattr(os, "O_NONBLOCK"):
         flags |= os.O_NONBLOCK
+    # os.open defaults to text mode on Windows, which would translate CRLF to LF
+    # and make every Windows pack's bytes differ from the ones the manifest
+    # hashed. O_BINARY pins the raw bytes the manifest is a claim about.
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
     try:
         descriptor = os.open(absolute, flags)
     except OSError as error:

@@ -237,6 +237,9 @@ test('#4247: a listed path that is a FIFO is refused without blocking', () => {
     } catch {
       return; // no mkfifo (Windows, or a filesystem that forbids FIFOs)
     }
+    // Git for Windows ships an `mkfifo` that cannot make a real FIFO on NTFS
+    // and leaves a `.lnk` shortcut instead. Only a real FIFO proves the point.
+    if (!fs.lstatSync(fifo).isFIFO()) return;
     const manifestPath = path.join(root, MANIFEST_FILE);
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     manifest.files.push(fileEntry('audit/fifo.jsonl', '', INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY));
