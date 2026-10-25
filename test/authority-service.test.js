@@ -500,3 +500,44 @@ test('under separation of duties the requester cannot cast an early quorum vote'
   assert.deepEqual([other.status, other.body.quorum.received], [202, 1], 'requester plus one other never reaches quorum');
   assert.equal(h.service.show('apr_1').body.approval.status, 'pending');
 });
+
+test('an operator who is not on the eligible list cannot cast a quorum vote', (t) => {
+  const { keys, rbacPolicy } = apiKeyPolicy({ quorum: { default: 1, byTool: { 'huqan.learn': 2 } } });
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register({ ...ACTION, eligibleApprovers: ['alice'] }).status, 201);
+
+  // bob is not eligible: his vote is refused before any code is spent, and adds no ledger entry
+  const bobVote = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.bob, operatorIdHint: 'bob' });
+  assert.deepEqual([bobVote.status, bobVote.body.code], [403, 'INELIGIBLE_APPROVER']);
+  assert.equal(h.service.show('apr_1').body.approval.votes.length, 0, 'ineligible vote adds no ledger entry');
+
+  // alice is the only eligible voter; after she votes, none remain
+  const aliceVote = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.alice, operatorIdHint: 'alice' });
+  assert.equal(aliceVote.status, 202);
+  assert.deepEqual(aliceVote.body.quorum, { required: 2, received: 1, approverIds: ['alice'] });
+  assert.equal(aliceVote.body.eligibleVotersRemaining, 0);
+});
+
+test('eligible voters remaining decreases as distinct eligible operators vote', (t) => {
+  const { keys, rbacPolicy } = apiKeyPolicy({ quorum: { default: 1, byTool: { 'huqan.learn': 2 } } });
+  const h = harness(t, rbacPolicy);
+  assert.equal(h.service.register({ ...ACTION, eligibleApprovers: ['alice', 'bob'] }).status, 201);
+
+  const listed = h.service.list({ status: 'pending' });
+  assert.equal(listed.body.approvals[0].eligibleVotersRemaining, 2);
+  assert.deepEqual(listed.body.approvals[0].quorum, { required: 2, received: 0, approverIds: [] });
+
+  const aliceVote = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.alice, operatorIdHint: 'alice' });
+  assert.equal(aliceVote.status, 202);
+  assert.equal(aliceVote.body.eligibleVotersRemaining, 1);
+
+  const shown = h.service.show('apr_1').body.approval;
+  assert.equal(shown.eligibleVotersRemaining, 1);
+  assert.deepEqual(shown.quorum, { required: 2, received: 1, approverIds: ['alice'] });
+
+  const decided = h.service.decide('apr_1', h.seal({ totp: null }), { apiKey: keys.bob, operatorIdHint: 'bob' });
+  assert.equal(decided.status, 200);
+  assert.equal(decided.body.envelope.payload.approverIds.length, 2);
+  assert.equal(decided.body.envelope.payload.policyVersion, rbacPolicy.policy.version);
+  assert.equal(decided.body.envelope.payload.policyHash, rbacPolicy.policy.hash);
+});
