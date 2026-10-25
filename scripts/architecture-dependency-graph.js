@@ -102,7 +102,7 @@ const RULES = [
       'lib/authority/bundle-manifest.js', 'lib/authority/decision-envelope.js', 'lib/authority/keys.js',
       'lib/authority/sealed-request.js', 'lib/authority/totp.js', 'lib/authority/approval-registration.js',
       'lib/authority/approval-view.js', 'lib/authority/authority-service.js', 'lib/authority/operator-check.js',
-      'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
+      'lib/authority/authority-inputs.js', 'lib/authority/quorum-progress.js', 'lib/authority/authority-mode.js', 'lib/authority/authority-pin.js', 'lib/authority/decision-guard.js',
       'lib/authority/registration-payload.js', 'lib/authority/consumption-envelope.js', 'lib/authority/install-trust.js', 'lib/authority/posix-path-trust.js', // #4082: the POSIX counterpart of install-trust.js
       // #3948: the agent-user boundary reuses the install-trust path probe, so it
       // sits beside it rather than reaching Core from the Adapters ring.

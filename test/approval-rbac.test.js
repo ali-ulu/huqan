@@ -18,6 +18,7 @@ const {
   createOperatorApiKeySalt,
   createOperatorApiKeyVerifier,
   validatePolicy,
+  eligibleVotersRemaining,
 } = require('../lib/approval-rbac');
 
 const EXAMPLE_PATH = path.join(__dirname, '..', 'config', 'rbac.example.json');
@@ -219,4 +220,24 @@ test('the example policy is valid and the docs matrix matches it', () => {
     const documented = [...row.matchAll(/`(approvals\.[a-z]+)`/g)].map(match => match[1]);
     assert.deepEqual([...new Set(documented)].sort(), [...permissions].sort(), `${role} matrix row drifted`);
   }
+});
+
+test('eligibleVotersRemaining reports who can still vote', () => {
+  const salt = createOperatorApiKeySalt();
+  const policy = loaded({
+    operators: { alice: 'approver', bob: 'approver', carol: 'viewer' },
+    operatorApiKeySalt: salt,
+    operatorApiKeyVerifiers: {
+      alice: createOperatorApiKeyVerifier('k1'.padEnd(48, 'a'), salt),
+      bob: createOperatorApiKeyVerifier('k2'.padEnd(48, 'b'), salt),
+    },
+    quorum: { default: 2 },
+  });
+  assert.equal(eligibleVotersRemaining(null, ['alice', 'bob'], []), null);
+  assert.deepEqual(eligibleVotersRemaining(policy, undefined, []), []);
+  assert.deepEqual(eligibleVotersRemaining(policy, ['alice', 'bob'], []), ['alice', 'bob']);
+  assert.deepEqual(eligibleVotersRemaining(policy, ['alice', 'bob'], ['alice']), ['bob']);
+  assert.deepEqual(eligibleVotersRemaining(policy, ['alice', 'bob'], ['alice', 'bob']), []);
+  // carol is not an approver but appears on the eligible list; she is still listed until she votes
+  assert.deepEqual(eligibleVotersRemaining(policy, ['alice', 'carol'], []), ['alice', 'carol']);
 });

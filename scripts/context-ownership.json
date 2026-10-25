@@ -4051,6 +4051,14 @@
   "lib/evidence-pack/signature.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-RECEIPT-T; #4092 PR-A4: signs and verifies the pack manifest with the issuer key (lib/receipt/issuer-seal.js), the same Trust context as the seals it reuses"
+  },
+   "lib/authority/quorum-progress.js": {
+    "context": "AgentAction",
+    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
+  },
+   "lib/authority/authority-inputs.js": {
+    "context": "AgentAction",
+    "evidence": "docs/adr/ADR-016-approval-authority-os-boundary.md"
   }
  },
  "platform": {

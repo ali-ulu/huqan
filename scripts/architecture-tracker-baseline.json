@@ -141,6 +141,7 @@
       "lib/authority/approval-registration.js": "Core",
       "lib/authority/approval-view.js": "Core",
       "lib/authority/authority-client.js": "Adapters",
+      "lib/authority/authority-inputs.js": "Core",
       "lib/authority/authority-mode.js": "Core",
       "lib/authority/authority-pin.js": "Core",
       "lib/authority/authority-service.js": "Core",
@@ -160,6 +161,7 @@
       "lib/authority/operator-check.js": "Core",
       "lib/authority/operator-cli.js": "UI",
       "lib/authority/posix-path-trust.js": "Core",
+      "lib/authority/quorum-progress.js": "Core",
       "lib/authority/registration-payload.js": "Core",
       "lib/authority/sealed-request.js": "Core",
       "lib/authority/service-main.js": "UI",
@@ -2210,6 +2212,7 @@
         "lib/protected-store-path.js"
       ],
       "lib/authority/approval-registration.js": [
+        "lib/approval-rbac.js",
         "lib/mcp-operator-capability.js"
       ],
       "lib/authority/authority-client.js": [
@@ -2231,9 +2234,11 @@
         "lib/authority/anchor-statement.js",
         "lib/authority/approval-registration.js",
         "lib/authority/approval-view.js",
+        "lib/authority/authority-inputs.js",
         "lib/authority/consumption-envelope.js",
         "lib/authority/decision-envelope.js",
         "lib/authority/operator-check.js",
+        "lib/authority/quorum-progress.js",
         "lib/authority/sealed-request.js",
         "lib/hash-chain.js"
       ],
@@ -2284,6 +2289,10 @@
         "lib/authority/authority-pin.js",
         "lib/authority/sealed-request.js",
         "lib/environment-compat.js"
+      ],
+      "lib/authority/quorum-progress.js": [
+        "lib/approval-rbac.js",
+        "lib/authority/approval-view.js"
       ],
       "lib/authority/registration-payload.js": [
         "lib/json-object.js",
