@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const {
   MCP_TOOL_CLASSIFICATIONS,
+  MCP_TOOL_CALL_CLASSIFICATIONS,
   MCP_GATE_REASONS,
   classifyMcpTool,
 } = require('../lib/mcp-gate-adapter');
@@ -25,6 +26,24 @@ test('#1254 no classification advertises a gate the adapter cannot evaluate', ()
         EVALUATED_GATES.has(gate),
         `${tool} advertises ${gate}, which no code path in evaluateMcpGate runs`,
       );
+    }
+  }
+});
+
+test('#4229 no call-shape classification advertises a gate the adapter cannot evaluate', () => {
+  // The call-shape table makes the same kind of claim about the gates that run
+  // for the escalated call, so the same honesty rule applies to it.
+  const EVALUATED_GATES = new Set(['AB1', 'AB2', 'AB4', 'AB5', 'AB8', 'AB9', 'AB11']);
+
+  for (const [tool, shapes] of Object.entries(MCP_TOOL_CALL_CLASSIFICATIONS)) {
+    for (const [argument, classification] of Object.entries(shapes)) {
+      for (const gate of classification.gates) {
+        assert.ok(
+          EVALUATED_GATES.has(gate),
+          `${tool} with ${argument} advertises ${gate}, which no code path in evaluateMcpGate runs`,
+        );
+      }
+      assert.ok(!classification.gates.includes('AB4'), `${tool} with ${argument} must not advertise the learn-only AB4`);
     }
   }
 });
