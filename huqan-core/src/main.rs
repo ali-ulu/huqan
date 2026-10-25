@@ -143,7 +143,10 @@ impl Graph {
 
     fn add_node(&mut self, id: &str, label: &str, opts: &Value) {
         let now = now_ms();
-        let provenance = opts.get("provenance").cloned();
+        // An explicit JSON null means "no explicit provenance", exactly as
+        // lib/graph-node-write.js's `hasExplicitProvenance` treats it: an update
+        // keeps the provenance already stored instead of erasing it (#4236).
+        let provenance = opts.get("provenance").filter(|p| !p.is_null()).cloned();
         let workspace_id = normalize_workspace(&get_str(opts, "workspaceId"));
         let key = storage_key(id, &workspace_id);
         if let Some(n) = self.nodes.get_mut(&key) {
@@ -196,7 +199,10 @@ impl Graph {
         }
         let explicit_weight = get_f64_opt(opts, "weight");
         let explicit_confidence = get_f64_opt(opts, "confidence");
-        let provenance = opts.get("provenance").cloned();
+        // Same null semantics as add_node above: an explicit null is "no
+        // explicit provenance", not an instruction to erase the stored one
+        // (#4236).
+        let provenance = opts.get("provenance").filter(|p| !p.is_null()).cloned();
         let source_ref = get_str(opts, "sourceRef");
         let new_evidence = get_str_vec(opts, "evidence");
 

@@ -334,6 +334,10 @@ class RustGraph {
   async learn(text, opts = {}) {
     const cmd = { cmd: 'learn', text };
     if (opts && opts.workspaceId !== undefined) cmd.workspaceId = opts.workspaceId;
+    // #4236 (SI-04): provenance is forwarded with workspaceId so the native
+    // mirror stores the same evidence as the JS graph path instead of a null
+    // provenance in the default workspace.
+    if (opts && opts.provenance !== undefined) cmd.provenance = opts.provenance;
     const res = await this.send(cmd);
     return res && res.ok;
   }

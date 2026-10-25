@@ -90,3 +90,77 @@ test(
     }
   },
 );
+
+// #4236 (SI-04): the learn mirror must carry workspaceId and provenance to the
+// native side, so a learned fact lands in the requested workspace with its
+// evidence instead of falling back to the default workspace with a null
+// provenance.
+test('rustGraph learn forwards workspaceId and provenance on the wire (#4236)', async () => {
+  const graph = new RustGraph({ memoryPath: 'unused.json' });
+  const calls = [];
+  graph.send = async (command) => {
+    calls.push(command);
+    return { ok: true };
+  };
+
+  try {
+    const provenance = { actor: 'mirror-test', source: 'unit-test' };
+    await graph.learn('kedi memelidir', { workspaceId: 'ws-mirror', provenance });
+    assert.deepEqual(calls, [{
+      cmd: 'learn',
+      text: 'kedi memelidir',
+      workspaceId: 'ws-mirror',
+      provenance,
+    }]);
+  } finally {
+    graph.destroy();
+  }
+});
+
+test(
+  'rustGraph learn writes into the requested workspace with provenance through the real Rust IPC process (#4236)',
+  { skip: hasRustBinary ? false : 'huqan-core binary not built in this environment' },
+  async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-ipc-learn-'));
+    const rg = new RustGraph({ memoryPath: path.join(tempDir, 'memory.json') });
+    try {
+      const provenance = { actor: 'learn-ipc-test' };
+      await rg.learn('kedi memelidir', { workspaceId: 'ws-learn-ipc', provenance });
+
+      const node = await rg.getNode('kedi', 'ws-learn-ipc');
+      assert.ok(node, 'the learned subject must land in the requested workspace');
+      assert.deepEqual(node.provenance, provenance);
+      assert.equal(node.workspaceId, 'ws-learn-ipc');
+
+      // #759 reads are workspace-scoped: the node must not leak into default.
+      const leaked = await rg.getNode('kedi', 'default');
+      assert.equal(leaked, null);
+    } finally {
+      rg.destroy();
+      fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    }
+  },
+);
+
+test(
+  'native addNode keeps stored provenance when the wire carries an explicit null (#4236)',
+  { skip: hasRustBinary ? false : 'huqan-core binary not built in this environment' },
+  async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rustgraph-ipc-null-provenance-'));
+    const rg = new RustGraph({ memoryPath: path.join(tempDir, 'memory.json') });
+    try {
+      const provenance = { actor: 'null-parity-test' };
+      await rg.addNode('kedi', 'kedi', { provenance, workspaceId: 'ws-null-parity' });
+      // The learn mirror always sends provenance (null when the caller supplied
+      // none). lib/graph-node-write.js treats null as "keep existing"; the Rust
+      // backend must agree instead of erasing the stored provenance.
+      await rg.addNode('kedi', 'kedi', { provenance: null, workspaceId: 'ws-null-parity' });
+
+      const node = await rg.getNode('kedi', 'ws-null-parity');
+      assert.deepEqual(node.provenance, provenance);
+    } finally {
+      rg.destroy();
+      fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    }
+  },
+);
