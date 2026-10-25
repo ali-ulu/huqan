@@ -141,9 +141,11 @@ test('readFileWithinRoot reports PATH_NOT_FOUND for a path that is not there', (
 
 test('readFileWithinRoot reports PATH_UNREADABLE when lstat fails for a reason other than absence', () => {
   const root = scratchRoot();
-  const tooLong = path.join(root, 'x'.repeat(5000));
+  // A NUL byte in the path makes lstat throw ERR_INVALID_ARG_VALUE, not ENOENT,
+  // so the error mapping has to fall through to PATH_UNREADABLE. A too-long
+  // path would not do: Windows reports ENOENT for it.
   try {
-    assert.throws(() => readFileWithinRoot(root, tooLong), (error) => {
+    assert.throws(() => readFileWithinRoot(root, 'bad\u0000name'), (error) => {
       assert.equal(error.code, 'PATH_UNREADABLE');
       assert.equal(error.message, 'Path is not readable');
       return true;
@@ -193,7 +195,15 @@ test('readFileWithinRoot refuses a FIFO as PATH_NOT_REGULAR without blocking', (
     } catch {
       return; // no mkfifo (Windows, or a filesystem that forbids FIFOs)
     }
-    if (!fs.lstatSync(fifo).isFIFO()) return;
+    // Git for Windows ships an `mkfifo` that reports success but leaves no FIFO
+    // on NTFS. Only a real FIFO exercises the non-regular refusal.
+    let isRealFifo = false;
+    try {
+      isRealFifo = fs.lstatSync(fifo).isFIFO();
+    } catch {
+      isRealFifo = false;
+    }
+    if (!isRealFifo) return;
     const started = Date.now();
     assert.throws(() => readFileWithinRoot(root, 'pipe'), (error) => {
       assert.equal(error.code, 'PATH_NOT_REGULAR');
