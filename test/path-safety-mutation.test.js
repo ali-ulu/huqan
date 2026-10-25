@@ -192,6 +192,58 @@ test('readFileWithinRoot refuses a symbolic link to a file inside the root', () 
   }
 });
 
+// The identity gate (fstat vs the lstat that admitted the path) and the ELOOP
+// mapping only fire when the filesystem changes between two syscalls, which
+// cannot be staged deterministically. Mocking the fs boundary is the only way
+// to execute those branches.
+test('readFileWithinRoot reports PATH_CHANGED when the opened file is not the one that was checked', (t) => {
+  const root = scratchRoot();
+  try {
+    fs.writeFileSync(path.join(root, 'swap.txt'), 'x');
+    t.mock.method(fs, 'fstatSync', () => ({ isFile: () => true, dev: 1n, ino: 999n }));
+    assert.throws(() => readFileWithinRoot(root, 'swap.txt'), (error) => {
+      assert.equal(error.code, 'PATH_CHANGED');
+      assert.equal(error.message, 'Path changed between check and read');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot reports PATH_NOT_REGULAR when the opened file is not regular', (t) => {
+  const root = scratchRoot();
+  try {
+    fs.writeFileSync(path.join(root, 'swap.txt'), 'x');
+    t.mock.method(fs, 'fstatSync', () => ({ isFile: () => false, dev: 1n, ino: 1n }));
+    assert.throws(() => readFileWithinRoot(root, 'swap.txt'), (error) => {
+      assert.equal(error.code, 'PATH_NOT_REGULAR');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('readFileWithinRoot maps ELOOP from the open to PATH_SYMLINK', (t) => {
+  const root = scratchRoot();
+  try {
+    fs.writeFileSync(path.join(root, 'loop.txt'), 'x');
+    t.mock.method(fs, 'openSync', () => {
+      const error = new Error('too many levels of symbolic links');
+      error.code = 'ELOOP';
+      throw error;
+    });
+    assert.throws(() => readFileWithinRoot(root, 'loop.txt'), (error) => {
+      assert.equal(error.code, 'PATH_SYMLINK');
+      assert.equal(error.message, 'Path is a symbolic link');
+      return true;
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('readFileWithinRoot refuses a directory as PATH_NOT_REGULAR', () => {
   const root = scratchRoot();
   try {

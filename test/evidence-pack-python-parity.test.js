@@ -176,6 +176,15 @@ const MUTATIONS = {
   'ledger-not-json': (root) => {
     resealLedger(root, 'not json\n');
   },
+  'listed-nul-path': (root) => {
+    // #4247: a manifest entry naming a path with an embedded NUL. Python's
+    // os.lstat raises ValueError (not OSError) and JS's lstatSync raises
+    // ERR_INVALID_ARG_VALUE; both readers must still return a verdict
+    // (PATH_UNREADABLE -> unsafe_file) instead of a traceback.
+    rewriteManifest(root, (manifest) => {
+      manifest.files.push(fileEntry('audit/a\u0000b.jsonl', '', INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY));
+    });
+  },
   'unlisted-symlink': (root) => {
     // A symlink is neither a regular file nor a directory; a verifier that
     // only pushed regular files would silently skip it.

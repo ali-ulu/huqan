@@ -180,7 +180,7 @@ A control that could not be traced to code is listed under **Planned** or **Not 
 ### Evidence-Pack Verification Blocked by a Named File
 
 **Description**: An evidence pack's manifest names a path that is not an ordinary
-file — a FIFO, a device node, or a symlink pointing outside the pack. A verifier
+file â€” a FIFO, a device node, or a symlink pointing outside the pack. A verifier
 that opens the path before judging its type either blocks forever on the FIFO or
 hashes bytes the pack does not contain (CWE-22, #4247).
 
@@ -188,14 +188,16 @@ hashes bytes the pack does not contain (CWE-22, #4247).
 external bytes, so the pack's integrity claim no longer rests on its own contents.
 
 **Existing Mitigations**:
-- **Implemented** — `readFileWithinRoot` (`lib/path-safety.js`) and its Python mirror
+- **Implemented** â€” `readFileWithinRoot` (`lib/path-safety.js`) and its Python mirror
   `read_listed_file` (`specs/huqan-evidence-pack/0.1/verify_pack.py`) are the only
   readers of manifest-named paths. They refuse a symlink, a non-regular file, or a
   path that resolves outside the pack as `unsafe_file:<path>`, without hashing
-  anything, and compare `dev`/`ino` between check and read so a swap mid-read is
-  caught. `O_NONBLOCK` makes the FIFO open return so the descriptor can be judged;
-  a regular-file read never blocks, so the type gate is also the read timeout.
-- **Implemented** — The JS and Python verifiers share the fixture matrix in
+  anything, and both open the path once and compare the descriptor's `dev`/`ino`
+  against the `lstat` that admitted it, so a swap between check and read is caught
+  as `PATH_CHANGED`. `O_NONBLOCK` makes the FIFO open return so the descriptor can
+  be judged; a regular-file read never blocks, so the type gate is also the read
+  timeout.
+- **Implemented** â€” The JS and Python verifiers share the fixture matrix in
   `test/evidence-pack-python-parity.test.js`, so a divergence in the refusal is a
   test failure, not a silent disagreement.
 
@@ -415,11 +417,11 @@ By using HUQAN, you acknowledge and accept these security commitments.
 **Impact**: Unauthorized operator login, privilege escalation via mapped RBAC principal.
 
 **Existing Mitigations**:
-- **Implemented** — Signature verification against IdP certificates imported via administrator-controlled metadata (`lib/saml/signature.js`, `lib/saml/assertion.js`).
-- **Implemented** — Issuer, Audience, Destination/Recipient, and time-window validation with 5 min clock skew, max 24h assertion window (`lib/saml/assertion.js`).
-- **Implemented** — Replay protection via in-memory assertion ID store with TTL sweep (`lib/saml/replay-store.js`).
-- **Implemented** — Request correlation via `InResponseTo` binding to SP-issued AuthnRequest ID (`lib/saml/sp-route.js`).
-- **Implemented** — Identity mapping is read-only; NameID or subject attribute maps to existing operator IDs, rejects multi-value attributes and unknown operators (`lib/saml/identity-mapping.js`).
+- **Implemented** â€” Signature verification against IdP certificates imported via administrator-controlled metadata (`lib/saml/signature.js`, `lib/saml/assertion.js`).
+- **Implemented** â€” Issuer, Audience, Destination/Recipient, and time-window validation with 5 min clock skew, max 24h assertion window (`lib/saml/assertion.js`).
+- **Implemented** â€” Replay protection via in-memory assertion ID store with TTL sweep (`lib/saml/replay-store.js`).
+- **Implemented** â€” Request correlation via `InResponseTo` binding to SP-issued AuthnRequest ID (`lib/saml/sp-route.js`).
+- **Implemented** â€” Identity mapping is read-only; NameID or subject attribute maps to existing operator IDs, rejects multi-value attributes and unknown operators (`lib/saml/identity-mapping.js`).
 
 **Remaining Gaps**:
 - IdP metadata is a static JSON file; rotation requires process reload.

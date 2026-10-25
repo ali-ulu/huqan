@@ -453,7 +453,12 @@ def read_listed_file(pack_dir, relative):
     try:
         info = os.lstat(absolute)
     except OSError as error:
-        raise UnsafePackFile("PATH_NOT_FOUND" if error.errno == errno.ENOENT else "PATH_UNREADABLE", relative)
+        raise UnsafePackFile("PATH_NOT_FOUND" if error.errno == errno.ENOENT else "PATH_UNREADABLE", relative) from None
+    except ValueError:
+        # An embedded NUL or unencodable character in a manifest-named path
+        # makes os.lstat raise ValueError, not OSError. The JS reader maps the
+        # same input to PATH_UNREADABLE, so the verdict has to match.
+        raise UnsafePackFile("PATH_UNREADABLE", relative) from None
     if stat_module.S_ISLNK(info.st_mode):
         raise UnsafePackFile("PATH_SYMLINK", relative)
     if not stat_module.S_ISREG(info.st_mode):
@@ -479,7 +484,7 @@ def read_listed_file(pack_dir, relative):
     try:
         descriptor = os.open(absolute, flags)
     except OSError as error:
-        raise UnsafePackFile("PATH_SYMLINK" if error.errno == errno.ELOOP else "PATH_UNREADABLE", relative)
+        raise UnsafePackFile("PATH_SYMLINK" if error.errno == errno.ELOOP else "PATH_UNREADABLE", relative) from None
     try:
         opened = os.fstat(descriptor)
         if not stat_module.S_ISREG(opened.st_mode):
