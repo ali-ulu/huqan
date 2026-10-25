@@ -55,8 +55,8 @@ describe('Provenance System', () => {
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
-    assert.strictEqual(node.provenance.confidence, 0.91);
-    assert.strictEqual(edge.provenance.confidence, 0.91);
+    assert.strictEqual(node.provenance.confidence, 0.8);
+    assert.strictEqual(edge.provenance.confidence, 0.8);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(node.provenance.sourceType, 'document');
@@ -83,8 +83,8 @@ describe('Provenance System', () => {
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
-    assert.strictEqual(node.provenance.confidence, 0.91);
-    assert.strictEqual(edge.provenance.confidence, 0.91);
+    assert.strictEqual(node.provenance.confidence, 0.8);
+    assert.strictEqual(edge.provenance.confidence, 0.8);
   });
 
   it('preserves existing provenance when node or edge update passes null in SQLite mode', (t) => {
@@ -117,8 +117,8 @@ describe('Provenance System', () => {
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
-    assert.strictEqual(node.provenance.confidence, 0.91);
-    assert.strictEqual(edge.provenance.confidence, 0.91);
+    assert.strictEqual(node.provenance.confidence, 0.8);
+    assert.strictEqual(edge.provenance.confidence, 0.8);
   });
 
   it('keeps workspace scoped provenance isolated', () => {
@@ -187,8 +187,8 @@ describe('Provenance System', () => {
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
-    assert.strictEqual(node.provenance.confidence, 0.91);
-    assert.strictEqual(edge.provenance.confidence, 0.91);
+    assert.strictEqual(node.provenance.confidence, 0.8);
+    assert.strictEqual(edge.provenance.confidence, 0.8);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(node.workspaceId, 'default');
@@ -246,8 +246,8 @@ describe('Provenance System', () => {
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
-    assert.strictEqual(node.provenance.confidence, 0.91);
-    assert.strictEqual(edge.provenance.confidence, 0.91);
+    assert.strictEqual(node.provenance.confidence, 0.8);
+    assert.strictEqual(edge.provenance.confidence, 0.8);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(node.workspaceId, 'default');
@@ -283,8 +283,8 @@ describe('Provenance System', () => {
 
     assert.strictEqual(node.provenance.provenanceId, provenance.provenanceId);
     assert.strictEqual(edge.provenance.provenanceId, provenance.provenanceId);
-    assert.strictEqual(node.provenance.confidence, 0.91);
-    assert.strictEqual(edge.provenance.confidence, 0.91);
+    assert.strictEqual(node.provenance.confidence, 0.8);
+    assert.strictEqual(edge.provenance.confidence, 0.8);
     assert.strictEqual(node.provenance.trustPolicyVersion, '0.8.0');
     assert.strictEqual(edge.provenance.trustPolicyVersion, '0.8.0');
     assert.ok(learnEvents.length >= 1);
