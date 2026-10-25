@@ -42,6 +42,43 @@ test('matches regardless of path separator, absolute prefix or case on the marke
   }
 });
 
+test('matches equivalent paths that carry a dot segment (#4252)', () => {
+  const variants = [
+    '.claude/./settings.json',
+    '.claude/settings.json/./',
+    './.claude/./settings.json',
+    '.claude//./settings.json',
+    'proj/.claude/./settings.json',
+    '/home/a/proj/.claude/./settings.json',
+    '.codex/./hooks.json',
+    '.opencode/./plugin/huqan.mjs',
+    'adapters/external-action/./claude-code-hooks.json',
+  ];
+  for (const candidate of variants) {
+    const match = isControlPlanePath(candidate);
+    assert.ok(match, `expected ${candidate} to be control plane`);
+    // The normalized path must be free of dot segments and match the
+    // canonical form, so an equivalent path cannot dodge the guard.
+    assert.equal(match.path, path.posix.normalize(match.path), candidate);
+    assert.ok(!/\.\//.test(match.path), `${candidate} normalized to ${match.path}`);
+  }
+});
+
+test('a dot segment cannot disarm the control plane by review-dodging (#4252)', () => {
+  const dodges = [
+    'rm .claude/./settings.json',
+    "sed -i 's/huqan-gate//' .claude/./settings.json",
+    'echo "{}" > .claude/./settings.json',
+    'mv .codex/./hooks.json /tmp/backup.json',
+    'cp /tmp/clean.json .opencode/./plugin/huqan.mjs',
+  ];
+  for (const command of dodges) {
+    const match = findControlPlaneCommandTarget(command);
+    assert.ok(match, `expected ${command} to be flagged`);
+    assert.ok(!command.includes('./.') || match, command);
+  }
+});
+
 test('does not treat ordinary workspace files as control plane', () => {
   const benign = [
     'lib/external-action-guard.js',
