@@ -185,6 +185,33 @@ const MUTATIONS = {
       return 'skip'; // some environments (Windows, unprivileged) forbid symlinks
     }
   },
+  'listed-symlink': (root) => {
+    // #4247: a manifest entry that names a symlink. A verifier that realpathed
+    // and hashed it would report VALID over bytes that are not in the pack.
+    const outside = path.join(root, '..', `outside-${path.basename(root)}.jsonl`);
+    fs.writeFileSync(outside, '{"outside":true}\n');
+    try {
+      fs.symlinkSync(outside, path.join(root, 'audit/link.jsonl'));
+    } catch {
+      fs.rmSync(outside, { force: true });
+      return 'skip';
+    }
+    rewriteManifest(root, (manifest) => {
+      manifest.files.push(fileEntry('audit/link.jsonl', '{"outside":true}\n', INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY));
+    });
+  },
+  'listed-fifo': (root) => {
+    // #4247: a manifest entry that names a FIFO. A verifier that opened it for
+    // reading would block forever; both must refuse it and return a verdict.
+    try {
+      require('node:child_process').execFileSync('mkfifo', [path.join(root, 'audit/fifo.jsonl')]);
+    } catch {
+      return 'skip';
+    }
+    rewriteManifest(root, (manifest) => {
+      manifest.files.push(fileEntry('audit/fifo.jsonl', '', INTEGRITY_CLASSES.SNAPSHOT_HASH_ONLY));
+    });
+  },
 };
 
 function resealLedger(root, bytes) {

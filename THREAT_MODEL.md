@@ -177,6 +177,35 @@ A control that could not be traced to code is listed under **Planned** or **Not 
 - Implement intelligent rate limiting based on usage patterns.
 - Add DDoS protection via cloud provider WAF (if deployed in cloud).
 
+### Evidence-Pack Verification Blocked by a Named File
+
+**Description**: An evidence pack's manifest names a path that is not an ordinary
+file — a FIFO, a device node, or a symlink pointing outside the pack. A verifier
+that opens the path before judging its type either blocks forever on the FIFO or
+hashes bytes the pack does not contain (CWE-22, #4247).
+
+**Impact**: The auditor's verifier hangs (denial of service) or reports VALID over
+external bytes, so the pack's integrity claim no longer rests on its own contents.
+
+**Existing Mitigations**:
+- **Implemented** — `readFileWithinRoot` (`lib/path-safety.js`) and its Python mirror
+  `read_listed_file` (`specs/huqan-evidence-pack/0.1/verify_pack.py`) are the only
+  readers of manifest-named paths. They refuse a symlink, a non-regular file, or a
+  path that resolves outside the pack as `unsafe_file:<path>`, without hashing
+  anything, and compare `dev`/`ino` between check and read so a swap mid-read is
+  caught. `O_NONBLOCK` makes the FIFO open return so the descriptor can be judged;
+  a regular-file read never blocks, so the type gate is also the read timeout.
+- **Implemented** — The JS and Python verifiers share the fixture matrix in
+  `test/evidence-pack-python-parity.test.js`, so a divergence in the refusal is a
+  test failure, not a silent disagreement.
+
+**Remaining Gaps**:
+- A pack whose root directory itself is a symlink is still accepted; the reader
+  judges entries relative to whatever the caller passed.
+
+**Planned Mitigation**:
+- None outstanding for this finding.
+
 ---
 
 ## Elevation of Privilege

@@ -234,5 +234,21 @@ path, a backslash, a `.` or `..` segment, or a non-normalized form is rejected a
 `manifest_path_invalid` before any file is opened, so no entry can name a file
 outside the pack. The two verifiers apply this policy identically.
 
+A listed path is also a claim about *what kind of thing* sits there. Both
+verifiers open it through one shared reader (`readFileWithinRoot` /
+`read_listed_file`) that refuses, as `unsafe_file:<path>` and without hashing
+anything:
+
+- a symlink, including one whose target is inside the pack -- the link is not
+  the regular file the manifest named, and following it would hash bytes the
+  pack does not contain;
+- a FIFO or device node. `open` on a FIFO would otherwise block the verifier
+  forever, so the reader opens with `O_NONBLOCK` and rejects anything that is
+  not a regular file. For a regular file that gate *is* the read timeout: a
+  regular-file read never blocks.
+- a path that resolves outside the pack root through a symlinked parent.
+
+`missing_file:<path>` stays reserved for a path that is simply absent.
+
 A directory that fails any check is reported INVALID and the exit status is 1.
 There is no partial verdict and no "mostly valid".
