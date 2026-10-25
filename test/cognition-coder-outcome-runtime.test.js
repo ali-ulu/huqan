@@ -10,22 +10,32 @@ const AgentV3 = require('../agent.v3');
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
 const { createHumanOversightApprovalRuntime } = require('../lib/human-oversight-approval-runtime');
 const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall');
-const { buildAgentCoderAction } = require('../lib/agent-coder-execution');
+const { buildAgentCoderAction, createAgentCoderExecution } = require('../lib/agent-coder-execution');
 const { createExperienceJournal } = require('../lib/experience/journal');
 const { openJournalConnection } = require('../lib/experience/journal-connection');
 const { readPredictionPairs } = require('../lib/prediction-outcome-pairs');
-const { finishObservation, expectationForStep } = require('../lib/agent-cognition-observation');
+const { beginObservation, finishObservation, expectationForStep } = require('../lib/agent-cognition-observation');
+const { DEFAULT_SUMMARY_WINDOW } = require('../lib/cognition/prediction-error');
 
-function environment(t, { fail = false, approve = true } = {}) {
+function environment(t, { fail = false, approve = true, shared = null } = {}) {
   const directory = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'coder-outcome-')));
   let agent, connection;
-  t.after(() => { agent?.storage.close(); connection?.close(); fs.rmSync(directory, { recursive: true, force: true }); });
-  const sourceRoot = path.join(directory, 'source'); fs.mkdirSync(sourceRoot);
+  const extraAgents = [];
+  const closeJournal = () => { connection?.close(); connection = null; };
+  t.after(() => { agent?.storage.close(); for (const extra of extraAgents) extra.storage.close();
+    closeJournal(); fs.rmSync(directory, { recursive: true, force: true }); });
+  const sourceRoot = shared?.sourceRoot || path.join(directory, 'source');
   const root = path.join(directory, 'project'); fs.mkdirSync(root);
   const git = (...args) => execFileSync('git', args, { cwd: sourceRoot, encoding: 'utf8', windowsHide: true, stdio: 'pipe' }).trim();
-  git('init', '-b', 'feature/outcome'); git('config', 'commit.gpgsign', 'false');
-  fs.writeFileSync(path.join(sourceRoot, 'seed.txt'), 'source remains unchanged'); git('add', 'seed.txt');
-  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'fixture');
+  if (shared) {
+    for (const file of ['graph.json', 'graph.mutations.json', 'graph.embeddings.json', 'journal.db'])
+      if (fs.existsSync(path.join(shared.directory, file)))
+        fs.copyFileSync(path.join(shared.directory, file), path.join(directory, file));
+  } else {
+    fs.mkdirSync(sourceRoot); git('init', '-b', 'feature/outcome'); git('config', 'commit.gpgsign', 'false');
+    fs.writeFileSync(path.join(sourceRoot, 'seed.txt'), 'source remains unchanged'); git('add', 'seed.txt');
+    git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'fixture');
+  }
   const spec = { kind: 'project_spec', name: 'double-api', archetype: 'node_computed_json_api',
     routes: [{ path: '/double', compute: { family: 'array-map', examples: [
       { input: [], expected: [] }, { input: [2], expected: [4] }, { input: [3, 4], expected: [6, 8] },
@@ -33,8 +43,9 @@ function environment(t, { fail = false, approve = true } = {}) {
       { input: [7], expected: [14] }, { input: [-2, 0, 5], expected: [-4, 0, 10] }] } }] };
   const task = { id: 'project', operation: { type: 'initialize_project', targetRoot: root, spec } };
   const goal = 'create the approved double API'; const workspaceId = 'default';
-  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false,
+  const kernel = new KernelV2({ noLoad: !shared, useSQLite: false, loadPlugins: false,
     memoryPath: path.join(directory, 'graph.json') });
+  if (shared) assert.deepEqual(readPredictionPairs(kernel.graph), shared.pairs);
   connection = openJournalConnection({ dbPath: path.join(directory, 'journal.db') });
   const nativeJournal = createExperienceJournal({ store: connection });
   const faults = { read: rows => rows, manifest: value => value };
@@ -70,8 +81,113 @@ function environment(t, { fail = false, approve = true } = {}) {
       environment: 'test', actor: 'operator', time: '2026-10-25T00:00:00Z', goal, task: task.id },
     cognitionCoderExpectations: { 'coder:project': { workspaceId, expected: 'passed',
       sourceGroup: 'native-project-acceptance', riskScore: 0 } } };
-  return { agent, journal, faults, captured, kernel, root, sourceRoot, goal, opts, git };
+  return { agent, journal, faults, captured, kernel, root, sourceRoot, goal, opts, git, directory, extraAgents, closeJournal,
+    spec, approvalRuntime, coderConfig: { root: sourceRoot, task, goal, action, approvalRuntime,
+      requesterContext: {}, caseId: created.case.caseId, journal } };
 }
+
+function approvedProject(f, id) {
+  const targetRoot = path.join(f.directory, id); fs.mkdirSync(targetRoot);
+  const spec = structuredClone(f.spec);
+  spec.routes[0].compute.acceptanceExamples[0].expected[0] = -6;
+  const task = { id, operation: { type: 'initialize_project', targetRoot, spec } };
+  const action = buildAgentCoderAction({ root: f.sourceRoot, task, goal: f.goal, workspaceId: 'default', journal: f.journal,
+    policyVersion: 'fixture-v1', firewallVersion: AGENT_ACTION_FIREWALL_VERSION });
+  const created = f.approvalRuntime.createReviewCase({ action, firewallDecision: 'review', requesterContext: {} });
+  assert.equal(created.ok, true);
+  assert.equal(f.approvalRuntime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: {},
+    reason: 'approve exact comparison project', evidenceDigest: created.case.evidenceDigest }).ok, true);
+  return { root: f.sourceRoot, task, goal: f.goal, action, caseId: created.case.caseId,
+    approvalRuntime: f.approvalRuntime, requesterContext: {}, journal: f.journal };
+}
+
+function acceptanceHistory(t) {
+  const f = environment(t, { fail: true });
+  const declaration = f.opts.cognitionCoderExpectations['coder:project'];
+  // Repeated native projects fill the existing error window, not independent task support.
+  for (let index = 0; index < DEFAULT_SUMMARY_WINDOW - 1; index++) {
+    const coder = createAgentCoderExecution(approvedProject(f, `history-${index}`));
+    const step = coder.plan(f.goal, 'default')[0];
+    const state = { workspaceId: 'default', goal: f.goal, observabilityRunId: `history-${index}` };
+    const args = { graph: f.kernel.graph, state, step, coder, opts: { ...f.opts,
+      cognitionCoderExpectations: { [step.id]: declaration } } };
+    const pending = beginObservation(args); assert.ok(pending);
+    const result = coder.execute({ state, step });
+    assert.equal(result.data.attempts[0].test.exitCode, 0);
+    assert.equal(finishObservation({ ...args, pending, report: { status: 'done', result } }).outcome, 'confirmed');
+  }
+  f.closeJournal();
+  return { ...f, pairs: readPredictionPairs(f.kernel.graph) };
+}
+
+function acceptanceEpisode(t, observe, shared) {
+  const f = environment(t, { fail: true, shared });
+  const next = approvedProject(f, 'next');
+  const agent = new AgentV3({ kernel: f.kernel, dbPath: path.join(f.directory, 'episode.db'), dreamExperimentLoop: false,
+    coderExecution: { queue: [f.coderConfig, next] }, timeBudgetMs: 60000 });
+  f.extraAgents.push(agent);
+  if (!observe) {
+    const coder = agent.baseAgent.coderExecution;
+    agent.baseAgent.coderExecution = { ...coder, observeAcceptance: () => null };
+  }
+  const plan = agent.plan.bind(agent);
+  agent.plan = (goal, opts) => {
+    const result = plan(goal, opts);
+    assert.deepEqual(result.data.steps.map(step => step.id), ['coder:project', 'coder:next']);
+    result.data.objective = ''; result.data.selectedTools = ['coder', 'verify'];
+    result.data.steps.splice(1, 0, { id: 'safe-verify', tool: 'verify', action: 'verify', input: goal });
+    return result;
+  };
+  const run = agent.run(f.goal, { ...f.opts, maxSteps: 2, maxIterations: 2 });
+  assert.equal(run.data.steps[0].id, 'coder:project');
+  assert.equal(run.data.steps[0].result.data.attempts[0].test.exitCode, 1);
+  assert.equal(run.data.steps[0].result.data.attempts[0].rolledBack, true);
+  assert.deepEqual(fs.readdirSync(f.root), []);
+  assert.equal(f.git('status', '--porcelain'), '');
+  return { ...f, run, nextRoot: next.task.operation.targetRoot, pairs: readPredictionPairs(f.kernel.graph) };
+}
+
+test('native acceptance failure changes the next authorized choice and the choice survives restart', t => {
+  const history = acceptanceHistory(t);
+  const files = ['graph.json', 'graph.mutations.json', 'journal.db'];
+  const before = files.map(file => fs.readFileSync(path.join(history.directory, file)));
+  const candidate = acceptanceEpisode(t, true, history);
+  const control = acceptanceEpisode(t, false, history);
+  files.forEach((file, index) => assert.deepEqual(fs.readFileSync(path.join(history.directory, file)), before[index]));
+  const selections = f => f.run.data.cognition.trail.filter(row => row.reason === 'salience_prepared');
+  const coderValue = row => row.values.find(value => value.key === 'risk:coder');
+  assert.deepEqual(selections(candidate)[0].ranked, selections(control)[0].ranked);
+  assert.deepEqual(selections(candidate)[0].values, selections(control)[0].values);
+  assert.equal(coderValue(selections(candidate)[0]).nObserved, DEFAULT_SUMMARY_WINDOW - 1);
+  assert.equal(coderValue(selections(candidate)[1]).nObserved, DEFAULT_SUMMARY_WINDOW);
+  assert.equal(coderValue(selections(control)[1]).nObserved, DEFAULT_SUMMARY_WINDOW - 1);
+  assert.ok(candidate.run.data.cognition.trail.some(row => row.reason === 'native_acceptance_observed'
+    && row.outcome === 'contradiction'));
+  assert.equal(candidate.run.data.steps[1].id, 'coder:next');
+  assert.equal(candidate.run.data.steps[1].result.data.attempts[0].test.exitCode, 0);
+  assert.equal(control.run.data.steps[1].id, 'safe-verify');
+  assert.deepEqual(fs.readdirSync(control.nextRoot), []);
+  assert.equal(coderValue(selections(candidate)[1]).nIndependent, 1);
+  assert.equal(coderValue(selections(candidate)[1]).status, 'INSUFFICIENT');
+  assert.equal(coderValue(selections(candidate)[1]).arousal, null);
+  const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+  for (const f of [candidate, control]) {
+    const replayed = JSON.parse(execFileSync(process.execPath, ['-e',
+      "const Graph=require('./graph');const {readPredictionPairs}=require('./lib/prediction-outcome-pairs');"
+        + "const {prepareCognition}=require('./lib/agent-cognition-seam');const d=JSON.parse(process.argv[2]);"
+        + "const g=new Graph({useSQLite:false,memoryPath:process.argv[1]});const before=readPredictionPairs(g);"
+        + "const state={workspaceId:'default',observabilityRunId:'restarted',iteration:1,goal:d.goal};"
+        + "const result=prepareCognition({state,graph:g,queued:d.queued,opts:d.opts,goal:d.goal,objective:''});"
+        + "console.log(JSON.stringify({before,after:readPredictionPairs(g),result,order:d.queued.map(s=>s.id)}));",
+      path.join(f.directory, 'graph.json'), JSON.stringify({ goal: f.goal,
+        opts: { cognition: f.opts.cognition, cognitiveScheduler: f.opts.cognitiveScheduler, cognitionFrame: f.opts.cognitionFrame },
+        queued: f.run.data.plan.steps.filter(step => step.id !== 'coder:project') })],
+    { cwd: path.resolve(__dirname, '..'), env, encoding: 'utf8', windowsHide: true, timeout: 15000 }));
+    assert.deepEqual(replayed.before, f.pairs);
+    assert.deepEqual(replayed.after, f.pairs);
+    assert.equal(replayed.order[0], f.run.data.steps[1].id);
+  }
+});
 
 test('a sealed native HTTP acceptance pass becomes a scoped observed outcome', t => {
   const f = environment(t); const run = f.agent.run(f.goal, f.opts);

@@ -257,3 +257,27 @@ Timeout ve eksik alan kontrolleri journal sınırına hata enjeksiyonudur; gerç
 zaman aşımı performans ölçümü değildir. Bağlantı yalnız proje oluşturmayı kapsar.
 Bu teslim G1 geri bildirim bağlantısıdır; bağımsız holdout, M7/M9 genel kazanımı
 ve G3 kapanışı değildir. `NOT_MEASURED` / `assertsGain: false` korunur.
+
+## G1: native kabul başarısızlığından sonraki seçim ve restart
+
+`test/cognition-coder-outcome-runtime.test.js` içindeki davranış kontrolü, bilerek
+yanlış artifact özeti yerine gerçekten başarısız HTTP kabul testi kullanır.
+İlk proje geri alınır; aynı koşuda sonraki uygun ve ayrıca onaylanmış Coder görevi
+ile güvenli verify adımı yarışır. İki kolun başlangıç beklentileri ve ilk salience
+sıralaması/değerleri aynı kalmalıdır. Kontrol kolunda yalnız native kabul gözlemi
+alıcıdan cognition'a verilmez; test yürütmesi ve rollback yine gerçektir.
+
+Mevcut sekizli M2 penceresinin ilk yedi kaydı gerçek, onaylı ve HTTP kabulü geçmiş
+proje üretimlerinden gelir. Bu ortak geçmiş bir kez üretilir; journal bağlantısı
+kapatıldıktan sonra Graph ve SQLite dosyaları iki ayrı kola kopyalanır. Her kol
+aynı kayıtlarla başlamalı ve kaynak geçmişin dosyalarını değiştirmemelidir.
+Tekrarlanan tarifler aynı kaynak grubunda kalır: M9 bağımsız destek sayısı 1,
+durumu INSUFFICIENT ve arousal bilinmeyen olmalıdır. Bu kontrol M9 kazanımı değildir.
+
+Gözlem açıkken gerçek başarısız kabul, sekizinci eşlenmiş sonuç olarak sonraki
+Coder seçimini etkilemelidir; kapalıyken önceden sıradaki verify seçilmelidir.
+Seçilen ikinci Coder gerçek bağımsız kabul testinden geçmeli; kontrol kolundaki
+seçilmemiş projenin hedefi boş kalmalıdır. İki ayrı yeni süreç aynı geçmişlerden
+aynı seçimleri kurmalı ve yeniden okuma gözlem kayıtlarını çoğaltmamalıdır.
+Bu davranış kontrolü bağımsız holdout, genel görev başarısı üstünlüğü veya G1/G3
+kapanışı değildir. NOT_MEASURED / assertsGain: false sınırı korunur.
