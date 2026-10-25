@@ -248,3 +248,67 @@ test('#4223 a prototype-named node id cannot pollute Object.prototype', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('#4246 an absent memory file must not publish a prototype-carrying node map', () => {
+  const os = require('node:os');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const Kernel = require('../kernel');
+
+  // #4223 made the node map prototype-less at construction and on the SQLite and
+  // JSON parse load paths. The absent-file branch of loadJsonGraph was missed:
+  // it published a plain `{}`, so on a *first run* (no memory.json yet) the map
+  // had Object.prototype again. Every symptom #4223 fixed came back on exactly
+  // the run that matters most -- the one that creates the store.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4246-'));
+  const memoryPath = path.join(dir, 'memory.json');
+  assert.equal(fs.existsSync(memoryPath), false, 'the file must be absent to exercise the ENOENT branch');
+
+  const kernel = new Kernel({ memoryPath, useSQLite: false });
+  try {
+    const graph = kernel.graph;
+    const before = Object.keys(Object.prototype).slice();
+
+    assert.ok(!graph._db, 'this case must exercise the JSON backend, not SQLite');
+    assert.equal(Object.getPrototypeOf(graph._nodes), null, 'the loaded map must be prototype-less');
+
+    graph.addNode('__proto__', 'PWNED_BY_AGENT');
+    assert.deepEqual(Object.keys(Object.prototype), before, 'Object.prototype must stay clean');
+    assert.equal(({}).label, undefined, 'a fresh object must inherit nothing the write supplied');
+    assert.equal(graph.getNode('__proto__').label, 'PWNED_BY_AGENT', 'the write must still land');
+
+    // A name inherited from Object.prototype is not a node. `getNode` used to
+    // answer with the inherited function, so `addEdge` saw both endpoints as
+    // present and stored a dangling edge to a node that was never admitted.
+    for (const name of ['constructor', 'toString', 'valueOf', 'hasOwnProperty']) {
+      assert.equal(graph.getNode(name), null, `${name} must not resolve as a node`);
+    }
+    graph.addNode('kedi', 'kedi');
+    assert.equal(graph.addEdge('kedi', 'constructor', 'SUPPORTS', {}), null, 'no dangling edge');
+    assert.equal(graph.addEdge('toString', 'kedi', 'SUPPORTS', {}), null, 'no dangling edge');
+    assert.equal(graph.edgeCount(), 0);
+
+    // A node genuinely admitted under a prototype name is still a real endpoint.
+    assert.ok(graph.addEdge('kedi', '__proto__', 'SUPPORTS', {}));
+    assert.equal(graph.edgeCount(), 1);
+  } finally {
+    kernel.close?.();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('#4246 the node read primitives stay own-property on a bare map', () => {
+  const { getNode, getNodes } = require('../lib/graph-node-read');
+
+  // The primitives document themselves as usable on a bare map, and the absent-
+  // file load branch handed them one. They must not answer with an inherited
+  // value regardless of which map a caller passes.
+  const bare = {};
+  for (const name of PROTOTYPE_NAMES) {
+    assert.equal(getNode(bare, name), null, `getNode(${name}) must not resolve an inherited value`);
+  }
+  // The label-index key resolver is a caller-supplied function; a key it returns
+  // is looked up the same own-property way.
+  assert.deepEqual(getNodes(bare, 'default', {}, () => ['toString', '__proto__']), {});
+  assert.deepEqual(getNodes(bare), {});
+});
