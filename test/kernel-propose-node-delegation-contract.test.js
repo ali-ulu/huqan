@@ -3,6 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { runProposeNode } = require('../lib/kernel-propose-node');
+const { admissionRiskFromConfidence } = require('../lib/background-provenance');
+
+const REAL_POLICY_PATH = path.join(__dirname, '..', 'config', 'trust-policy.default.json');
 
 const kernelSource = fs.readFileSync(path.join(__dirname, '..', 'kernel.js'), 'utf8').replace(/\r\n/g, '\n');
 const delegateSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'kernel-propose-node.js'), 'utf8').replace(/\r\n/g, '\n');
@@ -28,7 +31,7 @@ function collaborators(overrides = {}) {
     deps: {
       graph,
       contractVersion: '1.0.0-test',
-      trustPolicyPath: '/tmp/trust-test',
+      trustPolicyPath: overrides.trustPolicyPath || REAL_POLICY_PATH,
       evaluateLearnAdmission: overrides.evaluateLearnAdmission || (() => ({ outcome: 'allow', reason: 'test' })),
       appendAuditEvent: (event, provenance, workspaceId) => {
         calls.audits.push({ event, provenance, workspaceId });
@@ -78,4 +81,35 @@ test('proposeNode writes and audits LEARN when admission allows', () => {
   assert.equal(calls.audits[0].event.eventType, 'LEARN');
   assert.equal(calls.audits[0].event.details.admissionOutcome, 'allow');
   assert.equal(calls.audits[0].workspaceId, 'default');
+});
+
+// #4251: a caller-supplied provenance used to skip trust-policy scoring, so a
+// plugin that declared its own confidence sailed through with an admission
+// risk of zero. The policy now scores both branches; a low-trust sourceType
+// (llm, 0.4) maps to a medium risk and earns review instead of allow.
+test('proposeNode scores caller-supplied provenance through the trust policy (#4251)', () => {
+  const { deps, calls } = collaborators({
+    evaluateLearnAdmission: (text, admissionOpts, provenance, workspaceId) => {
+      const risk = admissionRiskFromConfidence(provenance?.confidence);
+      return risk >= 50
+        ? { outcome: 'review', reason: 'medium_risk_memory_write', approvalStatus: 'not_required' }
+        : { outcome: 'allow', reason: 'provenance_present_low_risk' };
+    },
+  });
+  const lowTrust = runProposeNode(deps, 'n4', 'label', {
+    provenanceId: 'p4', actor: 'plugin', sourceType: 'llm',
+  }, { workspaceId: 'default' });
+  assert.equal(lowTrust.decision, 'review');
+  assert.equal(lowTrust.node, null);
+  assert.equal(lowTrust.admission.outcome, 'review');
+  // The policy score reached the provenance that the admission gate read.
+  assert.equal(lowTrust.admission.provenanceId, undefined);
+  assert.equal(lowTrust.admission.trustPolicyVersion, undefined);
+
+  const scored = runProposeNode(deps, 'n5', 'label', {
+    provenanceId: 'p5', actor: 'plugin', sourceType: 'document',
+  }, { workspaceId: 'default' });
+  assert.equal(scored.decision, 'allow');
+  assert.equal(scored.node.id, 'n5');
+  assert.equal(scored.admission.outcome, 'allow');
 });
