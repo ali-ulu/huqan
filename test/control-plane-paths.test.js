@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const {
   CONTROL_PLANE_PATH_RULES,
@@ -423,4 +425,187 @@ test('#3560 an agent shell running an operator decision is blocked, and no deplo
     const result = evaluate({ toolName: 'Bash', args: { command } });
     assert.notEqual(result.reason, 'external_action_operator_decision_blocked', command);
   }
+});
+
+// ── #4226 (CWE-59): a symlink alias inside the workspace ─────────────────────
+//
+// Containment cannot see this one: the alias lives inside the workspace and
+// resolves to a control-plane file that also lives inside it, so
+// resolvePathWithinRoot admits the path and the lexical rules see an ordinary
+// name. The decision has to be made on the real spelling.
+
+test('#4226 a command writing through an alias is judged on the real spelling', () => {
+  const resolvePath = (candidate) => (candidate === 'notes.md' ? '/ws/.claude/settings.json' : `/ws/${candidate}`);
+  const match = findControlPlaneCommandTarget('echo "{}" > notes.md', 0, { resolvePath });
+  assert.ok(match, 'expected the redirect target to be flagged');
+  assert.equal(match.profile, 'claude-code');
+  assert.equal(match.path, '/ws/.claude/settings.json');
+});
+
+test('#4226 a write-through command fails closed on an unresolvable target', () => {
+  // A resolver returns null only when it cannot resolve the word at all -- the
+  // guard's canonicalizePath wrapper maps every resolution failure to null.
+  const unresolvable = (candidate) => (candidate === 'notes.md' ? null : `/ws/${candidate}`);
+  // A write through a link whose target does not exist yet would create it.
+  assert.deepEqual(findControlPlaneCommandTarget('tee notes.md', 0, { resolvePath: unresolvable }), {
+    profile: 'unresolved-path',
+    path: 'notes.md',
+  });
+  assert.deepEqual(findControlPlaneCommandTarget("sed -i 's/x/y/' notes.md", 0, { resolvePath: unresolvable }), {
+    profile: 'unresolved-path',
+    path: 'notes.md',
+  });
+  // rm and mv act on the link itself, not the file it names.
+  assert.equal(findControlPlaneCommandTarget('rm notes.md', 0, { resolvePath: unresolvable }), null);
+  assert.equal(findControlPlaneCommandTarget('mv notes.md /tmp/x', 0, { resolvePath: unresolvable }), null);
+  // Without a resolver the module stays purely lexical (no filesystem access).
+  assert.equal(findControlPlaneCommandTarget('echo "{}" > notes.md'), null);
+});
+
+// A real workspace whose .claude/settings.json is reachable under an innocent
+// alias. Directory links are junctions so the fixture works on Windows without
+// elevation; the single-file alias test below skips where the platform refuses
+// those.
+function symlinkedControlPlaneWorkspace() {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'control-plane-alias-'));
+  const claudeDir = path.join(base, '.claude');
+  fs.mkdirSync(claudeDir, { recursive: true });
+  fs.writeFileSync(path.join(claudeDir, 'settings.json'), '{"hooks":{}}', 'utf8');
+  fs.writeFileSync(path.join(base, 'notes.md'), '# notes\n', 'utf8');
+
+  const fileAlias = path.join(base, 'notes-link.md');
+  if (fileSymlinksWork) fs.symlinkSync(path.join(claudeDir, 'settings.json'), fileAlias, 'file');
+  const dirAlias = path.join(base, 'claude-dir');
+  fs.symlinkSync(claudeDir, dirAlias, 'junction');
+
+  // A link whose target is gone: a write through it would create the file.
+  const goneDir = path.join(base, 'gone');
+  fs.mkdirSync(goneDir);
+  const danglingAlias = path.join(base, 'later-dir');
+  fs.symlinkSync(goneDir, danglingAlias, 'junction');
+  fs.rmdirSync(goneDir);
+
+  return {
+    base,
+    fileAlias,
+    dirAliasSettings: path.join(dirAlias, 'settings.json'),
+    danglingAliasTarget: path.join(danglingAlias, 'settings.json'),
+    cleanup() {
+      // The links first, so the recursive delete cannot walk them.
+      for (const link of [fileAlias, dirAlias, danglingAlias]) {
+        try { fs.rmSync(link, { recursive: true, force: true }); } catch (_) { /* best effort */ }
+      }
+      fs.rmSync(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    },
+  };
+}
+
+function evaluateIn(root, overrides, options = {}) {
+  return evaluate({ cwd: root, workspaceRoot: root, ...overrides }, options);
+}
+
+const fileSymlinksWork = (() => {
+  try {
+    const probe = fs.mkdtempSync(path.join(os.tmpdir(), 'control-plane-probe-'));
+    const target = path.join(probe, 'settings.json');
+    fs.writeFileSync(target, '{}', 'utf8');
+    const link = path.join(probe, 'alias.json');
+    fs.symlinkSync(target, link, 'file');
+    const follows = fs.statSync(link).isFile();
+    fs.rmSync(probe, { recursive: true, force: true });
+    return follows;
+  } catch (_) {
+    return false;
+  }
+})();
+
+test('#4226 writing a control-plane file through a symlink alias is blocked', { skip: fileSymlinksWork ? false : 'this platform cannot create file symlinks' }, (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  // The lexical spelling is an ordinary name; the real spelling is the guard's
+  // own wiring.
+  const result = evaluateIn(ws.base, {
+    toolName: 'Write',
+    args: { file_path: ws.fileAlias, content: '{"hooks":{}}' },
+  });
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, 'external_action_control_plane_blocked');
+  const finding = result.findings.find(entry => entry.gate === 'control-plane');
+  assert.equal(finding.profile, 'claude-code');
+});
+
+test('#4226 writing a control-plane file through a linked directory is blocked', (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  const result = evaluateIn(ws.base, {
+    toolName: 'Write',
+    args: { file_path: ws.dirAliasSettings, content: '{"hooks":{}}' },
+  });
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, 'external_action_control_plane_blocked');
+});
+
+test('#4226 shell commands writing through an alias are blocked', { skip: fileSymlinksWork ? false : 'this platform cannot create file symlinks' }, (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  for (const command of [
+    'echo "{\\"hooks\\":{}}" > notes-link.md',
+    'tee notes-link.md',
+    "sed -i 's/huqan-gate//' notes-link.md",
+    'cp /tmp/clean.json notes-link.md',
+    'echo "{}" > claude-dir/settings.json',
+  ]) {
+    const result = evaluateIn(ws.base, { toolName: 'Bash', args: { command } });
+    assert.equal(result.decision, 'block', command);
+    assert.equal(result.reason, 'external_action_control_plane_blocked', command);
+  }
+});
+
+test('#4226 removing or moving the alias itself is not a control-plane write', { skip: fileSymlinksWork ? false : 'this platform cannot create file symlinks' }, (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  for (const command of ['rm notes-link.md', 'mv notes-link.md /tmp/x', 'cat notes-link.md']) {
+    const result = evaluateIn(ws.base, { toolName: 'Bash', args: { command } });
+    assert.notEqual(result.reason, 'external_action_control_plane_blocked', command);
+  }
+});
+
+test('#4226 a write through an unresolvable alias fails closed', (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  const result = evaluateIn(ws.base, { toolName: 'Bash', args: { command: 'tee later-dir/settings.json' } });
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, 'external_action_control_plane_blocked');
+});
+
+test('#4226 a write tool to an unresolvable alias is refused by path safety', (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  // The write would create the target through the link. The path-safety gate
+  // owns this refusal (#4222); the control-plane call defers to it rather than
+  // claiming the finding.
+  const result = evaluateIn(ws.base, {
+    toolName: 'Write',
+    args: { file_path: ws.danglingAliasTarget, content: '{}' },
+  });
+  assert.equal(result.decision, 'block');
+  assert.equal(result.reason, 'external_action_path_outside_workspace');
+});
+
+test('#4226 an ordinary write in the same workspace keeps its decision', (t) => {
+  const ws = symlinkedControlPlaneWorkspace();
+  t.after(ws.cleanup);
+
+  const result = evaluateIn(ws.base, {
+    toolName: 'Write',
+    args: { file_path: path.join(ws.base, 'notes.md'), content: '# edit\n' },
+  });
+  assert.notEqual(result.decision, 'block');
+  assert.notEqual(result.reason, 'external_action_control_plane_blocked');
 });
