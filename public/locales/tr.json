@@ -162,7 +162,8 @@
       "ingestRequired": "Önce alınacak metni girin.",
       "claimRequired": "Önce bir iddia veya sorgu girin.",
       "fileType": "Yalnızca .txt ve .md dosyaları desteklenir.",
-      "fileSize": "Dosya çok büyük (maksimum 1 MB)."
+      "fileSize": "Dosya çok büyük (maksimum 1 MB).",
+      "fileTextSize": "Dosya çok uzun (maksimum 4000 karakter)."
     },
     "file": {
       "loaded": "Dosya yüklendi. Onayla göndermek için \"Alıma yükle\"ye tıklayın.",

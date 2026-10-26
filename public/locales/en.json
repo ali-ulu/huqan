@@ -162,7 +162,8 @@
       "ingestRequired": "Enter the text to ingest first.",
       "claimRequired": "Enter a claim or query first.",
       "fileType": "Only .txt and .md files are supported.",
-      "fileSize": "File too large (max 1 MB)."
+      "fileSize": "File too large (max 1 MB).",
+      "fileTextSize": "File too long (max 4000 characters)."
     },
     "file": {
       "loaded": "File loaded. Click \"Upload to ingest\" to send with approval.",
