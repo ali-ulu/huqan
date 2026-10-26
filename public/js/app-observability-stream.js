@@ -16,10 +16,8 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
       const query = new URLSearchParams({ workspaceId: workspace() });
       fetch(`/api/observability/stream?${query.toString()}`, { headers: headers(), signal: controller.signal, cache: 'no-store' }).then(async response => {
         if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
-        // A readable stream is a live connection: clear the retry counter and
-        // publish CONNECTED so the pulse leaves OFFLINE/DEGRADED even when the
-        // first frame is still in flight.
-        streamState.retryAttempt = 0;
+        // Publish CONNECTED at once, but reset retries only on a stable signal
+        // below, so a stream that keeps closing before its first frame still reaches OFFLINE.
         try { window.dispatchEvent(new CustomEvent('huqan:sse:status', { detail: { status: 'CONNECTED', detail: T('observabilityStatus.connected', 'Live stream connected') } })); } catch (_) {}
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -28,14 +26,16 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
           const chunk = await reader.read();
           if (chunk.done) throw new Error('stream closed by server');
           buffer += decoder.decode(chunk.value, { stream: true });
-          const frames = buffer.split('\\n\\n');
+          const frames = buffer.split('\n\n');
           buffer = frames.pop() || '';
           for (const frame of frames) {
-            const data = frame.split('\\n').find(line => line.startsWith('data: '));
+            if (frame.startsWith(': keep-alive')) { streamState.retryAttempt = 0; continue; }
+            const data = frame.split('\n').find(line => line.startsWith('data: '));
             if (!data) continue;
             try {
               const event = JSON.parse(data.slice(6));
               if (event.eventType && appendEvent(event)) {
+                streamState.retryAttempt = 0;
                 loadAll();
                 // Broadcast to overview pulse widget for live updates
                 try { window.dispatchEvent(new CustomEvent('huqan:sse:event', { detail: event })); } catch (_) {}

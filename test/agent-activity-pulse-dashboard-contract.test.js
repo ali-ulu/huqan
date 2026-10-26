@@ -38,7 +38,7 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
   });
 
   await t.test('uses the existing workspace-scoped activity read surface without fake totals', () => {
-    assert.match(script, /async function loadActivityPulse\(\)/);
+    assert.match(script, /async function loadActivityPulse\(quiet=false\)/);
     assert.match(script, /new URLSearchParams\(\{workspaceId:state\.ws,limit:'5',order:'desc'\}\)/);
     assert.match(script, /\/api\/workbench\/activity\?/);
     assert.match(script, /(?:state\.activityPulse\.hasMore|p\.hasMore)/);
@@ -72,7 +72,7 @@ test('Agent Activity Pulse dashboard contract', async (t) => {
     // fallback, now paired with the key that localises it.
     assert.ok(script.includes("activity:{label:M('surfaces.activity.label','Agent Activity'),endpoint:'/api/workbench/activity',s:'checking',reason:M('surfaces.activity.reason','Waiting for activity."));
     assert.ok(script.includes("activity:T('runtime.surfaceDesc.activity','Workspace-scoped bounded agent activity read surface.')"));
-    assert.ok(script.includes("async function loadActivityPulse(){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.')"));
+    assert.ok(script.includes("async function loadActivityPulse(quiet=false){if(quiet!==true){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.')"));
     assert.match(script, /surface\('activity',locked\?'locked':'err',\{reason:/);
     assert.match(script, /surface\('activity',empty\?'empty':'ok',\{reason:/);
     assert.match(script, /surface\('activity','err',\{reason:/);

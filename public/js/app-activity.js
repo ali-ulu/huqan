@@ -68,8 +68,8 @@ list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in th
 return}
 pulseStatus('LIVE',`${state.ws} · ${items.length} page events${p.hasMore?' · more available':''}${detail?` · ${detail}`:''}`);
 list.innerHTML=items.map(x=>{const decision=pulseDecision(x),target=x.targetId?`${x.targetType||'target'}:${x.targetId}`:'—',label=`${x.eventType||'AUDIT'} ${x.action||'activity'} by ${x.actor||'system'}`;return `<div class="pulserow" data-activity-pulse-id="${esc(x.auditId)}" role="button" tabindex="0" aria-label="${esc(label)}"><i class="pulse-dot ${decision.tone}" aria-hidden="true"></i><div><b>${esc(x.eventType||'AUDIT')} · ${esc(x.action||'activity')}</b><span>${esc(x.actor||'system')} · ${esc(x.tool||target)} · ${esc(pulseTime(x.timestamp))}</span></div><span class="tag ${decision.tone}" title="${esc(x.receipt?.receiptId||T('evidence.noReceipt','No receipt'))}">${esc(decision.text)}</span></div>`}).join('')}
-async function loadActivityPulse(){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.'),nextAction:M('runtime.next.wait','Wait')});
-renderAgentActivityPulse('LOADING');
+async function loadActivityPulse(quiet=false){if(quiet!==true){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.'),nextAction:M('runtime.next.wait','Wait')});
+renderAgentActivityPulse('LOADING')}
 try{const q=new URLSearchParams({workspaceId:state.ws,limit:'5',order:'desc'}),{r,d}
 =await json(`/api/workbench/activity?${q}`,{headers:headers()});
 if(!r.ok){const locked=r.status===401||r.status===403;
@@ -130,19 +130,17 @@ go('evidence');
 loadReceipt()}
 // Connect overview pulse to live SSE stream (#4298 #4300)
 if (typeof window !== 'undefined') {
+  // A stream event is an observability event, not an activity row: re-read the
+  // projected activity page instead of prepending the raw event.
   window.addEventListener('huqan:sse:event', (e) => {
-    const ev = e.detail;
-    if (!ev?.eventType) return;
-    // Update pulse live with latest event
-    const pulse = state.activityPulse || { items: [] };
-    const items = [ev, ...pulse.items].slice(0,5);
-    state.activityPulse = { ...pulse, items };
-    renderAgentActivityPulse('LIVE', 'live SSE update');
+    if (e.detail?.eventType) loadActivityPulse(true);
   });
-  // Stream connection status sync: OFFLINE/DEGRADED handling
+  // Stream connection status sync: OFFLINE/DEGRADED handling. On CONNECTED the
+  // fresh read decides the state, so a failed activity read stays ERROR.
   window.addEventListener('huqan:sse:status', (e) => {
     const { status, detail } = e.detail || {};
     pulseStreamStatus = (status === 'OFFLINE' || status === 'DEGRADED') ? { status, detail } : null;
-    renderAgentActivityPulse(pulseStreamStatus ? status : 'LIVE', detail || '');
+    if (pulseStreamStatus) renderAgentActivityPulse(status, detail || '');
+    else loadActivityPulse(true);
   });
 }

@@ -86,7 +86,10 @@
       "today": "Bugün",
       "empty": "Son 7 günde etkinlik yok.",
       "unavailable": "Trend verisi kullanılamıyor",
-      "invalidResponse": "Geçersiz yanıt"
+      "invalidResponse": "Geçersiz yanıt",
+      "total": "7 günlük eğilim · {count} eylem",
+      "summary": "7 günlük ajan etkinliği özeti: {pass} geçti, {review} incelemede, {block} engellendi.",
+      "failed": "Eğilim yüklenemedi: {message}"
     },
     "metrics": {
       "graphNodes": "Graf Düğümleri",

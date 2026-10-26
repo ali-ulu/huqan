@@ -86,7 +86,10 @@
       "today": "Today",
       "empty": "No activity in the last 7 days.",
       "unavailable": "Trend data unavailable",
-      "invalidResponse": "Invalid response"
+      "invalidResponse": "Invalid response",
+      "total": "7-day trend · {count} actions",
+      "summary": "7-day agent activity summary: {pass} passed, {review} review, {block} blocked actions.",
+      "failed": "Trend load failed: {message}"
     },
     "metrics": {
       "graphNodes": "Graph Nodes",
