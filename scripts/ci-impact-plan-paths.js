@@ -83,7 +83,12 @@ function addMatchingTests(target, reasons, knownTests, patterns, reason) {
 function readChangedFiles({ root = REPO_ROOT, base, head, changedFiles } = {}) {
   if (Array.isArray(changedFiles)) return changedFiles.map(normalizePath).filter(Boolean).sort();
   if (!base || !head) throw new Error('base and head are required when changedFiles is not provided');
-  const result = spawnSync('git', ['diff', '--name-only', base, head], {
+  // Three-dot: diff from the merge base, so the selection sees only what this
+  // pull request changed. A two-dot diff against the base tip also reports the
+  // base branch's own newer commits (a branch that fell behind main is
+  // normal), and it hides a file this pull request changed when the base
+  // changed it identically -- both misroute test selection (#4245, #4288).
+  const result = spawnSync('git', ['diff', '--name-only', `${base}...${head}`], {
     cwd: root,
     encoding: 'utf8',
   });

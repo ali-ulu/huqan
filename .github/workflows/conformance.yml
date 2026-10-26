@@ -51,7 +51,10 @@ jobs:
             run_a2a=true
             reason="scheduled/manual run or unavailable diff base"
           else
-            mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            # Three-dot: diff from the merge base, so a branch that fell behind
+            # main (normal, since strict_required_status_checks_policy is off)
+            # does not report main's own newer commits as changed (#4245, #4288).
+            mapfile -t changed < <(git diff --name-only "$BASE_SHA...$HEAD_SHA")
             printf 'Changed files:\n'
             printf ' - %s\n' "${changed[@]}"
 
