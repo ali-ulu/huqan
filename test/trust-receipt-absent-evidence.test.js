@@ -50,7 +50,9 @@ function populatedKernel(label) {
       sourceType: 'document',
       actor: 'builder',
       timestamp: '2026-06-02T00:00:00Z',
-      confidence: 0.88,
+      // Below the `document` policy score (0.8), so this claim survives the
+      // #4245 cap intact -- which is what "untouched" below has to mean.
+      confidence: 0.75,
       workspaceId: 'workspace-a',
       trustPolicyVersion: '0.8.0',
     },
@@ -99,7 +101,7 @@ test('a real target still reports its recorded confidence, untouched', () => {
 
   assert.equal(receipt.status, 'canonical');
   assert.equal(receipt.canonical, true);
-  assert.equal(receipt.confidence, 0.88,
+  assert.equal(receipt.confidence, 0.75,
     'the recorded value, not a floor and not a default');
 });
 

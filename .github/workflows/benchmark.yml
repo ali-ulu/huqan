@@ -79,7 +79,15 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-            CHANGED=$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" || true)
+            # Three-dot: diff from the merge base, so the classification sees
+            # only what this PR changed. base.sha is main's tip as of the PR's
+            # last update, and `strict_required_status_checks_policy` is off,
+            # so a branch that has fallen behind main is normal -- and a
+            # two-dot diff then reports main's own newer commits as "changed".
+            # A perf-sensitive commit on main (lib/receipt/*, rustGraph.js)
+            # made a test-only PR run the soak gate and fail it on an
+            # unrelated cpuRatio (#4245).
+            CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" || true)
           else
             # push to main: compare against the parent commit
             CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git ls-files)
@@ -154,7 +162,16 @@ jobs:
 
           is_perf_file() {
             # Performance-sensitive files trigger the benchmark regression gate.
+            # A test file is never a perf surface, even when it lives beside a
+            # measured module: `lib/provenance-*.js` also matches
+            # `lib/provenance-query.test.js`, which is how a test-only PR
+            # (test edits are perf-neutral by is_test_file()'s own comment)
+            # reached the soak gate and failed it on an unrelated cpuRatio.
+            # Match is_test_file() first, so the two agree.
               case "$1" in
+               test/*|*.test.js|*.spec.js)
+                return 1
+                ;;
                benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
                benchmarks/bench-graph-save.js|benchmarks/check-graph-save.js|\
                benchmarks/bench-sqlite-write-contention.js|benchmarks/bench-capacity-envelope.js|\

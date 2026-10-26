@@ -54,6 +54,12 @@ test('CI classifier maps representative paths to the intended gates', (t) => {
     ['lib/contradiction-rules.js', 'yes,no,no'],
     ['kernel.js', 'yes,yes,no'],
     ['test/ci-change-classifier.test.js', 'yes,no,no'],
+    // #4245: a co-located test file must stay perf-neutral. `lib/provenance-*.js`
+    // is a perf glob and also matches this test file, so before the guard a
+    // test-only PR ran the observability soak and could fail the required
+    // Benchmark gate on an unrelated cpuRatio.
+    ['lib/provenance-query.test.js', 'yes,no,no'],
+    ['lib/trust-policy.js', 'yes,no,no'],
     ['Dockerfile', 'no,no,yes'],
     // The manifest declares the test command and the dependency set, so a
     // change to it can alter how the whole suite runs. is_runtime_file()
@@ -110,6 +116,53 @@ test('missing or invalid classification cannot select the coverage skip path', (
     assert.equal(coverageApplies('coverage', flag), false, flag);
     assert.equal(coverageApplies('coverage-skip', flag), false, flag);
   }
+});
+
+// #4245: the classify step must diff from the merge base. A branch that has
+// fallen behind main is normal (strict_required_status_checks_policy is off),
+// and a two-dot `git diff base.sha head.sha` then reports main's own newer
+// commits as "changed" -- a perf-sensitive commit on main (lib/receipt/*,
+// rustGraph.js) ran the soak gate on a test-only PR and failed it on an
+// unrelated cpuRatio.
+test('the pull request diff is taken from the merge base, not the base tip', (t) => {
+  const command = workflow.match(/^\s*CHANGED=\$\(git diff --name-only "\$\{BASE_SHA\}(\.\.\.| )\$\{HEAD_SHA\}".*$/m);
+  assert.ok(command, 'classify computes CHANGED with a git diff of BASE_SHA and HEAD_SHA');
+  assert.equal(command[1], '...', 'the pull request diff must be three-dot (merge base), not two-dot');
+
+  if (!usableBash()) return t.skip('requires a usable POSIX bash');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-merge-base-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'test@example.com');
+  git('config', 'user.name', 'test');
+  const commit = (message) => {
+    git('add', '-A');
+    const done = git('commit', '-q', '-m', message);
+    assert.equal(done.status, 0, done.stderr);
+  };
+
+  fs.mkdirSync(path.join(dir, 'lib'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'lib', 'base.js'), 'base\n');
+  commit('base');
+  git('checkout', '-q', '-b', 'feature');
+  fs.writeFileSync(path.join(dir, 'lib', 'feature.test.js'), 'test\n');
+  commit('test-only change');
+  git('checkout', '-q', 'main');
+  fs.mkdirSync(path.join(dir, 'lib', 'receipt'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'lib', 'receipt', 'perf.js'), 'perf\n');
+  commit('perf-sensitive change on main');
+
+  const baseTip = git('rev-parse', 'main').stdout.trim();
+  const headTip = git('rev-parse', 'feature').stdout.trim();
+  const shell = shellBlock(command[0]).replace(/^\s*CHANGED=/, 'CHANGED=');
+  const result = spawnSync('bash', ['-c', `${shell}\nprintf '%s' "$CHANGED"`], {
+    cwd: dir, encoding: 'utf8', env: { ...process.env, BASE_SHA: baseTip, HEAD_SHA: headTip },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const changed = result.stdout.split('\n').filter(Boolean).sort();
+  assert.deepEqual(changed, ['lib/feature.test.js'],
+    'a behind-main PR must not report main\'s own perf-sensitive files as changed');
 });
 
 test('coverage gate requires the matching run path and rejects missing classification', (t) => {

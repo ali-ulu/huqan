@@ -37,7 +37,12 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
+          # The pull request head, not the synthetic merge commit `github.sha`.
+          # The merge commit's tree already contains the base, so a diff from
+          # the base to it omits a path this pull request changed when the base
+          # changed it identically -- the same failure the three-dot diff below
+          # guards against. benchmark.yml uses this same idiom.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +56,10 @@ jobs:
             run_a2a=true
             reason="scheduled/manual run or unavailable diff base"
           else
-            mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            # Three-dot: diff from the merge base, so a branch that fell behind
+            # main (normal, since strict_required_status_checks_policy is off)
+            # does not report main's own newer commits as changed (#4245, #4288).
+            mapfile -t changed < <(git diff --name-only "$BASE_SHA...$HEAD_SHA")
             printf 'Changed files:\n'
             printf ' - %s\n' "${changed[@]}"
 

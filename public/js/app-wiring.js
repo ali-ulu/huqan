@@ -65,6 +65,19 @@ $('action').onchange=actionFields;
 $('ingestsource').onchange=actionFields;
 actionFields();
 $('review').onclick=review;
+$('fileupload').onclick=uploadFile;
+async function uploadFile(){if(!state.pendingFile||!state.pendingFile.textLoaded)return status(T('verify.file.notLoaded','No file loaded.'),1);
+if(!confirm(T('verify.file.confirm','Upload this file to the ingest pipeline? Requires approval.')))return;
+const pending=state.pendingFile;
+const h=await hash(pending.text);
+try{const{r,d}=await json('/api/ingest',{method:'POST',headers:headers(true),body:JSON.stringify({sourceType:'manual',text:pending.text,author:'huqan-command-center',date:new Date().toISOString().slice(0,10),workspaceId:state.ws,idempotencyKey:`file-upload:${h}`})});
+if(!r.ok||d.ok===false)throw Error(d?.error?.message||`HTTP ${r.status}`);
+status(`${d.status||'submitted'} · ${d.approval?.id||''}`,0,true);
+state.pendingFile=null;
+$('fileupload').disabled=true;
+loadApprovals()}
+catch(e){status(`upload failed: ${e.message}`,1)}}
+;
 $('eload').onclick=loadReceipt;
 $('recent').onclick=e=>{openReceipt(e.target.closest('[data-receipt]'))}
 ;
@@ -78,11 +91,20 @@ $('save').onclick=save;
 $('clear').onclick=clear;
 $('filebtn').onclick=()=>$('file').click();
 $('file').onchange=e=>{const f=e.target.files?.[0];
+state.pendingFile=null;
+$('fileupload').disabled=true;
 if(!f)return;
 if(!/\.(txt|md)$/i.test(f.name))return status(T('verify.errors.fileType','Only .txt and .md files are supported.'),1);
+if(f.size>1048576)return status(T('verify.errors.fileSize','File too large (max 1 MB).'),1);
 const r=new FileReader;
-r.onload=()=>{$('prompt').value=String(r.result||'');
-status(`${f.name} was read in the browser; no automatic upload was performed.`,0,true)}
+state.fileReader=r;
+r.onload=()=>{if(state.fileReader!==r)return;
+const text=String(r.result||'');
+if(text.trim().length>4000)return status(T('verify.errors.fileTextSize','File too long (max 4000 characters).'),1);
+$('prompt').value=text;
+status(T('verify.file.loaded','File loaded. Click "Upload to ingest" to send with approval.'),0,true);
+state.pendingFile={name:f.name,size:f.size,text,textLoaded:true};
+$('fileupload').disabled=false}
 ;
 r.readAsText(f,'utf-8');
 e.target.value=''}
