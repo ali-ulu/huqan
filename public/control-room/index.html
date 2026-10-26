@@ -198,12 +198,22 @@
         <button aria-pressed="false" data-qfilter="done">Decided</button>
       </div>
       <div class="status" id="appr-status"></div>
+      <div class="queue-toolbar" id="appr-toolbar" hidden>
+        <label class="batch-select">
+          <input type="checkbox" id="batch-select-all" aria-label="Select all approvals"> Select all
+        </label>
+        <div class="batch-actions">
+          <button class="btn primary" id="batch-approve" data-role-hide="viewer" disabled>Approve Selected</button>
+          <button class="btn danger" id="batch-reject" data-role-hide="viewer" disabled>Reject Selected</button>
+        </div>
+        <span class="batch-count" id="batch-count">0 selected</span>
+      </div>
       <div class="queue" id="appr-queue"></div>
     </section>
 
     <!-- RECEIPTS -->
     <section class="view" data-view="receipts" hidden>
-      <div class="topbar"><div><h1>Trust Receipts</h1><p>The record behind every decision. "Unverifiable" is shown separately from "verified" on purpose: a receipt that can't be checked is never counted as a pass.</p></div><button class="btn" id="rcpt-refresh">&#8635; Refresh</button></div>
+      <div class="topbar"><div><h1>Trust Receipts</h1><p>The record behind every decision. "Unverifiable" is shown separately from "verified" on purpose: a receipt that can't be checked is never counted as a pass.</p></div><div class="tools"><button class="btn" id="rcpt-export-open" type="button">Export receipts</button><button class="btn" id="rcpt-refresh">&#8635; Refresh</button></div></div>
       <div class="grid" style="margin-bottom:16px">
         <div class="panel span-4"><span class="chip c-pass">Verified</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-verified">0</b><span>hash chain checks out</span></div></div>
         <div class="panel span-4"><span class="chip c-review">Awaiting approval</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-pending">0</b><span>sealed once someone decides</span></div></div>
@@ -227,6 +237,20 @@
         </table>
       </div>
       <button class="btn" id="rcpt-more" hidden>Load more</button>
+      <div class="receipt-export" id="receipt-export" hidden>
+        <div class="panel">
+          <h3>Export Trust Receipts</h3>
+          <p>Download the receipts loaded in this view as CSV, or fetch the full verified receipt bundle from the server as JSON. Exports are read-only and change no decision.</p>
+          <div class="export-options">
+            <select id="export-format">
+              <option value="csv">CSV (loaded receipts)</option>
+              <option value="bundle">Verified JSON bundle (server)</option>
+            </select>
+            <button class="btn" id="export-receipts">Export</button>
+            <button class="btn" id="export-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- AGENTS -->
@@ -298,6 +322,7 @@
 <script src="/control-room/js/control-room-overview.js"></script>
 <script src="/control-room/js/control-room-activity.js"></script>
 <script src="/control-room/js/control-room-approvals.js"></script>
+<script src="/control-room/js/control-room-approvals-batch.js"></script>
 <script src="/control-room/js/control-room-receipts.js"></script>
 <script src="/control-room/js/control-room-agents.js"></script>
 </body></html>

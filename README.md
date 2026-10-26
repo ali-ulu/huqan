@@ -1,84 +1,42 @@
 # HUQAN
 
-**A local trust boundary that separates the agent from the operator.**
+A local trust layer for AI agents. It checks evidence, provenance, and policy before a claim, memory write, or action is trusted — and asks a human when needed.
 
-Most tools make agents stronger.  
-With the Approval Authority installed, HUQAN puts an OS boundary between the agent and the power to approve.
+Every decision is recorded as a verifiable Trust Receipt.
 
-Agents can now write code, delete files, spend money, and change memory.  
-Without a proper trust layer, that power runs as the same user as you.
+**No model. No cloud. No API key.**
 
-On Windows, the Approval Authority moves approval into a separate service protected by TOTP and cryptographic decision envelopes.  
-The decision is held by that service's own account, not by your user: an agent running as you cannot sign an approval, though it may still share your user identity with the operator.
+## Why
 
-Every decision is recorded as a Trust Receipt.
+Agents can write code, delete files, spend money, and change memory — usually running as *your* user. HUQAN sits between the agent and that power:
 
-No model. No cloud. No API key required for the core gate.
-
-[![npm](https://img.shields.io/npm/v/huqan?logo=npm&color=cb3837)](https://www.npmjs.com/package/huqan)
-[![Node](https://img.shields.io/badge/node-%3E%3D22.13.0-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-22c55e.svg)](./LICENSE)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ali-ulu/huqan/badge)](https://scorecard.dev/viewer/?uri=github.com/ali-ulu/huqan)
+- Mutating calls are **held** until a person approves them.
+- With the Approval Authority (a Windows service guarded by TOTP and cryptographic envelopes), the agent cannot approve its own actions.
+- Every decision produces a **Trust Receipt** — a local record you can verify from the receipt itself.
 
 ## Who it is for
 
-**Individual and community — your agent's emergency brake.** A solo builder does not want a SOC 2 program; they want the agent stopped before it does harm and a plain yes or no. HUQAN holds a mutating call until a person approves it, and `huqan.emergency_stop` stops one agent or a whole workspace. This is the [Agent Brake Layer](./docs/demo-mcp-agent-brake-layer.md).
+**Individual and community — your agent's emergency brake.** HUQAN holds a mutating call until a person approves it, and `huqan.emergency_stop` stops one agent or a whole workspace. This is the [Agent Brake Layer](./docs/demo-mcp-agent-brake-layer.md).
 
-**Team and enterprise — an audit record the operator does not write.** A platform that audits itself still asks you to trust its own logs. A Trust Receipt is produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it. Where "independent" is claimed, read the boundary under [Limits](#limits-honest).
+**Team and enterprise — an audit record the operator does not write.** A Trust Receipt is produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it. Where "independent" is claimed, read the boundary under [Limits](#limits-honest).
 
 ## Try it in 30 seconds
 
-```console
-$ npx -y huqan quickstart
-HUQAN quickstart — learn -> review -> approve -> verify -> Trust Receipt
-  1. OK   propose: huqan.learn -> review (mutating_requires_review), approval approval-…
-      Write held, waiting for approval.
-  2. OK   approve: huqan.approve -> approved (actor cli-quickstart)
-      Approved; the write happened now.
-  3. OK   verify: verified (confidence 0.90)
-      Verified.
-  4. OK   receipt: receiptId … (status canonical)
-      Evidence recorded as a Trust Receipt.
-
-Trust Receipt
-  receiptId          : …
-  claim              : …
-  status             : canonical
-  workspaceId        : default
-  trustPolicyVersion : …
-  provenance         : …
-  auditTrail entries : 1
-
-Your own graph is still empty: the run above used the throwaway store.
-Next: `huqan status` for what is in your graph, `huqan approvals` for pending
-decisions, or `huqan` for the interactive shell.
-Connect your agent: README -> "Connect your agent in one line".
+```bash
+npx -y huqan quickstart
 ```
 
-The write in step 1 **did not happen**. It was held until step 2 approved it. The quickstart uses a throwaway store.
+A 30-second tour: propose → approve → verify → Trust Receipt. No global install is required; the run uses a throwaway store. The same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
 
-No install needed: the same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
+## Install
 
-### The brake, in one command
-
-```console
-$ npm run demo:agent-brake
-1. The agent tries to delete a workspace file
-   gate        review   external_action_review_required
-   hook answer ask      the host stops and asks the operator
-   executed    no       notes.txt is still there: yes
-2. The operator decides          wrong code refused, TOTP code accepted
-3. Only an authorized decision lets the delete run
-4. The Trust Receipt             chain intact, seal signature valid
-5. Why the demo cannot authorize production   DEMO_AUTHORITY_REFUSED
-demo OK: blocked, decided, executed once, receipt verified
+```bash
+npm install -g huqan    # Node.js 22.13.0 or newer
 ```
 
-A temporary workspace, a signed identity card, a real gate decision, a real Trust Receipt, nothing of yours touched, no network — under two seconds. The gate, the receipt chain and its verifier are the production modules; the approval authority is stood in for on a machine that has none, and the runtime's own decision guard refuses that stand-in (step 5), so a demo can never authorize production. `-- --reject` runs the same scenario with the operator saying no.
+Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.
 
-Recording: [docs/agent-brake-demo.cast](./docs/agent-brake-demo.cast) (`asciinema play docs/agent-brake-demo.cast`), regenerated by the command itself with `--record=`. Presenter's 15-minute script, including what the demo does *not* prove: [docs/demo-agent-brake-script.md](./docs/demo-agent-brake-script.md).
-
-## Connect your agent in one line
+## Connect your agent
 
 **MCP (Claude, Cursor, any MCP client):**
 
@@ -99,53 +57,18 @@ Recording: [docs/agent-brake-demo.cast](./docs/agent-brake-demo.cast) (`asciinem
 npx -y --package=huqan huqan-gate install --profile claude-code
 ```
 
-Profiles: `claude-code`, `codex`, `openhands`, `opencode`, `pi`, `hermes`. The gate enforces only when the client calls it before executing. [Details](./docs/external-action-guard.md).
+Profiles: `claude-code`, `codex`, `openhands`, `opencode`, `pi`, `hermes`.
 
 Operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and require `HUQAN_MCP_OPERATOR_TOKEN` — an agent cannot approve its own proposal.
 
-**Set the operator token (copy-paste):**
-
-1. Generate a token on your machine:
-
-```bash
-node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-2. Put it in the MCP server configuration, so only the `huqan-mcp` server process (and therefore you, the operator) holds it:
-
-```json
-{
-  "mcpServers": {
-    "huqan": {
-      "command": "npx",
-      "args": ["-y", "--package=huqan", "huqan-mcp"],
-      "env": { "HUQAN_MCP_OPERATOR_TOKEN": "<paste the value you generated>" }
-    }
-  }
-}
-```
-
-3. Approve: the operator tools appear in your MCP client only when the token is set. When the agent proposes a mutation, call `huqan.approvals` to see pending decisions and `huqan.approve` to decide — from your side of the client, never from the agent's own tools or shell.
-
-⚠️ Do not put the token where the model can see it — the agent's own environment variables, its prompt, or any file it reads. That breaks the "an agent cannot approve its own proposal" guarantee: keep it in the `huqan-mcp` server block only.
-
-## Install
-
-```bash
-npm install -g huqan     # Node.js 22.13.0 or newer
-```
-
-Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.  
-Run `huqan doctor` to see what is configured.
-
-To stand up the gate, approval authority and Trust Receipt chain on a clean server, follow the [30-minute install guide](./docs/install-30min.md). For the knowledge base and CLI only, see the [local install guide](./docs/local-install.md).
+The gate only governs actions when the client calls it before execution.
 
 ## How it works
 
 ```text
 evidence + provenance + workspace scope
         → verification, contradiction, risk
-                → policy and approval boundary
+                → policy + human approval
                         → outcome + Trust Receipt
 ```
 
@@ -153,11 +76,7 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-**Escalation is a decision a person makes, not one the gate returns.** A reviewer can move a pending case to `escalated`; that needs a second approver, so it is absent in a single-user install. Decision types: `approve`, `reject`, `expire`, `cancel`, `escalate`, `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
-
-A passing verification is a result inside one configured boundary, not a certificate of truth. The receipt names the boundary.
-
-When the Approval Authority is installed, the decision itself moves behind an OS boundary (Windows service + TOTP + cryptographic envelopes). See [ADR-016](./docs/adr/ADR-016-approval-authority-os-boundary.md).
+Escalation and overrides are human decisions, recorded in the receipt. **Escalation is a decision a person makes, not one the gate returns**: a reviewer can move a pending case to `escalated`, which needs a second approver, so it is absent in a single-user install. Decision types: `approve`, `reject`, `expire`, `cancel`, `escalate`, `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
 ## Limits (honest)
 
@@ -166,21 +85,14 @@ When the Approval Authority is installed, the decision itself moves behind an OS
 - The OS boundary needs the Approval Authority (a Windows service today). Code running as your user can still edit runtime files or the local store; the authority's ledger makes that detectable, not impossible. UAC is not a security boundary ([ADR-016 residual risks](./docs/adr/ADR-016-approval-authority-os-boundary.md#residual-risks)).
 - Complements IAM, infrastructure security and human governance — it replaces none of them.
 - "Independent" is a bounded word. An issuer signature ([`lib/receipt/issuer-seal.js`](./lib/receipt/issuer-seal.js)) proves a receipt's origin and integrity, not operator honesty: whoever holds the issuing key can edit the trail, re-sign it, and ship a clean history where every signature verifies. Independence needs a collector counter-seal ([`lib/receipt/collector-seal.js`](./lib/receipt/collector-seal.js)) signed with a key the audited host does not have, held by a party the operator does not administer; both keys on one machine means one person holds both ends, and the seal then detects accidental corruption and nothing more.
-- The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
-- Synthetic graph read/write benchmarks reached 100k nodes and 100k edges on one machine. [Admitted-learning measurements and limits](./docs/scale-truth-pack.md) are separate; this is not a production capacity guarantee.
+- The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound into a bundle yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
 
 Full details and edge cases: [docs](./docs).
 
 ## License
 
-**Single license: AGPL-3.0-only.** No commercial license is offered, quoted, or granted today. The canonical licensing-status record is [docs/legal/dual-licensing-status.md](./docs/legal/dual-licensing-status.md) (decision record 2026-09-28, #3082); this README links to it rather than restating the status.
-
-If your requirement makes a commercial path urgent, the decision record lists explicit revisit conditions; condition 3 (a prospective licensee's requirement makes the commercial path urgent) reopens that decision record before any offer is made. Until a new decision record says otherwise, there is nothing to quote, price, or sign.
-
-Register interest (no offer implied): [aliulu@ai-ulu.com](mailto:aliulu@ai-ulu.com)
+AGPL-3.0-only. No commercial license is offered today — see [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md).
 
 ---
 
 **Confidence is not truth. Verify before you trust.**
-
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-aliulu-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/aliulu)
