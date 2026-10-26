@@ -83,3 +83,67 @@ test('global-search handles empty results', async () => {
   assert.strictEqual(body.ok, true);
   assert.strictEqual(body.data.items.length, 0);
 });
+// The route must be reachable through the real request handler: an undeclared
+// path is a silent 404 at the central auth gate, which is how the dashboard
+// search box returned nothing in production even though the route unit-tested green.
+function serverHandler({ authorized }) {
+  const { createServerRequestHandler } = require('../lib/http/server-request-handler');
+  const notHandled = async () => false;
+  const denials = [];
+  const handler = createServerRequestHandler({
+    kernel: { graph: { getNodes: () => ({ 'node-1': { label: 'Alpha test node' } }) } },
+    concurrencyLimiter: { tryAcquire: () => true, release: () => {} },
+    denyIfUnauthorized: (_req, res) => {
+      if (authorized) return true;
+      denials.push(true);
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end('{"ok":false}');
+      return false;
+    },
+    viewerMount: { isViewerPath: () => false, checkRateLimit: () => true, handle: async () => {} },
+    externalClientBoundary: null,
+    optionalRoutes: { authContext: {}, route: notHandled },
+    handleObservabilityRoute: notHandled,
+    handleV5PackageImportRoute: notHandled,
+    handleV5PreflightRoute: notHandled,
+    handleReadWorkflow: notHandled,
+    handleWorkflowDataRoute: notHandled,
+    handleFitnessDashboardRoute: notHandled,
+    handleCoreRoutes: notHandled,
+    handleIngestHttpRoutes: notHandled,
+    handleReceiptReadRoute: () => false,
+    handleWorkbenchRead: () => false,
+    handleTrustQueryRoutes: () => false,
+    handlePublicApiRoute: notHandled,
+  });
+  return { handler, denials };
+}
+
+function serverReq(url) {
+  return { method: 'GET', url, headers: { host: 'localhost' }, socket: { remoteAddress: '198.51.100.7' }, on: () => {} };
+}
+
+function serverRes() {
+  const res = makeRes();
+  res.headersSent = false;
+  res.once = () => {};
+  res.on = () => {};
+  return res;
+}
+
+test('the request handler serves /api/global-search to an authorized caller', async () => {
+  const { handler } = serverHandler({ authorized: true });
+  const res = serverRes();
+  await handler(serverReq('/api/global-search?workspaceId=default&q=alpha'), res);
+  assert.strictEqual(res.statusCode, 200);
+  const body = JSON.parse(res.body);
+  assert.deepStrictEqual(body.data.items.map(item => item.id), ['node-1']);
+});
+
+test('the request handler challenges an unauthenticated /api/global-search call', async () => {
+  const { handler, denials } = serverHandler({ authorized: false });
+  const res = serverRes();
+  await handler(serverReq('/api/global-search?workspaceId=default&q=alpha'), res);
+  assert.strictEqual(res.statusCode, 401);
+  assert.strictEqual(denials.length, 1);
+});

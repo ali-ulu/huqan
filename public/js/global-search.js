@@ -48,7 +48,7 @@
     abortCtrl = new AbortController();
     try {
       const url = `/api/global-search?workspaceId=${encodeURIComponent(workspace())}&q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, { signal: abortCtrl.signal, cache: 'no-store' });
+      const res = await fetch(url, { signal: abortCtrl.signal, cache: 'no-store', headers: headers() });
       if (!res.ok) throw new Error('search failed');
       const json = await res.json();
       const items = json.data?.items || [];
