@@ -787,6 +787,7 @@
     "lib/api-auth-opt-out.js",
     "lib/http/server-boot.js",
     "lib/http/server-request-handler.js",
+    "lib/http/global-search-route.js",
     "lib/http/server-route-runtime.js",
     "lib/http/server-ingest-workflow-runtime.js",
     "lib/http/server-read-route-runtime.js",
