@@ -3,7 +3,7 @@
 (function () {
   const UI = window.HuqanControlRoomUI;
   const Data = window.HuqanControlRoomData;
-  const { $, esc, ago } = UI;
+  const { $, esc, ago, toast } = UI;
 
   let rows = []; // { auditId, receiptId, action, tool, actor, decision, state }
   let nextCursor = null;
@@ -81,6 +81,53 @@
       await verifyRow(row);
     }
   }
+
+  // ---- Bulk receipt export (#4297) ----
+  // Read-only: it re-derives a file from data already loaded, or fetches the
+  // server's verified bundle. It never mutates a decision or a receipt.
+
+  function csvCell(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function download(filename, text, type) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportCsv() {
+    const header = ['receiptId', 'action', 'tool', 'actor', 'decision', 'state'];
+    const body = rows.map((r) => [r.receiptId, r.action, r.tool, r.actor, r.decision, r.state].map(csvCell).join(','));
+    download('huqan-receipts.csv', [header.join(','), ...body].join('\n'), 'text/csv');
+    toast(`${rows.length} receipt${rows.length === 1 ? '' : 's'} exported as CSV.`);
+  }
+
+  async function exportBundle() {
+    const result = await Data.getJson('/api/workbench/receipt-bundle');
+    if (!result.ok) {
+      $('#rcpt-status').className = 'status bad';
+      $('#rcpt-status').textContent = `Could not export the receipt bundle: ${result.error?.message || result.error?.code || 'unknown error'}`;
+      return;
+    }
+    const bundle = result.body.bundle || result.body;
+    download('huqan-receipt-bundle.json', JSON.stringify(bundle, null, 2), 'application/json');
+    toast(`Verified bundle of ${bundle.receiptCount || 0} receipt${bundle.receiptCount === 1 ? '' : 's'} exported.`);
+  }
+
+  $('#rcpt-export-open')?.addEventListener('click', () => { $('#receipt-export').hidden = false; });
+  $('#export-cancel')?.addEventListener('click', () => { $('#receipt-export').hidden = true; });
+  $('#export-receipts')?.addEventListener('click', () => {
+    if ($('#export-format').value === 'bundle') exportBundle();
+    else exportCsv();
+  });
 
   $('#rcpt-filter')?.addEventListener('change', render);
   $('#rcpt-refresh')?.addEventListener('click', () => loadPage(true));

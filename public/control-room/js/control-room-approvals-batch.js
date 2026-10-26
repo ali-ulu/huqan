@@ -31,16 +31,23 @@ if (typeof window !== 'undefined') {
     const countEl = $('#batch-count');
     if (!toolbar || !approveBtn || !rejectBtn || !countEl) return;
     const q = queue();
-    if (!q || q.getTab() !== 'open') clear();
-    const count = selected.size;
-    if (count > 0 && q) {
-      toolbar.hidden = false;
-      approveBtn.disabled = false;
-      rejectBtn.disabled = false;
-      countEl.textContent = `${count} selected`;
+    if (!q || q.getTab() !== 'open') {
+      clear();
     } else {
-      toolbar.hidden = true;
+      // Drop anything the queue no longer offers before counting, so a decided
+      // record cannot stay selected and a later batch cannot re-decide it.
+      const open = new Set(q.openList().map((a) => a.id));
+      for (const id of selected) if (!open.has(id)) selected.delete(id);
     }
+    const count = selected.size;
+    // The toolbar stays visible while the open queue has records, so "Select
+    // all" is reachable before the first row is checked; only the actions wait.
+    const available = Boolean(q) && q.getTab() === 'open' && q.openList().length > 0;
+    toolbar.hidden = !available;
+    if (!available) return;
+    approveBtn.disabled = count === 0;
+    rejectBtn.disabled = count === 0;
+    countEl.textContent = `${count} selected`;
   }
 
   function openBatchDialog(decision) {
@@ -75,13 +82,31 @@ if (typeof window !== 'undefined') {
     if (!q || !pending || pending.purpose !== 'batch') return;
     e.preventDefault();
     const operatorKey = $('#dd-key').value;
+    if (!operatorKey) {
+      // An empty key would let automatic mode grant the capability without the
+      // operator token the batch module requires; fail closed before dispatch.
+      $('#dd-error').textContent = 'Operator key is required.';
+      return;
+    }
     const reason = $('#dd-reason').value.trim();
     $('#dd-confirm').disabled = true;
     let succeeded = 0;
+    const failed = [];
     await Promise.all(pending.ids.map((id) => q.submitDecision(id, pending.decision, reason, operatorKey)
-      .then((result) => { if (result && result.ok) succeeded += 1; })
-      .catch(() => { /* submitDecision reports its own failure */ })));
-    toast(`${succeeded} approval${succeeded === 1 ? '' : 's'} ${pending.decision === 'approved' ? 'approved' : 'rejected'}. Each generated its own Trust Receipt.`);
+      .then((result) => { if (result && result.ok) succeeded += 1; else failed.push(id); })
+      .catch(() => { failed.push(id); /* submitDecision reports its own failure */ })));
+    const verb = pending.decision === 'approved' ? 'approved' : 'rejected';
+    if (succeeded > 0) toast(`${succeeded} approval${succeeded === 1 ? '' : 's'} ${verb}. Each generated its own Trust Receipt.`);
+    if (failed.length > 0) {
+      // Keep only the failures selected so the operator can retry them; the
+      // dialog stays open so a corrected key can be re-submitted.
+      selected.clear();
+      failed.forEach((id) => selected.add(id));
+      updateToolbar();
+      $('#dd-error').textContent = `${failed.length} approval${failed.length === 1 ? '' : 's'} could not be ${verb}. They stay selected so you can retry.`;
+      $('#dd-confirm').disabled = false;
+      return;
+    }
     clear();
     updateToolbar();
     q.closeDialog();

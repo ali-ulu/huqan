@@ -85,20 +85,44 @@ test('a selection is per record and clears when the queue empties', () => {
   assert.match(Batch.renderSelect('a1'), /class="approval-select" data-id="a1"/);
   assert.doesNotMatch(Batch.renderSelect('a1'), /checked/);
   Batch.clear();
-  elements['appr-toolbar'].hidden = false;
+  q.approvals = [];
   Batch.updateToolbar();
-  assert.equal(elements['appr-toolbar'].hidden, true, 'an empty selection hides the toolbar');
+  assert.equal(elements['appr-toolbar'].hidden, true, 'an empty open queue hides the toolbar');
 });
 
-test('checking a row shows the toolbar with the count, unchecking hides it', () => {
+test('the toolbar stays available while the open queue has records, so select-all is reachable first', () => {
+  const q = queueFor();
+  const { Batch, elements } = loadBatchModule(q);
+  Batch.updateToolbar();
+  assert.equal(elements['appr-toolbar'].hidden, false, 'the toolbar shows before the first row is checked');
+  assert.equal(elements['batch-approve'].disabled, true, 'the actions wait for a selection');
+  assert.equal(elements['batch-reject'].disabled, true);
+  assert.equal(elements['batch-count'].textContent, '0 selected');
+});
+
+test('a decided record is dropped from the selection before it is counted', () => {
+  const q = queueFor();
+  const { Batch, elements, clicks } = loadBatchModule(q);
+  const click = (target) => clicks.forEach((h) => h({ target }));
+  click({ closest: () => ({ dataset: { id: 'a1' }, checked: true }), id: '' });
+  click({ closest: () => ({ dataset: { id: 'a2' }, checked: true }), id: '' });
+  assert.equal(elements['batch-count'].textContent, '2 selected');
+  q.approvals = [{ id: 'a1' }];
+  Batch.updateToolbar();
+  assert.equal(elements['batch-count'].textContent, '1 selected', 'a record no longer open cannot stay selected');
+});
+
+test('checking a row enables the actions, unchecking disables them but keeps the toolbar', () => {
   const q = queueFor();
   const { Batch, elements, clicks } = loadBatchModule(q);
   const click = (target) => clicks.forEach((h) => h({ target }));
   click({ closest: () => ({ dataset: { id: 'a1' }, checked: true }), id: '' });
   assert.equal(elements['appr-toolbar'].hidden, false);
+  assert.equal(elements['batch-approve'].disabled, false);
   assert.equal(elements['batch-count'].textContent, '1 selected');
   click({ closest: () => ({ dataset: { id: 'a1' }, checked: false }), id: '' });
-  assert.equal(elements['appr-toolbar'].hidden, true, 'deselecting the last row hides the toolbar');
+  assert.equal(elements['batch-approve'].disabled, true, 'deselecting the last row disables the actions');
+  assert.equal(elements['appr-toolbar'].hidden, false, 'the open queue keeps the toolbar visible');
 });
 
 test('select-all selects every open record and rerenders the queue', () => {
@@ -129,5 +153,41 @@ test('a bulk decision submits each selected record once, through the queue path'
   assert.deepEqual(q.submitted.map((s) => s.id), ['a1', 'a2', 'a3']);
   assert.ok(q.submitted.every((s) => s.key === 'operator-key' && s.decision === 'approved'));
   assert.equal(q.closed, 1, 'the dialog closes after the batch completes');
-  assert.equal(elements['appr-toolbar'].hidden, true, 'the selection is cleared after the batch');
+  assert.equal(elements['appr-toolbar'].hidden, false, 'the open queue keeps the toolbar visible after the batch');
+  assert.equal(elements['batch-approve'].disabled, true, 'the selection is cleared after the batch');
+});
+
+test('an empty operator key fails closed before any decision is dispatched', async () => {
+  const q = queueFor();
+  const { elements, clicks } = loadBatchModule(q);
+  const click = (target) => clicks.forEach((h) => h({ target }));
+  for (const id of ['a1', 'a2']) click({ closest: () => ({ dataset: { id }, checked: true }), id: '' });
+  click({ closest: () => null, id: 'batch-approve' });
+
+  elements['dd-key'].value = '';
+  await elements['dd-confirm']._click({ preventDefault() {} });
+
+  assert.equal(q.submitted.length, 0, 'no decision is sent without the operator key');
+  assert.equal(q.closed, 0, 'the dialog stays open so the key can be entered');
+  assert.match(elements['dd-error'].textContent, /Operator key is required/);
+});
+
+test('a partially failed batch keeps the failures selected and reports them', async () => {
+  const q = fakeQueue({
+    submitDecision(id, decision, reason, key) {
+      this.submitted.push({ id, decision, reason, key });
+      return Promise.resolve({ ok: id !== 'a2' });
+    },
+  });
+  const { elements, clicks } = loadBatchModule(q);
+  const click = (target) => clicks.forEach((h) => h({ target }));
+  for (const id of ['a1', 'a2', 'a3']) click({ closest: () => ({ dataset: { id }, checked: true }), id: '' });
+  click({ closest: () => null, id: 'batch-approve' });
+  elements['dd-key'].value = 'operator-key';
+  await elements['dd-confirm']._click({ preventDefault() {} });
+
+  assert.equal(q.closed, 0, 'the dialog stays open while a retry is possible');
+  assert.match(elements['dd-error'].textContent, /1 approval could not be approved/);
+  assert.equal(elements['batch-count'].textContent, '1 selected', 'only the failed record stays selected');
+  assert.equal(elements['batch-approve'].disabled, false, 'the retry action stays enabled');
 });

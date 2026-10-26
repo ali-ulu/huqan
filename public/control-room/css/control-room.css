@@ -181,7 +181,7 @@ td .sub { display: block; color: var(--soft); font-size: 12px; }
 
 .queue { display: grid; gap: 12px; }
 .ticket { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 14px 16px; box-shadow: inset 3px 0 0 var(--review), inset 0 1px 0 var(--glass-edge), var(--shadow); }
-.ticket.done { box-shadow: inset 3px 0 0 var(--line); opacity: .8; }
+.ticket.done { grid-template-columns: minmax(0, 1fr) auto; box-shadow: inset 3px 0 0 var(--line); opacity: .8; }
 .ticket h3 { font-size: 15px; font-weight: 600; }
 .ticket .meta { color: var(--soft); font-size: 12.5px; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .ticket .why { margin: 8px 0 0; font-size: 13px; }

@@ -209,25 +209,11 @@
         <span class="batch-count" id="batch-count">0 selected</span>
       </div>
       <div class="queue" id="appr-queue"></div>
-      <div class="receipt-export" id="receipt-export" hidden>
-        <div class="panel">
-          <h3>Bulk Receipt Export</h3>
-          <p>Export Trust Receipts as CSV or signed audit report. Each decision generates a separate receipt with its own audit trail.</p>
-          <div class="export-options">
-            <select id="export-format">
-              <option value="csv">CSV (Trust Receipts)</option>
-              <option value="signed">Signed Audit Report</option>
-            </select>
-            <button class="btn" id="export-receipts">Export Receipts</button>
-            <button class="btn" id="export-cancel">Cancel</button>
-          </div>
-        </div>
-      </div>
     </section>
 
     <!-- RECEIPTS -->
     <section class="view" data-view="receipts" hidden>
-      <div class="topbar"><div><h1>Trust Receipts</h1><p>The record behind every decision. "Unverifiable" is shown separately from "verified" on purpose: a receipt that can't be checked is never counted as a pass.</p></div><button class="btn" id="rcpt-refresh">&#8635; Refresh</button></div>
+      <div class="topbar"><div><h1>Trust Receipts</h1><p>The record behind every decision. "Unverifiable" is shown separately from "verified" on purpose: a receipt that can't be checked is never counted as a pass.</p></div><div class="tools"><button class="btn" id="rcpt-export-open" type="button">Export receipts</button><button class="btn" id="rcpt-refresh">&#8635; Refresh</button></div></div>
       <div class="grid" style="margin-bottom:16px">
         <div class="panel span-4"><span class="chip c-pass">Verified</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-verified">0</b><span>hash chain checks out</span></div></div>
         <div class="panel span-4"><span class="chip c-review">Awaiting approval</span><div class="vl" style="border:0;padding:6px 0 0"><b class="num" id="rcpt-pending">0</b><span>sealed once someone decides</span></div></div>
@@ -251,6 +237,20 @@
         </table>
       </div>
       <button class="btn" id="rcpt-more" hidden>Load more</button>
+      <div class="receipt-export" id="receipt-export" hidden>
+        <div class="panel">
+          <h3>Export Trust Receipts</h3>
+          <p>Download the receipts loaded in this view as CSV, or fetch the full verified receipt bundle from the server as JSON. Exports are read-only and change no decision.</p>
+          <div class="export-options">
+            <select id="export-format">
+              <option value="csv">CSV (loaded receipts)</option>
+              <option value="bundle">Verified JSON bundle (server)</option>
+            </select>
+            <button class="btn" id="export-receipts">Export</button>
+            <button class="btn" id="export-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- AGENTS -->
