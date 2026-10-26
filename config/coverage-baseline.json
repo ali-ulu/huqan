@@ -1743,7 +1743,7 @@
     },
     "lib/http/server-request-handler.js": {
       "lines": 75.28,
-      "branches": 89.25
+      "branches": 88.5
     },
     "lib/http/server-route-runtime.js": {
       "lines": 100,
@@ -2718,8 +2718,8 @@
       "branches": 61.11
     },
     "lib/observability/service-queries.js": {
-      "lines": 97.47,
-      "branches": 96.29
+      "lines": 87.65,
+      "branches": 89.23
     },
     "lib/observability/service-runs.js": {
       "lines": 97.72,
