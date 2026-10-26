@@ -50,3 +50,30 @@ Geçen test, bu sınırlı ödül/önsel/veri sızıntısı sözleşmesini göst
 tam RPE çıktısının üretim kararında kullanıldığını, M9 kazanımını, genel öğrenme
 başarısını veya G1/G3 kapanışını kanıtlamaz. #4062 kapanışı ayrıca canlı issue
 kabul koşullarına göre değerlendirilir.
+
+## Ayrı kapsam: gerçek ajan geri bildirim bağlantısı
+
+Bu ek, yukarıdaki karakterizasyon ön-kaydını değiştirmez ve yeni bir kazanım
+ön-kaydı değildir. Bağlantı kapsamı `lib/agent-cognition-seam.js` ve
+`test/cognition-reward-runtime.test.js` ile sınırlıdır.
+
+`predictionError + reward` opt-in akışında `beginStepCognition`, gözlemden önce aynı
+workspace/frame journal kesitinden M9 beklentisini hesaplar. Bu beklenti özel,
+tek kullanımlık pending referansına bağlanır. Geri bildirim izindeki
+`rewardHistory`, karar kimliği ve tarih sınırını, önceden görülen kararları,
+workspace ve frame hash'ini taşır. Sonradan eklenen sonuçlar beklentiyi değiştirmez.
+Ödül gözlemi M7 salience zamanlayıcısının açılmasını gerektirmez; opt-in yokken
+mevcut kapalı davranış korunur.
+
+`observeStepCognition`, yalnız mevcut sensörün gerçekten bağlanmış ve yeniden
+oynatılmamış sonucundan `computeRewardSignal` üretir. Çıktı mevcut izde `reward`
+alanındadır; geçmiş eksik/bozuksa veya pending/gözlem/bağlam eşleşmiyorsa ABSTAIN
+olur. Boş ya da yetersiz bağımsız geçmiş açıkça etiketlenmiş sıfır önselini
+kullanır. Raporlanan `ok`, tek başına ödül değildir.
+
+Kontroller gerçek dosya sensörü, mevcut journal yazıcısı, AgentV3 döngüsü ve
+yeni süreçte geçmişin yeniden okunmasını kapsar. Kaynak geçmiş kayıtları
+değiştirilmez; yalnız mevcut prediction/outcome kayıtları eklenir. Yeni depo,
+model, yetki, ödül tablosu, varsayılan veya seçim eşiği eklenmez. RPE izinin
+oluşması; ödülle yeni davranış öğrenildiğini, Coder kapasitesi artışını veya
+genel görev kazanımını kanıtlamaz.
