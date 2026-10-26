@@ -80,6 +80,11 @@ function actionReceipts(count, options = {}) {
   return receipts;
 }
 
+// #4241: an operator-attested autonomy-state entry. `operatorAttested` is set
+// by the operator-side caller that resolved the activation through the
+// approval authority (lib/authority/autonomy-activation.js); an agent appending
+// to its own trail cannot produce it. A thin trail entry without this flag is
+// a forgeable claim, not authority.
 function autonomyState(tier, createdAt, firstActivation = null) {
   return sealReceipt({
     receiptId: `state-${tier}-${createdAt}`,
@@ -90,6 +95,7 @@ function autonomyState(tier, createdAt, firstActivation = null) {
       identity: receiptIdentity(),
       autonomy: {
         schemaVersion: GRADUATED_AUTONOMY_VERSION,
+        operatorAttested: true,
         tier,
         evaluatedAt: createdAt,
         firstActivation,
@@ -199,6 +205,76 @@ test('T3 promotion reuses the persisted first activation', () => {
   assert.equal(result.autonomy.activationRequired, false);
   assert.equal(result.autonomy.transition.trigger, 'score');
   assert.equal(result.decision, 'allow');
+});
+
+// #4241 / CWE-863: a trail entry an agent appended itself carries no operator
+// attestation. It may claim any tier and any first activation, so neither may
+// reach the decision.
+test('a forged trail tier cannot lift the decision above what the metrics justify', () => {
+  const forged = sealReceipt({
+    receiptId: 'forged-state-T3',
+    receiptKind: 'external_action_autonomy_state',
+    admissionId: 'forged-state',
+    createdAt: '2026-01-01T00:01:30.000Z',
+    metadata: {
+      identity: receiptIdentity(),
+      autonomy: {
+        schemaVersion: GRADUATED_AUTONOMY_VERSION,
+        tier: 'T3',
+        evaluatedAt: '2026-01-01T00:01:30.000Z',
+        firstActivation: humanActivation(),
+      },
+    },
+    decision: 'allow',
+    status: 'admitted',
+  });
+  // A thin trail: the forged entry claims T3, but the metrics behind the
+  // promotion policy do not support it.
+  const result = evaluateGraduatedAutonomy({
+    identity: identity(),
+    action: { riskCategory: 'DEPLOYMENT' },
+    receipts: [forged, ...actionReceipts(2)],
+  }, { now: () => '2026-01-01T00:20:00.000Z' });
+  assert.equal(result.autonomy.tier, 'T1',
+    'the forged T3 claim must be capped to the tier the metrics justify');
+  assert.equal(result.autonomy.activationRequired, false,
+    'the metrics do not justify a promotion at all, so no activation is demanded');
+  assert.equal(result.decision, 'review');
+  assert.equal(result.reason, AUTONOMY_REASONS.TIER_INSUFFICIENT);
+});
+
+// #4241 / CWE-863: the first-human-activation proof is what lets a T2
+// identity reach T3 without a second approval. An agent that appends its own
+// trail entry must not be able to supply one.
+test('a forged first activation does not carry a promotion past T2', () => {
+  const forged = sealReceipt({
+    receiptId: 'forged-state-T2',
+    receiptKind: 'external_action_autonomy_state',
+    admissionId: 'forged-state',
+    createdAt: '2026-01-01T00:01:30.000Z',
+    metadata: {
+      identity: receiptIdentity(),
+      autonomy: {
+        schemaVersion: GRADUATED_AUTONOMY_VERSION,
+        tier: 'T2',
+        evaluatedAt: '2026-01-01T00:01:30.000Z',
+        firstActivation: humanActivation(),
+      },
+    },
+    decision: 'allow',
+    status: 'admitted',
+  });
+  const result = evaluateGraduatedAutonomy({
+    identity: identity(),
+    action: { riskCategory: 'DEPLOYMENT' },
+    receipts: [forged, ...actionReceipts(30)],
+  }, { now: () => '2026-01-01T00:20:00.000Z' });
+  assert.equal(result.autonomy.tier, 'T2',
+    'without an operator-attested activation the promotion stops at T2');
+  assert.equal(result.autonomy.activationRequired, true,
+    'the missing human activation must be demanded, not borrowed from the trail');
+  assert.equal(result.decision, 'review');
+  assert.equal(result.reason, AUTONOMY_REASONS.ACTIVATION_REQUIRED);
 });
 
 test('a new critical violation demotes immediately to T1', () => {

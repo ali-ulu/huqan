@@ -21,14 +21,35 @@ const data=detail?d.data?.receipt:(d.data||d.receipt||d);
 if(!data)throw Error('receipt_projection_missing');
 $('raw').textContent=JSON.stringify(data,null,2);
 summary(data);
+renderTimeline(data);
 estatus(noEvidence(detail,data)?T('evidence.noEvidence','No evidence is recorded for this target. If this is a receipt id, switch Lookup Mode to receiptId.'):T('evidence.found','Receipt found.'),noEvidence(detail,data),!noEvidence(detail,data));
 if(data?.receiptId)receipt(data.receiptId,data.claim||data.targetId||data.action,data.status)}
 catch(e){$('raw').textContent='—';
+$('timeline').innerHTML='';
 summary();
 estatus(`failed: ${e.message}`,1)}
 }
 function summary(x){const rows=x?[[T('evidence.rows.status','Status'),x.status||'unknown'],[T('evidence.rows.receiptId','Receipt ID'),x.receiptId||'—'],[T('evidence.rows.workspace','Workspace'),x.workspaceId||state.ws],[T('evidence.rows.target','Target'),x.targetId||'—'],[T('evidence.rows.confidence','Confidence'),x.confidence??'—'],[T('evidence.rows.canonical','Canonical'),x.canonical?T('evidence.values.yes','yes'):T('evidence.values.no','no')],[T('evidence.rows.policy','Policy'),x.trustPolicyVersion||'—']]:[[T('evidence.rows.status','Status'),'—']];
 $('summary').innerHTML=rows.map(([a,b])=>`<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}
+function renderTimeline(data){if(!data){$('timeline').innerHTML='';return;}
+const prov=data.provenance||data.provenanceId||'—';
+const gate=`${data.decision||'—'} → ${data.verdict||data.status||'—'}`;
+const sig=`${data.receiptHash?data.receiptHash.slice(0,12)+'…':'—'} → prev ${data.previousReceiptHash?data.previousReceiptHash.slice(0,12)+'…':'—'}`;
+const chainValid=!!(data.receiptHash&&data.previousReceiptHash);
+const audits=Array.isArray(data.auditTrail)?data.auditTrail:[];
+// Timeline steps
+const steps=[
+  {label:T('evidence.timeline.provenance','Provenance'),value:prov,status:prov!=='—'?'valid':'missing'},
+  {label:T('evidence.timeline.gate','Gate Decision'),value:gate,status:(data.decision||data.verdict)&&(data.status==='canonical'||data.status==='admitted')?'valid':'review'},
+  {label:T('evidence.timeline.signature','Signature Chain'),value:sig,status:chainValid?'valid':'invalid'},
+  ...(audits.map((a,i)=>({
+    label:`${T('evidence.timeline.audit','Audit')} ${i+1}`,
+    value:a.eventType||a.step||a.description||JSON.stringify(a),
+    status:a.outcome==='ok'||a.outcome==='passed'?'valid':'review'
+  })))
+];
+$('timeline').innerHTML=steps.map(s=>`<div class="timeline-item status-${s.status}"><div class="timeline-label">${esc(s.label)}</div><div class="timeline-value">${esc(s.value)}</div></div>`).join('')||'<div class="empty">'+T('evidence.timeline.empty','Query a receipt.')+'</div>';
+}
 function estatus(t,bad=false,good=false){$('estatus').textContent=t;
 $('estatus').className='status '+(bad?'bad':good?'good':'')}
 function settings(){const open=!state.authRequired,ready=open||!!state.key;

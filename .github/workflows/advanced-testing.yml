@@ -113,7 +113,12 @@ jobs:
     name: Scheduled mutation testing
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The full Stryker suite, not a slice. On 2026-10-26 every step succeeded
+    # (2520 mutants, report uploaded) and the job was still killed at the old
+    # 60 min limit -- the work fit the run, the budget did not fit the work.
+    # The mutant count grows with the security surface on purpose (#4247 added
+    # 88 to lib/path-safety.js alone), so the budget stays above the runtime.
+    timeout-minutes: 90
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

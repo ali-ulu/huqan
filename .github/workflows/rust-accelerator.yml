@@ -38,12 +38,17 @@ jobs:
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             base="${{ github.event.pull_request.base.sha }}"
             head="${{ github.event.pull_request.head.sha }}"
+            # Three-dot: diff from the merge base, so a branch that fell behind
+            # main (normal, since strict_required_status_checks_policy is off)
+            # does not report main's own newer commits as changed (#4245, #4288).
+            range="${base}...${head}"
           else
             base="${{ github.event.before }}"
             head="${GITHUB_SHA}"
+            range="${base} ${head}"
           fi
 
-          changed="$(git diff --name-only "${base}" "${head}" || true)"
+          changed="$(git diff --name-only ${range} || true)"
           rust=no
           while IFS= read -r file; do
             case "${file}" in

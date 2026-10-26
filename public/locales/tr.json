@@ -146,6 +146,7 @@
       "actions": {
         "run": "Çalıştır",
         "fileBtn": "Dosya seç",
+        "uploadFile": "Alıma yükle",
         "review": "İnceleme için gönder"
       },
       "status": "Manifest bekleniyor.",
@@ -167,7 +168,14 @@
       "goalRequired": "Önce bir hedef girin.",
       "ingestRequired": "Önce alınacak metni girin.",
       "claimRequired": "Önce bir iddia veya sorgu girin.",
-      "fileType": "Yalnızca .txt ve .md dosyaları desteklenir."
+      "fileType": "Yalnızca .txt ve .md dosyaları desteklenir.",
+      "fileSize": "Dosya çok büyük (maksimum 1 MB).",
+      "fileTextSize": "Dosya çok uzun (maksimum 4000 karakter)."
+    },
+    "file": {
+      "loaded": "Dosya yüklendi. Onayla göndermek için \"Alıma yükle\"ye tıklayın.",
+      "notLoaded": "Yüklü dosya yok.",
+      "confirm": "Bu dosyayı alım hattına yüklesin mi? İnsan onayı gerektirir."
     }
   },
   "approvals": {
@@ -207,6 +215,15 @@
       "summary": {
         "status": "Durum"
       }
+    },
+    "timeline": {
+      "title": "ZAMAN ÇİZELGESİ / KAYNAK",
+      "subtitle": "okunabilir zincir görünümü",
+      "empty": "Bir dekont sorgulayın.",
+      "provenance": "Kaynak",
+      "gate": "Kapı Kararı",
+      "signature": "İmza Zinciri",
+      "audit": "Denetim"
     },
     "raw": {
       "title": "HAM DEKONT",
