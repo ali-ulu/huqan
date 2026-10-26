@@ -44,7 +44,8 @@ iddiası değildir.
 Olumlu aday mevcut öğrenme intake'i ve derleyiciyle sürümlenir; yalnız kaynak
 artifact'larını tekrar etmeyen ayrı girdilerde qualification geçen derleme
 listelenir. Sonuç daima `registered: false` ve `CANDIDATE_ONLY` taşır.
-`propose`, kayıt, onay, canary veya terfi otomatik çağrılmaz. Policy ve capability
+Intake yalnız aday üretmek için `admissionPool.propose` çağırabilir; kayıt, onay,
+canary ve terfi otomatik çağrılmaz. Policy ve capability
 nesneleri öğrenilmez; mevcut kabul/terfi yolu ayrı kalır.
 
 Doğrulama: gerçek CLI alt süreci, native Coder'ın mühürlü kayıtları, kopyalanmış
