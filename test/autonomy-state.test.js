@@ -88,3 +88,22 @@ test('demotionTarget prefers violation over score and respects critical flag', (
   assert.equal(state.demotionTarget('T3', { score: 70, latestViolation: null }, { evaluatedAt: '2026-01-03T00:00:00.000Z' }), 'T2');
   assert.equal(state.demotionTarget('T3', { score: 50, latestViolation: null }, { evaluatedAt: '2026-01-03T00:00:00.000Z' }), 'T1');
 });
+
+// #4241: the tier vocabulary itself, so an unreadable or unknown tier string
+// normalises to the read-only baseline rather than being trusted as-is.
+test('tier normalises unknown and malformed values to T1', () => {
+  assert.equal(state.tier('t3'), 'T3');
+  assert.equal(state.tier('  t2  '), 'T2');
+  assert.equal(state.tier('nonsense'), 'T1');
+  assert.equal(state.tier(undefined), 'T1');
+  assert.equal(state.tier(42), 'T1');
+  assert.equal(state.tier({}), 'T1');
+});
+
+test('previousTier and nextTier walk the T1 -> T3 ladder', () => {
+  assert.equal(state.previousTier('T1'), 'T1');
+  assert.equal(state.previousTier('T3'), 'T2');
+  assert.equal(state.nextTier('T1'), 'T2');
+  assert.equal(state.nextTier('T2'), 'T3');
+  assert.equal(state.nextTier('T3'), 'T3');
+});
