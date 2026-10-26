@@ -14,6 +14,7 @@ await Promise.allSettled([loadStatus(),loadManifest(),loadGraph(),loadApprovals(
 renderGraph();
 renderApproval();
 renderHealth()}
+bindGraphView();
 $('refresh').onclick=refresh;
 $('agentpulserefresh').onclick=loadActivityPulse;
 $('agentpulseopen').onclick=()=>openAgentActivity();

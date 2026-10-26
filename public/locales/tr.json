@@ -356,7 +356,27 @@
     "noRelations": "Henüz ilişki yok.",
     "dataState": "Graf verisi {state}.",
     "isState": "Graf {state}.",
-    "relationsState": "İlişkiler {state}."
+    "relationsState": "İlişkiler {state}.",
+    "canvas": {
+      "title": "GÜVEN AĞI"
+    },
+    "zoomOut": "Uzaklaştır",
+    "zoomIn": "Yakınlaştır",
+    "zoomReset": "Görünümü sıfırla",
+    "stageLabel": "Güven ağı grafiği",
+    "detailLabel": "Düğüm ayrıntısı",
+    "detail": {
+      "title": "DÜĞÜM AYRINTISI",
+      "none": "Düğüm seçilmedi.",
+      "noneHint": "İlişkilerini görmek için graftan bir düğüm seçin.",
+      "node": "Düğüm",
+      "label": "Etiket",
+      "id": "Kimlik",
+      "confidence": "Güven",
+      "lastSeen": "Son görülme",
+      "relations": "İlişkiler",
+      "noRelations": "Bu düğümün ilişkisi yok."
+    }
   },
   "conflicts": {
     "eyebrow": "Graf Sinyalleri",

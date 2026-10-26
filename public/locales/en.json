@@ -356,7 +356,27 @@
     "noRelations": "No relations yet.",
     "dataState": "Graph data is {state}.",
     "isState": "Graph is {state}.",
-    "relationsState": "Relations are {state}."
+    "relationsState": "Relations are {state}.",
+    "canvas": {
+      "title": "TRUST NETWORK"
+    },
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "zoomReset": "Reset view",
+    "stageLabel": "Trust network graph",
+    "detailLabel": "Node detail",
+    "detail": {
+      "title": "NODE DETAIL",
+      "none": "No node selected.",
+      "noneHint": "Select a node in the graph to see its relations.",
+      "node": "Node",
+      "label": "Label",
+      "id": "ID",
+      "confidence": "Confidence",
+      "lastSeen": "Last seen",
+      "relations": "Relations",
+      "noRelations": "No relations for this node."
+    }
   },
   "conflicts": {
     "eyebrow": "Graph Signals",
