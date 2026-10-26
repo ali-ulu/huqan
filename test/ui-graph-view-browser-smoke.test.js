@@ -101,10 +101,20 @@ describe('graph view browser smoke (#4292)', { skip: skipReason ?? false }, () =
     `);
   }
 
-  /** Applies a stub and reloads the graph view through the real loadGraph(). */
+  /**
+   * Applies a stub and reloads the graph view, awaiting the real loadGraph().
+   *
+   * The click-and-poll version could observe the view mid-flight: a click on
+   * #grefresh returns immediately, so the assertion raced the fetch it just
+   * started. Awaiting the page's own loadGraph() promise means the render that
+   * follows is already complete when the assertion reads the DOM, and no other
+   * in-flight load can repaint it afterwards -- the bootstrap's first load is
+   * already settled by the before() hook below.
+   */
   async function serveGraph(stub) {
     await browser.evaluate(`window.__graphStub = ${JSON.stringify(stub)}; true;`);
-    await browser.evaluate(`document.getElementById('grefresh').click(); true;`);
+    const outcome = await browser.evaluate(`loadGraph().then(() => 'settled', () => 'settled')`);
+    if (outcome !== 'settled') throw new Error(`loadGraph() did not settle: ${outcome}`);
   }
 
   /** A small connected graph with a known relation mix. */
@@ -121,6 +131,19 @@ describe('graph view browser smoke (#4292)', { skip: skipReason ?? false }, () =
       { source: 'gamma', target: 'delta', relation: 'değil' },
     ];
     return { nodes, links };
+  }
+
+  /** True when `expression` holds on two consecutive reads ~120ms apart. */
+  async function waitForStable(expression, description) {
+    const deadline = Date.now() + WAIT_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      if (await browser.evaluate(expression)) {
+        await new Promise(resolve => setTimeout(resolve, 120));
+        if (await browser.evaluate(expression)) return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    throw new Error(`timed out waiting for ${description} to stay true`);
   }
 
   before(async () => {
@@ -141,12 +164,28 @@ describe('graph view browser smoke (#4292)', { skip: skipReason ?? false }, () =
 
     browser = await launchBrowserSession();
     await browser.navigate(`${base}/`);
-    await waitFor(
-      `!/CHECKING/.test(document.getElementById('meshbadgestate').textContent)`,
-      'the graph surface to settle after first load',
-    );
+    // Arm the stub with the fixture *before* any load races it, then drain.
+    //
+    // Two loads race the page's bootstrap: the `refresh()` from
+    // `probeAuthMode().finally()` and the one `go('graph')` fires when the nav
+    // button is clicked. A load that answers from the real server renders the
+    // empty workspace and, if it resolves after a test has drawn its own
+    // payload, repaints the view once and erases it -- which is how the first
+    // case timed out at "0 nodes" on the slower macOS runner. Answering every
+    // /graph-data from the fixture means a late repaint is identical, so the
+    // ordering stops mattering. The stable double read then proves the
+    // bootstrap has settled before the first case installs its own payload.
     await installStub();
+    await browser.evaluate(`window.__graphStub = { mode: 'ok', payload: ${JSON.stringify(graphFixture())} }; true;`);
+    await waitForStable(
+      `typeof state !== 'undefined' && state.surfaces && state.surfaces.graph && state.surfaces.graph.s !== 'checking'`,
+      'the bootstrap graph load',
+    );
     await browser.evaluate(`document.querySelector('.nav button[data-v="graph"]').click(); true;`);
+    await waitForStable(
+      `typeof state !== 'undefined' && state.surfaces && state.surfaces.graph && state.surfaces.graph.s !== 'checking'`,
+      'the navigation graph load',
+    );
   });
 
   after(async () => {
