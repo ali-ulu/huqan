@@ -144,6 +144,7 @@ if (typeof window !== 'undefined') {
     const d = describeApproval(a);
     return `
         <article class="ticket">
+          ${window.HuqanControlRoomApprovalsBatch?.renderSelect(a.id) || ''}
           <div>
             <h3>${esc(d.sentence)}</h3>
             <div class="meta">${metaLine(d, a.createdAt)}</div>
@@ -176,9 +177,10 @@ if (typeof window !== 'undefined') {
       $('#appr-queue').innerHTML = `<p class="empty panel">${tab === 'open'
         ? 'Nothing is waiting. New requests appear here the moment an agent is paused.'
         : 'No decisions yet. Approve or reject something from Open.'}</p>`;
-      return;
+    } else {
+      $('#appr-queue').innerHTML = tab === 'open' ? items.map(openCard).join('') : items.map(doneCard).join('');
     }
-    $('#appr-queue').innerHTML = tab === 'open' ? items.map(openCard).join('') : items.map(doneCard).join('');
+    window.HuqanControlRoomApprovalsBatch?.updateToolbar();
   }
 
   // ---------- details drawer ----------
@@ -270,7 +272,7 @@ if (typeof window !== 'undefined') {
   }
 
   async function confirmDialog() {
-    if (!pending) return;
+    if (!pending || pending.purpose === 'batch') return;
     const { id, decision, purpose } = pending;
     const operatorKey = $('#dd-key-field').hidden ? '' : $('#dd-key').value;
     const reason = $('#dd-reason').value.trim();
@@ -386,6 +388,12 @@ if (typeof window !== 'undefined') {
   $('#appr-refresh')?.addEventListener('click', load);
   UI.registerView('approvals', { onShow: load });
   loadGrant();
-  window.HuqanControlRoomApprovals = { getSessionApprovedCount, reload: load };
+  window.HuqanControlRoomApprovals = {
+    getSessionApprovedCount,
+    reload: load,
+    // Reused by control-room-approvals-batch.js so a bulk decision takes the same
+    // submitDecision path -- and the same one Trust Receipt per record -- as a single one.
+    batch: { getTab: () => tab, openList, renderQueue, setPending: (v) => { pending = v; }, pending: () => pending, submitDecision, closeDialog },
+  };
 })();
 }
