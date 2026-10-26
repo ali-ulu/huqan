@@ -77,14 +77,26 @@ if (typeof window !== 'undefined') {
     const operatorKey = $('#dd-key').value;
     const reason = $('#dd-reason').value.trim();
     $('#dd-confirm').disabled = true;
-    let succeeded = 0;
-    await Promise.all(pending.ids.map((id) => q.submitDecision(id, pending.decision, reason, operatorKey)
-      .then((result) => { if (result && result.ok) succeeded += 1; })
-      .catch(() => { /* submitDecision reports its own failure */ })));
-    toast(`${succeeded} approval${succeeded === 1 ? '' : 's'} ${pending.decision === 'approved' ? 'approved' : 'rejected'}. Each generated its own Trust Receipt.`);
-    clear();
-    updateToolbar();
-    q.closeDialog();
+    const results = await Promise.all(pending.ids.map((id) =>
+      q.submitDecision(id, pending.decision, reason, operatorKey)
+        .then((result) => ({ id, ok: !!result?.ok }))
+        .catch(() => ({ id, ok: false }))
+    ));
+    const succeeded = results.filter(r => r.ok).length;
+    const failedIds = results.filter(r => !r.ok).map(r => r.id);
+    if (succeeded > 0) {
+      toast(`${succeeded} approval${succeeded === 1 ? '' : 's'} ${pending.decision === 'approved' ? 'approved' : 'rejected'}. Each generated its own Trust Receipt.`);
+    }
+    if (failedIds.length > 0) {
+      // Başarısız onayları seçili tut → retry için
+      failedIds.forEach(id => selected.add(id));
+      updateToolbar();
+    } else {
+      // Tüm onaylar başarılıysa seçim temizle ve dialogu kapat
+      clear();
+      updateToolbar();
+      q.closeDialog();
+    }
   }
 
   document.addEventListener('click', (e) => {
