@@ -26,6 +26,12 @@ test('the conformance gate diffs the pull request from the merge base', () => {
     'conformance.yml must use a three-dot diff of BASE_SHA and HEAD_SHA');
   assert.doesNotMatch(conformance, /git diff --name-only "\$BASE_SHA" "\$HEAD_SHA"/,
     'the two-dot diff reports main\'s own newer commits as changed');
+  // `github.sha` on a pull_request event is the synthetic merge commit, whose
+  // tree already contains the base. A diff from the base to it omits a path the
+  // pull request changed when the base changed it identically, so the head must
+  // be the pull request head (the idiom benchmark.yml already uses).
+  assert.match(conformance, /HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
+    'the diff head must be the pull request head, not the synthetic merge commit');
 });
 
 test('the rust-accelerator gate diffs the pull request from the merge base', () => {
