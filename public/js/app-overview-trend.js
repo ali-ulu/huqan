@@ -2,15 +2,20 @@
 // HUQAN Trust Command Center – 7-day trend chart, parity with Control Room
 // Real data only, no fabrication. Shows empty state when no data.
 (function() {
-  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const WINDOW_MS = 604800000;
+
+  function summaryText(pass, review, block) {
+    return T('overview.trend.summary', `7-day agent activity summary: ${pass} passed, ${review} review, ${block} blocked actions.`, { pass, review, block });
+  }
 
   function lastSevenDays(items) {
     const today = new Date(); today.setHours(0,0,0,0);
+    // i18n sets <html lang>, so weekday names follow the selected locale.
+    const weekday = new Intl.DateTimeFormat(document.documentElement.lang || undefined, { weekday: 'short' });
     const days = Array.from({length:7}, (_, i) => {
       const d = new Date(today);
       d.setDate(d.getDate() - (6 - i));
-      return { key: d.toDateString(), label: i===6 ? T('overview.trend.today','Today') : DAY_NAMES[d.getDay()], pass:0, review:0, block:0, auto:0 };
+      return { key: d.toDateString(), label: i===6 ? T('overview.trend.today','Today') : weekday.format(d), pass:0, review:0, block:0 };
     });
     const byKey = new Map(days.map(d => [d.key, d]));
     items.forEach(item => {
@@ -21,10 +26,8 @@
       const status = String(item.status || item.receipt?.decision || '').toLowerCase();
       if (status === 'block') day.block += 1;
       else if (status === 'review') day.review += 1;
-      else if (status === 'allow') {
-        const auto = item.payload?.metadata?.autoApproved === true;
-        if (auto) day.auto += 1; else day.pass += 1;
-      }
+      // Auto-approved actions are allowed actions, so they plot in the pass band.
+      else if (status === 'allow') day.pass += 1;
     });
     return days;
   }
@@ -47,7 +50,8 @@
   }
 
   function renderTrendChart(items) {
-    const container = document.getElementById('trend-chart');
+    // The SVG lives in its own host so a re-render never removes the status nodes.
+    const container = document.getElementById('trend-svg');
     const statusEl = document.getElementById('trend-status');
     const emptyEl = document.getElementById('trend-empty');
     const summaryEl = document.getElementById('trend-summary');
@@ -56,20 +60,20 @@
     if (!Array.isArray(items) || items.length === 0) {
       if (statusEl) statusEl.textContent = T('overview.trend.noData','No data available');
       if (emptyEl) emptyEl.hidden = false;
-      if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
+      if (summaryEl) summaryEl.textContent = summaryText(0, 0, 0);
       container.innerHTML = '';
       return;
     }
 
     const data = lastSevenDays(items);
-    const totals = data.map(d => d.pass + d.review + d.block + d.auto);
+    const totals = data.map(d => d.pass + d.review + d.block);
     const totalSum = totals.reduce((a,b)=>a+b,0);
 
     // Show empty state when totals sum to zero (even if items non-empty)
     if (totalSum === 0) {
       if (statusEl) statusEl.textContent = T('overview.trend.empty','No activity in the last 7 days.');
       if (emptyEl) emptyEl.hidden = false;
-      if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
+      if (summaryEl) summaryEl.textContent = summaryText(0, 0, 0);
       container.innerHTML = '';
       return;
     }
@@ -79,8 +83,9 @@
     if (statusEl) statusEl.textContent = '';
 
     const max = niceMax(Math.max(...totals, 1));
-    const W = 720, H = 240, L = 40, R = 18, T = 18, B = 30;
-    const y = v => T + (H - T - B) * (1 - v / max);
+    // TOP, not T: a local T would shadow the i18n helper for the whole function.
+    const W = 720, H = 240, L = 40, R = 18, TOP = 18, B = 30;
+    const y = v => TOP + (H - TOP - B) * (1 - v / max);
     const x = i => L + i * (W - L - R) / (data.length - 1);
 
     const cum = {
@@ -120,25 +125,27 @@
 
     svg += `</svg>`;
     container.innerHTML = svg;
-    if (statusEl) statusEl.textContent = `7-day trend · ${totalSum} actions`;
+    if (statusEl) statusEl.textContent = T('overview.trend.total', `7-day trend · ${totalSum} actions`, { count: totalSum });
     if (emptyEl) emptyEl.hidden = true;
     // Update accessible summary
     const totalPass = data.reduce((a,d)=>a+d.pass,0);
     const totalReview = data.reduce((a,d)=>a+d.review,0);
     const totalBlock = data.reduce((a,d)=>a+d.block,0);
-    if (summaryEl) summaryEl.textContent = `7-day agent activity summary: ${totalPass} passed, ${totalReview} review, ${totalBlock} blocked actions.`;
+    if (summaryEl) summaryEl.textContent = summaryText(totalPass, totalReview, totalBlock);
   }
 
   async function loadTrend() {
     try {
       const ws = (window.state && state.ws) || 'default';
+      const cutoff = Date.now() - WINDOW_MS;
       let allItems = [];
       let cursor = null;
       let hasMore = true;
 
-      // Follow cursor to get all 7-day activity
+      // Pages arrive newest first and the route has no time filter, so stop
+      // at the first page that reaches past the seven-day window.
       while (hasMore) {
-        const q = new URLSearchParams({ workspaceId: ws, windowMs: String(WINDOW_MS) });
+        const q = new URLSearchParams({ workspaceId: ws, order: 'desc' });
         if (cursor) q.set('cursor', cursor);
         const res = await fetch(`/api/workbench/activity?${q}`, { headers: headers ? headers() : {} });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -146,19 +153,21 @@
         if (!d.ok || !Array.isArray(d.items)) throw new Error(T('overview.trend.invalidResponse','Invalid response'));
         allItems.push(...d.items);
         cursor = d.nextCursor || null;
-        hasMore = Boolean(d.hasMore && cursor);
+        const last = d.items[d.items.length - 1];
+        const oldest = last ? Date.parse(last.createdAt || last.timestamp || '') : NaN;
+        hasMore = Boolean(d.hasMore && cursor) && !(oldest < cutoff);
       }
 
       renderTrendChart(allItems);
     } catch (e) {
-      const container = document.getElementById('trend-chart');
+      const container = document.getElementById('trend-svg');
       const el = document.getElementById('trend-status');
       const empty = document.getElementById('trend-empty');
       const summaryEl = document.getElementById('trend-summary');
-      if (el) el.textContent = `Trend load failed: ${e.message}`;
+      if (el) el.textContent = T('overview.trend.failed', `Trend load failed: ${e.message}`, { message: e.message });
       if (empty) { empty.textContent = T('overview.trend.unavailable','Trend data unavailable'); empty.hidden = false; }
       if (container) container.innerHTML = ''; // Clear chart on failure
-      if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
+      if (summaryEl) summaryEl.textContent = summaryText(0, 0, 0);
     }
   }
 
