@@ -57,3 +57,23 @@ test('pagination stops at the first page that reaches past the seven-day window'
   await chart.loadTrend();
   assert.equal(calls, 2);
 });
+
+test('an older load that fails last cannot clear a newer chart', async () => {
+  let failFirst;
+  const { chart, nodes } = loadChart(() => {
+    if (!failFirst) return new Promise((_, reject) => { failFirst = () => reject(new Error('stale')); });
+    return Promise.resolve({ ok: true, json: async () => ({ ok: true, items: [{ createdAt: new Date().toISOString(), status: 'allow' }], hasMore: false }) });
+  });
+  const older = chart.loadTrend();
+  await chart.loadTrend();
+  failFirst();
+  await older;
+  assert.match(nodes.get('trend-svg').innerHTML, /^<svg/);
+});
+
+test('an empty result after a failure shows the empty text, not the failure text', () => {
+  const { chart, nodes } = loadChart();
+  nodes.get('trend-empty').textContent = 'Trend data unavailable';
+  chart.renderTrendChart([]);
+  assert.equal(nodes.get('trend-empty').textContent, 'No activity in the last 7 days.');
+});

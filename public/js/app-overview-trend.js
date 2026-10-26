@@ -59,7 +59,7 @@
 
     if (!Array.isArray(items) || items.length === 0) {
       if (statusEl) statusEl.textContent = T('overview.trend.noData','No data available');
-      if (emptyEl) emptyEl.hidden = false;
+      if (emptyEl) { emptyEl.textContent = T('overview.trend.empty','No activity in the last 7 days.'); emptyEl.hidden = false; }
       if (summaryEl) summaryEl.textContent = summaryText(0, 0, 0);
       container.innerHTML = '';
       return;
@@ -72,7 +72,7 @@
     // Show empty state when totals sum to zero (even if items non-empty)
     if (totalSum === 0) {
       if (statusEl) statusEl.textContent = T('overview.trend.empty','No activity in the last 7 days.');
-      if (emptyEl) emptyEl.hidden = false;
+      if (emptyEl) { emptyEl.textContent = T('overview.trend.empty','No activity in the last 7 days.'); emptyEl.hidden = false; }
       if (summaryEl) summaryEl.textContent = summaryText(0, 0, 0);
       container.innerHTML = '';
       return;
@@ -134,7 +134,11 @@
     if (summaryEl) summaryEl.textContent = summaryText(totalPass, totalReview, totalBlock);
   }
 
+  // Only the newest load may touch the DOM; an older one finishing last is dropped.
+  let trendSeq = 0;
+
   async function loadTrend() {
+    const seq = ++trendSeq;
     try {
       const ws = (window.state && state.ws) || 'default';
       const cutoff = Date.now() - WINDOW_MS;
@@ -158,8 +162,10 @@
         hasMore = Boolean(d.hasMore && cursor) && !(oldest < cutoff);
       }
 
+      if (seq !== trendSeq) return;
       renderTrendChart(allItems);
     } catch (e) {
+      if (seq !== trendSeq) return;
       const container = document.getElementById('trend-svg');
       const el = document.getElementById('trend-status');
       const empty = document.getElementById('trend-empty');
@@ -194,6 +200,8 @@
       wasActive = active;
     });
     observer.observe(document.body, { subtree: true, attributes: true, attributeFilter:['class'] });
+    // Redraw so weekday labels, counts and the summary follow the new locale.
+    window.addEventListener('huqan-locale-change', () => { if (isActive()) loadTrend(); });
   });
 
   window.HuqanOverviewTrend = { loadTrend, renderTrendChart };
