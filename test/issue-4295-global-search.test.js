@@ -147,3 +147,11 @@ test('the request handler challenges an unauthenticated /api/global-search call'
   assert.strictEqual(res.statusCode, 401);
   assert.strictEqual(denials.length, 1);
 });
+
+test('global-search refuses a non-GET method', async () => {
+  const { createGlobalSearchRoute } = require('../lib/http/global-search-route');
+  const handler = createGlobalSearchRoute({ kernel: { graph: { getNodes: () => ({}) } } });
+  const res = makeRes();
+  assert.strictEqual(await handler(makeReq('/api/global-search?q=x', 'POST'), res), true);
+  assert.strictEqual(res.statusCode, 405);
+});

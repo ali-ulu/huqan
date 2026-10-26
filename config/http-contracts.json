@@ -159,6 +159,14 @@
       "response": {"owner": "lib/http/trust-query-routes.js"}
     },
     {
+      "family": "global-search",
+      "routeIds": ["global-search"],
+      "exposure": "authenticated",
+      "methods": ["GET"],
+      "request": {"mode": "no-body", "owner": "lib/http/global-search-route.js", "evidence": ["req.method !== 'GET'"]},
+      "response": {"owner": "lib/http/global-search-route.js"}
+    },
+    {
       "family": "v5-package-import",
       "routeIds": ["v5-package-import"],
       "exposure": "authenticated",
