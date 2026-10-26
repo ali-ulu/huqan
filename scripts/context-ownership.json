@@ -5079,8 +5079,12 @@
    "evidence": "ownership-map-2446.md#R-HTTP-P"
   },
   "lib/http/static-assets.js": {
-   "kind": "entry",
-   "evidence": "ownership-map-2446.md#R-HTTP-P"
+    "kind": "entry",
+    "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
+  "lib/http/global-search-route.js": {
+    "kind": "entry",
+    "evidence": "#4295 global search read-only route; mounted by lib/http/server-request-handler.js:createServerRequestHandler via require('./global-search-route')"
   },
   "lib/http/trust-query-routes.js": {
    "kind": "entry",
@@ -8108,3 +8112,4 @@
   }
  }
 }
+

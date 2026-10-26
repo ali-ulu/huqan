@@ -22,18 +22,25 @@ test('observability dashboard time-window contract', async t => {
     assert.match(dashboard, /value="86400000" selected[^>]*>Last 24 hours/);
     assert.match(dashboard, /value="604800000"[^>]*>Last 7 days/);
     assert.match(dashboard, /value="2678400000"[^>]*>Last 31 days/);
+    // Custom date range inputs
+    assert.match(dashboard, /id="obsstart"/);
+    assert.match(dashboard, /id="obsend"/);
+    assert.match(dashboard, /id="obsdaterangeapply"/);
   });
 
-  await t.test('uses the selected window for metrics and runs while keeping queue/alerts bounded', () => {
+  await t.test('uses the selected window or custom range for metrics and runs while keeping queue/alerts bounded', () => {
     assert.match(script, /const observabilityWindow = \(\) =>/);
     assert.match(script, /Number\.isSafeInteger\(value\) && value >= 1000/);
-    assert.match(script, /get\(`\/api\/observability\/metrics\?windowMs=\$\{windowMs\}`\)/);
+    assert.match(script, /const observabilityCustomRange = \(\) =>/);
+    assert.match(script, /const observabilityRangeParams = \(\) =>/);
+    assert.match(script, /get\(metricsUrl\)/);
     assert.match(script, /async function loadRuns\(reset = true\)/);
-    assert.match(script, /get\(`\/api\/observability\/runs\?limit=20&windowMs=\$\{windowMs\}\$\{cursorQuery\}`\)/);
+    assert.match(script, /const range = observabilityRangeParams\(\)/);
     assert.match(script, /loadRuns\(true\)/);
     assert.match(script, /get\('\/api\/observability\/queue\?limit=20'\)/);
     assert.match(script, /get\('\/api\/observability\/alerts\?limit=20'\)/);
     assert.match(script, /byId\('obswindow'\)\?\.addEventListener\('change', loadAll\)/);
+    assert.match(script, /byId\('obsdaterangeapply'\)\?\.addEventListener\('click', loadAll\)/);
   });
 
   await t.test('keeps the workspace and selected label in the request status', () => {

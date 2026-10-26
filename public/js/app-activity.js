@@ -30,8 +30,7 @@ $('activitycount').textContent=items.length;
 $('activitymeta').textContent=`${items.length} row · ${state.activity.hasMore?'next page available':'bounded page'}`;
 $('activitynext').disabled=!state.activity.hasMore;
 $('activitylist').innerHTML=items.map(x=>`<div class="item activityrow" data-activity-id="${esc(x.auditId)}" tabindex="0"><b>${esc(x.eventType||'AUDIT')} · ${esc(x.action||'activity')}</b><div class="sub">${esc(x.timestamp||'—')} · ${esc(x.actor||'system')} · ${esc(x.targetType||'—')}:${esc(x.targetId||'—')}</div><span class="tag">${esc(x.sourceRef||'audit')}</span>${x.receipt?`<span class="tag good">Receipt ${esc(x.receipt.receiptId)}</span><div class="actions activityreceipt"><button class="btn" data-activity-receipt="${esc(x.receipt.receiptId)}">${esc(T('evidence.openReceipt','Open receipt'))}</button></div>`:''}</div>`).join('')||`<div class="empty">${esc(T('activity.noneForFilters','No activity found for these filters.'))}</div>`}
-function pulseStatus(kind,detail=''){const e=$('activitypulsestate'),tone=kind==='LIVE'?'ok':kind==='LOCKED'?'locked':kind==='ERROR'?'err':'';
-e.textContent=kind;
+function pulseStatus(kind,detail=''){const e=$('activitypulsestate'),tone=kind==='LIVE'?'ok':kind==='LOCKED'?'locked':kind==='ERROR'?'err':kind==='OFFLINE'?'err':kind==='DEGRADED'?'warn':'';e.textContent=kind;
 e.className='state '+tone;
 $('activitypulsemeta').textContent=detail||`workspace scoped · ${state.ws}`}
 function pulseTime(value){const parsed=Date.parse(value||'');
@@ -41,6 +40,7 @@ function pulseDecision(item){if(item?.receipt?.browserSession)return{text:T('act
 const decision=String(item?.receipt?.decision||'').toLowerCase();
 return{text:decision?decision.toUpperCase():'—',tone:/allow|approved|accept/.test(decision)?'good':/reject|deny|block/.test(decision)?'bad':''}
 }
+let pulseStreamStatus=null,pulseReadSeq=0;
 function renderAgentActivityPulse(kind='LIVE',detail=''){const p=state.activityPulse||{items:[],hasMore:false}
 ,status=String(kind).toUpperCase(),list=$('activitypulseitems');
 if(status==='LOADING'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
@@ -55,6 +55,10 @@ if(status==='ERROR'){['activitypulsecount','activitypulseactors','activitypulser
 pulseStatus('ERROR',`${state.ws} · ${detail||'read failed'}`);
 list.innerHTML=`<div class="empty">${esc(T('pulse.error','Activity could not be loaded. Try again.'))}</div>`;
 return}
+if(pulseStreamStatus){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
+pulseStatus(pulseStreamStatus.status,`${state.ws} · ${pulseStreamStatus.detail||pulseStreamStatus.status}`);
+list.innerHTML=`<div class="empty">${esc(pulseStreamStatus.status==='OFFLINE'?T('pulse.offline','Live stream offline.'):T('pulse.degraded','Live stream degraded.'))}</div>`;
+return}
 const items=Array.isArray(p.items)?p.items.slice(0,5):[],actors=new Set(items.map(x=>x.actor||'system')),receipts=items.filter(x=>x.receipt?.receiptId).length;
 $('activitypulsecount').textContent=String(items.length);
 $('activitypulseactors').textContent=String(items.length?actors.size:0);
@@ -64,10 +68,13 @@ list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in th
 return}
 pulseStatus('LIVE',`${state.ws} · ${items.length} page events${p.hasMore?' · more available':''}${detail?` · ${detail}`:''}`);
 list.innerHTML=items.map(x=>{const decision=pulseDecision(x),target=x.targetId?`${x.targetType||'target'}:${x.targetId}`:'—',label=`${x.eventType||'AUDIT'} ${x.action||'activity'} by ${x.actor||'system'}`;return `<div class="pulserow" data-activity-pulse-id="${esc(x.auditId)}" role="button" tabindex="0" aria-label="${esc(label)}"><i class="pulse-dot ${decision.tone}" aria-hidden="true"></i><div><b>${esc(x.eventType||'AUDIT')} · ${esc(x.action||'activity')}</b><span>${esc(x.actor||'system')} · ${esc(x.tool||target)} · ${esc(pulseTime(x.timestamp))}</span></div><span class="tag ${decision.tone}" title="${esc(x.receipt?.receiptId||T('evidence.noReceipt','No receipt'))}">${esc(decision.text)}</span></div>`}).join('')}
-async function loadActivityPulse(){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.'),nextAction:M('runtime.next.wait','Wait')});
-renderAgentActivityPulse('LOADING');
+async function loadActivityPulse(quiet=false){if(quiet!==true){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.'),nextAction:M('runtime.next.wait','Wait')});
+renderAgentActivityPulse('LOADING')}
+// Only the newest read may render; an older one finishing last is dropped.
+const seq=++pulseReadSeq;
 try{const q=new URLSearchParams({workspaceId:state.ws,limit:'5',order:'desc'}),{r,d}
 =await json(`/api/workbench/activity?${q}`,{headers:headers()});
+if(seq!==pulseReadSeq)return;
 if(!r.ok){const locked=r.status===401||r.status===403;
 surface('activity',locked?'locked':'err',{reason:locked?M('runtime.locked.activity','API key required to read activity.'):{k:'runtime.failed.activityHttp',f:`Activity request failed with HTTP ${r.status}.`,p:{status:r.status}},nextAction:locked?M('onboarding.steps.session.cta','Open Settings'):M('common.retry','Retry')});
 renderAgentActivityPulse(r.status===401||r.status===403?'LOCKED':'ERROR',d?.error?.code||`HTTP ${r.status}`);
@@ -78,7 +85,7 @@ state.activityPulse={items:d.items.slice(0,5),nextCursor:d.nextCursor||null,hasM
 const empty=!state.activityPulse.items.length;
 surface('activity',empty?'empty':'ok',{reason:empty?M('runtime.empty.activity','No activity exists in this workspace.'):M('runtime.fetched.activity','Activity fetched for this workspace.'),nextAction:M('common.refresh','Refresh')});
 renderAgentActivityPulse(empty?'EMPTY':'LIVE')}
-catch(e){surface('activity','err',{reason:{k:'runtime.failed.activityDetail',f:`Activity request failed: ${e.message}`,p:{message:e.message}},nextAction:M('common.retry','Retry')});
+catch(e){if(seq!==pulseReadSeq)return;surface('activity','err',{reason:{k:'runtime.failed.activityDetail',f:`Activity request failed: ${e.message}`,p:{message:e.message}},nextAction:M('common.retry','Retry')});
 state.activityPulse={items:[],nextCursor:null,hasMore:false,lastChecked:null}
 ;
 renderAgentActivityPulse('ERROR',e.message)}
@@ -124,3 +131,19 @@ $('einput').value=n.dataset.receipt;
 $('emode').value='receiptId';
 go('evidence');
 loadReceipt()}
+// Connect overview pulse to live SSE stream (#4298 #4300)
+if (typeof window !== 'undefined') {
+  // A stream event is an observability event, not an activity row: re-read the
+  // projected activity page instead of prepending the raw event.
+  window.addEventListener('huqan:sse:event', (e) => {
+    if (e.detail?.eventType) loadActivityPulse(true);
+  });
+  // Stream connection status sync: OFFLINE/DEGRADED handling. On CONNECTED the
+  // fresh read decides the state, so a failed activity read stays ERROR.
+  window.addEventListener('huqan:sse:status', (e) => {
+    const { status, detail } = e.detail || {};
+    pulseStreamStatus = (status === 'OFFLINE' || status === 'DEGRADED') ? { status, detail } : null;
+    if (pulseStreamStatus) renderAgentActivityPulse(status, detail || '');
+    else loadActivityPulse(true);
+  });
+}

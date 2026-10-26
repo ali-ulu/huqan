@@ -38,7 +38,27 @@
     const value = Number(byId('obswindow')?.value);
     return Number.isSafeInteger(value) && value >= 1000 ? value : 24 * 60 * 60 * 1000;
   };
-  const observabilityWindowLabel = () => byId('obswindow')?.selectedOptions?.[0]?.textContent || T('observability.selectedWindow', 'selected window');
+  // An applied custom range replaces the preset window, so the labels name the range instead.
+  const observabilityWindowLabel = () => {
+    const custom = observabilityCustomRange();
+    if (custom) return `${new Date(custom.startMs).toLocaleString(locale())} – ${new Date(custom.endMs).toLocaleString(locale())}`;
+    return byId('obswindow')?.selectedOptions?.[0]?.textContent || T('observability.selectedWindow', 'selected window');
+  };
+  const observabilityCustomRange = () => {
+    const start = byId('obsstart')?.value;
+    const end = byId('obsend')?.value;
+    if (start && end) {
+      const s = new Date(start).getTime();
+      const e = new Date(end).getTime();
+      if (Number.isFinite(s) && Number.isFinite(e) && s <= e) return { startMs: s, endMs: e };
+    }
+    return null;
+  };
+  const observabilityRangeParams = () => {
+    const custom = observabilityCustomRange();
+    if (custom) return custom;
+    return { windowMs: String(observabilityWindow()) };
+  };
   const STREAM_BASE_RECONNECT_DELAY_MS = 1000;
   const STREAM_MAX_RECONNECT_DELAY_MS = 15000;
   const STREAM_MAX_SEEN_EVENTS = 128;
@@ -62,7 +82,8 @@
       observabilityEvents.eventType = byId('obseventtype')?.value.trim() || '';
       observabilityEvents.runId = byId('obseventrun')?.value.trim() || '';
     }
-    const query = new URLSearchParams({ limit: '20', windowMs: String(observabilityWindow()) });
+    const range = observabilityRangeParams();
+    const query = new URLSearchParams({ limit: '20', ...range });
     if (cursor) query.set('cursor', cursor);
     if (observabilityEvents.eventType) query.set('eventType', observabilityEvents.eventType);
     if (observabilityEvents.runId) query.set('runId', observabilityEvents.runId);
@@ -88,11 +109,11 @@
     return observabilityEvents;
   }
   async function loadRuns(reset = true) {
-    const windowMs = observabilityWindow();
+    const range = observabilityRangeParams();
     const cursor = reset ? '' : observabilityRuns.nextCursor;
     if (!reset && !cursor) return observabilityRuns;
     const cursorQuery = cursor ? `&cursor=${encodeURIComponent(cursor)}` : '';
-    const page = await get(`/api/observability/runs?limit=20&windowMs=${windowMs}${cursorQuery}`);
+    const page = await get(`/api/observability/runs?limit=20${cursorQuery}${Object.keys(range).map(k => `&${k}=${range[k]}`).join('')}`);
     observabilityRuns.items = reset ? (page.items || []) : [...observabilityRuns.items, ...(page.items || [])];
     observabilityRuns.nextCursor = page.nextCursor || null;
     observabilityRuns.hasMore = Boolean(page.hasMore && observabilityRuns.nextCursor);
@@ -104,9 +125,10 @@
     setStatus(T('observabilityStatus.loading', 'Loading observability…'));
     byId('obstoolmeta').textContent = T('observability.toolUsage.subtitle', `workspace-scoped · ${observabilityWindowLabel()}`, { window: observabilityWindowLabel() });
     try {
-      const windowMs = observabilityWindow();
+      const range = observabilityRangeParams();
+      const metricsUrl = `/api/observability/metrics?${Object.keys(range).map(k => `${k}=${range[k]}`).join('&')}`;
       const [metrics, , , queue, alerts] = await Promise.all([
-        get(`/api/observability/metrics?windowMs=${windowMs}`),
+        get(metricsUrl),
         loadRuns(true),
         loadEventHistory(true),
         get('/api/observability/queue?limit=20'),
@@ -133,6 +155,7 @@
     setObservabilityReadiness(false, T('observabilityStatus.checking', 'CHECKING - confirming observability is available for this workspace.'));
     byId('obsrefresh')?.addEventListener('click', () => { loadAll(); connectStream(); });
     byId('obswindow')?.addEventListener('change', loadAll);
+    byId('obsdaterangeapply')?.addEventListener('click', loadAll);
     const eventLoadError = error => { byId('obseventstatus').textContent = T('observability.events.loadError', `Event history could not be loaded: ${error.message}`, { message: error.message }); };
     byId('obsrunsnext')?.addEventListener('click', () => loadRuns(false).catch(error => setStatus(T('observability.runs.loadError', `Run history could not be loaded: ${error.message}`, { message: error.message }))));
     byId('obseventapply')?.addEventListener('click', () => loadEventHistory(true).catch(eventLoadError));

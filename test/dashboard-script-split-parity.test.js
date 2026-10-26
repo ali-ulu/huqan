@@ -23,7 +23,8 @@ const { run } = require('./helpers/dashboard-runtime');
 
 const PUBLIC_ROOT = path.join(__dirname, '..', 'public');
 const MODULES = ['app-core.js', 'app-net.js', 'app-health.js', 'app-graph.js',
-  'app-approvals.js', 'app-verify.js', 'app-activity.js', 'app-evidence.js', 'app-wiring.js'];
+  'app-approvals.js', 'app-verify.js', 'app-activity.js', 'app-overview-trend.js',
+  'app-evidence.js', 'app-wiring.js'];
 const AS_REF = (name) => `/js/${name}`;
 const SNAPSHOT_KEYS = ['textContent', 'innerHTML', 'hidden', 'onclick', 'onchange', 'onkeydown'];
 
@@ -66,7 +67,7 @@ test('the assembled dashboard executes with the split modules and no bundle', as
   assert.ok(refs.includes(AS_REF('app-core.js')));
   assert.ok(!refs.includes('/js/app.js'));
   assert.deepEqual(appErrors(await run({})), [],
-    'the nine modules -- and only they -- run top to bottom without a reference error');
+    'the modules -- and only they -- run top to bottom without a reference error');
 });
 
 test('the split renders the same DOM as the bundle it replaced', async () => {

@@ -29,7 +29,8 @@ test('observability dashboard event history contract', async t => {
   await t.test('requests the selected bounded window, filters and URL-encoded cursor through the shared workspace get helper', () => {
     assert.match(script, /const observabilityEvents = \{ items: \[\], nextCursor: null, hasMore: false, eventType: '', runId: '' \}/);
     assert.match(script, /async function loadEventHistory\(reset = true\)/);
-    assert.match(script, /const query = new URLSearchParams\(\{ limit: '20', windowMs: String\(observabilityWindow\(\)\) \}\)/);
+    assert.match(script, /const range = observabilityRangeParams\(\)/);
+    assert.match(script, /const query = new URLSearchParams\(\{ limit: '20', ...range \}\)/);
     assert.match(script, /if \(cursor\) query\.set\('cursor', cursor\)/);
     assert.match(script, /query\.set\('eventType', observabilityEvents\.eventType\)/);
     assert.match(script, /query\.set\('runId', observabilityEvents\.runId\)/);

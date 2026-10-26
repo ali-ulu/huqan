@@ -31,7 +31,8 @@ test('observability dashboard run pagination contract', async t => {
     assert.match(script, /const cursor = reset \? '' : observabilityRuns\.nextCursor/);
     assert.match(script, /if \(!reset && !cursor\) return observabilityRuns/);
     assert.match(script, /cursor \? `&cursor=\$\{encodeURIComponent\(cursor\)\}` : ''/);
-    assert.match(script, /get\(`\/api\/observability\/runs\?limit=20&windowMs=\$\{windowMs\}\$\{cursorQuery\}`\)/);
+    assert.match(script, /const range = observabilityRangeParams\(\)/);
+    assert.match(script, /get\(`\/api\/observability\/runs\?limit=20\$\{cursorQuery\}\$\{Object\.keys\(range\)\.map\(k => `&\$\{k\}=\$\{range\[k\]\}`\)\.join\(''\)\}`\)/);
     assert.match(script, /byId\('obsrunsnext'\)\?\.addEventListener\('click', \(\) => loadRuns\(false\)/);
   });
 

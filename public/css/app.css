@@ -34,3 +34,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .localepick{display:flex;align-items:center}.localepick select{border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:6px 8px;font-size:12px;min-height:32px}.localepick select:focus-visible{border-color:#1688ff66}.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}@media(max-width:600px){.localepick select{min-height:44px}}
 /* Page scrolling controls remain outside the active scrolling view. */
 .main{position:relative}.view{scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#6d9ac7 #edf5fc;padding-bottom:88px}.view::-webkit-scrollbar{width:10px}.view::-webkit-scrollbar-track{background:#edf5fc}.view::-webkit-scrollbar-thumb{background:#6d9ac7;border:2px solid #edf5fc;border-radius:8px}.page-scroll-controls{position:absolute;right:24px;bottom:12px;display:flex;gap:6px;padding:5px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 4px 16px #10233f20;z-index:20;max-width:calc(100% - 24px)}.page-scroll-controls[hidden]{display:none}.page-scroll-controls .btn{min-width:44px;min-height:44px;padding:8px;font-size:20px}.view:focus-visible{outline:2px solid #0759ae;outline-offset:-3px}
+.search{position:relative}
+.search-results{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:320px;overflow:auto;z-index:100}
+.search-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.search-item:hover{background:#eaf6ff}
+.search-item-main{font-size:13px;color:var(--ink)}
+.search-item-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.search-item mark{background:#fff3b0;padding:0}
+.windowfilter{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.date-range{display:flex;align-items:center;gap:6px;margin-left:8px}
+.date-range input{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:12px}
+.btn.range-apply{min-height:28px;padding:4px 8px;font-size:12px}

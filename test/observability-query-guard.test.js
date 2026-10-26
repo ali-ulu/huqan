@@ -82,3 +82,61 @@ test('observability query guard preserves exact workspace validation and accepts
     windowMs: '60000',
   });
 });
+
+test('a custom date range reaches the list and metrics queries as numbers (#4296)', async () => {
+  const events = harness();
+  await events.router(
+    { method: 'GET', headers: {} },
+    {},
+    new URL('http://local/api/observability/events?workspaceId=ws-a&startMs=1000&endMs=2000'),
+  );
+  assert.equal(events.writes[0].status, 200);
+  assert.equal(events.calls[0].input.startMs, 1000);
+  assert.equal(events.calls[0].input.endMs, 2000);
+
+  const metrics = harness();
+  await metrics.router(
+    { method: 'GET', headers: {} },
+    {},
+    new URL('http://local/api/observability/metrics?workspaceId=ws-a&startMs=1000&endMs=2000'),
+  );
+  assert.equal(metrics.writes[0].status, 200);
+  const summary = metrics.calls.find(call => call.key === 'summary');
+  assert.equal(summary.input.startMs, 1000);
+  assert.equal(summary.input.endMs, 2000);
+});
+
+test('a malformed custom date range is rejected before the service runs (#4296)', async () => {
+  const cases = [
+    '/events?workspaceId=ws-a&startMs=2000&endMs=1000', // start after end
+    '/events?workspaceId=ws-a&startMs=1000', // end missing
+    '/runs?workspaceId=ws-a&endMs=1000', // start missing
+    '/metrics?workspaceId=ws-a&startMs=abc&endMs=2000',
+    '/metrics?workspaceId=ws-a&startMs=-1&endMs=2000',
+    '/runs?workspaceId=ws-a&startMs=1000.5&endMs=2000',
+    '/runs?workspaceId=ws-a&startMs=1000&endMs=1234567890123456', // beyond 15 digits
+    '/events?workspaceId=ws-a&startMs=&endMs=2000',
+    '/metrics?workspaceId=ws-a&startMs=%20&endMs=2000', // whitespace must not become 0
+  ];
+  for (const path of cases) {
+    const h = harness();
+    await h.router({ method: 'GET', headers: {} }, {}, new URL(`http://local/api/observability${path}`));
+    assert.equal(h.writes[0]?.status, 400, path);
+    assert.equal(h.writes[0]?.response.error.code, 'OBSERVABILITY_QUERY_INVALID', path);
+    assert.deepEqual(h.calls, [], path);
+  }
+});
+
+test('a range of one instant is valid and an absent range adds no range keys (#4296)', async () => {
+  const instant = harness();
+  await instant.router({ method: 'GET', headers: {} }, {}, new URL('http://local/api/observability/runs?workspaceId=ws-a&startMs=0&endMs=0'));
+  assert.equal(instant.writes[0].status, 200);
+  assert.equal(instant.calls[0].input.startMs, 0);
+  assert.equal(instant.calls[0].input.endMs, 0);
+
+  const plain = harness();
+  await plain.router({ method: 'GET', headers: {} }, {}, new URL('http://local/api/observability/metrics?workspaceId=ws-a'));
+  const summary = plain.calls.find(call => call.key === 'summary');
+  assert.equal('startMs' in summary.input, false);
+  assert.equal('endMs' in summary.input, false);
+});

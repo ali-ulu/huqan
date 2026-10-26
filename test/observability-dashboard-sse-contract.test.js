@@ -60,7 +60,10 @@ test('observability dashboard SSE contract', async t => {
     assert.match(script, /if \(event\.eventType && appendEvent\(event\)\) \{/);
     assert.match(script, /streamState\.retryAttempt = 0/);
     assert.match(script, /loadAll\(\);/);
-    assert.match(script, /buffer\.split\('\\\\n\\\\n'\)/);
+    // The file is served as-is, so the separator must be a real blank line; the
+    // escaped '\\n\\n' form left over from the inline-HTML era matched no frame (#4300).
+    assert.match(script, /buffer\.split\('\\n\\n'\)/);
+    assert.match(script, /frame\.startsWith\(': keep-alive'\)\) \{ streamState\.retryAttempt = 0;/);
   });
 
   await t.test('keeps the inline dashboard script syntactically valid', () => {
