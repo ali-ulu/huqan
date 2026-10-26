@@ -117,6 +117,18 @@ describe('declared test executable allowlist (#4073)', () => {
     }
   });
 
+  it('refuses node --run which executes npm scripts through shell', () => {
+    // node --run <script> runs the script from package.json through /bin/sh -c,
+    // achieving the same shell access as inline code flags.
+    for (const command of ['node --run myscript', 'node --run=myscript']) {
+      const spawn = fakeSpawn([]);
+      const result = runDeclaredTest({ test: { command }, root: '.', spawn });
+      assert.equal(result.ran, false, `${command} ran`);
+      assert.equal(result.reason, TEST_REFUSALS.TEST_COMMAND_INLINE_CODE, command);
+      assert.equal(spawn.calls.length, 0, `${command} spawned`);
+    }
+  });
+
   it('still runs the declared test executable', () => {
     const spawn = fakeSpawn([{ status: 0 }]);
     const result = runDeclaredTest({ test: { command: 'node --test test/x.js' }, root: '.', spawn });

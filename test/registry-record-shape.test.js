@@ -37,6 +37,10 @@ function publicKey(fill = 7) {
 /**
  * The receiver's own view of who exists. Registration is checked against this
  * and never against the request body.
+ *
+ * The `keyReference` on each identity entry is the binding #4242 pins: the key
+ * the receiver holds *for this identity*, which is the only reference a record
+ * for that identity may name as its trust root.
  */
 function authorityFixture() {
   return {
@@ -49,11 +53,18 @@ function authorityFixture() {
     },
     identities: [
       {
+        ref: 'identity:receiver',
+        keyReference: 'test-key:receiver',
+        record: { agent_id: 'agent-receiver', workspace_id: 'default' },
+      },
+      {
         ref: 'identity:worker-1',
+        keyReference: 'test-key:worker-1',
         record: { agent_id: 'agent-worker-1', workspace_id: 'default' },
       },
       {
         ref: 'identity:worker-2',
+        keyReference: 'test-key:worker-2',
         record: { agent_id: 'agent-worker-2', workspace_id: 'other-workspace' },
       },
     ],
@@ -151,6 +162,37 @@ test('a held identityRef paired with another record agentId fails closed', () =>
 
   assert.equal(result.ok, false);
   assert.equal(result.reasonCategory, 'identity_not_receiver_held');
+});
+
+// #4242 / CWE-290: an active key that belongs to somebody else is not a trust
+// root for this record. The reference was only checked for liveness, so a
+// registration for worker-1 could name worker-2's active key and be admitted
+// as though worker-2's trust backed worker-1 -- the misbound record a reader
+// then sees under the target's identity.
+test("another entity's active trust root is not bound to this identity", () => {
+  const result = admit({
+    request: validRequest({ trustRootReference: 'test-key:worker-2' }),
+    trustedKeyRecords: [
+      { keyReference: 'test-key:worker-1', status: 'active', publicKeySpkiDer: publicKey() },
+      { keyReference: 'test-key:worker-2', status: 'active', publicKeySpkiDer: publicKey(9) },
+    ],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reasonCategory, 'trust_root_not_bound_to_identity');
+  assert.equal(Object.hasOwn(result, 'record'), false, 'a rejection must leave no partial record');
+});
+
+// The binding is on the record's own identity, so the same reference admitted
+// for the identity that holds it is still admitted -- the check refuses a
+// borrowed key, not a real one.
+test('the receiver-held key for the same identity is bound and admitted', () => {
+  const result = admit({
+    request: validRequest({ trustRootReference: 'test-key:worker-1' }),
+  });
+
+  assert.equal(result.ok, true, result.reasonCategory);
+  assert.equal(result.record.trustRootReference, 'test-key:worker-1');
 });
 
 test('a held identity registered under the wrong workspace fails closed', () => {
