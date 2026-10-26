@@ -121,7 +121,6 @@ if (typeof window !== 'undefined') {
   let decidedThisSession = []; // { approval, decision, reason, decidedAt }
   let tab = 'open';
   let grant = { mode: 'ask', autoActive: false, autoAvailable: false, available: true };
-  let selectedApprovals = new Set(); // Track selected approval IDs for bulk operations
 
   function getSessionApprovedCount() {
     return decidedThisSession.filter((d) => d.decision === 'approved').length;
@@ -143,12 +142,9 @@ if (typeof window !== 'undefined') {
 
   function openCard(a) {
     const d = describeApproval(a);
-    const isSelected = selectedApprovals.has(a.id);
     return `
         <article class="ticket">
-          <div class="ticket-select">
-            <input type="checkbox" class="approval-select" data-id="${esc(a.id)}" ${isSelected ? 'checked' : ''} data-role-hide="viewer" aria-label="Select approval">
-          </div>
+          ${window.HuqanControlRoomApprovalsBatch?.renderSelect(a.id) || ''}
           <div>
             <h3>${esc(d.sentence)}</h3>
             <div class="meta">${metaLine(d, a.createdAt)}</div>
@@ -175,37 +171,16 @@ if (typeof window !== 'undefined') {
         </article>`;
   }
 
-  function updateBatchToolbar() {
-    const count = selectedApprovals.size;
-    const toolbar = $('#appr-toolbar');
-    const approveBtn = $('#batch-approve');
-    const rejectBtn = $('#batch-reject');
-    const countEl = $('#batch-count');
-    if (!toolbar || !approveBtn || !rejectBtn || !countEl) return;
-
-    if (tab === 'open' && count > 0) {
-      toolbar.hidden = false;
-      approveBtn.disabled = false;
-      rejectBtn.disabled = false;
-      countEl.textContent = `${count} selected`;
-    } else {
-      toolbar.hidden = true;
-    }
-  }
-
   function renderQueue() {
     const items = tab === 'open' ? openList() : decidedThisSession;
     if (!items.length) {
       $('#appr-queue').innerHTML = `<p class="empty panel">${tab === 'open'
         ? 'Nothing is waiting. New requests appear here the moment an agent is paused.'
         : 'No decisions yet. Approve or reject something from Open.'}</p>`;
-      // Clear selection when queue is empty
-      selectedApprovals.clear();
-      updateBatchToolbar();
-      return;
+    } else {
+      $('#appr-queue').innerHTML = tab === 'open' ? items.map(openCard).join('') : items.map(doneCard).join('');
     }
-    $('#appr-queue').innerHTML = tab === 'open' ? items.map(openCard).join('') : items.map(doneCard).join('');
-    updateBatchToolbar();
+    window.HuqanControlRoomApprovalsBatch?.updateToolbar();
   }
 
   // ---------- details drawer ----------
@@ -244,56 +219,9 @@ if (typeof window !== 'undefined') {
   // ---------- decision dialog ----------
   // Asks for operator approval at the moment of the decision. Nothing typed
   // here is stored: the key is sent once to mint a one-use grant.
-  let pending = null; // { id, decision, purpose, ids? }
+  let pending = null; // { id, decision, purpose }
 
   function openDialog({ id, decision, purpose = 'decide', message = '', forceKey = false }) {
-    // Handle batch purpose
-    if (purpose === 'batch') {
-      pending = { id, decision, purpose, ids: window.__batchOp?.ids || [] };
-      const count = pending.ids.length;
-      const action = decision === 'approved' ? 'Approve' : 'Reject';
-      $('#dd-title').textContent = `Batch ${action} ${count} approval${count > 1 ? 's' : ''}?`;
-      $('#dd-summary').textContent = `Each will generate its own Trust Receipt.`;
-      $('#dd-reason-field').hidden = !(decision === 'rejected');
-      $('#dd-key-field').hidden = false;
-      $('#dd-reason').value = '';
-      $('#dd-key').value = '';
-      $('#dd-error').textContent = message;
-      const confirm = $('#dd-confirm');
-      confirm.textContent = action;
-      confirm.className = `btn ${decision === 'rejected' ? 'danger' : 'primary'}`;
-      confirm.disabled = false;
-      $('#decide-dialog').hidden = false;
-      $('#scrim').classList.add('on');
-      $('#dd-key').focus();
-      // Handle the confirm click for batch
-      const confirmBtn = $('#dd-confirm');
-      const handler = async () => {
-        const operatorKey = $('#dd-key').value;
-        const reason = $('#dd-reason').value.trim();
-        // Process all selected approvals
-        const ids = pending.ids;
-        let succeeded = 0;
-        const promises = ids.map(itemId => {
-          return submitDecision(itemId, decision, reason, operatorKey).then(result => {
-            if (result.ok) succeeded++;
-          }).catch(() => {
-            // failure handled by submitDecision
-          });
-        });
-        await Promise.all(promises);
-        toast(`${succeeded} approval${succeeded > 1 ? 's' : ''} ${decision === 'approved' ? 'approved' : 'rejected'}. Each generated its own Trust Receipt.`);
-        selectedApprovals.clear();
-        updateBatchToolbar();
-        closeDialog();
-        confirmBtn.removeEventListener('click', handler);
-      };
-      confirmBtn.removeEventListener('click', handler);
-      confirmBtn.addEventListener('click', handler);
-      return;
-    }
-
-    // Regular single approval dialog
     pending = { id, decision, purpose };
     const a = id ? findOpen(id) : null;
     const d = a ? describeApproval(a) : null;
@@ -344,7 +272,7 @@ if (typeof window !== 'undefined') {
   }
 
   async function confirmDialog() {
-    if (!pending) return;
+    if (!pending || pending.purpose === 'batch') return;
     const { id, decision, purpose } = pending;
     const operatorKey = $('#dd-key-field').hidden ? '' : $('#dd-key').value;
     const reason = $('#dd-reason').value.trim();
@@ -361,23 +289,6 @@ if (typeof window !== 'undefined') {
     }
     if (purpose === 'enable-auto') toast('Automatic approval is on for this computer.');
     closeDialog();
-  }
-
-  async function batchDecide(decision) {
-    const ids = Array.from(selectedApprovals);
-    if (ids.length === 0) return;
-
-    // Store batch operation info for the dialog handler
-    window.__batchOp = { ids, decision };
-
-    // Call the batch-aware dialog
-    openDialog({
-      id: '__batch__',
-      decision,
-      purpose: 'batch',
-      message: '',
-      forceKey: true
-    });
   }
 
   function setBusy(id, busy) {
@@ -403,43 +314,6 @@ if (typeof window !== 'undefined') {
     const details = e.target.closest('[data-approval-open]');
     if (details) { openDetails(details.dataset.approvalOpen); return; }
     if (e.target.closest('#dd-cancel') || (e.target.id === 'scrim' && pending)) closeDialog();
-
-    // Batch selection: handle checkbox changes
-    const checkbox = e.target.closest('.approval-select');
-    if (checkbox) {
-      const id = checkbox.dataset.id;
-      if (checkbox.checked) {
-        selectedApprovals.add(id);
-      } else {
-        selectedApprovals.delete(id);
-      }
-      updateBatchToolbar();
-      return;
-    }
-
-    // Select all checkbox
-    if (e.target.id === 'batch-select-all') {
-      const items = openList();
-      if (e.target.checked) {
-        items.forEach(a => selectedApprovals.add(a.id));
-      } else {
-        selectedApprovals.clear();
-      }
-      renderQueue();
-      return;
-    }
-
-    // Batch approve
-    if (e.target.id === 'batch-approve') {
-      batchDecide('approved');
-      return;
-    }
-
-    // Batch reject
-    if (e.target.id === 'batch-reject') {
-      batchDecide('rejected');
-      return;
-    }
   });
   $('#decide-form')?.addEventListener('submit', (e) => { e.preventDefault(); confirmDialog(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pending) closeDialog(); });
@@ -514,6 +388,12 @@ if (typeof window !== 'undefined') {
   $('#appr-refresh')?.addEventListener('click', load);
   UI.registerView('approvals', { onShow: load });
   loadGrant();
-  window.HuqanControlRoomApprovals = { getSessionApprovedCount, reload: load };
+  window.HuqanControlRoomApprovals = {
+    getSessionApprovedCount,
+    reload: load,
+    // Reused by control-room-approvals-batch.js so a bulk decision takes the same
+    // submitDecision path -- and the same one Trust Receipt per record -- as a single one.
+    batch: { getTab: () => tab, openList, renderQueue, setPending: (v) => { pending = v; }, pending: () => pending, submitDecision, closeDialog },
+  };
 })();
 }

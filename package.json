@@ -1372,6 +1372,7 @@
     "public/control-room/js/control-room-overview.js",
     "public/control-room/js/control-room-activity.js",
     "public/control-room/js/control-room-approvals.js",
+    "public/control-room/js/control-room-approvals-batch.js",
     "public/control-room/js/control-room-receipts.js",
     "public/control-room/js/control-room-agents.js",
     "public/viewer/app.mjs",
