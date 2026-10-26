@@ -78,6 +78,19 @@ test('workspace/frame isolation and shared-source history retain the labeled pri
   assert.equal(result.reward.rpe, -1);
 });
 
+test('reward opt-in works without the salience scheduler and absent opt-in stays off', t => {
+  const f = fixture(t);
+  f.opts.cognition = { predictionError: true, reward: true };
+  delete f.opts.cognitiveScheduler;
+  assert.ok(beginStepCognition(f));
+  assert.equal(observeStepCognition({ ...f, report: { status: 'done' } }).reward.reward, 1);
+  f.opts.cognition = undefined;
+  const before = readPredictionPairs(f.graph);
+  assert.equal(beginStepCognition(f), null);
+  assert.equal(observeStepCognition({ ...f, report: { status: 'done' } }), null);
+  assert.deepEqual(readPredictionPairs(f.graph), before);
+});
+
 for (const mode of ['missing', 'forged', 'blocked', 'frame', 'history', 'family', 'graph']) test(`unbound or uncertain observation abstains (${mode})`, t => {
   const f = fixture(t);
   if (mode === 'history') f.graph.getCommittedMutationResultsByPrefix = () => null;

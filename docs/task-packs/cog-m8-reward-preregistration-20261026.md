@@ -57,11 +57,13 @@ Bu ek, yukarıdaki karakterizasyon ön-kaydını değiştirmez ve yeni bir kazan
 ön-kaydı değildir. Bağlantı kapsamı `lib/agent-cognition-seam.js` ve
 `test/cognition-reward-runtime.test.js` ile sınırlıdır.
 
-Mevcut opt-in salience akışında `beginStepCognition`, gözlemden önce aynı
+`predictionError + reward` opt-in akışında `beginStepCognition`, gözlemden önce aynı
 workspace/frame journal kesitinden M9 beklentisini hesaplar. Bu beklenti özel,
 tek kullanımlık pending referansına bağlanır. Geri bildirim izindeki
 `rewardHistory`, karar kimliği ve tarih sınırını, önceden görülen kararları,
 workspace ve frame hash'ini taşır. Sonradan eklenen sonuçlar beklentiyi değiştirmez.
+Ödül gözlemi M7 salience zamanlayıcısının açılmasını gerektirmez; opt-in yokken
+mevcut kapalı davranış korunur.
 
 `observeStepCognition`, yalnız mevcut sensörün gerçekten bağlanmış ve yeniden
 oynatılmamış sonucundan `computeRewardSignal` üretir. Çıktı mevcut izde `reward`
