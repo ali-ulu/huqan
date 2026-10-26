@@ -29,7 +29,11 @@
     // Receipt pattern fallback kept in app-wiring Enter handler
     if (/^(rcpt_|madm_receipt_|receipt)/i.test(id)) {
       byId('einput').value = id;
-      window.HUQAN_APP_GO ? window.HUQAN_APP_GO('evidence') : go('evidence');
+      if (window.HUQAN_APP_GO) {
+        window.HUQAN_APP_GO('evidence');
+      } else {
+        go('evidence');
+      }
       loadReceipt();
       return;
     }
