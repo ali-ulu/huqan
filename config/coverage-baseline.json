@@ -9,7 +9,7 @@
   "totals": {
     "lines": 92.16,
     "statements": 92.16,
-    "functions": 85.71,
+    "functions": 94.94,
     "branches": 81.97
   },
   "files": {
@@ -1743,7 +1743,7 @@
     },
     "lib/http/server-request-handler.js": {
       "lines": 75.28,
-      "branches": 88.5
+      "branches": 89.25
     },
     "lib/http/server-route-runtime.js": {
       "lines": 100,
@@ -2663,7 +2663,7 @@
     },
     "lib/observability/http-router.js": {
       "lines": 92.47,
-      "branches": 87.21
+      "branches": 88.67
     },
     "lib/observability/instrumentation-marker.js": {
       "lines": 90,
@@ -2718,8 +2718,8 @@
       "branches": 61.11
     },
     "lib/observability/service-queries.js": {
-      "lines": 87.65,
-      "branches": 89.23
+      "lines": 97.47,
+      "branches": 96.29
     },
     "lib/observability/service-runs.js": {
       "lines": 97.72,
@@ -4004,10 +4004,6 @@
     "scripts/generate-protocol-vectors.js": {
       "lines": 92.95,
       "branches": 80
-    },
-    "scripts/github-app-reconcile-writeback.js": {
-      "lines": 94.68,
-      "branches": 90.76
     },
     "scripts/huqan-watchdog.js": {
       "lines": 59.61,
