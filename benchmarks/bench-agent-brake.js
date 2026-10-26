@@ -73,7 +73,11 @@ function runBenchmark({ iterations = DEFAULT_ITERATIONS, root } = {}) {
   };
 
   const cold = timed(UNAUTHORIZED[0].command);
-  for (let i = 0; i < WARMUP; i++) for (const action of UNAUTHORIZED) timed(action.command);
+  // Untimed, but still decisions: they must hold like the measured ones.
+  const unmeasured = [{ action: UNAUTHORIZED[0], evaluated: cold.evaluated }];
+  for (let i = 0; i < WARMUP; i++) {
+    for (const action of UNAUTHORIZED) unmeasured.push({ action, evaluated: timed(action.command).evaluated });
+  }
 
   // Round-robin, so every action sees the same trail sizes: the gate rereads the
   // trail on each decision, and a per-action block would report trail growth
@@ -104,7 +108,9 @@ function runBenchmark({ iterations = DEFAULT_ITERATIONS, root } = {}) {
 
   const trail = verifyTrail(gate.receiptPath, calls);
   const checks = {
-    nothingExecutable: actions.every((a) => a.executable === 0) && cold.evaluated.result.canExecute !== true,
+    nothingExecutable: actions.every((a) => a.executable === 0),
+    unmeasuredDecisionsHold: unmeasured.every(({ action, evaluated }) => evaluated.result.canExecute !== true
+      && permissionOf(evaluated) === action.expect && evaluated.result.receiptPersisted === true),
     expectedHostAnswer: actions.every((a) => a.wrongAnswer === 0),
     everyDecisionPersisted: actions.every((a) => a.unpersisted === 0),
     fileUntouched: fs.existsSync(prepared.notes),

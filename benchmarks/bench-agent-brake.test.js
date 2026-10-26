@@ -13,6 +13,7 @@ test('every unauthorized action is stopped and every receipt verifies', () => {
   const report = runBenchmark({ iterations: 2 });
 
   assert.deepEqual(Object.entries(report.checks).filter(([, ok]) => ok !== true), []);
+  assert.equal(report.checks.unmeasuredDecisionsHold, true);
   for (const action of report.actions) {
     assert.equal(action.executable, 0, `${action.name} was executable`);
     assert.equal(action.wrongAnswer, 0, `${action.name} did not get ${action.expect}`);
