@@ -157,6 +157,32 @@ Say these if asked, and volunteer the first one:
 - The workspace is a temporary directory under the system temp root, left for
   the OS to remove. Nothing outside it is read or written.
 
+## How fast the brake is
+
+```bash
+npm run bench:agent-brake                       # 5 unauthorized actions x 40, about 15 s
+npm run bench:agent-brake -- --iterations=200   # long trail, about 4 minutes
+```
+
+The benchmark sends five actions an agent must not take on its own (delete a
+file, write `.env`, `rm -rf .`, force-push to main, `curl | sh`) through the same
+gate as the demo, and fails if any of them could execute, if the file is gone,
+or if any receipt on disk does not recompute to its hash. Timings never fail it.
+
+Measured on a Windows 11 laptop, Node 22, 2026-10-26:
+
+| What | p50 |
+| --- | --- |
+| one gate decision, in-process, short trail | 13 ms |
+| one gate decision, in-process, ~200 receipts in the trail | 120 ms |
+| one gate decision, in-process, ~1,000 receipts in the trail | about 500 ms |
+| the installed hook as a process, per tool call, empty trail | about 400 ms |
+
+Say the last two rows if anyone asks about speed. The decision rereads and
+re-hashes the trail on every call, so its cost grows with the trail up to the
+8 MiB read bound, and a host that spawns the hook per tool call pays Node startup
+on top.
+
 ## Regenerating the recording
 
 The recording in the README is produced by the command it documents:

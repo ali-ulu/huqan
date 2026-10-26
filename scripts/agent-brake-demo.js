@@ -50,6 +50,47 @@ function prepareState({ root } = {}) {
   return { base, workspace, state, notes, issuerPublicKeyPem: issuer.publicKey.export({ type: 'spki', format: 'pem' }).toString() };
 }
 
+/**
+ * The production gate as the installed Claude Code hook calls it, with a signed
+ * identity card and a JSONL receipt trail under the prepared state. Shared with
+ * benchmarks/bench-agent-brake.js so the benchmark times the gate the demo shows.
+ * Call after prepareState(): the modules read the state paths it sets.
+ */
+function createDemoGate({ workspace, state }) {
+  const { evaluateHookInvocation, EXTERNAL_ADAPTER_PROFILES } = require('../lib/external-action-adapter');
+  const { createJsonlExternalActionReceiptWriter } = require('../lib/external-action-receipt');
+  const { buildIdentityCard } = require('../lib/external-action-identity-issue');
+  const { generateIdentityCardKeyPair, signAgentIdentityCard } = require('../lib/external-action-identity-signing');
+
+  const receiptWriter = createJsonlExternalActionReceiptWriter({ path: path.join(state, 'external-action-receipts.jsonl') });
+  const identityKeys = generateIdentityCardKeyPair();
+  const card = buildIdentityCard({
+    agentId: 'demo-agent',
+    agentName: EXTERNAL_ADAPTER_PROFILES.CLAUDE_CODE,
+    agentVersion: '0.0.0',
+    ownerActorId: 'operator:demo',
+    workspaceId: WORKSPACE_ID,
+    capabilities: ['shell', 'file_write'],
+  }).card;
+  const guardOptions = {
+    receiptWriter,
+    workspaceRoot: workspace,
+    workspaceId: WORKSPACE_ID,
+    identityCard: card,
+    identityCardSignature: signAgentIdentityCard(card, identityKeys.privateKeyPem),
+    trustedPublicKeys: [identityKeys.publicKeyPem],
+  };
+  const attempt = (toolUseId, command) => evaluateHookInvocation(EXTERNAL_ADAPTER_PROFILES.CLAUDE_CODE, {
+    tool_use_id: toolUseId,
+    session_id: 'demo-session',
+    turn_id: 'demo-turn',
+    tool_name: 'Bash',
+    tool_input: { command },
+    cwd: workspace,
+  }, guardOptions);
+  return { attempt, receiptPath: receiptWriter.path };
+}
+
 /** The gate's answer, as the host reads it: an allow runs, a review asks, a block refuses. */
 function hostAnswer(evaluated) {
   const permission = evaluated.projection?.output?.hookSpecificOutput?.permissionDecision
@@ -85,10 +126,6 @@ function runDemo({ operatorDecision = 'approved', log = () => {}, now = () => Da
 
   // Required after the state paths are set: the kernel factory reads them.
   const { createKernel } = require('../lib/kernel-factory');
-  const { evaluateHookInvocation, EXTERNAL_ADAPTER_PROFILES } = require('../lib/external-action-adapter');
-  const { createJsonlExternalActionReceiptWriter } = require('../lib/external-action-receipt');
-  const { buildIdentityCard } = require('../lib/external-action-identity-issue');
-  const { generateIdentityCardKeyPair, signAgentIdentityCard } = require('../lib/external-action-identity-signing');
   const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
   const { readReceiptById } = require('../lib/receipt/receipt-read-index');
   const { canonicalActionHash } = require('../lib/mcp-operator-capability');
@@ -98,35 +135,9 @@ function runDemo({ operatorDecision = 'approved', log = () => {}, now = () => Da
 
   const kernel = createKernel({ loadPlugins: false });
   const graph = kernel.graph;
-  const receiptWriter = createJsonlExternalActionReceiptWriter({ path: path.join(prepared.state, 'external-action-receipts.jsonl') });
-
-  const identityKeys = generateIdentityCardKeyPair();
-  const card = buildIdentityCard({
-    agentId: 'demo-agent',
-    agentName: EXTERNAL_ADAPTER_PROFILES.CLAUDE_CODE,
-    agentVersion: '0.0.0',
-    ownerActorId: 'operator:demo',
-    workspaceId: WORKSPACE_ID,
-    capabilities: ['shell', 'file_write'],
-  }).card;
-  const cardSignature = signAgentIdentityCard(card, identityKeys.privateKeyPem);
   const command = `rm ${FILE_NAME}`;
-  const guardOptions = {
-    receiptWriter,
-    workspaceRoot: workspace,
-    workspaceId: WORKSPACE_ID,
-    identityCard: card,
-    identityCardSignature: cardSignature,
-    trustedPublicKeys: [identityKeys.publicKeyPem],
-  };
-  const attempt = (toolUseId) => evaluateHookInvocation(EXTERNAL_ADAPTER_PROFILES.CLAUDE_CODE, {
-    tool_use_id: toolUseId,
-    session_id: 'demo-session',
-    turn_id: 'demo-turn',
-    tool_name: 'Bash',
-    tool_input: { command },
-    cwd: workspace,
-  }, guardOptions);
+  const gate = createDemoGate(prepared);
+  const attempt = (toolUseId) => gate.attempt(toolUseId, command);
 
   // --- 1. the agent tries ---------------------------------------------------
   log('');
@@ -334,4 +345,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { runDemo, describeAttempt, prepareState };
+module.exports = { runDemo, describeAttempt, prepareState, createDemoGate };
