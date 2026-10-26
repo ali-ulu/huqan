@@ -155,3 +155,17 @@ test('global-search refuses a non-GET method', async () => {
   assert.strictEqual(await handler(makeReq('/api/global-search?q=x', 'POST'), res), true);
   assert.strictEqual(res.statusCode, 405);
 });
+
+test('global-search hides internal error details from the client', async t => {
+  const { createGlobalSearchRoute } = require('../lib/http/global-search-route');
+  const logged = [];
+  t.mock.method(console, 'error', (...args) => logged.push(args));
+  const kernel = { graph: { getNodes: () => { throw new Error('SQLITE_CORRUPT at /var/lib/huqan/memory.db'); } } };
+  const res = makeRes();
+  await createGlobalSearchRoute({ kernel })(makeReq('/api/global-search?q=test'), res);
+  assert.strictEqual(res.statusCode, 500);
+  const body = JSON.parse(res.body);
+  assert.deepStrictEqual(body.error, { code: 'INTERNAL_ERROR', message: 'Search failed' });
+  assert.ok(!res.body.includes('SQLITE_CORRUPT'));
+  assert.strictEqual(logged.length, 1, 'the cause is logged server-side');
+});

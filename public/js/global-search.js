@@ -51,6 +51,8 @@
       const res = await fetch(url, { signal: abortCtrl.signal, cache: 'no-store', headers: headers() });
       if (!res.ok) throw new Error('search failed');
       const json = await res.json();
+      // A response for a query the box no longer holds must not render.
+      if (searchInput.value.trim() !== q) return;
       const items = json.data?.items || [];
       render(items, q);
     } catch (e) {
@@ -69,7 +71,7 @@
       const sub = it.sourceRef ? `${escapeHtml(T('search.source', 'source'))}: ${escapeHtml(it.sourceRef)}` : '';
       return `<div class="search-item" data-id="${escapeHtml(it.id)}" role="option" tabindex="0">
         <div class="search-item-main">${label}</div>
-        <div class="search-item-sub">${escapeHtml(sub)}</div>
+        <div class="search-item-sub">${sub}</div>
       </div>`;
     }).join('');
     // click / keyboard
@@ -89,6 +91,7 @@
   searchInput.addEventListener('input', e => {
     const q = e.target.value.trim();
     if (debounceTimer) clearTimeout(debounceTimer);
+    if (abortCtrl) abortCtrl.abort();
     if (q.length < 2) { hideResults(); return; }
     debounceTimer = setTimeout(() => doSearch(q), 300);
   });

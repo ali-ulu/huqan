@@ -38,7 +38,12 @@
     const value = Number(byId('obswindow')?.value);
     return Number.isSafeInteger(value) && value >= 1000 ? value : 24 * 60 * 60 * 1000;
   };
-  const observabilityWindowLabel = () => byId('obswindow')?.selectedOptions?.[0]?.textContent || T('observability.selectedWindow', 'selected window');
+  // An applied custom range replaces the preset window, so the labels name the range instead.
+  const observabilityWindowLabel = () => {
+    const custom = observabilityCustomRange();
+    if (custom) return `${new Date(custom.startMs).toLocaleString(locale())} – ${new Date(custom.endMs).toLocaleString(locale())}`;
+    return byId('obswindow')?.selectedOptions?.[0]?.textContent || T('observability.selectedWindow', 'selected window');
+  };
   const observabilityCustomRange = () => {
     const start = byId('obsstart')?.value;
     const end = byId('obsend')?.value;

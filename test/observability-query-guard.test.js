@@ -116,6 +116,7 @@ test('a malformed custom date range is rejected before the service runs (#4296)'
     '/runs?workspaceId=ws-a&startMs=1000.5&endMs=2000',
     '/runs?workspaceId=ws-a&startMs=1000&endMs=1234567890123456', // beyond 15 digits
     '/events?workspaceId=ws-a&startMs=&endMs=2000',
+    '/metrics?workspaceId=ws-a&startMs=%20&endMs=2000', // whitespace must not become 0
   ];
   for (const path of cases) {
     const h = harness();
