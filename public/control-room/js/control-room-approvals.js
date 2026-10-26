@@ -182,7 +182,7 @@ if (typeof window !== 'undefined') {
     const rejectBtn = $('#batch-reject');
     const countEl = $('#batch-count');
     if (!toolbar || !approveBtn || !rejectBtn || !countEl) return;
-    
+
     if (tab === 'open' && count > 0) {
       toolbar.hidden = false;
       approveBtn.disabled = false;
@@ -244,9 +244,56 @@ if (typeof window !== 'undefined') {
   // ---------- decision dialog ----------
   // Asks for operator approval at the moment of the decision. Nothing typed
   // here is stored: the key is sent once to mint a one-use grant.
-  let pending = null; // { id, decision, purpose }
+  let pending = null; // { id, decision, purpose, ids? }
 
   function openDialog({ id, decision, purpose = 'decide', message = '', forceKey = false }) {
+    // Handle batch purpose
+    if (purpose === 'batch') {
+      pending = { id, decision, purpose, ids: window.__batchOp?.ids || [] };
+      const count = pending.ids.length;
+      const action = decision === 'approved' ? 'Approve' : 'Reject';
+      $('#dd-title').textContent = `Batch ${action} ${count} approval${count > 1 ? 's' : ''}?`;
+      $('#dd-summary').textContent = `Each will generate its own Trust Receipt.`;
+      $('#dd-reason-field').hidden = !(decision === 'rejected');
+      $('#dd-key-field').hidden = false;
+      $('#dd-reason').value = '';
+      $('#dd-key').value = '';
+      $('#dd-error').textContent = message;
+      const confirm = $('#dd-confirm');
+      confirm.textContent = action;
+      confirm.className = `btn ${decision === 'rejected' ? 'danger' : 'primary'}`;
+      confirm.disabled = false;
+      $('#decide-dialog').hidden = false;
+      $('#scrim').classList.add('on');
+      $('#dd-key').focus();
+      // Handle the confirm click for batch
+      const confirmBtn = $('#dd-confirm');
+      const handler = async () => {
+        const operatorKey = $('#dd-key').value;
+        const reason = $('#dd-reason').value.trim();
+        // Process all selected approvals
+        const ids = pending.ids;
+        let succeeded = 0;
+        const promises = ids.map(itemId => {
+          return submitDecision(itemId, decision, reason, operatorKey).then(result => {
+            if (result.ok) succeeded++;
+          }).catch(() => {
+            // failure handled by submitDecision
+          });
+        });
+        await Promise.all(promises);
+        toast(`${succeeded} approval${succeeded > 1 ? 's' : ''} ${decision === 'approved' ? 'approved' : 'rejected'}. Each generated its own Trust Receipt.`);
+        selectedApprovals.clear();
+        updateBatchToolbar();
+        closeDialog();
+        confirmBtn.removeEventListener('click', handler);
+      };
+      confirmBtn.removeEventListener('click', handler);
+      confirmBtn.addEventListener('click', handler);
+      return;
+    }
+
+    // Regular single approval dialog
     pending = { id, decision, purpose };
     const a = id ? findOpen(id) : null;
     const d = a ? describeApproval(a) : null;
@@ -319,14 +366,11 @@ if (typeof window !== 'undefined') {
   async function batchDecide(decision) {
     const ids = Array.from(selectedApprovals);
     if (ids.length === 0) return;
-    
+
     // Store batch operation info for the dialog handler
     window.__batchOp = { ids, decision };
-    
-    // Show a batch decision dialog
-    const firstApproval = findOpen(ids[0]);
-    const d = firstApproval ? describeApproval(firstApproval) : null;
-    
+
+    // Call the batch-aware dialog
     openDialog({
       id: '__batch__',
       decision,
@@ -335,32 +379,10 @@ if (typeof window !== 'undefined') {
       forceKey: true
     });
   }
-  
-  // Override openDialog to handle batch purpose
-  const originalOpenDialog = openDialog;
-  openDialog = function({ id, decision, purpose = 'decide', message = '', forceKey = false }) {
-    if (purpose === 'batch') {
-      pending = { id, decision, purpose, ids: window.__batchOp?.ids || [] };
-      const count = pending.ids.length;
-      const action = decision === 'approved' ? 'Approve' : 'Reject';
-      $('#dd-title').textContent = `Batch ${action} ${count} approval${count > 1 ? 's' : ''}?`;
-      $('#dd-summary').textContent = `Each will generate its own Trust Receipt.`;
-      $('#dd-reason-field').hidden = !(decision === 'rejected');
-      $('#dd-key-field').hidden = false;
-      $('#dd-reason').value = '';
-      $('#dd-key').value = '';
-      $('#dd-error').textContent = message;
-      const confirm = $('#dd-confirm');
-      confirm.textContent = action;
-      confirm.className = `btn ${decision === 'rejected' ? 'danger' : 'primary'}`;
-      confirm.disabled = false;
-      $('#decide-dialog').hidden = false;
-      $('#scrim').classList.add('on');
-      $('#dd-key').focus();
-      return;
-    }
-    return originalOpenDialog({ id, decision, purpose, message, forceKey });
-  };
+
+  function setBusy(id, busy) {
+    $$('[data-decide]').filter((b) => b.dataset.id === id).forEach((b) => { b.disabled = busy; });
+  }
 
   async function decide(id, decision) {
     if (decision === 'approved' && grant.autoActive) {
@@ -381,7 +403,7 @@ if (typeof window !== 'undefined') {
     const details = e.target.closest('[data-approval-open]');
     if (details) { openDetails(details.dataset.approvalOpen); return; }
     if (e.target.closest('#dd-cancel') || (e.target.id === 'scrim' && pending)) closeDialog();
-    
+
     // Batch selection: handle checkbox changes
     const checkbox = e.target.closest('.approval-select');
     if (checkbox) {
@@ -394,7 +416,7 @@ if (typeof window !== 'undefined') {
       updateBatchToolbar();
       return;
     }
-    
+
     // Select all checkbox
     if (e.target.id === 'batch-select-all') {
       const items = openList();
@@ -406,13 +428,13 @@ if (typeof window !== 'undefined') {
       renderQueue();
       return;
     }
-    
+
     // Batch approve
     if (e.target.id === 'batch-approve') {
       batchDecide('approved');
       return;
     }
-    
+
     // Batch reject
     if (e.target.id === 'batch-reject') {
       batchDecide('rejected');
