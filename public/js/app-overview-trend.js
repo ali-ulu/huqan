@@ -2,15 +2,15 @@
 // HUQAN Trust Command Center – 7-day trend chart, parity with Control Room
 // Real data only, no fabrication. Shows empty state when no data.
 (function() {
-  const DAY_MS = 86400000;
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const WINDOW_MS = 604800000;
 
   function lastSevenDays(items) {
     const today = new Date(); today.setHours(0,0,0,0);
     const days = Array.from({length:7}, (_, i) => {
-      const d = new Date(today.getTime() - (6 - i) * DAY_MS);
-      return { key: d.toDateString(), label: i===6 ? 'Today' : DAY_NAMES[d.getDay()], pass:0, review:0, block:0, auto:0 };
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      return { key: d.toDateString(), label: i===6 ? T('overview.trend.today','Today') : DAY_NAMES[d.getDay()], pass:0, review:0, block:0, auto:0 };
     });
     const byKey = new Map(days.map(d => [d.key, d]));
     items.forEach(item => {
@@ -54,7 +54,7 @@
     if (!container) return;
 
     if (!Array.isArray(items) || items.length === 0) {
-      if (statusEl) statusEl.textContent = 'No data available';
+      if (statusEl) statusEl.textContent = T('overview.trend.noData','No data available');
       if (emptyEl) emptyEl.hidden = false;
       if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
       container.innerHTML = '';
@@ -67,7 +67,7 @@
 
     // Show empty state when totals sum to zero (even if items non-empty)
     if (totalSum === 0) {
-      if (statusEl) statusEl.textContent = 'No activity in the last 7 days.';
+      if (statusEl) statusEl.textContent = T('overview.trend.empty','No activity in the last 7 days.');
       if (emptyEl) emptyEl.hidden = false;
       if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
       container.innerHTML = '';
@@ -143,7 +143,7 @@
         const res = await fetch(`/api/workbench/activity?${q}`, { headers: headers ? headers() : {} });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const d = await res.json();
-        if (!d.ok || !Array.isArray(d.items)) throw new Error('Invalid response');
+        if (!d.ok || !Array.isArray(d.items)) throw new Error(T('overview.trend.invalidResponse','Invalid response'));
         allItems.push(...d.items);
         cursor = d.nextCursor || null;
         hasMore = Boolean(d.hasMore && cursor);
@@ -156,7 +156,7 @@
       const empty = document.getElementById('trend-empty');
       const summaryEl = document.getElementById('trend-summary');
       if (el) el.textContent = `Trend load failed: ${e.message}`;
-      if (empty) { empty.textContent = 'Trend data unavailable'; empty.hidden = false; }
+      if (empty) { empty.textContent = T('overview.trend.unavailable','Trend data unavailable'); empty.hidden = false; }
       if (container) container.innerHTML = ''; // Clear chart on failure
       if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
     }
@@ -168,15 +168,21 @@
     if (refreshBtn) {
       refreshBtn.addEventListener('click', loadTrend);
     }
-    // Initial load when overview is visible (call explicitly for active overview)
-    const ov = document.getElementById('v-overview');
-    if (ov && ov.classList.contains('active')) {
-      loadTrend();
-    }
-    // Watch for overview activation changes
-    const observer = new MutationObserver(() => {
+    const isActive = () => {
       const ov = document.getElementById('v-overview');
-      if (ov && ov.classList.contains('active')) loadTrend();
+      return Boolean(ov && ov.classList.contains('active'));
+    };
+    // Load once for the overview that is already active in the markup.
+    let wasActive = isActive();
+    if (wasActive) loadTrend();
+    // Reload only when the overview becomes active. A body-wide class
+    // observer fires on every class change on the page, so gating on the
+    // transition (not the current state) is what keeps it from starting a
+    // fetch on each one.
+    const observer = new MutationObserver(() => {
+      const active = isActive();
+      if (active && !wasActive) loadTrend();
+      wasActive = active;
     });
     observer.observe(document.body, { subtree: true, attributes: true, attributeFilter:['class'] });
   });

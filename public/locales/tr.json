@@ -81,6 +81,13 @@
     "eyebrow": "HUQAN Çalışma Zamanı",
     "description": "Gerçek çalışma zamanı yüzeyleri, kanıt akışı ve güven altyapısı tek bir komuta merkezinde.",
     "refresh": "↻ Yenile",
+    "trend": {
+      "noData": "Veri yok",
+      "today": "Bugün",
+      "empty": "Son 7 günde etkinlik yok.",
+      "unavailable": "Trend verisi kullanılamıyor",
+      "invalidResponse": "Geçersiz yanıt"
+    },
     "metrics": {
       "graphNodes": "Graf Düğümleri",
       "graphNodesDesc": "canlı graf verisi",
@@ -516,6 +523,7 @@
     "checking": "KONTROL EDİLİYOR - bu çalışma alanı için gözleblenebilirlik onaylanıyor.",
     "loading": "Gözleblenebilirlik yükleniyor…",
     "ready": "Canlı ve kalıcı gözleblenebilirlik hazır.",
+    "connected": "Canlı akış bağlandı",
     "error": "Gözleblenebilirlik yüklenemedi: {message}",
     "reconnect": "{delay} ms içinde canlı akışa yeniden bağlanılıyor…",
     "unavailable": {
@@ -576,7 +584,9 @@
     "open": "Aktiviteyi aç",
     "locked": "Etkinlik erişimi kilitli. Ayarlar’dan bir API anahtarı ekleyin.",
     "error": "Etkinlik yüklenemedi. Yeniden deneyin.",
-    "empty": "Bu çalışma alanında henüz ajan eylemi yok."
+    "empty": "Bu çalışma alanında henüz ajan eylemi yok.",
+    "offline": "Canlı akış çevrimdışı.",
+    "degraded": "Canlı akış bozuldu."
   },
   "workflows": {
     "learnReview": "Öğren (inceleme gerekli)",
