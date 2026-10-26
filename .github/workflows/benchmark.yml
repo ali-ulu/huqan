@@ -154,7 +154,16 @@ jobs:
 
           is_perf_file() {
             # Performance-sensitive files trigger the benchmark regression gate.
+            # A test file is never a perf surface, even when it lives beside a
+            # measured module: `lib/provenance-*.js` also matches
+            # `lib/provenance-query.test.js`, which is how a test-only PR
+            # (test edits are perf-neutral by is_test_file()'s own comment)
+            # reached the soak gate and failed it on an unrelated cpuRatio.
+            # Match is_test_file() first, so the two agree.
               case "$1" in
+               test/*|*.test.js|*.spec.js)
+                return 1
+                ;;
                benchmarks/bench.js|benchmarks/bench-label-lookup.js|benchmarks/check-regression.js|benchmarks/bench-memory-scale.js|\
                benchmarks/bench-graph-save.js|benchmarks/check-graph-save.js|\
                benchmarks/bench-sqlite-write-contention.js|benchmarks/bench-capacity-envelope.js|\

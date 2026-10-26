@@ -54,6 +54,12 @@ test('CI classifier maps representative paths to the intended gates', (t) => {
     ['lib/contradiction-rules.js', 'yes,no,no'],
     ['kernel.js', 'yes,yes,no'],
     ['test/ci-change-classifier.test.js', 'yes,no,no'],
+    // #4245: a co-located test file must stay perf-neutral. `lib/provenance-*.js`
+    // is a perf glob and also matches this test file, so before the guard a
+    // test-only PR ran the observability soak and could fail the required
+    // Benchmark gate on an unrelated cpuRatio.
+    ['lib/provenance-query.test.js', 'yes,no,no'],
+    ['lib/trust-policy.js', 'yes,no,no'],
     ['Dockerfile', 'no,no,yes'],
     // The manifest declares the test command and the dependency set, so a
     // change to it can alter how the whole suite runs. is_runtime_file()
