@@ -20,9 +20,23 @@ kaynaklardan ayrı doğrulama girdilerini bildirir:
 }
 ```
 
-Parametreler operatörün bildirimidir; kaynakta gerçekleşmiş işlem hash'leriyle
-eşleşmeyen bildirimden çalıştırılabilir aday çıkarılmaz. Bu akış yeni serbest
-biçimli kod veya parametre icat etmez.
+Parametreler operatörün bildirimidir ve admission ile `compile()` öncesinde
+mühürlü kaynağın işlem kaydıyla karşılaştırılır. İşlem kaydı
+`routing_decided.payload.execution`, yoksa `action_proposed.payload` olur.
+Eşleşme için `operationType === "replace_text"`, `path === params.path`,
+`findSha256 === sha256(params.oldText)` ve
+`replaceSha256 === sha256(params.newText)` gerekir (UTF-8 metnin hex SHA-256'sı).
+`readSealedRun().sourceHash` run projeksiyon hash'idir, işlem hash'i değildir ve
+bu eşleşmede kullanılmaz. Uyuşmazlıkta fail closed uygulanır:
+`source_procedure_mismatch` döner, admission ve derleme çağrılmaz. Bu akış yeni
+serbest biçimli kod veya parametre icat etmez.
+
+Qualification girdileri kaynak artifact'larından bağımsız olmalıdır. Her girdinin
+`before` ve `expectedAfter` metninin SHA-256'sı, kaynağın
+`execution_finished.payload.changes[].afterSha256` digest'leriyle karşılaştırılır.
+Herhangi biri eşleşirse istek `qualify` çağrılmadan
+`qualification_input_not_independent` ile reddedilir. Girdi `id` değeri yalnız
+etikettir; bağımsızlık kanıtı değildir.
 
 Normal journal açılışı tablo ve dayanıklılık ayarları yazabildiği için önizleme
 ayrı salt okunur açılış kullanır. Mühür ve workspace denetimi mevcut
