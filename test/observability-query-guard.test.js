@@ -82,3 +82,26 @@ test('observability query guard preserves exact workspace validation and accepts
     windowMs: '60000',
   });
 });
+
+test('a custom date range reaches the list and metrics queries as numbers (#4296)', async () => {
+  const events = harness();
+  await events.router(
+    { method: 'GET', headers: {} },
+    {},
+    new URL('http://local/api/observability/events?workspaceId=ws-a&startMs=1000&endMs=2000'),
+  );
+  assert.equal(events.writes[0].status, 200);
+  assert.equal(events.calls[0].input.startMs, 1000);
+  assert.equal(events.calls[0].input.endMs, 2000);
+
+  const metrics = harness();
+  await metrics.router(
+    { method: 'GET', headers: {} },
+    {},
+    new URL('http://local/api/observability/metrics?workspaceId=ws-a&startMs=1000&endMs=2000'),
+  );
+  assert.equal(metrics.writes[0].status, 200);
+  const summary = metrics.calls.find(call => call.key === 'summary');
+  assert.equal(summary.input.startMs, 1000);
+  assert.equal(summary.input.endMs, 2000);
+});
