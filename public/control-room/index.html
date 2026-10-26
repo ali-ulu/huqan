@@ -198,7 +198,31 @@
         <button aria-pressed="false" data-qfilter="done">Decided</button>
       </div>
       <div class="status" id="appr-status"></div>
+      <div class="queue-toolbar" id="appr-toolbar" hidden>
+        <label class="batch-select">
+          <input type="checkbox" id="batch-select-all" aria-label="Select all approvals"> Select all
+        </label>
+        <div class="batch-actions">
+          <button class="btn primary" id="batch-approve" data-role-hide="viewer" disabled>Approve Selected</button>
+          <button class="btn danger" id="batch-reject" data-role-hide="viewer" disabled>Reject Selected</button>
+        </div>
+        <span class="batch-count" id="batch-count">0 selected</span>
+      </div>
       <div class="queue" id="appr-queue"></div>
+      <div class="receipt-export" id="receipt-export" hidden>
+        <div class="panel">
+          <h3>Bulk Receipt Export</h3>
+          <p>Export Trust Receipts as CSV or signed audit report. Each decision generates a separate receipt with its own audit trail.</p>
+          <div class="export-options">
+            <select id="export-format">
+              <option value="csv">CSV (Trust Receipts)</option>
+              <option value="signed">Signed Audit Report</option>
+            </select>
+            <button class="btn" id="export-receipts">Export Receipts</button>
+            <button class="btn" id="export-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- RECEIPTS -->
