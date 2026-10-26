@@ -50,17 +50,34 @@
     const container = document.getElementById('trend-chart');
     const statusEl = document.getElementById('trend-status');
     const emptyEl = document.getElementById('trend-empty');
+    const summaryEl = document.getElementById('trend-summary');
     if (!container) return;
 
     if (!Array.isArray(items) || items.length === 0) {
       if (statusEl) statusEl.textContent = 'No data available';
       if (emptyEl) emptyEl.hidden = false;
+      if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
       container.innerHTML = '';
       return;
     }
 
     const data = lastSevenDays(items);
     const totals = data.map(d => d.pass + d.review + d.block + d.auto);
+    const totalSum = totals.reduce((a,b)=>a+b,0);
+
+    // Show empty state when totals sum to zero (even if items non-empty)
+    if (totalSum === 0) {
+      if (statusEl) statusEl.textContent = 'No activity in the last 7 days.';
+      if (emptyEl) emptyEl.hidden = false;
+      if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
+      container.innerHTML = '';
+      return;
+    }
+
+    // Clear any previous chart on successful render
+    if (emptyEl) emptyEl.hidden = true;
+    if (statusEl) statusEl.textContent = '';
+
     const max = niceMax(Math.max(...totals, 1));
     const W = 720, H = 240, L = 40, R = 18, T = 18, B = 30;
     const y = v => T + (H - T - B) * (1 - v / max);
@@ -103,25 +120,45 @@
 
     svg += `</svg>`;
     container.innerHTML = svg;
-    if (statusEl) statusEl.textContent = `7-day trend · ${totals.reduce((a,b)=>a+b,0)} actions`;
+    if (statusEl) statusEl.textContent = `7-day trend · ${totalSum} actions`;
     if (emptyEl) emptyEl.hidden = true;
+    // Update accessible summary
+    const totalPass = data.reduce((a,d)=>a+d.pass,0);
+    const totalReview = data.reduce((a,d)=>a+d.review,0);
+    const totalBlock = data.reduce((a,d)=>a+d.block,0);
+    if (summaryEl) summaryEl.textContent = `7-day agent activity summary: ${totalPass} passed, ${totalReview} review, ${totalBlock} blocked actions.`;
   }
 
   async function loadTrend() {
     try {
       const ws = (window.state && state.ws) || 'default';
-      const q = new URLSearchParams({ workspaceId: ws, windowMs: String(WINDOW_MS) });
-      // Prefer gate decisions if available, fallback to activity
-      const res = await fetch(`/api/workbench/activity?${q}`, { headers: headers ? headers() : {} });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json();
-      if (!d.ok || !Array.isArray(d.items)) throw new Error('Invalid response');
-      renderTrendChart(d.items);
+      let allItems = [];
+      let cursor = null;
+      let hasMore = true;
+
+      // Follow cursor to get all 7-day activity
+      while (hasMore) {
+        const q = new URLSearchParams({ workspaceId: ws, windowMs: String(WINDOW_MS) });
+        if (cursor) q.set('cursor', cursor);
+        const res = await fetch(`/api/workbench/activity?${q}`, { headers: headers ? headers() : {} });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const d = await res.json();
+        if (!d.ok || !Array.isArray(d.items)) throw new Error('Invalid response');
+        allItems.push(...d.items);
+        cursor = d.nextCursor || null;
+        hasMore = Boolean(d.hasMore && cursor);
+      }
+
+      renderTrendChart(allItems);
     } catch (e) {
+      const container = document.getElementById('trend-chart');
       const el = document.getElementById('trend-status');
-      if (el) el.textContent = `Trend load failed: ${e.message}`;
       const empty = document.getElementById('trend-empty');
+      const summaryEl = document.getElementById('trend-summary');
+      if (el) el.textContent = `Trend load failed: ${e.message}`;
       if (empty) { empty.textContent = 'Trend data unavailable'; empty.hidden = false; }
+      if (container) container.innerHTML = ''; // Clear chart on failure
+      if (summaryEl) summaryEl.textContent = '7-day agent activity summary: 0 passed, 0 review, 0 blocked actions.';
     }
   }
 
@@ -131,7 +168,12 @@
     if (refreshBtn) {
       refreshBtn.addEventListener('click', loadTrend);
     }
-    // Initial load when overview is visible
+    // Initial load when overview is visible (call explicitly for active overview)
+    const ov = document.getElementById('v-overview');
+    if (ov && ov.classList.contains('active')) {
+      loadTrend();
+    }
+    // Watch for overview activation changes
     const observer = new MutationObserver(() => {
       const ov = document.getElementById('v-overview');
       if (ov && ov.classList.contains('active')) loadTrend();

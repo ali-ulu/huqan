@@ -142,7 +142,7 @@
 /* === Selection === */
 ::selection {
   background: var(--status-pass);
-  color: white;
+  color: var(--status-pass-wash-dark, #13291d);
 }
 
 /* === Alias tokens for backward compatibility === */

@@ -16,6 +16,8 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
       const query = new URLSearchParams({ workspaceId: workspace() });
       fetch(`/api/observability/stream?${query.toString()}`, { headers: headers(), signal: controller.signal, cache: 'no-store' }).then(async response => {
         if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+        // Broadcast connected status so overview pulse clears OFFLINE/DEGRADED immediately
+        try { window.dispatchEvent(new CustomEvent('huqan:sse:status', { detail: { status: 'CONNECTED', detail: 'Live stream connected' } })); } catch (_) {}
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -32,6 +34,8 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
               const event = JSON.parse(data.slice(6));
               if (event.eventType && appendEvent(event)) {
                 streamState.retryAttempt = 0;
+                // Broadcast connected status so overview pulse clears OFFLINE/DEGRADED
+                try { window.dispatchEvent(new CustomEvent('huqan:sse:status', { detail: { status: 'CONNECTED', detail: 'Live stream connected' } })); } catch (_) {}
                 loadAll();
                 // Broadcast to overview pulse widget for live updates
                 try { window.dispatchEvent(new CustomEvent('huqan:sse:event', { detail: event })); } catch (_) {}
@@ -43,7 +47,7 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
         if (streamState.closed || controller.signal.aborted) return;
         const delay = Math.min(STREAM_BASE_RECONNECT_DELAY_MS * (2 ** Math.min(streamState.retryAttempt, 4)), STREAM_MAX_RECONNECT_DELAY_MS);
         streamState.retryAttempt += 1;
-        setStatus(T('observabilityStatus.reconnect', `Reconnecting live stream in ${delay} ms…`, { delay }));
+        setStatus(T('observabilityStatus.reconnect', `Reconnecting live stream in ${delay} msâ€¦`, { delay }));
         // Broadcast degraded/offline status to overview pulse
         try { window.dispatchEvent(new CustomEvent('huqan:sse:status', { detail: { status: streamState.retryAttempt >= 5 ? 'OFFLINE' : 'DEGRADED', detail: `Reconnect attempt ${streamState.retryAttempt}` } })); } catch (_) {}
         streamState.timer = setTimeout(() => { streamState.timer = null; open(); }, delay);

@@ -39,106 +39,45 @@ function pulseDecision(item){if(item?.receipt?.browserSession)return{text:T('act
 ;
 const decision=String(item?.receipt?.decision||'').toLowerCase();
 return{text:decision?decision.toUpperCase():'—',tone:/allow|approved|accept/.test(decision)?'good':/reject|deny|block/.test(decision)?'bad':''}
-}
+};
+var __huqanSSEStatus = null;
 function renderAgentActivityPulse(kind='LIVE',detail=''){const p=state.activityPulse||{items:[],hasMore:false}
-,status=String(kind).toUpperCase(),list=$('activitypulseitems');
+ ,status=String(kind).toUpperCase(),list=$('activitypulseitems');
+// Retain SSE stream status if present (overrides EMPTY/LIVE, LOCKED is authoritative)
+if (__huqanSSEStatus && (__huqanSSEStatus.status === 'OFFLINE' || __huqanSSEStatus.status === 'DEGRADED')) {
+  status = __huqanSSEStatus.status;
+  detail = __huqanSSEStatus.detail || detail;
+  const tone = status === 'OFFLINE'?'err':status === 'DEGRADED'?'warn':'';
+  $('activitypulsestate').textContent=status;
+  $('activitypulsestate').className='state '+tone;
+  $('activitypulsemeta').textContent=detail||`workspace scoped · ${state.ws}`;
+  $('activitypulsecount').textContent='—';
+  $('activitypulseactors').textContent='—';
+  $('activitypulsereceipts').textContent='—';
+  const toneName = status === 'OFFLINE' ? 'offline' : 'degraded';
+  list.innerHTML=`<div class="empty">${esc(T('pulse.' + toneName, toneName === 'offline' ? 'offline.body' : 'degraded.body'))}</div>`;
+  return}
 if(status==='LOADING'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('LOADING',`${state.ws} · Loading activity…`);
-list.innerHTML=`<div class="empty">${esc(T('activity.loading','Loading activity…'))}</div>`;
+list.innerHTML=`<div class="empty">${esc(T('activity.loading','Loading activity…'))}</div>;
 return}
 if(status==='LOCKED'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('LOCKED',`${state.ws} · API key required`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.locked','Activity access is locked. Add an API key in Settings.'))}</div>`;
+list.innerHTML=`<div class="empty">${esc(T('pulse.locked','Activity access is locked. Add an API key in Settings.'))}</div>;
 return}
 if(status==='ERROR'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('ERROR',`${state.ws} · ${detail||'read failed'}`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.error','Activity could not be loaded. Try again.'))}</div>`;
+list.innerHTML=`<div class="empty">${esc(T('pulse.error','Activity could not be loaded. Try again.'))}</div>;
 return}
+if(status==='EMPTY'){// Only show EMPTY if no SSE status overriding
+if(!(__huqanSSEStatus && (__huqanSSEStatus.status === 'OFFLINE' || __huqanSSEStatus.status === 'DEGRADED'))){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
+pulseStatus('EMPTY',`${state.ws} · No activity on this page`);
+list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>;
+}}
 const items=Array.isArray(p.items)?p.items.slice(0,5):[],actors=new Set(items.map(x=>x.actor||'system')),receipts=items.filter(x=>x.receipt?.receiptId).length;
 $('activitypulsecount').textContent=String(items.length);
 $('activitypulseactors').textContent=String(items.length?actors.size:0);
 $('activitypulsereceipts').textContent=String(receipts);
 if(!items.length){pulseStatus('EMPTY',`${state.ws} · No activity on this page`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>`;
+list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>;
 return}
-pulseStatus('LIVE',`${state.ws} · ${items.length} page events${p.hasMore?' · more available':''}${detail?` · ${detail}`:''}`);
-list.innerHTML=items.map(x=>{const decision=pulseDecision(x),target=x.targetId?`${x.targetType||'target'}:${x.targetId}`:'—',label=`${x.eventType||'AUDIT'} ${x.action||'activity'} by ${x.actor||'system'}`;return `<div class="pulserow" data-activity-pulse-id="${esc(x.auditId)}" role="button" tabindex="0" aria-label="${esc(label)}"><i class="pulse-dot ${decision.tone}" aria-hidden="true"></i><div><b>${esc(x.eventType||'AUDIT')} · ${esc(x.action||'activity')}</b><span>${esc(x.actor||'system')} · ${esc(x.tool||target)} · ${esc(pulseTime(x.timestamp))}</span></div><span class="tag ${decision.tone}" title="${esc(x.receipt?.receiptId||T('evidence.noReceipt','No receipt'))}">${esc(decision.text)}</span></div>`}).join('')}
-async function loadActivityPulse(){surface('activity','checking',{reason:M('runtime.loading.activity','Loading activity.'),nextAction:M('runtime.next.wait','Wait')});
-renderAgentActivityPulse('LOADING');
-try{const q=new URLSearchParams({workspaceId:state.ws,limit:'5',order:'desc'}),{r,d}
-=await json(`/api/workbench/activity?${q}`,{headers:headers()});
-if(!r.ok){const locked=r.status===401||r.status===403;
-surface('activity',locked?'locked':'err',{reason:locked?M('runtime.locked.activity','API key required to read activity.'):{k:'runtime.failed.activityHttp',f:`Activity request failed with HTTP ${r.status}.`,p:{status:r.status}},nextAction:locked?M('onboarding.steps.session.cta','Open Settings'):M('common.retry','Retry')});
-renderAgentActivityPulse(r.status===401||r.status===403?'LOCKED':'ERROR',d?.error?.code||`HTTP ${r.status}`);
-return}
-if(!d.ok||!Array.isArray(d.items))throw Error(d?.error?.code||'ACTIVITY_INVALID_RESPONSE');
-state.activityPulse={items:d.items.slice(0,5),nextCursor:d.nextCursor||null,hasMore:Boolean(d.hasMore),lastChecked:Date.now()}
-;
-const empty=!state.activityPulse.items.length;
-surface('activity',empty?'empty':'ok',{reason:empty?M('runtime.empty.activity','No activity exists in this workspace.'):M('runtime.fetched.activity','Activity fetched for this workspace.'),nextAction:M('common.refresh','Refresh')});
-renderAgentActivityPulse(empty?'EMPTY':'LIVE')}
-catch(e){surface('activity','err',{reason:{k:'runtime.failed.activityDetail',f:`Activity request failed: ${e.message}`,p:{message:e.message}},nextAction:M('common.retry','Retry')});
-state.activityPulse={items:[],nextCursor:null,hasMore:false,lastChecked:null}
-;
-renderAgentActivityPulse('ERROR',e.message)}
-}
-async function loadActivity(reset=true){activityStatus(T('activity.loading','Loading activity…'));
-try{const q=new URLSearchParams({workspaceId:state.ws,limit:'25'}),actor=$('activityactor').value.trim(),eventType=$('activityevent').value;
-if(actor)q.set('actor',actor);
-if(eventType)q.set('eventType',eventType);
-if(!reset&&state.activity.nextCursor)q.set('cursor',state.activity.nextCursor);
-const{r,d}
-=await json(`/api/workbench/activity?${q}`,{headers:headers()});
-if(!r.ok||!d.ok)throw Error(d?.error?.code||`HTTP ${r.status}`);
-state.activity.items=reset?d.items:[...state.activity.items,...d.items];
-state.activity.nextCursor=d.nextCursor;
-state.activity.hasMore=Boolean(d.hasMore);
-renderActivity();
-activityStatus(T('activity.updated','Activity updated.'),0,true)}
-catch(e){state.activity.items=[];
-state.activity.nextCursor=null;
-state.activity.hasMore=false;
-renderActivity();
-activityStatus(`activity failed: ${e.message}`,1)}
-}
-function openAgentActivity(id){const pulse=state.activityPulse||{items:[],hasMore:false}
-;
-state.activity.items=Array.isArray(pulse.items)?pulse.items.slice():[];
-state.activity.nextCursor=null;
-state.activity.hasMore=Boolean(pulse.hasMore);
-renderActivity();
-go('activity');
-if(id)showActivity(id)}
-function showActivity(id){renderActivityDetail(state.activity.items.find(x=>x.auditId===id)||null)}
-function openActivityReceipt(id){if(!id)return;
-$('einput').value=id;
-$('emode').value='receiptId';
-go('evidence');
-loadReceipt()}
-function receipt(id,label,status){state.recent=[{id:String(id),label:String(label||T('evidence.defaultLabel','Trust Receipt')),status:String(status||'')},...state.recent.filter(x=>x.id!==String(id))].slice(0,5);
-renderRecent()}
-function renderRecent(){$('recent').innerHTML=state.recent.map(x=>`<div class="receipt" data-receipt="${esc(x.id)}" role="button" tabindex="0" title="${esc(T('evidence.openReceipt','Open receipt'))}"><div><b>${esc(x.id)}</b><span>${esc(Tx(x.label))}</span></div><em>${esc(x.status||'—')}</em></div>`).join('')||`<div class="empty">${esc(T('rail.noReceipts','No receipts yet.'))}</div>`}
-function openReceipt(n){if(!n)return;
-$('einput').value=n.dataset.receipt;
-$('emode').value='receiptId';
-go('evidence');
-loadReceipt()}
-// Connect overview pulse to live SSE stream (#4298 #4300)
-if (typeof window !== 'undefined') {
-  window.addEventListener('huqan:sse:event', (e) => {
-    const ev = e.detail;
-    if (!ev?.eventType) return;
-    // Update pulse live with latest event
-    const pulse = state.activityPulse || { items: [] };
-    const items = [ev, ...pulse.items].slice(0,5);
-    state.activityPulse = { ...pulse, items };
-    renderAgentActivityPulse('LIVE', 'live SSE update');
-  });
-  // Stream connection status sync: OFFLINE/DEGRADED handling
-  window.addEventListener('huqan:sse:status', (e) => {
-    const { status, detail } = e.detail || {};
-    if (status === 'OFFLINE' || status === 'DEGRADED') {
-      renderAgentActivityPulse(status, detail || 'SSE stream unavailable');
-    }
-  });
-}
