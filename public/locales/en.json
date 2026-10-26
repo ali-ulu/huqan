@@ -85,6 +85,16 @@
     "eyebrow": "HUQAN Runtime",
     "description": "Real runtime surfaces, evidence flow, and trust infrastructure in one command center.",
     "refresh": "↻ Refresh",
+    "trend": {
+      "noData": "No data available",
+      "today": "Today",
+      "empty": "No activity in the last 7 days.",
+      "unavailable": "Trend data unavailable",
+      "invalidResponse": "Invalid response",
+      "total": "7-day trend · {count} actions",
+      "summary": "7-day agent activity summary: {pass} passed, {review} review, {block} blocked actions.",
+      "failed": "Trend load failed: {message}"
+    },
     "metrics": {
       "graphNodes": "Graph Nodes",
       "graphNodesDesc": "live graph-data",
@@ -540,6 +550,7 @@
     "checking": "CHECKING - confirming observability is available for this workspace.",
     "loading": "Loading observability…",
     "ready": "Live and persistent observability ready.",
+    "connected": "Live stream connected",
     "error": "Observability could not be loaded: {message}",
     "reconnect": "Reconnecting live stream in {delay} ms…",
     "unavailable": {
@@ -600,7 +611,9 @@
     "open": "Open Activity",
     "locked": "Activity access is locked. Add an API key in Settings.",
     "error": "Activity could not be loaded. Try again.",
-    "empty": "No agent actions in this workspace yet."
+    "empty": "No agent actions in this workspace yet.",
+    "offline": "Live stream offline.",
+    "degraded": "Live stream degraded."
   },
   "workflows": {
     "learnReview": "Learn (review required)",
