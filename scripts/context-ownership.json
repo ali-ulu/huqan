@@ -7991,6 +7991,20 @@
    ],
    "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
   },
+  "lib/cognition/value-ledger.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; this is the only measured AgentAction caller"
+  },
+  "lib/cognition/reward-signal.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "#4062 lib/agent-cognition-seam.js computes the existing signal only after a bound observed outcome; this is the only measured AgentAction caller and grants no authority"
+  },
   "lib/agent-coder-execution.js": {
    "owner": "AgentAction",
    "consumers": [
