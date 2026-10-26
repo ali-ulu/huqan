@@ -59,15 +59,15 @@ if (__huqanSSEStatus && (__huqanSSEStatus.status === 'OFFLINE' || __huqanSSEStat
   return}
 if(status==='LOADING'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('LOADING',`${state.ws} · Loading activity…`);
-list.innerHTML=`<div class="empty">${esc(T('activity.loading','Loading activity…'))}</div>;
+list.innerHTML=`<div class="empty">${esc(T('activity.loading','Loading activity…'))}</div>`;
 return}
 if(status==='LOCKED'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('LOCKED',`${state.ws} · API key required`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.locked','Activity access is locked. Add an API key in Settings.'))}</div>;
+list.innerHTML=`<div class="empty">${esc(T('pulse.locked','Activity access is locked. Add an API key in Settings.'))}</div>`;
 return}
 if(status==='ERROR'){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('ERROR',`${state.ws} · ${detail||'read failed'}`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.error','Activity could not be loaded. Try again.'))}</div>;
+list.innerHTML=`<div class="empty">${esc(T('pulse.error','Activity could not be loaded. Try again.'))}</div>`;
 return}
 if(status==='EMPTY'){// Only show EMPTY if no SSE status overriding
 if(!(__huqanSSEStatus && (__huqanSSEStatus.status === 'OFFLINE' || __huqanSSEStatus.status === 'DEGRADED'))){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
@@ -78,6 +78,9 @@ const items=Array.isArray(p.items)?p.items.slice(0,5):[],actors=new Set(items.ma
 $('activitypulsecount').textContent=String(items.length);
 $('activitypulseactors').textContent=String(items.length?actors.size:0);
 $('activitypulsereceipts').textContent=String(receipts);
-if(!items.length){pulseStatus('EMPTY',`${state.ws} · No activity on this page`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>;
-return}
+if(!items.length){
+  const msg = `${state.ws} · No activity on this page`;
+  pulseStatus('EMPTY', msg);
+  list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>`;
+  return;
+}
