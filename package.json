@@ -1360,6 +1360,7 @@
     "public/js/home-navigation.js",
     "public/js/web-research.js",
     "public/js/learn-review.js",
+    "public/js/global-search.js",
     "public/js/ingest-run-detail.js",
     "public/service-worker.js",
     "public/manifest.webmanifest",

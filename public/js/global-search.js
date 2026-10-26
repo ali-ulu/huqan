@@ -2,6 +2,7 @@
 (() => {
   const byId = id => document.getElementById(id);
   const $ = id => document.getElementById(id);
+  const T = (key, fallback, params) => (typeof window !== 'undefined' && window.HUQAN_T ? window.HUQAN_T(key, fallback, params) : fallback);
   const searchInput = byId('search');
   const resultsBox = byId('search-results');
   if (!searchInput || !resultsBox) return;
@@ -58,11 +59,14 @@
   }
 
   function render(items, q) {
-    if (!items.length) { hideResults(); return; }
     resultsBox.hidden = false;
+    if (!items.length) {
+      resultsBox.innerHTML = `<div class="search-empty">${escapeHtml(T('search.noResults', 'No results found'))}</div>`;
+      return;
+    }
     resultsBox.innerHTML = items.slice(0, 10).map(it => {
       const label = highlight(it.label || it.id, q);
-      const sub = it.sourceRef ? `source: ${escapeHtml(it.sourceRef)}` : '';
+      const sub = it.sourceRef ? `${escapeHtml(T('search.source', 'source'))}: ${escapeHtml(it.sourceRef)}` : '';
       return `<div class="search-item" data-id="${escapeHtml(it.id)}" role="option" tabindex="0">
         <div class="search-item-main">${label}</div>
         <div class="search-item-sub">${escapeHtml(sub)}</div>
