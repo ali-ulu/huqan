@@ -82,6 +82,26 @@ function fixture() {
   return { nodes, links };
 }
 
+/** English version of the fixture to test language independence. */
+function fixtureEn() {
+  const nodes = [
+    { id: 'stale-1', label: 'Stale claim', confidence: 0.9, last_seen: STALE },
+    { id: 'low-1', label: 'Weak claim', confidence: 0.1, last_seen: RECENT },
+    { id: 'multi-1', label: 'Ambiguous type', confidence: 0.9, last_seen: RECENT },
+    { id: 'neg-1', label: 'Contradicted claim', confidence: 0.9, last_seen: RECENT },
+    { id: 'clean-1', label: 'Healthy claim', confidence: 0.9, last_seen: RECENT },
+  ];
+  const links = [
+    // English relations should work the same as Turkish
+    { source: 'multi-1', target: 'kind-a', relation: 'is_a' },
+    { source: 'multi-1', target: 'kind-b', relation: 'is_a' },
+    { source: 'neg-1', target: 'fact-a', relation: 'not' },
+    { source: 'neg-1', target: 'fact-b', relation: 'related' },
+    { source: 'clean-1', target: 'fact-c', relation: 'related' },
+  ];
+  return { nodes, links };
+}
+
 test('triage classifies each signal type at a fixed severity', () => {
   const { nodes, links } = fixture();
   const { findings } = triageConflicts(nodes, links, NOW);
@@ -100,6 +120,22 @@ test('triage classifies each signal type at a fixed severity', () => {
   assert.equal(bySubject.get('Weak claim').severity, 'medium');
   assert.equal(bySubject.get('Stale claim').type, 'stale');
   assert.equal(bySubject.get('Stale claim').severity, 'low');
+});
+
+test('triage is language-independent and uses canonical relation vocabulary', () => {
+  const { nodes, links } = fixtureEn();
+  const { findings } = triageConflicts(nodes, links, NOW);
+  const bySubject = new Map(findings.map(f => [f.subject, f]));
+
+  assert.deepEqual(
+    [...bySubject.keys()].sort(),
+    ['Ambiguous type', 'Contradicted claim', 'Stale claim', 'Weak claim'],
+    'English relations must produce the same signals as Turkish',
+  );
+  assert.equal(bySubject.get('Ambiguous type').type, 'multi-type');
+  assert.equal(bySubject.get('Ambiguous type').severity, 'high');
+  assert.equal(bySubject.get('Contradicted claim').type, 'negation');
+  assert.equal(bySubject.get('Contradicted claim').severity, 'high');
 });
 
 test('high-priority signals are ordered first, whatever order the graph arrives in', () => {
