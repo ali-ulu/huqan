@@ -198,6 +198,48 @@ test('multi-type counts distinct targets, so a duplicate edge is not a signal', 
     'two edges to the same target are one type, not a conflict');
 });
 
+// #4290: negation detection must work for English vocabulary from
+// lib/contradiction-rules-vocabulary.js NEGATION_TOKENS, not just Turkish 'degil'.
+test('negation signal fires for English negation relations', () => {
+  const nodes = [{ id: 'x', label: 'Contradicted', confidence: 0.9, last_seen: RECENT }];
+  // Each English negation token paired with a positive relation should raise a negation signal.
+  for (const negRelation of ['not', "isn't", "aren't", "wasn't", 'cannot', "can't", 'no', 'never']) {
+    const links = [
+      { source: 'x', target: 'fact-a', relation: negRelation },
+      { source: 'x', target: 'fact-b', relation: 'ilişki' },
+    ];
+    const { findings } = triageConflicts(nodes, links, NOW);
+    assert.deepEqual(plain(findings).map(f => f.type), ['negation'],
+      `${JSON.stringify(negRelation)} must raise negation signal`);
+  }
+});
+
+// #4290: Turkish negation tokens beyond 'degil' should also fire.
+test('negation signal fires for extended Turkish negation relations', () => {
+  const nodes = [{ id: 'x', label: 'Contradicted', confidence: 0.9, last_seen: RECENT }];
+  for (const negRelation of ['degil', 'degildir', 'yok', 'yoktur', 'olmaz', 'asla', 'hicbir']) {
+    const links = [
+      { source: 'x', target: 'fact-a', relation: negRelation },
+      { source: 'x', target: 'fact-b', relation: 'ilişki' },
+    ];
+    const { findings } = triageConflicts(nodes, links, NOW);
+    assert.deepEqual(plain(findings).map(f => f.type), ['negation'],
+      `${JSON.stringify(negRelation)} must raise negation signal`);
+  }
+});
+
+// #4290: negation-only edges (no positive relation) must not raise a signal.
+test('negation signal requires both negation and a positive relation', () => {
+  const nodes = [{ id: 'x', label: 'Only negation', confidence: 0.9, last_seen: RECENT }];
+  const links = [
+    { source: 'x', target: 'fact-a', relation: 'not' },
+    { source: 'x', target: 'fact-b', relation: 'cannot' },
+  ];
+  const { findings } = triageConflicts(nodes, links, NOW);
+  assert.deepEqual(plain(findings), [],
+    'only negation edges without a positive relation must not raise negation signal');
+});
+
 test('the signal list is rendered as a bounded page, never as the whole set', () => {
   assert.match(script, /const CONFLICT_PAGE=10;/);
   assert.match(script, /limit=Math\.max\(0,Math\.min\(state\.conflicts\.limit,shown\.length\)\)/);

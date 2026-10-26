@@ -53,6 +53,10 @@ function rel(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u
 // contract.test.js asserts this set covers the canonical one, so adding a type
 // relation there fails here until it is mirrored.
 const TYPE_RELATIONS=new Set(['tur','is_a','is-a','isa']);
+// #4290: negation vocabulary from lib/contradiction-rules-vocabulary.js NEGATION_TOKENS
+// Normalised through rel() so both Turkish (değil→degil, değildir→degildir, yok→yok, ...)
+// and English (not, isn't, cannot, no, never, ...) are matched.
+const NEGATION_SET=new Set(['not',"isn't","aren't","wasn't",'cannot',"can't",'no','never','degil','degildir','yok','yoktur','olmaz','asla','hicbir']);
 const CONFLICT_PAGE=10;
 const CONFLICT_TYPES={'multi-type':{label:M('conflicts.signalType.multiType','Conflicting types'),severity:'high'}
 ,'negation':{label:M('conflicts.signalType.negation','Negation conflict'),severity:'high'}
@@ -67,7 +71,7 @@ const CONFLICT_SEVERITY={high:{rank:0,label:M('conflicts.severity.high','High pr
 ;
 function triageConflicts(nodes,links,now){const n=nodes||[],l=links||[],out=new Map(n.map(x=>[String(x.id),[]])),f=[];
 l.forEach(x=>{const k=endId(x.source);if(!out.has(k))out.set(k,[]);out.get(k).push(x)});
-n.forEach(x=>{const a=out.get(String(x.id))||[],typeTargets=new Set(a.filter(y=>TYPE_RELATIONS.has(rel(y.relation))).map(y=>endId(y.target))),types=typeTargets.size,neg=a.filter(y=>rel(y.relation)==='degil').length,c=Number(x.confidence??x.weight??.5),stale=x.last_seen&&Number.isFinite(Date.parse(x.last_seen))&&now-Date.parse(x.last_seen)>2592000000;if(types>1)f.push({type:'multi-type',subject:nodeLabel(x),detail:`${types} distinct-type relations.`});if(neg&&a.some(y=>rel(y.relation)!=='degil'))f.push({type:'negation',subject:nodeLabel(x),detail:T('conflicts.detail.negation','Negation and positive relation coexist.')});if(c<.35)f.push({type:'low-confidence',subject:nodeLabel(x),detail:`Low confidence: ${c.toFixed(2)}`});if(stale)f.push({type:'stale',subject:nodeLabel(x),detail:`last_seen is stale: ${x.last_seen}`})});
+n.forEach(x=>{const a=out.get(String(x.id))||[],typeTargets=new Set(a.filter(y=>TYPE_RELATIONS.has(rel(y.relation))).map(y=>endId(y.target))),types=typeTargets.size,neg=a.filter(y=>NEGATION_SET.has(rel(y.relation))).length,c=Number(x.confidence??x.weight??.5),stale=x.last_seen&&Number.isFinite(Date.parse(x.last_seen))&&now-Date.parse(x.last_seen)>2592000000;if(types>1)f.push({type:'multi-type',subject:nodeLabel(x),detail:`${types} distinct-type relations.`});if(neg&&a.some(y=>!NEGATION_SET.has(rel(y.relation))))f.push({type:'negation',subject:nodeLabel(x),detail:T('conflicts.detail.negation','Negation and positive relation coexist.')});if(c<.35)f.push({type:'low-confidence',subject:nodeLabel(x),detail:`Low confidence: ${c.toFixed(2)}`});if(stale)f.push({type:'stale',subject:nodeLabel(x),detail:`last_seen is stale: ${x.last_seen}`})});
 f.forEach(x=>{x.severity=CONFLICT_TYPES[x.type].severity;x.typeLabel=CONFLICT_TYPES[x.type].label});
 f.sort((a,b)=>CONFLICT_SEVERITY[a.severity].rank-CONFLICT_SEVERITY[b.severity].rank||a.type.localeCompare(b.type)||a.subject.localeCompare(b.subject));
 const counts={high:0,medium:0,low:0,total:f.length,byType:{'multi-type':0,'negation':0,'low-confidence':0,'stale':0}
