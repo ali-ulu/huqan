@@ -142,11 +142,6 @@
         "uploadFile": "Upload to ingest",
         "review": "Send for review"
       },
-      "file": {
-        "loaded": "File loaded. Click \"Upload to ingest\" to send with approval.",
-        "notLoaded": "No file loaded.",
-        "confirm": "Upload this file to the ingest pipeline? Requires approval."
-      },
       "status": "Waiting for manifest.",
       "rationaleLabel": "Rationale",
       "noteLabel": "Note text",
@@ -166,7 +161,13 @@
       "goalRequired": "Enter a goal first.",
       "ingestRequired": "Enter the text to ingest first.",
       "claimRequired": "Enter a claim or query first.",
-      "fileType": "Only .txt and .md files are supported."
+      "fileType": "Only .txt and .md files are supported.",
+      "fileSize": "File too large (max 1 MB)."
+    },
+    "file": {
+      "loaded": "File loaded. Click \"Upload to ingest\" to send with approval.",
+      "notLoaded": "No file loaded.",
+      "confirm": "Upload this file to the ingest pipeline? Requires approval."
     }
   },
   "approvals": {

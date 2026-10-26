@@ -67,7 +67,7 @@ actionFields();
 $('review').onclick=review;
 $('fileupload').onclick=uploadFile;
 async function uploadFile(){if(!state.pendingFile||!state.pendingFile.textLoaded)return status(T('verify.file.notLoaded','No file loaded.'),1);
-if(!confirm(T('verify.file.confirm','Upload this file to ingest? Requires approval.')))return;
+if(!confirm(T('verify.file.confirm','Upload this file to the ingest pipeline? Requires approval.')))return;
 const h=await hash(state.pendingFile.text);
 try{const{r,d}=await json('/api/ingest',{method:'POST',headers:headers(true),body:JSON.stringify({sourceType:'manual',text:state.pendingFile.text,author:'huqan-command-center',date:new Date().toISOString().slice(0,10),workspaceId:state.ws,idempotencyKey:`file-upload:${h}`})});
 if(!r.ok||d.ok===false)throw Error(d?.error?.message||`HTTP ${r.status}`);

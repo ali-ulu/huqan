@@ -142,11 +142,6 @@
         "uploadFile": "Alıma yükle",
         "review": "İnceleme için gönder"
       },
-      "file": {
-        "loaded": "Dosya yüklendi. Onayla göndermek için \"Alıma yükle\"ye tıklayın.",
-        "notLoaded": "Yüklü dosya yok.",
-        "confirm": "Bu dosyayı alım hattına yüklesin mi? İnsan onayı gerektirir."
-      },
       "status": "Manifest bekleniyor.",
       "rationaleLabel": "Gerekçe",
       "noteLabel": "Not metni",
@@ -166,7 +161,13 @@
       "goalRequired": "Önce bir hedef girin.",
       "ingestRequired": "Önce alınacak metni girin.",
       "claimRequired": "Önce bir iddia veya sorgu girin.",
-      "fileType": "Yalnızca .txt ve .md dosyaları desteklenir."
+      "fileType": "Yalnızca .txt ve .md dosyaları desteklenir.",
+      "fileSize": "Dosya çok büyük (maksimum 1 MB)."
+    },
+    "file": {
+      "loaded": "Dosya yüklendi. Onayla göndermek için \"Alıma yükle\"ye tıklayın.",
+      "notLoaded": "Yüklü dosya yok.",
+      "confirm": "Bu dosyayı alım hattına yüklesin mi? İnsan onayı gerektirir."
     }
   },
   "approvals": {

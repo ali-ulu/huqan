@@ -48,7 +48,7 @@ const steps=[
     status:(a.status==='ok'||a.status==='passed')?'valid':'review'
   })))
 ];
-$('timeline').innerHTML=steps.map(s=>`<div class="timeline-item status-${s.status}"><div class="timeline-label">${esc(s.label)}</div><div class="timeline-value">${esc(s.value)}</div></div>`).join('')||'<div class="empty">'+T('evidence.timeline.empty','No timeline data')+'</div>';
+$('timeline').innerHTML=steps.map(s=>`<div class="timeline-item status-${s.status}"><div class="timeline-label">${esc(s.label)}</div><div class="timeline-value">${esc(s.value)}</div></div>`).join('')||'<div class="empty">'+T('evidence.timeline.empty','Query a receipt.')+'</div>';
 }
 function estatus(t,bad=false,good=false){$('estatus').textContent=t;
 $('estatus').className='status '+(bad?'bad':good?'good':'')}
