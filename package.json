@@ -72,6 +72,7 @@
     "bench:verify": "node benchmarks/verifBench.js",
     "demo:knowledge-graph": "node scripts/knowledge-graph-demo.js --demo",
     "demo:agent-brake": "node scripts/agent-brake-demo.js",
+    "bench:agent-brake": "node benchmarks/bench-agent-brake.js",
     "train": "node scripts/knowledge-graph-demo.js --demo",
     "test": "node scripts/run-tests.js --test-concurrency=4",
     "test:serial": "node scripts/run-tests.js --test-concurrency=1",
