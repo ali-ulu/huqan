@@ -71,6 +71,11 @@
     "node": "DÜĞÜM",
     "time": "ZAMAN"
   },
+  "search": {
+    "noResults": "Sonuç bulunamadı",
+    "receipt": "dekont",
+    "source": "kaynak"
+  },
   "secure": {
     "title": "GÜVENLİ KANAL",
     "apiKeyRequired": "API anahtarı gerekli",
@@ -231,6 +236,9 @@
     "title": "Gözleblenebilirlik ve Kuyruk",
     "description": "Canlı olay akışı, kalıcı çalışma geçmişi, performans metrikleri, uyarı kuralları ve korumalı ajan kuyruğu.",
     "windowFilter": "Zaman penceresi",
+    "customStart": "Başlangıç",
+    "customEnd": "Bitiş",
+    "applyRange": "Uygula",
     "windows": {
       "1h": "Son 1 saat",
       "24h": "Son 24 saat",
