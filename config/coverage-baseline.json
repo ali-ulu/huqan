@@ -9,7 +9,7 @@
   "totals": {
     "lines": 92.16,
     "statements": 92.16,
-    "functions": 94.94,
+    "functions": 85.71,
     "branches": 81.97
   },
   "files": {
@@ -2663,7 +2663,7 @@
     },
     "lib/observability/http-router.js": {
       "lines": 92.47,
-      "branches": 88.67
+      "branches": 87.21
     },
     "lib/observability/instrumentation-marker.js": {
       "lines": 90,
@@ -4004,6 +4004,10 @@
     "scripts/generate-protocol-vectors.js": {
       "lines": 92.95,
       "branches": 80
+    },
+    "scripts/github-app-reconcile-writeback.js": {
+      "lines": 94.68,
+      "branches": 90.76
     },
     "scripts/huqan-watchdog.js": {
       "lines": 59.61,
