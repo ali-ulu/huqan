@@ -42,7 +42,8 @@ return{text:decision?decision.toUpperCase():'—',tone:/allow|approved|accept/.t
 };
 var __huqanSSEStatus = null;
 function renderAgentActivityPulse(kind='LIVE',detail=''){const p=state.activityPulse||{items:[],hasMore:false}
- ,status=String(kind).toUpperCase(),list=$('activitypulseitems');
+ let status=String(kind).toUpperCase();
+ const list=$('activitypulseitems');
 // Retain SSE stream status if present (overrides EMPTY/LIVE, LOCKED is authoritative)
 if (__huqanSSEStatus && (__huqanSSEStatus.status === 'OFFLINE' || __huqanSSEStatus.status === 'DEGRADED')) {
   status = __huqanSSEStatus.status;
@@ -72,15 +73,18 @@ return}
 if(status==='EMPTY'){// Only show EMPTY if no SSE status overriding
 if(!(__huqanSSEStatus && (__huqanSSEStatus.status === 'OFFLINE' || __huqanSSEStatus.status === 'DEGRADED'))){['activitypulsecount','activitypulseactors','activitypulsereceipts'].forEach(id=>$(id).textContent='—');
 pulseStatus('EMPTY',`${state.ws} · No activity on this page`);
-list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>;
+list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>`;
 }}
 const items=Array.isArray(p.items)?p.items.slice(0,5):[],actors=new Set(items.map(x=>x.actor||'system')),receipts=items.filter(x=>x.receipt?.receiptId).length;
 $('activitypulsecount').textContent=String(items.length);
 $('activitypulseactors').textContent=String(items.length?actors.size:0);
 $('activitypulsereceipts').textContent=String(receipts);
 if(!items.length){
-  const msg = `${state.ws} · No activity on this page`;
+  const msg = state.ws + ' - No activity on this page';
   pulseStatus('EMPTY', msg);
-  list.innerHTML=`<div class="empty">${esc(T('pulse.empty','No agent actions in this workspace yet.'))}</div>`;
+  list.innerHTML='<div class="empty">' + esc(T('pulse.empty','No agent actions in this workspace yet.')) + '</div>';
   return;
 }
+}
+
+
