@@ -78,13 +78,15 @@ test('workspace/frame isolation and shared-source history retain the labeled pri
   assert.equal(result.reward.rpe, -1);
 });
 
-for (const mode of ['missing', 'forged', 'blocked', 'frame', 'history']) test(`unbound or uncertain observation abstains (${mode})`, t => {
+for (const mode of ['missing', 'forged', 'blocked', 'frame', 'history', 'family', 'graph']) test(`unbound or uncertain observation abstains (${mode})`, t => {
   const f = fixture(t);
   if (mode === 'history') f.graph.getCommittedMutationResultsByPrefix = () => null;
   const pending = beginStepCognition(f); assert.ok(pending);
   if (mode === 'missing') fs.rmSync(f.target);
   if (mode === 'forged') f.state.cognition.pending = structuredClone(pending);
   if (mode === 'frame') f.opts.cognitionFrame = { ...f.opts.cognitionFrame, commit: 'changed' };
+  if (mode === 'family') f.step.tool = 'compare';
+  if (mode === 'graph') f.graph = new Graph({ useSQLite: false, memoryPath: path.join(f.dir, 'other.json') });
   const result = observeStepCognition({ ...f, report: { status: mode === 'blocked' ? 'blocked' : 'done', ok: true } });
   assert.equal(result.reward.status, 'ABSTAIN');
   assert.notEqual(result.reward.reward, 1);
