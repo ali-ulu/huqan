@@ -60,6 +60,17 @@ test('a named cookie pair in a header is a secret, a bare label is not', () => {
   assert.equal(maskSecretsInText(mixed), '[REDACTED_SECRET:cookie_header]');
 });
 
+test('the cookie scanner stays linear on adversarial headers (CodeQL ReDoS)', () => {
+  const started = Date.now();
+  // Guarded-value absent: the line is left exactly as it arrived.
+  assert.equal(maskSecretsInText(`Cookie: ${'='.repeat(20000)}`), `Cookie: ${'='.repeat(20000)}`);
+  assert.equal(maskSecretsInText(`Cookie: ${'a=b; '.repeat(20000)}`), `Cookie: ${'a=b; '.repeat(20000)}`);
+  // Guarded-value present: the whole header line is masked, not the process.
+  assert.deepEqual(typesIn(`Cookie: ${'theme=dark; '.repeat(20000)}sid=${'ab'.repeat(50)}`), ['cookie_header']);
+  assert.equal(maskSecretsInText(`Cookie: ${'theme=dark; '.repeat(20000)}sid=${'ab'.repeat(50)}`), '[REDACTED_SECRET:cookie_header]');
+  assert.ok(Date.now() - started < 3000, 'the header scan must stay linear at these sizes');
+});
+
 test('an unsigned or truncated JWT is a secret, a complete one keeps its own type', () => {
   const unsigned = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0In0';
   assert.deepEqual(typesIn(unsigned), ['jwt_like']);
