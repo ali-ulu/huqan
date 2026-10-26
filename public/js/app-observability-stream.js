@@ -33,6 +33,8 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
               if (event.eventType && appendEvent(event)) {
                 streamState.retryAttempt = 0;
                 loadAll();
+                // Broadcast to overview pulse widget for live updates
+                try { window.dispatchEvent(new CustomEvent('huqan:sse:event', { detail: event })); } catch (_) {}
               }
             } catch (_) {}
           }
@@ -42,6 +44,8 @@ window.HUQAN_OBS_STREAM = ({workspace,headers,appendEvent,loadAll,setStatus,T,ST
         const delay = Math.min(STREAM_BASE_RECONNECT_DELAY_MS * (2 ** Math.min(streamState.retryAttempt, 4)), STREAM_MAX_RECONNECT_DELAY_MS);
         streamState.retryAttempt += 1;
         setStatus(T('observabilityStatus.reconnect', `Reconnecting live stream in ${delay} ms…`, { delay }));
+        // Broadcast degraded/offline status to overview pulse
+        try { window.dispatchEvent(new CustomEvent('huqan:sse:status', { detail: { status: streamState.retryAttempt >= 5 ? 'OFFLINE' : 'DEGRADED', detail: `Reconnect attempt ${streamState.retryAttempt}` } })); } catch (_) {}
         streamState.timer = setTimeout(() => { streamState.timer = null; open(); }, delay);
       });
     };

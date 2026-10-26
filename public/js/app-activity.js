@@ -30,8 +30,7 @@ $('activitycount').textContent=items.length;
 $('activitymeta').textContent=`${items.length} row · ${state.activity.hasMore?'next page available':'bounded page'}`;
 $('activitynext').disabled=!state.activity.hasMore;
 $('activitylist').innerHTML=items.map(x=>`<div class="item activityrow" data-activity-id="${esc(x.auditId)}" tabindex="0"><b>${esc(x.eventType||'AUDIT')} · ${esc(x.action||'activity')}</b><div class="sub">${esc(x.timestamp||'—')} · ${esc(x.actor||'system')} · ${esc(x.targetType||'—')}:${esc(x.targetId||'—')}</div><span class="tag">${esc(x.sourceRef||'audit')}</span>${x.receipt?`<span class="tag good">Receipt ${esc(x.receipt.receiptId)}</span><div class="actions activityreceipt"><button class="btn" data-activity-receipt="${esc(x.receipt.receiptId)}">${esc(T('evidence.openReceipt','Open receipt'))}</button></div>`:''}</div>`).join('')||`<div class="empty">${esc(T('activity.noneForFilters','No activity found for these filters.'))}</div>`}
-function pulseStatus(kind,detail=''){const e=$('activitypulsestate'),tone=kind==='LIVE'?'ok':kind==='LOCKED'?'locked':kind==='ERROR'?'err':'';
-e.textContent=kind;
+function pulseStatus(kind,detail=''){const e=$('activitypulsestate'),tone=kind==='LIVE'?'ok':kind==='LOCKED'?'locked':kind==='ERROR'?'err':kind==='OFFLINE'?'err':kind==='DEGRADED'?'warn':'';e.textContent=kind;
 e.className='state '+tone;
 $('activitypulsemeta').textContent=detail||`workspace scoped · ${state.ws}`}
 function pulseTime(value){const parsed=Date.parse(value||'');
@@ -124,3 +123,22 @@ $('einput').value=n.dataset.receipt;
 $('emode').value='receiptId';
 go('evidence');
 loadReceipt()}
+// Connect overview pulse to live SSE stream (#4298 #4300)
+if (typeof window !== 'undefined') {
+  window.addEventListener('huqan:sse:event', (e) => {
+    const ev = e.detail;
+    if (!ev?.eventType) return;
+    // Update pulse live with latest event
+    const pulse = state.activityPulse || { items: [] };
+    const items = [ev, ...pulse.items].slice(0,5);
+    state.activityPulse = { ...pulse, items };
+    renderAgentActivityPulse('LIVE', 'live SSE update');
+  });
+  // Stream connection status sync: OFFLINE/DEGRADED handling
+  window.addEventListener('huqan:sse:status', (e) => {
+    const { status, detail } = e.detail || {};
+    if (status === 'OFFLINE' || status === 'DEGRADED') {
+      renderAgentActivityPulse(status, detail || 'SSE stream unavailable');
+    }
+  });
+}
