@@ -139,7 +139,13 @@
       "actions": {
         "run": "Run",
         "fileBtn": "Choose file",
+        "uploadFile": "Upload to ingest",
         "review": "Send for review"
+      },
+      "file": {
+        "loaded": "File loaded. Click \"Upload to ingest\" to send with approval.",
+        "notLoaded": "No file loaded.",
+        "confirm": "Upload this file to the ingest pipeline? Requires approval."
       },
       "status": "Waiting for manifest.",
       "rationaleLabel": "Rationale",
@@ -200,6 +206,15 @@
       "summary": {
         "status": "Status"
       }
+    },
+    "timeline": {
+      "title": "TIMELINE / PROVENANCE",
+      "subtitle": "readable chain view",
+      "empty": "Query a receipt.",
+      "provenance": "Provenance",
+      "gate": "Gate Decision",
+      "signature": "Signature Chain",
+      "audit": "Audit"
     },
     "raw": {
       "title": "RAW RECEIPT",

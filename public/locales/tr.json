@@ -139,7 +139,13 @@
       "actions": {
         "run": "Çalıştır",
         "fileBtn": "Dosya seç",
+        "uploadFile": "Alıma yükle",
         "review": "İnceleme için gönder"
+      },
+      "file": {
+        "loaded": "Dosya yüklendi. Onayla göndermek için \"Alıma yükle\"ye tıklayın.",
+        "notLoaded": "Yüklü dosya yok.",
+        "confirm": "Bu dosyayı alım hattına yüklesin mi? İnsan onayı gerektirir."
       },
       "status": "Manifest bekleniyor.",
       "rationaleLabel": "Gerekçe",
@@ -200,6 +206,15 @@
       "summary": {
         "status": "Durum"
       }
+    },
+    "timeline": {
+      "title": "ZAMAN ÇİZELGESİ / KAYNAK",
+      "subtitle": "okunabilir zincir görünümü",
+      "empty": "Bir dekont sorgulayın.",
+      "provenance": "Kaynak",
+      "gate": "Kapı Kararı",
+      "signature": "İmza Zinciri",
+      "audit": "Denetim"
     },
     "raw": {
       "title": "HAM DEKONT",
