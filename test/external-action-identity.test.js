@@ -137,12 +137,26 @@ test('an attested card is written to the gate decision and to the receipt', () =
   assert.match(result.receipt.receiptHash, /^[a-f0-9]{64}$/, 'identity is inside the hashed payload');
 });
 
-test('an action with no card is blocked by default and still attributed', () => {
-  const result = evaluateExternalAction(invocation(), atNow());
-  assert.equal(result.decision, 'block', '#2505 C owner decision: identity is required unless opted out');
+test('an action with no card runs unattested locally and is still attributed', () => {
+  const result = evaluateExternalAction(invocation(), atNow({ environment: {} }));
+  assert.equal(result.decision, 'allow', '2026-10-28 owner decision: a fresh local install must not block reads');
   const identity = result.receipt.metadata.identity;
   assert.equal(identity.attested, false);
   assert.equal(identity.ownerActorId, UNATTESTED_OWNER);
+  assert.equal(identityFinding(result).reason, IDENTITY_REASONS.UNATTESTED);
+});
+
+test('production still blocks an action with no card', () => {
+  const result = evaluateExternalAction(invocation(), atNow({ environment: { NODE_ENV: 'production' } }));
+  assert.equal(result.decision, 'block');
+  assert.equal(identityFinding(result).reason, IDENTITY_REASONS.CARD_REQUIRED);
+});
+
+test('an unrecognised identity flag fails closed instead of taking the local default', () => {
+  const result = evaluateExternalAction(invocation(), atNow({
+    environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'yes' },
+  }));
+  assert.equal(result.decision, 'block');
   assert.equal(identityFinding(result).reason, IDENTITY_REASONS.CARD_REQUIRED);
 });
 

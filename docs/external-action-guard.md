@@ -77,17 +77,18 @@ kararın içine, kimlik de `metadata.identity` olarak receipt'e yazılır — ya
 canonical receipt hash'inin kapsamındadır.
 
 Kart **verilmediğinde** eylem yine attribute edilir (`attested: false`,
-`ownerActorId: "unattested"`) ama karar **varsayılan olarak `block`**'tur:
-`#2505 C` sahibi kararı, imzasız kimliği üretimde kabul etmemektir. Yani kart
-taşımayan bir ajanın zararsız bir komutu bile `agent_identity_card_required` ile
-bloklanır — bu, OpenHands'a özel değil, bütün profillerin ortak fail-closed
-davranışıdır.
+`ownerActorId: "unattested"`). Yerel kurulumda kimlik kontrolü bu çağrıyı
+**geçirir** (`agent_identity_unattested`); karar risk sınıflandırıcısına kalır,
+yani `git status` geçer, `git push --force` yine bloklanır. Bu, 2026-10-28 sahibi
+kararıdır ve `#2505 C`'nin yerel varsayılanının yerini alır: yeni bir kurulum
+kart verilene kadar her komutu bloklamamalı.
 
-Kimlik zorunluluğunu gevşetmek **açık bir deployment kararıdır**:
-`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow` (library'de
-`requireIdentityCard: false`). Aynı değişken `review` değeriyle `allow` yerine
-inceleme ister. `NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu
-bir bayrakla gevşetilemez. Kart vermenin kolay yolu `huqan-gate identity issue`
+Kartı her yerde zorunlu kılmak **açık bir deployment kararıdır**:
+`HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=block` (library'de
+`requireIdentityCard: true`, CLI'da `--require-identity`). Aynı değişken
+`review` değeriyle inceleme ister; tanınmayan bir değer fail-closed `block`
+sayılır. `NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu bir
+bayrakla gevşetilemez. Kart vermenin kolay yolu `huqan-gate identity issue`
 (bkz. aşağıda).
 
 ### Kart imzası (ed25519)

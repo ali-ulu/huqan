@@ -149,10 +149,10 @@ node /path/to/huqan/bin/huqan-gate-hook.js identity issue \
   --out-signature opcard.sig.json
 ```
 
-To opt out of the identity requirement instead (weaker - any caller is admitted):
+Without a card, a local install runs calls unattested (recorded as such in the receipt); the risk classifier still blocks destructive actions, and `NODE_ENV=production` blocks unattested calls. To require a card everywhere:
 
 ```bash
-export HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=allow
+export HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=block
 ```
 
 ## Part 6 - Install the Approval Authority (Windows)

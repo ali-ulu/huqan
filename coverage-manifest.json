@@ -1146,27 +1146,27 @@
       ],
       "sites": [
         {
-          "line": 259,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 263,
+          "line": 260,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
           "line": 264,
           "capability": "fs_write",
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 265,
+          "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 266,
+          "line": 267,
           "capability": "fs_write",
           "call": "fs.renameSync"
         },
         {
-          "line": 268,
+          "line": 269,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -1338,7 +1338,7 @@
       ],
       "sites": [
         {
-          "line": 219,
+          "line": 218,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -2185,12 +2185,12 @@
       ],
       "sites": [
         {
-          "line": 116,
+          "line": 117,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 137,
+          "line": 138,
           "capability": "fs_write",
           "call": "fs.renameSync"
         }
@@ -2205,7 +2205,7 @@
       ],
       "sites": [
         {
-          "line": 184,
+          "line": 185,
           "capability": "egress",
           "call": "globalThis.fetch"
         }
@@ -2220,7 +2220,7 @@
       ],
       "sites": [
         {
-          "line": 135,
+          "line": 136,
           "capability": "egress",
           "call": "connect"
         }
