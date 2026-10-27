@@ -23,6 +23,11 @@ const { evaluateCommandExec, COMMAND_EXEC_DECISIONS } = require('../lib/command-
 // audit measured the gate returning ALLOW for it. So the flags have to be
 // refused where the spawn happens, the same place #4073 put the executable
 // allowlist. Related closed issues: #4073 (shell interpreter), #4239 (--run).
+//
+// #4342 completes the matrix: `=` variants of `--experimental-loader` and
+// `--require-module` in the unit set, `--loader`/`--experimental-loader` in
+// the isolated E2E, a `-r=` boundary pinned against real node, and a loader
+// positive control.
 
 function fakeSpawn(responses) {
   const calls = [];
@@ -43,7 +48,9 @@ const CODE_LOADING_COMMANDS = [
   'node --loader /tmp/loader.mjs --test test/x.js',
   'node --loader=/tmp/loader.mjs --test test/x.js',
   'node --experimental-loader /tmp/loader.mjs --test test/x.js',
+  'node --experimental-loader=/tmp/loader.mjs --test test/x.js',
   'node --require-module /tmp/pre.js --test test/x.js',
+  'node --require-module=/tmp/pre.js --test test/x.js',
   'node --test-reporter /tmp/reporter.js --test test/x.js',
   'node --test-reporter=/tmp/reporter.js --test test/x.js',
 ];
@@ -73,6 +80,28 @@ describe('declared test refuses Node module-loader flags (#4316)', () => {
     });
 
     assert.equal(result.flag, '--require');
+  });
+
+  it('pins the short-flag boundary: -r= is Node-invalid, not a guess the denylist makes', () => {
+    // The denylist compares `-r` as a whole token on purpose: `-rx` or
+    // `-r=x` is not a loader invocation Node accepts (node v22.22 exits
+    // "bad option" before any file is read; the isolated E2E below pins
+    // the same on the CI matrix), and refusing a longer short flag
+    // would be a guess. So the executor hands the token to node and
+    // node's own rejection is the boundary; the E2E pins that no module
+    // executes on it. This unit test keeps the pass-through visible so a
+    // future tightening is a deliberate change to the comment, not a
+    // silent one.
+    const spawn = fakeSpawn([{ status: 1 }]);
+    const result = runDeclaredTest({
+      test: { command: 'node -r=/tmp/pre.js --test test/x.js' },
+      root: '.',
+      spawn,
+    });
+
+    assert.equal(result.ran, true);
+    assert.equal(result.ok, false);
+    assert.deepEqual(spawn.calls[0].args[0], '-r=/tmp/pre.js');
   });
 
   it('still runs a declared test command with no code-loading flag', () => {
@@ -123,6 +152,12 @@ describe('declared test code-loading flag end to end (#4316)', () => {
       "require('node:fs').writeFileSync(process.env.HUQAN_4316_MARKER, 'PRELOAD RAN\\n');\n");
     fs.writeFileSync(path.join(root, 'pre.mjs'),
       "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.HUQAN_4316_MARKER, 'IMPORT RAN\\n');\n");
+    // The loader fixture is also a working positive control: it writes the
+    // marker at import time (a loader module is imported at startup) and
+    // exports a pass-through hook so `--loader`/`--experimental-loader`
+    // accept it and exit 0.
+    fs.writeFileSync(path.join(root, 'loader.mjs'),
+      "import { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.HUQAN_4316_MARKER, 'LOADER RAN\\n');\nexport async function resolve(specifier, context, nextResolve) { return nextResolve(specifier, context); }\n");
     return { root, outside, cleanup: () => { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(outside, { recursive: true, force: true }); } };
   }
 
@@ -130,7 +165,14 @@ describe('declared test code-loading flag end to end (#4316)', () => {
     const { root, outside, cleanup } = isolatedWorkspace();
     const marker = path.join(outside, 'marker.txt');
     try {
-      for (const [flag, module] of [['--require', 'pre.js'], ['--import', 'pre.mjs']]) {
+      for (const [flag, module] of [
+        ['--require', 'pre.js'],
+        ['--import', 'pre.mjs'],
+        // #4342: the loader paths are the same reach by other names; pin
+        // them against a real spawn here, not only in the unit matrix.
+        ['--loader', 'loader.mjs'],
+        ['--experimental-loader', 'loader.mjs'],
+      ]) {
         const result = runDeclaredTest({
           test: { command: `node ${flag} ${module} --test test/x.js` },
           root,
@@ -141,16 +183,47 @@ describe('declared test code-loading flag end to end (#4316)', () => {
         assert.equal(fs.existsSync(marker), false, `${flag} wrote the outside marker`);
       }
 
+      // Boundary the denylist deliberately leaves to Node: `-r=` is not a
+      // loader invocation Node accepts, so the executor spawns and node
+      // itself exits non-zero ("bad option") before any file is read. The
+      // pin is fail-closed at the OS boundary: no preload, no marker.
+      const boundary = runDeclaredTest({
+        test: { command: 'node -r=pre.js --test test/x.js' },
+        root,
+      });
+      assert.equal(boundary.ran, true);
+      assert.equal(boundary.ok, false);
+      assert.equal(fs.existsSync(marker), false, '-r= wrote the outside marker');
+
       // Positive control: the preload is functional, so the absent marker
       // above is the guard refusing the run and not a broken fixture. Running
       // the same argv directly bypasses the executor on purpose.
+      // NODE_TEST_CONTEXT is dropped: this process is a `node --test` child,
+      // and a grandchild that inherits it skips running test files entirely
+      // ("run() is being called recursively"), which would make the control
+      // lie. The control must see the plain environment a real declared-test
+      // run sees.
+      const { NODE_TEST_CONTEXT: _drop, ...controlEnv } = process.env;
       const control = childProcess.spawnSync('node', ['--require', './pre.js', '--test', 'test/x.js'], {
         cwd: root,
-        env: { ...process.env, HUQAN_4316_MARKER: marker },
+        env: { ...controlEnv, HUQAN_4316_MARKER: marker },
         encoding: 'utf8',
       });
       assert.equal(control.status, 0, control.stderr);
       assert.equal(fs.existsSync(marker), true);
+
+      // Same proof for the loader fixture: node itself loads it and its
+      // top-level write runs, so the absent marker above is the guard and
+      // not a broken fixture. (Node still accepts --experimental-loader on
+      // v22/v24; it warns, and the warning does not fail the run.)
+      fs.rmSync(marker, { force: true });
+      const loaderControl = childProcess.spawnSync('node', ['--experimental-loader', './loader.mjs', '--test', 'test/x.js'], {
+        cwd: root,
+        env: { ...controlEnv, HUQAN_4316_MARKER: marker },
+        encoding: 'utf8',
+      });
+      assert.equal(loaderControl.status, 0, loaderControl.stderr);
+      assert.equal(fs.existsSync(marker), true, loaderControl.stderr);
     } finally {
       cleanup();
     }
