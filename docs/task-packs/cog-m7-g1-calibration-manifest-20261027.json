@@ -1,0 +1,2833 @@
+{
+  "schemaVersion": "huqan-g1-manifest-v1",
+  "phase": "calibration",
+  "sourceSha": "097615b7c77a5ef35d73b41fed351bd96e7cc61a",
+  "corpusDigest": "360ad702c807b129b9eceaebc90a549a03f53a2f60784fc4f6255ca014c7d8ab",
+  "protocol": {
+    "trainRows": 3,
+    "acceptanceRows": 3,
+    "variantsPerUnit": 2,
+    "historyPerKind": 7,
+    "seeds": [
+      1,
+      2,
+      3
+    ],
+    "budget": {
+      "maxSteps": 4,
+      "maxIterations": 2,
+      "maxEpisodeSteps": 6
+    },
+    "minStratumGroups": 8,
+    "minEffect": 0.15
+  },
+  "digests": {
+    "preload": "3c66d11538a3bfac1d26de3e68696eef4c5bb69b97c5c816cf0307d69638d207",
+    "episode": "4b463f9d2eba033e7612909b3707125ba20dc630475fbb23b82102299f7bfd41",
+    "runner": "0c499a8255366610a386f31558e8b48d25b885fe4019cfeb5b0cc8591a8558c8",
+    "corpus": "96f6322420be056e29c4524043f30b0b45052fda41096b983f7c2d10f0c077e0",
+    "stats": "7f160fa583885eac3222a4e116cd26635127774890d43a86fa39b76ef2639d59",
+    "preregistration": "ad3aadef27c9be690ab39cc2c7acf930ad906219f10145b708305c08dfb6d0a2"
+  },
+  "splits": {
+    "train": [
+      "136db3632580f948",
+      "0e07ba72fceaf844",
+      "429afa5b98d79611",
+      "62d128292fb1bcde",
+      "f2f4affb950a8dd4",
+      "0dc5313235a2a010",
+      "0ae216db10838189",
+      "4b05ab1cc47b64ff"
+    ],
+    "calibration": [
+      "ccad30a72a60f829",
+      "ee4e6ac8bd34d830",
+      "914f2bbb67b43856",
+      "79a72fce11a3fa94",
+      "4eec73d898cf7a63",
+      "6d17d120d8b6a76e",
+      "02d039d786b14a2b",
+      "3e91720e8a6af1d5"
+    ],
+    "holdout": [
+      "4883e1a3198d6639",
+      "87a6cf78a5b27bef",
+      "99d014f30fff8953",
+      "521db9d3b402d729",
+      "8a4a0939774319c3",
+      "f0f847db1b9cb0d7",
+      "a90447a67e02dd22",
+      "f8406d1c9ea7142d",
+      "0d4d137f552e2250",
+      "4c0e3a38b5774d70",
+      "aabd9ce219072802",
+      "46f9c02231d689c7",
+      "59f3953fefac9958",
+      "6345b0604f32155f",
+      "8ed2612c7cb4438b",
+      "90b53862c089545f",
+      "fce7fa0365ef7344",
+      "f9a0f712e0cb225d",
+      "e648137a854822e7",
+      "a468904932b9c076",
+      "570e848a2fb70f5f",
+      "e8796d03d77c4216",
+      "ecec2fb62ffa67c9",
+      "c23a03bfa2240266",
+      "3b41a291a139afe7",
+      "d38ab556ea268d70",
+      "19680c8d622d05ee",
+      "458859dab33af60c",
+      "efdeb13763349f10",
+      "d80ad6732ffce6b7",
+      "8fb12f2d0ea97504",
+      "3e4cc584175f091d",
+      "3ce6a692a4bd90ad",
+      "a1e72d8dd94cc2ae",
+      "445aa995303814ee",
+      "1bbf436aaa835474",
+      "61bee10c6c2db4d1",
+      "3a21a17f6622f93e",
+      "fe1e65417ba669aa",
+      "c46b274fda3d29db",
+      "9366bf030899e9f6",
+      "4ae5d39cbe04bfcb",
+      "cb17baecf9ddc0f2",
+      "ffee51029ba3ea19",
+      "c58e0de78c380884",
+      "4cc7b5650fe5581e",
+      "1a736f70af7c21b2",
+      "191fc72f2a7dec02",
+      "d128f4c7a2f43680",
+      "37c163103ca469d8",
+      "9e0f5ed3b2261293",
+      "05ff6fe12e52b632",
+      "4d43f75f82038717",
+      "3cd08a45c460e574",
+      "0ae27baa09dd6264",
+      "7f8eba2d0b573dcc",
+      "617469a56308112a",
+      "5a66c04b83897dd6",
+      "24c0b35f33964969",
+      "c5f3d242cc7e9aee",
+      "6541fcb6efc3f5d1",
+      "11204cb9ca6766c7",
+      "3830c8083795a5e0",
+      "bc39cc1cbe00d845"
+    ]
+  },
+  "audit": {
+    "status": "CLEAN",
+    "checked": 400
+  },
+  "history": {
+    "perKind": {
+      "initialize_project:array-fold": {
+        "runs": 7,
+        "failures": 0
+      },
+      "initialize_project:array-guarded-fold": {
+        "runs": 7,
+        "failures": 7
+      },
+      "initialize_project:array-threshold-fold": {
+        "runs": 7,
+        "failures": 4
+      },
+      "initialize_project:array-stateful-fold": {
+        "runs": 7,
+        "failures": 6
+      },
+      "initialize_project:array-map": {
+        "runs": 7,
+        "failures": 0
+      },
+      "initialize_project:array-filter": {
+        "runs": 7,
+        "failures": 6
+      }
+    },
+    "tasks": 42
+  },
+  "calibration": {
+    "deltas": [
+      0,
+      0,
+      0,
+      -0.08333333333333333,
+      -0.08333333333333333,
+      -0.25,
+      0,
+      -0.16666666666666666
+    ],
+    "sigma": 0.09383263553830028,
+    "naturalFailureRate": {
+      "control": 0.6145833333333333,
+      "candidate": 0.6875
+    },
+    "cost": {
+      "modelCalls": 0,
+      "networkCalls": 0,
+      "controlWallMedianMs": 21948.233099999998,
+      "candidateWallMedianMs": 23074.1149,
+      "wallRatio": 1.0512971497464187,
+      "maxRssBytes": 231890944,
+      "coderSteps": 96
+    },
+    "groups": [
+      {
+        "digest": "ccad30a72a60f829",
+        "families": [
+          "array-stateful-fold",
+          "array-fold"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-ccad30a7-s1",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ccad30a7-01",
+                "g1-ccad30a7-11",
+                "g1-ccad30a7-00",
+                "g1-ccad30a7-10"
+              ],
+              "executed": [
+                "coder:g1-ccad30a7-01:done",
+                "coder:g1-ccad30a7-11:done"
+              ],
+              "wallMs": 29925.7707,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 182616064,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ccad30a7-01": 0,
+                  "coder:g1-ccad30a7-11": 0,
+                  "coder:g1-ccad30a7-00": 0,
+                  "coder:g1-ccad30a7-10": 0
+                },
+                {
+                  "coder:g1-ccad30a7-11": 0,
+                  "coder:g1-ccad30a7-00": 0,
+                  "coder:g1-ccad30a7-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ccad30a7-01",
+                "g1-ccad30a7-11",
+                "g1-ccad30a7-00",
+                "g1-ccad30a7-10"
+              ],
+              "executed": [
+                "coder:g1-ccad30a7-01:done",
+                "coder:g1-ccad30a7-00:done"
+              ],
+              "wallMs": 28888.8886,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 183013376,
+              "urgencyUsed": [
+                0.137909,
+                0.102647,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ccad30a7-01": 0.137909,
+                  "coder:g1-ccad30a7-11": 0.102647,
+                  "coder:g1-ccad30a7-00": 0.137909,
+                  "coder:g1-ccad30a7-10": 0.102647
+                },
+                {
+                  "coder:g1-ccad30a7-00": 0.390108,
+                  "coder:g1-ccad30a7-11": 0.102647,
+                  "coder:g1-ccad30a7-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-ccad30a7-s2",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ccad30a7-10",
+                "g1-ccad30a7-11",
+                "g1-ccad30a7-01",
+                "g1-ccad30a7-00"
+              ],
+              "executed": [
+                "coder:g1-ccad30a7-10:done",
+                "coder:g1-ccad30a7-11:done"
+              ],
+              "wallMs": 30518.739,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 185831424,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ccad30a7-10": 0,
+                  "coder:g1-ccad30a7-11": 0,
+                  "coder:g1-ccad30a7-01": 0,
+                  "coder:g1-ccad30a7-00": 0
+                },
+                {
+                  "coder:g1-ccad30a7-11": 0,
+                  "coder:g1-ccad30a7-01": 0,
+                  "coder:g1-ccad30a7-00": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ccad30a7-10",
+                "g1-ccad30a7-11",
+                "g1-ccad30a7-01",
+                "g1-ccad30a7-00"
+              ],
+              "executed": [
+                "coder:g1-ccad30a7-01:done",
+                "coder:g1-ccad30a7-00:done"
+              ],
+              "wallMs": 28930.9385,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 185704448,
+              "urgencyUsed": [
+                0.102647,
+                0.102647,
+                0.137909,
+                0.137909
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ccad30a7-10": 0.102647,
+                  "coder:g1-ccad30a7-11": 0.102647,
+                  "coder:g1-ccad30a7-01": 0.137909,
+                  "coder:g1-ccad30a7-00": 0.137909
+                },
+                {
+                  "coder:g1-ccad30a7-00": 0.390108,
+                  "coder:g1-ccad30a7-10": 0.102647,
+                  "coder:g1-ccad30a7-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-ccad30a7-s3",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ccad30a7-01",
+                "g1-ccad30a7-10",
+                "g1-ccad30a7-00",
+                "g1-ccad30a7-11"
+              ],
+              "executed": [
+                "coder:g1-ccad30a7-01:done",
+                "coder:g1-ccad30a7-10:done"
+              ],
+              "wallMs": 28154.126399999997,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 182800384,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ccad30a7-01": 0,
+                  "coder:g1-ccad30a7-10": 0,
+                  "coder:g1-ccad30a7-00": 0,
+                  "coder:g1-ccad30a7-11": 0
+                },
+                {
+                  "coder:g1-ccad30a7-10": 0,
+                  "coder:g1-ccad30a7-00": 0,
+                  "coder:g1-ccad30a7-11": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ccad30a7-01",
+                "g1-ccad30a7-10",
+                "g1-ccad30a7-00",
+                "g1-ccad30a7-11"
+              ],
+              "executed": [
+                "coder:g1-ccad30a7-01:done",
+                "coder:g1-ccad30a7-00:done"
+              ],
+              "wallMs": 30092.7521,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 182861824,
+              "urgencyUsed": [
+                0.137909,
+                0.102647,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ccad30a7-01": 0.137909,
+                  "coder:g1-ccad30a7-10": 0.102647,
+                  "coder:g1-ccad30a7-00": 0.137909,
+                  "coder:g1-ccad30a7-11": 0.102647
+                },
+                {
+                  "coder:g1-ccad30a7-00": 0.390108,
+                  "coder:g1-ccad30a7-10": 0.102647,
+                  "coder:g1-ccad30a7-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "ee4e6ac8bd34d830",
+        "families": [
+          "array-threshold-fold",
+          "array-fold"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-ee4e6ac8-s1",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ee4e6ac8-01",
+                "g1-ee4e6ac8-10",
+                "g1-ee4e6ac8-11",
+                "g1-ee4e6ac8-00"
+              ],
+              "executed": [
+                "coder:g1-ee4e6ac8-01:done",
+                "coder:g1-ee4e6ac8-10:done"
+              ],
+              "wallMs": 43916.9667,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 231890944,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ee4e6ac8-01": 0,
+                  "coder:g1-ee4e6ac8-10": 0,
+                  "coder:g1-ee4e6ac8-11": 0,
+                  "coder:g1-ee4e6ac8-00": 0
+                },
+                {
+                  "coder:g1-ee4e6ac8-10": 0,
+                  "coder:g1-ee4e6ac8-11": 0,
+                  "coder:g1-ee4e6ac8-00": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ee4e6ac8-01",
+                "g1-ee4e6ac8-10",
+                "g1-ee4e6ac8-11",
+                "g1-ee4e6ac8-00"
+              ],
+              "executed": [
+                "coder:g1-ee4e6ac8-01:done",
+                "coder:g1-ee4e6ac8-00:done"
+              ],
+              "wallMs": 46763.0558,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 216764416,
+              "urgencyUsed": [
+                0.17602,
+                0.102647,
+                0.102647,
+                0.17602
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ee4e6ac8-01": 0.17602,
+                  "coder:g1-ee4e6ac8-10": 0.102647,
+                  "coder:g1-ee4e6ac8-11": 0.102647,
+                  "coder:g1-ee4e6ac8-00": 0.17602
+                },
+                {
+                  "coder:g1-ee4e6ac8-00": 0.328928,
+                  "coder:g1-ee4e6ac8-10": 0.102647,
+                  "coder:g1-ee4e6ac8-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-ee4e6ac8-s2",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ee4e6ac8-11",
+                "g1-ee4e6ac8-01",
+                "g1-ee4e6ac8-10",
+                "g1-ee4e6ac8-00"
+              ],
+              "executed": [
+                "coder:g1-ee4e6ac8-11:done",
+                "coder:g1-ee4e6ac8-01:done"
+              ],
+              "wallMs": 44937.9608,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 180183040,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ee4e6ac8-11": 0,
+                  "coder:g1-ee4e6ac8-01": 0,
+                  "coder:g1-ee4e6ac8-10": 0,
+                  "coder:g1-ee4e6ac8-00": 0
+                },
+                {
+                  "coder:g1-ee4e6ac8-01": 0,
+                  "coder:g1-ee4e6ac8-10": 0,
+                  "coder:g1-ee4e6ac8-00": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ee4e6ac8-11",
+                "g1-ee4e6ac8-01",
+                "g1-ee4e6ac8-10",
+                "g1-ee4e6ac8-00"
+              ],
+              "executed": [
+                "coder:g1-ee4e6ac8-01:done",
+                "coder:g1-ee4e6ac8-00:done"
+              ],
+              "wallMs": 49491.2137,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 186638336,
+              "urgencyUsed": [
+                0.102647,
+                0.17602,
+                0.102647,
+                0.17602
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ee4e6ac8-11": 0.102647,
+                  "coder:g1-ee4e6ac8-01": 0.17602,
+                  "coder:g1-ee4e6ac8-10": 0.102647,
+                  "coder:g1-ee4e6ac8-00": 0.17602
+                },
+                {
+                  "coder:g1-ee4e6ac8-00": 0.328928,
+                  "coder:g1-ee4e6ac8-11": 0.102647,
+                  "coder:g1-ee4e6ac8-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-ee4e6ac8-s3",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ee4e6ac8-00",
+                "g1-ee4e6ac8-10",
+                "g1-ee4e6ac8-11",
+                "g1-ee4e6ac8-01"
+              ],
+              "executed": [
+                "coder:g1-ee4e6ac8-00:done",
+                "coder:g1-ee4e6ac8-10:done"
+              ],
+              "wallMs": 52045.539000000004,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 225218560,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ee4e6ac8-00": 0,
+                  "coder:g1-ee4e6ac8-10": 0,
+                  "coder:g1-ee4e6ac8-11": 0,
+                  "coder:g1-ee4e6ac8-01": 0
+                },
+                {
+                  "coder:g1-ee4e6ac8-10": 0,
+                  "coder:g1-ee4e6ac8-11": 0,
+                  "coder:g1-ee4e6ac8-01": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-ee4e6ac8-00",
+                "g1-ee4e6ac8-10",
+                "g1-ee4e6ac8-11",
+                "g1-ee4e6ac8-01"
+              ],
+              "executed": [
+                "coder:g1-ee4e6ac8-00:done",
+                "coder:g1-ee4e6ac8-01:done"
+              ],
+              "wallMs": 46198.004400000005,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 196784128,
+              "urgencyUsed": [
+                0.17602,
+                0.102647,
+                0.102647,
+                0.17602
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-ee4e6ac8-00": 0.17602,
+                  "coder:g1-ee4e6ac8-10": 0.102647,
+                  "coder:g1-ee4e6ac8-11": 0.102647,
+                  "coder:g1-ee4e6ac8-01": 0.17602
+                },
+                {
+                  "coder:g1-ee4e6ac8-01": 0.328928,
+                  "coder:g1-ee4e6ac8-10": 0.102647,
+                  "coder:g1-ee4e6ac8-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "914f2bbb67b43856",
+        "families": [
+          "array-guarded-fold",
+          "array-threshold-fold"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-914f2bbb-s1",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-914f2bbb-01",
+                "g1-914f2bbb-00",
+                "g1-914f2bbb-11",
+                "g1-914f2bbb-10"
+              ],
+              "executed": [
+                "coder:g1-914f2bbb-01:error",
+                "coder:g1-914f2bbb-00:done"
+              ],
+              "wallMs": 42262.6361,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 170823680,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-914f2bbb-01": 0,
+                  "coder:g1-914f2bbb-00": 0,
+                  "coder:g1-914f2bbb-11": 0,
+                  "coder:g1-914f2bbb-10": 0
+                },
+                {
+                  "coder:g1-914f2bbb-00": 0,
+                  "coder:g1-914f2bbb-11": 0,
+                  "coder:g1-914f2bbb-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-914f2bbb-01",
+                "g1-914f2bbb-00",
+                "g1-914f2bbb-11",
+                "g1-914f2bbb-10"
+              ],
+              "executed": [
+                "coder:g1-914f2bbb-11:error",
+                "coder:g1-914f2bbb-10:done"
+              ],
+              "wallMs": 69385.50790000001,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 222011392,
+              "urgencyUsed": [
+                0.102647,
+                0.102647,
+                0.17602,
+                0.17602
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-914f2bbb-01": 0.102647,
+                  "coder:g1-914f2bbb-00": 0.102647,
+                  "coder:g1-914f2bbb-11": 0.17602,
+                  "coder:g1-914f2bbb-10": 0.17602
+                },
+                {
+                  "coder:g1-914f2bbb-10": 0.36,
+                  "coder:g1-914f2bbb-01": 0.102647,
+                  "coder:g1-914f2bbb-00": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-914f2bbb-s2",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-914f2bbb-11",
+                "g1-914f2bbb-00",
+                "g1-914f2bbb-01",
+                "g1-914f2bbb-10"
+              ],
+              "executed": [
+                "coder:g1-914f2bbb-11:error",
+                "coder:g1-914f2bbb-00:done"
+              ],
+              "wallMs": 30273.9722,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 218951680,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-914f2bbb-11": 0,
+                  "coder:g1-914f2bbb-00": 0,
+                  "coder:g1-914f2bbb-01": 0,
+                  "coder:g1-914f2bbb-10": 0
+                },
+                {
+                  "coder:g1-914f2bbb-00": 0,
+                  "coder:g1-914f2bbb-01": 0,
+                  "coder:g1-914f2bbb-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-914f2bbb-11",
+                "g1-914f2bbb-00",
+                "g1-914f2bbb-01",
+                "g1-914f2bbb-10"
+              ],
+              "executed": [
+                "coder:g1-914f2bbb-11:error",
+                "coder:g1-914f2bbb-10:done"
+              ],
+              "wallMs": 30340.0748,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 214933504,
+              "urgencyUsed": [
+                0.17602,
+                0.102647,
+                0.102647,
+                0.17602
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-914f2bbb-11": 0.17602,
+                  "coder:g1-914f2bbb-00": 0.102647,
+                  "coder:g1-914f2bbb-01": 0.102647,
+                  "coder:g1-914f2bbb-10": 0.17602
+                },
+                {
+                  "coder:g1-914f2bbb-10": 0.36,
+                  "coder:g1-914f2bbb-00": 0.102647,
+                  "coder:g1-914f2bbb-01": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-914f2bbb-s3",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-914f2bbb-10",
+                "g1-914f2bbb-11",
+                "g1-914f2bbb-01",
+                "g1-914f2bbb-00"
+              ],
+              "executed": [
+                "coder:g1-914f2bbb-10:done",
+                "coder:g1-914f2bbb-11:error"
+              ],
+              "wallMs": 28052.6115,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 215248896,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-914f2bbb-10": 0,
+                  "coder:g1-914f2bbb-11": 0,
+                  "coder:g1-914f2bbb-01": 0,
+                  "coder:g1-914f2bbb-00": 0
+                },
+                {
+                  "coder:g1-914f2bbb-11": 0,
+                  "coder:g1-914f2bbb-01": 0,
+                  "coder:g1-914f2bbb-00": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-914f2bbb-10",
+                "g1-914f2bbb-11",
+                "g1-914f2bbb-01",
+                "g1-914f2bbb-00"
+              ],
+              "executed": [
+                "coder:g1-914f2bbb-10:done",
+                "coder:g1-914f2bbb-11:error"
+              ],
+              "wallMs": 26661.559,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 181010432,
+              "urgencyUsed": [
+                0.17602,
+                0.17602,
+                0.102647,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-914f2bbb-10": 0.17602,
+                  "coder:g1-914f2bbb-11": 0.17602,
+                  "coder:g1-914f2bbb-01": 0.102647,
+                  "coder:g1-914f2bbb-00": 0.102647
+                },
+                {
+                  "coder:g1-914f2bbb-11": 0.328928,
+                  "coder:g1-914f2bbb-01": 0.102647,
+                  "coder:g1-914f2bbb-00": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "79a72fce11a3fa94",
+        "families": [
+          "array-stateful-fold",
+          "array-fold"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-79a72fce-s1",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-79a72fce-11",
+                "g1-79a72fce-00",
+                "g1-79a72fce-01",
+                "g1-79a72fce-10"
+              ],
+              "executed": [
+                "coder:g1-79a72fce-11:done",
+                "coder:g1-79a72fce-00:error"
+              ],
+              "wallMs": 16985.1305,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 186187776,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-79a72fce-11": 0,
+                  "coder:g1-79a72fce-00": 0,
+                  "coder:g1-79a72fce-01": 0,
+                  "coder:g1-79a72fce-10": 0
+                },
+                {
+                  "coder:g1-79a72fce-00": 0,
+                  "coder:g1-79a72fce-01": 0,
+                  "coder:g1-79a72fce-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-79a72fce-11",
+                "g1-79a72fce-00",
+                "g1-79a72fce-01",
+                "g1-79a72fce-10"
+              ],
+              "executed": [
+                "coder:g1-79a72fce-00:error",
+                "coder:g1-79a72fce-01:done"
+              ],
+              "wallMs": 15947.413,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 179101696,
+              "urgencyUsed": [
+                0.102647,
+                0.137909,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-79a72fce-11": 0.102647,
+                  "coder:g1-79a72fce-00": 0.137909,
+                  "coder:g1-79a72fce-01": 0.137909,
+                  "coder:g1-79a72fce-10": 0.102647
+                },
+                {
+                  "coder:g1-79a72fce-01": 0.395465,
+                  "coder:g1-79a72fce-11": 0.102647,
+                  "coder:g1-79a72fce-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-79a72fce-s2",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-79a72fce-11",
+                "g1-79a72fce-00",
+                "g1-79a72fce-01",
+                "g1-79a72fce-10"
+              ],
+              "executed": [
+                "coder:g1-79a72fce-11:done",
+                "coder:g1-79a72fce-00:error"
+              ],
+              "wallMs": 27913.4083,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 186617856,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-79a72fce-11": 0,
+                  "coder:g1-79a72fce-00": 0,
+                  "coder:g1-79a72fce-01": 0,
+                  "coder:g1-79a72fce-10": 0
+                },
+                {
+                  "coder:g1-79a72fce-00": 0,
+                  "coder:g1-79a72fce-01": 0,
+                  "coder:g1-79a72fce-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-79a72fce-11",
+                "g1-79a72fce-00",
+                "g1-79a72fce-01",
+                "g1-79a72fce-10"
+              ],
+              "executed": [
+                "coder:g1-79a72fce-00:error",
+                "coder:g1-79a72fce-01:done"
+              ],
+              "wallMs": 22733.821900000003,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 180260864,
+              "urgencyUsed": [
+                0.102647,
+                0.137909,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-79a72fce-11": 0.102647,
+                  "coder:g1-79a72fce-00": 0.137909,
+                  "coder:g1-79a72fce-01": 0.137909,
+                  "coder:g1-79a72fce-10": 0.102647
+                },
+                {
+                  "coder:g1-79a72fce-01": 0.395465,
+                  "coder:g1-79a72fce-11": 0.102647,
+                  "coder:g1-79a72fce-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-79a72fce-s3",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-79a72fce-01",
+                "g1-79a72fce-11",
+                "g1-79a72fce-00",
+                "g1-79a72fce-10"
+              ],
+              "executed": [
+                "coder:g1-79a72fce-01:done",
+                "coder:g1-79a72fce-11:done"
+              ],
+              "wallMs": 15196.6769,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 189362176,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-79a72fce-01": 0,
+                  "coder:g1-79a72fce-11": 0,
+                  "coder:g1-79a72fce-00": 0,
+                  "coder:g1-79a72fce-10": 0
+                },
+                {
+                  "coder:g1-79a72fce-11": 0,
+                  "coder:g1-79a72fce-00": 0,
+                  "coder:g1-79a72fce-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-79a72fce-01",
+                "g1-79a72fce-11",
+                "g1-79a72fce-00",
+                "g1-79a72fce-10"
+              ],
+              "executed": [
+                "coder:g1-79a72fce-01:done",
+                "coder:g1-79a72fce-00:error"
+              ],
+              "wallMs": 15031.013700000001,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 188633088,
+              "urgencyUsed": [
+                0.137909,
+                0.102647,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-79a72fce-01": 0.137909,
+                  "coder:g1-79a72fce-11": 0.102647,
+                  "coder:g1-79a72fce-00": 0.137909,
+                  "coder:g1-79a72fce-10": 0.102647
+                },
+                {
+                  "coder:g1-79a72fce-00": 0.390108,
+                  "coder:g1-79a72fce-11": 0.102647,
+                  "coder:g1-79a72fce-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "4eec73d898cf7a63",
+        "families": [
+          "array-filter",
+          "array-map"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-4eec73d8-s1",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-4eec73d8-00",
+                "g1-4eec73d8-11",
+                "g1-4eec73d8-01",
+                "g1-4eec73d8-10"
+              ],
+              "executed": [
+                "coder:g1-4eec73d8-00:done",
+                "coder:g1-4eec73d8-11:done"
+              ],
+              "wallMs": 20396.85,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 186929152,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-4eec73d8-00": 0,
+                  "coder:g1-4eec73d8-11": 0,
+                  "coder:g1-4eec73d8-01": 0,
+                  "coder:g1-4eec73d8-10": 0
+                },
+                {
+                  "coder:g1-4eec73d8-11": 0,
+                  "coder:g1-4eec73d8-01": 0,
+                  "coder:g1-4eec73d8-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-4eec73d8-00",
+                "g1-4eec73d8-11",
+                "g1-4eec73d8-01",
+                "g1-4eec73d8-10"
+              ],
+              "executed": [
+                "coder:g1-4eec73d8-00:done",
+                "coder:g1-4eec73d8-01:error"
+              ],
+              "wallMs": 18821.4163,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 181993472,
+              "urgencyUsed": [
+                0.14007,
+                0.102647,
+                0.14007,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-4eec73d8-00": 0.14007,
+                  "coder:g1-4eec73d8-11": 0.102647,
+                  "coder:g1-4eec73d8-01": 0.14007,
+                  "coder:g1-4eec73d8-10": 0.102647
+                },
+                {
+                  "coder:g1-4eec73d8-01": 0.39162,
+                  "coder:g1-4eec73d8-11": 0.102647,
+                  "coder:g1-4eec73d8-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-4eec73d8-s2",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-4eec73d8-11",
+                "g1-4eec73d8-01",
+                "g1-4eec73d8-00",
+                "g1-4eec73d8-10"
+              ],
+              "executed": [
+                "coder:g1-4eec73d8-11:done",
+                "coder:g1-4eec73d8-01:error"
+              ],
+              "wallMs": 18027.0101,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 226570240,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-4eec73d8-11": 0,
+                  "coder:g1-4eec73d8-01": 0,
+                  "coder:g1-4eec73d8-00": 0,
+                  "coder:g1-4eec73d8-10": 0
+                },
+                {
+                  "coder:g1-4eec73d8-01": 0,
+                  "coder:g1-4eec73d8-00": 0,
+                  "coder:g1-4eec73d8-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-4eec73d8-11",
+                "g1-4eec73d8-01",
+                "g1-4eec73d8-00",
+                "g1-4eec73d8-10"
+              ],
+              "executed": [
+                "coder:g1-4eec73d8-01:error",
+                "coder:g1-4eec73d8-00:done"
+              ],
+              "wallMs": 19022.444799999997,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 195887104,
+              "urgencyUsed": [
+                0.102647,
+                0.14007,
+                0.14007,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-4eec73d8-11": 0.102647,
+                  "coder:g1-4eec73d8-01": 0.14007,
+                  "coder:g1-4eec73d8-00": 0.14007,
+                  "coder:g1-4eec73d8-10": 0.102647
+                },
+                {
+                  "coder:g1-4eec73d8-00": 0.396978,
+                  "coder:g1-4eec73d8-11": 0.102647,
+                  "coder:g1-4eec73d8-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-4eec73d8-s3",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-4eec73d8-01",
+                "g1-4eec73d8-10",
+                "g1-4eec73d8-11",
+                "g1-4eec73d8-00"
+              ],
+              "executed": [
+                "coder:g1-4eec73d8-01:error",
+                "coder:g1-4eec73d8-10:done"
+              ],
+              "wallMs": 18472.4686,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 181444608,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-4eec73d8-01": 0,
+                  "coder:g1-4eec73d8-10": 0,
+                  "coder:g1-4eec73d8-11": 0,
+                  "coder:g1-4eec73d8-00": 0
+                },
+                {
+                  "coder:g1-4eec73d8-10": 0,
+                  "coder:g1-4eec73d8-11": 0,
+                  "coder:g1-4eec73d8-00": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-4eec73d8-01",
+                "g1-4eec73d8-10",
+                "g1-4eec73d8-11",
+                "g1-4eec73d8-00"
+              ],
+              "executed": [
+                "coder:g1-4eec73d8-01:error",
+                "coder:g1-4eec73d8-00:done"
+              ],
+              "wallMs": 17782.263,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 181612544,
+              "urgencyUsed": [
+                0.14007,
+                0.102647,
+                0.102647,
+                0.14007
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-4eec73d8-01": 0.14007,
+                  "coder:g1-4eec73d8-10": 0.102647,
+                  "coder:g1-4eec73d8-11": 0.102647,
+                  "coder:g1-4eec73d8-00": 0.14007
+                },
+                {
+                  "coder:g1-4eec73d8-00": 0.396978,
+                  "coder:g1-4eec73d8-10": 0.102647,
+                  "coder:g1-4eec73d8-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "6d17d120d8b6a76e",
+        "families": [
+          "array-stateful-fold",
+          "array-fold"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-6d17d120-s1",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-6d17d120-10",
+                "g1-6d17d120-11",
+                "g1-6d17d120-00",
+                "g1-6d17d120-01"
+              ],
+              "executed": [
+                "coder:g1-6d17d120-10:done",
+                "coder:g1-6d17d120-11:done"
+              ],
+              "wallMs": 16969.596700000002,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 184291328,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-6d17d120-10": 0,
+                  "coder:g1-6d17d120-11": 0,
+                  "coder:g1-6d17d120-00": 0,
+                  "coder:g1-6d17d120-01": 0
+                },
+                {
+                  "coder:g1-6d17d120-11": 0,
+                  "coder:g1-6d17d120-00": 0,
+                  "coder:g1-6d17d120-01": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-6d17d120-10",
+                "g1-6d17d120-11",
+                "g1-6d17d120-00",
+                "g1-6d17d120-01"
+              ],
+              "executed": [
+                "coder:g1-6d17d120-00:error",
+                "coder:g1-6d17d120-01:done"
+              ],
+              "wallMs": 19458.052799999998,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 177217536,
+              "urgencyUsed": [
+                0.102647,
+                0.102647,
+                0.137909,
+                0.137909
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-6d17d120-10": 0.102647,
+                  "coder:g1-6d17d120-11": 0.102647,
+                  "coder:g1-6d17d120-00": 0.137909,
+                  "coder:g1-6d17d120-01": 0.137909
+                },
+                {
+                  "coder:g1-6d17d120-01": 0.395465,
+                  "coder:g1-6d17d120-10": 0.102647,
+                  "coder:g1-6d17d120-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-6d17d120-s2",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-6d17d120-01",
+                "g1-6d17d120-11",
+                "g1-6d17d120-00",
+                "g1-6d17d120-10"
+              ],
+              "executed": [
+                "coder:g1-6d17d120-01:done",
+                "coder:g1-6d17d120-11:done"
+              ],
+              "wallMs": 18064.5268,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 190058496,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-6d17d120-01": 0,
+                  "coder:g1-6d17d120-11": 0,
+                  "coder:g1-6d17d120-00": 0,
+                  "coder:g1-6d17d120-10": 0
+                },
+                {
+                  "coder:g1-6d17d120-11": 0,
+                  "coder:g1-6d17d120-00": 0,
+                  "coder:g1-6d17d120-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-6d17d120-01",
+                "g1-6d17d120-11",
+                "g1-6d17d120-00",
+                "g1-6d17d120-10"
+              ],
+              "executed": [
+                "coder:g1-6d17d120-01:done",
+                "coder:g1-6d17d120-00:error"
+              ],
+              "wallMs": 28802.7724,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 189644800,
+              "urgencyUsed": [
+                0.137909,
+                0.102647,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-6d17d120-01": 0.137909,
+                  "coder:g1-6d17d120-11": 0.102647,
+                  "coder:g1-6d17d120-00": 0.137909,
+                  "coder:g1-6d17d120-10": 0.102647
+                },
+                {
+                  "coder:g1-6d17d120-00": 0.390108,
+                  "coder:g1-6d17d120-11": 0.102647,
+                  "coder:g1-6d17d120-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-6d17d120-s3",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-6d17d120-11",
+                "g1-6d17d120-01",
+                "g1-6d17d120-00",
+                "g1-6d17d120-10"
+              ],
+              "executed": [
+                "coder:g1-6d17d120-11:done",
+                "coder:g1-6d17d120-01:done"
+              ],
+              "wallMs": 19631.3622,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 184176640,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-6d17d120-11": 0,
+                  "coder:g1-6d17d120-01": 0,
+                  "coder:g1-6d17d120-00": 0,
+                  "coder:g1-6d17d120-10": 0
+                },
+                {
+                  "coder:g1-6d17d120-01": 0,
+                  "coder:g1-6d17d120-00": 0,
+                  "coder:g1-6d17d120-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-6d17d120-11",
+                "g1-6d17d120-01",
+                "g1-6d17d120-00",
+                "g1-6d17d120-10"
+              ],
+              "executed": [
+                "coder:g1-6d17d120-01:done",
+                "coder:g1-6d17d120-00:error"
+              ],
+              "wallMs": 20853.137000000002,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 176607232,
+              "urgencyUsed": [
+                0.102647,
+                0.137909,
+                0.137909,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-6d17d120-11": 0.102647,
+                  "coder:g1-6d17d120-01": 0.137909,
+                  "coder:g1-6d17d120-00": 0.137909,
+                  "coder:g1-6d17d120-10": 0.102647
+                },
+                {
+                  "coder:g1-6d17d120-00": 0.390108,
+                  "coder:g1-6d17d120-11": 0.102647,
+                  "coder:g1-6d17d120-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "02d039d786b14a2b",
+        "families": [
+          "array-fold",
+          "array-map"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-02d039d7-s1",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-02d039d7-00",
+                "g1-02d039d7-10",
+                "g1-02d039d7-11",
+                "g1-02d039d7-01"
+              ],
+              "executed": [
+                "coder:g1-02d039d7-00:done",
+                "coder:g1-02d039d7-10:done"
+              ],
+              "wallMs": 25093.0658,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 177278976,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-02d039d7-00": 0,
+                  "coder:g1-02d039d7-10": 0,
+                  "coder:g1-02d039d7-11": 0,
+                  "coder:g1-02d039d7-01": 0
+                },
+                {
+                  "coder:g1-02d039d7-10": 0,
+                  "coder:g1-02d039d7-11": 0,
+                  "coder:g1-02d039d7-01": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-02d039d7-00",
+                "g1-02d039d7-10",
+                "g1-02d039d7-11",
+                "g1-02d039d7-01"
+              ],
+              "executed": [
+                "coder:g1-02d039d7-00:done",
+                "coder:g1-02d039d7-10:done"
+              ],
+              "wallMs": 24167.4463,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 177254400,
+              "urgencyUsed": [
+                0.102647,
+                0.102647,
+                0.102647,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-02d039d7-00": 0.102647,
+                  "coder:g1-02d039d7-10": 0.102647,
+                  "coder:g1-02d039d7-11": 0.102647,
+                  "coder:g1-02d039d7-01": 0.102647
+                },
+                {
+                  "coder:g1-02d039d7-10": 0.102647,
+                  "coder:g1-02d039d7-11": 0.102647,
+                  "coder:g1-02d039d7-01": 0.101853
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-02d039d7-s2",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-02d039d7-11",
+                "g1-02d039d7-00",
+                "g1-02d039d7-10",
+                "g1-02d039d7-01"
+              ],
+              "executed": [
+                "coder:g1-02d039d7-11:done",
+                "coder:g1-02d039d7-00:done"
+              ],
+              "wallMs": 22231.821,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 212828160,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-02d039d7-11": 0,
+                  "coder:g1-02d039d7-00": 0,
+                  "coder:g1-02d039d7-10": 0,
+                  "coder:g1-02d039d7-01": 0
+                },
+                {
+                  "coder:g1-02d039d7-00": 0,
+                  "coder:g1-02d039d7-10": 0,
+                  "coder:g1-02d039d7-01": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-02d039d7-11",
+                "g1-02d039d7-00",
+                "g1-02d039d7-10",
+                "g1-02d039d7-01"
+              ],
+              "executed": [
+                "coder:g1-02d039d7-11:done",
+                "coder:g1-02d039d7-00:done"
+              ],
+              "wallMs": 23414.4079,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 167641088,
+              "urgencyUsed": [
+                0.102647,
+                0.102647,
+                0.102647,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-02d039d7-11": 0.102647,
+                  "coder:g1-02d039d7-00": 0.102647,
+                  "coder:g1-02d039d7-10": 0.102647,
+                  "coder:g1-02d039d7-01": 0.102647
+                },
+                {
+                  "coder:g1-02d039d7-00": 0.102647,
+                  "coder:g1-02d039d7-10": 0.101853,
+                  "coder:g1-02d039d7-01": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-02d039d7-s3",
+            "control": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-02d039d7-10",
+                "g1-02d039d7-00",
+                "g1-02d039d7-11",
+                "g1-02d039d7-01"
+              ],
+              "executed": [
+                "coder:g1-02d039d7-10:done",
+                "coder:g1-02d039d7-00:done"
+              ],
+              "wallMs": 17075.380599999997,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 229728256,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-02d039d7-10": 0,
+                  "coder:g1-02d039d7-00": 0,
+                  "coder:g1-02d039d7-11": 0,
+                  "coder:g1-02d039d7-01": 0
+                },
+                {
+                  "coder:g1-02d039d7-00": 0,
+                  "coder:g1-02d039d7-11": 0,
+                  "coder:g1-02d039d7-01": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 2,
+              "denominator": 4,
+              "order": [
+                "g1-02d039d7-10",
+                "g1-02d039d7-00",
+                "g1-02d039d7-11",
+                "g1-02d039d7-01"
+              ],
+              "executed": [
+                "coder:g1-02d039d7-10:done",
+                "coder:g1-02d039d7-00:done"
+              ],
+              "wallMs": 17491.0106,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 182767616,
+              "urgencyUsed": [
+                0.102647,
+                0.102647,
+                0.102647,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-02d039d7-10": 0.102647,
+                  "coder:g1-02d039d7-00": 0.102647,
+                  "coder:g1-02d039d7-11": 0.102647,
+                  "coder:g1-02d039d7-01": 0.102647
+                },
+                {
+                  "coder:g1-02d039d7-00": 0.102647,
+                  "coder:g1-02d039d7-11": 0.101853,
+                  "coder:g1-02d039d7-01": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      },
+      {
+        "digest": "3e91720e8a6af1d5",
+        "families": [
+          "array-threshold-fold",
+          "array-map"
+        ],
+        "seeds": [
+          {
+            "label": "calibration-3e91720e-s1",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-3e91720e-10",
+                "g1-3e91720e-00",
+                "g1-3e91720e-01",
+                "g1-3e91720e-11"
+              ],
+              "executed": [
+                "coder:g1-3e91720e-10:done",
+                "coder:g1-3e91720e-00:error"
+              ],
+              "wallMs": 19782.027299999998,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 177332224,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-3e91720e-10": 0,
+                  "coder:g1-3e91720e-00": 0,
+                  "coder:g1-3e91720e-01": 0,
+                  "coder:g1-3e91720e-11": 0
+                },
+                {
+                  "coder:g1-3e91720e-00": 0,
+                  "coder:g1-3e91720e-01": 0,
+                  "coder:g1-3e91720e-11": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 0,
+              "denominator": 4,
+              "order": [
+                "g1-3e91720e-10",
+                "g1-3e91720e-00",
+                "g1-3e91720e-01",
+                "g1-3e91720e-11"
+              ],
+              "executed": [
+                "coder:g1-3e91720e-00:error",
+                "coder:g1-3e91720e-01:error"
+              ],
+              "wallMs": 21376.9268,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 216416256,
+              "urgencyUsed": [
+                0.102647,
+                0.17602,
+                0.17602,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-3e91720e-10": 0.102647,
+                  "coder:g1-3e91720e-00": 0.17602,
+                  "coder:g1-3e91720e-01": 0.17602,
+                  "coder:g1-3e91720e-11": 0.102647
+                },
+                {
+                  "coder:g1-3e91720e-01": 0.36,
+                  "coder:g1-3e91720e-10": 0.102647,
+                  "coder:g1-3e91720e-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-3e91720e-s2",
+            "control": {
+              "successes": 1,
+              "denominator": 4,
+              "order": [
+                "g1-3e91720e-10",
+                "g1-3e91720e-00",
+                "g1-3e91720e-01",
+                "g1-3e91720e-11"
+              ],
+              "executed": [
+                "coder:g1-3e91720e-10:done",
+                "coder:g1-3e91720e-00:error"
+              ],
+              "wallMs": 20075.206400000003,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 215879680,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-3e91720e-10": 0,
+                  "coder:g1-3e91720e-00": 0,
+                  "coder:g1-3e91720e-01": 0,
+                  "coder:g1-3e91720e-11": 0
+                },
+                {
+                  "coder:g1-3e91720e-00": 0,
+                  "coder:g1-3e91720e-01": 0,
+                  "coder:g1-3e91720e-11": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 0,
+              "denominator": 4,
+              "order": [
+                "g1-3e91720e-10",
+                "g1-3e91720e-00",
+                "g1-3e91720e-01",
+                "g1-3e91720e-11"
+              ],
+              "executed": [
+                "coder:g1-3e91720e-00:error",
+                "coder:g1-3e91720e-01:error"
+              ],
+              "wallMs": 19193.4656,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 166359040,
+              "urgencyUsed": [
+                0.102647,
+                0.17602,
+                0.17602,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-3e91720e-10": 0.102647,
+                  "coder:g1-3e91720e-00": 0.17602,
+                  "coder:g1-3e91720e-01": 0.17602,
+                  "coder:g1-3e91720e-11": 0.102647
+                },
+                {
+                  "coder:g1-3e91720e-01": 0.36,
+                  "coder:g1-3e91720e-10": 0.102647,
+                  "coder:g1-3e91720e-11": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          },
+          {
+            "label": "calibration-3e91720e-s3",
+            "control": {
+              "successes": 0,
+              "denominator": 4,
+              "order": [
+                "g1-3e91720e-01",
+                "g1-3e91720e-00",
+                "g1-3e91720e-11",
+                "g1-3e91720e-10"
+              ],
+              "executed": [
+                "coder:g1-3e91720e-01:error",
+                "coder:g1-3e91720e-00:error"
+              ],
+              "wallMs": 21664.6452,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 217903104,
+              "urgencyUsed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-3e91720e-01": 0,
+                  "coder:g1-3e91720e-00": 0,
+                  "coder:g1-3e91720e-11": 0,
+                  "coder:g1-3e91720e-10": 0
+                },
+                {
+                  "coder:g1-3e91720e-00": 0,
+                  "coder:g1-3e91720e-11": 0,
+                  "coder:g1-3e91720e-10": 0
+                }
+              ]
+            },
+            "candidate": {
+              "successes": 0,
+              "denominator": 4,
+              "order": [
+                "g1-3e91720e-01",
+                "g1-3e91720e-00",
+                "g1-3e91720e-11",
+                "g1-3e91720e-10"
+              ],
+              "executed": [
+                "coder:g1-3e91720e-01:error",
+                "coder:g1-3e91720e-00:error"
+              ],
+              "wallMs": 22139.8298,
+              "cost": {
+                "modelCalls": 0,
+                "networkCalls": 0
+              },
+              "counters": {
+                "httpCalls": 9,
+                "coderSteps": 2
+              },
+              "maxRssBytes": 213823488,
+              "urgencyUsed": [
+                0.17602,
+                0.17602,
+                0.102647,
+                0.102647
+              ],
+              "urgencyByCall": [
+                {
+                  "coder:g1-3e91720e-01": 0.17602,
+                  "coder:g1-3e91720e-00": 0.17602,
+                  "coder:g1-3e91720e-11": 0.102647,
+                  "coder:g1-3e91720e-10": 0.102647
+                },
+                {
+                  "coder:g1-3e91720e-00": 0.36,
+                  "coder:g1-3e91720e-11": 0.102647,
+                  "coder:g1-3e91720e-10": 0.102647
+                }
+              ]
+            },
+            "insufficient": [],
+            "reject": []
+          }
+        ]
+      }
+    ],
+    "antiCases": {
+      "noFailure": {
+        "status": "INTACT",
+        "pair": {
+          "label": "anti-noFailure",
+          "control": {
+            "successes": 2,
+            "denominator": 4,
+            "order": [
+              "g1-anti-pass-ccad30-stateful-fold-0",
+              "g1-anti-pass-ccad30-stateful-fold-1",
+              "g1-anti-pass-ccad30-fold-2",
+              "g1-anti-pass-ccad30-fold-3"
+            ],
+            "executed": [
+              "coder:g1-anti-pass-ccad30-stateful-fold-0:done",
+              "coder:g1-anti-pass-ccad30-stateful-fold-1:done"
+            ],
+            "wallMs": 23648.4614,
+            "cost": {
+              "modelCalls": 0,
+              "networkCalls": 0
+            },
+            "counters": {
+              "httpCalls": 9,
+              "coderSteps": 2
+            },
+            "maxRssBytes": 194678784,
+            "urgencyUsed": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "urgencyByCall": [
+              {
+                "coder:g1-anti-pass-ccad30-stateful-fold-0": 0,
+                "coder:g1-anti-pass-ccad30-stateful-fold-1": 0,
+                "coder:g1-anti-pass-ccad30-fold-2": 0,
+                "coder:g1-anti-pass-ccad30-fold-3": 0
+              },
+              {
+                "coder:g1-anti-pass-ccad30-stateful-fold-1": 0,
+                "coder:g1-anti-pass-ccad30-fold-2": 0,
+                "coder:g1-anti-pass-ccad30-fold-3": 0
+              }
+            ]
+          },
+          "candidate": {
+            "successes": 2,
+            "denominator": 4,
+            "order": [
+              "g1-anti-pass-ccad30-stateful-fold-0",
+              "g1-anti-pass-ccad30-stateful-fold-1",
+              "g1-anti-pass-ccad30-fold-2",
+              "g1-anti-pass-ccad30-fold-3"
+            ],
+            "executed": [
+              "coder:g1-anti-pass-ccad30-stateful-fold-0:done",
+              "coder:g1-anti-pass-ccad30-stateful-fold-1:done"
+            ],
+            "wallMs": 22276.7301,
+            "cost": {
+              "modelCalls": 0,
+              "networkCalls": 0
+            },
+            "counters": {
+              "httpCalls": 9,
+              "coderSteps": 2
+            },
+            "maxRssBytes": 194871296,
+            "urgencyUsed": [
+              0.137909,
+              0.137909,
+              0.102647,
+              0.102647
+            ],
+            "urgencyByCall": [
+              {
+                "coder:g1-anti-pass-ccad30-stateful-fold-0": 0.137909,
+                "coder:g1-anti-pass-ccad30-stateful-fold-1": 0.137909,
+                "coder:g1-anti-pass-ccad30-fold-2": 0.102647,
+                "coder:g1-anti-pass-ccad30-fold-3": 0.102647
+              },
+              {
+                "coder:g1-anti-pass-ccad30-stateful-fold-1": 0.390108,
+                "coder:g1-anti-pass-ccad30-fold-2": 0.102647,
+                "coder:g1-anti-pass-ccad30-fold-3": 0.102647
+              }
+            ]
+          },
+          "insufficient": [],
+          "reject": []
+        }
+      },
+      "bothFail": {
+        "status": "INTACT",
+        "pair": {
+          "label": "anti-bothFail",
+          "control": {
+            "successes": 0,
+            "denominator": 4,
+            "order": [
+              "g1-anti-fail-ccad30-stateful-fold-0",
+              "g1-anti-fail-ccad30-stateful-fold-1",
+              "g1-anti-fail-914f2b-guarded-fold-2",
+              "g1-anti-fail-914f2b-guarded-fold-3"
+            ],
+            "executed": [
+              "coder:g1-anti-fail-ccad30-stateful-fold-0:error",
+              "coder:g1-anti-fail-ccad30-stateful-fold-1:error"
+            ],
+            "wallMs": 23298.4327,
+            "cost": {
+              "modelCalls": 0,
+              "networkCalls": 0
+            },
+            "counters": {
+              "httpCalls": 9,
+              "coderSteps": 2
+            },
+            "maxRssBytes": 184266752,
+            "urgencyUsed": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "urgencyByCall": [
+              {
+                "coder:g1-anti-fail-ccad30-stateful-fold-0": 0,
+                "coder:g1-anti-fail-ccad30-stateful-fold-1": 0,
+                "coder:g1-anti-fail-914f2b-guarded-fold-2": 0,
+                "coder:g1-anti-fail-914f2b-guarded-fold-3": 0
+              },
+              {
+                "coder:g1-anti-fail-ccad30-stateful-fold-1": 0,
+                "coder:g1-anti-fail-914f2b-guarded-fold-2": 0,
+                "coder:g1-anti-fail-914f2b-guarded-fold-3": 0
+              }
+            ]
+          },
+          "candidate": {
+            "successes": 0,
+            "denominator": 4,
+            "order": [
+              "g1-anti-fail-ccad30-stateful-fold-0",
+              "g1-anti-fail-ccad30-stateful-fold-1",
+              "g1-anti-fail-914f2b-guarded-fold-2",
+              "g1-anti-fail-914f2b-guarded-fold-3"
+            ],
+            "executed": [
+              "coder:g1-anti-fail-ccad30-stateful-fold-0:error",
+              "coder:g1-anti-fail-ccad30-stateful-fold-1:error"
+            ],
+            "wallMs": 20947.108,
+            "cost": {
+              "modelCalls": 0,
+              "networkCalls": 0
+            },
+            "counters": {
+              "httpCalls": 9,
+              "coderSteps": 2
+            },
+            "maxRssBytes": 192036864,
+            "urgencyUsed": [
+              0.137909,
+              0.137909,
+              0.102647,
+              0.102647
+            ],
+            "urgencyByCall": [
+              {
+                "coder:g1-anti-fail-ccad30-stateful-fold-0": 0.137909,
+                "coder:g1-anti-fail-ccad30-stateful-fold-1": 0.137909,
+                "coder:g1-anti-fail-914f2b-guarded-fold-2": 0.102647,
+                "coder:g1-anti-fail-914f2b-guarded-fold-3": 0.102647
+              },
+              {
+                "coder:g1-anti-fail-ccad30-stateful-fold-1": 0.395465,
+                "coder:g1-anti-fail-914f2b-guarded-fold-2": 0.102647,
+                "coder:g1-anti-fail-914f2b-guarded-fold-3": 0.102647
+              }
+            ]
+          },
+          "insufficient": [],
+          "reject": []
+        }
+      },
+      "singleKind": {
+        "status": "INTACT",
+        "pair": {
+          "label": "anti-singleKind",
+          "control": {
+            "successes": 2,
+            "denominator": 4,
+            "order": [
+              "g1-anti-single-ccad30-stateful-fold-0",
+              "g1-anti-single-ccad30-stateful-fold-1",
+              "g1-anti-single-ccad30-stateful-fold-2",
+              "g1-anti-single-ccad30-stateful-fold-3"
+            ],
+            "executed": [
+              "coder:g1-anti-single-ccad30-stateful-fold-0:done",
+              "coder:g1-anti-single-ccad30-stateful-fold-1:done"
+            ],
+            "wallMs": 15863.9474,
+            "cost": {
+              "modelCalls": 0,
+              "networkCalls": 0
+            },
+            "counters": {
+              "httpCalls": 9,
+              "coderSteps": 2
+            },
+            "maxRssBytes": 195538944,
+            "urgencyUsed": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "urgencyByCall": [
+              {
+                "coder:g1-anti-single-ccad30-stateful-fold-0": 0,
+                "coder:g1-anti-single-ccad30-stateful-fold-1": 0,
+                "coder:g1-anti-single-ccad30-stateful-fold-2": 0,
+                "coder:g1-anti-single-ccad30-stateful-fold-3": 0
+              },
+              {
+                "coder:g1-anti-single-ccad30-stateful-fold-1": 0,
+                "coder:g1-anti-single-ccad30-stateful-fold-2": 0,
+                "coder:g1-anti-single-ccad30-stateful-fold-3": 0
+              }
+            ]
+          },
+          "candidate": {
+            "successes": 2,
+            "denominator": 4,
+            "order": [
+              "g1-anti-single-ccad30-stateful-fold-0",
+              "g1-anti-single-ccad30-stateful-fold-1",
+              "g1-anti-single-ccad30-stateful-fold-2",
+              "g1-anti-single-ccad30-stateful-fold-3"
+            ],
+            "executed": [
+              "coder:g1-anti-single-ccad30-stateful-fold-0:done",
+              "coder:g1-anti-single-ccad30-stateful-fold-1:done"
+            ],
+            "wallMs": 16052.520499999999,
+            "cost": {
+              "modelCalls": 0,
+              "networkCalls": 0
+            },
+            "counters": {
+              "httpCalls": 9,
+              "coderSteps": 2
+            },
+            "maxRssBytes": 195891200,
+            "urgencyUsed": [
+              0.137909,
+              0.137909,
+              0.137909,
+              0.137909
+            ],
+            "urgencyByCall": [
+              {
+                "coder:g1-anti-single-ccad30-stateful-fold-0": 0.137909,
+                "coder:g1-anti-single-ccad30-stateful-fold-1": 0.137909,
+                "coder:g1-anti-single-ccad30-stateful-fold-2": 0.137909,
+                "coder:g1-anti-single-ccad30-stateful-fold-3": 0.137909
+              },
+              {
+                "coder:g1-anti-single-ccad30-stateful-fold-1": 0.390108,
+                "coder:g1-anti-single-ccad30-stateful-fold-2": 0.390108,
+                "coder:g1-anti-single-ccad30-stateful-fold-3": 0.390108
+              }
+            ]
+          },
+          "insufficient": [],
+          "reject": []
+        }
+      }
+    },
+    "mutation": {
+      "status": "INTACT",
+      "frozenWithoutObservation": true,
+      "movesWithObservation": true,
+      "sameChoicesAsControl": false,
+      "pair": {
+        "label": "mutation-observe-off",
+        "control": {
+          "successes": 2,
+          "denominator": 4,
+          "order": [
+            "g1-ccad30a7-01",
+            "g1-ccad30a7-11",
+            "g1-ccad30a7-00",
+            "g1-ccad30a7-10"
+          ],
+          "executed": [
+            "coder:g1-ccad30a7-01:done",
+            "coder:g1-ccad30a7-11:done"
+          ],
+          "wallMs": 15611.823,
+          "cost": {
+            "modelCalls": 0,
+            "networkCalls": 0
+          },
+          "counters": {
+            "httpCalls": 9,
+            "coderSteps": 2
+          },
+          "maxRssBytes": 188776448,
+          "urgencyUsed": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "urgencyByCall": [
+            {
+              "coder:g1-ccad30a7-01": 0,
+              "coder:g1-ccad30a7-11": 0,
+              "coder:g1-ccad30a7-00": 0,
+              "coder:g1-ccad30a7-10": 0
+            },
+            {
+              "coder:g1-ccad30a7-11": 0,
+              "coder:g1-ccad30a7-00": 0,
+              "coder:g1-ccad30a7-10": 0
+            }
+          ]
+        },
+        "candidate": {
+          "successes": 2,
+          "denominator": 4,
+          "order": [
+            "g1-ccad30a7-01",
+            "g1-ccad30a7-11",
+            "g1-ccad30a7-00",
+            "g1-ccad30a7-10"
+          ],
+          "executed": [
+            "coder:g1-ccad30a7-01:done",
+            "coder:g1-ccad30a7-00:done"
+          ],
+          "wallMs": 14010.5869,
+          "cost": {
+            "modelCalls": 0,
+            "networkCalls": 0
+          },
+          "counters": {
+            "httpCalls": 9,
+            "coderSteps": 2
+          },
+          "maxRssBytes": 188829696,
+          "urgencyUsed": [
+            0.137909,
+            0.102647,
+            0.137909,
+            0.102647
+          ],
+          "urgencyByCall": [
+            {
+              "coder:g1-ccad30a7-01": 0.137909,
+              "coder:g1-ccad30a7-11": 0.102647,
+              "coder:g1-ccad30a7-00": 0.137909,
+              "coder:g1-ccad30a7-10": 0.102647
+            },
+            {
+              "coder:g1-ccad30a7-00": 0.137909,
+              "coder:g1-ccad30a7-11": 0.102647,
+              "coder:g1-ccad30a7-10": 0.102647
+            }
+          ]
+        },
+        "insufficient": [],
+        "reject": []
+      }
+    },
+    "reject": [],
+    "insufficient": []
+  },
+  "lock": {
+    "holdoutGroups": 32,
+    "sigma": 0.09383263553830028,
+    "stratum": [
+      "90b53862c089545f",
+      "f9a0f712e0cb225d",
+      "efdeb13763349f10",
+      "a1e72d8dd94cc2ae",
+      "c46b274fda3d29db",
+      "9366bf030899e9f6",
+      "c5f3d242cc7e9aee"
+    ]
+  }
+}

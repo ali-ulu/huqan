@@ -267,7 +267,7 @@ const BASE_CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: '#4065 isolated Lab child builds disposable fixtures; actual Coder writes still require durable approval, the existing gate and independent tests. Network methods are replaced by refusing guards.',
   }),
-  'lib/cognitive-lab-m7-value-runtime.js': Object.freeze({ role: 'operator_tool', why: '#4065 isolated M9 causality child writes only its private task-output artifacts; safe tool execution retains existing guards and no production authority is added.' }),
+  'lib/cognitive-lab-m7-value-runtime.js': Object.freeze({ role: 'operator_tool', why: '#4065 isolated M9 causality child writes only its private task-output artifacts; safe tool execution retains existing guards and no production authority is added.' }), 'lib/cognitive-lab-g1-holdout.js': Object.freeze({ role: 'operator_tool', why: '#4065 explicitly invoked G1 measurement runner; writes only its own work directory and manifest/report files and spawns the fixed episode child with the fixed arm preload.' }), 'lib/cognitive-lab-g1-episode.js': Object.freeze({ role: 'operator_tool', why: '#4065 G1 child: drives the production Coder HTTP route handler; every Coder write still needs a case, a separate operator capability decision and the existing gate; writes only its private state and target directories.' }), 'lib/cognitive-lab-g1-arm-preload.js': Object.freeze({ role: 'operator_tool', why: '#4065 G1 arm preload loaded only into runner children; appends scheduler inputs to its own sink file and replaces network and model methods with refusing guards.' }),
   // #2168 split backupRestore.js; its writes and spawns now live in these three.
   'lib/storage/backup-restore-store.js': Object.freeze({
     role: 'operator_tool',

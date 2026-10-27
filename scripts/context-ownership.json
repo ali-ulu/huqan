@@ -4242,6 +4242,26 @@
    "kind": "infra",
    "evidence": "#4065 isolated M9 arousal causality control over observed Lab task artifacts; no production default or gain claim"
   },
+  "lib/cognitive-lab-g1-holdout.js": {
+   "kind": "infra",
+   "evidence": "#4065 G1 synthetic holdout measurement runner (holdout); no production default or gain claim"
+  },
+  "lib/cognitive-lab-g1-episode.js": {
+   "kind": "infra",
+   "evidence": "#4065 G1 synthetic holdout measurement runner (episode); no production default or gain claim"
+  },
+  "lib/cognitive-lab-g1-arm-preload.js": {
+   "kind": "infra",
+   "evidence": "#4065 G1 synthetic holdout measurement runner (arm-preload); no production default or gain claim"
+  },
+  "lib/cognitive-lab-g1-corpus.js": {
+   "kind": "infra",
+   "evidence": "#4065 G1 synthetic holdout measurement runner (corpus); no production default or gain claim"
+  },
+  "lib/cognitive-lab-g1-stats.js": {
+   "kind": "infra",
+   "evidence": "#4065 G1 synthetic holdout measurement runner (stats); no production default or gain claim"
+  },
   "lib/cognitive-lab-neural-world.js": {
    "kind": "infra",
    "evidence": "#3474 I6 B7 bounded accumulation environment law"

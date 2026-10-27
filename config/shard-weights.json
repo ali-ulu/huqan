@@ -52,6 +52,7 @@
     "test/coder-route-updates.test.js": 5.547,
     "test/coder-array-fold-synthesis.test.js": 5.405,
     "test/external-client-timeout-transport.test.js": 5.167,
+    "test/cognitive-lab-g1.test.js": 55.0,
     "test/cognitive-lab-m7-experiment.test.js": 5.162,
     "test/memory-approval-http-route.test.js": 5.096,
     "cli.test.js": 4.819,

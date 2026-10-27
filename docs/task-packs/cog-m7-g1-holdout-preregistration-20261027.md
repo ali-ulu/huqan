@@ -12,6 +12,12 @@ non-inferiority alt tabakası ve boş-alt-tabaka durumu, etiket kapsayıcılığ
 anti-vaka). Ölçüm tasarımının özü (|Δ| = 0.15, 32-64 grup, iki yönlü hipotez)
 değişmedi; yalnız prosedür netleşti.
 
+**Sürüm 3 (2026-10-27, runner ile, holdout ve calibration açılmadan önce):** §12,
+runner uygulamasında çıkan beş kilidi kapatır (iki aileli grup, `maxSteps = 4`,
+iki kolda aynı kayıt önyüklemesi, tek salt-okunur kaynak depo, train geçmişiyle
+uyumlu mutasyon ölçütü). Hipotez, etki,
+N formülü ve karar kuralları değişmedi.
+
 İlgili iş: #4065 (G1 sahibi), epic #4060. Plan: `docs/cognitive-architecture-plan.md` §7 G1
 son maddesi ("ölçülen düzelme, dondurulmuş ve öğrenmede kullanılmayan bağımsız
 görevlerde doğrulanır"). Önceki taslak: `cog-m7-salience-preregistration-20261022.md`;
@@ -238,3 +244,60 @@ kapatılır. Tablo, her maddenin hangi bölümde karara bağlandığını göste
 | 11 | Boş non-inferiority alt tabakası etiketsiz kalıyor | §7 (boş/az alt tabaka: GAIN yok; etiket GA'ya göre ZARAR / MEASURED_NO_GAIN / MEASURED_GATE_FAIL, INSUFFICIENT'a eşlenmez) |
 
 Bu bölüm yeni bir ölçüm tasarımı getirmez; §1-§8'deki prosedürü kilitler.
+
+## 12. Sürüm 3: runner uygulamasında çıkan kilitler (2026-10-27, holdout açılmadan önce)
+
+Runner yazılırken ve ilk calibration denemesinde kilitli metinde uygulanamayan veya
+ölçümü tasarım gereği etkisiz kılan beş nokta çıktı. Her biri holdout açılmadan, calibration'dan önce sahip onayıyla
+(2026-10-27) karara bağlandı. Hipotez, etki büyüklüğü, N formülü, seed'ler, karar
+kuralları ve etiketler değişmedi.
+
+| # | Kilitli metin | Sorun | Karar |
+| --- | --- | --- | --- |
+| 1 | §3 grup = bir (aile, hedef fonksiyon); §5 epizot = "grubun iki türünden" 4 görev | Tür (`workKind`) aileye bağlıdır (`initialize_project:<aile>`); tek aileli bir grubun iki türü olamaz | **Grup, iki farklı aileden birer (aile, hedef fonksiyon) biriminden oluşur.** Her türün 2 görevi aynı hedef fonksiyonun farklı örnek setli varyantıdır. Bölme denetimi birim anahtarı, birim digest'i ve grup digest'i üzerinde yapılır. İlk üç grup aileler üzerinde tam eşleşmedir; böylece train geçmişi her türü kapsar. |
+| 2 | §5 `maxSteps = maxIterations = 2` | `POST .../runs` içinde `maxSteps` planı sınırlar: scheduler 4 onaylı görevden yalnız kuyruğun ilk 2'sini görür ve ikisini de yürütür; M7 hangi görevin koşacağını değiştiremez (ölçüm tasarım gereği sıfır etki verir) | **`maxSteps = 4` (bütün onaylı kuyruk planlanır), `maxIterations = 2` (2 görev yürür).** Mevcut G1 HTTP testi (`g1Arm`) de bu biçimdedir. `maxEpisodeSteps = 6` değişmedi. |
+| 3 | §1 "aday kol için önyükleme modülü yoktur" | Normalleştirilmiş scheduler girdisinin iki kolda kaydedilip karşılaştırılması (§1) ancak iki kolda da aynı kayıt noktasıyla mümkündür | **İki kol da aynı önyükleme modülünü yükler** (`lib/cognitive-lab-g1-arm-preload.js`). Aday kolda modül yalnız kaydeder; kontrol kolda ayrıca `urgency`'yi 0 yapar. Modül iki kolda model/ağ çağrısını sayar ve reddeder (§7 maliyet). Normalleştirme Lab listesine `runId`'i ekler (her süreçte yeni üretilen izole koşu kimliği). |
+| 4 | §1 "ayrı workspace ve depo kopyaları" | Cognition çerçevesi kaynak deponun yolunu ve HEAD'ini bağlar; kollar farklı kaynak yolu kullanırsa train geçmişi eşleşmez ve M7 hiç sinyal görmez | **Kaynak depo tek, sabit ve salt okunurdur** (sabit commit tarihi). Kollar arasında ayrılan şey Coder'ın yazdığı hedef dizinleri ile graf/journal kopyasıdır; her epizot donmuş train snapshot'ının taze kopyasından başlar. |
+| 5 | §8 mutasyon: gözlem kesilince "aday kol kontrolle aynı seçimleri yapmalıdır" | §4/§5 her epizodu donmuş train geçmişinden başlatır; bu geçmiş M7'ye ilk seçimde, hiçbir epizot içi gözlemden önce sinyal verir (ilk calibration denemesi: stateful-fold 0.138 / fold 0.103). Gözlem kesik aday, kontrolden tasarım gereği farklı seçer; kontrol her zaman düşer ve N hiç kilitlenmez | **Yeni ölçüt:** gözlem kesikken adayın her görevdeki `urgency`'si epizot boyunca ilk seçimdeki (geçmişten gelen) değerinde donmuş kalmalı; gözlem açıkken en az bir calibration epizodunda değişmeli. İkisi birden sağlanmazsa INSUFFICIENT. Kontrolle aynı seçim yapılıp yapılmadığı raporlanır ama kapı değildir. İlk denemede gözlem açık 24/24 epizotta değişti, gözlem kesikken dondu. |
+
+Uygulamaya ait gözlemler (tasarım değişikliği değildir):
+
+- **Bağımsız kabul oracle'ı:** runner, Coder'ın kendi raporuna değil, üretilen
+  `src/logic.js` modülünün kabul satırlarındaki çıktısına bakar. Coder'ın `done`
+  dediği ama oracle'ın reddettiği görev "yanlış tamamlandı bildirimi"dir → REJECT.
+- **Yeniden gönderme:** onay tek yürütmeyi rezerve eder; aynı `caseId` ikinci kez
+  `approval.execution_already_reserved` ile engellenir. Proje başlatma tek adayını
+  test eder; kabulü geçmeyen görev `ALL_CANDIDATES_EXHAUSTED` ile biter ve
+  başarısızdır. Yalnız bunların dışındaki adım hataları yeniden gönderilir.
+- **Bütçe adım birimindedir (§5):** üretim ajanının koşu başına varsayılan duvar
+  süresi bütçesi (`timeBudgetMs = 30000`, `agent.v3.js`) yavaş makinede ikinci adımı
+  kesiyordu: ilk calibration denemesinde bazı epizotlar 2 yerine 1 görev yürüttü ve
+  sonuç makine hızına bağlandı. Runner'ın ajan kurucusu (host ayarı, üretim kodu
+  değil) koşu bütçesini 10 dakikaya çıkarır; bağlayıcı sınır yalnız
+  `maxIterations = 2` olur. Adım bütçesini harcamadan biten kol INSUFFICIENT nedeni
+  üretir.
+- **Kol sırası:** her (grup, seed) çiftinde önce koşan kol seed'in tekliğine göre
+  değişir (tek: kontrol önce, çift: aday önce); sıcak önbellek duvar süresi
+  oranını (§7 maliyet) hiçbir kola kaydırmaz.
+- **Bütünlük:** history dahil her alt süreç önyükleme altında koşar; maliyet kaydı
+  eksik olan, model/ağ çağrısı yapan veya ortak kaynak depoyu değiştiren (HEAD ya
+  da çalışma ağacı) kol REJECT nedeni üretir. Yarım kalmış bir history snapshot'ı
+  yeniden kullanılmaz, silinip baştan kurulur.
+- **Holdout ön denetimi:** holdout, tek kullanımlık işaretini (`wx`) yazmadan önce
+  manifestteki corpus digest'ini, protokolü (seed'ler, bütçe), runner dosyalarının
+  ve bu belgenin digest'lerini, kalibrasyon commit'inden bu yana runner dışı üretim
+  kodunun değişmediğini denetler; uyuşmazlıkta holdout açılmaz. Açıldıktan sonra
+  çöken koşu INSUFFICIENT olarak yazılır, yeniden denenmez.
+- **Doğal başarısızlık ön ölçümü:** üretimdeki sentezci, seed 20261027, aile başına
+  200 hedef, 3+3 satır: %28.9 (map %4.5 – filter %47). Oran ≈0 değildir; tasarım
+  geçerlidir.
+- **Non-inferiority alt tabakası:** train geçmişinde yalnız `array-fold` ve
+  `array-map` hiç doğal başarısızlık göstermedi. Alt tabaka bu yüzden yalnız
+  (fold, map) gruplarından oluşur ve büyük olasılıkla `minStratumGroups = 8`'in
+  altında kalır. §7 kuralı **aynen korunur** (sahip kararı 2026-10-27): bu durumda
+  GAIN verilmez, etiket GA'ya göre seçilir. Bu sonuç holdout'tan önce burada yazılıdır.
+
+Runner: `lib/cognitive-lab-g1-holdout.js` (`calibrate` / `holdout`), corpus
+`lib/cognitive-lab-g1-corpus.js`, karar aritmetiği `lib/cognitive-lab-g1-stats.js`,
+alt süreç `lib/cognitive-lab-g1-episode.js`. Calibration manifesti, σ̂ ve kilitlenen N
+ayrı dosyadadır: `docs/task-packs/cog-m7-g1-calibration-manifest-20261027.json`.
