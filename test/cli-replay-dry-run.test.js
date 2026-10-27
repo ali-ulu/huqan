@@ -14,9 +14,10 @@ const { createExperienceJournal } = require('../lib/experience/journal');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 function files(root) {
   const result = {};
-  for (const name of fs.readdirSync(root).sort()) {
+  for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const name = entry.name;
     const file = path.join(root, name);
-    if (fs.statSync(file).isDirectory()) {
+    if (entry.isDirectory()) {
       for (const [key, value] of Object.entries(files(file))) result[`${name}/${key}`] = value;
     } else result[name] = sha(fs.readFileSync(file));
   }
