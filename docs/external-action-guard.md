@@ -307,6 +307,37 @@ tier, skor, oranlar, transition ve ilk activation kanıtı admission receipt'in
 admission receipt'ten miras alır. Promotion/demotion receipt'i kalıcı
 yazılamazsa geçiş fail-closed `block` olur; yalnız bellekte yetki artışı yoktur.
 
+### Receipt window (#4335)
+
+Her karar varsayılan olarak sınırlı trail'in tamamını (8 MiB / son 10.000
+receipt) okur; maliyet trail ile lineer büyür. Sahibi isterseniz autonomy
+yalnız bu kimliğin **hash'i geçerli son N receipt'ini** okur:
+
+- Config: `graduatedAutonomy: { enabled: true, receiptWindow: 256 }`,
+  environment: `HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW=256`. `0` tam trail'e
+  döner; geçersiz değer (negatif, tam sayı değil, 10.000 üstü) `TypeError`
+  atar ve gate fail-closed `block` olur. Birim receipt'tir, zaman değil: zaman
+  penceresi sınırsız receipt alabilir, maliyeti sınırlamaz.
+- Okuma kuyruktan 64 KiB'lik parçayla başlar ve ikiye katlanarak geriye gider;
+  pencere dolduğunda, dosya başına ulaşıldığında ya da 8 MiB tavanına
+  gelindiğinde durur. Karar maliyeti trail uzunluğundan bağımsız kalır.
+- Pencere kesilirse `truncated` işaretlenir: session impact bunu zaten
+  raporlar (#2505), trust score da artık `evidence.truncated` ile söyler.
+  Puan pencereye hapistir; pencerenin dışındaki ihlal/başarı puanı etkilemez.
+- Pencere yalnız bu kimliğin receipt'lerini taşır: session impact de pencere
+  açıkken aynı oturumdaki başka kimliklerin eylemlerini saymaz. Hash'i bozuk
+  receipt'ler pencerede kalır (session impact onları doğrulanamadı diye
+  raporlar) ama N'den yer yemez; sahte receipt seli eski ihlali pencereden
+  itemez.
+- Dikkat: tier iddiası ve ilk activation kanıtı pencerenin içindeki
+  `operatorAttested` kayıtlardan taşınır; N'yi T3 politika eşiğinin
+  (`minimumActions: 30`) üstünde, örn. 256 tutun ki uzun geçmiş pencereye
+  sığsın. Varsayılan (penceresiz) davranış değişmeden korunur; varsayılanı
+  değiştirmek sahibinin kararıdır.
+- Kabul ölçümü: `npm run bench:agent-brake -- --iterations=200`
+  pencere açıkken last-decisions p50'nin first-decisions p50'nin 2 katı
+  içinde olmalıdır.
+
 ## Continuous post-action monitoring (Faz E)
 
 Pre-execution gate tek başına runtime sonucunu göremez. Host, eylem bittikten
