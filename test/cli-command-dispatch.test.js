@@ -352,7 +352,8 @@ const GOLDEN = {
   // #3905 re-words the `stop` usage line (one line): the stop now covers every
   // agent, MCP, HTTP and CLI call in a workspace.
   'yardım': '27df26f412b49365788b972459d4f3d96116ea0b96ae52fe725ed01db050ed84',
-  'terfi': '6b79d76669342cc849f1359cbcab5ea0c1903f6d746e5fd06193b76f313d9a27',
+  // #4339 adds `[--journal <existing-experience.db>]` to the terfi usage line; re-recorded.
+  'terfi': '51b73aa264d7598f4a4279e41bc0e2463ff2bb43c00366eddd9d9223176b5a88',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
   'anlamadım': 'ba3d1638f5c45556f9169f5d110035b64e935d455978804e255fbd782ac1e311',
   'evaluateCliGate arguments': '4129ca575059a8e3aa6758595a97a399406dc5d34eb66edef23cf8011d23fdea',

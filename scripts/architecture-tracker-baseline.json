@@ -461,6 +461,8 @@
       "lib/experience/capability-trust-fallback-extension.js": "Application",
       "lib/experience/capability-trust.js": "Application",
       "lib/experience/coder-canary-runtime.js": "Application",
+      "lib/experience/coder-promotion-acceptance.js": "Application",
+      "lib/experience/coder-promotion-receipt.js": "Application",
       "lib/experience/coder-routing-runtime.js": "Application",
       "lib/experience/coder-trust-replay.js": "Application",
       "lib/experience/compiler.js": "Application",
@@ -1674,7 +1676,9 @@
         "lib/authority/decision-guard.js",
         "lib/authority/operational-guard.js",
         "lib/authority/registration-payload.js",
+        "lib/cli-promote.js",
         "lib/emergency-stop.js",
+        "lib/experience/coder-promotion-acceptance.js",
         "lib/mcp-approval-expiry.js",
         "lib/mcp-approval-views.js",
         "lib/mcp/rekor-anchor-client.js",
@@ -3537,6 +3541,21 @@
         "lib/experience/canary.js",
         "lib/experience/learning-intake.js",
         "lib/experience/optimization-hypothesis.js"
+      ],
+      "lib/experience/coder-promotion-acceptance.js": [
+        "lib/authority/decision-attestation.js",
+        "lib/authority/decision-envelope.js",
+        "lib/experience/coder-promotion-receipt.js",
+        "lib/experience/journal-connection.js",
+        "lib/experience/journal.js",
+        "lib/experience/learning-intake.js",
+        "lib/hash-chain.js",
+        "lib/mcp-operator-capability.js"
+      ],
+      "lib/experience/coder-promotion-receipt.js": [
+        "lib/authority/decision-attestation.js",
+        "lib/experience/learning-intake.js",
+        "lib/hash-chain.js"
       ],
       "lib/experience/coder-routing-runtime.js": [
         "lib/experience/capability-trust.js",

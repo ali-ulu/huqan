@@ -86,3 +86,29 @@ Doğrulama kapsamı: gerçek CLI alt süreci, native Coder'ın mühürlü kayıt
 kaynak desteği, yanlış workspace, bozuk/açık journal, ayrı girdi oracle'ı ve
 komut öncesi/sonrası dosya/DB/sidecar karşılaştırması. Bu belge test sonucu
 yerine geçmez; kazanım ve B4/G3 ölçümü ayrı çalışmadır.
+
+## Açık operatör kabulünün kaydı
+
+Mevcut authority-backed `terfi` akışında `--journal <mutlak experience.db yolu>`
+kabul fişini aynı experience journal'a ayrı, kapatılmış bir koşu olarak yazar.
+Normal dry-run bu işlemi çağırmaz. Journal modu procedure artifact'ı, mevcut
+authority kararı ve aynı argv ile dört dosyanın tam digestlerini gerektirir.
+Legacy veya eksik yetkiyle fiş hazırlanmadan durur.
+
+Aday ve bağlı dosyaları `procedure` tam derlenmiş nesnesini, mevcut
+`qualification` sonucunu ve `sourceRunHashes: [{runId, sourceHash}]` bağlarını
+taşır. Dry-run'ın `compiledSupport` ile `sourceHashes` çifti de kullanılabilir.
+Kaynaklar eylemden önce mühürlerinden doğrulanır; derlenmiş nesnenin hash'i
+yeniden hesaplanır. Rollback onaylanmışsa eski yöntemin qualification ve
+kaynak bağları da önceden bulunmalıdır.
+
+Fiş önceki/sonraki yöntemin tam hash ve sürümünü, workspace/capability'yi,
+dosya digestlerini ve gerçekleşen `promoted` veya `rolled_back` sonucunu içerir.
+Authority outcome'u fişin hash'ini imzalar. Kaynak native koşular değiştirilmez.
+Bu kayıt doğrulaması tek başına Coder aktivasyonu veya yürütme yetkisi değildir.
+
+Outcome kaydedilip journal yazımı yarıda kalırsa `apply` aynı girdilerden
+imzalı hash'i yeniden kurar ve yalnız eksik kayıt kuyruğunu tamamlar; terfiyi
+yeniden çalıştırmaz. Girdiler eksik/değişmişse veya hash eşleşmiyorsa görünür
+kısmi sonuç verir. Gerçek Coder'ın yeni süreçte bu kabulü kullanması, canlı
+authority kontrolünü içeren sonraki bağlantı adımıdır.

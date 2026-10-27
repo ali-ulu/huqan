@@ -12,6 +12,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const CLI = require('../cli');
 const Kernel = require('../kernel');
 const { isolatedKernelOptions } = require('./helpers/isolated-persistence');
@@ -310,3 +311,83 @@ test('#3560 stdin closing before an answer declines the approval instead of hang
   assert.equal(atEof.ok, false);
   assert.equal(atEof.code, 'operator_confirmation_mismatch');
 });
+
+function journalInvocation(dir, files, extra = '') {
+  const { canonicalActionHash } = require('../lib/mcp-operator-capability');
+  const { signDecision, DECISION_VERSION } = require('../lib/authority/decision-envelope');
+  const { signConsumption } = require('../lib/authority/consumption-envelope');
+  const args = ['--aday', files.candidate, '--bagli', files.bound, '--deneme', files.trial, '--gozlem', files.observed,
+    '--capability', 'cap', '--onaylayan', OPERATOR, '--karar', 'approved', '--journal', path.join(dir, 'experience.db'),
+    ...extra.split(' ').filter(Boolean)];
+  const digests = Object.fromEntries(['aday', 'bagli', 'deneme', 'gozlem'].map((label, i) => [label,
+    crypto.createHash('sha256').update(fs.readFileSync(Object.values(files)[i])).digest('hex')]));
+  const key = crypto.generateKeyPairSync('ed25519');
+  const approvalId = 'journal-cli-test';
+  const actionHash = canonicalActionHash({ tool: 'terfi', workspaceId: 'default', approvalId, arguments: { argv: args, digests } });
+  const now = Date.now();
+  const envelope = signDecision({ v: DECISION_VERSION, approvalId, workspaceId: 'default', tool: 'terfi', actionHash,
+    decision: 'approved', reason: '', decidedAt: new Date(now - 1000).toISOString(), validUntil: new Date(now + 60000).toISOString(),
+    ledgerSeq: 3, ledgerHash: 'b'.repeat(64), operator: 'totp:primary' }, key.privateKey);
+  const consumption = signConsumption({ approvalId, workspaceId: 'default', tool: 'terfi', actionHash,
+    ledgerSeq: 4, ledgerHash: 'c'.repeat(64), consumedAt: new Date(now).toISOString() }, key.privateKey);
+  return { args, digests, authority: { mode: { mode: 'service', boundary: 'os-service', pin: { signingKey: key.publicKey } },
+    approvalId, envelope, consumption } };
+}
+
+test('journal requires verified authority and a complete host receipt plan before mutation', () => withTempDir((dir) => {
+  const { runPromoteCommand } = require('../lib/cli-promote');
+  const files = writeFiles(dir);
+  const invocation = journalInvocation(dir, files);
+  let calls = 0;
+  const cli = { commitCliMutation: () => { calls += 1; } };
+  const opts = { json: true, authority: invocation.authority };
+  assert.throws(() => runPromoteCommand(cli, invocation.args, { ...opts, authority: { mode: { mode: 'legacy' } } }), /requires an approval authority/);
+  assert.throws(() => runPromoteCommand(cli, invocation.args, { ...opts, authority: { mode: invocation.authority.mode },
+    preparePromotionReceipt: () => { throw new Error('callback must not run'); } }), /AUTHORITY_DECISION_REQUIRED/);
+  assert.throws(() => runPromoteCommand(cli, invocation.args, opts), /requires preparePromotionReceipt/);
+  assert.throws(() => runPromoteCommand(cli, [...invocation.args, '--tur', 'model'], opts), /requires --tur procedure/);
+  assert.throws(() => runPromoteCommand(cli, invocation.args, { ...opts, preparePromotionReceipt: () => { throw new Error('invalid qualification'); } }), /invalid qualification/);
+  const rollback = journalInvocation(dir, files, '--geri-alma approved');
+  assert.throws(() => runPromoteCommand(cli, rollback.args, { ...opts, authority: rollback.authority,
+    preparePromotionReceipt: () => ({ promoted: {}, journalPath: 'journal' }) }), /plan is incomplete/);
+  assert.equal(calls, 0);
+  const declined = journalInvocation(dir, files, '--karar rejected');
+  const result = JSON.parse(runPromoteCommand(cli, declined.args, { json: true, authority: declined.authority,
+    preparePromotionReceipt: () => { throw new Error('declined callback must not run'); } }));
+  assert.equal(result.moved, false);
+  assert.equal(result.promotionReceipt, undefined);
+  assert.equal(calls, 0);
+  fs.writeFileSync(files.candidate, JSON.stringify({ version: 2, scope: SCOPE }));
+  assert.throws(() => runPromoteCommand(cli, invocation.args.slice(0, -2), opts), /needs a string version/);
+}));
+
+test('journal reports only the receipt for the actual successful move and preserves raw DTOs', () => withTempDir((dir) => {
+  const { runPromoteCommand } = require('../lib/cli-promote');
+  for (const scenario of ['promoted', 'rolled_back', 'refused']) {
+    const files = writeFiles(dir, { negatives: scenario === 'rolled_back' ? 6 : 0 });
+    for (const name of ['candidate', 'bound']) {
+      const procedure = JSON.parse(fs.readFileSync(files[name], 'utf8'));
+      procedure.version = name === 'candidate' ? 2 : 1;
+      fs.writeFileSync(files[name], JSON.stringify({ procedure, qualification: { accepted: true }, compiledSupport: ['e1'] }));
+    }
+    const extra = scenario === 'rolled_back' ? '--geri-alma approved' : scenario === 'refused' ? `--ogreniciler ${OPERATOR}` : '';
+    const invocation = journalInvocation(dir, files, extra);
+    const plan = { promoted: { outcome: 'promoted' }, rolled_back: { outcome: 'rolled_back' }, journalPath: 'journal' };
+    let prepared = 0;
+    let committed = 0;
+    const result = JSON.parse(runPromoteCommand({ commitCliMutation: () => { committed += 1; } }, invocation.args,
+      { json: true, authority: invocation.authority, preparePromotionReceipt: (input) => {
+        prepared += 1;
+        assert.equal(input.candidate.procedure.version, 2);
+        assert.equal(input.candidate.version, undefined);
+        assert.deepEqual(input.digests, invocation.digests);
+        assert.equal(input.authority, invocation.authority);
+        return plan;
+      } }));
+    assert.equal(prepared, 1);
+    assert.equal(result.moved, scenario !== 'refused');
+    assert.equal(committed, scenario === 'refused' ? 0 : 1);
+    assert.deepEqual(result.promotionReceipt, scenario === 'refused' ? undefined : plan[scenario]);
+    assert.equal(result.journalPath, scenario === 'refused' ? undefined : plan.journalPath);
+  }
+}));

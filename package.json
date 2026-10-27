@@ -640,6 +640,8 @@
     "lib/experience/canary-admission.js",
     "lib/experience/budgeted-journal.js",
     "lib/experience/coder-routing-runtime.js",
+    "lib/experience/coder-promotion-receipt.js",
+    "lib/experience/coder-promotion-acceptance.js",
     "lib/experience/expression-adaptation.js",
     "lib/experience/integer-expression-ast.js",
     "lib/experience/conditional-expression-program.js",

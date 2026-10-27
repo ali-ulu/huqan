@@ -37,6 +37,8 @@ const { requireAuthorityDecision } = require('../lib/authority/decision-guard');
 const { resolveMcpApprovalTtlMs } = require('../lib/mcp-approval-expiry');
 const { anchorDigest, verifyAnchorSignature } = require('../lib/authority/anchor-statement');
 const { REKOR_URL, createRekorAnchorClient } = require('../lib/mcp/rekor-anchor-client');
+const { readPromotionInputs } = require('../lib/cli-promote');
+const { preparePromotionReceipt, completeOperationalOutcome, recoverPromotionOutcome } = require('../lib/experience/coder-promotion-acceptance');
 
 const USAGE = 'usage: huqan-authority status | sync [--workspace <id>] | decide | withdraw <approvalId>'
   + ' | apply <approvalId> [--workspace <id>] | request <tool> [--workspace <id>] --args <json> | anchor';
@@ -97,7 +99,7 @@ const OPERATIONAL_EXECUTORS = Object.freeze({
     const CLI = require('../cli');
     const cli = new CLI();
     try {
-      const output = await cli.execute('terfi', args.argv, { authority, json: true });
+      const output = await cli.execute('terfi', args.argv, { authority: { ...authority, arguments: args }, json: true, preparePromotionReceipt });
       let report = null;
       try { report = JSON.parse(output); } catch { /* a gate refusal answers in text */ }
       // terfi refuses inside its loop without throwing; only a promotion or rollback that happened is executed.
@@ -220,7 +222,7 @@ async function runOperational(approvalId, fetched, { client, mode, consumeProof,
   }
   // The recorded outcome is what makes a second apply change nothing; a crash
   // after consuming and before the outcome leaves it re-runnable, as in P4.
-  if (approval.outcome) return { code: 0, report: { approvalId, decision, alreadyFinal: approval.outcome.status } };
+  if (approval.outcome) return recoverPromotionOutcome({ client, mode, approvalId, approval, envelope, consumeProof, loadInputs: readPromotionInputs });
   // Checked before anything is spent: a decision that does not cover these
   // arguments is never consumed.
   const preflight = requireAuthorityDecision({ mode, existing: { tool: approval.tool }, approvalId, workspaceId: approval.workspaceId,
@@ -239,18 +241,7 @@ async function runOperational(approvalId, fetched, { client, mode, consumeProof,
     ...(result.ok ? {} : { error: result.error?.code, message: result.error?.message }) };
   // The action already ran. Without a recorded outcome a second apply would run
   // it again, so an unrecorded outcome is its own failure and says so.
-  let recorded;
-  try {
-    recorded = await client.recordOutcome(approvalId, { status: result.ok ? 'executed' : 'failed',
-      receiptId: String(result.ok ? approvalId : result.error?.code || 'failed'), receiptHash: null, consumeProof });
-  } catch (error) {
-    recorded = { status: 0, body: { code: error.code || 'AUTHORITY_UNAVAILABLE' } };
-  }
-  if (recorded.status !== 200) {
-    return { code: 2, report: { ...report, outcomeRecorded: false, outcomeError: recorded.body?.code || `HTTP_${recorded.status}`,
-      note: 'the action ran but the authority did not record its outcome; do not apply again before checking what happened' } };
-  }
-  return { code: result.ok ? 0 : 2, report };
+  return completeOperationalOutcome({ client, mode, approvalId, approval, envelope, consumeProof, result, report });
 }
 
 async function apply(approvalId, { workspaceId: requestedWorkspace } = {}, deps = {}) {

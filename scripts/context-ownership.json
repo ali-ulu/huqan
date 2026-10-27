@@ -2948,6 +2948,14 @@
    "context": "Trust",
    "evidence": "coder-experience-runtime.md#runtime-ownership"
   },
+  "lib/experience/coder-promotion-receipt.js": {
+   "context": "Trust",
+   "evidence": "#4069 source-bound promotion receipt verification and journal persistence"
+  },
+  "lib/experience/coder-promotion-acceptance.js": {
+   "context": "Trust",
+   "evidence": "#4069 authority outcome and receipt binding with idempotent recovery"
+  },
   "lib/experience/replacement-sequence-adaptation.js": {
    "context": "Trust",
    "evidence": "source-sealed per-step sequence adaptation and qualification binding"
@@ -7510,9 +7518,24 @@
   "lib/authority/decision-attestation.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ADR-016: bin/huqan-authority.js verifies and persists Authority-signed outcome/receipt sidecars"
+  },
+  "lib/authority/decision-envelope.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Trust"
+   ],
+   "evidence": "#4069 coder-promotion-acceptance.js verifies the signed decision binding before receipt preparation"
+  },
+  "lib/experience/coder-promotion-acceptance.js": {
+   "owner": "Trust",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4069 bin/huqan-authority.js binds actual promotion outcomes and recovers their sealed journal receipts"
   },
   "lib/authority/operational-guard.js": {
    "owner": "AgentAction",
@@ -7567,7 +7590,8 @@
   "lib/mcp-operator-capability.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
   },
