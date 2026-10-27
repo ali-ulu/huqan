@@ -23,13 +23,13 @@ function files(root) {
   }
   return result;
 }
-function fixture(t, contents = ['alpha v1.0.0', 'beta v1.0.0', 'gamma v1.0.0']) {
+function fixture(t, contents = ['alpha v1.0.0', 'beta v1.0.0', 'gamma v1.0.0'], replacement = 'v1.1.0') {
   const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'replay-cli-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const db = path.join(dir, 'experience.db');
-  const params = { path: 'docs/notes.md', oldText: 'v1.0.0', newText: 'v1.1.0' };
+  const params = { path: 'docs/notes.md', oldText: 'v1.0.0', newText: replacement };
   const request = { capabilityId: 'stored-release-replacement', params, parentVersion: 0,
-    qualificationInputs: [{ id: 'unseen', before: 'unseen context v1.0.0', expectedAfter: 'unseen context v1.1.0' }] };
+    qualificationInputs: [{ id: 'unseen', before: 'unseen context v1.0.0', expectedAfter: `unseen context ${replacement}` }] };
   const requestPath = path.join(dir, 'request.json');
   fs.writeFileSync(requestPath, JSON.stringify(request));
   for (let i = 0; i < contents.length; i++) {
@@ -45,7 +45,7 @@ function fixture(t, contents = ['alpha v1.0.0', 'beta v1.0.0', 'gamma v1.0.0']) 
       operation: { type: 'replace_text', path: params.path, find: params.oldText, replace: params.newText } }));
     const run = runCliCoder([taskPath, '--root', root, '--journal', db, '--run-id', `native-${i}`], { json: true });
     assert.equal(run.status, 'completed', JSON.stringify(run));
-    assert.equal(fs.readFileSync(path.join(root, params.path), 'utf8'), contents[i].replace(params.oldText, params.newText));
+    assert.equal(fs.readFileSync(path.join(root, params.path), 'utf8'), contents[i].replace(params.oldText, () => params.newText));
   }
   const argv = ['terfi', '--from-replay', '--dry-run', '--journal', db, '--workspace', 'default', '--request', requestPath, '--json'];
   return { dir, db, request, requestPath, argv };
@@ -72,6 +72,16 @@ test('real CLI compiles independently qualified candidates from native sealed ru
   assert.equal(result.candidates[0].procedure.version, 1);
   assert.deepEqual(result.candidates[0].support, ['native-0', 'native-1', 'native-2']);
   assert.ok(result.signals.every(signal => signal.reward.expectedSource === 'prior'));
+  assert.deepEqual(files(f.dir), before);
+});
+
+test('qualification preserves literal replacement tokens used by native Coder', t => {
+  const f = fixture(t, undefined, '$$');
+  const before = files(f.dir), child = invoke(f);
+  assert.equal(child.status, 0, child.stderr || child.stdout);
+  const result = JSON.parse(child.stdout).data;
+  assert.equal(result.candidates.length, 1, JSON.stringify(result.rejectedCandidates));
+  assert.equal(result.candidates[0].procedure.params.newText, '$$');
   assert.deepEqual(files(f.dir), before);
 });
 
@@ -121,6 +131,55 @@ test('qualification rejects copied sources and wrong oracles without changing fi
     assert.match(child.stdout, /verification_eligibility_mismatch/);
     assert.deepEqual(files(f.dir), before);
   });
+});
+
+test('multiple native verifications cannot hide a contradictory later readback', t => {
+  const f = fixture(t), store = openJournalConnection({ dbPath: f.db });
+  try {
+    const journal = createExperienceJournal({ store });
+    for (const event of journal.read('native-0')) {
+      const copy = structuredClone(event); delete copy.sequence; delete copy.hash;
+      for (const key of ['runId', 'eventId', 'attemptId', 'invocationId', 'causedByEventId']) {
+        if (typeof copy[key] === 'string') copy[key] = copy[key].replace('native-0', 'ambiguous');
+      }
+      assert.equal(journal.append(copy).ok, true);
+      if (copy.type === 'verification') {
+        const later = structuredClone(copy); later.eventId += '-later';
+        later.payload.verified = false;
+        later.payload.checks[0].actualSha256 = 'f'.repeat(64); later.payload.checks[0].match = false;
+        assert.equal(journal.append(later).ok, true);
+      }
+    }
+    assert.equal(journal.manifest('ambiguous').learningEligibility, 'positive_procedure');
+  } finally { store.close(); }
+  const before = files(f.dir), child = invoke(f);
+  assert.equal(child.status, 2, child.stderr || child.stdout);
+  assert.match(child.stdout, /native_observation_ambiguous/);
+  assert.deepEqual(files(f.dir), before);
+});
+
+test('larger replay support remains qualified within the compiler source bound', t => {
+  const f = fixture(t), store = openJournalConnection({ dbPath: f.db });
+  try {
+    const journal = createExperienceJournal({ store }), events = journal.read('native-0');
+    for (let i = 0; i < 31; i++) for (const event of events) {
+      const copy = structuredClone(event); delete copy.sequence; delete copy.hash;
+      for (const key of ['runId', 'eventId', 'attemptId', 'invocationId', 'causedByEventId']) {
+        if (typeof copy[key] === 'string') copy[key] = copy[key].replace('native-0', `repeat-${i}`);
+      }
+      assert.equal(journal.append(copy).ok, true);
+    }
+  } finally { store.close(); }
+  f.argv.push('--budget', '64');
+  const before = files(f.dir), child = invoke(f);
+  assert.equal(child.status, 0, child.stderr || child.stdout);
+  const result = JSON.parse(child.stdout).data;
+  assert.equal(result.candidates.length, 1, JSON.stringify(result.rejectedCandidates));
+  const candidate = result.candidates[0];
+  assert.equal(candidate.support.length, 34);
+  assert.equal(candidate.nIndependent, 3);
+  assert.equal(candidate.compiledSupport.length, 3);
+  assert.deepEqual(files(f.dir), before);
 });
 
 test('copied native content does not become independent support', t => {

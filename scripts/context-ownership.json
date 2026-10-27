@@ -8035,6 +8035,13 @@
    ],
    "evidence": "#4069 lib/cli-replay.js lists source-bound replay candidates for the operator without registering or proposing promotion"
   },
+  "lib/cognition/independent-sources.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4069 lib/cli-replay.js selects independent compilation sources under the existing intake bound"
+  },
   "lib/agent-coder-execution.js": {
    "owner": "AgentAction",
    "consumers": [

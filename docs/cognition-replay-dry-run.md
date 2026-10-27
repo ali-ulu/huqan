@@ -46,6 +46,10 @@ reddedilir; kaynakta eşzamanlı yazma yapılmamalıdır. Mühür ve workspace d
 reddedilir; yeni DB, Graph veya aday kaydı yaratılmaz. CLI yolu Kernel
 kurulmadan ayrılır.
 
+Native kaynakta birden çok başlangıç, eylem, yönlendirme, yürütme sonucu veya
+verification varsa önizleme `native_observation_ambiguous` ile durur; ilk
+gözlemi seçerek sonraki çelişkili sonucu gizlemez.
+
 M2 hatası yalnız kaydedilmiş yürütme hedefi ve bağımsız disk okuma hash'leri
 uyuştuğunda hesaplanır. Beklenti veya gözlem yoksa epizot puanlanmaz. Eski
 Experience kayıtlarında karar öncesi M9 beklentisi bulunmadığından sonradan
@@ -60,6 +64,10 @@ iddiası değildir.
 Olumlu aday mevcut öğrenme intake'i ve derleyiciyle sürümlenir; yalnız kaynak
 artifact'larını tekrar etmeyen ayrı girdilerde qualification geçen derleme
 listelenir. Sonuç daima `registered: false` ve `CANDIDATE_ONLY` taşır.
+`support` bütün seçilmiş desteği korur. `compiledSupport`, mevcut derleyicinin
+bir ana kaynak ve en çok 32 baseline sınırına uyan bağımsız temsilcilerdir;
+kopya koşular derleme desteğini şişirmez. Metin değiştirme, gerçek Coder gibi
+replacement işaretlerini yorumlamadan harfiyen yapılır.
 Intake yalnız aday üretmek için `admissionPool.propose` çağırabilir;
 `reflective-promotion.propose`, kalıcı kayıt, onay, canary veya terfi otomatik
 çağrılmaz. Policy ve capability
