@@ -684,3 +684,31 @@ test('session summary fails closed on hostile history objects and defaults malfo
   assert.equal(summary.sandboxEscapeAttempts, 4);
   assert.match(summary.reasons.join('\n'), /workspace\(s\) default/);
 });
+
+// #4335: a windowed read is a cut history. When the window begins inside this
+// session, the summary says earlier actions may lie outside it -- the same
+// #2505 signal the 8 MiB cut already produces.
+test('a receipt window that begins inside this session makes the summary partial', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const nodePath = require('node:path');
+  const { readReceiptHistory } = require('../lib/autonomy-receipt-history');
+  const dir = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'huqan-impact-window-'));
+  try {
+    const trail = nodePath.join(dir, 'receipts.jsonl');
+    const lines = [];
+    for (let i = 0; i < 30; i++) {
+      lines.push(JSON.stringify(sealed({ sessionId: 's1', score: 10, identityRef: 'agent:default:win-agent', receiptId: `w-${i}` })));
+    }
+    fs.writeFileSync(trail, `${lines.join('\n')}\n`);
+    const windowed = readReceiptHistory({ path: trail, identityRef: 'agent:default:win-agent', receiptWindow: 10 });
+    assert.equal(windowed.length, 10);
+    assert.equal(windowed.truncated, true);
+
+    const summary = summarizeSessionImpact(windowed, 's1');
+    assert.equal(summary.status, 'partial');
+    assert.match(summary.reasons.join('\n'), /history window was cut and begins inside this session/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

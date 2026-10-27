@@ -9,6 +9,7 @@ const {
   GRADUATED_AUTONOMY_VERSION,
   computeTrustScore,
   evaluateGraduatedAutonomy,
+  graduatedAutonomyOptions,
   requiredTierForAction,
 } = require('../lib/graduated-autonomy');
 const { evaluateExternalAction, recordExternalActionOutcome } = require('../lib/external-action-guard');
@@ -380,4 +381,75 @@ test('empty history starts at T1 and cannot authorize a write', () => {
   assert.equal(result.autonomy.tier, 'T1');
   assert.equal(result.reason, AUTONOMY_REASONS.TIER_INSUFFICIENT);
   assert.equal(result.decision, 'review');
+});
+
+// #4335: the window bounds what the score sees and the score says so.
+test('a cut history marks the trust score and the autonomy evidence truncated', () => {
+  const history = actionReceipts(10);
+  const cut = [...history];
+  Object.defineProperty(cut, 'truncated', { value: true });
+  const metrics = computeTrustScore(cut, IDENTITY_REF);
+  assert.equal(metrics.truncated, true);
+  assert.equal(computeTrustScore(history, IDENTITY_REF).truncated, false);
+
+  const result = evaluateGraduatedAutonomy({
+    identity: identity(),
+    action: { riskCategory: 'FILESYSTEM_WRITE' },
+    receipts: cut,
+  }, { now: () => '2026-01-01T00:20:00.000Z' });
+  assert.equal(result.autonomy.evidence.truncated, true);
+  assert.equal(result.finding.truncated, true);
+});
+
+// #4335: window resolution is a policy value; a malformed one must fail the
+// gate closed, never silently fall back to the full trail.
+test('a receipt window is resolved from config or environment and fails closed when malformed', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-window-options-'));
+  try {
+    const trail = path.join(dir, 'receipts.jsonl');
+    fs.writeFileSync(trail, `${[...actionReceipts(5)].map(r => JSON.stringify(r)).join('\n')}\n`);
+    const source = { receiptPath: trail };
+
+    const byConfig = graduatedAutonomyOptions({
+      identityRef: IDENTITY_REF,
+      environment: {},
+      graduatedAutonomy: { enabled: true, ...source, receiptWindow: 2 },
+    });
+    assert.equal(byConfig.receipts.length, 2, 'the configured window bounds the read');
+
+    const byEnv = graduatedAutonomyOptions({
+      identityRef: IDENTITY_REF,
+      environment: { HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW: '3' },
+      graduatedAutonomy: { enabled: true, ...source },
+    });
+    assert.equal(byEnv.receipts.length, 3, 'the environment resolves the window');
+
+    const disabled = graduatedAutonomyOptions({
+      identityRef: IDENTITY_REF,
+      environment: { HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW: '0' },
+      graduatedAutonomy: { enabled: true, ...source },
+    });
+    assert.equal(disabled.receipts.length, 10, '0 reads the full bounded trail (5 actions, admission + outcome each)');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  const source = { receiptPath: 'irrelevant' };
+  assert.throws(() => graduatedAutonomyOptions({
+    identityRef: IDENTITY_REF,
+    environment: {},
+    graduatedAutonomy: { enabled: true, ...source, receiptWindow: -1 },
+  }), TypeError);
+  assert.throws(() => graduatedAutonomyOptions({
+    identityRef: IDENTITY_REF,
+    environment: { HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW: 'many' },
+    graduatedAutonomy: { enabled: true, ...source },
+  }), TypeError);
+  assert.throws(() => graduatedAutonomyOptions({
+    identityRef: IDENTITY_REF,
+    environment: {},
+    graduatedAutonomy: { enabled: true, ...source, receiptWindow: 1.5 },
+  }), TypeError);
 });
