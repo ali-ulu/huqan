@@ -327,16 +327,27 @@ yalnız bu kimliğin **hash'i geçerli son N receipt'ini** okur:
 - Pencere yalnız bu kimliğin receipt'lerini taşır: session impact de pencere
   açıkken aynı oturumdaki başka kimliklerin eylemlerini saymaz. Hash'i bozuk
   receipt'ler pencerede kalır (session impact onları doğrulanamadı diye
-  raporlar) ama N'den yer yemez; sahte receipt seli eski ihlali pencereden
-  itemez.
+  raporlar) ama N'den yer yemez; hash'i bozuk receipt seli eski ihlali
+  pencereden itemez.
+- Sınır: hash'i **geçerli** receipt'ler bunun dışındadır. Receipt hash'i
+  anahtarsız SHA-256'dır ve collector varsayılan olarak bundle imzası
+  istemez; trail'e yazabilen biri kendi `identityRef`'iyle N geçerli başarı
+  receipt'i ekleyip eski bir ihlali pencereden itebilir. Tam trail'de aynı
+  sel 10.000 receipt / 8 MiB'e ulaşmak zorundadır; pencere bu maliyeti N'ye
+  indirir. Trail'e yazmanın kimlik doğrulamalı olmadığı kurulumda pencereyi
+  açmayın.
 - Dikkat: tier iddiası ve ilk activation kanıtı pencerenin içindeki
   `operatorAttested` kayıtlardan taşınır; N'yi T3 politika eşiğinin
   (`minimumActions: 30`) üstünde, örn. 256 tutun ki uzun geçmiş pencereye
   sığsın. Varsayılan (penceresiz) davranış değişmeden korunur; varsayılanı
   değiştirmek sahibinin kararıdır.
-- Kabul ölçümü: `npm run bench:agent-brake -- --iterations=200`
-  pencere açıkken last-decisions p50'nin first-decisions p50'nin 2 katı
-  içinde olmalıdır.
+- Kabul ölçümü: pencere açıkken last-decisions p50, first-decisions p50'nin
+  2 katı içinde olmalıdır. Bench'in pencere bayrağı yoktur; environment ile
+  açılır (npm win32'de `cmd.exe` kullanır, satır içi `VAR=değer` orada
+  çalışmaz):
+  - POSIX: `HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW=64 npm run bench:agent-brake -- --iterations=200`
+  - PowerShell: `$env:HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW='64'; npm run bench:agent-brake -- --iterations=200`
+  - cmd: `set "HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW=64" && npm run bench:agent-brake -- --iterations=200`
 
 ## Continuous post-action monitoring (Faz E)
 
