@@ -1,16 +1,30 @@
 # HUQAN
 
-A local trust layer for AI agents. It checks evidence, provenance, and policy before a claim, memory write, or action is trusted — and asks a human when needed.
+**Stops an AI agent's risky action before it runs — and stays out of the way for everything else.**
 
-Every decision is recorded as a verifiable Trust Receipt.
+HUQAN sits on the execution path of shell, git, infrastructure and memory-write calls. A force-push, a `terraform apply` or a `kubectl delete` is blocked or held for a person *before* state changes; a `git status` or a `cat` goes straight through. That boundary is what lets you give an agent more room instead of less.
+
+Every decision is recorded as a verifiable Trust Receipt — the evidence behind the block, not a substitute for it.
 
 **No model. No cloud. No API key.**
+
+## What it stops, what it lets through
+
+Default `claude-code` gate profile, no custom policy:
+
+| Agent runs | HUQAN |
+|---|---|
+| `git status`, `git diff`, `cat`, `ls`, `rg` | passes, no prompt |
+| `npm test`, `terraform plan`, `kubectl get`, `rm -rf build` | held for review — unknown commands never pass silently |
+| `git push --force`, `terraform apply`, `kubectl delete` | blocked |
+
+Held-by-default is deliberate, and it is also the noise you will feel first. Allow your routine commands once in `external-action-policy.json` (`{ "allowedCommands": ["npm test", "terraform plan"] }`) so review is spent only where the blast radius is real — see [shell command categories](./docs/external-action-guard.md).
 
 ## Why
 
 Agents can write code, delete files, spend money, and change memory — usually running as *your* user. HUQAN sits between the agent and that power:
 
-- Mutating calls are **held** until a person approves them.
+- Risky calls are **blocked or held before they execute**, not explained afterwards.
 - With the Approval Authority — an OS service (a Windows service today, systemd on Linux or launchd on macOS, [ADR-020](./docs/adr/ADR-020-posix-authority-parity.md)) guarded by TOTP and cryptographic envelopes — the agent cannot approve its own actions.
 - Every decision produces a **Trust Receipt** — a local record you can verify from the receipt itself.
 
