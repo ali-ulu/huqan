@@ -46,6 +46,9 @@ reddedilir; kaynakta eşzamanlı yazma yapılmamalıdır. Mühür ve workspace d
 reddedilir; yeni DB, Graph veya aday kaydı yaratılmaz. CLI yolu Kernel
 kurulmadan ayrılır.
 
+Önizleme kesiminden ileri başlangıç zamanlı koşular, bağımlılık ve derleme
+kaynağına veya qualification artifact karşılaştırmasına katılmaz.
+
 Native kaynakta birden çok başlangıç, eylem, yönlendirme, yürütme sonucu veya
 verification varsa önizleme `native_observation_ambiguous` ile durur; ilk
 gözlemi seçerek sonraki çelişkili sonucu gizlemez.

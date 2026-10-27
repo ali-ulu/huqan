@@ -182,6 +182,31 @@ test('larger replay support remains qualified within the compiler source bound',
   assert.deepEqual(files(f.dir), before);
 });
 
+test('future dependency bridges cannot collapse current compilation support', t => {
+  const f = fixture(t), store = openJournalConnection({ dbPath: f.db });
+  try {
+    const journal = createExperienceJournal({ store });
+    for (const event of journal.read('native-0')) {
+      const copy = structuredClone(event); delete copy.sequence; delete copy.hash;
+      for (const key of ['runId', 'eventId', 'attemptId', 'invocationId', 'causedByEventId']) {
+        if (typeof copy[key] === 'string') copy[key] = copy[key].replace('native-0', 'future-bridge');
+      }
+      if (copy.type === 'run_started') {
+        copy.payload.createdAt = '2999-01-01T00:00:00.000Z'; copy.parentRunId = 'native-1';
+      }
+      if (copy.type === 'action_proposed') copy.parentRunId = 'native-2';
+      assert.equal(journal.append(copy).ok, true);
+    }
+  } finally { store.close(); }
+  const before = files(f.dir), child = invoke(f);
+  assert.equal(child.status, 0, child.stderr || child.stdout);
+  const result = JSON.parse(child.stdout).data;
+  assert.equal(result.candidates[0].nIndependent, 3);
+  assert.equal(result.candidates[0].compiledSupport.length, 3);
+  assert.ok(result.skipped.some(row => row.episodeId === 'future-bridge' && row.reason === 'future_episode'));
+  assert.deepEqual(files(f.dir), before);
+});
+
 test('copied native content does not become independent support', t => {
   const f = fixture(t, ['same v1.0.0', 'same v1.0.0', 'same v1.0.0']);
   const child = invoke(f); assert.equal(child.status, 0, child.stderr || child.stdout);
