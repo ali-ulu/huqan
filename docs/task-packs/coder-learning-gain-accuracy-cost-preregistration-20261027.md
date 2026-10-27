@@ -93,4 +93,17 @@ Rapor, eval testinin `t.diagnostic` JSON çıktısıdır: külliyat digest'leri,
 
 ## 12. Sonuç
 
-(ölçüm koştuktan sonra doldurulur)
+İki koşum yapıldı; §4–§7'ye (külliyat, metrikler, eşikler) dokunulmadı. Koşum 1, arka planda eşzamanlı graphify dizinlemesiyle koştu (duyarlilik nedeni: wall time CPU yüküne duyarlıdır); koşum 2, makine boşken tek test olarak koşuldu ve **birincil ölçüm** kabul edildi. Deterministik çıktılar (process sayıları, outcome, görev hash'leri) iki koşumda birebir aynıydı; yalnızca wall time değerleri yükle duyarlı olarak değişti (rapor amaçlı, assertion değil).
+
+**Koşum 2 (birincil) sonuçları:**
+
+- **Doğruluk (H1a): TUTTU.** 5/5 holdout görevinde her iki kol `applied_tested`, `observedVerification.ok=true`, kaynak içerik baseline ile learned arasında birebir eşit; learned kol yanlış yazma 0 (`REJECT` eşik tetiklenmedi). Görev başına `taskHash`/`testHash` (sha256) eşitliği eval assert edildi.
+- **Process (ikincil):** her holdout görevinde baseline 4 → learned 1; toplam 20 → 5, `rememberFile` ile kaydedilen prosedürle **amortize +11 process tasarrufu**. `perTaskProcessGain` 5/5.
+- **Toplam maliyet (H1c): EŞİK GEÇMEDİ → INSUFFICIENT.** Holdout wall time baseline 11.479 ms vs learned 9.522 ms (tasarruf 1.957 ms), eğitim 2.906 ms → amortize kazanç **-949 ms** (≈ %8 negatif). N = 5 külliyatında eğitim maliyeti başabaşa ulaşmıyor (brüt tahmin: ~8–9 holdout görevi). Fail-closed kuralı gereği maliyet iddiası raporlanmaz; doğruluk ve metin kapıları etkilenmez.
+- **CPU maliyeti: NOT_MEASURED** (çocuk-proses CPU örneklemesi yeni bağımlılık gerektirir; §0'da bildirildi).
+- **Farklı-yöntem kontrolü (anti-vaka): beklenen gibi.** `novel` (`x*x + 1`) görevinde learned kol bellek adayını reddetti (`needs_human_decision`), deneme geri alındı, kaynak dosya değişmedi, otomatik fallback yok; baseline taze sentezle başarıya ulaştı.
+- **Önceki beceri non-inferiority: tutuldu.** Anti-vakadan sonra `regression` görevinde learned kol kayıtlı parity prosedürünü yeniden oynadı (baseline 4 vs learned 1 process).
+- **Restart/persist: tutuldu.** Journal store yeniden açıldı; `learningEligibility` manifest girdileri (`positive_procedure` / `negative_example`) ve eğitim kaynağı + candidate dosya hash'leri korundu.
+- **Kapsam beyanı:** Bu, dar bir aynı-yöntem (arithmetic/parity) sentetik külliyatın paired ölçümüdür; genel öğrenme-kazanımı iddiası yapılmaz (#4341 kabul kriteri 5). Tam ölçüm kaydı (JSON), eval testinin `t.diagnostic` çıktısıdır: `test/coder-learning-gain-accuracy-cost.test.js`.
+
+**Verdict özeti:** `accuracy=MEASURED/gain`, `processGain=11`, `amortizedWallGain=INSUFFICIENT`, `cpuCost=NOT_MEASURED`, `wrongWrites=0`, anti-vaka ve non-inferiority kapıları geçti.
