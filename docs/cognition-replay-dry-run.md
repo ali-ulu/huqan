@@ -110,5 +110,28 @@ Bu kayıt doğrulaması tek başına Coder aktivasyonu veya yürütme yetkisi de
 Outcome kaydedilip journal yazımı yarıda kalırsa `apply` aynı girdilerden
 imzalı hash'i yeniden kurar ve yalnız eksik kayıt kuyruğunu tamamlar; terfiyi
 yeniden çalıştırmaz. Girdiler eksik/değişmişse veya hash eşleşmiyorsa görünür
-kısmi sonuç verir. Gerçek Coder'ın yeni süreçte bu kabulü kullanması, canlı
-authority kontrolünü içeren sonraki bağlantı adımıdır.
+kısmi sonuç verir. Gerçek Coder'ın bu kabulü kullanması aşağıdaki isteğe bağlı
+canlı authority kontrolüne bağlıdır.
+
+## Coder için canlı kabul kontrolü
+
+`coder <task.json> --journal <mutlak experience.db yolu> --promotion-approval <approvalId> --promotion-capability <capabilityId>`
+seçenekleri, journal'daki mühürlü fişi kurulu authority'nin anahtarıyla
+doğrular. Canlı karar, tüketim kaydı, gerçekleşen outcome ve fiş hash'i aynı
+workspace ve eyleme bağlı olmalıdır. Görev girdisindeki bir boolean bu kabulü
+üretemez. Mevcut dosya değişikliği yetkisi ve bağımsız kabul testi ayrıca gerekir.
+
+Kontrol, fişin imzalı outcome kaydından güncel authority başlığına kadar geçmişi
+okur. Aynı capability için daha sonraki tüketilmiş terfi, başarısız veya yarım
+kalmış olsa da eski fişi durdurur; yeni journal fişinin varlığına güvenilmez.
+Bozuk, eksik, değişen veya 10.000 kayda ulaşan geçmişte çalıştırma reddedilir.
+Başka capability'nin terfisi tek başına bu kabulü geçersiz kılmaz.
+
+Kabul yalnız senkron Coder çağrısı boyunca yaşayan, tek kullanımlık bir iç
+nesneye bağlanır. Dosya yazımından önce gerçekten seçilen yöntemin tam hash'i
+ve capability'si karşılaştırılır; eşleşmeyen veya tekrar kullanılan nesne
+reddedilir. Yeni süreç bu denetimleri yeniden yapar; nesne diske kaydedilmez.
+
+Mevcut authority API'si son geçmiş okumasıyla dosya yazımı arasında süreçler
+arası atomik kilit sağlamaz. Bu bağlantı böyle bir garanti veya genel öğrenme
+kazanımı iddiası taşımaz.

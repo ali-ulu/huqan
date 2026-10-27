@@ -7544,7 +7544,8 @@
   "lib/authority/operational-guard.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "#3892 ADR-016: bin/huqan-authority.js, the terfi CLI and the MCP operator dispatch verify operational approvals through the guard"
   },
@@ -7558,14 +7559,16 @@
   "lib/authority/authority-client.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
   },
   "lib/authority/authority-mode.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Platform"
+    "Platform",
+    "Trust"
    ],
    "evidence": "ADR-016: bin/huqan-authority.js reports the authority mode and checks the pinned service"
   },
