@@ -1,5 +1,7 @@
 'use strict';
 const test = require('node:test');
+// #4065 G1: Coder learning is keyed by the approved task's kind of work.
+const CODER_KEY = 'risk:coder:initialize_project:array-map';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -199,12 +201,12 @@ test('real project creation observation feeds the next native AgentV3 choice and
   const trail = candidate.run.data.cognition.trail;
   assert.ok(trail.some(row => row.outcome === 'contradiction' && row.reason === 'artifact_digest_observed'));
   const selections = trail.filter(row => row.reason === 'salience_prepared');
-  assert.equal(selections[0].values.find(row => row.key === 'risk:coder').nObserved, DEFAULT_SUMMARY_WINDOW - 1);
-  assert.equal(selections[1].values.find(row => row.key === 'risk:coder').nObserved, DEFAULT_SUMMARY_WINDOW);
-  assert.equal(selections[1].values.find(row => row.key === 'risk:coder').status, 'INSUFFICIENT');
-  assert.equal(selections[1].values.find(row => row.key === 'risk:coder').arousal, null);
+  assert.equal(selections[0].values.find(row => row.key === CODER_KEY).nObserved, DEFAULT_SUMMARY_WINDOW - 1);
+  assert.equal(selections[1].values.find(row => row.key === CODER_KEY).nObserved, DEFAULT_SUMMARY_WINDOW);
+  assert.equal(selections[1].values.find(row => row.key === CODER_KEY).status, 'INSUFFICIENT');
+  assert.equal(selections[1].values.find(row => row.key === CODER_KEY).arousal, null);
   assert.equal(control.run.data.cognition.trail.filter(row => row.reason === 'salience_prepared')[1]
-    .values.find(row => row.key === 'risk:coder').nObserved, DEFAULT_SUMMARY_WINDOW - 1);
+    .values.find(row => row.key === CODER_KEY).nObserved, DEFAULT_SUMMARY_WINDOW - 1);
   assert.equal(candidate.run.data.steps[1].id, 'coder:next', JSON.stringify(candidate.run));
   assert.equal(control.run.data.steps[1].id, 'safe-verify', JSON.stringify(control.run));
   const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
@@ -223,5 +225,5 @@ test('real project creation observation feeds the next native AgentV3 choice and
   assert.deepEqual(replayed.before, candidate.pairs);
   assert.deepEqual(replayed.after, candidate.pairs);
   assert.deepEqual(replayed.order, ['coder:next', 'safe-verify']);
-  assert.equal(replayed.result.values.find(row => row.key === 'risk:coder').nObserved, DEFAULT_SUMMARY_WINDOW);
+  assert.equal(replayed.result.values.find(row => row.key === CODER_KEY).nObserved, DEFAULT_SUMMARY_WINDOW);
 });

@@ -1,5 +1,7 @@
 'use strict';
 const test = require('node:test');
+// #4065 G1: Coder learning is keyed by the approved task's kind of work.
+const CODER_KEY = 'risk:coder:replace_text';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -44,8 +46,8 @@ test('native rollback observation changes the next approved Coder choice and sur
     assert.equal(arm.cost.oracleCalls, 1);
     assert.equal(arm.steps[0].rolledBack, true);
   }
-  assert.equal(candidate.afterFirst.entries.find(entry => entry.key === 'risk:coder').nIndependent, 1);
-  assert.equal(candidate.afterFirst.entries.find(entry => entry.key === 'risk:coder').status, 'INSUFFICIENT');
+  assert.equal(candidate.afterFirst.entries.find(entry => entry.key === CODER_KEY).nIndependent, 1);
+  assert.equal(candidate.afterFirst.entries.find(entry => entry.key === CODER_KEY).status, 'INSUFFICIENT');
   assert.deepEqual(candidate.restarted.steps.map(step => step.id), ['coder:good']);
   assert.equal(candidate.restarted.oracle.ok, true);
   assert.deepEqual(candidate.restarted.initialValue, candidate.afterFirst);

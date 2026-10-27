@@ -1,5 +1,7 @@
 'use strict';
 const test = require('node:test');
+// #4065 G1: Coder learning is keyed by the approved task's kind of work.
+const CODER_KEY = 'risk:coder:initialize_project:array-map';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -168,7 +170,7 @@ test('native acceptance failure changes the next authorized choice and the choic
   const control = acceptanceEpisode(t, false, history);
   files.forEach((file, index) => assert.deepEqual(fs.readFileSync(path.join(history.directory, file)), before[index]));
   const selections = f => f.run.data.cognition.trail.filter(row => row.reason === 'salience_prepared');
-  const coderValue = row => row.values.find(value => value.key === 'risk:coder');
+  const coderValue = row => row.values.find(value => value.key === CODER_KEY);
   assert.deepEqual(selections(candidate)[0].ranked, selections(control)[0].ranked);
   assert.deepEqual(selections(candidate)[0].values, selections(control)[0].values);
   assert.equal(coderValue(selections(candidate)[0]).nObserved, DEFAULT_SUMMARY_WINDOW - 1);
