@@ -18,16 +18,20 @@ test('public CLI revalidates a real promotion receipt in each child and refuses 
   const { keyIdFor } = require('../lib/authority/decision-envelope');
   const { sealDecisionRequest } = require('../lib/authority/sealed-request');
   const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
-  const { canonicalActionHash } = require('../lib/mcp-operator-capability');
-  const { buildApprovalDecisionAttestation } = require('../lib/authority/decision-attestation');
+  const { createAuthorityClient } = require('../lib/authority/authority-client');
+  const { parseAuthorityPin } = require('../lib/authority/authority-pin');
+  const { request, apply } = require('../bin/huqan-authority');
   const { buildLearningProposal } = require('../lib/experience/learning-intake');
   const { qualify } = require('../lib/experience/compiler');
-  const { buildCoderPromotionReceipt, persistCoderPromotionReceipt } = require('../lib/experience/coder-promotion-receipt');
+  const { readCoderPromotionReceipt } = require('../lib/experience/coder-promotion-receipt');
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-cli-promotion-'));
   const root = path.join(fixture, 'repo'), taskFile = path.join(fixture, 'task.json');
   const journalPath = path.join(fixture, 'evidence.db'), pinFile = path.join(fixture, 'pin.json');
   const clockFile = path.join(fixture, 'clock.js');
-  let server, store;
+  const savedEnv = { HUQAN_MEMORY_PATH: process.env.HUQAN_MEMORY_PATH, HUQAN_DB_PATH: process.env.HUQAN_DB_PATH };
+  process.env.HUQAN_MEMORY_PATH = path.join(fixture, 'authority-memory.json');
+  process.env.HUQAN_DB_PATH = path.join(fixture, 'authority-memory.db');
+  let server, store, approvalId;
   try {
     fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
     fs.writeFileSync(clockFile, `const budget = require(${JSON.stringify(path.join(__dirname, '../lib/experience/budgeted-journal'))});
@@ -48,7 +52,7 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     const run = async (id, capability) => {
       const args = ['--require', clockFile, path.join(__dirname, '..', 'cli.js'), 'coder', taskFile,
         '--root', root, '--journal', journalPath, '--run-id', id, '--json'];
-      if (capability) args.push('--promotion-approval', 'approval', '--promotion-capability', capability);
+      if (capability) args.push('--promotion-approval', approvalId, '--promotion-capability', capability);
       try {
         const result = await promisify(execFile)(process.execPath, args, { cwd: root, encoding: 'utf8', windowsHide: true,
           env: { ...process.env, HUQAN_AUTHORITY_PIN_PATH: pinFile, HUQAN_STATE_ROOT: path.join(fixture, 'runtime'),
@@ -63,41 +67,59 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
       workspaceId: 'default', parentVersion, params: { path: 'docs/a.md', oldText: 'before', newText: 'after' } }));
     assert.ok(proposals.every(proposal => proposal.ok));
     const nextProcedure = proposals[1].procedure;
-    const qualification = qualify({ procedure: nextProcedure, inputs: ['separate before'], observe: value => value,
-      apply: (procedure, value) => ({ sites: value.split(procedure.params.oldText).length - 1,
-        after: value.replace(procedure.params.oldText, () => procedure.params.newText) }) });
-    assert.equal(qualification.qualified, true);
+    const artifacts = proposals.map(proposal => {
+      const qualification = qualify({ procedure: proposal.procedure, inputs: ['separate before'], observe: value => value,
+        apply: (procedure, value) => ({ sites: value.split(procedure.params.oldText).length - 1,
+          after: value.replace(procedure.params.oldText, () => procedure.params.newText) }) });
+      assert.equal(qualification.qualified, true);
+      return { procedure: proposal.procedure, qualification,
+        sourceRunHashes: [{ runId: 'source', sourceHash: proposal.sourceHash }] };
+    });
+    store.close(); store = null;
     const created = createAuthorityState({ dir: path.join(fixture, 'authority') });
     const state = openAuthorityState({ dir: path.join(fixture, 'authority'), operatorId: 'operator' });
     const service = createAuthorityService({ state, ledger: openLedgerStore({ file: path.join(fixture, 'ledger.jsonl') }) });
-    const args = { argv: ['--capability', 'public-replace'] };
-    const actionHash = canonicalActionHash({ tool: 'terfi', workspaceId: 'default', approvalId: 'approval', arguments: args });
-    const consumeProof = 'runtime-held-consume-proof-0123456789abcdef';
-    assert.equal(service.register({ approvalId: 'approval', workspaceId: 'default', tool: 'terfi', arguments: args,
-      actionHash, consumeProofHash: crypto.createHash('sha256').update(consumeProof).digest('hex'), summary: 'promotion',
-      expiresAt: new Date(Date.now() + 3600000).toISOString() }).status, 201);
-    const sealed = sealDecisionRequest({ approvalId: 'approval', actionHash, decision: 'approved', reason: 'checked',
-      totp: totpAt(created.totpSecret, Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS)) }, created.sealingPublicKeyPem);
-    const decided = service.decide('approval', sealed);
-    assert.equal(decided.status, 200);
-    assert.equal(service.consume('approval', { actionHash, consumeProof }).status, 200);
-    const receipt = buildCoderPromotionReceipt({ approvalId: 'approval', workspaceId: 'default', actionHash,
-      capabilityId: 'public-replace', inputArtifactDigests: { candidate: nextProcedure.hash },
-      previousProcedure: proposals[0].procedure, nextProcedure,
-      sourceRunHashes: [{ runId: 'source', sourceHash: proposals[1].sourceHash }], qualification, outcome: 'promoted' });
-    const recorded = service.recordOutcome('approval', { status: 'executed', receiptId: receipt.receiptId,
-      receiptHash: receipt.receiptHash, consumeProof });
-    assert.equal(recorded.status, 200);
-    const decisionAttestation = buildApprovalDecisionAttestation({ decisionEnvelope: decided.body.envelope,
-      outcomeAttestation: recorded.body.attestation }, receipt, { publicKey: created.signingPublicKeyPem });
-    const persisted = persistCoderPromotionReceipt({ journal: store.journal, receipt, decisionAttestation,
-      publicKey: created.signingPublicKeyPem });
-    assert.equal(persisted.ok, true, persisted.code);
-    store.close(); store = null;
     server = createAuthorityServer({ service, signingKey: state.signingKey });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     fs.writeFileSync(pinFile, JSON.stringify({ v: 'huqan.authority.pin.v1', port: server.address().port,
       keyId: keyIdFor(created.signingPublicKeyPem), signingKey: created.signingPublicKeyPem, sealingKey: created.sealingPublicKeyPem }));
+    const pin = parseAuthorityPin(fs.readFileSync(pinFile, 'utf8')).pin;
+    const consumeKey = crypto.randomBytes(32);
+    const deps = { resolveMode: () => ({ mode: 'service', boundary: 'os-service', pin }), loadConsumeKey: () => consumeKey };
+    const startAt = Date.now() - 3600000;
+    // Synthetic costs exercise promotion gates; both versions perform the same replacement.
+    const runs = (prefix, cost) => Array.from({ length: 12 }, (_, i) => ({ occurredAt: startAt + i * 60000,
+      learningEligibility: 'positive_procedure', executionCost: cost, verificationCost: 1, canaryOverheadCost: 0,
+      eventId: `${prefix}-e${i}`, runId: `${prefix}-r${i}` }));
+    const contents = { aday: artifacts[1], bagli: artifacts[0],
+      deneme: { candidateRuns: runs('candidate', 5), baselineWindowRuns: runs('baseline', 10), startAt },
+      gozlem: { currentEvents: runs('observed', 5) } };
+    const digests = {}, argv = [];
+    for (const [name, value] of Object.entries(contents)) {
+      const file = path.join(fixture, `${name}.json`), text = JSON.stringify(value);
+      fs.writeFileSync(file, text); digests[name] = crypto.createHash('sha256').update(text).digest('hex');
+      argv.push(`--${name}`, file);
+    }
+    argv.push('--capability', 'public-replace', '--onaylayan', os.userInfo().username,
+      '--karar', 'approved', '--journal', journalPath);
+    const registered = await request('terfi', { argsJson: JSON.stringify({ argv, digests }) }, deps);
+    assert.equal(registered.code, 0, JSON.stringify(registered.report));
+    approvalId = registered.report.approvalId;
+    const client = createAuthorityClient({ pin });
+    const shown = await client.show(approvalId);
+    const sealed = sealDecisionRequest({ approvalId, actionHash: shown.body.approval.actionHash,
+      decision: 'approved', reason: 'checked',
+      totp: totpAt(created.totpSecret, Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS)) }, created.sealingPublicKeyPem);
+    assert.equal((await client.decide(approvalId, sealed)).status, 200);
+    const applied = await apply(approvalId, {}, deps);
+    assert.equal(applied.code, 0, JSON.stringify(applied.report));
+    assert.equal(applied.report.executed, true);
+    assert.equal(applied.report.promotionReceiptStored, true);
+    store = openCoderJournal(journalPath);
+    const stored = readCoderPromotionReceipt({ journal: store.journal, approvalId, workspaceId: 'default', publicKey: pin.signingKey });
+    assert.equal(stored.ok, true, stored.code);
+    assert.equal(stored.receipt.nextProcedure.hash, nextProcedure.hash);
+    store.close(); store = null;
     fs.writeFileSync(taskFile, JSON.stringify({ ...task, test: { command: 'node acceptance.test.js' },
       experience: { riskTier: 'low', candidates: [{
       capabilityId: 'public-replace', sourceRunIds: ['source'], parentVersion: 1,
@@ -128,6 +150,9 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
   } finally {
     store?.close();
     if (server) await new Promise(resolve => server.close(resolve));
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
     fs.rmSync(fixture, { recursive: true, force: true });
   }
 });
