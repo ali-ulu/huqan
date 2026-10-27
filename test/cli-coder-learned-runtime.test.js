@@ -63,7 +63,7 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     const source = await run('source');
     assert.equal(source.report?.data?.outcome, 'applied', JSON.stringify(source));
     store = openCoderJournal(journalPath);
-    const proposals = [0, 1].map(parentVersion => buildLearningProposal(store.journal, { runId: 'source',
+    const proposals = [0, 1, 2].map(parentVersion => buildLearningProposal(store.journal, { runId: 'source',
       workspaceId: 'default', parentVersion, params: { path: 'docs/a.md', oldText: 'before', newText: 'after' } }));
     assert.ok(proposals.every(proposal => proposal.ok));
     const nextProcedure = proposals[1].procedure;
@@ -142,6 +142,57 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
       store.close(); store = null;
       fs.writeFileSync(path.join(root, 'docs/a.md'), 'before');
     }
+    const promotedApprovalId = approvalId;
+    const rollbackContents = { aday: artifacts[2], bagli: artifacts[1],
+      deneme: { candidateRuns: runs('rollback-candidate', 5), baselineWindowRuns: runs('rollback-baseline', 10), startAt },
+      gozlem: { currentEvents: runs('rollback-observed', 50) } };
+    const rollbackDigests = {}, rollbackArgv = [];
+    for (const [name, value] of Object.entries(rollbackContents)) {
+      const file = path.join(fixture, `rollback-${name}.json`), text = JSON.stringify(value);
+      fs.writeFileSync(file, text); rollbackDigests[name] = crypto.createHash('sha256').update(text).digest('hex');
+      rollbackArgv.push(`--${name}`, file);
+    }
+    rollbackArgv.push('--capability', 'public-replace', '--onaylayan', os.userInfo().username,
+      '--karar', 'approved', '--geri-alma', 'approved', '--journal', journalPath);
+    const rollbackRegistered = await request('terfi', { argsJson: JSON.stringify({ argv: rollbackArgv, digests: rollbackDigests }) }, deps);
+    assert.equal(rollbackRegistered.code, 0, JSON.stringify(rollbackRegistered.report));
+    const rollbackApprovalId = rollbackRegistered.report.approvalId;
+    const rollbackShown = await client.show(rollbackApprovalId);
+    // verifyTotp's default window=1 accepts the next counter; the consumed counter cannot be replayed.
+    const rollbackSealed = sealDecisionRequest({ approvalId: rollbackApprovalId,
+      actionHash: rollbackShown.body.approval.actionHash, decision: 'approved', reason: 'checked rollback',
+      totp: totpAt(created.totpSecret, Math.floor(Date.now() / 1000 / TOTP_STEP_SECONDS) + 1) }, created.sealingPublicKeyPem);
+    const rollbackDecision = await client.decide(rollbackApprovalId, rollbackSealed);
+    assert.equal(rollbackDecision.status, 200, JSON.stringify(rollbackDecision.body));
+    const rolled = await apply(rollbackApprovalId, {}, deps);
+    assert.equal(rolled.code, 0, JSON.stringify(rolled.report));
+    assert.equal(rolled.report.executed, true);
+    assert.equal(rolled.report.promotionReceiptStored, true);
+    store = openCoderJournal(journalPath);
+    const rollbackReceipt = readCoderPromotionReceipt({ journal: store.journal, approvalId: rollbackApprovalId,
+      workspaceId: 'default', publicKey: pin.signingKey });
+    assert.equal(rollbackReceipt.ok, true, rollbackReceipt.code);
+    assert.equal(rollbackReceipt.receipt.outcome, 'rolled_back');
+    assert.equal(rollbackReceipt.receipt.previousProcedure.hash, proposals[2].procedure.hash);
+    assert.equal(rollbackReceipt.receipt.nextProcedure.hash, nextProcedure.hash);
+    store.close(); store = null;
+    approvalId = promotedApprovalId;
+    const superseded = await run('superseded-after-rollback', 'public-replace');
+    assert.notEqual(superseded.code, 0, JSON.stringify(superseded));
+    assert.match(JSON.stringify(superseded.report), /PROMOTION_ACCEPTANCE_SUPERSEDED/);
+    assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
+    approvalId = rollbackApprovalId;
+    const rollbackAccepted = await run('accepted-rollback-child', 'public-replace');
+    assert.equal(rollbackAccepted.report?.status, 'completed', JSON.stringify(rollbackAccepted));
+    assert.equal(rollbackAccepted.report.data.attempts[0].test.ran, true);
+    assert.equal(rollbackAccepted.report.data.attempts[0].test.ok, true);
+    assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'after');
+    store = openCoderJournal(journalPath);
+    const rollbackRoute = store.journal.read('accepted-rollback-child:c1').find(event => event.type === 'routing_decided');
+    assert.equal(rollbackRoute.payload.chosenCapabilityId, 'public-replace');
+    assert.equal(rollbackRoute.payload.boundProcedureVersion, nextProcedure.hash);
+    store.close(); store = null;
+    fs.writeFileSync(path.join(root, 'docs/a.md'), 'before');
     await new Promise(resolve => server.close(resolve)); server = null;
     const unavailable = await run('authority-down', 'public-replace');
     assert.notEqual(unavailable.code, 0, JSON.stringify(unavailable));
