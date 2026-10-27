@@ -152,7 +152,7 @@
     },
     {
       "family": "agent-coder",
-      "routeIds": ["agent-coder-cases"],
+      "routeIds": ["agent-coder-cases", "agent-coder-runs"],
       "exposure": "authenticated",
       "methods": ["POST"],
       "request": {"mode": "bounded-parser", "owner": "lib/http/agent-coder-routes.js", "evidence": ["maxBytes: BODY_MAX_BYTES", "scopeError(", "verifyWorkflowDecisionCapability("]},
