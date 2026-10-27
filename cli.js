@@ -10,7 +10,7 @@ const {
   createProcessFailureHandlers, failureCodeFor,
 } = require('./lib/http/process-failure-handlers');
 const { writeStructuredLog } = require('./lib/http/structured-log');
-const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-workflow-adapter');
+const { runCliArgv: runWorkflowCliArgv } = require('./lib/cli-replay');
 const { explainSqliteBindingsError } = require('./lib/sqlite-availability');
 const { parseCommand, normalizeCommandText } = require('./lib/command-parser');
 const Dream = require('./dream');

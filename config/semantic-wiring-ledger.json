@@ -1,5 +1,4 @@
 {
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
-  "lib/cognition/replay-priority.js": "cognitive-architecture-plan.md section 7: pure COG-M3 PR-1 prioritized replay selection; first production caller is the terfi --from-replay dry-run (PR-3), no action authority or measured gain",
   "lib/knowledge-lint.js": "read-only knowledge health lint over the derived view; the scope note docs/architecture/knowledge-wiki-scope.md section 6 fixes its reporting-only boundary, and its report awaits the caller that renders the derived view, which leaves the ledger when it wires"
 }
