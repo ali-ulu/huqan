@@ -6,10 +6,11 @@ manifest digest'ini alır, holdout ancak ondan sonra koşulur. Sonuçlar bu belg
 eklenmez; ayrı rapor/PR ile verilir. Herhangi bir değişiklik yeni sürüm gerektirir.
 
 **Sürüm 2 (2026-10-27, holdout açılmadan önce):** aşağıdaki §11, incelemede açık
-kalan dokuz kilidi kapatır (onay akışı, kontrol kol enjeksiyonu, bölme denetimi
-sınıflaması, σ̂ kuralı, bütçe birimi, kuyruk karıştırma, non-inferiority alt
-tabakası, etiket kapsayıcılığı, tek-tür anti-vaka). Ölçüm tasarımının özü
-(|Δ| = 0.15, 32-64 grup, iki yönlü hipotez) değişmedi; yalnız prosedür netleşti.
+kalan on bir kilidi kapatır (onay akışı, kontrol kol enjeksiyonu, bölme denetimi
+sınıflaması, σ̂ kuralı, bütçe/görev sayım protokolü, kuyruk karıştırma,
+non-inferiority alt tabakası ve boş-alt-tabaka durumu, etiket kapsayıcılığı, tek-tür
+anti-vaka). Ölçüm tasarımının özü (|Δ| = 0.15, 32-64 grup, iki yönlü hipotez)
+değişmedi; yalnız prosedür netleşti.
 
 İlgili iş: #4065 (G1 sahibi), epic #4060. Plan: `docs/cognitive-architecture-plan.md` §7 G1
 son maddesi ("ölçülen düzelme, dondurulmuş ve öğrenmede kullanılmayan bağımsız
@@ -105,12 +106,22 @@ ister; bu ölçüm onun yerine geçmez.
     grubun manifestteki 64 bitlik digest'inin ilk 8 hex basamağıdır. 4 görev bu
     tohumla Fisher-Yates ile karıştırılır. Runner bu prosedürü uygular; sıra
     deterministiktir ve manifestteki grup digest'iyle yeniden üretilebilir.
-- **Bütçe birimi görevdir, adım değil.** `maxIterations` kaç **adımın** yürüyeceğini
-  sınırlar, kaç görevin tamamlanacağını değil (`lib/http/agent-coder-routes.js:247`).
-  Epizot başına yürütülen **görev** sayısı bu yüzden `maxExecutedTasks: 2` ile
-  sınırlanır ve bu sınır görev tamamlanmasına göre uygulanır; bir adım bir görevi
-  bitirmezse sonraki adım aynı göreve devam eder, bütçe tüketilmez. Her iki kol aynı
-  sınırları kullanır.
+- **Bütçe adım birimindedir; API görev saymaz.** `POST .../runs` yalnız `maxSteps` ve
+  `maxIterations` alır, görev sayacı almaz (`lib/http/agent-coder-routes.js:249`);
+  yanıt per-case tamamlanma durumu vermez, yalnız adım özetleri (`{id, tool, status,
+  error}`) döner (`:253-257`). Runner protokolü bu yüzden şöyledir:
+  - Epizot başına 4 onaylı görev **tek** `runs` çağrısıyla kuyruklanır;
+    `maxSteps = maxIterations = 2`. Her Coder eylemi bir adımdır, böylece en çok 2
+    görev yürür ve kuyruk sırası — yani M7'nin etkisi — belirleyici olur. Her iki kol
+    aynı değerleri kullanır.
+  - **Tamamlanma tespiti.** Runner elindeki `caseId → görev` eşlemesiyle her dönen adımı
+    `tool` alanından bir göreve bağlar. Bir görev *yürütülmüş* sayılır ancak ve ancak
+    onun adımı yanıtta `status: completed` ile görünürse; başarı ayrıca bağımsız
+    `acceptanceExamples` denetimiyle doğrulanır (§3).
+  - **Yeniden gönderme.** Bir adım bir görevi tamamlamadan tüketilirse (adım hatası),
+    runner aynı `caseId` ve workspace ile görevi yeniden gönderir; görev durumu
+    workspace'te korunur. Epizot başına adım üst sınırı `maxEpisodeSteps = 6`; bu
+    sınırda hâlâ tamamlanmayan görev başarısızdır. Protokol iki kolda da aynıdır.
 - **Yürütülmeyen görev kuralı.** Bir epizotta onaylı bir görev bütçe nedeniyle hiç
   yürütülmezse, o görev **başarısızlık** sayılır ve paydada kalır (zaman aşımı
   kuralıyla aynı, §5 son madde). Payda her epizotta sabit 4 onaylı görevdir; bu,
@@ -147,6 +158,13 @@ ister; bu ölçüm onun yerine geçmez.
   tabakada aday, kontrolden en fazla 0.05 daha düşük olabilir (GA alt sınırı > −0.05).
   Alt tabaka hiçbir koşuda aday/kontrol sonucuna göre yeniden seçilmez; sonuç
   görüldükten sonra tanımlanırsa kontrol keşifsel sayılır ve GAIN koşulu olmaktan çıkar.
+  - **Boş alt tabaka.** Alt tabaka boşsa ya da manifestte calibration'dan önce
+    sabitlenen asgari grup sayısının (`minStratumGroups`, varsayılan 8) altındaysa
+    non-inferiority değerlendirilemez. Bu durumda **GAIN verilmez**. GA aralığı yine
+    raporlanır ve etiket GA'ya göre seçilir: GA üst sınırı < 0 → ZARAR, GA 0'ı içerir →
+    MEASURED_NO_GAIN, GA alt sınırı > 0 → MEASURED_GATE_FAIL; gerekçe "non-inferiority
+    değerlendirilemedi" olarak yazılır. Bu durum INSUFFICIENT'a eşlenmez, çünkü
+    INSUFFICIENT zarardan önceliklidir ve ölçülmüş zararı gizlerdi.
 - **Maliyet:** model ve ağ çağrısı 0. Epizot duvar süresi medyanı kontrolün 1.5 katını
   aşmaz. Bellek ve Coder çağrı sayısı ayrı raporlanır.
 - **Etiketler (her geçerli sonuç tam olarak bir etiket alır; öncelik sırası yukarıdan
@@ -202,7 +220,7 @@ Gerçek mühendislik görev başarısını, G2/G3 kabulünü veya genel öğrenm
 
 ## 11. Sürüm 2: incelemede açık kalan kilitler
 
-Holdout açılmadan önce, ilk sürümün incelemesinde çıkan dokuz açık nokta bu bölümle
+Holdout açılmadan önce, ilk sürümün incelemesinde çıkan açık noktalar bu bölümle
 kapatılır. Tablo, her maddenin hangi bölümde karara bağlandığını gösterir.
 
 | # | Açık nokta | Karşılığı |
@@ -211,10 +229,12 @@ kapatılır. Tablo, her maddenin hangi bölümde karara bağlandığını göste
 | 2 | Kontrol kolun üretim HTTP sürecine enjeksiyonu tanımsız | §1 (`--require` arm önyükleme modülü; arm + digest + normalleştirilmiş girdi kaydı) |
 | 3 | §4 (ihlal → REJECT) ile §7 (denetim → INSUFFICIENT) çelişkisi | §4 ve §7 (denetleyici çalışamaz → INSUFFICIENT; tespit → REJECT) |
 | 4 | σ̂ tahmincisi (n vs n − 1) ve calibration epizot şekli belirsiz | §6 (n − 1 örneklem s.d.; calibration holdout ile aynı yapı/seed) |
-| 5 | `maxIterations: 2` = "2 görev yürür" varsayımı yanlış; yürütülmeyen görev kuralı yok | §5 (bütçe birimi görev; yürütülmeyen görev başarısızlık, paydada kalır) |
+| 5 | `maxIterations: 2` = "2 görev yürür" varsayımı yanlış; yürütülmeyen görev kuralı yok | §5 (bütçe adım birimi; yürütülmeyen görev başarısızlık, paydada kalır) |
 | 6 | Kuyruk karıştırma PRNG/eşleme/algoritma tanımsız | §5 (`mulberry32`; `(groupDigest XOR seed)`; Fisher-Yates) |
 | 7 | Non-inferiority alt tabakası tedavi sonrası tanımlı | §7 (alt tabaka tedavi öncesi, train metadata'sından, manifestte sabit) |
 | 8 | Etiketler kapsayıcı değil (zarar/pozitif-ama-kapı-düşük sonuçlar) | §7 (öncelikli, tam kapsayıcı etiket kümesi) |
 | 9 | §8 tek-tür anti-vakası §5 iki-tür yapısıyla çelişiyor | §8 (anti-vakalar ayrı calibration fixture'ı) |
+| 10 | `maxExecutedTasks` gerçek API'de yok; görev tamamlanma tespiti tanımsız | §5 (`runs` protokolü: `maxSteps = maxIterations = 2`, adım→görev eşleme, `status: completed`, `maxEpisodeSteps` ile yeniden gönderim) |
+| 11 | Boş non-inferiority alt tabakası etiketsiz kalıyor | §7 (boş/az alt tabaka: GAIN yok; etiket GA'ya göre ZARAR / MEASURED_NO_GAIN / MEASURED_GATE_FAIL, INSUFFICIENT'a eşlenmez) |
 
 Bu bölüm yeni bir ölçüm tasarımı getirmez; §1-§8'deki prosedürü kilitler.
