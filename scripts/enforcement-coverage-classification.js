@@ -343,10 +343,6 @@ const BASE_CLASSIFIED = Object.freeze({
     role: 'adapter_read',
     why: 'direct process calls only read canonical Git root, branch, HEAD and status using fixed argv with no shell; source writes are delegated to existing Coder sinks after scoped durable approval reservation and the code-change gate',
   }),
-  'lib/http/agent-coder-routes.js': Object.freeze({
-    role: 'adapter_read',
-    why: 'one fixed-argv git show (no shell) reads the approved commit time for a stable cognition frame; the repository is the allowlisted, approval-bound root and nothing is written',
-  }),
   'adapters/git-log-adapter.js': Object.freeze({
     role: 'adapter_read',
     why: 'execFileSync of git log to ingest history; argv is fixed and the repository path is the configured workspace',
