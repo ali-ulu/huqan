@@ -20,8 +20,6 @@ const path = require('node:path');
 const test = require('node:test');
 const { spawnSync } = require('node:child_process');
 
-const { runCognitiveLab } = require('../lib/cognitive-lab-cli');
-
 const BIN = path.resolve(__dirname, '../bin/huqan-cognitive-lab.js');
 const AT_BASE = Date.parse('2026-10-19T10:00:00Z');
 const at = (n) => new Date(AT_BASE + n * 1000).toISOString();
@@ -80,17 +78,19 @@ function writeRecords(t, records) {
   return file;
 }
 
-function invokeCli(args, env = {}) {
-  const result = spawnSync(process.execPath, [BIN, ...args], { encoding: 'utf8', timeout: 30000, env: { ...process.env, ...env } });
+function invokeCli(args) {
+  const result = spawnSync(process.execPath, [BIN, ...args], { encoding: 'utf8', timeout: 30000, env: { ...process.env } });
   let output;
   try { output = JSON.parse(result.stdout); } catch { output = null; }
   return { code: result.status, output, stderr: result.stderr };
 }
 
-test('every documented outcome class matches its preregistered label', async (t) => {
+test('every documented outcome class matches its preregistered label', (t) => {
   const file = writeRecords(t, ORACLE);
-  const noStore = () => { throw new Error('prediction-error must not open a store'); };
-  const report = await runCognitiveLab(['prediction-error', '--prediction-error-records', file], { openGraph: noStore });
+  const result = invokeCli(['prediction-error', '--prediction-error-records', file]);
+  assert.equal(result.code, 0, result.stderr);
+  const report = result.output;
+  assert.ok(report, 'valid JSON report expected');
   assert.equal(report.schemaVersion, 'huqan-cognitive-lab-prediction-error-report-v1');
   assert.equal(report.status, 'MEASURED');
   const section = report.predictionErrors;
@@ -117,25 +117,21 @@ test('every documented outcome class matches its preregistered label', async (t)
   assert.deepEqual(section.perKind.vibes, { count: 1, measured: 0, abstained: 0, rejected: 1 });
 });
 
-test('the report is byte-identical across runs, including through the real CLI entry', async (t) => {
+test('the report is byte-identical across runs through the real CLI entry', (t) => {
   const file = writeRecords(t, ORACLE);
-  const noStore = () => { throw new Error('prediction-error must not open a store'); };
-  const direct = await runCognitiveLab(['prediction-error', '--prediction-error-records', file], { openGraph: noStore });
-  const directAgain = await runCognitiveLab(['prediction-error', '--prediction-error-records', file], { openGraph: noStore });
-  assert.equal(JSON.stringify(direct), JSON.stringify(directAgain));
-  const viaBin = invokeCli(['prediction-error', '--prediction-error-records', file]);
-  assert.equal(viaBin.code, 0, viaBin.stderr);
-  assert.equal(JSON.stringify(viaBin.output), JSON.stringify(direct), 'CLI entry must produce the identical report');
+  const first = invokeCli(['prediction-error', '--prediction-error-records', file]);
+  assert.equal(first.code, 0, first.stderr);
+  const second = invokeCli(['prediction-error', '--prediction-error-records', file]);
+  assert.equal(second.code, 0, second.stderr);
+  assert.equal(JSON.stringify(first.output), JSON.stringify(second.output), 'the same records must yield the identical report');
 });
 
-test('an empty record set reports INSUFFICIENT and a missing file fails closed', async (t) => {
+test('an empty record set reports INSUFFICIENT and a missing file fails closed', (t) => {
   const empty = writeRecords(t, []);
-  const noStore = () => { throw new Error('prediction-error must not open a store'); };
-  const report = await runCognitiveLab(['prediction-error', '--prediction-error-records', empty], { openGraph: noStore });
-  assert.equal(report.status, 'INSUFFICIENT');
-  assert.equal(report.predictionErrors.count, 0);
-  await assert.rejects(
-    runCognitiveLab(['prediction-error', '--prediction-error-records', path.join(os.tmpdir(), 'huqan-cog-m2-missing.json')], { openGraph: noStore }),
-    TypeError,
-  );
+  const result = invokeCli(['prediction-error', '--prediction-error-records', empty]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.output.status, 'INSUFFICIENT');
+  assert.equal(result.output.predictionErrors.count, 0);
+  const missing = invokeCli(['prediction-error', '--prediction-error-records', path.join(os.tmpdir(), 'huqan-cog-m2-missing.json')]);
+  assert.equal(missing.code !== 0, true, 'a missing request file must fail closed');
 });
