@@ -129,6 +129,15 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     assert.notEqual(wrong.code, 0, JSON.stringify(wrong));
     assert.match(JSON.stringify(wrong.report), /promotion_binding_mismatch/);
     assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
+    const acceptedTask = fs.readFileSync(taskFile, 'utf8');
+    const mismatchedTask = JSON.parse(acceptedTask);
+    mismatchedTask.experience.candidates[0].parentVersion = 2;
+    fs.writeFileSync(taskFile, JSON.stringify(mismatchedTask));
+    const mismatched = await run('mismatched-final-procedure', 'public-replace');
+    assert.notEqual(mismatched.code, 0, JSON.stringify(mismatched));
+    assert.match(JSON.stringify(mismatched.report), /PROMOTION_ACCEPTANCE_BINDING_MISMATCH/);
+    assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
+    fs.writeFileSync(taskFile, acceptedTask);
     for (const id of ['accepted-first-child', 'accepted-second-child']) {
       const accepted = await run(id, 'public-replace');
       assert.equal(accepted.report?.status, 'completed', JSON.stringify(accepted));
