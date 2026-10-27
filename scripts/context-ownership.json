@@ -4910,6 +4910,10 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-OBSMISC-P"
   },
+  "lib/http/agent-coder-routes.js": {
+   "kind": "entry",
+   "evidence": "ownership-map-2446.md#R-HTTP-P"
+  },
   "lib/http/agent-workflow-routes.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-HTTP-P"
