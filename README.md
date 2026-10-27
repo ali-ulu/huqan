@@ -1,6 +1,6 @@
 # HUQAN
 
-**Stops an AI agent's risky action before it runs — and stays out of the way for everything else.**
+**Stops an AI agent's risky action before it runs — and lets reads and the commands your policy allows straight through.**
 
 HUQAN sits on the execution path of shell, git, infrastructure and memory-write calls. A force-push, a `terraform apply` or a `kubectl delete` is blocked or held for a person *before* state changes; a `git status` or a `cat` goes straight through. That boundary is what lets you give an agent more room instead of less.
 
