@@ -340,16 +340,18 @@ function runPack() {
   return files;
 }
 
-test('4C1: verifier license metadata matches the packed root license', () => {
+test('4C1: verifier license metadata matches the packed Apache core license', () => {
   const root = require('../package.json');
   const canonical = require('../packages/huqan-verify/package.json');
   const legacy = require('../packages/axiom-verify/package.json');
-  assert.equal(root.license, 'AGPL-3.0-only');
-  assert.equal(canonical.license, root.license);
-  assert.equal(legacy.license, root.license);
+  // The root package also ships the enterprise paths; the verifiers are core only.
+  assert.equal(root.license, 'Apache-2.0 AND LicenseRef-HUQAN-Enterprise');
+  assert.equal(canonical.license, 'Apache-2.0');
+  assert.equal(legacy.license, 'Apache-2.0');
 
   const packedPaths = new Set(runPack().map(file => file.path));
   assert.ok(packedPaths.has('LICENSE'), 'packed tarball must contain the root license text');
+  assert.ok(packedPaths.has('LICENSE-ENTERPRISE'), 'packed tarball must contain the enterprise license text');
   assert.ok(packedPaths.has('packages/huqan-verify/package.json'),
     'packed tarball must contain canonical verifier metadata');
   assert.ok(packedPaths.has('packages/axiom-verify/package.json'),

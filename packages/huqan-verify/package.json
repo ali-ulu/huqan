@@ -4,7 +4,7 @@
   "private": true,
   "description": "Minimal self-test helpers for legacy ATP / AVP trust objects.",
   "main": "index.js",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "scripts": {
     "test": "node --test ../axiom-verify/index.test.js"
   }

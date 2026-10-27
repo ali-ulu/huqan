@@ -1,82 +1,40 @@
-# HUQAN Dual Licensing Readiness Status
+# HUQAN Licensing Status
 
-**Status:** Deferred with reason — `AGPL-3.0-only` remains the sole license; no commercial license is offered or granted (decision record 2026-09-28, #3082)  
-**Previous status:** Preparation only (2026-08-27)  
-**Date:** 2026-08-27 (drafts); 2026-09-28 (decision record)  
-**Branch:** `prep/cla-owner-details-2026-08-27`
-**Draft identifiers:** `HUQAN-ICLA-v1.0-review`, `HUQAN-COMMERCIAL-v1.0-review`
+**Status:** Apache-2.0 core + HUQAN Enterprise License for listed paths (decision 2026-10-28, project owner)  
+**Supersedes:** "Deferred with reason — AGPL-3.0-only" (2026-09-28, #3082)
 
-## Decision record — 2026-09-28 (#3082)
+This file is the canonical licensing record; other documents link here instead of restating it.
 
-**Decision:** Commercial dual-licensing is **DEFERRED WITH REASON**. `AGPL-3.0-only` remains the sole license under which HUQAN is distributed. No commercial license is offered, quoted, or granted, and none will be until a revisit condition below is met. This is a recorded project decision, not a drafting placeholder.
+## Decision — 2026-10-28
 
-**Reasons (each verified against the repository on 2026-09-28):**
+The project owner, Ali Ulu, relicenses HUQAN:
 
-1. No operative commercial license text exists: the internal `HUQAN-COMMERCIAL-v1.0-review` working draft was marked "NOT OPERATIVE", and the GTM commercial draft was an explicitly non-binding strategic placeholder. Both were internal, non-binding drafts removed from the repository during a repository cleanup; neither ever granted commercial rights.
-2. The ownership chain and the Project Owner's legal capacity have not been confirmed by qualified counsel, so no grant could be made safely today.
-3. `CLA.md` (`HUQAN-ICLA-v1.0-review`) is non-operative and no acceptance mechanism (CLA assistant, DCO check) is active, so future-contribution rights are not established; relicensing contributions that do not yet exist cannot be promised.
-4. The enterprise segment that would justify a commercial tier requires hosted, multi-tenant, SSO, and remote-enforcement infrastructure that HUQAN deliberately does not have today (scenario B of the former GTM four-fits analysis, removed in the repository cleanup).
+- **Core** — everything not listed below — is licensed under the **Apache License, Version 2.0** ([`LICENSE`](../../LICENSE)).
+- **Enterprise Files** — `lib/saml/`, `lib/oidc/`, `lib/siem/`, `lib/evidence-pack/` — are licensed under the **HUQAN Enterprise License** ([`LICENSE-ENTERPRISE`](../../LICENSE-ENTERPRISE)): free for development, testing and evaluation; production use requires a subscription agreement. Each file carries `SPDX-License-Identifier: LicenseRef-HUQAN-Enterprise`, and `test/license-enterprise-boundary.test.js` keeps the header and the path list in step.
+- `package.json` declares `Apache-2.0 AND LicenseRef-HUQAN-Enterprise`; the `huqan-verify` and `axiom-verify` packages contain core only and declare `Apache-2.0`.
 
-**Consequences:**
+**Why:**
 
-- `package.json` stays `AGPL-3.0-only`; `LICENSE` and `NOTICE` stay unchanged.
-- `CLA.md` remains a non-operative review draft; external non-trivial contributions are still not treated as cleared for future relicensing (see `CONTRIBUTING.md`).
-- The former GTM commercial drafts were internal, non-binding placeholders; they have been removed from the repository and must not be quoted as offers.
-- This file is the canonical licensing-status record; other documents link here instead of restating the status.
+1. AGPL is on many corporate "do not use" lists (Google bans it outright), and the 2026-10-27 concept study named it as a blocker that can stop a purchase before technical evaluation finishes. HUQAN sits in the developer and CI execution path, so that review happens on day one.
+2. The capabilities organizations pay for — SSO (OIDC, SAML), SIEM export and the SOC 2-mapped evidence pack — now exist (#4204, #4214, #4093, #4092). The 2026-09-28 reason that the enterprise tier had no infrastructure no longer holds.
+3. The project owner holds the copyright to the existing work (bot-generated material was directed by the owner; one other person corrected wording only), and every dependency is under a permissive license (MIT, ISC, Apache-2.0, BSD, BlueOak, PSF, 0BSD), so the relicense needs no third-party consent.
 
-**Revisit conditions (any one triggers a new decision record here):**
+**Boundary choices:**
 
-1. Qualified legal review confirms the Project Owner's capacity, the ownership chain, and an approved commercial agreement text; or
-2. An operative rights record (CLA or an equivalent approved process) is adopted for future contributions; or
-3. A prospective licensee's requirement makes the commercial path urgent — in that case this decision record is reopened before any offer is made.
+- The Approval Authority, RBAC and N-of-M quorum stay in the core. They are what stops an agent approving its own action, which is the core promise for every user, and they are woven through the core approval path.
+- Enterprise Files stay at their current paths. Moving them would rewrite core import paths and the package file list without changing the legal boundary, which is the path list itself.
 
-## Current decision
+## What this does not change
 
-HUQAN’s public open-source license remains `AGPL-3.0-only`. This preparation branch does not change `package.json`, `LICENSE`, the public AGPL notice, or any already distributed license terms.
+- Versions already published under `AGPL-3.0-only` (up to and including `1.1.1`) remain available under AGPL to anyone who received them.
+- No subscription has been sold yet; the first agreement sets the price and order form.
 
-The project owner has stated that the current repository’s substantive contributions are owned by the project owner, that bot-generated material was directed by the project owner, and that one other person only corrected wording. On that basis, no retroactive CLA request is planned at this stage. This is a maintainer-provided project fact for process planning, not an independent legal ownership opinion.
+## Contributions
 
-For the current review drafts, the maintainer provided the following owner and notice information: **Ali Ulu**, `aliulu@ai-ulu.com`, with Türkiye proposed as the governing law. The legal capacity of the owner, the sufficiency of the notice details, and the final governing-law language remain subject to qualified legal review.
+- Contributions to the core are accepted under Apache-2.0 (inbound = outbound, Apache-2.0 section 5). No CLA is required.
+- External contributions to Enterprise Files are not accepted without a separate written agreement with the project owner.
+- [`CLA.md`](../../CLA.md) is retained as a superseded draft and is not used.
 
-## Future-contribution rule
+## Contact
 
-The `CLA.md` is now a consolidated versioned review draft for future contributions only (`HUQAN-ICLA-v1.0-review`). It must not be treated as operative until the Project Owner, the correct legal capacity, the rights grant, the patent language, the notice provisions, the privacy process, and the acceptance mechanism have been reviewed and approved by qualified counsel.
-
-The project should require an accepted CLA or another approved rights record before merging a future non-trivial external contribution. A PR checkbox alone should not be treated as a signed CLA unless counsel approves that exact process.
-
-## Commercial licensing rule
-
-The internal `HUQAN-COMMERCIAL-v1.0-review` working draft was a consolidated, non-binding document. It did not grant commercial rights and was not a public offer; it has since been removed from the repository during a cleanup. A commercial license may be published or signed only after:
-
-1. the Project Owner’s legal capacity and the final notice details are confirmed;
-2. the covered HUQAN components and versions are defined;
-3. the commercial grant, exclusions, term, fees, support, warranty, liability, and termination clauses are reviewed;
-4. third-party dependency notices and license obligations are checked; and
-5. qualified counsel approves the final agreement and public wording.
-
-## Intentionally not changed in this preparation
-
-- `package.json` license remains `AGPL-3.0-only`.
-- The existing `LICENSE` file remains unchanged.
-- The existing `NOTICE` file remains unchanged.
-- No commercial rights were granted to any party.
-- No historical contributor was contacted or asked to sign anything.
-- No commit, push, merge, release, tag, or deployment was performed.
-
-## Planned adoption sequence
-
-The proposed sequence is: approve the legal owner and operative CLA text; publish the CLA and its acceptance process; update contribution guidance; establish private acceptance records; finalize the commercial scope and order-form schedules; publish only the approved README notice and contact address; and keep a versioned record of each commercial agreement. The current documents close the drafting gaps but do not complete these adoption decisions.
-
-## Evidence labels
-
-- **OBSERVED:** `package.json` declares `AGPL-3.0-only`; `LICENSE` contains AGPL text; the repo contains a commercial license draft but no operative `LICENSE-COMMERCIAL.md`; the repo contains no existing CLA/DCO process discovered by the preparation scan.
-- **STATED BY PROJECT OWNER:** Existing substantive contributions belong to the project owner; bot-generated material and one wording correction do not require a new rights request under the project owner’s current process decision.
-- **UNVERIFIED:** Whether Ali Ulu is acting personally or through a legal entity; the enforceability of any specific CLA wording; the correct commercial licensing structure under Turkish law; the final dependency-license inventory.
-
-## CLA automation decision — 2026-08-27
-
-For future external contributions, the preferred automation is a hosted CLA Assistant flow after the operative CLA text has been approved by qualified counsel. The rollout must begin in dry-run mode with test pull requests; only after identity matching, signature-version handling, fork behavior, privacy controls, and service-failure behavior are verified should the exact CLA status check become required in `main` branch protection.
-
-EasyCLA remains a possible later option if HUQAN develops a material corporate-contributor or multi-organization need. A custom GitHub Action is not the first choice because it would make HUQAN responsible for signature records, identity mapping, version re-signing, privacy, and maintenance. No CLA automation is active in this preparation branch, and the existing `AGPL-3.0-only` license remains unchanged.
-
-The public repository must not contain contributor email addresses, employer details, private signature records, tokens, or other unnecessary personal data. CLA acceptance is a rights-process check; it does not replace human code review, security review, or maintainer approval.
+Ali Ulu — `aliulu@ai-ulu.com`

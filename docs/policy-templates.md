@@ -136,7 +136,7 @@ everything else asks.
 | a regulated deployment | `regulated` | declare your residency hosts before the first egress |
 | an agent that may only look | `read-only-agent` | nothing else to change |
 
-The templates are in the repository and carry the repository's AGPL-3.0
+The templates are in the repository and carry the core's Apache-2.0
 licence, so a deployment can copy one, change it and keep the change: the
 file it writes is the deployment's own. The list in the file is the whole
 mechanism -- a deployment that needs something else can write

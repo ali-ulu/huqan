@@ -17,11 +17,10 @@ This is the honest operating model:
 
 ## Licensing
 
-HUQAN is distributed under `AGPL-3.0-only`. The canonical licensing status and
-decision record is [`docs/legal/dual-licensing-status.md`](./legal/dual-licensing-status.md).
-As of 2026-09-28, commercial dual-licensing is deferred with reason and `CLA.md`
-remains a non-operative review draft; future contribution rights and any
-commercial licensing decision follow that record. License changes are
+HUQAN's core is licensed under `Apache-2.0`; the paths listed in
+`LICENSE-ENTERPRISE` are under the HUQAN Enterprise License (decision
+2026-10-28). The canonical licensing record, including contribution rights, is
+[`docs/legal/dual-licensing-status.md`](./legal/dual-licensing-status.md). License changes are
 project-owner decisions and are never merged through an ordinary pull request
 without the owner's explicit approval of the exact scope.
 

@@ -1,0 +1,45 @@
+HUQAN Enterprise License
+Copyright 2024-2026 Ali Ulu. All rights reserved.
+
+1. Scope
+
+This license covers every file under the following paths ("Enterprise
+Files"). Each Enterprise File carries the header
+`SPDX-License-Identifier: LicenseRef-HUQAN-Enterprise`.
+
+    lib/saml/
+    lib/oidc/
+    lib/siem/
+    lib/evidence-pack/
+
+Everything else in this repository and in the published `huqan` package is
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+2. What you may do without a subscription
+
+You may copy, read, modify and run the Enterprise Files for development,
+testing, evaluation and contributing fixes back to HUQAN.
+
+3. What requires a subscription
+
+Using the Enterprise Files in production, or to serve your organization's
+users, requires an active HUQAN Enterprise subscription agreement with
+Ali Ulu covering the number of organizations you deploy them for.
+
+4. What you may not do
+
+You may not sell, sublicense or redistribute the Enterprise Files, modified
+or not, except as part of an unmodified copy of HUQAN; and you may not
+remove or circumvent this license or its notices.
+
+5. No warranty
+
+THE ENTERPRISE FILES ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY ARISING FROM THE ENTERPRISE FILES OR THEIR USE.
+
+6. Termination
+
+Your rights under this license end automatically if you breach it.
+
+Subscriptions and questions: Ali Ulu, aliulu@ai-ulu.com

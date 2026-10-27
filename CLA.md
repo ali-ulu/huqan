@@ -1,5 +1,7 @@
 # HUQAN Individual Contributor License Agreement (ICLA)
 
+> **SUPERSEDED (2026-10-28):** HUQAN's core moved to Apache-2.0 and accepts contributions under Apache-2.0 section 5; no CLA is used. This draft is kept for the record only — see [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md).
+
 > **STATUS: VERSIONED REVIEW DRAFT — NOT OPERATIVE**
 >
 > **Draft identifier:** `HUQAN-ICLA-v1.0-review`

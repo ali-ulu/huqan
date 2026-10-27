@@ -6,7 +6,7 @@ HUQAN sits on the execution path of shell, git, infrastructure and memory-write 
 
 Every decision is recorded as a verifiable Trust Receipt — the evidence behind the block, not a substitute for it.
 
-**No model. No cloud. No API key.**
+**Every decision is made on your machine. No model. No cloud. No API key.**
 
 ## What it stops, what it lets through
 
@@ -105,7 +105,10 @@ Full details and edge cases: [docs](./docs).
 
 ## License
 
-AGPL-3.0-only. No commercial license is offered today — see [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md).
+- **Core — [Apache-2.0](./LICENSE).** The gate, CLI, MCP server, Approval Authority (including RBAC and N-of-M approval) and Trust Receipts. Free for any use, including commercial.
+- **Enterprise — [HUQAN Enterprise License](./LICENSE-ENTERPRISE).** SSO (`lib/oidc/`, `lib/saml/`), SIEM export (`lib/siem/`) and the SOC 2-mapped evidence pack (`lib/evidence-pack/`). Free to develop, test and evaluate; production use needs a subscription — contact Ali Ulu, `aliulu@ai-ulu.com`.
+
+Versions up to `1.1.1` were published under AGPL-3.0-only and stay available under it. Record and contribution terms: [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md).
 
 ---
 

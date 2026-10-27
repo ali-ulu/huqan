@@ -11,3 +11,7 @@ Third-Party Libraries:
 This software may include third-party open source software components,
 each of which has its own license. Please see the respective package
 directories for details.
+
+Licensing: the core is licensed under the Apache License, Version 2.0 (LICENSE).
+Files under the paths listed in LICENSE-ENTERPRISE are licensed under the
+HUQAN Enterprise License.

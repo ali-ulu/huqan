@@ -128,12 +128,13 @@
   },
   "homepage": "https://github.com/ali-ulu/huqan#readme",
   "author": "Huqan Contributors",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0 AND LicenseRef-HUQAN-Enterprise",
   "engines": {
     "node": ">=22.13.0"
   },
   "files": [
     "NOTICE",
+    "LICENSE-ENTERPRISE",
     "coverage-manifest.json",
     "adapters/external-action",
     "adapters/git-log-adapter.js",
