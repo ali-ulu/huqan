@@ -11,7 +11,7 @@ Every decision is recorded as a verifiable Trust Receipt.
 Agents can write code, delete files, spend money, and change memory — usually running as *your* user. HUQAN sits between the agent and that power:
 
 - Mutating calls are **held** until a person approves them.
-- With the Approval Authority (a Windows service guarded by TOTP and cryptographic envelopes), the agent cannot approve its own actions.
+- With the Approval Authority — an OS service (a Windows service today, systemd on Linux or launchd on macOS, [ADR-020](./docs/adr/ADR-020-posix-authority-parity.md)) guarded by TOTP and cryptographic envelopes — the agent cannot approve its own actions.
 - Every decision produces a **Trust Receipt** — a local record you can verify from the receipt itself.
 
 ## Who it is for
@@ -82,7 +82,7 @@ Escalation and overrides are human decisions, recorded in the receipt. **Escalat
 
 - HUQAN does **not** eliminate hallucinations. It makes one claim **inspectable and blockable** before it becomes state.
 - Only what is wired is governed. An agent that never calls HUQAN is not covered.
-- The OS boundary needs the Approval Authority (a Windows service today). Code running as your user can still edit runtime files or the local store; the authority's ledger makes that detectable, not impossible. UAC is not a security boundary ([ADR-016 residual risks](./docs/adr/ADR-016-approval-authority-os-boundary.md#residual-risks)).
+- The OS boundary needs the Approval Authority, and it holds only where the service is actually installed and answers. The installers exist for Windows (a service), Linux (systemd) and macOS (launchd) — the Linux and macOS installers live in this repo and are exercised end-to-end in a CI job that is **not** a required release gate. Windows installs are the most field-tested; Linux and macOS ship the same design but with less mileage. Containers, VMs and remote hosts are **not** supported. Code running as your user can still edit runtime files or the local store; the authority's ledger makes that detectable, not impossible. UAC is not a security boundary ([ADR-016 residual risks](./docs/adr/ADR-016-approval-authority-os-boundary.md#residual-risks); [ADR-020](./docs/adr/ADR-020-posix-authority-parity.md), [ADR-021](./docs/adr/ADR-021-container-support-model.md)).
 - Complements IAM, infrastructure security and human governance — it replaces none of them.
 - "Independent" is a bounded word. An issuer signature ([`lib/receipt/issuer-seal.js`](./lib/receipt/issuer-seal.js)) proves a receipt's origin and integrity, not operator honesty: whoever holds the issuing key can edit the trail, re-sign it, and ship a clean history where every signature verifies. Independence needs a collector counter-seal ([`lib/receipt/collector-seal.js`](./lib/receipt/collector-seal.js)) signed with a key the audited host does not have, held by a party the operator does not administer; both keys on one machine means one person holds both ends, and the seal then detects accidental corruption and nothing more.
 - The conformance suites are **self-run** in this repository, not third-party verification; no third-party attestation is bound into a bundle yet. See the [interoperability and attestation boundary](./docs/audits/third-party-interoperability-attestation-boundary-3069.md).
