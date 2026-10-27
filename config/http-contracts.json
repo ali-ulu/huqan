@@ -151,6 +151,14 @@
       "response": {"owner": "lib/http/agent-workflow-routes.js"}
     },
     {
+      "family": "agent-coder",
+      "routeIds": ["agent-coder-cases"],
+      "exposure": "authenticated",
+      "methods": ["POST"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/agent-coder-routes.js", "evidence": ["maxBytes: BODY_MAX_BYTES", "scopeError(", "verifyWorkflowDecisionCapability("]},
+      "response": {"owner": "lib/http/agent-coder-routes.js"}
+    },
+    {
       "family": "trust-query-read",
       "routeIds": ["provenance", "audit", "candidate-claims", "trust-receipt"],
       "exposure": "authenticated",

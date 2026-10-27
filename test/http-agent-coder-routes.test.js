@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { resolveRouteAuthPolicy } = require('../lib/http/route-auth-policy');
 const { execFileSync } = require('node:child_process');
 const Graph = require('../graph');
 const { createTrustEvidenceLedger } = require('../lib/trust-evidence-ledger');
@@ -127,4 +128,25 @@ test('a dirty repository or a malformed request opens no case', async t => {
   assert.equal((await f.open({ goal: '' })).status, 400);
   const badId = await f.call('/api/v2/agent/coder/cases/%E0%A4%A/decision', { workspaceId: 'default', decision: 'approved' });
   assert.equal(badId.status, 400);
+});
+
+test('the central policy declares both Coder paths as authenticated', () => {
+  for (const route of ['/api/v2/agent/coder/cases', '/api/v2/agent/coder/cases/case-1/decision']) {
+    const policy = resolveRouteAuthPolicy(route, 'POST');
+    assert.equal(policy.known, true, route);
+    assert.equal(policy.authRequired, true, route);
+  }
+});
+
+test('the decision route refuses a review case that is not a Coder case', async t => {
+  const f = fixture(t);
+  const other = f.runtime.createReviewCase({ firewallDecision: 'review', requesterContext: { identityRef: 'agent:mailer' },
+    action: { workspaceId: 'default', actionFingerprint: 'action:mail:1', connectorRef: 'connector:mcp-mail',
+      resourceRef: 'resource:mailbox', policyVersion: 'policy-v1', firewallVersion: 'agent-action-firewall-v1',
+      requestedVerdict: 'review', requestedEffect: 'send one email', actionType: 'send_email', toolName: 'mcp.mail.send',
+      target: 'mailbox', args: { to: 'a' } } });
+  assert.equal(other.ok, true, JSON.stringify(other));
+  const refused = await f.decide(other.case.caseId);
+  assert.equal(refused.status, 404);
+  assert.equal(f.runtime.getReviewCase(other.case.caseId).case.status, 'pending');
 });
