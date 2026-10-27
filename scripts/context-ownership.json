@@ -7976,9 +7976,10 @@
   "lib/cognition/prediction-error.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the scoped observation and derived signal contract"
+   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the signal; #4061 adds the Platform cognitive-lab CLI prediction-error measurement surface (opt-in, store-free, no authority)"
   },
   "lib/cognition-prediction-error-pairs.js": {
    "owner": "Knowledge",
