@@ -21,7 +21,15 @@ const { keyIdFor } = require('../lib/authority/decision-envelope');
 const { verifyApprovalDecisionAttestation } = require('../lib/authority/decision-attestation');
 const { sealDecisionRequest } = require('../lib/authority/sealed-request');
 const { totpAt, TOTP_STEP_SECONDS } = require('../lib/authority/totp');
-const { sync, apply } = require('../bin/huqan-authority');
+const { sync, apply, request } = require('../bin/huqan-authority');
+const { execFileSync } = require('node:child_process');
+const CLI = require('../cli');
+const { runCliCoder } = require('../lib/cli-coder');
+const { openJournalConnection } = require('../lib/experience/journal-connection');
+const { createExperienceJournal } = require('../lib/experience/journal');
+const { buildLearningProposal } = require('../lib/experience/learning-intake');
+const { qualify } = require('../lib/experience/compiler');
+const { readCoderPromotionReceipt } = require('../lib/experience/coder-promotion-receipt');
 
 async function setup(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-authority-flow-'));
@@ -45,7 +53,7 @@ async function setup(t) {
   })));
   const consumeKey = crypto.randomBytes(32);
   const deps = { resolveMode: () => ({ mode: 'service', boundary: 'os-service', pin }), loadConsumeKey: () => consumeKey };
-  return { created, pin, ledger, deps };
+  return { created, pin, ledger, deps, dir };
 }
 
 function queueLocally(text) {
@@ -214,6 +222,87 @@ test('approve, withdraw, apply: the action is refused at the authority and never
     server.kernel.graph?.close?.();
     server.approvalStore?.close?.();
   }
+});
+
+test('authority promotion binds a real native procedure and recovers its journal without rerunning the action', async t => {
+  const env = await setup(t), root = path.join(env.dir, 'repo'), journalDir = path.join(env.dir, 'journal');
+  fs.mkdirSync(root); fs.mkdirSync(journalDir);
+  const db = path.join(journalDir, 'experience.db'), parked = path.join(env.dir, 'journal-held');
+  const git = args => execFileSync('git', args, { cwd: root, windowsHide: true, stdio: 'pipe' });
+  git(['init', '-q', '-b', 'feature/promotion']);
+  git(['config', 'user.name', 'Fixture']); git(['config', 'user.email', 'fixture@example.invalid']);
+  git(['config', 'commit.gpgsign', 'false']);
+  fs.writeFileSync(path.join(root, 'a.txt'), 'source old');
+  git(['add', 'a.txt']); git(['commit', '-qm', 'source']);
+  const task = path.join(env.dir, 'task.json');
+  fs.writeFileSync(task, JSON.stringify({ id: 'replace', level: 'l0', allowedPaths: ['a.txt'],
+    operation: { type: 'replace_text', path: 'a.txt', find: 'old', replace: 'new' } }));
+  assert.equal(runCliCoder([task, '--root', root, '--journal', db, '--run-id', 'source'], { json: true }).status, 'completed');
+  const store = openJournalConnection({ dbPath: db, readOnly: true });
+  let artifacts;
+  try {
+    const journal = createExperienceJournal({ store, readOnly: true });
+    artifacts = [0, 1].map(parentVersion => {
+      const proposal = buildLearningProposal(journal, { runId: 'source', workspaceId: 'default', parentVersion,
+        params: { path: 'a.txt', oldText: 'old', newText: 'new' } });
+      assert.equal(proposal.ok, true);
+      const qualification = qualify({ procedure: proposal.procedure, inputs: ['separate old'], observe: value => value,
+        apply: (procedure, value) => ({ sites: value.split(procedure.params.oldText).length - 1,
+          after: value.replace(procedure.params.oldText, () => procedure.params.newText) }) });
+      assert.equal(qualification.qualified, true);
+      return { procedure: proposal.procedure, qualification,
+        sourceRunHashes: [{ runId: 'source', sourceHash: proposal.sourceHash }] };
+    });
+  } finally { store.close(); }
+  const startAt = Date.now() - 60 * 60 * 1000;
+  const runs = (prefix, cost) => Array.from({ length: 12 }, (_, i) => ({ occurredAt: startAt + i * 60000,
+    learningEligibility: 'positive_procedure', executionCost: cost, verificationCost: 1, canaryOverheadCost: 0,
+    eventId: `${prefix}-e${i}`, runId: `${prefix}-r${i}` }));
+  const contents = { aday: artifacts[1], bagli: artifacts[0],
+    deneme: { candidateRuns: runs('candidate', 5), baselineWindowRuns: runs('baseline', 10), startAt },
+    gozlem: { currentEvents: runs('observed', 5) } };
+  const digests = {}, argv = [];
+  for (const [name, value] of Object.entries(contents)) {
+    const file = path.join(env.dir, `${name}.json`), text = JSON.stringify(value);
+    fs.writeFileSync(file, text); digests[name] = crypto.createHash('sha256').update(text).digest('hex');
+    argv.push(`--${name}`, file);
+  }
+  argv.push('--capability', 'replace', '--onaylayan', os.userInfo().username, '--karar', 'approved', '--journal', db);
+  const registered = await request('terfi', { argsJson: JSON.stringify({ argv, digests }) }, env.deps);
+  assert.equal(registered.code, 0, JSON.stringify(registered.report));
+  const approvalId = registered.report.approvalId;
+  assert.equal((await operatorDecides(env, approvalId)).status, 200);
+  const execute = CLI.prototype.execute; let executions = 0;
+  CLI.prototype.execute = function (command, ...args) { if (command === 'terfi') executions++; return execute.call(this, command, ...args); };
+  t.after(() => { CLI.prototype.execute = execute; });
+  const client = createAuthorityClient({ pin: env.pin });
+  const interrupted = await apply(approvalId, {}, { ...env.deps, createClient: () => ({ ...client,
+    recordOutcome: async (...args) => { const result = await client.recordOutcome(...args); fs.renameSync(journalDir, parked); return result; } }) });
+  assert.equal(interrupted.code, 2, JSON.stringify(interrupted.report));
+  assert.equal(interrupted.report.outcomeRecorded, true, JSON.stringify(interrupted.report));
+  assert.equal(interrupted.report.receiptPending, true);
+  assert.equal(executions, 1);
+  fs.renameSync(parked, journalDir);
+  const candidateFile = path.join(env.dir, 'aday.json'), candidateText = fs.readFileSync(candidateFile, 'utf8');
+  fs.writeFileSync(candidateFile, `${candidateText} `);
+  const changedInput = await apply(approvalId, {}, env.deps);
+  assert.equal(changedInput.code, 2);
+  assert.equal(changedInput.report.receiptError, 'PROMOTION_INPUT_BINDING_MISMATCH');
+  assert.equal(executions, 1);
+  fs.writeFileSync(candidateFile, candidateText);
+  const recovered = await apply(approvalId, {}, env.deps);
+  assert.equal(recovered.code, 0, JSON.stringify(recovered.report));
+  assert.equal(recovered.report.promotionReceiptStored, true);
+  assert.equal(recovered.report.executed, false);
+  assert.equal(executions, 1, 'recovery must not execute terfi again');
+  const reopened = openJournalConnection({ dbPath: db, readOnly: true });
+  try {
+    const receipt = readCoderPromotionReceipt({ journal: createExperienceJournal({ store: reopened, readOnly: true }),
+      approvalId, workspaceId: 'default', publicKey: env.pin.signingKey });
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.receipt.nextProcedure.hash, artifacts[1].procedure.hash);
+    assert.equal(receipt.trusted, false);
+  } finally { reopened.close(); }
 });
 
 test('a consumed approval cannot be withdrawn through the client', async (t) => {
