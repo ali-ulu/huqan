@@ -260,6 +260,7 @@
       "lib/cli-plugin-status.js": "Core",
       "lib/cli-promote.js": "Core",
       "lib/cli-repl.js": "Core",
+      "lib/cli-replay.js": "Application",
       "lib/cli-runtime-methods.js": "Core",
       "lib/cli-status-command.js": "Core",
       "lib/cli-store-commands.js": "Core",
@@ -307,9 +308,11 @@
       "lib/cognition-value-ledger-pairs.js": "Adapters",
       "lib/cognition/cognition-config.js": "Core",
       "lib/cognition/contract.js": "Core",
+      "lib/cognition/independent-sources.js": "Core",
       "lib/cognition/percept-adapters.js": "Core",
       "lib/cognition/percept.js": "Core",
       "lib/cognition/prediction-error.js": "Core",
+      "lib/cognition/replay-generalize.js": "Core",
       "lib/cognition/replay-priority.js": "Core",
       "lib/cognition/reward-signal.js": "Core",
       "lib/cognition/salience.js": "Core",
@@ -467,6 +470,7 @@
       "lib/experience/expression-adaptation.js": "Application",
       "lib/experience/integer-expression-ast.js": "Application",
       "lib/experience/journal-connection.js": "Application",
+      "lib/experience/journal-manifest.js": "Application",
       "lib/experience/journal.js": "Application",
       "lib/experience/learn-read-back.js": "Application",
       "lib/experience/learning-intake.js": "Application",
@@ -677,6 +681,7 @@
       "lib/http/external-action-receipt-collector-route.js": "UI",
       "lib/http/fitness-dashboard-route.js": "UI",
       "lib/http/github-app-ingest-submitter.js": "UI",
+      "lib/http/global-search-route.js": "UI",
       "lib/http/graceful-shutdown.js": "UI",
       "lib/http/http-provenance.js": "UI",
       "lib/http/identity-mutation-admission.js": "UI",
@@ -1018,6 +1023,17 @@
       "lib/observability/service.js": "Application",
       "lib/observability/sse-stream-lifecycle.js": "Application",
       "lib/observability/workflow-agent-instrumentation.js": "Application",
+      "lib/oidc/auth-seam.js": "UI",
+      "lib/oidc/client.js": "UI",
+      "lib/oidc/config.js": "UI",
+      "lib/oidc/failure-codes.js": "UI",
+      "lib/oidc/identity-mapping.js": "UI",
+      "lib/oidc/mount.js": "UI",
+      "lib/oidc/route-constants.js": "UI",
+      "lib/oidc/route.js": "UI",
+      "lib/oidc/session-cookie.js": "UI",
+      "lib/oidc/session-store.js": "UI",
+      "lib/oidc/transaction-store.js": "UI",
       "lib/path-safety.js": "Core",
       "lib/pilot/test-database-boundary.js": "Application",
       "lib/pilot/trust-receipt-pilot-archive.js": "Application",
@@ -1328,6 +1344,7 @@
       "public/control-room/js/control-room-activity.js": "UI",
       "public/control-room/js/control-room-agents.js": "UI",
       "public/control-room/js/control-room-app.js": "UI",
+      "public/control-room/js/control-room-approvals-batch.js": "UI",
       "public/control-room/js/control-room-approvals.js": "UI",
       "public/control-room/js/control-room-data.js": "UI",
       "public/control-room/js/control-room-overview.js": "UI",
@@ -1343,9 +1360,11 @@
       "public/js/app-observability-render.js": "UI",
       "public/js/app-observability-stream.js": "UI",
       "public/js/app-observability.js": "UI",
+      "public/js/app-overview-trend.js": "UI",
       "public/js/app-verify.js": "UI",
       "public/js/app-wiring.js": "UI",
       "public/js/command-policy.js": "UI",
+      "public/js/global-search.js": "UI",
       "public/js/home-navigation.js": "UI",
       "public/js/i18n.js": "UI",
       "public/js/ingest-run-detail.js": "UI",
@@ -1719,8 +1738,8 @@
         "lib/cli-helpers.js",
         "lib/cli-mutation-gate.js",
         "lib/cli-repl.js",
+        "lib/cli-replay.js",
         "lib/cli-runtime-methods.js",
-        "lib/cli-workflow-adapter.js",
         "lib/coder/cli-composition.js",
         "lib/command-parser.js",
         "lib/environment-compat.js",
@@ -2024,7 +2043,9 @@
         "lib/coder/project-initialization.js",
         "lib/coder/project-method-memory.js",
         "lib/coder/project-producer.js",
-        "lib/coder/project-spec-data.js"
+        "lib/coder/project-spec-data.js",
+        "lib/cognition/contract.js",
+        "lib/experience/learning-intake.js"
       ],
       "lib/agent-cognition-observation.js": [
         "lib/cognition/contract.js",
@@ -2041,9 +2062,12 @@
         "lib/cognition-prediction-error-pairs.js",
         "lib/cognition-value-ledger-pairs.js",
         "lib/cognition/cognition-config.js",
+        "lib/cognition/contract.js",
         "lib/cognition/percept-adapters.js",
         "lib/cognition/prediction-error.js",
+        "lib/cognition/reward-signal.js",
         "lib/cognition/salience.js",
+        "lib/cognition/value-ledger.js",
         "lib/prediction-outcome-pairs.js"
       ],
       "lib/agent-exit-reasons.js": [
@@ -2674,6 +2698,18 @@
         "lib/cli-mutation-gate.js",
         "lib/cli-workflow-adapter.js"
       ],
+      "lib/cli-replay.js": [
+        "lib/cli-workflow-adapter.js",
+        "lib/cognition/independent-sources.js",
+        "lib/cognition/prediction-error.js",
+        "lib/cognition/replay-generalize.js",
+        "lib/cognition/reward-signal.js",
+        "lib/experience/compiler.js",
+        "lib/experience/journal-connection.js",
+        "lib/experience/journal.js",
+        "lib/experience/learning-intake.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/cli-runtime-methods.js": [
         "lib/cli-capabilities.js",
         "lib/cli-gate-message.js",
@@ -2899,6 +2935,9 @@
         "lib/cognition/contract.js",
         "lib/is-plain-object.js"
       ],
+      "lib/cognition/independent-sources.js": [
+        "lib/is-plain-object.js"
+      ],
       "lib/cognition/percept-adapters.js": [
         "lib/browser-session-observer.js",
         "lib/cognition/contract.js",
@@ -2918,6 +2957,12 @@
         "lib/is-plain-object.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/cognition/replay-generalize.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/independent-sources.js",
+        "lib/cognition/replay-priority.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/cognition/replay-priority.js": [
         "lib/cognition/contract.js",
         "lib/cognition/reward-signal.js",
@@ -2934,6 +2979,7 @@
       ],
       "lib/cognition/value-ledger.js": [
         "lib/cognition/contract.js",
+        "lib/cognition/independent-sources.js",
         "lib/cognition/reward-signal.js",
         "lib/is-plain-object.js"
       ],
@@ -2977,6 +3023,7 @@
         "lib/causal/causal-episode-contract.js"
       ],
       "lib/cognitive-lab-cli.js": [
+        "lib/cognition/prediction-error.js",
         "lib/cognitive-lab-b1-replay.js",
         "lib/cognitive-lab-b4-experiment.js",
         "lib/cognitive-lab-b6-experiment.js",
@@ -3453,6 +3500,7 @@
         "lib/evidence-pack/signature.js",
         "lib/external-action-receipt-collector-store.js",
         "lib/hash-chain.js",
+        "lib/path-safety.js",
         "lib/receipt/receipt-export.js"
       ],
       "lib/experience/array-filter-program.js": [
@@ -3532,8 +3580,12 @@
         "lib/sqlite-availability.js",
         "lib/sqlite-durability.js"
       ],
+      "lib/experience/journal-manifest.js": [
+        "lib/experience/contract.js"
+      ],
       "lib/experience/journal.js": [
         "lib/experience/contract.js",
+        "lib/experience/journal-manifest.js",
         "lib/is-plain-object.js"
       ],
       "lib/experience/learn-read-back.js": [
@@ -4382,6 +4434,11 @@
         "lib/http/ingest-approval-runtime.js",
         "lib/kernel-factory.js"
       ],
+      "lib/http/global-search-route.js": [
+        "lib/http/read-workflow-actions.js",
+        "lib/server-response-helpers.js",
+        "requestGuards.js"
+      ],
       "lib/http/identity-mutation-admission.js": [
         "lib/agent-identity-runtime.js",
         "lib/mutation-admission.js"
@@ -4542,6 +4599,7 @@
       ],
       "lib/http/server-request-handler.js": [
         "lib/error-taxonomy.js",
+        "lib/http/global-search-route.js",
         "lib/http/public-badge-route.js",
         "lib/http/request-origin.js",
         "lib/http/route-auth-policy.js",
@@ -4588,6 +4646,7 @@
         "lib/http/v5-preflight-route.js"
       ],
       "lib/http/viewer-mount.js": [
+        "lib/oidc/mount.js",
         "lib/saml/sp-route.js",
         "lib/viewer/session-store.js",
         "lib/viewer/viewer-gateway.js"
@@ -5784,6 +5843,34 @@
       "lib/observability/workflow-agent-instrumentation.js": [
         "lib/http/structured-log.js"
       ],
+      "lib/oidc/auth-seam.js": [
+        "lib/oidc/failure-codes.js",
+        "lib/oidc/route-constants.js",
+        "lib/oidc/session-cookie.js"
+      ],
+      "lib/oidc/client.js": [
+        "lib/oidc/failure-codes.js"
+      ],
+      "lib/oidc/config.js": [
+        "lib/environment-compat.js"
+      ],
+      "lib/oidc/mount.js": [
+        "lib/approval-rbac.js",
+        "lib/oidc/auth-seam.js",
+        "lib/oidc/client.js",
+        "lib/oidc/config.js",
+        "lib/oidc/route.js",
+        "lib/oidc/session-store.js"
+      ],
+      "lib/oidc/route.js": [
+        "lib/approval-rbac.js",
+        "lib/oidc/client.js",
+        "lib/oidc/failure-codes.js",
+        "lib/oidc/identity-mapping.js",
+        "lib/oidc/route-constants.js",
+        "lib/oidc/session-cookie.js",
+        "lib/oidc/transaction-store.js"
+      ],
       "lib/pilot/trust-receipt-pilot.js": [
         "lib/receipt/canonical-receipt.js",
         "lib/tool-call-gate.js"
@@ -6923,6 +7010,7 @@
       ],
       "sandboxRunner.js": [
         "lib/sandbox-isolation.js",
+        "lib/sandbox-timeout-policy.js",
         "sandboxRunner-child.js",
         "sandboxRunner-context.js",
         "sandboxRunner-limits.js"

@@ -2592,6 +2592,14 @@
    "context": "Knowledge",
    "evidence": "#4069: pure COG-M3 PR-1 prioritized replay selection over measured prediction error and reward"
   },
+  "lib/cognition/replay-generalize.js": {
+   "context": "Knowledge",
+   "evidence": "#4069 pure replay grouping produces candidate data only; lib/cli-replay.js is the measured operator preview caller"
+  },
+  "lib/cognition/independent-sources.js": {
+   "context": "Knowledge",
+   "evidence": "#4069 shared evidence dependency counting reused by the value ledger and replay grouping"
+  },
   "lib/cognition/reward-signal.js": {
    "context": "Knowledge",
    "evidence": "#4062: pure COG-M8 reward signal over observed prediction outcomes and experience eligibility"
@@ -2927,6 +2935,10 @@
   "lib/experience/journal.js": {
    "context": "Trust",
    "evidence": "ownership-map-2446.md#R-EXP-T-T"
+  },
+  "lib/experience/journal-manifest.js": {
+   "context": "Trust",
+   "evidence": "Existing journal manifest projection shared by writer and read-only reader"
   },
   "lib/experience/budgeted-journal.js": {
    "context": "Trust",
@@ -4637,6 +4649,10 @@
   "lib/cli-promote.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
+  },
+  "lib/cli-replay.js": {
+   "kind": "entry",
+   "evidence": "#4069 read-only CLI composition of the sealed journal, pure cognition and existing learning intake/compiler; no promotion or registration"
   },
   "lib/cli-operator-presence.js": {
    "kind": "entry",
@@ -7948,9 +7964,10 @@
   "lib/experience/compiler.js": {
    "owner": "Trust",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "ownership-map-2446.md#coder-project-recipe"
+   "evidence": "ownership-map-2446.md#coder-project-recipe; #4069 lib/cli-replay.js qualifies source-bound candidate data without registration or promotion"
   },
   "lib/task-identifier-lexer.js": {
    "owner": "AgentAction",
@@ -7979,7 +7996,7 @@
     "AgentAction",
     "Platform"
    ],
-   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the signal; #4061 adds the Platform cognitive-lab CLI prediction-error measurement surface (opt-in, store-free, no authority)"
+   "evidence": "cognitive-architecture-plan.md section 7: AgentAction cognition seam consumes the signal; Platform cognitive-lab CLI (#4061) and lib/cli-replay.js (#4069) consume measured error without action authority"
   },
   "lib/cognition-prediction-error-pairs.js": {
    "owner": "Knowledge",
@@ -8006,9 +8023,24 @@
   "lib/cognition/reward-signal.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "#4062 lib/agent-cognition-seam.js computes the existing signal only after a bound observed outcome; this is the only measured AgentAction caller and grants no authority"
+   "evidence": "#4062 lib/agent-cognition-seam.js and #4069 lib/cli-replay.js compute the existing signal only from bound observed outcomes or sealed eligibility; no action authority"
+  },
+  "lib/cognition/replay-generalize.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4069 lib/cli-replay.js lists source-bound replay candidates for the operator without registering or proposing promotion"
+  },
+  "lib/cognition/independent-sources.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4069 lib/cli-replay.js selects independent compilation sources under the existing intake bound"
   },
   "lib/agent-coder-execution.js": {
    "owner": "AgentAction",

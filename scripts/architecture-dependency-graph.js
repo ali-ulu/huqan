@@ -74,7 +74,7 @@ const RULES = [
     why: 'The use cases: the runtimes that drive a turn, the feature packages that implement one capability, and the extension surface plugins are written against.',
     files: [
       'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js', 'lib/agent-coder-execution.js', 'lib/agent-coder-project-task.js',
-      'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js',
+      'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js', 'lib/cli-replay.js',
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
       'lib/cognitive-lab-neural-experiment.js', 'lib/cognitive-lab-neural-world.js', 'lib/cognitive-lab-neural-design.js', 'lib/authority/decision-attestation.js', // #4205: signed receipt evidence orchestration
