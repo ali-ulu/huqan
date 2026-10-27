@@ -776,6 +776,7 @@
     "lib/graph-path-search.js",
     "lib/http-trust-query.js",
     "lib/legacy-alias-usage.js",
+    "lib/http/agent-coder-routes.js",
     "lib/http/agent-workflow-routes.js",
     "lib/http/answer-route.js",
     "lib/http/claim-read-route.js",
