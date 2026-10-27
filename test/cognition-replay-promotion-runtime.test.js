@@ -32,6 +32,48 @@ test('promotion flags refuse alternate producers before authority or target exec
   }
 });
 
+test('malformed promotion flags refuse before authority access', () => {
+  const opts = { throwOnError: true, coderLoop: {
+    withCoderPromotionAcceptance() { assert.fail('malformed request reached authority'); },
+  } };
+  for (const flags of [
+    ['--promotion-approval'],
+    ['--promotion-capability', 'replace'],
+    ['--promotion-approval', 'approval'],
+    ['--promotion-approval', '', '--promotion-capability', 'replace'],
+    ['--promotion-approval', '--promotion-capability', 'replace'],
+    ['--promotion-approval', 'approval', '--promotion-approval', 'again', '--promotion-capability', 'replace'],
+    ['--promotion-approval', 'approval', '--promotion-capability', '--invalid'],
+  ]) assert.throws(() => coderCommand(null, ['task.json', ...flags], opts),
+    error => error.exitCode === 4 && /requires one/.test(error.message));
+  for (const prefix of ['verify', 'propose', 'remember', 'create', 'revise'])
+    assert.throws(() => coderCommand(null, [prefix, 'task.json', '--promotion-approval', 'approval',
+      '--promotion-capability', 'replace'], opts), error => error.exitCode === 4 && /ordinary Coder task/.test(error.message));
+});
+
+test('promotion requires both journal and host verifier and preserves ordinary usage errors', () => {
+  const flags = ['task.json', '--promotion-approval', 'approval', '--promotion-capability', 'replace'];
+  assert.match(coderCommand(null, flags), /requires a journal and its host verifier/);
+  assert.match(coderCommand(null, [...flags, '--journal', 'journal.db']), /requires a journal and its host verifier/);
+  assert.throws(() => coderCommand(null, flags, { throwOnError: true, coderLoop: {
+    withCoderPromotionAcceptance() { assert.fail('missing journal reached authority'); },
+  } }), error => error.exitCode === 4);
+  assert.throws(() => coderCommand(null), /Usage: coder/);
+});
+
+test('promotion preflight receives explicit bindings and preserves refusal exit codes', async () => {
+  const args = 'task.json --journal journal.db --promotion-approval approval --promotion-capability replace';
+  for (const [workspaceId, exitCode] of [[undefined, undefined], ['ws', 5]]) {
+    await assert.rejects(coderCommand(null, args, { throwOnError: true, workspaceId, coderLoop: {
+      withCoderPromotionAcceptance(binding) {
+        assert.deepEqual(binding, { journalPath: 'journal.db', approvalId: 'approval',
+          workspaceId: workspaceId || 'default', capabilityId: 'replace' });
+        return Promise.reject(Object.assign(new Error('authority refused'), { exitCode }));
+      },
+    } }), error => error.message === 'authority refused' && error.exitCode === (exitCode || 4));
+  }
+});
+
 async function fixture(t, { outcomeStatus = 'executed', partial = false, shownPatch, decisionPatch, padding = 0 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'promotion-runtime-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
