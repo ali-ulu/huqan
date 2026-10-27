@@ -6,6 +6,7 @@ const path = require('node:path');
 
 const {
   AUTONOMY_REASONS,
+  DEFAULT_RECEIPT_WINDOW,
   GRADUATED_AUTONOMY_VERSION,
   computeTrustScore,
   evaluateGraduatedAutonomy,
@@ -452,4 +453,46 @@ test('a receipt window is resolved from config or environment and fails closed w
     environment: {},
     graduatedAutonomy: { enabled: true, ...source, receiptWindow: 1.5 },
   }), TypeError);
+});
+
+// #4335: the owner set the default. With nothing configured the window is
+// DEFAULT_RECEIPT_WINDOW, not the full trail; `0` is the explicit opt-out.
+test('the default receipt window bounds the read unless the owner opts out with 0', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-window-default-'));
+  try {
+    const trail = path.join(dir, 'receipts.jsonl');
+    // One admission + one outcome per action, so `count` actions make `count`
+    // hash-valid receipts per identity.
+    const receipts = actionReceipts(DEFAULT_RECEIPT_WINDOW + 20);
+    fs.writeFileSync(trail, `${receipts.map(r => JSON.stringify(r)).join('\n')}\n`);
+
+    const byDefault = graduatedAutonomyOptions({
+      identityRef: IDENTITY_REF,
+      environment: {},
+      graduatedAutonomy: { enabled: true, receiptPath: trail },
+    });
+    assert.equal(DEFAULT_RECEIPT_WINDOW, 256);
+    assert.equal(byDefault.receipts.length, DEFAULT_RECEIPT_WINDOW, 'the default window bounds the read');
+    assert.equal(byDefault.receipts.truncated, true, 'a cut history says so');
+
+    const optedOut = graduatedAutonomyOptions({
+      identityRef: IDENTITY_REF,
+      environment: {},
+      graduatedAutonomy: { enabled: true, receiptPath: trail, receiptWindow: 0 },
+    });
+    assert.ok(optedOut.receipts.length > DEFAULT_RECEIPT_WINDOW, '0 reads the full bounded trail');
+    assert.equal(optedOut.receipts.truncated, false);
+
+    // The env flag resolves the default the same way an absent config does.
+    const envDefault = graduatedAutonomyOptions({
+      identityRef: IDENTITY_REF,
+      environment: { HUQAN_EXTERNAL_GUARD_RECEIPT_WINDOW: '10' },
+      graduatedAutonomy: { enabled: true, receiptPath: trail },
+    });
+    assert.equal(envDefault.receipts.length, 10);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

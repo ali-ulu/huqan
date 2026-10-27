@@ -20,6 +20,12 @@ const { summarizeSessionImpact, recordRetriedRefusalSignals } = require('../lib/
 
 let sequence = 0;
 
+// The identity the guard derives from `agentName: 'budget-agent'` and stamps
+// onto its own admission receipts. The default receipt window (#4335) filters
+// by identityRef, so a fixture the guard is meant to count has to carry the
+// same ref the guard will read under.
+const GUARD_IDENTITY_REF = 'agent:default:budget-agent';
+
 function sealed({
   sessionId,
   score,
@@ -169,11 +175,11 @@ function guard(receipts, extraOptions = {}) {
 
 test('the receipt records the session total including this action, and it moves no decision', () => {
   const withHistory = guard([
-    sealed({ sessionId: 'budget-session', score: 40 }),
-    sealed({ sessionId: 'other-session', score: 90 }),
-    sealed({ sessionId: 'budget-session', score: 60 }),
+    sealed({ sessionId: 'budget-session', score: 40, identityRef: GUARD_IDENTITY_REF }),
+    sealed({ sessionId: 'other-session', score: 90, identityRef: GUARD_IDENTITY_REF }),
+    sealed({ sessionId: 'budget-session', score: 60, identityRef: GUARD_IDENTITY_REF }),
   ]);
-  const withoutSessionHistory = guard([sealed({ sessionId: 'other-session', score: 90 })]);
+  const withoutSessionHistory = guard([sealed({ sessionId: 'other-session', score: 90, identityRef: GUARD_IDENTITY_REF })]);
   const { blastRadius, cumulative } = withHistory.receipt.metadata.justification;
   assert.equal(cumulative.sessionId, 'budget-session');
   assert.equal(cumulative.priorActions, 2);
@@ -196,7 +202,10 @@ test('with graduated autonomy disabled the history is not read, and the session 
 });
 
 test('an earlier unscored action makes the session total partial, with the reason carried onto the receipt', () => {
-  const result = guard([sealed({ sessionId: 'budget-session', score: 40 }), sealed({ sessionId: 'budget-session' })]);
+  const result = guard([
+    sealed({ sessionId: 'budget-session', score: 40, identityRef: GUARD_IDENTITY_REF }),
+    sealed({ sessionId: 'budget-session', identityRef: GUARD_IDENTITY_REF }),
+  ]);
   const { cumulative } = result.receipt.metadata.justification;
   assert.equal(cumulative.status, 'partial');
   assert.match(cumulative.reasons.join('\n'), /1 earlier action\(s\) in the session carry no blast radius score/);
@@ -330,10 +339,10 @@ test('review receipts are legitimate flow, not refusals; no history means no cou
 
 test('the guard receipt carries the refusal count without moving the decision', () => {
   const result = guard([
-    sealed({ sessionId: 'budget-session', score: 40 }),
-    sealed({ sessionId: 'budget-session', score: 30, kind: 'external_action_rejection_receipt' }),
+    sealed({ sessionId: 'budget-session', score: 40, identityRef: GUARD_IDENTITY_REF }),
+    sealed({ sessionId: 'budget-session', score: 30, kind: 'external_action_rejection_receipt', identityRef: GUARD_IDENTITY_REF }),
   ]);
-  const plain = guard([sealed({ sessionId: 'budget-session', score: 40 })]);
+  const plain = guard([sealed({ sessionId: 'budget-session', score: 40, identityRef: GUARD_IDENTITY_REF })]);
   const { cumulative } = result.receipt.metadata.justification;
   assert.equal(cumulative.refusedActions, 1);
   assert.equal(result.decision, plain.decision);
