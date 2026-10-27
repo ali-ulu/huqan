@@ -49,7 +49,7 @@ kurulmadan ayrılır.
 Önizleme kesiminden ileri başlangıç zamanlı koşular, bağımlılık ve derleme
 kaynağına veya qualification artifact karşılaştırmasına katılmaz.
 
-Native kaynakta birden çok başlangıç, eylem, yönlendirme, yürütme sonucu veya
+Eşleşen native kaynakta birden çok başlangıç, eylem, yönlendirme, yürütme sonucu veya
 verification varsa önizleme `native_observation_ambiguous` ile durur; ilk
 gözlemi seçerek sonraki çelişkili sonucu gizlemez.
 

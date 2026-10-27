@@ -158,6 +158,31 @@ test('multiple native verifications cannot hide a contradictory later readback',
   assert.deepEqual(files(f.dir), before);
 });
 
+test('nonmatching ambiguous histories do not block matching replay candidates', t => {
+  const f = fixture(t), store = openJournalConnection({ dbPath: f.db });
+  try {
+    const journal = createExperienceJournal({ store });
+    for (const event of journal.read('native-0')) {
+      const copy = structuredClone(event); delete copy.sequence; delete copy.hash;
+      for (const key of ['runId', 'eventId', 'attemptId', 'invocationId', 'causedByEventId']) {
+        if (typeof copy[key] === 'string') copy[key] = copy[key].replace('native-0', 'unrelated');
+      }
+      if (copy.type === 'action_proposed') copy.payload.operationType = 'rename_identifier';
+      assert.equal(journal.append(copy).ok, true);
+      if (copy.type === 'verification') {
+        const later = structuredClone(copy); later.eventId += '-later';
+        assert.equal(journal.append(later).ok, true);
+      }
+    }
+  } finally { store.close(); }
+  const before = files(f.dir), child = invoke(f);
+  assert.equal(child.status, 0, child.stderr || child.stdout);
+  const result = JSON.parse(child.stdout).data;
+  assert.equal(result.candidates.length, 1);
+  assert.ok(result.skipped.some(row => row.episodeId === 'unrelated' && row.reason === 'source_operation_mismatch'));
+  assert.deepEqual(files(f.dir), before);
+});
+
 test('larger replay support remains qualified within the compiler source bound', t => {
   const f = fixture(t), store = openJournalConnection({ dbPath: f.db });
   try {
