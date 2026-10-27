@@ -52,3 +52,17 @@ test('queued Coder step uses its own approval stop after reordering', t => {
   assert.equal(report.status, 'blocked');
   assert.equal(report.result.meta.emergencyStop.approvalId, 'second-case');
 });
+
+test('#4065 the Coder work kind stays within the cognition action-class limit', () => {
+  const { workKindFor } = require('../lib/agent-coder-execution');
+  const project = families => ({ operation: { type: 'initialize_project',
+    spec: { routes: families.map(family => ({ compute: { family } })) } } });
+  assert.equal(workKindFor(project(['array-map'])), 'initialize_project:array-map');
+  assert.equal(workKindFor(project(['array-map', 'array-filter', 'array-map'])), 'initialize_project:array-filter+array-map');
+  assert.equal(workKindFor({ operation: { type: 'replace_text' } }), 'replace_text');
+  const many = ['array-fold', 'array-guarded-fold', 'array-threshold-fold', 'array-stateful-fold', 'array-map', 'array-filter'];
+  const long = workKindFor(project(many));
+  assert.ok(`coder:${long}`.length <= 64, long);
+  assert.match(long, /^initialize_project:[0-9a-f]{16}$/u);
+  assert.equal(workKindFor(project([...many].reverse())), long, 'the digest does not depend on route order');
+});
