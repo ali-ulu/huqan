@@ -12,6 +12,12 @@ const { openJournalConnection } = require('../lib/experience/journal-connection'
 const { createExperienceJournal } = require('../lib/experience/journal');
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+
+test('replay comparison exposes a fixed pair without a public selector', () => {
+  assert.equal(typeof require('../lib/cli-replay').runReplayComparison, 'function');
+  assert.throws(() => require('../lib/cli-replay').runReplayComparison(['--selector', 'recent']), /unknown flag/);
+});
+
 function files(root) {
   const result = {};
   for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -54,6 +60,126 @@ function invoke(f, guard) {
   return spawnSync(process.execPath, [...(guard ? ['--require', guard] : []), path.resolve(__dirname, '../cli.js'), ...f.argv],
     { cwd: f.dir, encoding: 'utf8', windowsHide: true, timeout: 20000 });
 }
+
+function copyRun(journal, id, change) {
+  for (const event of journal.read('native-0')) {
+    const copy = structuredClone(event); delete copy.sequence; delete copy.hash;
+    for (const key of ['runId', 'eventId', 'attemptId', 'invocationId', 'causedByEventId']) {
+      if (typeof copy[key] === 'string') copy[key] = copy[key].replace('native-0', id);
+    }
+    change(copy);
+    assert.equal(journal.append(copy).ok, true);
+  }
+}
+
+test('replay comparison shares one cutoff and budget with the unchanged priority command', t => {
+  const f = fixture(t), store = openJournalConnection({ dbPath: f.db });
+  try {
+    copyRun(createExperienceJournal({ store }), 'future-bridge', event => {
+      if (event.type === 'run_started') {
+        event.payload.createdAt = '2999-01-01T00:00:00.000Z'; event.parentRunId = 'native-1';
+      }
+      if (event.type === 'action_proposed') event.parentRunId = 'native-2';
+    });
+  } finally { store.close(); }
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2030-01-01T00:00:00Z') });
+  const { runReplayComparison, runReplayCommand } = require('../lib/cli-replay');
+  const args = f.argv.slice(1, -1).concat('--budget', '3'), before = files(f.dir);
+  const open = fs.openSync;
+  let snapshots = 0;
+  const reader = t.mock.method(fs, 'openSync', function (file, ...options) {
+    if (file === f.db && options[0] === 'r') snapshots++;
+    return open.call(this, file, ...options);
+  });
+  const comparison = runReplayComparison(args);
+  assert.equal(snapshots, 1, 'both arms must share a single source database read');
+  reader.mock.restore();
+  assert.deepEqual(Object.keys(comparison).sort(), ['priority', 'recent']);
+  assert.deepEqual(comparison.priority, runReplayCommand(args));
+  for (const arm of Object.values(comparison)) {
+    assert.equal(arm.replayedAt, '2030-01-01T00:00:00.000Z');
+    assert.equal(arm.budget, 3); assert.equal(arm.selected.length, 3);
+    assert.equal(arm.candidates[0].nIndependent, 3);
+    assert.equal(arm.candidates[0].qualification.qualified, true);
+    assert.ok(arm.skipped.some(row => row.episodeId === 'future-bridge' && row.reason === 'future_episode'));
+    assert.equal(arm.registered, false); assert.equal(arm.authority, 'CANDIDATE_ONLY');
+  }
+  assert.deepEqual(files(f.dir), before);
+  const foreignArgs = [...args]; foreignArgs[foreignArgs.indexOf('--workspace') + 1] = 'other';
+  for (const arm of Object.values(runReplayComparison(foreignArgs))) {
+    assert.deepEqual(arm.selected, []); assert.deepEqual(arm.candidates, []);
+  }
+  assert.throws(() => runReplayComparison(args.slice(0, -1).concat('257')), /invalid_budget/);
+  assert.deepEqual(files(f.dir), before);
+});
+
+test('replay comparison prioritizes a native disk-readback failure over newer positive sources', t => {
+  const f = fixture(t), root = path.join(f.dir, 'failure'), file = path.join(root, f.request.params.path);
+  fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'failed source v1.0.0');
+  const git = args => execFileSync('git', args, { cwd: root, windowsHide: true, stdio: 'pipe' });
+  git(['init', '-q', '-b', 'feature/failure']); git(['config', 'user.name', 'Fixture']);
+  git(['config', 'user.email', 'fixture@example.invalid']); git(['config', 'commit.gpgsign', 'false']);
+  git(['add', '--', f.request.params.path]); git(['commit', '-qm', 'failure source']);
+  const store = openJournalConnection({ dbPath: f.db });
+  try {
+    const journal = createExperienceJournal({ store });
+    const result = require('../lib/coder/apply-derivation').applyDerivation({
+      task: { id: 'failed-readback', level: 'l0', allowedPaths: [f.request.params.path],
+        operation: { type: 'replace_text', path: f.request.params.path, find: 'v1.0.0', replace: 'v1.1.0' } },
+      root, repoState: { known: true, branch: 'feature/failure', dirty: false, hasUntracked: false },
+      journal, runId: 'native-failed', now: () => '2000-01-01T00:00:00.000Z',
+      // Deliberate fault on the real temporary disk; the native reporter observes the mismatch.
+      verify: () => { fs.writeFileSync(file, 'observed corrupt output'); return { ok: false }; },
+      verifyCommand: 'controlled-disk-fault',
+    });
+    assert.equal(result.experience.failed, null);
+    assert.equal(journal.manifest('native-failed').learningEligibility, 'negative_example');
+    const observation = journal.read('native-failed').find(event => event.type === 'verification');
+    assert.equal(observation.payload.checks[0].actualSha256, sha(fs.readFileSync(file)));
+    assert.equal(observation.payload.checks[0].match, false);
+  } finally { store.close(); }
+  const before = files(f.dir), { priority, recent } = require('../lib/cli-replay')
+    .runReplayComparison(f.argv.slice(1, -1).concat('--budget', '3'));
+  assert.equal(priority.selected[0].episodeId, 'native-failed');
+  assert.ok(recent.selected.every(row => row.episodeId !== 'native-failed'));
+  assert.equal(priority.signals.find(row => row.episodeId === 'native-failed').reward.reward, -1);
+  assert.equal(priority.candidates.length, 0); assert.equal(recent.candidates.length, 1);
+  assert.deepEqual(files(f.dir), before);
+});
+
+test('replay comparison retains unselected dependency bridges and shared qualification refusals', t => {
+  const f = fixture(t), { runReplayComparison } = require('../lib/cli-replay');
+  const args = f.argv.slice(1, -1).concat('--budget', '3');
+  for (const [beforeText, expectedAfter, reason] of [
+    ['alpha v1.0.0', 'alpha v1.1.0', 'qualification_source_overlap'],
+    ['unseen v1.0.0', 'wrong', 'qualification_oracle_mismatch'],
+  ]) {
+    fs.writeFileSync(f.requestPath, JSON.stringify({ ...f.request,
+      qualificationInputs: [{ id: 'separate', before: beforeText, expectedAfter }] }));
+    const before = files(f.dir);
+    for (const arm of Object.values(runReplayComparison(args))) {
+      assert.deepEqual(arm.candidates, []); assert.equal(arm.rejectedCandidates[0].reason, reason);
+    }
+    assert.deepEqual(files(f.dir), before);
+  }
+  fs.writeFileSync(f.requestPath, JSON.stringify(f.request));
+  const store = openJournalConnection({ dbPath: f.db });
+  try {
+    copyRun(createExperienceJournal({ store }), 'old-bridge', event => {
+      if (event.type === 'run_started') {
+        event.payload.createdAt = '2000-01-01T00:00:00.000Z'; event.parentRunId = 'native-1';
+      }
+      if (event.type === 'action_proposed') event.parentRunId = 'native-2';
+    });
+  } finally { store.close(); }
+  const before = files(f.dir);
+  for (const arm of Object.values(runReplayComparison(args))) {
+    assert.equal(arm.selected.length, 3);
+    assert.ok(arm.selected.every(row => row.episodeId !== 'old-bridge'));
+    assert.deepEqual(arm.candidates, []);
+  }
+  assert.deepEqual(files(f.dir), before);
+});
 
 test('real CLI compiles independently qualified candidates from native sealed runs without writing', t => {
   const f = fixture(t);
@@ -129,6 +255,8 @@ test('qualification rejects copied sources and wrong oracles without changing fi
     const before = files(f.dir), child = invoke(f);
     assert.equal(child.status, 2, child.stderr || child.stdout);
     assert.match(child.stdout, /verification_eligibility_mismatch/);
+    assert.throws(() => require('../lib/cli-replay').runReplayComparison(f.argv.slice(1, -1)),
+      /verification_eligibility_mismatch/);
     assert.deepEqual(files(f.dir), before);
   });
 });
