@@ -166,6 +166,6 @@ test('the holdout refuses a stale or unlocked manifest before consuming its sing
     new RegExp(`G1_MANIFEST_MISMATCH:${productionClean ? 'protocol' : 'production'}`));
   assert.equal(fs.existsSync(reportFile), false, 'a refused run writes no marker');
   if (!productionClean) return t.diagnostic('runner-external tree differs from HEAD here; the single-run check needs a clean checkout');
-  fs.writeFileSync(reportFile, '{}');
+  fs.writeFileSync(reportFile, '{}', { flag: 'wx' });
   assert.throws(() => runHoldout({ manifest: locked, baseDir: dir, reportFile }), /G1_HOLDOUT_ALREADY_RUN/);
 });
