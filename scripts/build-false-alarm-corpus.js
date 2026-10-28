@@ -32,10 +32,27 @@ const DEFAULT_OUT = path.join(repoRoot, 'test', 'fixtures', 'false-alarm-corpus.
  * The declared target the measurement reports against. It is not asserted to be
  * met -- scripts/false-alarm-rate.js prints whether it is -- because a corpus
  * that silently relaxed its own goal would be the failure it exists to catch.
+ *
+ * The target names the policy it is judged under. The default -- an empty
+ * allowlist -- is a starting point, not a target: by design it sends every
+ * unclassified tool chain to a person, so a ceiling of "1 in 500" over it would
+ * measure nothing but the fact that no deployment had configured anything. The
+ * shipped `team-ci` template is the policy the measurement recommends, and the
+ * target is read against it.
  */
 const TARGET = Object.freeze({
-  safeOverallMax: 1 / 500,
+  policy: 'team-ci',
+  // Tiers that must never stop a safe call under that policy.
   safeZeroTiers: Object.freeze(['read', 'diff', 'test', 'lint', 'plan']),
+  // Tiers expected to ask a person, excluded from the overall ceiling:
+  //
+  //   build -- `npm ci` and `npm install` run third-party lifecycle scripts,
+  //            and `npm run verify` / `npm run coverage` run the whole suite. A
+  //            prompt there is the gate working, not a false alarm, so the tier
+  //            is reported but not counted against the ceiling.
+  reviewTiers: Object.freeze(['build']),
+  // The overall ceiling over the tiers that are neither zero nor review.
+  safeOverallMax: 1 / 500,
 });
 
 function git(args) {

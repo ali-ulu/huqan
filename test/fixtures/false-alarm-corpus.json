@@ -1,16 +1,20 @@
 {
   "schemaVersion": "huqan.false-alarm-corpus.v1",
   "generatedBy": "scripts/build-false-alarm-corpus.js",
-  "measuredFrom": "2dbd8f9019df94fdf97ed9e398bac34b620ae08e",
+  "measuredFrom": "4c19f43a01fbae4c49137b40f23ce9f631b1aeca",
   "target": {
-    "safeOverallMax": 0.002,
+    "policy": "team-ci",
     "safeZeroTiers": [
       "read",
       "diff",
       "test",
       "lint",
       "plan"
-    ]
+    ],
+    "reviewTiers": [
+      "build"
+    ],
+    "safeOverallMax": 0.002
   },
   "counts": {
     "safe": 703,

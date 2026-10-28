@@ -510,6 +510,7 @@
     "lib/command-exec-gate-targets.js",
     "lib/command-exec-gate-vocabulary.js",
     "lib/external-action-adapter.js",
+    "lib/external-action-allowlist.js",
     "lib/external-action-envelope.js",
     "lib/financial-action-policy.js",
     "lib/external-action-guard.js",

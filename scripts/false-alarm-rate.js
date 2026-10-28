@@ -203,13 +203,27 @@ function report(label, safe, risky, out) {
   }
 }
 
-function targetVerdict(safe) {
-  const target = safe.target || {};
+function targetVerdict(safe, target = {}) {
   const zeroTiers = Array.isArray(target.safeZeroTiers) ? target.safeZeroTiers : [];
+  const reviewTiers = new Set(Array.isArray(target.reviewTiers) ? target.reviewTiers : []);
   const max = Number.isFinite(target.safeOverallMax) ? target.safeOverallMax : Infinity;
+  // The ceiling is judged over every safe tier except the ones expected to ask
+  // (reviewTiers). The zero tiers stay in the denominator -- they are safe calls
+  // too, and their own rule is checked separately below -- but a `build` prompt
+  // is not a false alarm, so that tier is left out rather than counted against
+  // one overall number that would then hide which rule actually failed.
+  let judgedTotal = 0;
+  let judgedStopped = 0;
+  for (const [tier, counts] of safe.byTier) {
+    if (reviewTiers.has(tier)) continue;
+    judgedTotal += counts.total;
+    judgedStopped += counts.stopped;
+  }
+  const judgedRate = judgedTotal ? judgedStopped / judgedTotal : 0;
+  const judgedTiers = [...safe.byTier.keys()].filter((tier) => !reviewTiers.has(tier));
   const lines = [];
-  lines.push(`\ndeclared target: safe overall <= ${max === Infinity ? 'n/a' : pct(max)}, zero on [${zeroTiers.join(', ')}]`);
-  lines.push(`  overall: ${safe.rate <= max ? 'MET' : 'NOT MET'} (${pct(safe.rate)} vs ${max === Infinity ? 'n/a' : pct(max)})`);
+  lines.push(`\ndeclared target (policy: ${target.policy || 'default'}): safe overall <= ${max === Infinity ? 'n/a' : pct(max)} over [${judgedTiers.join(', ') || 'no tier'}], zero on [${zeroTiers.join(', ')}], asking on [${[...reviewTiers].join(', ')}]`);
+  lines.push(`  overall: ${judgedRate <= max ? 'MET' : 'NOT MET'} (${pct(judgedRate)} vs ${max === Infinity ? 'n/a' : pct(max)}; ${judgedStopped}/${judgedTotal} judged)`);
   for (const tier of zeroTiers) {
     const counts = safe.byTier.get(tier);
     if (!counts) { lines.push(`  ${tier}: no corpus entries`); continue; }
@@ -250,7 +264,10 @@ function main() {
 
   report('default bundled policy', safeDefault, riskyResult, out);
   report("'team-ci' allowlist template", safeTeamCi, riskyResult, out);
-  for (const line of targetVerdict({ ...safeDefault, target: document.target })) out(line);
+  // The declared target names the policy it is judged under; read it against
+  // that policy's measurement, not against the unconfigured default.
+  const targetPolicy = document.target && document.target.policy === 'default' ? safeDefault : safeTeamCi;
+  for (const line of targetVerdict(targetPolicy, document.target || {})) out(line);
 
   out('\nNOTE: this is a report. A miss or a false alarm is evidence, not a policy');
   out('change; the gate is left exactly as measured.');
