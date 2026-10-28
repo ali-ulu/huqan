@@ -29,7 +29,7 @@ const { listSourceFiles, buildGraph } = require('./check-import-cycles.js');
 const IS_TEST = /(\.test\.js$|(^|\/)test\/|(^|\/)benchmarks\/|(^|\/)demo)/;
 
 const ENTRYPOINT = new Set([
-  'cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js',
+  'cli.js', 'server.js', 'mcpServer.js', 'index.js', 'agentRuntime.js', 'lib/cognitive-lab-g1-episode.js', // #4065 spawned G1 child entry
 ]);
 // The persistence family, not just its facade: splitting a store into
 // `lib/memory-store-write.js` and friends does not move those pieces into a

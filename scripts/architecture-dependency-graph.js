@@ -53,7 +53,7 @@ const RULES = [
   {
     layer: 'UI',
     why: 'Process entrypoints, and the inbound surfaces a caller drives HUQAN through. Nothing may require these; they require everything below.',
-    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js',
+    files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js', 'lib/cognitive-lab-g1-episode.js', // #4065 G1 child process entry
       'lib/authority/operator-cli.js'],
     dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/saml/', 'lib/oidc/', 'lib/workbench/'],
   },
@@ -78,7 +78,7 @@ const RULES = [
       'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
       'lib/cognitive-lab-neural-experiment.js', 'lib/cognitive-lab-neural-world.js', 'lib/cognitive-lab-neural-design.js', 'lib/authority/decision-attestation.js', // #4205: signed receipt evidence orchestration
-      'lib/cognitive-lab-model-comparison.js', 'lib/cognitive-lab-m7-experiment.js', 'lib/cognitive-lab-m7-runtime.js', 'lib/cognitive-lab-m7-value-runtime.js', 'lib/cognitive-lab-g1-holdout.js', 'lib/cognitive-lab-g1-episode.js', 'lib/cognitive-lab-g1-arm-preload.js', 'lib/cognitive-lab-g1-corpus.js', 'lib/cognitive-lab-g1-stats.js',
+      'lib/cognitive-lab-model-comparison.js', 'lib/cognitive-lab-m7-experiment.js', 'lib/cognitive-lab-m7-runtime.js', 'lib/cognitive-lab-m7-value-runtime.js', 'lib/cognitive-lab-g1-holdout.js', 'lib/cognitive-lab-g1-arm-preload.js', 'lib/cognitive-lab-g1-corpus.js', 'lib/cognitive-lab-g1-stats.js',
       'lib/cognitive-model-local-ssm.js', 'lib/cognitive-model-local-family.js',
       'lib/cognitive-model-local-rwkv.js', 'lib/cognitive-model-local-mamba.js', 'lib/cognitive-model-local-transformer.js',
       'lib/semantic-model-inference.js', 'lib/semantic-model-provider.js',

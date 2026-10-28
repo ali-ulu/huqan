@@ -2784,6 +2784,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
   },
+  "lib/cognitive-lab-g1-corpus.js": {
+   "context": "AgentAction",
+   "evidence": "#4065 G1 synthetic Coder task corpus built from the coder project recipe and its program families"
+  },
   "lib/coder/computed-project-templates.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#coder-project-recipe"
@@ -4254,10 +4258,6 @@
    "kind": "infra",
    "evidence": "#4065 G1 synthetic holdout measurement runner (arm-preload); no production default or gain claim"
   },
-  "lib/cognitive-lab-g1-corpus.js": {
-   "kind": "infra",
-   "evidence": "#4065 G1 synthetic holdout measurement runner (corpus); no production default or gain claim"
-  },
   "lib/cognitive-lab-g1-stats.js": {
    "kind": "infra",
    "evidence": "#4065 G1 synthetic holdout measurement runner (stats); no production default or gain claim"
@@ -5479,6 +5479,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/cognitive-lab-g1-corpus.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4065 the G1 measurement runner (Platform operator tool) reads the corpus it measures"
+  },
   "lib/approval-rbac.js": {
    "owner": "AgentAction",
    "consumers": [
