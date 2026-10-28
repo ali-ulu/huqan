@@ -2474,7 +2474,7 @@
   },
   "lib/siem/siem-export-command.js": {
    "context": "AgentAction",
-   "evidence": "#4093 PR-B3: the huqan-gate-hook siem-export CLI marshal; bin/huqan-gate-hook.js requires it directly because lib/siem/ is the Adapters layer and the Core management module may not require one"
+   "evidence": "#4093 PR-B3: the huqan-gate-hook siem-export CLI marshal; bin/huqan-gate-hook.js loads it on demand through lib/enterprise-module.js (an Enterprise file, LICENSE-ENTERPRISE), and only for the siem-export command"
   },
   "lib/siem/siem-http-sink.js": {
    "context": "AgentAction",
@@ -4905,6 +4905,10 @@
   "lib/environment-compat.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/enterprise-module.js": {
+   "kind": "infra",
+   "evidence": "Apache-2.0 relicense (PR #4356): the shared on-demand loader for the five LICENSE-ENTERPRISE entry points; no domain logic, it only resolves a declared module or reports it as not shipped"
   },
   "lib/legacy-alias-usage.js": {
    "kind": "infra",
