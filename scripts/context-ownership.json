@@ -1444,6 +1444,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
   },
+  "lib/external-action-allowlist.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-EXTACTION-A"
+  },
   "lib/external-action-envelope.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
