@@ -120,5 +120,8 @@ genişletmek) ayrı bir karardır ve bu paketin kapsamı dışındadır.
   `allowedCommands` listesinin `npm run check:*` ailesini kapsamadığını
   gösterir. Bu bir eksik değil, bilinçli bir daraltmadır: liste yalnızca
   sınıflandırıcının "bilinmeyen araç zinciri" sayacağı bir komutu yükseltebilir
-  (`allowlistMatch`, `lib/external-action-envelope.js`) ve tek kelimelik girdi
-  kabul etmez.
+  (`allowlistMatch`, `lib/external-action-envelope.js`). İki kelimelik asgari
+  şart bu eşleştiriciye değil, yayımlanan şablon girdilerine ve allowlist
+  madencisine aittir (`MIN_SHAPE_WORDS`, `lib/command-allowlist-miner.js`);
+  `allowlistMatch` tek kelimelik bir girdiyi de kabul eder (komut girdiye eşitse
+  ya da `${girdi} ` ile başlıyorsa).

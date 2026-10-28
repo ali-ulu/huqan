@@ -140,6 +140,41 @@ test('a window is bound to its workspace and category', t => {
   assert.equal(ledger.check({ windowId: window.windowId, workspaceId: 'team-a' }).refusal, 'break_glass_category_not_permitted');
 });
 
+test('status() reports a category-scoped window as active, not masked by the scope check', t => {
+  // `status()` calls `check()` without a category; after the category fix that
+  // refused every category-scoped window, so the operator saw a live window as
+  // inactive and could skip `lift` while it still turned reviews into allows.
+  const clock = { value: '2026-10-27T18:40:00.000Z' };
+  const ledger = fixedLedger(scratch(t), clock);
+  ledger.issue({
+    actor: 'operator:cli', reason: 'hotfix', ttlMs: 600000, maxUses: 5,
+    categories: ['TOOL_CHAIN_EXECUTION'],
+  });
+  const [entry] = ledger.status().windows;
+  assert.equal(entry.active, true);
+  assert.equal(entry.inactiveReason, null);
+});
+
+test('a non-object JSON line is corrupt, not a TypeError out of verifyIntegrity', t => {
+  // `JSON.parse('null')` returns null; pushed as an entry it made
+  // `verifyEntries` read `entry.__unreadable` on null and throw. That escaped
+  // `verifyIntegrity`/`status`/`consume` instead of failing closed.
+  const clock = { value: '2026-10-27T18:40:00.000Z' };
+  const directory = scratch(t);
+  const ledger = fixedLedger(directory, clock);
+  ledger.issue({ actor: 'operator:cli', reason: 'hotfix', ttlMs: 600000, maxUses: 5 });
+  fs.appendFileSync(path.join(directory, 'ledger.jsonl'), 'null\n', 'utf8');
+
+  const integrity = ledger.verifyIntegrity();
+  assert.equal(integrity.ok, false);
+  assert.equal(integrity.reason, 'ledger_unreadable_or_corrupt');
+  const status = ledger.status();
+  assert.equal(status.ok, false);
+  assert.equal(status.reason, 'break_glass_integrity_violation');
+  const consumed = ledger.consume({ windowId: 'nope' });
+  assert.equal(consumed.ok, false);
+});
+
 test('a second issue for one window in the ledger is rejected, not replayed', t => {
   // `issue()` refuses a duplicate id, but nothing stopped a hand-appended
   // second `issue` -- which `windowState` replayed as a re-issue, widening an
