@@ -9,7 +9,7 @@ const { execFileSync, execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 
-test('public CLI revalidates a real promotion receipt in each child and refuses unavailable authority', async () => {
+for (const sourceMode of ['single', 'compiled']) test(`public CLI revalidates a real promotion receipt in each child and refuses unavailable authority (${sourceMode})`, async () => {
   const crypto = require('node:crypto');
   const { createAuthorityState, openAuthorityState } = require('../lib/authority/state-store');
   const { openLedgerStore } = require('../lib/authority/ledger-store');
@@ -49,12 +49,12 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     const task = { id: 'promotion-cli', level: 'l0', allowedPaths: ['docs/a.md'],
       operation: { type: 'replace_text', path: 'docs/a.md', find: 'before', replace: 'after' } };
     fs.writeFileSync(taskFile, JSON.stringify(task));
-    const run = async (id, capability) => {
+    const run = async (id, capability, executionRoot = root) => {
       const args = ['--require', clockFile, path.join(__dirname, '..', 'cli.js'), 'coder', taskFile,
-        '--root', root, '--journal', journalPath, '--run-id', id, '--json'];
+        '--root', executionRoot, '--journal', journalPath, '--run-id', id, '--json'];
       if (capability) args.push('--promotion-approval', approvalId, '--promotion-capability', capability);
       try {
-        const result = await promisify(execFile)(process.execPath, args, { cwd: root, encoding: 'utf8', windowsHide: true,
+        const result = await promisify(execFile)(process.execPath, args, { cwd: executionRoot, encoding: 'utf8', windowsHide: true,
           env: { ...process.env, HUQAN_AUTHORITY_PIN_PATH: pinFile, HUQAN_STATE_ROOT: path.join(fixture, 'runtime'),
             HUQAN_MEMORY_PATH: path.join(fixture, 'memory.json'), HUQAN_DB_PATH: path.join(fixture, 'memory.db') } });
         return { code: 0, report: JSON.parse(result.stdout) };
@@ -62,11 +62,23 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     };
     const source = await run('source');
     assert.equal(source.report?.data?.outcome, 'applied', JSON.stringify(source));
+    const sourceRunIds = ['source'];
+    if (sourceMode === 'compiled') for (let index = 1; index < 3; index++) {
+      const sourceRoot = path.join(fixture, `source-${index}`), id = `source-${index}`;
+      fs.cpSync(root, sourceRoot, { recursive: true });
+      fs.writeFileSync(path.join(sourceRoot, 'docs/a.md'), `separate artifact ${index} before`);
+      execFileSync('git', ['add', '--', 'docs/a.md'], { cwd: sourceRoot, stdio: 'pipe', windowsHide: true });
+      execFileSync('git', ['commit', '-qm', 'separate source'], { cwd: sourceRoot, stdio: 'pipe', windowsHide: true });
+      const separate = await run(id, null, sourceRoot);
+      assert.equal(separate.report?.data?.outcome, 'applied', JSON.stringify(separate));
+      assert.equal(fs.readFileSync(path.join(sourceRoot, 'docs/a.md'), 'utf8'), `separate artifact ${index} after`);
+      sourceRunIds.push(id);
+    }
     store = openCoderJournal(journalPath);
+    const sourceSnapshot = sourceRunIds.map(id => store.journal.read(id));
     const proposals = [0, 1, 2].map(parentVersion => buildLearningProposal(store.journal, { runId: 'source',
       workspaceId: 'default', parentVersion, params: { path: 'docs/a.md', oldText: 'before', newText: 'after' } }));
     assert.ok(proposals.every(proposal => proposal.ok));
-    const nextProcedure = proposals[1].procedure;
     const artifacts = proposals.map(proposal => {
       const qualification = qualify({ procedure: proposal.procedure, inputs: ['separate before'], observe: value => value,
         apply: (procedure, value) => ({ sites: value.split(procedure.params.oldText).length - 1,
@@ -76,6 +88,24 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
         sourceRunHashes: [{ runId: 'source', sourceHash: proposal.sourceHash }] };
     });
     store.close(); store = null;
+    let compiledSupport;
+    if (sourceMode === 'compiled') {
+      const replayRequest = path.join(fixture, 'replay-request.json');
+      fs.writeFileSync(replayRequest, JSON.stringify({ capabilityId: 'public-replace', parentVersion: 0,
+        params: { path: 'docs/a.md', oldText: 'before', newText: 'after' },
+        qualificationInputs: [{ id: 'separate', before: 'independent qualification before',
+          expectedAfter: 'independent qualification after' }] }));
+      const comparison = require('../lib/cli-replay').runReplayComparison(['--from-replay', '--dry-run',
+        '--journal', journalPath, '--workspace', 'default', '--request', replayRequest]);
+      const candidate = comparison.priority.candidates[0];
+      assert.equal(candidate.nIndependent, 3);
+      assert.equal(comparison.recent.candidates[0].procedure.hash, candidate.procedure.hash);
+      assert.equal(candidate.qualification.procedureHash, candidate.procedure.hash);
+      assert.equal(candidate.compiledSupport.length, 3); assert.equal(candidate.sourceHashes.length, 3);
+      compiledSupport = candidate.compiledSupport;
+      artifacts[1] = candidate;
+    }
+    const nextProcedure = artifacts[1].procedure;
     const created = createAuthorityState({ dir: path.join(fixture, 'authority') });
     const state = openAuthorityState({ dir: path.join(fixture, 'authority'), operatorId: 'operator' });
     const service = createAuthorityService({ state, ledger: openLedgerStore({ file: path.join(fixture, 'ledger.jsonl') }) });
@@ -119,10 +149,13 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     const stored = readCoderPromotionReceipt({ journal: store.journal, approvalId, workspaceId: 'default', publicKey: pin.signingKey });
     assert.equal(stored.ok, true, stored.code);
     assert.equal(stored.receipt.nextProcedure.hash, nextProcedure.hash);
+    if (compiledSupport) assert.deepEqual(stored.receipt.sourceRunHashes,
+      compiledSupport.map((runId, index) => ({ runId, sourceHash: artifacts[1].sourceHashes[index] })));
     store.close(); store = null;
     fs.writeFileSync(taskFile, JSON.stringify({ ...task, test: { command: 'node acceptance.test.js' },
       experience: { riskTier: 'low', candidates: [{
-      capabilityId: 'public-replace', sourceRunIds: ['source'], parentVersion: 1,
+      capabilityId: 'public-replace', sourceRunIds, parentVersion: sourceMode === 'compiled' ? 0 : 1,
+      ...(compiledSupport ? { compiledSupport, sourceProcedureHash: nextProcedure.hash } : {}),
       qualificationPaths: ['docs/drift.md', 'docs/ambiguous.md'] }] } }));
     fs.writeFileSync(path.join(root, 'docs/a.md'), 'before');
     const wrong = await run('wrong-capability', 'different');
@@ -135,8 +168,23 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     fs.writeFileSync(taskFile, JSON.stringify(mismatchedTask));
     const mismatched = await run('mismatched-final-procedure', 'public-replace');
     assert.notEqual(mismatched.code, 0, JSON.stringify(mismatched));
-    assert.match(JSON.stringify(mismatched.report), /PROMOTION_ACCEPTANCE_BINDING_MISMATCH/);
+    assert.match(JSON.stringify(mismatched.report), sourceMode === 'compiled'
+      ? /source_procedure_mismatch/ : /PROMOTION_ACCEPTANCE_BINDING_MISMATCH/);
     assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
+    if (compiledSupport) for (const [name, support, hash, reason] of [
+      ['missing-baseline', compiledSupport.slice(0, -1), nextProcedure.hash, /source_procedure_mismatch/],
+      ['reordered-support', [...compiledSupport].reverse(), nextProcedure.hash, /source_procedure_mismatch/],
+      ['missing-source-hash', compiledSupport, undefined, /invalid_compiled_support/],
+    ]) {
+      const altered = JSON.parse(acceptedTask);
+      altered.experience.candidates[0].compiledSupport = support;
+      altered.experience.candidates[0].sourceProcedureHash = hash;
+      fs.writeFileSync(taskFile, JSON.stringify(altered));
+      const rejected = await run(name, 'public-replace');
+      assert.notEqual(rejected.code, 0, JSON.stringify(rejected));
+      assert.match(JSON.stringify(rejected.report), reason);
+      assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
+    }
     fs.writeFileSync(taskFile, acceptedTask);
     for (const id of ['accepted-first-child', 'accepted-second-child']) {
       const accepted = await run(id, 'public-replace');
@@ -207,6 +255,8 @@ budget.budgetExperienceJournal = (journal, options) => wrap(journal, { ...option
     assert.notEqual(unavailable.code, 0, JSON.stringify(unavailable));
     assert.match(JSON.stringify(unavailable.report), /AUTHORITY_UNAVAILABLE/);
     assert.equal(fs.readFileSync(path.join(root, 'docs/a.md'), 'utf8'), 'before');
+    store = openCoderJournal(journalPath);
+    assert.deepEqual(sourceRunIds.map(id => store.journal.read(id)), sourceSnapshot);
   } finally {
     store?.close();
     if (server) await new Promise(resolve => server.close(resolve));
