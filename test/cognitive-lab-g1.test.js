@@ -11,7 +11,7 @@ const test = require('node:test');
 const { spawnSync } = require('node:child_process');
 const corpusApi = require('../lib/cognitive-lab-g1-corpus');
 const stats = require('../lib/cognitive-lab-g1-stats');
-const { runPair, prepareSource, runHoldout, armViolations, fingerprint, MANIFEST_SCHEMA } = require('../lib/cognitive-lab-g1-holdout');
+const { runPair, prepareSource, runHoldout, armViolations, checkLockedManifest, fingerprint, MANIFEST_SCHEMA } = require('../lib/cognitive-lab-g1-holdout');
 const { execFileSync } = require('node:child_process');
 
 const small = () => corpusApi.buildG1Corpus({ sizes: { train: 3, calibration: 2, holdout: 2 } });
@@ -149,14 +149,23 @@ test('the holdout refuses a stale or unlocked manifest before consuming its sing
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const reportFile = path.join(dir, 'report.json');
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: path.resolve(__dirname, '..'), encoding: 'utf8' }).trim();
-  const locked = { schemaVersion: MANIFEST_SCHEMA, phase: 'calibration', sourceSha: head, ...fingerprint(corpusApi.buildG1Corpus()),
+  const corpus = corpusApi.buildG1Corpus();
+  const locked = { schemaVersion: MANIFEST_SCHEMA, phase: 'calibration', sourceSha: head, ...fingerprint(corpus),
     lock: { holdoutGroups: 32, sigma: 0.2, stratum: [] } };
   assert.throws(() => runHoldout({ manifest: { ...locked, lock: null }, baseDir: dir, reportFile }), /NEEDS_LOCKED_MANIFEST/);
+  // A checkout with untracked or modified runner-external files (CI writes
+  // artifacts/) is itself refused first; that refusal must not consume the run.
+  let productionClean = true;
+  try { checkLockedManifest(locked, corpus); } catch (error) {
+    assert.match(error.message, /G1_MANIFEST_MISMATCH:production/);
+    productionClean = false;
+  }
   assert.throws(() => runHoldout({ manifest: { ...locked, digests: { ...locked.digests, episode: '0'.repeat(64) } }, baseDir: dir, reportFile }),
-    /G1_MANIFEST_MISMATCH:digests/);
+    new RegExp(`G1_MANIFEST_MISMATCH:${productionClean ? 'digests' : 'production'}`));
   assert.throws(() => runHoldout({ manifest: { ...locked, protocol: { ...locked.protocol, seeds: [1] } }, baseDir: dir, reportFile }),
-    /G1_MANIFEST_MISMATCH:protocol/);
+    new RegExp(`G1_MANIFEST_MISMATCH:${productionClean ? 'protocol' : 'production'}`));
   assert.equal(fs.existsSync(reportFile), false, 'a refused run writes no marker');
+  if (!productionClean) return t.diagnostic('runner-external tree differs from HEAD here; the single-run check needs a clean checkout');
   fs.writeFileSync(reportFile, '{}');
   assert.throws(() => runHoldout({ manifest: locked, baseDir: dir, reportFile }), /G1_HOLDOUT_ALREADY_RUN/);
 });
