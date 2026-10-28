@@ -12,12 +12,14 @@
  * The evidence-role prefix that no longer applies is deliberately absent:
  * entries live in whichever module still describes their file honestly.
  *
- * İP-2's `lib/break-glass.js` joins for the same reason: the base file is at
- * the threshold and its two filesystem call sites would push it over.
+ * İP-2's `lib/break-glass-ledger.js` joins for the same reason: the base file is
+ * at the threshold and its two filesystem call sites would push it over. The
+ * ledger's storage/locking layer was split out of `lib/break-glass.js` for the
+ * same 400-line budget, so the two `fs_write` sites live here now.
  */
 
 const INJECTED_FETCH_CLASSIFIED = Object.freeze({
-  'lib/break-glass.js': Object.freeze({
+  'lib/break-glass-ledger.js': Object.freeze({
     role: 'enforcement',
     why: 'İP-2: appends the hash-chained break-glass ledger the guard reads before relaxing a review into an allow, and every use of a window is recorded here. Gating these writes through admission would be circular, the same reason the emergency stop is classified `enforcement`. '
       + 'The directory is HUQAN_BREAK_GLASS_DIR or `<state root>/break-glass`, never a request field, and the single file is a fixed ledger name under that directory, so an agent cannot name the path it writes. '

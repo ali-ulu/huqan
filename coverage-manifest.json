@@ -555,7 +555,7 @@
       ]
     },
     {
-      "file": "lib/break-glass.js",
+      "file": "lib/break-glass-ledger.js",
       "role": "enforcement",
       "why": "İP-2: appends the hash-chained break-glass ledger the guard reads before relaxing a review into an allow, and every use of a window is recorded here. Gating these writes through admission would be circular, the same reason the emergency stop is classified `enforcement`. The directory is HUQAN_BREAK_GLASS_DIR or `<state root>/break-glass`, never a request field, and the single file is a fixed ledger name under that directory, so an agent cannot name the path it writes. Recorded here rather than in enforcement-coverage-classification.js only because that file sat exactly at the large-file threshold (#328) and this is the change that would have pushed it over; the entry is an ordinary classification judged by the same rules",
       "capabilities": [
@@ -563,12 +563,12 @@
       ],
       "sites": [
         {
-          "line": 156,
+          "line": 98,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 157,
+          "line": 134,
           "capability": "fs_write",
           "call": "fs.appendFileSync"
         }
