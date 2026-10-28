@@ -23,8 +23,8 @@
   },
   "digests": {
     "preload": "3c66d11538a3bfac1d26de3e68696eef4c5bb69b97c5c816cf0307d69638d207",
-    "episode": "4b463f9d2eba033e7612909b3707125ba20dc630475fbb23b82102299f7bfd41",
-    "runner": "0c499a8255366610a386f31558e8b48d25b885fe4019cfeb5b0cc8591a8558c8",
+    "episode": "3ff2d165942068651b8fd0137c79e65c186b1ffff2f6e02e071d95265680cc53",
+    "runner": "ab725b94a53fcabcd77a5e837fe785755363957a5eab09bd28af3edf2f585de5",
     "corpus": "96f6322420be056e29c4524043f30b0b45052fda41096b983f7c2d10f0c077e0",
     "stats": "7f160fa583885eac3222a4e116cd26635127774890d43a86fa39b76ef2639d59",
     "preregistration": "ad3aadef27c9be690ab39cc2c7acf930ad906219f10145b708305c08dfb6d0a2"
@@ -169,10 +169,10 @@
     "cost": {
       "modelCalls": 0,
       "networkCalls": 0,
-      "controlWallMedianMs": 21948.233099999998,
-      "candidateWallMedianMs": 23074.1149,
-      "wallRatio": 1.0512971497464187,
-      "maxRssBytes": 231890944,
+      "controlWallMedianMs": 13522.56285,
+      "candidateWallMedianMs": 13402.00045,
+      "wallRatio": 0.9910843527711908,
+      "maxRssBytes": 229949440,
       "coderSteps": 96
     },
     "groups": [
@@ -198,7 +198,7 @@
                 "coder:g1-ccad30a7-01:done",
                 "coder:g1-ccad30a7-11:done"
               ],
-              "wallMs": 29925.7707,
+              "wallMs": 12413.1412,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -207,7 +207,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 182616064,
+              "maxRssBytes": 186826752,
               "urgencyUsed": [
                 0,
                 0,
@@ -241,7 +241,7 @@
                 "coder:g1-ccad30a7-01:done",
                 "coder:g1-ccad30a7-00:done"
               ],
-              "wallMs": 28888.8886,
+              "wallMs": 12401.1236,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -250,7 +250,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 183013376,
+              "maxRssBytes": 186212352,
               "urgencyUsed": [
                 0.137909,
                 0.102647,
@@ -289,7 +289,7 @@
                 "coder:g1-ccad30a7-10:done",
                 "coder:g1-ccad30a7-11:done"
               ],
-              "wallMs": 30518.739,
+              "wallMs": 12460.0635,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -298,7 +298,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 185831424,
+              "maxRssBytes": 189870080,
               "urgencyUsed": [
                 0,
                 0,
@@ -332,7 +332,7 @@
                 "coder:g1-ccad30a7-01:done",
                 "coder:g1-ccad30a7-00:done"
               ],
-              "wallMs": 28930.9385,
+              "wallMs": 12189.788,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -341,7 +341,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 185704448,
+              "maxRssBytes": 185954304,
               "urgencyUsed": [
                 0.102647,
                 0.102647,
@@ -380,7 +380,7 @@
                 "coder:g1-ccad30a7-01:done",
                 "coder:g1-ccad30a7-10:done"
               ],
-              "wallMs": 28154.126399999997,
+              "wallMs": 12344.4818,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -389,7 +389,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 182800384,
+              "maxRssBytes": 186847232,
               "urgencyUsed": [
                 0,
                 0,
@@ -423,7 +423,7 @@
                 "coder:g1-ccad30a7-01:done",
                 "coder:g1-ccad30a7-00:done"
               ],
-              "wallMs": 30092.7521,
+              "wallMs": 12311.8191,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -432,7 +432,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 182861824,
+              "maxRssBytes": 187822080,
               "urgencyUsed": [
                 0.137909,
                 0.102647,
@@ -480,7 +480,7 @@
                 "coder:g1-ee4e6ac8-01:done",
                 "coder:g1-ee4e6ac8-10:done"
               ],
-              "wallMs": 43916.9667,
+              "wallMs": 15871.391899999999,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -489,7 +489,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 231890944,
+              "maxRssBytes": 185159680,
               "urgencyUsed": [
                 0,
                 0,
@@ -523,7 +523,7 @@
                 "coder:g1-ee4e6ac8-01:done",
                 "coder:g1-ee4e6ac8-00:done"
               ],
-              "wallMs": 46763.0558,
+              "wallMs": 17415.3943,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -532,7 +532,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 216764416,
+              "maxRssBytes": 226820096,
               "urgencyUsed": [
                 0.17602,
                 0.102647,
@@ -571,7 +571,7 @@
                 "coder:g1-ee4e6ac8-11:done",
                 "coder:g1-ee4e6ac8-01:done"
               ],
-              "wallMs": 44937.9608,
+              "wallMs": 15881.8061,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -580,7 +580,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 180183040,
+              "maxRssBytes": 185241600,
               "urgencyUsed": [
                 0,
                 0,
@@ -614,7 +614,7 @@
                 "coder:g1-ee4e6ac8-01:done",
                 "coder:g1-ee4e6ac8-00:done"
               ],
-              "wallMs": 49491.2137,
+              "wallMs": 16974.7019,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -623,7 +623,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 186638336,
+              "maxRssBytes": 190857216,
               "urgencyUsed": [
                 0.102647,
                 0.17602,
@@ -662,7 +662,7 @@
                 "coder:g1-ee4e6ac8-00:done",
                 "coder:g1-ee4e6ac8-10:done"
               ],
-              "wallMs": 52045.539000000004,
+              "wallMs": 15887.4039,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -671,7 +671,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 225218560,
+              "maxRssBytes": 204718080,
               "urgencyUsed": [
                 0,
                 0,
@@ -705,7 +705,7 @@
                 "coder:g1-ee4e6ac8-00:done",
                 "coder:g1-ee4e6ac8-01:done"
               ],
-              "wallMs": 46198.004400000005,
+              "wallMs": 16940.828899999997,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -714,7 +714,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 196784128,
+              "maxRssBytes": 194584576,
               "urgencyUsed": [
                 0.17602,
                 0.102647,
@@ -762,7 +762,7 @@
                 "coder:g1-914f2bbb-01:error",
                 "coder:g1-914f2bbb-00:done"
               ],
-              "wallMs": 42262.6361,
+              "wallMs": 16823.1182,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -771,7 +771,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 170823680,
+              "maxRssBytes": 223375360,
               "urgencyUsed": [
                 0,
                 0,
@@ -805,7 +805,7 @@
                 "coder:g1-914f2bbb-11:error",
                 "coder:g1-914f2bbb-10:done"
               ],
-              "wallMs": 69385.50790000001,
+              "wallMs": 17179.632700000002,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -814,7 +814,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 222011392,
+              "maxRssBytes": 207114240,
               "urgencyUsed": [
                 0.102647,
                 0.102647,
@@ -853,7 +853,7 @@
                 "coder:g1-914f2bbb-11:error",
                 "coder:g1-914f2bbb-00:done"
               ],
-              "wallMs": 30273.9722,
+              "wallMs": 16712.9352,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -862,7 +862,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 218951680,
+              "maxRssBytes": 191770624,
               "urgencyUsed": [
                 0,
                 0,
@@ -896,7 +896,7 @@
                 "coder:g1-914f2bbb-11:error",
                 "coder:g1-914f2bbb-10:done"
               ],
-              "wallMs": 30340.0748,
+              "wallMs": 17248.52,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -905,7 +905,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 214933504,
+              "maxRssBytes": 178487296,
               "urgencyUsed": [
                 0.17602,
                 0.102647,
@@ -944,7 +944,7 @@
                 "coder:g1-914f2bbb-10:done",
                 "coder:g1-914f2bbb-11:error"
               ],
-              "wallMs": 28052.6115,
+              "wallMs": 17773.1206,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -953,7 +953,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 215248896,
+              "maxRssBytes": 223834112,
               "urgencyUsed": [
                 0,
                 0,
@@ -987,7 +987,7 @@
                 "coder:g1-914f2bbb-10:done",
                 "coder:g1-914f2bbb-11:error"
               ],
-              "wallMs": 26661.559,
+              "wallMs": 19165.065300000002,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -996,7 +996,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 181010432,
+              "maxRssBytes": 224387072,
               "urgencyUsed": [
                 0.17602,
                 0.17602,
@@ -1044,7 +1044,7 @@
                 "coder:g1-79a72fce-11:done",
                 "coder:g1-79a72fce-00:error"
               ],
-              "wallMs": 16985.1305,
+              "wallMs": 11834.984400000001,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1053,7 +1053,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 186187776,
+              "maxRssBytes": 191004672,
               "urgencyUsed": [
                 0,
                 0,
@@ -1087,7 +1087,7 @@
                 "coder:g1-79a72fce-00:error",
                 "coder:g1-79a72fce-01:done"
               ],
-              "wallMs": 15947.413,
+              "wallMs": 12394.2531,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1096,7 +1096,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 179101696,
+              "maxRssBytes": 181858304,
               "urgencyUsed": [
                 0.102647,
                 0.137909,
@@ -1135,7 +1135,7 @@
                 "coder:g1-79a72fce-11:done",
                 "coder:g1-79a72fce-00:error"
               ],
-              "wallMs": 27913.4083,
+              "wallMs": 12322.7736,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1144,7 +1144,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 186617856,
+              "maxRssBytes": 189837312,
               "urgencyUsed": [
                 0,
                 0,
@@ -1178,7 +1178,7 @@
                 "coder:g1-79a72fce-00:error",
                 "coder:g1-79a72fce-01:done"
               ],
-              "wallMs": 22733.821900000003,
+              "wallMs": 12244.0465,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1187,7 +1187,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 180260864,
+              "maxRssBytes": 183226368,
               "urgencyUsed": [
                 0.102647,
                 0.137909,
@@ -1226,7 +1226,7 @@
                 "coder:g1-79a72fce-01:done",
                 "coder:g1-79a72fce-11:done"
               ],
-              "wallMs": 15196.6769,
+              "wallMs": 12506.5309,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1235,7 +1235,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 189362176,
+              "maxRssBytes": 194228224,
               "urgencyUsed": [
                 0,
                 0,
@@ -1269,7 +1269,7 @@
                 "coder:g1-79a72fce-01:done",
                 "coder:g1-79a72fce-00:error"
               ],
-              "wallMs": 15031.013700000001,
+              "wallMs": 12212.841400000001,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1278,7 +1278,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 188633088,
+              "maxRssBytes": 190349312,
               "urgencyUsed": [
                 0.137909,
                 0.102647,
@@ -1326,7 +1326,7 @@
                 "coder:g1-4eec73d8-00:done",
                 "coder:g1-4eec73d8-11:done"
               ],
-              "wallMs": 20396.85,
+              "wallMs": 13325.065200000001,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1335,7 +1335,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 186929152,
+              "maxRssBytes": 194318336,
               "urgencyUsed": [
                 0,
                 0,
@@ -1369,7 +1369,7 @@
                 "coder:g1-4eec73d8-00:done",
                 "coder:g1-4eec73d8-01:error"
               ],
-              "wallMs": 18821.4163,
+              "wallMs": 13256.0778,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1378,7 +1378,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 181993472,
+              "maxRssBytes": 193593344,
               "urgencyUsed": [
                 0.14007,
                 0.102647,
@@ -1417,7 +1417,7 @@
                 "coder:g1-4eec73d8-11:done",
                 "coder:g1-4eec73d8-01:error"
               ],
-              "wallMs": 18027.0101,
+              "wallMs": 13065.565400000001,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1426,7 +1426,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 226570240,
+              "maxRssBytes": 180985856,
               "urgencyUsed": [
                 0,
                 0,
@@ -1460,7 +1460,7 @@
                 "coder:g1-4eec73d8-01:error",
                 "coder:g1-4eec73d8-00:done"
               ],
-              "wallMs": 19022.444799999997,
+              "wallMs": 12904.4202,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1469,7 +1469,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 195887104,
+              "maxRssBytes": 208896000,
               "urgencyUsed": [
                 0.102647,
                 0.14007,
@@ -1508,7 +1508,7 @@
                 "coder:g1-4eec73d8-01:error",
                 "coder:g1-4eec73d8-10:done"
               ],
-              "wallMs": 18472.4686,
+              "wallMs": 12980.523,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1517,7 +1517,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 181444608,
+              "maxRssBytes": 188715008,
               "urgencyUsed": [
                 0,
                 0,
@@ -1551,7 +1551,7 @@
                 "coder:g1-4eec73d8-01:error",
                 "coder:g1-4eec73d8-00:done"
               ],
-              "wallMs": 17782.263,
+              "wallMs": 12984.215,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1560,7 +1560,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 181612544,
+              "maxRssBytes": 188354560,
               "urgencyUsed": [
                 0.14007,
                 0.102647,
@@ -1608,7 +1608,7 @@
                 "coder:g1-6d17d120-10:done",
                 "coder:g1-6d17d120-11:done"
               ],
-              "wallMs": 16969.596700000002,
+              "wallMs": 12479.8543,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1617,7 +1617,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 184291328,
+              "maxRssBytes": 182358016,
               "urgencyUsed": [
                 0,
                 0,
@@ -1651,7 +1651,7 @@
                 "coder:g1-6d17d120-00:error",
                 "coder:g1-6d17d120-01:done"
               ],
-              "wallMs": 19458.052799999998,
+              "wallMs": 12051.871000000001,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1660,7 +1660,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 177217536,
+              "maxRssBytes": 183549952,
               "urgencyUsed": [
                 0.102647,
                 0.102647,
@@ -1699,7 +1699,7 @@
                 "coder:g1-6d17d120-01:done",
                 "coder:g1-6d17d120-11:done"
               ],
-              "wallMs": 18064.5268,
+              "wallMs": 12427.847099999999,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1708,7 +1708,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 190058496,
+              "maxRssBytes": 196411392,
               "urgencyUsed": [
                 0,
                 0,
@@ -1742,7 +1742,7 @@
                 "coder:g1-6d17d120-01:done",
                 "coder:g1-6d17d120-00:error"
               ],
-              "wallMs": 28802.7724,
+              "wallMs": 12204.7836,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1751,7 +1751,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 189644800,
+              "maxRssBytes": 196345856,
               "urgencyUsed": [
                 0.137909,
                 0.102647,
@@ -1790,7 +1790,7 @@
                 "coder:g1-6d17d120-11:done",
                 "coder:g1-6d17d120-01:done"
               ],
-              "wallMs": 19631.3622,
+              "wallMs": 12391.5165,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1799,7 +1799,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 184176640,
+              "maxRssBytes": 191254528,
               "urgencyUsed": [
                 0,
                 0,
@@ -1833,7 +1833,7 @@
                 "coder:g1-6d17d120-01:done",
                 "coder:g1-6d17d120-00:error"
               ],
-              "wallMs": 20853.137000000002,
+              "wallMs": 11989.9209,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1842,7 +1842,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 176607232,
+              "maxRssBytes": 183930880,
               "urgencyUsed": [
                 0.102647,
                 0.137909,
@@ -1890,7 +1890,7 @@
                 "coder:g1-02d039d7-00:done",
                 "coder:g1-02d039d7-10:done"
               ],
-              "wallMs": 25093.0658,
+              "wallMs": 13765.156400000002,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1899,7 +1899,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 177278976,
+              "maxRssBytes": 183693312,
               "urgencyUsed": [
                 0,
                 0,
@@ -1933,7 +1933,7 @@
                 "coder:g1-02d039d7-00:done",
                 "coder:g1-02d039d7-10:done"
               ],
-              "wallMs": 24167.4463,
+              "wallMs": 13547.9231,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1942,7 +1942,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 177254400,
+              "maxRssBytes": 181665792,
               "urgencyUsed": [
                 0.102647,
                 0.102647,
@@ -1981,7 +1981,7 @@
                 "coder:g1-02d039d7-11:done",
                 "coder:g1-02d039d7-00:done"
               ],
-              "wallMs": 22231.821,
+              "wallMs": 13848.580100000001,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -1990,7 +1990,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 212828160,
+              "maxRssBytes": 224628736,
               "urgencyUsed": [
                 0,
                 0,
@@ -2024,7 +2024,7 @@
                 "coder:g1-02d039d7-11:done",
                 "coder:g1-02d039d7-00:done"
               ],
-              "wallMs": 23414.4079,
+              "wallMs": 13618.3153,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2033,7 +2033,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 167641088,
+              "maxRssBytes": 229949440,
               "urgencyUsed": [
                 0.102647,
                 0.102647,
@@ -2072,7 +2072,7 @@
                 "coder:g1-02d039d7-10:done",
                 "coder:g1-02d039d7-00:done"
               ],
-              "wallMs": 17075.380599999997,
+              "wallMs": 13720.0605,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2081,7 +2081,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 229728256,
+              "maxRssBytes": 221384704,
               "urgencyUsed": [
                 0,
                 0,
@@ -2115,7 +2115,7 @@
                 "coder:g1-02d039d7-10:done",
                 "coder:g1-02d039d7-00:done"
               ],
-              "wallMs": 17491.0106,
+              "wallMs": 13709.1544,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2124,7 +2124,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 182767616,
+              "maxRssBytes": 181469184,
               "urgencyUsed": [
                 0.102647,
                 0.102647,
@@ -2172,7 +2172,7 @@
                 "coder:g1-3e91720e-10:done",
                 "coder:g1-3e91720e-00:error"
               ],
-              "wallMs": 19782.027299999998,
+              "wallMs": 16439.1305,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2181,7 +2181,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 177332224,
+              "maxRssBytes": 217550848,
               "urgencyUsed": [
                 0,
                 0,
@@ -2215,7 +2215,7 @@
                 "coder:g1-3e91720e-00:error",
                 "coder:g1-3e91720e-01:error"
               ],
-              "wallMs": 21376.9268,
+              "wallMs": 19956.9026,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2224,7 +2224,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 216416256,
+              "maxRssBytes": 201015296,
               "urgencyUsed": [
                 0.102647,
                 0.17602,
@@ -2263,7 +2263,7 @@
                 "coder:g1-3e91720e-10:done",
                 "coder:g1-3e91720e-00:error"
               ],
-              "wallMs": 20075.206400000003,
+              "wallMs": 20673.1684,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2272,7 +2272,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 215879680,
+              "maxRssBytes": 181465088,
               "urgencyUsed": [
                 0,
                 0,
@@ -2306,7 +2306,7 @@
                 "coder:g1-3e91720e-00:error",
                 "coder:g1-3e91720e-01:error"
               ],
-              "wallMs": 19193.4656,
+              "wallMs": 21288.6731,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2315,7 +2315,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 166359040,
+              "maxRssBytes": 195428352,
               "urgencyUsed": [
                 0.102647,
                 0.17602,
@@ -2354,7 +2354,7 @@
                 "coder:g1-3e91720e-01:error",
                 "coder:g1-3e91720e-00:error"
               ],
-              "wallMs": 21664.6452,
+              "wallMs": 18441.415999999997,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2363,7 +2363,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 217903104,
+              "maxRssBytes": 180215808,
               "urgencyUsed": [
                 0,
                 0,
@@ -2397,7 +2397,7 @@
                 "coder:g1-3e91720e-01:error",
                 "coder:g1-3e91720e-00:error"
               ],
-              "wallMs": 22139.8298,
+              "wallMs": 19102.845500000003,
               "cost": {
                 "modelCalls": 0,
                 "networkCalls": 0
@@ -2406,7 +2406,7 @@
                 "httpCalls": 9,
                 "coderSteps": 2
               },
-              "maxRssBytes": 213823488,
+              "maxRssBytes": 219287552,
               "urgencyUsed": [
                 0.17602,
                 0.17602,
@@ -2451,7 +2451,7 @@
               "coder:g1-anti-pass-ccad30-stateful-fold-0:done",
               "coder:g1-anti-pass-ccad30-stateful-fold-1:done"
             ],
-            "wallMs": 23648.4614,
+            "wallMs": 15098.707,
             "cost": {
               "modelCalls": 0,
               "networkCalls": 0
@@ -2460,7 +2460,7 @@
               "httpCalls": 9,
               "coderSteps": 2
             },
-            "maxRssBytes": 194678784,
+            "maxRssBytes": 194166784,
             "urgencyUsed": [
               0,
               0,
@@ -2494,7 +2494,7 @@
               "coder:g1-anti-pass-ccad30-stateful-fold-0:done",
               "coder:g1-anti-pass-ccad30-stateful-fold-1:done"
             ],
-            "wallMs": 22276.7301,
+            "wallMs": 15243.2076,
             "cost": {
               "modelCalls": 0,
               "networkCalls": 0
@@ -2503,7 +2503,7 @@
               "httpCalls": 9,
               "coderSteps": 2
             },
-            "maxRssBytes": 194871296,
+            "maxRssBytes": 193417216,
             "urgencyUsed": [
               0.137909,
               0.137909,
@@ -2545,7 +2545,7 @@
               "coder:g1-anti-fail-ccad30-stateful-fold-0:error",
               "coder:g1-anti-fail-ccad30-stateful-fold-1:error"
             ],
-            "wallMs": 23298.4327,
+            "wallMs": 17408.1995,
             "cost": {
               "modelCalls": 0,
               "networkCalls": 0
@@ -2554,7 +2554,7 @@
               "httpCalls": 9,
               "coderSteps": 2
             },
-            "maxRssBytes": 184266752,
+            "maxRssBytes": 195960832,
             "urgencyUsed": [
               0,
               0,
@@ -2588,7 +2588,7 @@
               "coder:g1-anti-fail-ccad30-stateful-fold-0:error",
               "coder:g1-anti-fail-ccad30-stateful-fold-1:error"
             ],
-            "wallMs": 20947.108,
+            "wallMs": 17853.1166,
             "cost": {
               "modelCalls": 0,
               "networkCalls": 0
@@ -2597,7 +2597,7 @@
               "httpCalls": 9,
               "coderSteps": 2
             },
-            "maxRssBytes": 192036864,
+            "maxRssBytes": 195170304,
             "urgencyUsed": [
               0.137909,
               0.137909,
@@ -2639,7 +2639,7 @@
               "coder:g1-anti-single-ccad30-stateful-fold-0:done",
               "coder:g1-anti-single-ccad30-stateful-fold-1:done"
             ],
-            "wallMs": 15863.9474,
+            "wallMs": 16171.5711,
             "cost": {
               "modelCalls": 0,
               "networkCalls": 0
@@ -2648,7 +2648,7 @@
               "httpCalls": 9,
               "coderSteps": 2
             },
-            "maxRssBytes": 195538944,
+            "maxRssBytes": 194600960,
             "urgencyUsed": [
               0,
               0,
@@ -2682,7 +2682,7 @@
               "coder:g1-anti-single-ccad30-stateful-fold-0:done",
               "coder:g1-anti-single-ccad30-stateful-fold-1:done"
             ],
-            "wallMs": 16052.520499999999,
+            "wallMs": 16492.6402,
             "cost": {
               "modelCalls": 0,
               "networkCalls": 0
@@ -2691,7 +2691,7 @@
               "httpCalls": 9,
               "coderSteps": 2
             },
-            "maxRssBytes": 195891200,
+            "maxRssBytes": 194244608,
             "urgencyUsed": [
               0.137909,
               0.137909,
@@ -2737,7 +2737,7 @@
             "coder:g1-ccad30a7-01:done",
             "coder:g1-ccad30a7-11:done"
           ],
-          "wallMs": 15611.823,
+          "wallMs": 17661.3797,
           "cost": {
             "modelCalls": 0,
             "networkCalls": 0
@@ -2746,7 +2746,7 @@
             "httpCalls": 9,
             "coderSteps": 2
           },
-          "maxRssBytes": 188776448,
+          "maxRssBytes": 186793984,
           "urgencyUsed": [
             0,
             0,
@@ -2780,7 +2780,7 @@
             "coder:g1-ccad30a7-01:done",
             "coder:g1-ccad30a7-00:done"
           ],
-          "wallMs": 14010.5869,
+          "wallMs": 16098.5571,
           "cost": {
             "modelCalls": 0,
             "networkCalls": 0
@@ -2789,7 +2789,7 @@
             "httpCalls": 9,
             "coderSteps": 2
           },
-          "maxRssBytes": 188829696,
+          "maxRssBytes": 190447616,
           "urgencyUsed": [
             0.137909,
             0.102647,
