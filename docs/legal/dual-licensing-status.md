@@ -28,6 +28,7 @@ The project owner, Ali Ulu, relicenses HUQAN:
 ## What this does not change
 
 - Versions already published under `AGPL-3.0-only` (up to and including `1.1.1`) remain available under AGPL to anyone who received them.
+- The first release under these terms is the next version after `1.1.1`. The manifest on `main` still reads `1.1.1` until the release commit bumps it, but that tree cannot be published as `1.1.1`: npm never accepts a second upload of a published version, so `huqan@1.1.1` stays the AGPL artifact.
 - No subscription has been sold yet; the first agreement sets the price and order form.
 
 ## Contributions

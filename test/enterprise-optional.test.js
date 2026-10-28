@@ -62,6 +62,29 @@ test('the viewer mount claims no SSO path without the enterprise files', () => {
   assert.deepEqual(JSON.parse(run.stdout.trim()), { saml: false, oidc: false });
 });
 
+test('a deployment that configures OIDC but lacks its files stays fail-closed', () => {
+  const script = [
+    "const { createViewerMount } = require('./lib/http/viewer-mount');",
+    'const mount = createViewerMount({ readReceipt: () => null });',
+    'const o = mount.oidcMount;',
+    "console.log(JSON.stringify({ configured: o.configured, ok: o.ok, fallback: Boolean(o.apiKeyFallback), seam: typeof o.authorize }));",
+    'mount.reset();',
+  ].join('\n');
+  // lib/environment-compat.js reads the OIDC_ISSUER suffix as HUQAN_OIDC_ISSUER.
+  const run = runCore(['-e', script], { env: { HUQAN_OIDC_ISSUER: 'https://idp.example.test' } });
+  assert.equal(run.status, 0, run.stderr);
+  // configured + no fallback is what makes server.js refuse the API key.
+  assert.deepEqual(JSON.parse(run.stdout.trim()), { configured: true, ok: false, fallback: false, seam: 'undefined' });
+});
+
+test('the core OIDC-configured check reads exactly the variables lib/oidc/config.js requires', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'lib', 'http', 'viewer-mount.js'), 'utf8');
+  const block = source.match(/const OIDC_CONFIG_ENV = Object\.freeze\(\[([\s\S]*?)\]\)/);
+  assert.ok(block, 'viewer-mount.js must declare OIDC_CONFIG_ENV');
+  const names = [...block[1].matchAll(/'([A-Z_]+)'/g)].map((match) => match[1]);
+  assert.deepEqual(names.sort(), [...require('../lib/oidc/config').REQUIRED_ENV].sort());
+});
+
 test('the gate still decides without the enterprise files', () => {
   const payload = JSON.stringify({
     hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git status' }, cwd: ROOT, session_id: 's1',
