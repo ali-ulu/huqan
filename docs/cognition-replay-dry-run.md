@@ -153,3 +153,25 @@ CLI'nin mevcut `runReplayCommand` yolu yalnız priority sonucunu döndürmeye
 devam eder; yeni CLI bayrağı veya otomatik terfi yoktur. Bu giriş yalnız ortak
 Lab hattıdır: kilitli corpus, kaynak/qualification/holdout ayrımı, operatör
 kabulü, Coder yürütmesi ve B4/G3 kazanım ölçümünün yerine geçmez.
+
+## Çok kaynaklı adayın Coder bağlaması
+
+Replay adayını mevcut `experience.candidates` girdisine taşırken `sourceRunIds`
+adayın `support` listesini, `compiledSupport` ise derlemede kullanılan sıralı
+listeyi taşır. İlk öğe birincil kaynak, kalan en çok 32 öğe baseline'dır.
+`sourceProcedureHash`, adayın `procedure.hash` değeri; `params` aynı yöntemin
+parametreleri ve `parentVersion`, `procedure.version - 1` olmalıdır.
+
+`compiledSupport` yalnız `sourceRunIds` içindeki benzersiz, dolu kimliklerden
+oluşabilir. Runtime bütün kaynakları mühür ve workspace üzerinden yeniden
+doğrular; aynı birincil/baseline listesiyle mevcut intake ve compiler'ı çağırır.
+Hesaplanan hash `sourceProcedureHash` ile uyuşmazsa yürütme reddedilir.
+Eksik, açık veya yabancı kaynak kabul edilmez. Liste/kimlik/hash biçimi
+`invalid_compiled_support`, geçerli biçimdeki farklı yöntem ise
+`source_procedure_mismatch` ile reddedilir.
+
+Bu alanları taşımayan eski adayların kaynak listesi davranışı korunur.
+Alanlar kabul veya dosya değiştirme yetkisi üretmez: canlı authority fişi,
+gerçekten seçilen tam hash denetimi, qualification, bağımsız kabul testi ve
+rollback mevcut yolda kalır. Entegrasyon testindeki fixture authority kararı
+ve kontrollü canary girdileri gerçek operatör kararı veya M3 kazanımı sayılmaz.

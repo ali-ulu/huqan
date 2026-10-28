@@ -11,6 +11,96 @@ const { runArithmeticSynthesis } = require('../lib/coder/arithmetic-synthesis');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const oldText = 'function clean(value) { return value.toUpperCase(); }';
 const newText = 'function clean(value) { return value.trim().toLowerCase(); }';
+test('explicit replay compilation preserves all sealed sources and rejects broken bindings', t => {
+  const { applyDerivation } = require('../lib/coder/apply-derivation');
+  const { createExperienceJournal } = require('../lib/experience/journal');
+  const { buildLearningProposal } = require('../lib/experience/learning-intake');
+  const { routeCoderProcedure } = require('../lib/experience/coder-routing-runtime');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'replay-compilation-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const journal = createExperienceJournal(), ids = ['one', 'two', 'three'];
+  const repoState = { branch: 'feat/replay', dirty: false, hasUntracked: false };
+  const file = path.join(root, 'source.md');
+  const task = { id: 'source', level: 'l0', allowedPaths: ['source.md'],
+    operation: { type: 'replace_text', path: 'source.md', find: oldText, replace: newText } };
+  for (const id of ids) {
+    fs.writeFileSync(file, `// ${id}\n${oldText}`);
+    const applied = applyDerivation({ task, root, journal, runId: id, repoState });
+    assert.equal(applied.ok, true, JSON.stringify(applied));
+  }
+  fs.writeFileSync(file, oldText);
+  fs.writeFileSync(path.join(root, 'drift.md'), 'no match');
+  fs.writeFileSync(path.join(root, 'ambiguous.md'), oldText + '\n' + oldText);
+  const params = { path: 'source.md', oldText, newText };
+  const compiledSupport = ['three', 'one', 'two'];
+  const proposal = buildLearningProposal(journal, { runId: compiledSupport[0], workspaceId: 'default', params,
+    sourceRunIds: compiledSupport.slice(1) });
+  assert.equal(proposal.ok, true);
+  const candidate = { capabilityId: 'compiled-string', sourceRunIds: ids, compiledSupport,
+    sourceProcedureHash: proposal.procedure.hash, params, qualificationPaths: ['drift.md', 'ambiguous.md'] };
+  const route = value => routeCoderProcedure({ root, journal, workspaceId: 'default', requestId: 'compiled',
+    files: { 'source.md': oldText }, task: { ...task, operation: { type: 'replace_text', path: 'source.md' },
+      experience: { intentOnly: true, riskTier: 'low', candidates: [value] } } });
+  const routed = route(candidate);
+  assert.equal(routed.ok, true, JSON.stringify(routed));
+  assert.equal(routed.decision.boundProcedureVersion, proposal.procedure.hash);
+  const single = buildLearningProposal(journal, { runId: 'one', workspaceId: 'default', params });
+  const singleRoute = route({ ...candidate, compiledSupport: ['one'], sourceProcedureHash: single.procedure.hash });
+  assert.equal(singleRoute.ok, true, JSON.stringify(singleRoute));
+  assert.equal(singleRoute.decision.boundProcedureVersion, single.procedure.hash);
+  const adapted = adaptExpression({ oldText, newText,
+    content: 'function normalize(raw) { return raw.toUpperCase(); }', functionName: 'normalize', family: 'string-expression' });
+  assert.equal(adapted.ok, true, adapted.reason);
+  for (const [target, targetOld, targetNew, adaptation] of [
+    ['target.md', oldText, newText, {}],
+    ['target.js', adapted.oldText, adapted.newText, { sourceParams: params }],
+  ]) {
+    fs.writeFileSync(path.join(root, target), targetOld);
+    const transferred = routeCoderProcedure({ root, journal, workspaceId: 'default', requestId: `transfer-${target}`,
+      transferTestReady: true, files: { [target]: targetOld }, task: { ...task, allowedPaths: [target],
+        operation: { type: 'replace_text', path: target }, test: { command: 'node acceptance.test.js' },
+        synthesis: { functionName: 'normalize', family: 'string-expression' },
+        experience: { intentOnly: true, riskTier: 'low', candidates: [{ ...candidate,
+          params: { path: target, oldText: targetOld, newText: targetNew }, sourcePath: params.path, ...adaptation }] } } });
+    assert.equal(transferred.ok, true, JSON.stringify(transferred));
+    assert.equal(transferred.decision.transfer.sourceHash, proposal.sourceHash);
+    assert.equal(transferred.decision.transfer.sourceProcedureHash, proposal.procedure.hash);
+    assert.equal(fs.readFileSync(path.join(root, target), 'utf8'), targetOld);
+  }
+  const sourceRecords = JSON.stringify(ids.map(id => journal.read(id)));
+  for (const support of [[], null, 'one', ['one', 'one'], ['unknown'], Array(34).fill('one')]) {
+    const refused = route({ ...candidate, compiledSupport: support });
+    assert.equal(refused.ok, false, JSON.stringify({ support, refused }));
+    assert.equal(refused.code, 'invalid_compiled_support');
+  }
+  for (const patch of [
+    { compiledSupport: ['three', 'one'] },
+    { compiledSupport: ['one', 'three', 'two'] },
+    { sourceProcedureHash: '0'.repeat(64) },
+    { parentVersion: 1 },
+  ]) {
+    const refused = route({ ...candidate, ...patch });
+    assert.equal(refused.ok, false, JSON.stringify(refused));
+    assert.equal(refused.code, 'source_procedure_mismatch');
+  }
+  assert.equal(route({ ...candidate, sourceProcedureHash: undefined }).code, 'invalid_compiled_support');
+  fs.writeFileSync(file, `// foreign\n${oldText}`);
+  assert.equal(applyDerivation({ task, root, journal, workspaceId: 'other', runId: 'foreign', repoState }).ok, true);
+  fs.writeFileSync(file, oldText);
+  const started = structuredClone(journal.read('one')[0]);
+  delete started.sequence; delete started.hash;
+  for (const key of ['runId', 'eventId', 'attemptId', 'invocationId', 'causedByEventId']) {
+    if (typeof started[key] === 'string') started[key] = started[key].replace('one', 'open');
+  }
+  const opened = journal.append(started);
+  assert.equal(opened.ok, true, JSON.stringify(opened));
+  for (const id of ['missing', 'foreign', 'open']) {
+    const refused = route({ ...candidate, sourceRunIds: [...ids, id], compiledSupport: [...compiledSupport, id] });
+    assert.equal(refused.ok, false, JSON.stringify({ id, refused }));
+  }
+  assert.equal(fs.readFileSync(file, 'utf8'), oldText);
+  assert.equal(JSON.stringify(ids.map(id => journal.read(id))), sourceRecords);
+});
 test('sealed string method adaptation preserves the source program under new names', () => {
   const target = 'function normalize(raw) { return raw.toUpperCase(); }\nmodule.exports = normalize;';
   const adapted = adaptExpression({ oldText, newText, content: target, functionName: 'normalize', family: 'string-expression' });
