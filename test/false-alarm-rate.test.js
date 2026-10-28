@@ -45,8 +45,8 @@ const CORPUS = loadCorpus(require('node:path').join(__dirname, '..', 'test', 'fi
  * zero). Update with the reason in the PR that moves it.
  */
 const RECORDED = Object.freeze({
-  default: Object.freeze({ safeStopped: 114, safeTotal: 704, riskyAllowed: 0, riskyTotal: 114 }),
-  teamCi: Object.freeze({ safeStopped: 31, safeTotal: 704 }),
+  default: Object.freeze({ safeStopped: 113, safeTotal: 703, riskyAllowed: 0, riskyTotal: 114 }),
+  teamCi: Object.freeze({ safeStopped: 30, safeTotal: 703 }),
 });
 
 test('the corpus is large enough for a rate to mean anything', () => {

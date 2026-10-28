@@ -3960,6 +3960,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/break-glass-ledger.js": {
+   "context": "AgentAction",
+   "evidence": "İP-2 break-glass ledger storage split out of lib/break-glass.js"
+  },
   "lib/break-glass-gate.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"

@@ -35,14 +35,16 @@ person is not there.
 
 For one developer with one agent on one machine.
 
-- The agent's mutating calls are **held** until the person approves them.
+- The agent's mutating calls are **held** for review until the person approves
+  them.
 - `huqan.emergency_stop` stops one agent, or a whole workspace, in one call.
 - Every decision leaves a **Trust Receipt** — a local record verifiable from the
   receipt itself.
 - Runs locally. No cloud, no API key, no account.
-- The break-glass window is the documented way to get a hotfix through a
-  red-CI evening without turning the gate off: time-boxed, scoped, reason
-  required, every use recorded (`docs/break-glass-runbook.md`).
+- The break-glass window is the documented way to clear a **review-eligible**
+  step on a red-CI evening without turning the gate off: it can relax a held
+  `review` into an `allow`, but a `block` stays blocked. Time-boxed, scoped,
+  reason required, every use recorded (`docs/break-glass-runbook.md`).
 
 The solo buyer's sentence: *"I want my agent to be useful, and I want it to
 stop when I would have stopped it."*
@@ -52,8 +54,11 @@ stop when I would have stopped it."*
 For a team or an enterprise where the question is "who approved this, and can
 we prove it".
 
-- The Approval Authority (an OS service, ADR-016) takes the approval decision
-  off the agent's own user account, so the agent cannot approve its own actions.
+- Where the Approval Authority (an OS service, ADR-016) is installed and
+  answering, it takes the approval decision off the agent's own user account.
+  The agent cannot approve its own actions only when it also runs as a separate
+  OS user (ADR-017). With no installed authority, the runtime runs in legacy
+  mode and same-user agents can approve their own actions.
 - A Trust Receipt is produced by the gate that made the decision and held
   locally; the record of an action is not the agent's own account of it.
 - The same guard covers deploys, force-pushes, destructive deletes and secret
@@ -72,9 +77,10 @@ The credibility of the line depends on the honesty of this list.
   software on the same machine; the honest claim is "the risky action did not
   run and the record says why", not "nothing can go wrong".
 - **Not "zero false alarms".** The measured baseline (see
-  `docs/audits/false-alarm-rate-ip1-20261027.md`) shows the current bundled
-  policy stops a share of benign actions. That number is published, not hidden,
-  and the İP-1 work is about lowering it — not about pretending it is zero.
+  `docs/audits/false-alarm-rate-ip1-20261027.md`) is published, not hidden: the
+  default bundled policy stopped 113 of 703 safe calls (16.07%), and the
+  `team-ci` allowlist template lowers that to 30 of 703 (4.27%). The İP-1 work is
+  about lowering that share — not about pretending it is zero.
 - **Not "a model decides".** Nothing here calls a model to decide. The decision
   is rules and a recorded policy, which is why it is reproducible.
 - **Not "unbounded override".** A break-glass window is bounded in time, scope,
@@ -86,12 +92,13 @@ The credibility of the line depends on the honesty of this list.
 The message is only as good as the moment it names, so the demo should be that
 moment and nothing else.
 
-1. Ask the agent to run a deploy command.
-2. Show it **held**, with the receipt naming the rule that held it.
+1. Ask the agent to run a mutating command the gate holds for review, such as
+   `npm run migrate`.
+2. Show it **held** (a `review`), with the receipt naming the rule that held it.
 3. Approve it (or do not) and show the receipt of the decision.
 4. Ask the agent to run a destructive delete; show it **blocked**, not held.
-5. Open a break-glass window for a hotfix; show `npm test` run and the deploy
-   still blocked.
+5. Open a break-glass window for a hotfix; show `npm test` run and a deploy
+   (e.g. `npm publish`) still **blocked**.
 
 Step 5 is the one that separates this from a plain allowlist, and it is the one
 to keep if the demo must be cut to 30 seconds.

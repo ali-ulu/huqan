@@ -189,6 +189,9 @@
       "lib/blast-radius.js": "Core",
       "lib/bounded-ingest-errors.js": "Core",
       "lib/bounded-step-history.js": "Core",
+      "lib/break-glass-gate.js": "Core",
+      "lib/break-glass-ledger.js": "Core",
+      "lib/break-glass.js": "Core",
       "lib/browser-hook-outcome.js": "Core",
       "lib/browser-session-observer.js": "Core",
       "lib/bypass-response.js": "Core",
@@ -337,6 +340,11 @@
       "lib/cognitive-lab-contradiction-policy.js": "Core",
       "lib/cognitive-lab-contradiction-report.js": "Core",
       "lib/cognitive-lab-evaluator.js": "Core",
+      "lib/cognitive-lab-g1-arm-preload.js": "Application",
+      "lib/cognitive-lab-g1-corpus.js": "Application",
+      "lib/cognitive-lab-g1-episode.js": "UI",
+      "lib/cognitive-lab-g1-holdout.js": "Application",
+      "lib/cognitive-lab-g1-stats.js": "Application",
       "lib/cognitive-lab-m7-experiment.js": "Application",
       "lib/cognitive-lab-m7-runtime.js": "Application",
       "lib/cognitive-lab-m7-value-runtime.js": "Application",
@@ -419,6 +427,7 @@
       "lib/emergency-stop-chain.js": "Core",
       "lib/emergency-stop-detection.js": "Core",
       "lib/emergency-stop.js": "Core",
+      "lib/enterprise-module.js": "Core",
       "lib/entity-resolution.js": "Core",
       "lib/environment-compat.js": "Core",
       "lib/error-prevention/admission.js": "Application",
@@ -573,6 +582,7 @@
       "lib/fractal-learn-autotune.js": "Core",
       "lib/fractal-learn.js": "Core",
       "lib/fuzzy-normalization.js": "Core",
+      "lib/gate-hook-break-glass.js": "Core",
       "lib/gate-hook-evaluate.js": "Core",
       "lib/gate-hook-identity.js": "Core",
       "lib/gate-hook-input.js": "Core",
@@ -666,6 +676,7 @@
       "lib/http-human-oversight-adapter-input.js": "Core",
       "lib/http-human-oversight-adapter.js": "Core",
       "lib/http-trust-query.js": "Core",
+      "lib/http/agent-coder-routes.js": "UI",
       "lib/http/agent-discovery.js": "UI",
       "lib/http/agent-registry-routes.js": "UI",
       "lib/http/agent-workflow-routes.js": "UI",
@@ -1429,6 +1440,7 @@
       "scripts/benign-false-block-rate.js": "UI",
       "scripts/binding-site-scan.js": "UI",
       "scripts/build-contradiction-eval-fixture.js": "UI",
+      "scripts/build-false-alarm-corpus.js": "UI",
       "scripts/build-semantic-snli-dataset.js": "UI",
       "scripts/build-semantic-training-dataset.js": "UI",
       "scripts/calibrate-semantic-model.js": "UI",
@@ -1495,6 +1507,7 @@
       "scripts/external-conformance/consumer.js": "UI",
       "scripts/external-conformance/run.js": "UI",
       "scripts/external-conformance/verify-bundle.js": "UI",
+      "scripts/false-alarm-rate.js": "UI",
       "scripts/file-size-policy.js": "UI",
       "scripts/fitness-dashboard-charts.js": "UI",
       "scripts/fitness-dashboard.js": "UI",
@@ -1701,9 +1714,12 @@
       "bin/huqan-gate-hook.js": [
         "lib/authority/autonomy-activation.js",
         "lib/browser-session-observer.js",
+        "lib/cli-operator-presence.js",
         "lib/context-canary.js",
+        "lib/enterprise-module.js",
         "lib/environment-compat.js",
         "lib/external-action-identity-issue.js",
+        "lib/gate-hook-break-glass.js",
         "lib/gate-hook-evaluate.js",
         "lib/gate-hook-identity.js",
         "lib/gate-hook-input.js",
@@ -1712,7 +1728,6 @@
         "lib/gate-signal-provider.js",
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
-        "lib/siem/siem-export-command.js",
         "plugins/aura-risk.js"
       ],
       "bin/huqan-mcp.js": [
@@ -2429,6 +2444,17 @@
         "lib/risk-policy-constants.js",
         "lib/risk-scale.js"
       ],
+      "lib/break-glass-gate.js": [
+        "lib/external-action-guard-rules.js"
+      ],
+      "lib/break-glass-ledger.js": [
+        "lib/emergency-stop-chain.js"
+      ],
+      "lib/break-glass.js": [
+        "lib/break-glass-ledger.js",
+        "lib/huqan-state-root.js",
+        "lib/workspace-id.js"
+      ],
       "lib/browser-hook-outcome.js": [
         "lib/external-action-adapter.js",
         "lib/external-action-envelope.js",
@@ -2817,7 +2843,8 @@
         "lib/coder/project-initialization.js",
         "lib/coder/project-method-memory.js",
         "lib/coder/project-producer.js",
-        "lib/coder/requirements-parser.js"
+        "lib/coder/requirements-parser.js",
+        "lib/experience/coder-promotion-acceptance.js"
       ],
       "lib/coder/conditional-expression-search.js": [
         "lib/coder/expression-search.js",
@@ -3102,6 +3129,30 @@
         "lib/cognitive-lab-b1-replay.js",
         "lib/cognitive-lab-manifest.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-g1-corpus.js": [
+        "lib/coder/project-compute.js",
+        "lib/coder/project-programs.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/experience/array-fold-program.js"
+      ],
+      "lib/cognitive-lab-g1-episode.js": [
+        "agentRuntime.js",
+        "kernel.v2.js",
+        "lib/experience/journal-connection.js",
+        "lib/experience/journal.js",
+        "lib/http/agent-coder-routes.js",
+        "lib/human-oversight-approval-runtime.js",
+        "lib/mcp-operator-capability.js",
+        "lib/mcp/operator-authorization.js",
+        "lib/trust-evidence-ledger.js"
+      ],
+      "lib/cognitive-lab-g1-holdout.js": [
+        "lib/cognitive-lab-g1-corpus.js",
+        "lib/cognitive-lab-g1-stats.js"
+      ],
+      "lib/cognitive-lab-g1-stats.js": [
+        "lib/cognitive-lab-paired-delta.js"
       ],
       "lib/cognitive-lab-m7-runtime.js": [
         "agent.v3.js",
@@ -3543,8 +3594,11 @@
         "lib/experience/optimization-hypothesis.js"
       ],
       "lib/experience/coder-promotion-acceptance.js": [
+        "lib/authority/authority-client.js",
+        "lib/authority/authority-mode.js",
         "lib/authority/decision-attestation.js",
         "lib/authority/decision-envelope.js",
+        "lib/authority/operational-guard.js",
         "lib/experience/coder-promotion-receipt.js",
         "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
@@ -3560,6 +3614,7 @@
       "lib/experience/coder-routing-runtime.js": [
         "lib/experience/capability-trust.js",
         "lib/experience/coder-canary-runtime.js",
+        "lib/experience/coder-promotion-acceptance.js",
         "lib/experience/coder-trust-replay.js",
         "lib/experience/compiler.js",
         "lib/experience/expression-adaptation.js",
@@ -3736,6 +3791,7 @@
         "lib/external-action-gate-install-host-trust.js",
         "lib/external-action-gate-install-spec.js",
         "lib/external-action-gate-install-validate.js",
+        "lib/external-action-identity.js",
         "lib/external-action-receipt.js",
         "lib/gate-hook-input.js"
       ],
@@ -3753,6 +3809,7 @@
       ],
       "lib/external-action-guard-gates.js": [
         "lib/action-risk-classifier.js",
+        "lib/break-glass-gate.js",
         "lib/command-shape-log.js",
         "lib/external-action-envelope.js",
         "lib/external-action-guard-rules.js",
@@ -4002,9 +4059,14 @@
         "lib/adversarial-signals.js",
         "lib/text-utils.js"
       ],
+      "lib/gate-hook-break-glass.js": [
+        "lib/break-glass.js",
+        "lib/gate-hook-input.js"
+      ],
       "lib/gate-hook-evaluate.js": [
         "lib/authority/authority-mode.js",
         "lib/autonomy-receipt-history.js",
+        "lib/break-glass.js",
         "lib/browser-hook-outcome.js",
         "lib/bypass-response.js",
         "lib/bypass-signal-state.js",
@@ -4386,6 +4448,15 @@
       "lib/http-trust-query.js": [
         "requestGuards.js"
       ],
+      "lib/http/agent-coder-routes.js": [
+        "lib/agent-action-firewall.js",
+        "lib/agent-coder-execution.js",
+        "lib/http-human-oversight-adapter-input.js",
+        "lib/http/emergency-stop-gate.js",
+        "lib/http/workflow-decision-gate.js",
+        "lib/http/workflow-envelope.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/http/agent-registry-routes.js": [
         "lib/http/agent-discovery.js",
         "lib/http/operator-grant-routes.js",
@@ -4585,9 +4656,11 @@
         "lib/http/structured-log.js"
       ],
       "lib/http/server-ingest-workflow-runtime.js": [
+        "lib/authority/authority-mode.js",
         "lib/collector-seal-config.js",
         "lib/environment-compat.js",
         "lib/external-action-receipt-collector.js",
+        "lib/http/agent-coder-routes.js",
         "lib/http/ingest-approval-runtime.js",
         "lib/http/ingest-http-routes.js",
         "lib/http/pr-guardian-config.js",
@@ -4665,8 +4738,8 @@
         "lib/http/v5-preflight-route.js"
       ],
       "lib/http/viewer-mount.js": [
-        "lib/oidc/mount.js",
-        "lib/saml/sp-route.js",
+        "lib/enterprise-module.js",
+        "lib/environment-compat.js",
         "lib/viewer/session-store.js",
         "lib/viewer/viewer-gateway.js"
       ],
@@ -5766,6 +5839,7 @@
         "lib/memory-store-utils.js"
       ],
       "lib/module-reachability.js": [
+        "lib/enterprise-module.js",
         "lib/is-plain-object.js",
         "lib/module-reachability-walk.js"
       ],
@@ -7351,6 +7425,12 @@
       ],
       "scripts/external-conformance/run.js": [
         "scripts/spawn-windows-aware.js"
+      ],
+      "scripts/false-alarm-rate.js": [
+        "lib/agent-action-firewall.js",
+        "lib/automation-safety-gate/index.js",
+        "lib/command-policy-templates.js",
+        "lib/external-action-guard.js"
       ],
       "scripts/fitness-dashboard.js": [
         "lib/fitness-history.js",

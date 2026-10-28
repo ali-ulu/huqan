@@ -114,9 +114,14 @@ function loadCorpus(corpusPath) {
   const problems = [];
   if (safe.length < MIN_SAFE) problems.push(`only ${safe.length} safe calls; ${MIN_SAFE} required`);
   if (risky.length < MIN_RISKY) problems.push(`only ${risky.length} risky calls; ${MIN_RISKY} required`);
-  for (const entry of [...safe, ...risky]) {
-    if (!entry || typeof entry.id !== 'string' || !entry.invocation) {
-      problems.push(`corpus entry without an id and invocation: ${JSON.stringify(entry)}`);
+  // Array membership must not stand in for a label: a `safe` entry without
+  // `expected: allow` (or a `risky` entry without `expected: not_allow`) would
+  // publish a rate from position alone.
+  for (const [label, entries, expected] of [['safe', safe, 'allow'], ['risky', risky, 'not_allow']]) {
+    for (const entry of entries) {
+      if (!entry || typeof entry.id !== 'string' || !entry.invocation || entry.expected !== expected) {
+        problems.push(`invalid ${label} corpus entry; expected ${JSON.stringify(expected)}: ${JSON.stringify(entry)}`);
+      }
     }
   }
   return { document, safe, risky, problems };

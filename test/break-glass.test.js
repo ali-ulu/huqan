@@ -135,6 +135,67 @@ test('a window is bound to its workspace and category', t => {
   assert.equal(ledger.check({ windowId: window.windowId, workspaceId: 'team-b' }).refusal, 'break_glass_workspace_mismatch');
   assert.equal(ledger.check({ windowId: window.windowId, workspaceId: 'team-a', category: 'DEPLOYMENT' }).refusal, 'break_glass_category_not_permitted');
   assert.equal(ledger.check({ windowId: window.windowId, workspaceId: 'team-a', category: 'TOOL_CHAIN_EXECUTION' }).active, true);
+  // A category-less call cannot prove it is inside the scope, so it is refused
+  // rather than allowed by omission (#code-review).
+  assert.equal(ledger.check({ windowId: window.windowId, workspaceId: 'team-a' }).refusal, 'break_glass_category_not_permitted');
+});
+
+test('a second issue for one window in the ledger is rejected, not replayed', t => {
+  // `issue()` refuses a duplicate id, but nothing stopped a hand-appended
+  // second `issue` -- which `windowState` replayed as a re-issue, widening an
+  // open window. `verifyEntries` must reject the shape `issue()` cannot make.
+  const { computeEntryHash } = require('../lib/emergency-stop-chain');
+  const directory = scratch(t);
+  const clock = { value: '2026-10-27T18:40:00.000Z' };
+  const ledger = fixedLedger(directory, clock);
+  const { window, ledgerEntry } = ledger.issue({ actor: 'operator:cli', reason: 'hotfix', ttlMs: 60000, maxUses: 1 });
+
+  const secondPayload = {
+    action: 'issue', windowId: window.windowId, workspaceId: window.workspaceId, agentId: null,
+    actor: 'operator:cli', operatorIdentity: null, reason: 'extend the window',
+    issuedAt: clock.value, expiresAt: '2026-10-27T19:40:00.000Z', maxUses: 50, categories: [],
+  };
+  const second = { seq: 1, prevHash: ledgerEntry.hash, hash: computeEntryHash(secondPayload, ledgerEntry.hash), ...secondPayload };
+  fs.appendFileSync(path.join(directory, 'ledger.jsonl'), `${JSON.stringify(second)}\n`, 'utf8');
+
+  const integrity = ledger.verifyIntegrity();
+  assert.equal(integrity.ok, false);
+  assert.equal(integrity.reason, 'ledger_duplicate_issue');
+  assert.equal(ledger.windowState(window.windowId), null, 'a chain with a duplicate issue grants no window');
+  assert.equal(decide('npm test', { breakGlass: { ledger, windowId: window.windowId } }).decision, 'review');
+});
+
+test('concurrent consumes stay within maxUses and leave a verifiable chain', async t => {
+  // The hook runs as a separate process per tool call, so two calls can consume
+  // at once. Without a lock around read-check-append they would both read the
+  // same last entry, append the same `seq`/`prevHash`, and corrupt the chain.
+  const { spawn } = require('node:child_process');
+  const directory = scratch(t);
+  const clock = { value: '2026-10-27T18:40:00.000Z' };
+  const ledger = fixedLedger(directory, clock);
+  const { window } = ledger.issue({ actor: 'operator:cli', reason: 'hotfix', ttlMs: 600000, maxUses: 3 });
+
+  const modulePath = path.join(ROOT, 'lib', 'break-glass.js');
+  const worker = 'const { createBreakGlass } = require(process.argv[1]);'
+    + "const ledger = createBreakGlass({ directory: process.argv[2], now: () => '2026-10-27T18:40:10.000Z' });"
+    + "const out = ledger.consume({ windowId: process.argv[3], workspaceId: 'default' });"
+    + 'process.stdout.write(String(out.consumed));';
+  const run = () => new Promise((resolve) => {
+    const child = spawn(process.execPath, ['-e', worker, modulePath, directory, window.windowId], { stdio: ['ignore', 'pipe', 'inherit'] });
+    let out = '';
+    child.stdout.on('data', (chunk) => { out += chunk; });
+    child.on('close', () => resolve(out.trim()));
+  });
+  const results = await Promise.all(Array.from({ length: 8 }, run));
+  const consumed = results.filter((value) => value === 'true').length;
+
+  const integrity = ledger.verifyIntegrity();
+  assert.equal(integrity.ok, true, `chain corrupted: ${integrity.reason}`);
+  const state = ledger.windowState(window.windowId);
+  assert.ok(state.uses <= 3, `consumed ${state.uses} of 3 allowed uses`);
+  assert.equal(state.uses, consumed, 'the recorded uses match the calls that reported success');
+  const entries = fs.readFileSync(path.join(directory, 'ledger.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(entries.filter((entry) => entry.action === 'consume').length, state.uses);
 });
 
 test('a lifted window grants nothing, and lifting twice records once', t => {
