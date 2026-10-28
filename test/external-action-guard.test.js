@@ -298,6 +298,11 @@ test('the deployment list never promotes a command carrying a mutation flag', ()
     ['npx oxlint', 'allow'],
     ['npx oxlint --fix', 'review'],
     ['npx oxlint --fix-dangerously', 'review'],
+    ['npx oxlint --fix-suggestions', 'review'],
+    // The shell strips the quotes, so Oxlint sees `--fix`; a raw-word check
+    // would have promoted this (#4366).
+    ["npx oxlint '--fix'", 'review'],
+    ['npx oxlint "--fix"', 'review'],
     ['npx tsc --noEmit', 'allow'],
     ['node scripts/check-file-size.js', 'allow'],
     ['node scripts/check-file-size.js --update', 'review'],

@@ -151,14 +151,24 @@ sınıflandırılmamış araç zinciri insana gider. Hedef, önerilen politika o
 ve `npm run check:*` ailesi (20 ad). Hepsi salt-okunur rapor; hiçbiri
 `--fix`/`--write`/`--update` olmadan dosya değiştirmez.
 
-**Yan ürün — bir delik kapatıldı.** `allowlistMatch` bir girdiyi "ön ek" olarak
+**Yan ürün — iki delik kapatıldı.** `allowlistMatch` bir girdiyi "ön ek" olarak
 eşleştirdiği için `npx oxlint` şablona girince `npx oxlint --fix` (kaynağı
 yeniden yazan) komutu da `allow` oluyordu. Aynı sınıf mevcut `team-ci`'de de
 vardı (`npm run lint` → `npm run lint --fix`; `npm run` bayrağı yuttuğu için
 zararsızdı, `npx` yutturmuyor). Kural eklendi: mutasyon bayrağı
-(`--fix`, `--fix-dangerously`, `--write`, `--update`, `--apply`, `--in-place`)
-taşıyan bir komut allowlist tarafından **hiç yükseltilmez**
-(`lib/external-action-envelope.js`, `carriesMutationFlag`).
+(`--fix`, `--fix-suggestions`, `--fix-dangerously`, `--write`, `--update`,
+`--apply`, `--in-place`) taşıyan bir komut allowlist tarafından **hiç
+yükseltilmez** (`lib/external-action-allowlist.js`, `carriesMutationFlag`).
+Karşılaştırma öncesi tırnaklar soyulur: kabuk `'--fix'` kelimesini `--fix`
+olarak iletir, ham-kelime kontrolü tırnaklı bayrağı kaçırırdı. İnceleme sırasında
+kapatılan iki kaçak (`npx oxlint '--fix'`, `npx oxlint --fix-suggestions`) test
+ile sabitlendi.
+
+**Politika seçimi de fail-closed.** Hedef, yalnızca raporun gerçekten ölçtüğü bir
+politikaya göre okunur. `team-ci` kendi allowlist'iyle, **diğer her ad** (eksik,
+yanlış yazılmış veya ölçülmeyen bir politika) varsayılan politikaya düşer; böylece
+bir corpus, ölçülmeyen bir politikayı adlandırarak hedefi "tutmuş" gösteremez
+(`scripts/false-alarm-rate.js`, `selectTargetPolicy`).
 
 ### Yeni ölçüm (`team-ci`, 703 güvenli)
 

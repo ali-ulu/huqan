@@ -203,6 +203,17 @@ function report(label, safe, risky, out) {
   }
 }
 
+/**
+ * The measurement a target is judged against. Only `team-ci` has its own
+ * measurement (the shipped allowlist); every other name -- omitted, misspelled,
+ * or a policy the report does not measure -- falls back to the bare default, so
+ * a corpus cannot claim to meet a target by naming a policy that is not the one
+ * actually measured.
+ */
+function selectTargetPolicy(target, { safeDefault, safeTeamCi }) {
+  return target && target.policy === 'team-ci' ? safeTeamCi : safeDefault;
+}
+
 function targetVerdict(safe, target = {}) {
   const zeroTiers = Array.isArray(target.safeZeroTiers) ? target.safeZeroTiers : [];
   const reviewTiers = new Set(Array.isArray(target.reviewTiers) ? target.reviewTiers : []);
@@ -264,10 +275,14 @@ function main() {
 
   report('default bundled policy', safeDefault, riskyResult, out);
   report("'team-ci' allowlist template", safeTeamCi, riskyResult, out);
-  // The declared target names the policy it is judged under; read it against
-  // that policy's measurement, not against the unconfigured default.
-  const targetPolicy = document.target && document.target.policy === 'default' ? safeDefault : safeTeamCi;
-  for (const line of targetVerdict(targetPolicy, document.target || {})) out(line);
+  // The declared target names the policy it is judged under. Only a policy the
+  // report actually measures may be named: `team-ci` reads against its
+  // allowlist, anything else (an omitted, misspelled or not-yet-supported name)
+  // reads against the bare default, so a corpus cannot appear to meet a target
+  // by naming a policy that is not the one measured.
+  const target = document.target || {};
+  const targetPolicy = selectTargetPolicy(target, { safeDefault, safeTeamCi });
+  for (const line of targetVerdict(targetPolicy, target)) out(line);
 
   out('\nNOTE: this is a report. A miss or a false alarm is evidence, not a policy');
   out('change; the gate is left exactly as measured.');
@@ -308,4 +323,4 @@ function summarize(safe, risky) {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { measureSafe, measureRisky, decide, loadCorpus, stopped, MIN_SAFE, MIN_RISKY, GUARD_OPTIONS };
+module.exports = { measureSafe, measureRisky, decide, loadCorpus, stopped, targetVerdict, selectTargetPolicy, MIN_SAFE, MIN_RISKY, GUARD_OPTIONS };

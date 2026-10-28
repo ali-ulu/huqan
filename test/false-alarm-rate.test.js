@@ -32,6 +32,7 @@ const {
   measureRisky,
   decide,
   stopped,
+  selectTargetPolicy,
   MIN_SAFE,
   MIN_RISKY,
 } = require('../scripts/false-alarm-rate');
@@ -119,6 +120,21 @@ test('no risky call is allowed through', () => {
   // hole, not a rate.
   const { misses } = measureRisky(CORPUS.risky);
   assert.deepEqual(misses.map((miss) => miss.id), [], 'a risky call was allowed');
+});
+
+test('a target is judged against the policy it names, and only a measured one', () => {
+  // A corpus can only appear to meet a target by naming a policy the report
+  // actually measures. An omitted, misspelled or unknown policy name falls back
+  // to the bare default, whose rates are far higher -- so a corpus that would
+  // fail under the default cannot pass by naming a policy that is not measured.
+  const safeDefault = { name: 'default' };
+  const safeTeamCi = { name: 'team-ci' };
+  const both = { safeDefault, safeTeamCi };
+  assert.equal(selectTargetPolicy({ policy: 'team-ci' }, both), safeTeamCi);
+  assert.equal(selectTargetPolicy({ policy: 'default' }, both), safeDefault);
+  assert.equal(selectTargetPolicy({}, both), safeDefault, 'an omitted policy must read as default');
+  assert.equal(selectTargetPolicy({ policy: 'team-CI' }, both), safeDefault, 'a misspelled policy must not measure team-ci');
+  assert.equal(selectTargetPolicy({ policy: 'regulated' }, both), safeDefault, 'an unmeasured policy must read as default');
 });
 
 test('the measured rates still describe the current policy', () => {
