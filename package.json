@@ -1289,6 +1289,7 @@
     "lib/browser-hook-outcome.js",
     "lib/browser-session-observer.js",
     "lib/break-glass.js",
+    "lib/break-glass-ledger.js",
     "lib/break-glass-gate.js",
     "lib/gate-hook-break-glass.js",
     "lib/web-research-workflow.js",
