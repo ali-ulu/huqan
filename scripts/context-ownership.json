@@ -6791,13 +6791,6 @@
    ],
    "evidence": "#2505 capability-card issuance invoked by the huqan-gate CLI entry point"
   },
-  "lib/siem/siem-export-command.js": {
-   "owner": "AgentAction",
-   "consumers": [
-    "Platform"
-   ],
-   "evidence": "#4093 PR-B3: the huqan-gate-hook entry point requires the SIEM export command directly, because lib/siem/ is the Adapters layer and the Core management module may not require one"
-  },
   "lib/browser-session-observer.js": {
    "owner": "AgentAction",
    "consumers": [

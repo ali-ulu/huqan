@@ -153,11 +153,31 @@ test('production still blocks an action with no card', () => {
 });
 
 test('an unrecognised identity flag fails closed instead of taking the local default', () => {
-  const result = evaluateExternalAction(invocation(), atNow({
-    environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: 'yes' },
+  for (const value of ['yes', ' ', '\t']) {
+    const result = evaluateExternalAction(invocation(), atNow({
+      environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY: value },
+    }));
+    assert.equal(result.decision, 'block', `value ${JSON.stringify(value)} must fail closed`);
+    assert.equal(identityFinding(result).reason, IDENTITY_REASONS.CARD_REQUIRED);
+  }
+});
+
+test('an explicit signed-card requirement cannot be bypassed by sending no card', () => {
+  const viaOption = evaluateExternalAction(invocation(), atNow({ environment: {}, requireSignedIdentityCard: true }));
+  assert.equal(viaOption.decision, 'block');
+  assert.equal(identityFinding(viaOption).reason, IDENTITY_REASONS.CARD_REQUIRED);
+
+  const viaEnv = evaluateExternalAction(invocation(), atNow({
+    environment: { HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY: 'block' },
   }));
-  assert.equal(result.decision, 'block');
-  assert.equal(identityFinding(result).reason, IDENTITY_REASONS.CARD_REQUIRED);
+  assert.equal(viaEnv.decision, 'block');
+
+  const reviewOnly = evaluateExternalAction(invocation(), atNow({ environment: {}, requireSignedIdentityCard: 'review' }));
+  assert.equal(reviewOnly.decision, 'review');
+
+  // Opting out of signatures does not re-impose a card requirement.
+  const optOut = evaluateExternalAction(invocation(), atNow({ environment: {}, requireSignedIdentityCard: false }));
+  assert.equal(optOut.decision, 'allow');
 });
 
 test('an explicit opt-out restores allow for unattested actions', () => {

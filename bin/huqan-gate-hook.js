@@ -102,8 +102,12 @@ async function main() {
     // marshal is required here rather than in lib/gate-hook-management.js,
     // because the export is an Adapter and Core may not require one.
     if (command === 'siem-export') {
-      const { runSiemExportCommand } = require('../lib/siem/siem-export-command');
-      await runSiemExportCommand();
+      // SIEM export is an Enterprise feature (LICENSE-ENTERPRISE); a core-only
+      // install says so instead of failing on a missing module.
+      const { enterpriseMissingMessage, loadEnterpriseModule } = require('../lib/enterprise-module');
+      const siem = loadEnterpriseModule('./siem/siem-export-command');
+      if (!siem) throw new Error(enterpriseMissingMessage('SIEM export'));
+      await siem.runSiemExportCommand();
       return;
     }
     if (command === 'adapter') {

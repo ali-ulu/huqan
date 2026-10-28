@@ -86,10 +86,15 @@ kart verilene kadar her komutu bloklamamalı.
 Kartı her yerde zorunlu kılmak **açık bir deployment kararıdır**:
 `HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=block` (library'de
 `requireIdentityCard: true`, CLI'da `--require-identity`). Aynı değişken
-`review` değeriyle inceleme ister; tanınmayan bir değer fail-closed `block`
-sayılır. `NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu bir
-bayrakla gevşetilemez. Kart vermenin kolay yolu `huqan-gate identity issue`
-(bkz. aşağıda).
+`review` değeriyle inceleme ister; tanınmayan bir değer — yalnız boşluk
+dahil — fail-closed `block` sayılır. İmzalı kartı açıkça isteyen bir kurulum
+(`--require-signed-identity`, `requireSignedIdentityCard` ya da
+`HUQAN_EXTERNAL_GUARD_REQUIRE_SIGNED_IDENTITY`) kartsız çağrıyı da aynı
+sertlikte durdurur: kart göndermemek imza şartını atlatmaz.
+`NODE_ENV=production` ise kimliği koşulsuz zorunlu kılar ve bu bir bayrakla
+gevşetilemez. `huqan-gate install` çıktısındaki `identity` notu bu ortamda
+gerçekten uygulanacak kuralı söyler. Kart vermenin kolay yolu
+`huqan-gate identity issue` (bkz. aşağıda).
 
 ### Kart imzası (ed25519)
 

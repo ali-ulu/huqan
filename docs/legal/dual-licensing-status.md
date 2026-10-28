@@ -11,7 +11,8 @@ The project owner, Ali Ulu, relicenses HUQAN:
 
 - **Core** — everything not listed below — is licensed under the **Apache License, Version 2.0** ([`LICENSE`](../../LICENSE)).
 - **Enterprise Files** — `lib/saml/`, `lib/oidc/`, `lib/siem/`, `lib/evidence-pack/` — are licensed under the **HUQAN Enterprise License** ([`LICENSE-ENTERPRISE`](../../LICENSE-ENTERPRISE)): free for development, testing and evaluation; production use requires a subscription agreement. Each file carries `SPDX-License-Identifier: LicenseRef-HUQAN-Enterprise`, and `test/license-enterprise-boundary.test.js` keeps the header and the path list in step.
-- `package.json` declares `Apache-2.0 AND LicenseRef-HUQAN-Enterprise`; the `huqan-verify` and `axiom-verify` packages contain core only and declare `Apache-2.0`.
+- `package.json` declares `SEE LICENSE IN LICENSE`: npm rejects SPDX expressions that contain `LicenseRef`, and the package ships both licenses. `LICENSE` names the carve-out. `CITATION.cff` links `LICENSE` for the same reason. The `huqan-verify` and `axiom-verify` packages contain core only and declare `Apache-2.0`.
+- The core does not depend on the Enterprise Files. They are loaded only when their feature is used (`lib/enterprise-module.js`), and the core starts and gates without them; `test/enterprise-optional.test.js` runs the CLI, the gate and the viewer with those paths removed.
 
 **Why:**
 

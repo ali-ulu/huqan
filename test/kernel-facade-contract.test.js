@@ -344,8 +344,10 @@ test('4C1: verifier license metadata matches the packed Apache core license', ()
   const root = require('../package.json');
   const canonical = require('../packages/huqan-verify/package.json');
   const legacy = require('../packages/axiom-verify/package.json');
-  // The root package also ships the enterprise paths; the verifiers are core only.
-  assert.equal(root.license, 'Apache-2.0 AND LicenseRef-HUQAN-Enterprise');
+  // The root package also ships the enterprise paths, which no npm-valid SPDX
+  // expression can name (npm rejects LicenseRef), so it points at LICENSE; the
+  // verifiers are core only.
+  assert.equal(root.license, 'SEE LICENSE IN LICENSE');
   assert.equal(canonical.license, 'Apache-2.0');
   assert.equal(legacy.license, 'Apache-2.0');
 

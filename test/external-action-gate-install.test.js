@@ -478,6 +478,21 @@ test('a fresh install with no card bound still says how to issue one', t => {
   assert.equal(install.identity.requireEverywhere, 'HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY=block');
 });
 
+test('the install notice reports the requirement this environment actually applies', t => {
+  const saved = process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY;
+  process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY = 'block';
+  t.after(() => {
+    if (saved === undefined) delete process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY;
+    else process.env.HUQAN_EXTERNAL_GUARD_REQUIRE_IDENTITY = saved;
+  });
+  const paths = sandbox(t);
+  const install = manageGate('install', options(paths, 'openhands'));
+  assert.equal(install.identity.required, true);
+  assert.equal(install.identity.requirement, 'block');
+  assert.match(install.identity.reason, /agent_identity_card_required/);
+  assert.match(install.identity.issue, /identity issue/);
+});
+
 test('an expired card is refused before anything is written', t => {
   // The sentinel alone would pass here: `rm -rf /` blocks on the denylist
   // whatever the card says, so a dead card would install green and deny every

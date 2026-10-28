@@ -26,6 +26,12 @@ Using the Enterprise Files in production, or to serve your organization's
 users, requires an active HUQAN Enterprise subscription agreement with
 Ali Ulu covering the number of organizations you deploy them for.
 
+"Using" means turning an Enterprise feature on: configuring SAML or OIDC
+sign-in, running `siem-export`, or running the `evidence` commands. Shipping
+or keeping the Enterprise Files unconfigured alongside the core is not use,
+including the server reading them at start-up to find that SSO is not
+configured. The core runs without them.
+
 4. What you may not do
 
 You may not sell, sublicense or redistribute the Enterprise Files, modified

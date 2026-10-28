@@ -1000,6 +1000,7 @@ test('#4267: server wires the OIDC mount through the viewer mount and the auth g
   assert.match(server, /oidcMount\.authorize\(req\)/);
   assert.match(server, /apiKeyFallback/);
   const mount = fs.readFileSync(path.join(__dirname, '..', 'lib', 'http', 'viewer-mount.js'), 'utf8');
-  assert.match(mount, /require\('\.\.\/oidc\/mount'\)/);
+  // OIDC is an Enterprise file, loaded on demand so core starts without it.
+  assert.match(mount, /loadEnterpriseModule\('\.\/oidc\/mount'\)/);
   assert.match(mount, /oidcMount\.isOidcPath/);
 });
