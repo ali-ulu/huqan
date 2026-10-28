@@ -3956,6 +3956,18 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
   },
+  "lib/break-glass.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
+  "lib/break-glass-gate.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
+  "lib/gate-hook-break-glass.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-GATES-A"
+  },
   "lib/file-effect-sensor.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-GATES-A"
@@ -6772,6 +6784,13 @@
     "Platform"
    ],
    "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+  },
+  "lib/gate-hook-break-glass.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "İP-2 (#ip-1-3): the hook CLI (bin/huqan-gate-hook.js) dispatches the break-glass verb to this module"
   },
   "lib/gate-hook-identity.js": {
    "owner": "AgentAction",

@@ -1,19 +1,28 @@
 'use strict';
 
 /**
- * The entries #4196 added, in a module of their own.
+ * Entries that live here rather than in enforcement-coverage-classification.js.
  *
- * The scanner now counts the read of `globalThis.fetch`, which exposed ten
- * files. They are recorded here rather than in
+ * The #4196 cluster: the scanner began counting the read of `globalThis.fetch`,
+ * which exposed ten files. They are recorded here rather than in
  * enforcement-coverage-classification.js only because that file sat exactly
  * below the large-file threshold (#328) and this cluster is the change that
  * would have pushed it over; each entry is an ordinary classification, judged
  * by the same rules, and would move out if its file outgrew the threshold.
  * The evidence-role prefix that no longer applies is deliberately absent:
  * entries live in whichever module still describes their file honestly.
+ *
+ * İP-2's `lib/break-glass.js` joins for the same reason: the base file is at
+ * the threshold and its two filesystem call sites would push it over.
  */
 
 const INJECTED_FETCH_CLASSIFIED = Object.freeze({
+  'lib/break-glass.js': Object.freeze({
+    role: 'enforcement',
+    why: 'İP-2: appends the hash-chained break-glass ledger the guard reads before relaxing a review into an allow, and every use of a window is recorded here. Gating these writes through admission would be circular, the same reason the emergency stop is classified `enforcement`. '
+      + 'The directory is HUQAN_BREAK_GLASS_DIR or `<state root>/break-glass`, never a request field, and the single file is a fixed ledger name under that directory, so an agent cannot name the path it writes. '
+      + 'Recorded here rather than in enforcement-coverage-classification.js only because that file sat exactly at the large-file threshold (#328) and this is the change that would have pushed it over; the entry is an ordinary classification judged by the same rules',
+  }),
   'lib/external-action-receipt-shipper.js': Object.freeze({
     role: 'egress_operator_gated',
     why: 'appends the collector counter-seals beside the trail and ships that trail to the collector (#1781): signed, tenant-separated batches POSTed to the endpoint the operator configured, the cursor left untouched on any send failure so what is on disk stays the source of truth. '

@@ -18,6 +18,7 @@ const {
   runGateCommand,
   runPolicyCommand,
 } = require('../lib/gate-hook-management');
+const { runBreakGlassCommand } = require('../lib/gate-hook-break-glass');
 const { createProcessFailureHandlers, failureCodeFor } = require('../lib/http/process-failure-handlers');
 const { writeStructuredLog } = require('../lib/http/structured-log');
 // Input parsing lives in lib/gate-hook-input.js, hook evaluation in
@@ -147,6 +148,19 @@ async function main() {
     // the deployment's own policy file. It never runs an action.
     if (command === 'policy') {
       runPolicyCommand();
+      return;
+    }
+    // `break-glass` (İP-2) is the operator surface for time-boxed override
+    // windows: status/issue/lift. Issuing is a terminal act; the hook path only
+    // reads a window whose id an operator issued. The operator credential lives
+    // here, at the composition root (Platform), and is passed into the
+    // AgentAction module as a seam: that module may not import this entrypoint,
+    // and without the seam `issue`/`lift` refuse fail-closed.
+    if (command === 'break-glass') {
+      const { requireOperatorPresence } = require('../lib/cli-operator-presence');
+      await runBreakGlassCommand({
+        authorize: (spec, act) => requireOperatorPresence(spec, {}, act),
+      });
       return;
     }
     if (argumentValue('--identity-log')) return queryIdentityLog();
