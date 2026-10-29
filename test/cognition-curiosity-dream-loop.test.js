@@ -120,6 +120,22 @@ test('an abstaining ranker falls back to the confidence order visibly', () => {
   assert.ok(!selected.hypotheses.some(item => item.region === 'yapabilir'));
 });
 
+test('an abstaining ranker with an empty ranked set reports ABSTAIN, not a candidate-set violation', () => {
+  const corrupt = [{
+    region: 'yapabilir', probeSetId: 'probe-set-1', predictorVersion: 'p1', frameRef: 'frame-1',
+    at: '2026-10-20T00:00:00.000Z', errors: [0.5, Number.POSITIVE_INFINITY],
+  }];
+  const pool = [...flatPool(3), falling()];
+  const selected = selectHypotheses(pool, {
+    rankHypotheses: rankHypothesesByCuriosity, history: corrupt, maxHypotheses: 2,
+  });
+  assert.equal(selected.curiosity.status, 'ABSTAIN');
+  assert.equal(selected.curiosity.reason, 'invalid_history');
+  assert.equal(selected.hypotheses.length, 2);
+  assert.deepEqual(selected.hypotheses.map(item => item.key),
+    extractHypotheses(pool).slice(0, 2).map(item => item.key));
+});
+
 test('the adapter injects the ranker only behind the flag and leaves transitions unchanged', () => {
   const pool = [...flatPool(), falling()];
   const run = (options) => {
