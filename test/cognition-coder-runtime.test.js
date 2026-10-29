@@ -16,6 +16,133 @@ const { AGENT_ACTION_FIREWALL_VERSION } = require('../lib/agent-action-firewall'
 const { buildAgentCoderAction } = require('../lib/agent-coder-execution');
 const { createEmergencyStop, approvalStopAgentId } = require('../lib/emergency-stop');
 const { authorityLift } = require('./helpers/authority-lift');
+const { createAgentCoderExecution } = require('../lib/agent-coder-execution');
+const { createExperienceJournal } = require('../lib/experience/journal');
+const { readSealedRun } = require('../lib/experience/learning-intake');
+const { beginObservation, finishObservation } = require('../lib/agent-cognition-observation');
+
+function ordinaryFixture(t, { replacements = ['3', '2'], timeout = false, synthesis = false } = {}) {
+  const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ordinary-coder-feedback-')));
+  const root = path.join(dir, 'repo'); fs.mkdirSync(root);
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
+  git('init', '-b', 'feature/ordinary'); git('config', 'commit.gpgsign', 'false');
+  git('config', 'core.autocrlf', 'false');
+  fs.writeFileSync(path.join(root, 'value.js'), 'module.exports = () => 1;\n');
+  fs.writeFileSync(path.join(root, 'check.js'), timeout ? 'setInterval(() => {}, 1000);\n'
+    : "require('node:assert/strict').equal(require('./value')(),2);\n");
+  git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'fixture');
+  const candidates = replacements.map(replace => ({ type: 'replace_text', path: 'value.js', find: '1', replace }));
+  const task = { id: 'ordinary', level: 'l0', allowedPaths: ['value.js'], operation: candidates[0],
+    candidates, test: { command: ' node check.js ', ...(timeout ? { timeoutMs: 20 } : {}) },
+    ...(synthesis ? { synthesis: { family: 'affine-integer', examples: [{ input: 0, expected: 1 }] } } : {}) };
+  const goal = 'return two'; const workspaceId = 'default';
+  const memoryPath = path.join(dir, 'graph.json');
+  const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false, memoryPath });
+  const journal = { ...createExperienceJournal() };
+  const approvalRuntime = createHumanOversightApprovalRuntime({ graph: kernel.graph,
+    ledger: createTrustEvidenceLedger({ graph: kernel.graph }),
+    resolveIdentity: ({ role, action: scoped }) => ({ decision: 'allow', identity: {
+      identityRef: role === 'requester' ? 'agent:coder' : 'human:operator',
+      identityHash: role === 'requester' ? 'coder-hash' : 'operator-hash', workspaceId: scoped.workspaceId,
+      authorityRef: 'fixture-owner', agentId: role === 'requester' ? 'coder' : '', ownerActorId: role } }) });
+  const action = buildAgentCoderAction({ root, task, goal, workspaceId,
+    policyVersion: 'fixture-v1', firewallVersion: AGENT_ACTION_FIREWALL_VERSION });
+  const created = approvalRuntime.createReviewCase({ action, firewallDecision: 'review', requesterContext: {} });
+  assert.equal(created.ok, true);
+  assert.equal(approvalRuntime.decide({ caseId: created.case.caseId, decisionType: 'approve', approverContext: {},
+    reason: 'approve exact ordinary task', evidenceDigest: created.case.evidenceDigest }).ok, true);
+  const config = { root, task, goal, action, approvalRuntime, requesterContext: {}, caseId: created.case.caseId, journal };
+  const coder = createAgentCoderExecution(config), step = coder.plan(goal, workspaceId)[0];
+  const state = { goal, workspaceId, observabilityRunId: 'ordinary-runtime' };
+  const opts = { resume: false, maxSteps: 1, maxIterations: 1,
+    cognition: { percept: true, predictionError: true, reward: true, value: true, salience: true },
+    cognitiveScheduler: { budget: 100, starvationWindow: 8 },
+    cognitionFrame: { repo: root, branch: action.args.branch, commit: action.args.head,
+      environment: 'test', actor: 'operator', time: '2026-10-25T00:00:00Z', goal, task: task.id },
+    cognitionCoderExpectations: { [step.id]: { workspaceId, expected: 'passed', sourceGroup: 'ordinary-source', riskScore: 20 } } };
+  const agents = [];
+  t.after(() => { for (const agent of agents) agent.storage.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  return { dir, root, git, task, goal, workspaceId, memoryPath, kernel, journal, config, coder, step, state, opts, agents };
+}
+
+for (const replacements of [['3', '2'], ['3', '4']]) {
+  test(`ordinary native candidate chain binds its final sealed result (${replacements.join(',')})`, t => {
+    const f = ordinaryFixture(t, { replacements });
+    const args = { graph: f.kernel.graph, state: f.state, step: f.step, opts: f.opts, coder: f.coder };
+    const pending = beginObservation(args); assert.ok(pending);
+    assert.equal(pending.descriptor.sourceRefs.length, 2);
+    const result = f.coder.execute(args);
+    const positive = replacements[1] === '2';
+    assert.equal(result.ok, positive, JSON.stringify(result));
+    assert.equal(result.data.attempts.length, 2);
+    assert.equal(result.data.attempts[0].rolledBack, true);
+    assert.equal(result.data.attempts[0].test.exitCode, 1);
+    const observed = finishObservation({ ...args, pending, report: { status: positive ? 'done' : 'error', result } });
+    assert.equal(observed.status, 'MEASURED', JSON.stringify({ observed,
+      firstAttempt: f.journal.read(pending.descriptor.runId).filter(row => ['verification', 'run_closed'].includes(row.type)) }));
+    assert.equal(observed.outcome, positive ? 'confirmed' : 'contradiction');
+    const runId = `${pending.descriptor.baseRunId}:c2`;
+    const sealed = readSealedRun(f.journal, runId, f.workspaceId);
+    assert.equal(sealed.ok, true, JSON.stringify(sealed));
+    assert.equal(observed.sourceHash, sealed.sourceHash);
+    assert.notEqual(observed.sourceHash, readSealedRun(f.journal, pending.descriptor.runId, f.workspaceId).sourceHash);
+    assert.equal(fs.readFileSync(path.join(f.root, 'value.js'), 'utf8'), `module.exports = () => ${positive ? '2' : '1'};\n`);
+    assert.equal(f.git('status', '--porcelain') === '', !positive);
+    assert.equal(finishObservation({ ...args, pending, report: { status: 'done', result: structuredClone(result) } }).status, 'ABSTAIN');
+    const read = f.journal.read;
+    for (const corrupt of [rows => rows.map(row => ({ ...row, workspaceId: 'other' })),
+      rows => rows.map(row => ({ ...row, runId: `${row.runId}:other` })),
+      () => read(pending.descriptor.runId)]) {
+      f.journal.read = (...values) => corrupt(read(...values));
+      assert.equal(finishObservation({ ...args, pending, report: { status: 'done', result } }).status, 'ABSTAIN');
+    }
+    f.journal.read = read;
+  });
+}
+
+test('ordinary observation predeclares at most eight approved native candidate references', t => {
+  for (const count of [8, 9]) {
+    const f = ordinaryFixture(t, { replacements: Array(count).fill('2') });
+    const descriptor = f.coder.observationExpectation({ state: f.state, step: f.step, decisionId: 'bounded',
+      expectation: f.opts.cognitionCoderExpectations[f.step.id] });
+    if (count === 9) assert.equal(descriptor, null);
+    else {
+      assert.equal(descriptor.sourceRefs.length, 8);
+      assert.deepEqual(descriptor.sourceRefs, Array.from({ length: 8 }, (_, i) => `coder-run:${descriptor.baseRunId}:c${i + 1}`));
+    }
+  }
+});
+
+test('ordinary test timeout and unsupported synthesis never become observed success', t => {
+  const f = ordinaryFixture(t, { replacements: ['2'], timeout: true });
+  const args = { graph: f.kernel.graph, state: f.state, step: f.step, opts: f.opts, coder: f.coder };
+  const pending = beginObservation(args); assert.ok(pending);
+  const result = f.coder.execute(args);
+  assert.equal(result.ok, false);
+  assert.notEqual(result.data.attempts[0].test.reason, 'TEST_FAILED');
+  assert.equal(finishObservation({ ...args, pending, report: { status: 'error', result } }).status, 'ABSTAIN');
+  assert.equal(f.git('status', '--porcelain'), '');
+  const unsupported = ordinaryFixture(t, { synthesis: true });
+  assert.equal(beginObservation({ graph: unsupported.kernel.graph, state: unsupported.state,
+    step: unsupported.step, opts: unsupported.opts, coder: unsupported.coder }), null);
+});
+
+test('ordinary AgentV3 records real native acceptance and a fresh process reads the same outcome', t => {
+  const f = ordinaryFixture(t);
+  const agent = new AgentV3({ kernel: f.kernel, dbPath: path.join(f.dir, 'agent.db'),
+    dreamExperimentLoop: false, coderExecution: f.config });
+  f.agents.push(agent);
+  const run = agent.run(f.goal, f.opts);
+  assert.equal(run.data.steps[0].result.data.attempts.length, 2);
+  assert.equal(run.data.steps[0].result.data.attempts[0].rolledBack, true);
+  assert.ok(run.data.cognition.trail.some(row => row.outcome === 'confirmed'), JSON.stringify(run.data.cognition));
+  execFileSync(process.execPath, ['check.js'], { cwd: f.root, windowsHide: true });
+  const child = spawnSync(process.execPath, ['-e',
+    "const Graph=require('./graph');const {readPredictionPairs}=require('./lib/prediction-outcome-pairs');const g=new Graph({useSQLite:false,memoryPath:process.argv[1]});console.log(JSON.stringify(Object.values(readPredictionPairs(g)).map(p=>p.outcome?.state)));", f.memoryPath],
+  { cwd: path.join(__dirname, '..'), encoding: 'utf8', windowsHide: true });
+  assert.equal(child.status, 0, child.stderr);
+  assert.ok(JSON.parse(child.stdout).includes('confirmed'));
+});
 
 test('native rollback observation changes the next approved Coder choice and survives a fresh process', () => {
   const { runM7FeedbackPilot } = require('../lib/cognitive-lab-m7-experiment');
