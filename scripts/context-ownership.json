@@ -2636,6 +2636,10 @@
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md#5: COG-M2 prediction-error signal over prediction/outcome pairs (Knowledge, as lib/prediction-outcome-pairs.js)"
   },
+  "lib/cognition/curiosity.js": {
+   "context": "Knowledge",
+   "evidence": "cognitive-architecture-plan.md section 7: pure COG-M10 learning-progress curiosity ranker over frozen monitoring history; first caller is the Dream experiment loop, which ranks normalized hypotheses before both cuts; signal-only"
+  },
   "lib/cognition-prediction-error-pairs.js": {
    "context": "Knowledge",
    "evidence": "cognitive-architecture-plan.md#5: COG-M2 read-only adapter over lib/prediction-outcome-pairs.js (Knowledge)"

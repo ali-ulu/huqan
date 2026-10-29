@@ -1,6 +1,7 @@
 {
   "lib/cognition/global-workspace.js": "cognitive-architecture-plan.md section 7: pure COG-M6 competition core (ignition, broadcast width, refractory, capture override) shipped ahead of its consumer on purpose; its first production caller is the AgentV3 cognition seam that wires compete/broadcast into observeStepCognition, and it leaves the ledger in that PR",
   "lib/cognition/workspace-specialists.js": "cognitive-architecture-plan.md section 7: pure COG-M6 closed specialist table shipped ahead of its consumer on purpose; its first production caller is the AgentV3 cognition seam that invokes the specialists, and it leaves the ledger in that PR",
+  "lib/cognition/curiosity.js": "cognitive-architecture-plan.md section 7: pure COG-M10 learning-progress curiosity ranker shipped ahead of its consumer on purpose; its first production caller is the Dream experiment loop, which hands it normalized hypotheses to reorder before both cuts, and it leaves the ledger in that PR",
   "lib/action-ir.js": "read-only versioned candidate Action IR composing the L1 semantic record and the shipped external-action decision; pure contract, unit-tested, awaiting an execution surface that adopts it",
   "lib/knowledge-lint.js": "read-only knowledge health lint over the derived view; the scope note docs/architecture/knowledge-wiki-scope.md section 6 fixes its reporting-only boundary, and its report awaits the caller that renders the derived view, which leaves the ledger when it wires"
 }
