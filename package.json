@@ -313,6 +313,7 @@
     "lib/cognition-value-ledger-pairs.js",
     "lib/cognition/cognition-config.js",
     "lib/cognition/contract.js",
+    "lib/cognition/curiosity.js",
     "lib/cognition/dual-process-router.js",
     "lib/cognition/independent-sources.js",
     "lib/cognition/percept-adapters.js",
