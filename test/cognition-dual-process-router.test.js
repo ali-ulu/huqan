@@ -54,6 +54,21 @@ test('insufficient-data trust yields SYSTEM2, probationary at least SYSTEM1_VERI
   assert.equal(escalated.mode, MODES.SYSTEM2);
 });
 
+test('only an explicit trusted state reaches SYSTEM1; every other trust value deliberates', () => {
+  // Fail-closed: a missing, demoted or unrecognized trust state is unknown, so it
+  // must not inherit the fast path even at the lowest possible demand.
+  const low = { predictionError: { recentMean: 0 }, value: { supportScore: 1 }, novelty: 0, arousal: 0 };
+  for (const trustState of [undefined, null, 'demoted', 'bogus', 'TRUSTED']) {
+    const route = { requestId: 'req_1', chosenCapabilityId: 'stored-ab', refusalReason: null };
+    if (trustState !== undefined) route.trustState = trustState;
+    const advice = adviseMode({ ...low, riskLevel: 'low', route });
+    assert.equal(advice.mode, MODES.SYSTEM2, `trustState=${JSON.stringify(trustState)}`);
+    assert.deepEqual(advice.reasons, ['trust_unrecognized']);
+  }
+  // The explicit trusted state is the one fast path.
+  assert.equal(adviseMode({ ...low, riskLevel: 'low', route: trustedRoute() }).mode, MODES.SYSTEM1);
+});
+
 test('unknown components count as maximal demand', () => {
   const advice = adviseMode({ route: trustedRoute(), riskLevel: 'low' });
   assert.deepEqual([...advice.unknownComponents].sort(), ['arousal', 'novelty', 'predictionError', 'uncertainty']);
