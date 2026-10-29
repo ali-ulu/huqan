@@ -110,4 +110,30 @@ bağımsız test, rollback ve varsayılan kapalı cognition davranışı korunur
 Sonuç mevcut prediction/outcome deposuna yazılır; yeni depo veya yöntem terfisi yoktur.
 Yerel regresyon: `node --test test/cognition-coder-outcome-runtime.test.js`.
 Normal görev regresyonları: `node --test test/agent-coder-execution.test.js test/cognition-coder-runtime.test.js`.
-Bu dilim kalıcı ödül beklentisi, M3 okuyucusu veya öğrenme kazanımı deneyi değildir.
+Normal görev gözlemi tek başına M3 okuyucusunu veya öğrenme kazanımını tamamlamaz.
+
+## Kalıcı beklenti ve kabul kaynağı
+
+Ödül açıkken mevcut prediction/outcome mutasyon kayıtları karar öncesi bağlamı
+`rewardContext` alanında saklar: iş türü anahtarı, dondurulmuş beklenti ve
+workspace/frame ile sınırlı tarihçe sınırı. Kayıt, ilk Coder adayı başlamadan
+önce yazılır. Sonradan gelen sonuçlar o kararın beklentisini değiştirmez.
+`expected: null`, mevcut ödül çekirdeğinin açık önselini belirtir; eksik tarihçe
+ile aynı şey değildir. Geçersiz tarihçede beklenti üretilmez ve ödül abstain kalır.
+
+Yalnız alıcının mühürlü native zincirden doğruladığı kabul, outcome kaydına
+`acceptance: { sourceRef, sourceHash, scopeHash, runId }` olarak eklenir.
+Bu bağ, önceden bildirilen aday referanslarından biri ve prediction kapsamıyla
+eşleşmelidir. Son adayın kaynağı saklanır; önceki rollback kaynağı onun yerine
+geçmez. Aynı karar veya sonuç kimliğini farklı bağlam/kaynakla tekrarlamak reddedilir.
+Metadata taşımayan eski kayıtların okuma biçimi korunur.
+
+`readPredictionPairs`, yeni bağlam/kaynak alanlarını mevcut kayıtlardan yeni
+süreçte de döndürür. Gerçek AgentV3 testi c1 rollback → c2 kabul zincirinde
+beklentinin eylemden önce kaydedildiğini, yeniden açılan journal'ın aynı c2
+hash'ini taşıdığını ve salt okunur kontrolün journal dosyasını değiştirmediğini sınar.
+Kayıt katmanı yeni bir onay otoritesi değildir; gerçek kaynak doğrulaması mevcut
+Coder alıcısına aittir.
+
+M3 CLI'nin bu kayıtları native journal ile birleştirerek kullanması ayrı teslimdir.
+Burada M3 okuyucusu, holdout veya genel öğrenme kazanımı tamamlanmış sayılmaz.
