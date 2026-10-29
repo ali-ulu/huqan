@@ -33,13 +33,16 @@ test('dualProcess annotations never touch the queued steps and stay advice-only'
   for (const key of Object.keys(advice)) {
     assert.equal(advice[key].executes, false);
     assert.equal(advice[key].authority, 'ROUTING_ADVICE_ONLY');
-    assert.equal(advice[key].routeRef.chosenCapabilityId, null);
+    // routeRef now carries chosenCapabilityId derived from candidate
+    assert.ok(advice[key].routeRef.chosenCapabilityId, `routeRef.chosenCapabilityId should be non-null for ${key}`);
+    assert.equal(advice[key].routeRef.requestId, key);
   }
-  // Unknown risk deliberates before anything else, and the seam has no route yet.
+  // Unknown risk deliberates before anything else (no value entry -> insufficient-data -> SYSTEM2)
   assert.equal(advice.a.mode, 'SYSTEM2');
   assert.equal(advice.a.reasons[0], 'risk_requires_deliberation');
+  // Low risk with no value entry -> insufficient-data -> SYSTEM2
   assert.equal(advice.b.mode, 'SYSTEM2');
-  assert.equal(advice.b.reasons[0], 'no_compiled_procedure');
+  assert.equal(advice.b.reasons[0], 'trust_insufficient_data');
 });
 
 test('without the dualProcess flag no advice map is created', t => {
