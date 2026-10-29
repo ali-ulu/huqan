@@ -323,6 +323,7 @@
     "lib/cognition/reward-signal.js",
     "lib/cognition/salience.js",
     "lib/cognition/value-ledger.js",
+    "lib/cognition/working-memory.js",
     "lib/bounded-step-history.js",
     "lib/agent-memory-runtime.js",
     "lib/agent-plan-runtime.js",

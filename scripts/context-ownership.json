@@ -2584,6 +2584,10 @@
    "context": "AgentAction",
    "evidence": "cognitive-architecture-plan.md section 7: pure COG-M5 dual-process routing advice; first caller is the application cognition seam, reusing its existing route and risk inputs"
   },
+  "lib/cognition/working-memory.js": {
+   "context": "AgentAction",
+   "evidence": "#4066: pure COG-M11 limited working memory buffer; first caller is the application cognition seam"
+  },
   "lib/cognition/salience.js": {
    "context": "AgentAction",
    "evidence": "cognitive-architecture-plan.md section 7: pure COG-M7 candidate attention scoring; first caller is the application scheduler seam, reusing its existing goal matching"

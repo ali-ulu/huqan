@@ -183,3 +183,33 @@ test('a blocked action cannot earn an outcome even when the artifact matches', t
   assert.equal(rows.filter(row => row.result.outcome).length, 0);
   assert.equal(f.state.cognition.pending, undefined);
 });
+test('working memory admits the salience prepareCognition scored for the executed step', t => {
+  const f = fixture(t);
+  f.opts.cognition = { ...flags, workingMemory: true };
+  const queued = [{ id: 'a', tool: 'ask', riskTier: 'high' }, { id: 'b', tool: 'verify', riskTier: 'low' }];
+  prepareCognition({ ...f, queued, goal: 'ask' });
+  const prepared = f.state.cognition.trail.at(-1);
+  assert.equal(prepared.status, 'MEASURED');
+  const step = queued.shift();
+  beginStepCognition({ ...f, step });
+  observeStepCognition({ ...f, step, report: { status: 'done', result: { ok: true } } });
+  const { items } = f.state.cognition.workingMemory;
+  assert.deepEqual(items.map(item => item.key), [step.id]);
+  assert.equal(items[0].salience, prepared.ranked.find(row => row.key === step.id).salience);
+  const unscored = { id: 'c', tool: 'ask' };
+  beginStepCognition({ ...f, step: unscored });
+  observeStepCognition({ ...f, step: unscored, report: { status: 'done', result: { ok: true } } });
+  assert.deepEqual(f.state.cognition.workingMemory.items.map(item => item.key), [step.id]);
+});
+test('working memory capacity is a separate option and does not reject the cognition config', t => {
+  const f = fixture(t);
+  f.opts.cognition = { ...flags, workingMemory: true };
+  f.opts.workingMemoryCapacity = 2;
+  const queued = [{ id: 'a', tool: 'ask' }];
+  prepareCognition({ ...f, queued, goal: 'ask' });
+  const step = queued.shift();
+  beginStepCognition({ ...f, step });
+  observeStepCognition({ ...f, step, report: { status: 'done', result: { ok: true } } });
+  assert.equal(f.state.cognition.workingMemory.capacity, 2);
+  assert.ok(f.state.cognition.trail.every(entry => entry.status !== 'REJECT'));
+});
