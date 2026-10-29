@@ -112,6 +112,9 @@ const HEAVY_FILES = Object.freeze(new Set([
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',
+  // cognitive-lab-g1 builds a real git source and replays the holdout: 67.2s on
+  // #4398 windows shard 5, SIGTERM-killed at 90.8s on #4399 windows shard 2.
+  'test/cognitive-lab-g1.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {
