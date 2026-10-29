@@ -201,3 +201,15 @@ test('working memory admits the salience prepareCognition scored for the execute
   observeStepCognition({ ...f, step: unscored, report: { status: 'done', result: { ok: true } } });
   assert.deepEqual(f.state.cognition.workingMemory.items.map(item => item.key), [step.id]);
 });
+test('working memory capacity is a separate option and does not reject the cognition config', t => {
+  const f = fixture(t);
+  f.opts.cognition = { ...flags, workingMemory: true };
+  f.opts.workingMemoryCapacity = 2;
+  const queued = [{ id: 'a', tool: 'ask' }];
+  prepareCognition({ ...f, queued, goal: 'ask' });
+  const step = queued.shift();
+  beginStepCognition({ ...f, step });
+  observeStepCognition({ ...f, step, report: { status: 'done', result: { ok: true } } });
+  assert.equal(f.state.cognition.workingMemory.capacity, 2);
+  assert.ok(f.state.cognition.trail.every(entry => entry.status !== 'REJECT'));
+});
