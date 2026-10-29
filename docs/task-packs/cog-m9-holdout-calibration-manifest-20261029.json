@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "huqan-m9-manifest-v1",
+  "phase": "calibration",
+  "seed": 20261029,
+  "sourceSha": "ee4c4ba6c5f53066f2439121f055c66b6bc8d798",
+  "corpusDigest": "b3679e0f0ec364f8478ded5b309ce24fec79a6cfdd2169ede2d5f49050295aa3",
+  "protocol": {
+    "splitRows": {
+      "train": 24,
+      "calibration": 24,
+      "holdout": 24
+    },
+    "rateBands": [
+      0.9,
+      0.85,
+      0.8,
+      0.75,
+      0.7,
+      0.3,
+      0.25,
+      0.2,
+      0.15,
+      0.1
+    ],
+    "uniformRate": 0.5,
+    "splitOrder": [
+      "train",
+      "calibration",
+      "holdout"
+    ],
+    "minEffect": 0.05,
+    "contract": {
+      "method": "seeded-paired-bootstrap",
+      "seed": 40630,
+      "resamples": 2000,
+      "confidenceLevel": 0.95,
+      "meaningfulEffect": 0,
+      "nonInferiorityMargin": 0.05,
+      "minimumSamples": 10,
+      "direction": "lower-brier-is-better"
+    }
+  },
+  "digests": {
+    "corpus": "0ec81a2d72413690b189f1401a7afc3148ac14b2053fc7ed746e9b70a8e6ecfe",
+    "evaluator": "fbe4440cad0ae872c8117fee27e09d1996a29ec8ae7ca1a3c851bd1029605482",
+    "runner": "a871904c860f4d1111bbc52391c22706ffdd05ae59eeb8d73fa2c727482fc557",
+    "preregistration": "b9ee6366b0eab6fe0b45d7b561743324e10c2a2c94b0dad57ad4f9dc9186b3c5"
+  },
+  "splits": {
+    "train": 240,
+    "calibration": 240,
+    "holdout": 240
+  },
+  "audit": {
+    "status": "CLEAN",
+    "checked": 720
+  },
+  "calibration": {
+    "status": "MEASURED",
+    "paired": 240,
+    "sigma": 0.24924178322510354,
+    "mean": 0.07770485778449973,
+    "baselineBrier": 0.24864171776361235,
+    "candidateBrier": 0.17093685997911248
+  },
+  "antiCase": {
+    "uniform": {
+      "status": "MEASURED",
+      "label": "NOT_CLEARED",
+      "gain": false
+    }
+  },
+  "lock": {
+    "requiredSample": 195,
+    "powerMet": true,
+    "sigma": 0.24924178322510354,
+    "minEffect": 0.05,
+    "minimumSamples": 10,
+    "holdoutDecisions": 240
+  }
+}

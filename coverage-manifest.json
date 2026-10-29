@@ -2,17 +2,17 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 108,
-    "sites": 285,
+    "files": 110,
+    "sites": 291,
     "byCapability": {
-      "process": 54,
+      "process": 55,
       "egress": 23,
-      "fs_write": 208
+      "fs_write": 213
     },
     "byRole": {
       "enforcement": 48,
       "adapter_read": 11,
-      "operator_tool": 138,
+      "operator_tool": 144,
       "persistence": 58,
       "evidence": 16,
       "egress_operator_gated": 11,
@@ -1214,6 +1214,57 @@
         },
         {
           "line": 149,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cognitive-lab-m9-corpus.js",
+      "role": "operator_tool",
+      "why": "#4388 seeded M9 holdout corpus generator; writes only the caller-named request JSON it is explicitly asked to emit, opens no store and adds no production authority.",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 143,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cognitive-lab-m9-holdout.js",
+      "role": "operator_tool",
+      "why": "#4388 explicitly invoked M9 measurement runner; writes only its own manifest and single-use report files, spawns no child, opens no store and adds no production authority.",
+      "capabilities": [
+        "fs_write",
+        "process"
+      ],
+      "sites": [
+        {
+          "line": 53,
+          "capability": "process",
+          "call": "execFileSync"
+        },
+        {
+          "line": 145,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 149,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 154,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 176,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }

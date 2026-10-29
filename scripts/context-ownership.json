@@ -4290,6 +4290,14 @@
    "kind": "infra",
    "evidence": "#4063 store-free M9 value-ledger H1 paired-Brier evaluator behind the cognitive-lab CLI; no production default or gain claim"
   },
+  "lib/cognitive-lab-m9-corpus.js": {
+   "kind": "infra",
+   "evidence": "#4388 seeded M9 value-ledger holdout corpus generator; deterministic split-labelled ledger, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m9-holdout.js": {
+   "kind": "infra",
+   "evidence": "#4388 M9 holdout measurement runner (calibrate/holdout) behind the standalone module entry; no production default or gain claim"
+  },
   "lib/cognitive-lab-g1-holdout.js": {
    "kind": "infra",
    "evidence": "#4065 G1 synthetic holdout measurement runner (holdout); no production default or gain claim"
