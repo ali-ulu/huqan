@@ -2580,6 +2580,10 @@
    "context": "Observability",
    "evidence": "ownership-map-2446.md#R-OBSMISC-O"
   },
+  "lib/cognition/dual-process-router.js": {
+   "context": "AgentAction",
+   "evidence": "cognitive-architecture-plan.md section 7: pure COG-M5 dual-process routing advice; first caller is the application cognition seam, reusing its existing route and risk inputs"
+  },
   "lib/cognition/salience.js": {
    "context": "AgentAction",
    "evidence": "cognitive-architecture-plan.md section 7: pure COG-M7 candidate attention scoring; first caller is the application scheduler seam, reusing its existing goal matching"
