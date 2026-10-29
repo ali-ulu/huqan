@@ -2,17 +2,17 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 110,
-    "sites": 291,
+    "files": 112,
+    "sites": 294,
     "byCapability": {
       "process": 55,
       "egress": 23,
-      "fs_write": 213
+      "fs_write": 216
     },
     "byRole": {
       "enforcement": 48,
       "adapter_read": 11,
-      "operator_tool": 144,
+      "operator_tool": 147,
       "persistence": 58,
       "evidence": 16,
       "egress_operator_gated": 11,
@@ -826,22 +826,22 @@
       ],
       "sites": [
         {
-          "line": 128,
+          "line": 130,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 130,
+          "line": 132,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 183,
+          "line": 185,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 200,
+          "line": 202,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -1001,6 +1001,41 @@
           "line": 385,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cognitive-lab-m10-episode.js",
+      "role": "operator_tool",
+      "why": "#4071 M10 episode creates and removes only its own temporary graph directory, opens no persistent store and adds no production authority.",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 100,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
+        }
+      ]
+    },
+    {
+      "file": "lib/cognitive-lab-m10-runner.js",
+      "role": "operator_tool",
+      "why": "#4071 explicitly invoked M10 measurement runner; writes only its own single-use manifest and report files under the caller-named work directory, opens no store and adds no production authority.",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 31,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 66,
+          "capability": "fs_write",
+          "call": "fs.mkdirSync"
         }
       ]
     },
