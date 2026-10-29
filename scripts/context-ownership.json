@@ -8127,6 +8127,13 @@
    ],
    "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; #4063 adds the Platform cognitive-lab CLI value-ledger H1 measurement surface (opt-in, store-free, no authority) as the only Platform caller"
   },
+  "lib/cognition/curiosity.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "#4071 the AgentV3 dream-loop adapter injects the M10 ranker behind opts.cognition.curiosity; it only reorders Dream hypotheses before the bounded selection and carries no action authority"
+  },
   "lib/cognition/reward-signal.js": {
    "owner": "Knowledge",
    "consumers": [

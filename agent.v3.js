@@ -308,6 +308,7 @@ class AgentV3 {
           maxCycles: opts.dreamExperimentMaxCycles,
           experimentId: opts.dreamExperimentId,
           admissionOpts: opts.dreamExperimentAdmissionOpts,
+          curiosity: opts.cognition?.curiosity === true,
         });
         state.dreamExperimentLoop = loopResult.state;
         loopHandled = loopResult.handled;
