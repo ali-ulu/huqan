@@ -55,9 +55,11 @@ the template to both, or sets `HUQAN_EXTERNAL_GUARD_POLICY` to one file.
 
 ## The templates
 
-Every table below is measured against the same sample action set -- 17
+Every table below is measured against the same sample action set -- 42
 commands, fixed in `test/command-policy-templates.test.js` -- and the test
-pins the decision of every template for every one of them.
+pins the decision of every template for every one of them. The set carries the
+check scripts a CI agent runs, so the tables show what a template promotes on
+the work it actually does.
 
 ### solo-dev
 
@@ -65,7 +67,7 @@ One developer, one machine, the ordinary inner loop. `npm test`, the build
 and the lint run without a prompt.
 
 - Allowed without a prompt: `npm test`, `npm run build`, `npm run lint`, `node --test`
-- Review ratio (sample action set): 6/17
+- Review ratio (sample action set): 31/42
 
 | Action | Decision | Why |
 | --- | --- | --- |
@@ -79,14 +81,20 @@ and the lint run without a prompt.
 ### team-ci
 
 The same inner loop plus the script names a build agent runs. Use it when a
-CI runner or a teammate's agent drives the repository.
+CI runner or a teammate's agent drives the repository. Every promoted command
+is read-only: the `check:*` scripts only report, and the gate refuses to
+promote any command carrying a mutation flag (`--fix`, `--write`, `--update`,
+`--apply`), so `npx oxlint --fix` still asks even though `npx oxlint` is named.
 
-- Allowed without a prompt: `npm test`, `npm run test`, `npm run build`, `npm run lint`, `npm run typecheck`, `npm run check`, `node --test`
-- Review ratio (sample action set): 3/17
+- Allowed without a prompt: the solo list, `npx oxlint`, `npx tsc --noEmit`,
+  `node scripts/check-layers.js`, `node scripts/check-import-cycles.js`,
+  `node scripts/check-file-size.js`, and the `npm run check:*` scripts
+- Review ratio (sample action set): 3/42
 
 | Action | Decision | Why |
 | --- | --- | --- |
-| `npm run typecheck` | allow | named by the template |
+| `npm run typecheck`, `npx oxlint`, `npm run check:licenses` | allow | named by the template |
+| `npx oxlint --fix`, `npm run check:file-size -- --update` | review | a mutation flag is never promoted, even under a named entry |
 | `npm ci` | review | not named; a dependency install runs third-party code |
 | `rm -rf build` | review | a write is a write |
 | `git push`, `gh pr merge` | block | a deploy is blocked by the gate's own rule |
@@ -101,7 +109,7 @@ residency declaration is expected.
 - Residency: declare it with `--residency host[,host]`. Without a declaration
   the gate is told nothing, and it cannot refuse a transfer that leaves the
   declared jurisdiction.
-- Review ratio (sample action set): 9/17
+- Review ratio (sample action set): 34/42
 
 | Action | Decision | Why |
 | --- | --- | --- |
@@ -118,7 +126,7 @@ all: only the gate's own read-only rules let an action through, and
 everything else asks.
 
 - Allowed without a prompt: nothing beyond the gate's own read-only rules
-- Review ratio (sample action set): 10/17
+- Review ratio (sample action set): 35/42
 
 | Action | Decision | Why |
 | --- | --- | --- |

@@ -1444,6 +1444,10 @@
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
   },
+  "lib/external-action-allowlist.js": {
+   "context": "AgentAction",
+   "evidence": "ownership-map-2446.md#R-EXTACTION-A"
+  },
   "lib/external-action-envelope.js": {
    "context": "AgentAction",
    "evidence": "ownership-map-2446.md#R-EXTACTION-A"
@@ -2575,6 +2579,14 @@
   "lib/finalizer-text.js": {
    "context": "Observability",
    "evidence": "ownership-map-2446.md#R-OBSMISC-O"
+  },
+  "lib/cognition/dual-process-router.js": {
+   "context": "AgentAction",
+   "evidence": "cognitive-architecture-plan.md section 7: pure COG-M5 dual-process routing advice; first caller is the application cognition seam, reusing its existing route and risk inputs"
+  },
+  "lib/cognition/working-memory.js": {
+   "context": "AgentAction",
+   "evidence": "#4066: pure COG-M11 limited working memory buffer; first caller is the application cognition seam"
   },
   "lib/cognition/salience.js": {
    "context": "AgentAction",
@@ -4261,6 +4273,10 @@
   "lib/cognitive-lab-m7-value-runtime.js": {
    "kind": "infra",
    "evidence": "#4065 isolated M9 arousal causality control over observed Lab task artifacts; no production default or gain claim"
+  },
+  "lib/cognitive-lab-m9-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#4063 store-free M9 value-ledger H1 paired-Brier evaluator behind the cognitive-lab CLI; no production default or gain claim"
   },
   "lib/cognitive-lab-g1-holdout.js": {
    "kind": "infra",
@@ -8094,9 +8110,10 @@
   "lib/cognition/value-ledger.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; this is the only measured AgentAction caller"
+   "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; #4063 adds the Platform cognitive-lab CLI value-ledger H1 measurement surface (opt-in, store-free, no authority) as the only Platform caller"
   },
   "lib/cognition/reward-signal.js": {
    "owner": "Knowledge",

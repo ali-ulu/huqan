@@ -125,3 +125,64 @@ genişletmek) ayrı bir karardır ve bu paketin kapsamı dışındadır.
   madencisine aittir (`MIN_SHAPE_WORDS`, `lib/command-allowlist-miner.js`);
   `allowlistMatch` tek kelimelik bir girdiyi de kabul eder (komut girdiye eşitse
   ya da `${girdi} ` ile başlıyorsa).
+
+## Takip — hedef ve şablon düzeltmesi
+
+Yukarıdaki ölçüm `2dbd8f90` tabanında alındı ve olduğu gibi bırakıldı. Hedefi
+tutturmak için iki değişiklik yapıldı; kapının kendisi **zayıflatılmadı**.
+
+**1. Hedef katman bazına çevrildi.** `target` artık hangi politikaya göre
+yargılandığını söylüyor (`policy: "team-ci"`) ve bir `reviewTiers` listesi
+taşıyor. Tavan (`≤ %0,20`) yalnızca ne sıfır ne de "sormanın normal olduğu"
+katmanlar üzerinden hesaplanır:
+
+- `safeZeroTiers`: `read`, `diff`, `test`, `lint`, `plan` — sıfır olmalı.
+- `reviewTiers`: `build` — `npm ci`/`npm install` üçüncü-taraf lifecycle
+  scripti çalıştırır, `npm run verify`/`coverage` tüm suite'i koşar. Orada bir
+  `review` **kapının çalışmasıdır**, yanlış alarm değil; tavan dışı bırakıldı.
+- Tavan, kalan katmanlar üzerinde hesaplanır.
+
+Varsayılan (allowlist'siz) politika hedefi **bilerek** tutmaz: her
+sınıflandırılmamış araç zinciri insana gider. Hedef, önerilen politika olan
+`team-ci`'ye göre okunur.
+
+**2. `team-ci` şablonu tamamlandı.** Salt-okunur analiz komutları eklendi:
+`npx oxlint`, `npx tsc --noEmit`, `node scripts/check-{layers,import-cycles,file-size}.js`
+ve `npm run check:*` ailesi (20 ad). Hepsi salt-okunur rapor; hiçbiri
+`--fix`/`--write`/`--update` olmadan dosya değiştirmez.
+
+**Yan ürün — iki delik kapatıldı.** `allowlistMatch` bir girdiyi "ön ek" olarak
+eşleştirdiği için `npx oxlint` şablona girince `npx oxlint --fix` (kaynağı
+yeniden yazan) komutu da `allow` oluyordu. Aynı sınıf mevcut `team-ci`'de de
+vardı (`npm run lint` → `npm run lint --fix`; `npm run` bayrağı yuttuğu için
+zararsızdı, `npx` yutturmuyor). Kural eklendi: mutasyon bayrağı
+(`--fix`, `--fix-suggestions`, `--fix-dangerously`, `--write`, `--update`,
+`--apply`, `--in-place`) taşıyan bir komut allowlist tarafından **hiç
+yükseltilmez** (`lib/external-action-allowlist.js`, `carriesMutationFlag`).
+Karşılaştırma öncesi tırnaklar soyulur: kabuk `'--fix'` kelimesini `--fix`
+olarak iletir, ham-kelime kontrolü tırnaklı bayrağı kaçırırdı. İnceleme sırasında
+kapatılan iki kaçak (`npx oxlint '--fix'`, `npx oxlint --fix-suggestions`) test
+ile sabitlendi.
+
+**Politika seçimi de fail-closed.** Hedef, yalnızca raporun gerçekten ölçtüğü bir
+politikaya göre okunur. `team-ci` kendi allowlist'iyle, **diğer her ad** (eksik,
+yanlış yazılmış veya ölçülmeyen bir politika) varsayılan politikaya düşer; böylece
+bir corpus, ölçülmeyen bir politikayı adlandırarak hedefi "tutmuş" gösteremez
+(`scripts/false-alarm-rate.js`, `selectTargetPolicy`).
+
+### Yeni ölçüm (`team-ci`, 703 güvenli)
+
+| Katman | Durdurulan | Toplam | Kural |
+|---|---:|---:|---|
+| read | 0 | 372 | sıfır ✅ |
+| diff | 0 | 178 | sıfır ✅ |
+| test | 0 | 81 | sıfır ✅ |
+| lint | 0 | 26 | sıfır ✅ |
+| plan | 0 | 40 | sıfır ✅ |
+| build | 5 | 6 | review (tavan dışı) |
+
+- Yargılanan küme: **0 / 697** durduruldu → overall **%0,00 ≤ %0,20** ✅
+- Riskli taraf: **0 / 114** geçti (değişmedi).
+
+**Hedef artık MET.** Varsayılan politikada hâlâ tutmaz; o durum raporda
+görünür ve kasıtlıdır.

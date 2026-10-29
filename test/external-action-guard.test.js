@@ -288,6 +288,32 @@ test('the deployment command list promotes only what it is allowed to promote', 
   }
 });
 
+test('the deployment list never promotes a command carrying a mutation flag', () => {
+  // A named verb can have a mutating variant: `npx oxlint --fix` rewrites
+  // source, `node scripts/check-file-size.js --update` rewrites a baseline.
+  // Prefix matching would promote both, so a promoted command that carries one
+  // of these flags is left to the rules and asks a person (#4366).
+  const allowedCommands = ['npx oxlint', 'npx tsc --noEmit', 'node scripts/check-file-size.js'];
+  const cases = [
+    ['npx oxlint', 'allow'],
+    ['npx oxlint --fix', 'review'],
+    ['npx oxlint --fix-dangerously', 'review'],
+    ['npx oxlint --fix-suggestions', 'review'],
+    // The shell strips the quotes, so Oxlint sees `--fix`; a raw-word check
+    // would have promoted this (#4366).
+    ["npx oxlint '--fix'", 'review'],
+    ['npx oxlint "--fix"', 'review'],
+    ['npx tsc --noEmit', 'allow'],
+    ['node scripts/check-file-size.js', 'allow'],
+    ['node scripts/check-file-size.js --update', 'review'],
+    ['node scripts/check-file-size.js --write', 'review'],
+  ];
+  for (const [command, expected] of cases) {
+    const result = evaluateExternalAction(invocation({ args: { command } }), { allowedCommands, requireIdentityCard: false });
+    assert.equal(result.decision, expected, command);
+  }
+});
+
 test('a receipt says when the deployment list is what allowed a command', () => {
   const allowed = evaluateExternalAction(invocation({ args: { command: 'npm test' } }), { allowedCommands: ['npm test'] });
   assert.equal(allowed.receipt.metadata.allowlistedCommand, 'npm test');
