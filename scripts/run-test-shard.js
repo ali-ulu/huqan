@@ -112,13 +112,8 @@ const HEAVY_FILES = Object.freeze(new Set([
   'test/external-action-gate-install.test.js',
   'test/v5-c5-external-conformance.test.js',
   'test/ui-conflict-triage-browser-smoke.test.js',
-  // cognitive-lab-g1 builds a real git source, spawns the production Coder
-  // route per arm and replays the holdout. It passed in 67.243s on the
-  // windows-latest Node 24 shard 5 of PR #4398 (job 123497596442) and 33s
-  // locally, then was SIGTERM-killed at 90.795s on the windows-latest Node 24
-  // shard 2 of PR #4399 (job 123626912883). The cost is the loaded Windows
-  // runner sitting on the 90s cap, not a hang: the same shape as the entries
-  // above.
+  // cognitive-lab-g1 builds a real git source and replays the holdout: 67.2s on
+  // #4398 windows shard 5, SIGTERM-killed at 90.8s on #4399 windows shard 2.
   'test/cognitive-lab-g1.test.js',
 ]));
 
