@@ -19,6 +19,26 @@ const CONTRACT = Object.freeze({
 });
 
 const digest = text => crypto.createHash('sha256').update(text).digest('hex');
+
+// Preregistration §7/§8 verdict vocabulary: a metricVerdict classifies the
+// measured metric, not the test run's exit status. The pass-side label 'GAIN'
+// requires a measured positive gain AND every other preregistered gate to
+// hold; anything that was measured and failed the threshold is fail-closed
+// 'INSUFFICIENT' (the protocol defines no 'HARM' label), and an unmeasured
+// value stays 'NOT_MEASURED'.
+function classifyWallGainVerdict(gainMs, gatesPass) {
+  if (!Number.isFinite(gainMs)) return 'NOT_MEASURED';
+  return gainMs > 0 && gatesPass ? 'GAIN' : 'INSUFFICIENT';
+}
+
+test('amortized wall-gain verdict is classified per preregistered thresholds (§7)', () => {
+  assert.equal(classifyWallGainVerdict(334, true), 'GAIN');
+  assert.equal(classifyWallGainVerdict(0, true), 'INSUFFICIENT');
+  assert.equal(classifyWallGainVerdict(-334, true), 'INSUFFICIENT');
+  assert.equal(classifyWallGainVerdict(Number.NaN, true), 'NOT_MEASURED');
+  // A positive measurement without a passing gate never reads as a pass claim.
+  assert.equal(classifyWallGainVerdict(334, false), 'INSUFFICIENT');
+});
 const BUDGET = CONTRACT.budget;
 // Declared before training; fixture files are only installed afterwards. Same-method
 // arithmetic/parity transfers; parameter names and value ranges vary per task.
@@ -181,6 +201,18 @@ test('preregistered paired eval: learned arm holds accuracy and cuts amortized t
   assert.equal(digest(fs.readFileSync(path.join(roots.learned, '.huqan/coder/candidates/parity.json'), 'utf8')), candidateHash);
 
   const perTaskProcessGain = evidence.filter(row => row.learnedProcesses < row.baselineProcesses).length;
+  const amortizedWallGainMs = Math.round(baselineWallMs - learnedWallMs - training.wallMs);
+  // Every preregistered gate is a hard assert above, so reaching the report
+  // means accuracy (H1a), per-task process gain (H1b) and the anti-case and
+  // restart gates all held. The wall-time threshold (H1c) is the only gate
+  // that is classified here rather than asserted: a CI timing is a single
+  // observation and must not become a flaky assertion.
+  const wallGainVerdict = classifyWallGainVerdict(amortizedWallGainMs, true);
+  // Test-run success and hypothesis success stay separate: exit 0 proves only
+  // that the measurement is valid. H1 (§1) needs H1c to clear its threshold;
+  // process-count savings (H1b) never override an INSUFFICIENT total cost.
+  const hypothesisVerdict = wallGainVerdict === 'GAIN' && perTaskProcessGain === evidence.length
+    ? 'PROVEN' : 'NOT_PROVEN';
   const report = {
     preregistration: CONTRACT.preregistration, scope: 'same-method (arithmetic/parity) paired transfer eval',
     contract: CONTRACT, training: { processes: training.processes, wallMs: Math.round(training.wallMs) },
@@ -189,8 +221,7 @@ test('preregistered paired eval: learned arm holds accuracy and cuts amortized t
       amortizedSavedProcesses: baselineProcesses - learnedProcesses - training.processes,
       baselineHoldoutWallMs: Math.round(baselineWallMs), learnedHoldoutWallMs: Math.round(learnedWallMs),
       trainingWallMs: Math.round(training.wallMs),
-      amortizedWallGainMs: Math.round(baselineWallMs - learnedWallMs - training.wallMs),
-      cpuCost: 'NOT_MEASURED (no cross-platform child-CPU sampling without new dependencies)' },
+      amortizedWallGainMs, cpuCost: 'NOT_MEASURED (no cross-platform child-CPU sampling without new dependencies)' },
     differentMethodControl: { memoryRejected: true, outcome: rejected.result.data.outcome, rolledBack: true,
       freshSynthesisSucceeded: true, automaticFallback: false, sourceUnchanged: true },
     restartPersistence: { journalReopened: true, manifestSurvived: true, trainingSourceUnchanged: true, candidateUnchanged: true },
@@ -199,7 +230,12 @@ test('preregistered paired eval: learned arm holds accuracy and cuts amortized t
     metricVerdicts: {
       accuracy: 'MEASURED', wrongWrites: CONTRACT.wrongWriteTolerance === 0 ? 'REJECT_THRESHOLD_UNTRIGGERED' : 'REJECT',
       perTaskProcessGain: `${perTaskProcessGain}/${evidence.length}`,
-      amortizedWallGainMs: 'reported', cpuCost: 'NOT_MEASURED',
+      amortizedWallGainMs: wallGainVerdict, cpuCost: 'NOT_MEASURED',
+    },
+    verdict: {
+      // The eval measured cleanly; this does not speak for H1's truth value.
+      testRun: 'PASSED',
+      h1: hypothesisVerdict,
     },
   };
   t.diagnostic(JSON.stringify(report));
