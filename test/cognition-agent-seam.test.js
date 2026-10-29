@@ -183,6 +183,35 @@ test('a blocked action cannot earn an outcome even when the artifact matches', t
   assert.equal(rows.filter(row => row.result.outcome).length, 0);
   assert.equal(f.state.cognition.pending, undefined);
 });
+test('#4387 a family with confirmed-negative value evidence stops promoting itself', t => {
+  const f = fixture(t);
+  const learn = (stepId, tool, sourceGroup, outcome) => {
+    const target = path.join(path.dirname(f.target), `hist-${sourceGroup}.txt`); fs.writeFileSync(target, 'before');
+    f.state.observabilityRunId = `${sourceGroup}-run`;
+    f.opts.cognitionFileExpectations[stepId] = { workspaceId: 'default', path: target,
+      expectedDigest: digest('after'), sourceGroup, riskScore: 0 };
+    beginStepCognition({ ...f, step: { id: stepId, tool } });
+    // confirmed writes the expected content; contradiction leaves the file as-is.
+    if (outcome === 'confirmed') fs.writeFileSync(target, 'after');
+    assert.equal(observeStepCognition({ ...f, step: { id: stepId, tool }, report: { status: 'done' } }).outcome, outcome);
+  };
+  // Three independent confirmations for `compare`, three contradictions for `ask`:
+  // `ask`'s own failure record is exactly the signal that led the M7/G1 holdout loss.
+  for (let i = 0; i < 3; i++) learn(`ask-${i}`, 'ask', `ask-g${i}`, 'contradiction');
+  for (let i = 0; i < 3; i++) learn(`cmp-${i}`, 'compare', `cmp-g${i}`, 'confirmed');
+  const queued = [{ id: 'x', tool: 'ask', riskTier: 'low' }, { id: 'y', tool: 'compare', riskTier: 'low' }];
+  const result = prepareCognition({ ...f, queued, goal: frame.goal });
+  const ask = result.values.find(entry => entry.key === 'risk:ask');
+  assert.equal(ask.status, 'MEASURED');
+  assert.ok(ask.value <= -0.1, 'the failing family carries negative value evidence');
+  // The failing family's disappointment echo is withheld: its surprise and arousal
+  // no longer promote it, so its failure cannot become its own priority signal.
+  assert.equal(result.ranked.find(row => row.key === 'x').salience, 0);
+  // A family with positive evidence keeps its measured arousal.
+  const positive = result.ranked.find(row => row.key === 'y');
+  assert.ok(positive.salience > 0);
+});
+
 test('working memory admits the salience prepareCognition scored for the executed step', t => {
   const f = fixture(t);
   f.opts.cognition = { ...flags, workingMemory: true };

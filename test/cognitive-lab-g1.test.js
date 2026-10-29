@@ -169,3 +169,17 @@ test('the holdout refuses a stale or unlocked manifest before consuming its sing
   fs.writeFileSync(reportFile, '{}', { flag: 'wx' });
   assert.throws(() => runHoldout({ manifest: locked, baseDir: dir, reportFile }), /G1_HOLDOUT_ALREADY_RUN/);
 });
+
+test('the correction cohort is an independent corpus with its own preregistration digest', () => {
+  const base = corpusApi.buildG1Corpus();
+  const correction = corpusApi.buildG1Corpus({ seed: 20261029 });
+  assert.notEqual(corpusApi.corpusDigest(correction), corpusApi.corpusDigest(base));
+  assert.equal(corpusApi.auditSplits(correction).status, 'CLEAN');
+  // No group digest is shared, so the consumed 2026-10-27 holdout cannot leak in.
+  const digests = split => new Set(Object.values(split.splits).flat().map(group => group.digest));
+  const baseDigests = digests(base);
+  for (const group of Object.values(correction.splits).flat()) assert.ok(!baseDigests.has(group.digest));
+  // The new cohort pins its own preregistration document, not the consumed one.
+  assert.notEqual(fingerprint(correction, { preregistration: path.join(__dirname, '..', 'docs', 'task-packs', 'cog-m7-g1-correction-preregistration-20261029.md') }).digests.preregistration,
+    fingerprint(base).digests.preregistration);
+});
