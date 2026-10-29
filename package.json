@@ -1515,6 +1515,7 @@
     "bin/huqan-cognitive-lab.js",
     "lib/cognitive-lab-cli.js",
     "lib/cognitive-lab-evaluator.js",
+    "lib/cognitive-lab-m9-evaluator.js",
     "lib/cognitive-lab-comparison-contract.js",
     "lib/cognitive-lab-comparison.js",
     "lib/cognitive-lab-comparison-store.js",
