@@ -4270,6 +4270,10 @@
    "kind": "infra",
    "evidence": "#4065 isolated M9 arousal causality control over observed Lab task artifacts; no production default or gain claim"
   },
+  "lib/cognitive-lab-m9-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#4063 store-free M9 value-ledger H1 paired-Brier evaluator behind the cognitive-lab CLI; no production default or gain claim"
+  },
   "lib/cognitive-lab-g1-holdout.js": {
    "kind": "infra",
    "evidence": "#4065 G1 synthetic holdout measurement runner (holdout); no production default or gain claim"
@@ -8102,9 +8106,10 @@
   "lib/cognition/value-ledger.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; this is the only measured AgentAction caller"
+   "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; #4063 adds the Platform cognitive-lab CLI value-ledger H1 measurement surface (opt-in, store-free, no authority) as the only Platform caller"
   },
   "lib/cognition/reward-signal.js": {
    "owner": "Knowledge",
