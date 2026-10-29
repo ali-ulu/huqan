@@ -998,7 +998,7 @@
           "call": "fs.writeFileSync"
         },
         {
-          "line": 368,
+          "line": 379,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }

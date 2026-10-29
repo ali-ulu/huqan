@@ -11,7 +11,7 @@ const test = require('node:test');
 const { spawnSync } = require('node:child_process');
 const corpusApi = require('../lib/cognitive-lab-g1-corpus');
 const stats = require('../lib/cognitive-lab-g1-stats');
-const { runPair, prepareSource, runHoldout, armViolations, checkLockedManifest, fingerprint, MANIFEST_SCHEMA } = require('../lib/cognitive-lab-g1-holdout');
+const { runPair, prepareSource, runHoldout, armViolations, checkLockedManifest, fingerprint, MANIFEST_SCHEMA, parseRunArgs } = require('../lib/cognitive-lab-g1-holdout');
 const { execFileSync } = require('node:child_process');
 
 const small = () => corpusApi.buildG1Corpus({ sizes: { train: 3, calibration: 2, holdout: 2 } });
@@ -182,4 +182,14 @@ test('the correction cohort is an independent corpus with its own preregistratio
   // The new cohort pins its own preregistration document, not the consumed one.
   assert.notEqual(fingerprint(correction, { preregistration: path.join(__dirname, '..', 'docs', 'task-packs', 'cog-m7-g1-correction-preregistration-20261029.md') }).digests.preregistration,
     fingerprint(base).digests.preregistration);
+});
+
+test('the runner reads the third argument as a cohort for calibrate and a manifest for holdout', () => {
+  // A shared positional destructure read `calibrate out cohort` as a manifest
+  // path and silently measured the default g1 corpus instead of the cohort.
+  assert.deepEqual(parseRunArgs(['calibrate', 'out.json', 'g1-correction']), { command: 'calibrate', out: 'out.json', cohortName: 'g1-correction' });
+  assert.deepEqual(parseRunArgs(['calibrate', 'out.json']), { command: 'calibrate', out: 'out.json', cohortName: 'g1' });
+  assert.deepEqual(parseRunArgs(['holdout', 'report.json', 'manifest.json']), { command: 'holdout', out: 'report.json', manifestFile: 'manifest.json' });
+  assert.deepEqual(parseRunArgs(['holdout', 'report.json']), { command: null });
+  assert.deepEqual(parseRunArgs([]), { command: null });
 });
