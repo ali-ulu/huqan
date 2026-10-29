@@ -72,7 +72,7 @@ test('a paired run with both co-primary outcomes improving reports GAIN', () => 
   assert.equal(result.assertsGain, false);
   assert.equal(result.evidenceClass, 'controlled-fixture');
   assert.equal(result.intelligenceGain, 'NOT_MEASURED');
-  assert.deepEqual(result.coverage, { holdoutGroups: 24, paired: 24, uncovered: [] });
+  assert.deepEqual(result.coverage, { holdoutGroups: holdoutGroups(corpus).length, paired: holdoutGroups(corpus).length, uncovered: [] });
   assert.deepEqual(evaluate({ executions: {
     candidate: executions(groups, { error: 0.2, success: 1 }).candidate,
     control: executions(groups, { error: 0.6, success: 0.5 }).control,
@@ -123,7 +123,7 @@ test('below the preregistered group floor the run is INSUFFICIENT with visible c
   assert.equal(result.label, 'INSUFFICIENT');
   assert.deepEqual(result.reasons, ['paired_groups_below_required']);
   assert.equal(result.coverage.paired, 20);
-  assert.equal(result.coverage.uncovered.length, 4);
+  assert.equal(result.coverage.uncovered.length, groups.length - 20);
 });
 
 test('integrity bypass, holdout leakage and mismatched arms are rejected', () => {
