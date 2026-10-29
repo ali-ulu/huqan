@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "huqan-cog-m9-value-ledger-evidence-v1",
+  "issue": 4063,
+  "preregistration": "docs/task-packs/cog-m9-value-ledger-preregistration-20261029.md",
+  "boundary": "controlled fixture; no holdout corpus generator for M9; not a gain measurement",
+  "assertsGain": false,
+  "intelligenceGain": "NOT_MEASURED",
+  "corpusBuilder": "trainA=9x confirmed(risk:a), trainB=9x rollback(risk:b), holdA/holdB as named; monotone 2s clock, one source group per row",
+  "cases": {
+    "gain": {
+      "status": "MEASURED",
+      "reason": "paired_gain_measured",
+      "coverage": {
+        "holdoutTotal": 18,
+        "covered": 18,
+        "uncovered": 0
+      },
+      "h1": {
+        "label": "GAIN",
+        "mean": 0.253897231550673,
+        "lower": 0.21287629424079707,
+        "upper": 0.29833089894366255,
+        "confidenceLevel": 0.95,
+        "eceNonInferior": true
+      },
+      "assertsGain": false,
+      "intelligenceGain": "NOT_MEASURED"
+    },
+    "harm": {
+      "status": "MEASURED",
+      "reason": "interval_upper_below_zero",
+      "coverage": {
+        "holdoutTotal": 18,
+        "covered": 18,
+        "uncovered": 0
+      },
+      "h1": {
+        "label": "HARM",
+        "mean": -0.22895352154577134,
+        "lower": -0.30255629770412146,
+        "upper": -0.16062722501073715,
+        "confidenceLevel": 0.95,
+        "eceNonInferior": false
+      },
+      "assertsGain": false,
+      "intelligenceGain": "NOT_MEASURED"
+    },
+    "not_cleared": {
+      "status": "MEASURED",
+      "reason": "interval_below_meaningful_effect",
+      "coverage": {
+        "holdoutTotal": 18,
+        "covered": 18,
+        "uncovered": 0
+      },
+      "h1": {
+        "label": "NOT_CLEARED",
+        "mean": -0.10398222021796034,
+        "lower": -0.24095218687992334,
+        "upper": 0.02801539686934608,
+        "confidenceLevel": 0.95,
+        "eceNonInferior": false
+      },
+      "assertsGain": false,
+      "intelligenceGain": "NOT_MEASURED"
+    },
+    "insufficient": {
+      "status": "INSUFFICIENT",
+      "reason": "sample_below_minimum",
+      "coverage": {
+        "holdoutTotal": 3,
+        "covered": 3,
+        "uncovered": 0
+      },
+      "h1": null,
+      "assertsGain": false,
+      "intelligenceGain": "NOT_MEASURED"
+    },
+    "empty": {
+      "status": "INSUFFICIENT",
+      "reason": "no_holdout_records",
+      "coverage": {
+        "holdoutTotal": 0,
+        "covered": 0,
+        "uncovered": 0
+      },
+      "h1": null,
+      "assertsGain": false,
+      "intelligenceGain": "NOT_MEASURED"
+    }
+  }
+}
