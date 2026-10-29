@@ -2588,6 +2588,14 @@
    "context": "AgentAction",
    "evidence": "#4066: pure COG-M11 limited working memory buffer; first caller is the application cognition seam"
   },
+  "lib/cognition/global-workspace.js": {
+   "context": "AgentAction",
+   "evidence": "#4067: pure COG-M6 competition core (ignition, broadcast, refractory, capture override); first caller is the application cognition seam (PR-3), no action authority"
+  },
+  "lib/cognition/workspace-specialists.js": {
+   "context": "AgentAction",
+   "evidence": "#4067: closed COG-M6 specialist table (scheduler, dream, dual-process-router, replay) mapping each to one allowed proposal kind; first caller is the application cognition seam (PR-3)"
+  },
   "lib/cognition/salience.js": {
    "context": "AgentAction",
    "evidence": "cognitive-architecture-plan.md section 7: pure COG-M7 candidate attention scoring; first caller is the application scheduler seam, reusing its existing goal matching"
