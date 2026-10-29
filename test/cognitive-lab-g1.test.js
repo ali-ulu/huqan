@@ -11,7 +11,7 @@ const test = require('node:test');
 const { spawnSync } = require('node:child_process');
 const corpusApi = require('../lib/cognitive-lab-g1-corpus');
 const stats = require('../lib/cognitive-lab-g1-stats');
-const { runPair, prepareSource, runHoldout, armViolations, checkLockedManifest, fingerprint, MANIFEST_SCHEMA, parseRunArgs } = require('../lib/cognitive-lab-g1-holdout');
+const { runPair, prepareSource, runHoldout, armViolations, checkLockedManifest, fingerprint, MANIFEST_SCHEMA, parseRunArgs, runCalibration } = require('../lib/cognitive-lab-g1-holdout');
 const { execFileSync } = require('node:child_process');
 
 const small = () => corpusApi.buildG1Corpus({ sizes: { train: 3, calibration: 2, holdout: 2 } });
@@ -192,4 +192,8 @@ test('the runner reads the third argument as a cohort for calibrate and a manife
   assert.deepEqual(parseRunArgs(['holdout', 'report.json', 'manifest.json']), { command: 'holdout', out: 'report.json', manifestFile: 'manifest.json' });
   assert.deepEqual(parseRunArgs(['holdout', 'report.json']), { command: null });
   assert.deepEqual(parseRunArgs([]), { command: null });
+  // A misspelled cohort must not be recorded as measured: g1-correction is the
+  // real name, g1-correcton is a typo that would label the g1 corpus as corrected.
+  assert.deepEqual(parseRunArgs(['calibrate', 'out.json', 'g1-correcton']), { command: null });
+  assert.throws(() => runCalibration({ baseDir: os.tmpdir(), cohortName: 'g1-correcton' }), /G1_UNKNOWN_COHORT:g1-correcton/);
 });

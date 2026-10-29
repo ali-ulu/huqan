@@ -903,102 +903,102 @@
       ],
       "sites": [
         {
-          "line": 45,
+          "line": 49,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 47,
+          "line": 51,
           "capability": "process",
           "call": "execFileSync"
         },
         {
-          "line": 49,
+          "line": 53,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 54,
+          "line": 58,
           "capability": "process",
           "call": "execFileSync"
-        },
-        {
-          "line": 59,
-          "capability": "fs_write",
-          "call": "fs.mkdirSync"
-        },
-        {
-          "line": 62,
-          "capability": "fs_write",
-          "call": "fs.rmSync"
         },
         {
           "line": 63,
           "capability": "fs_write",
-          "call": "fs.writeFileSync"
+          "call": "fs.mkdirSync"
+        },
+        {
+          "line": 66,
+          "capability": "fs_write",
+          "call": "fs.rmSync"
         },
         {
           "line": 67,
+          "capability": "fs_write",
+          "call": "fs.writeFileSync"
+        },
+        {
+          "line": 71,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 80,
+          "line": 84,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 81,
+          "line": 85,
           "capability": "fs_write",
           "call": "fs.copyFileSync"
         },
         {
-          "line": 93,
+          "line": 97,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 94,
+          "line": 98,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 110,
+          "line": 114,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 144,
+          "line": 148,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 153,
+          "line": 157,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 205,
+          "line": 209,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 320,
+          "line": 324,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 328,
+          "line": 332,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 356,
+          "line": 360,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 379,
+          "line": 385,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
