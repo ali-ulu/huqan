@@ -262,3 +262,20 @@ Sürekli nöral temsil/plastisite öğrenimi, iç ihtiyaçlardan hedef üretimi,
 - Etiketler: `program:cog`, `faz:1`..`faz:4`, `modul:m1`..`modul:m11`.
 - Issue başlık biçimi: `[COG-M2] Tahmin hatası sinyali — lib/cognition/prediction-error.js`.
 
+
+---
+
+## 11. Biyolojik dayanak (esinlenme, kanıt değil)
+
+Bu bölüm modüllerin hangi biyolojik ve hesaplamalı modelden esinlendiğini kaynaklarıyla kaydeder. Bir modülün HUQAN'da kazanç sağladığı yalnız Cognitive Lab paired-delta ölçümüyle söylenir; aşağıdaki kaynaklar bunun yerine geçmez (bkz. §8, antropomorfik aşırı iddia).
+
+| HUQAN | Model | Kaynak |
+|---|---|---|
+| M9 `arousal` (`lib/cognition/value-ledger.js`: `arousal ← (1−β)·arousal + β·abs(RPE)/RPE_BOUND`) | Pearce–Hall associability: işaretsiz tahmin hatasının yürüyen ortalaması | Pearce & Hall, *Psychological Review* 1980, doi:10.1037/0033-295x.87.6.532 |
+| M9 `arousal` ile M8 RPE'nin ayrı tutulması | İnsanda amigdala associability'yi, striatum ödül tahmin hatasını izler | Li ve ark., *Nature Neuroscience* 2011, doi:10.1038/nn.2904 |
+| Sinyallerin firewall/risk/trust girdisi olamaması (§1, §8) | Nörovisseral entegrasyon modeli: üst düzey ketleyici kontrol, duygusal uyarılmayı düzenler | Thayer & Lane, *Journal of Affective Disorders* 2000, doi:10.1016/s0165-0327(00)00338-4 |
+
+Sınırlar:
+- `arousal` ve `valence` ajanın kendi karar sonuçlarından türetilir; insan fizyolojisi, sensör veya duygu ölçümü değildir.
+- Otonom sinir sistemi ölçümleri duygu kategorilerini güvenilir biçimde ayırmaz (202 çalışmalık meta-analiz: Siegel ve ark., *Psychological Bulletin* 2018, doi:10.1037/bul0000128). Bu nedenle HRV/EKG tabanlı duygu sınıflandırması bir M modülüne girdi olarak planlanmaz.
+- 2026-10-29 itibarıyla M7 pilot raporu M9 arousal için `INSUFFICIENT` der; arousal'ın etkisi `arousalOff` kolunun holdout ölçümüyle belirlenir.
