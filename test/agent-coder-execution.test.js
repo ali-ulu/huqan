@@ -61,6 +61,35 @@ function fixture(t, replacement = '2', approve = true, synthesis = false) {
   return { root, task, goal, workspaceId, git, config, adapter, state, step, approvalRuntime, graph };
 }
 
+test('ordinary approved Coder prepares a source-bound independent acceptance observation', t => {
+  const f = fixture(t);
+  const journal = require('../lib/experience/journal').createExperienceJournal();
+  const adapter = createAgentCoderExecution({ ...f.config, journal });
+  const descriptor = adapter.observationExpectation({ step: f.step, state: f.state,
+    decisionId: 'ordinary-observation', expectation: { workspaceId: f.workspaceId,
+      expected: 'passed', sourceGroup: 'ordinary-source', riskScore: 20 } });
+  assert.ok(descriptor, 'ordinary task has an approved test but no observation descriptor');
+  assert.equal(descriptor.head, f.config.action.args.head);
+  assert.equal(descriptor.workspaceId, f.workspaceId);
+  assert.deepEqual(descriptor.sourceRefs, [descriptor.sourceRef]);
+  const input = { step: f.step, state: f.state, descriptor, decisionId: 'ordinary-observation' };
+  assert.equal(adapter.observeAcceptance({ ...input, result: { ok: true } }), null);
+  const result = adapter.execute(input);
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.notEqual(f.git('status', '--porcelain'), '', 'successful tracked patch is dirty');
+  const observed = adapter.observeAcceptance({ ...input, result });
+  assert.equal(observed?.outcome, 'confirmed', JSON.stringify(observed));
+  assert.equal(observed.sourceRef, descriptor.sourceRef);
+  assert.equal(observed.sourceHash, require('../lib/experience/learning-intake')
+    .readSealedRun(journal, descriptor.runId, f.workspaceId).sourceHash);
+  for (const override of [{ result: structuredClone(result) }, { decisionId: 'other' },
+    { descriptor: { ...descriptor, ticketId: 'other' } },
+    { state: { ...f.state, workspaceId: 'other' } }, { step: { ...f.step, id: 'coder:other' } }])
+    assert.equal(adapter.observeAcceptance({ ...input, result, ...override }), null);
+  f.git('add', 'value.js'); f.git('commit', '-m', 'head drift');
+  assert.equal(adapter.observeAcceptance({ ...input, result }), null);
+});
+
 test('real approved Coder execution changes source only after reservation and independent test', t => {
   const f = fixture(t);
   assert.equal(f.adapter.approvalId, f.config.caseId);
