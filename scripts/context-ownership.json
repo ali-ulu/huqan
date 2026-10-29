@@ -2638,7 +2638,7 @@
   },
   "lib/cognition/curiosity.js": {
    "context": "Knowledge",
-   "evidence": "#4071: pure COG-M10 learning-progress curiosity ranker over frozen monitoring history; first caller is the Dream experiment loop (PR-2), which ranks normalized hypotheses before both cuts; signal-only"
+   "evidence": "cognitive-architecture-plan.md section 7: pure COG-M10 learning-progress curiosity ranker over frozen monitoring history; first caller is the Dream experiment loop, which ranks normalized hypotheses before both cuts; signal-only"
   },
   "lib/cognition-prediction-error-pairs.js": {
    "context": "Knowledge",
