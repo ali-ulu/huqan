@@ -5,13 +5,21 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { buildM10Corpus } = require('../lib/cognitive-lab-m10-corpus');
+const { buildM10Corpus, sha256 } = require('../lib/cognitive-lab-m10-corpus');
 const { runM10Episode } = require('../lib/cognitive-lab-m10-episode');
-const { runM10Lab, MANIFEST_FILE, REPORT_FILE } = require('../lib/cognitive-lab-m10-runner');
+const {
+  runM10Lab, MANIFEST_FILE, REPORT_FILE, PREREGISTRATION_DIGEST,
+} = require('../lib/cognitive-lab-m10-runner');
 const { runCognitiveLab } = require('../lib/cognitive-lab-cli');
 
 const corpus = buildM10Corpus();
 const group = corpus.groups.find((item) => item.split === 'holdout');
+
+test('the frozen preregistration digest names the committed document', () => {
+  const file = path.join(__dirname, '..', 'docs', 'task-packs', 'cog-m10-curiosity-preregistration-20261030.md');
+  const document = fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n');
+  assert.equal(sha256(document), PREREGISTRATION_DIGEST);
+});
 
 test('an episode runs the real dream→verify path deterministically for both arms', () => {
   const candidate = runM10Episode({ group, history: corpus.monitoringHistory, arm: 'candidate' });

@@ -1519,7 +1519,6 @@
     "lib/cognitive-lab-cli.js",
     "lib/cognitive-lab-evaluator.js",
     "lib/cognitive-lab-m9-evaluator.js",
-    "docs/task-packs/cog-m10-curiosity-preregistration-20261030.md",
     "lib/cognitive-lab-m10-corpus.js",
     "lib/cognitive-lab-m10-episode.js",
     "lib/cognitive-lab-m10-evaluator.js",
