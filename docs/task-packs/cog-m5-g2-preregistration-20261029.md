@@ -42,7 +42,9 @@ Aşağıdaki sabitler `lib/cognition/dual-process-router.js` içinde uygulandı�
 
 ## 3. Hipotez H1 (§9, niyetle aynen)
 
-> B4 transfer kohortunda, gerçekten yürütülen yönlendirici-tabanlı kol, gerçekten yürütülen her zaman-`SYSTEM2` koluna kıyasla **gözlenen görev başarısında** aşağıda kalmamalıdır (non-inferior) ve aynı anda çözülmüş görev başına maliyeti düşürmelidir. Karşılaştırma **aynı desteklenen görevler**, **aynı nitelik/ onay maliyetleri** üzerinden yapılacak; kullanılamayan/başarısız iş her iki kolda da görünür tutulacak ve başarısız iş maliyet kazancı üretmek için dışlanmayacaktır.
+> B4 transfer kohortunda, gerçekten yürütülen yönlendirici-tabanlı kol, gerçekten yürütülen her zaman-`SYSTEM2` koluna kıyasla **gözlenen görev başarısında** aşağıda kalmamalıdır (non-inferior) ve aynı anda **görev (deneme) başına toplam maliyeti** düşürmelidir. Karşılaştırma **aynı desteklenen görevler**, **aynı nitelik/ onay maliyetleri** üzerinden yapılacak; kullanılamayan/başarısız iş her iki kolda da görünür tutulacak ve başarısız iş maliyet kazancı üretmek için dışlanmayacaktır.
+
+> **Maliyet ölçütü notu (§5 ile hizalı):** Karar, **deneme başına toplam maliyet** üzerinden verilir (`perTaskTotalCost`, §5), çözülmüş görev başına maliyet üzerinden değil. Başarı non-inferiority kapısıyla korunur: aday daha ucuz ama başarısı anlamlı düşükse H1 geçmez, böylece maliyet kazancı başarı pahasına olamaz. Değerlendirici çözülmüş-görev sayısını girdi olarak almaz; `runB4CostMeasurement` maliyet avantajı + non-inferiority + bütünlük kapılarının üçünü birden ister.
 
 - **Aday kol (candidate):** gerçekten yürütülen router-tabanlı kol (router tavsiyesine göre `SYSTEM1`/`SYSTEM1_VERIFY`/`SYSTEM2` seçimi, ancak yürütme her zaman gerçek yürütme yolu üzerinden ve son söz güvenlik/onay kapılarındadır).
 - **Taban kol (baseline):** gerçekten yürütülen her zaman-`SYSTEM2` kolu (aynı gerçek yürütme yolu, aynı nitelik/onay maliyetleri).
@@ -113,4 +115,14 @@ Bu koşullar PR-4 öncesinde/ile birlikte karşılanmadan G2 ölçümüne geçil
 
 ## 9. Bağlama notu
 
-Bu PR sadece dokümantasyon değişikliğidir: (1) yeni `docs/task-packs/cog-m5-g2-preregistration-20261029.md` ve (2) `lib/cognition/dual-process-router.js` içinde **yalnızca satır 8 başlık yorumu** — `Frozen in the G2 preregistration (docs/task-packs/cog-m5-g2-preregistration-*.md).` ifadesini tam dosya adı `docs/task-packs/cog-m5-g2-preregistration-20261029.md` ile değiştirmek. Hiçbir sabit, fonksiyon, export veya test değişmez. Router hala danışmanlık-only (`executes:false`, `ROUTING_ADVICE_ONLY`) kalır; güvenlik duvarı ve onay yürütücüsü son söz hakkını korur. Wiring/değer/ledger/baseline değişmez.
+Bu PR'ın değişiklik listesi:
+
+1. `docs/task-packs/cog-m5-g2-preregistration-20261029.md` (yeni): ön-kayıt ve dondurulmuş kontrat.
+2. `lib/cognition/dual-process-router.js`: **yalnızca satır 8 başlık yorumu** — `Frozen in the G2 preregistration (docs/task-packs/cog-m5-g2-preregistration-*.md).` ifadesini tam dosya adı `docs/task-packs/cog-m5-g2-preregistration-20261029.md` ile değiştirmek. Hiçbir sabit, fonksiyon, export veya test değişmez.
+3. `lib/agent-cognition-seam.js`: `buildRouteInfo` ile `adviseMode`'a boş `{}` yerine doldurulmuş `route` metadata'sı geçirilir (danışmanlık-only not). `trusted` yalnız gözlenen başarı sinyaliyle (`success.p`) atanır; `chosenCapabilityId` yalnız host'un bildirdiği derlenmiş prosedür (çözümlenmiş expectation) varsa doldurulur, yoksa `null` kalır ve router `no_compiled_procedure` der.
+4. `lib/cognitive-lab-cost-evaluator.js` (yeni): maliyet-öncelikli H1 mirror değerlendirici (§5).
+5. `lib/cognitive-lab-cli.js`: `b4-cost` komutu ve bounded istek okuyucunun ayrı modüle (`lib/cognitive-lab-request-reader.js`) taşınması.
+6. Testler: `test/cognition-dual-process-seam.test.js`, `test/dual-process-routing-integration.test.js`, `test/cognitive-lab-cost-evaluator.test.js`.
+7. Ledger/baseline: `scripts/architecture-tracker-baseline.json`, `scripts/context-ownership.json`, `coverage-manifest.json`, `package.json#files`.
+
+Router hâlâ danışmanlık-only (`executes:false`, `ROUTING_ADVICE_ONLY`) kalır; güvenlik duvarı ve onay yürütücüsü son söz hakkını korur. Üretim varsayılanı, wiring ve ledger/baseline davranışı değişmez.
