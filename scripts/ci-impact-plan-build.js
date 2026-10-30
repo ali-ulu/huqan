@@ -15,8 +15,8 @@ function buildTestImpactPlan({ root = REPO_ROOT, base, head, changedFiles, mode 
     ? changed.some(isRuntimeOrTestFile)
     : Boolean(runtimeOrTest);
   const allTests = mode === 'nightly' || mode === 'release';
-  const fullByPath = matchesAny(changed, FULL_SUITE_PATTERNS);
-  const impactOnlyByPath = matchesAny(changed, IMPACT_ONLY_PATTERNS);
+  const fullByPath = changed.some((file) => matchesAny(file, FULL_SUITE_PATTERNS));
+  const impactOnlyByPath = changed.some((file) => matchesAny(file, IMPACT_ONLY_PATTERNS));
   const shouldRun = allTests || runtimeSignal || fullByPath || impactOnlyByPath;
   const deterministic = new Set();
   const reasons = new Map();
