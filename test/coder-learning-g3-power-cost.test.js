@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const {
   digest, write, commit, installArith, installString, createWrongWriteCounter, run,
-  sumCpu, isCpuComplete, cpuSampleComplete, cpuPairDeltaMs,
+  snapshotTree, changedPaths, sumCpu, isCpuComplete, cpuSampleComplete, cpuPairDeltaMs,
 } = require('./helpers/coder-g3-cohort-fixtures');
 
 // Preregistration: docs/task-packs/coder-learning-g3-power-cost-preregistration-20261030.md
@@ -200,7 +200,8 @@ function pairedPass(roots, items, install, label, cpuDir, wrongWrites) {
 }
 
 test('preregistered G3 power + repeated cost: the cohort is powered and cost is measured across repeats', t => {
-  const wrongWrites = createWrongWriteCounter();
+  // Deferred so a wrong write still yields the REJECT report before the test fails.
+  const wrongWrites = createWrongWriteCounter({ deferFailure: true });
   const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-g3-power-')));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const cpuDir = path.join(parent, 'cpu');
@@ -338,6 +339,7 @@ test('preregistered G3 power + repeated cost: the cohort is powered and cost is 
       h1bCostStable: wallGainStable, h1cCpu: cpuMeasured },
   };
   if (process.env.SHOW_REPORT) fs.writeFileSync(process.env.SHOW_REPORT, JSON.stringify(report, null, 1));
+  assert.deepEqual(wrongWrites.mismatches, [], `wrong writes (status ${status})`);
 
   // Pins are the platform-independent invariants: the deterministic process
   // gain, the process-metric power, the CPU measurement and the absence of
@@ -390,4 +392,24 @@ test('CPU sampling fails closed on a missing, empty or incomplete probe log', ()
   assert.equal(cpuPairDeltaMs({ cpu: [{ totalMs: 9 }, { totalMs: 5 }], cpuComplete: true }, complete), -2);
   assert.equal(cpuPairDeltaMs(short, complete), null);
   assert.equal(cpuPairDeltaMs(complete, short), null);
+});
+
+// Integrity guards: only the root runtime databases are excluded from the
+// snapshot, and a deferred counter still counts and records every wrong write.
+test('wrong-write integrity: snapshot scope and deferred counting', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-g3-snap-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  write(root, 'src/a.js', 'a');
+  const before = snapshotTree(root);
+  write(root, 'journal.db', 'x');
+  write(root, 'memory.db-wal', 'x');
+  write(root, 'src/rogue.db', 'x');
+  assert.deepEqual(changedPaths(before, snapshotTree(root)), ['src/rogue.db']);
+
+  const deferred = createWrongWriteCounter({ deferFailure: true });
+  deferred.assertChangedPaths(['src/a.js', 'src/rogue.db'], ['src/a.js'], 'extra');
+  deferred.assertChangedPaths([], ['src/a.js'], 'missing');
+  assert.equal(deferred.count, 1);
+  assert.equal(deferred.mismatches.length, 2);
+  assert.throws(() => createWrongWriteCounter().assertChangedPaths(['x'], [], 'strict'));
 });

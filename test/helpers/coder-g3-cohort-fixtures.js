@@ -84,17 +84,18 @@ function installString(root, item) {
 }
 
 // A full content snapshot of the working tree, ignoring only runtime state
-// (`node_modules`, `.huqan/`) and the SQLite databases (`journal.db`,
-// `memory.db`, and their `-wal`/`-shm` sidecars). This is stronger than
+// (`node_modules`, `.huqan/`) and the root-level SQLite databases (`journal.db`,
+// `memory.db`, and their `-wal`/`-shm`/`-journal` sidecars). This is stronger than
 // `git status --porcelain`: the fixtures ignore `*.json`, so git would not
-// report a stray write to a task JSON file, but this does.
+// report a stray write to a task JSON file, but this does. A `.db` anywhere
+// else (e.g. `src/rogue.db`) is a wrong write and must reach `changedPaths`.
 const SNAPSHOT_IGNORE = new Set(['.git', '.huqan', 'node_modules']);
-const isRuntimeFile = name => /\.db(-(wal|shm|journal))?$/.test(name);
+const isRootRuntimeFile = name => /^(journal|memory)\.db(-(wal|shm|journal))?$/.test(name);
 function snapshotTree(root) {
   const files = {};
   const walk = dir => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (SNAPSHOT_IGNORE.has(entry.name) || isRuntimeFile(entry.name)) continue;
+      if (SNAPSHOT_IGNORE.has(entry.name) || (dir === root && isRootRuntimeFile(entry.name))) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else files[path.relative(root, full).split(path.sep).join('/')] = digest(fs.readFileSync(full));
@@ -111,14 +112,23 @@ function changedPaths(before, after) {
 
 // Zero mis-write tolerance, measured rather than read off the contract: each
 // deviation is counted so a report can say REJECT by measurement, not a constant.
-function createWrongWriteCounter() {
+// `deferFailure` records mismatches instead of throwing, so a caller can build
+// and write its REJECT report first and then assert `mismatches` is empty.
+function createWrongWriteCounter({ deferFailure = false } = {}) {
   let count = 0;
+  const mismatches = [];
   return {
     get count() { return count; },
+    get mismatches() { return [...mismatches]; },
     assertChangedPaths(actual, expected, label) {
       count += actual.filter(file => !expected.includes(file)).length;
+      const message = `${label}: changed ${JSON.stringify(actual)}`;
+      if (deferFailure) {
+        if (!require('node:util').isDeepStrictEqual(actual, expected)) mismatches.push(message);
+        return;
+      }
       const assert = require('node:assert/strict');
-      assert.deepEqual(actual, expected, `${label}: changed ${JSON.stringify(actual)}`);
+      assert.deepEqual(actual, expected, message);
     },
   };
 }
