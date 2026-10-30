@@ -119,6 +119,18 @@ test('ordinary observation predeclares at most eight approved native candidate r
   }
 });
 
+test('refused ordinary predecision binding cannot produce an observed acceptance', t => {
+  const f = ordinaryFixture(t, { replacements: ['2'] });
+  const coder = { ...f.coder, bindPrediction: () => false };
+  const args = { graph: f.kernel.graph, state: f.state, step: f.step, opts: f.opts, coder };
+  const pending = beginObservation(args);
+  assert.equal(pending, null);
+  const result = coder.execute(args);
+  assert.equal(result.ok, true, 'observation failure never changes execution authority');
+  assert.equal(finishObservation({ ...args, pending, report: { status: 'done', result } }).status, 'ABSTAIN');
+  assert.ok(Object.values(readPredictionPairs(f.kernel.graph)).every(pair => pair.outcome === null && !pair.acceptance));
+});
+
 test('ordinary test timeout and unsupported synthesis never become observed success', t => {
   const f = ordinaryFixture(t, { replacements: ['2'], timeout: true });
   const args = { graph: f.kernel.graph, state: f.state, step: f.step, opts: f.opts, coder: f.coder };
@@ -157,6 +169,13 @@ test('ordinary AgentV3 records real native acceptance and a fresh process reads 
   assert.equal(pair.acceptance.sourceRef.endsWith(':c2'), true);
   assert.equal(pair.acceptance.scopeHash, pair.binding.expectationHash);
   assert.equal(pair.acceptance.sourceHash, readSealedRun(f.journal, pair.acceptance.runId, f.workspaceId).sourceHash);
+  const headers = pair.binding.sourceRefs.map(ref => readSealedRun(f.journal, ref.slice('coder-run:'.length), f.workspaceId)
+    .events.find(event => event.type === 'run_started').payload.predecision);
+  assert.ok(headers.every(header => header?.predictionHash === beforeEffects[0].predictionHash));
+  assert.deepEqual(headers[0], headers[1]);
+  assert.equal(headers[0].decisionId, pair.decisionId);
+  assert.equal(headers[0].scopeHash, pair.binding.expectationHash);
+  assert.equal(headers[0].task.candidates.length, 2);
   execFileSync(process.execPath, ['check.js'], { cwd: f.root, windowsHide: true });
   f.closeJournal();
   const journalDigest = createHash('sha256').update(fs.readFileSync(f.journalFile)).digest('hex');

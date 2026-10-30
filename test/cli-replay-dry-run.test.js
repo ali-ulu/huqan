@@ -18,6 +18,21 @@ test('replay comparison exposes a fixed pair without a public selector', () => {
   assert.throws(() => require('../lib/cli-replay').runReplayComparison(['--selector', 'recent']), /unknown flag/);
 });
 
+test('legacy expectations stay explicit and a present invalid predecision never falls back', t => {
+  const f = fixture(t), { runReplayCommand } = require('../lib/cli-replay');
+  const args = f.argv.slice(1, -1);
+  assert.ok(runReplayCommand(args).signals.every(signal => signal.expectationSource === 'legacy_prior'));
+  const store = openJournalConnection({ dbPath: f.db });
+  try {
+    copyRun(createExperienceJournal({ store }), 'invalid-bound', event => {
+      if (event.type === 'run_started') event.payload.predecision = { predictionHash: null };
+    });
+  } finally { store.close(); }
+  const result = runReplayCommand(args);
+  assert.ok(result.skipped.some(row => row.episodeId === 'invalid-bound' && row.reason === 'predecision_binding_invalid'));
+  assert.ok(!result.signals.some(row => row.episodeId === 'invalid-bound'));
+});
+
 function files(root) {
   const result = {};
   for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {

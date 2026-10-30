@@ -45,6 +45,83 @@ function writeRun(store, runId = 'sealed', closed = true) {
   return journal;
 }
 
+test('supplied readonly snapshot stays pinned without opening or reading its missing pathname', t => {
+  const f = setup(t), writer = f.open();
+  const expected = readSealedRun(writeRun(writer), 'sealed', 'ws'); writer.close();
+  const snapshotBytes = fs.readFileSync(f.dbPath), original = Buffer.from(snapshotBytes);
+  fs.rmSync(f.dbPath);
+  let opens = 0, reads = 0;
+  const stopOpen = t.mock.method(fs, 'openSync', () => { opens++; throw new Error('unexpected file open'); });
+  const stopRead = t.mock.method(fs, 'readFileSync', () => { reads++; throw new Error('unexpected file read'); });
+  const stopReadFd = t.mock.method(fs, 'readSync', () => { reads++; throw new Error('unexpected fd read'); });
+  const stopStat = t.mock.method(fs, 'statSync', () => { reads++; throw new Error('unexpected path stat'); });
+  const stopRealpath = t.mock.method(fs.realpathSync, 'native', () => { reads++; throw new Error('unexpected realpath read'); });
+  let reader;
+  try {
+    reader = openJournalConnection({ dbPath: f.dbPath, readOnly: true, snapshotBytes });
+    assert.ok(reader, 'a supplied snapshot must not reopen its source pathname');
+    assert.equal(reader.db.readonly, true);
+    assert.deepEqual(readSealedRun(createExperienceJournal({ store: reader, readOnly: true }), 'sealed', 'ws'), expected);
+    assert.deepEqual(snapshotBytes, original, 'header normalization does not mutate caller bytes');
+    snapshotBytes.fill(0); reader.close(); reader.reopen();
+    assert.equal(reader.db.readonly, true);
+    assert.deepEqual(readSealedRun(createExperienceJournal({ store: reader, readOnly: true }), 'sealed', 'ws'), expected);
+    assert.throws(() => reader.db.exec('CREATE TABLE forbidden(value)'), /readonly|read-only/i);
+    assert.equal(opens, 0); assert.equal(reads, 0);
+  } finally {
+    reader?.close();
+    for (const method of [stopOpen, stopRead, stopReadFd, stopStat, stopRealpath]) method.mock.restore();
+  }
+});
+
+test('supplied snapshot ignores replacement pathname contents and reopens the same private bytes', t => {
+  const f = setup(t), writer = f.open();
+  const expected = readSealedRun(writeRun(writer), 'sealed', 'ws'); writer.close();
+  const snapshotBytes = fs.readFileSync(f.dbPath), original = Buffer.from(snapshotBytes);
+  fs.rmSync(f.dbPath);
+  const replacement = f.open(); writeRun(replacement, 'replacement'); replacement.close();
+  const before = files(f.dir);
+  const reader = openJournalConnection({ dbPath: f.dbPath, readOnly: true, snapshotBytes });
+  assert.ok(reader);
+  try {
+    const journal = createExperienceJournal({ store: reader, readOnly: true });
+    assert.deepEqual(journal.runIds('ws'), ['sealed']);
+    assert.deepEqual(readSealedRun(journal, 'sealed', 'ws'), expected);
+    assert.deepEqual(snapshotBytes, original);
+    reader.close(); snapshotBytes.fill(0); reader.reopen();
+    assert.deepEqual(readSealedRun(createExperienceJournal({ store: reader, readOnly: true }), 'sealed', 'ws'), expected);
+    assert.deepEqual(files(f.dir), before);
+  } finally { reader.close(); }
+});
+
+test('supplied snapshot validation cannot create a writer or change caller bytes', t => {
+  const f = setup(t), writer = f.open(); writeRun(writer); writer.close();
+  const bytes = fs.readFileSync(f.dbPath);
+  const missing = path.join(f.dir, 'missing.db'), before = files(f.dir);
+  const corrupt = Buffer.alloc(100); corrupt.write('SQLite format 3\0'); corrupt[18] = 1; corrupt[19] = 1;
+  for (const snapshotBytes of [undefined, null, bytes.toString('base64'), new Uint8Array(bytes),
+    bytes.buffer, Buffer.alloc(0), Buffer.alloc(100), corrupt])
+    assert.equal(openJournalConnection({ dbPath: missing, readOnly: true, snapshotBytes }), null);
+  for (const [writeVersion, readVersion] of [[0, 0], [1, 2], [2, 1], [3, 3]]) {
+    const snapshotBytes = Buffer.from(bytes); snapshotBytes[18] = writeVersion; snapshotBytes[19] = readVersion;
+    const original = Buffer.from(snapshotBytes);
+    assert.equal(openJournalConnection({ dbPath: missing, readOnly: true, snapshotBytes }), null);
+    assert.deepEqual(snapshotBytes, original);
+  }
+  for (const readOnly of [false, undefined, null, 'true'])
+    assert.equal(openJournalConnection({ dbPath: missing, readOnly, snapshotBytes: bytes }), null);
+  for (const dbPath of ['', ':memory:', 'file::memory:'])
+    assert.equal(openJournalConnection({ dbPath, readOnly: true, snapshotBytes: bytes }), null);
+  for (const version of [1, 2]) {
+    const snapshotBytes = Buffer.from(bytes); snapshotBytes[18] = version; snapshotBytes[19] = version;
+    const original = Buffer.from(snapshotBytes);
+    const reader = openJournalConnection({ dbPath: missing, readOnly: true, snapshotBytes });
+    try { assert.ok(reader); assert.equal(reader.db.readonly, true); assert.deepEqual(snapshotBytes, original); }
+    finally { reader?.close(); }
+  }
+  assert.deepEqual(files(f.dir), before);
+});
+
 test('readonly connection reuses sealed reads and cannot write or create sidecars', t => {
   const f = setup(t);
   const writer = f.open();

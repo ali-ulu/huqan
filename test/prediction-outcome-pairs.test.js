@@ -13,6 +13,7 @@ const {
   recordOutcome,
   readPredictionPairs,
   comparePredictionOutcome,
+  predictionBindingHash,
 } = require('../lib/prediction-outcome-pairs');
 
 function tempDir(t) {
@@ -38,6 +39,27 @@ function rewardFixture(decisionId = 'durable') {
     scopeHash: binding.expectationHash, runId: 'native:c2' };
   return { decisionId, score: 20, actionClass: 'coder:replace_text', at: AT, binding, rewardContext, acceptance };
 }
+
+test('predecision digest commits to the stored prediction and excludes later acceptance', t => {
+  const dir = tempDir(t), graph = memoryGraph(dir), input = rewardFixture('digest');
+  const recorded = recordPrediction(graph, input);
+  assert.match(recorded.predictionHash, /^[a-f0-9]{64}$/);
+  const before = readPredictionPairs(memoryGraph(dir)).digest;
+  assert.equal(recorded.predictionHash, before.predictionHash);
+  const replay = recordPrediction(graph, { ...input, at: '2026-01-01T00:00:01.000Z', score: 90 });
+  assert.equal(replay.predictionHash, recorded.predictionHash, 'replay hashes the original stored prediction');
+  recordOutcome(graph, { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'digest-result',
+    at: AT, acceptance: input.acceptance });
+  const after = readPredictionPairs(memoryGraph(dir)).digest;
+  assert.equal(after.predictionHash, before.predictionHash);
+  for (const change of [pair => { pair.rewardContext.expected = 1; },
+    pair => { pair.binding.frameHash = 'e'.repeat(64); },
+    pair => { pair.prediction.at = '2026-01-01T00:00:01.000Z'; }]) {
+    const changed = structuredClone(before); change(changed);
+    assert.notEqual(predictionBindingHash(changed), before.predictionHash);
+  }
+  assert.equal(recordPrediction(graph, { decisionId: 'legacy-digest', score: 1, at: AT }).predictionHash, undefined);
+});
 
 test('reward context and selected native acceptance survive a Graph reopen', t => {
   const dir = tempDir(t), graph = memoryGraph(dir), input = rewardFixture();

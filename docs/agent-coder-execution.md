@@ -135,5 +135,15 @@ hash'ini taşıdığını ve salt okunur kontrolün journal dosyasını değişt
 Kayıt katmanı yeni bir onay otoritesi değildir; gerçek kaynak doğrulaması mevcut
 Coder alıcısına aittir.
 
-M3 CLI'nin bu kayıtları native journal ile birleştirerek kullanması ayrı teslimdir.
-Burada M3 okuyucusu, holdout veya genel öğrenme kazanımı tamamlanmış sayılmaz.
+Holdout veya genel öğrenme kazanımı bu kayıt bağlantısıyla tamamlanmış sayılmaz.
+
+## Native beklenti özeti ve replay
+
+Normal `replace_text` gözleminde alıcı, karar kimliğini gözlem çağıranından alır;
+adayların ve test komutu özetinin kaynağı değiştirilemez onaylı görev nesnesidir.
+Görev girdisindeki bir beklenti özeti kanıt sayılmaz. Kalıcı prediction
+içeriğinin özeti ilk dosya etkisinden önce bu başlığa bağlanır; bütün c1–cN
+kayıtları aynı başlığı taşır. Sonraki kabul bilgisi prediction özetini değiştirmez.
+Beklenti bulunamıyorsa yeni başlık açıkça boş özet taşır ve replay bunu başarı
+veya geçmişten türetilmiş beklenti saymaz. Proje ve sentez görevleri bu ordinary
+replay tüketimi diliminin kapsamında değildir.
