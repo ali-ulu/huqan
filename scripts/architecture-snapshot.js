@@ -72,12 +72,6 @@ const DIP_ALLOWED = Object.freeze([
   },
   { file: 'kernel.v2.js', why: 'opts.kernel is passed through and unwrapped (#329); new Kernel(opts) runs only when the caller passed none, so the construction is a default rather than a collaborator the caller failed to inject.', review_by: '2026-12-31' },
   { file: 'agent.v3.js', why: 'opts.baseAgent is the injection point and new Agent({...}) builds the default when the caller passes none; opts.dream and opts.storage default the same way in the same constructor.', review_by: '2026-12-31' },
-  {
-    file: 'lib/cognitive-lab-m10-episode.js',
-    why: 'Each Lab episode constructs its own isolated, throwaway Kernel graph (useSQLite: false) because that fresh state is what the '
-      + 'measurement needs; injecting the kernel from the runner would only move the construction one layer up and change no coupling.',
-    review_by: '2026-12-31',
-  },
 ]);
 
 const isDipAllowed = (file) => DIP_ALLOWED.some((entry) => entry.file === file);

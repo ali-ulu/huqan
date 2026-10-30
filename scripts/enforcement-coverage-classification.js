@@ -1,6 +1,6 @@
 'use strict';
 
-const { INJECTED_FETCH_CLASSIFIED } = require('./enforcement-coverage-classification-injected-fetch');
+const { INJECTED_FETCH_CLASSIFIED } = require('./enforcement-coverage-classification-injected-fetch'); const { M10_CLASSIFIED } = require('./enforcement-coverage-classification-m10');
 
 /**
  * Who is allowed to touch the world, and on what grounds.
@@ -267,10 +267,7 @@ const BASE_CLASSIFIED = Object.freeze({
     role: 'operator_tool',
     why: '#4065 isolated Lab child builds disposable fixtures; actual Coder writes still require durable approval, the existing gate and independent tests. Network methods are replaced by refusing guards.',
   }),
-  'lib/cognitive-lab-m7-value-runtime.js': Object.freeze({ role: 'operator_tool', why: '#4065 isolated M9 causality child writes only its private task-output artifacts; safe tool execution retains existing guards and no production authority is added.' }), 'lib/cognitive-lab-g1-holdout.js': Object.freeze({ role: 'operator_tool', why: '#4065 explicitly invoked G1 measurement runner; writes only its own work directory and manifest/report files and spawns the fixed episode child with the fixed arm preload.' }), 'lib/cognitive-lab-g1-episode.js': Object.freeze({ role: 'operator_tool', why: '#4065 G1 child: drives the production Coder HTTP route handler; every Coder write still needs a case, a separate operator capability decision and the existing gate; writes only its private state and target directories.' }), 'lib/cognitive-lab-g1-arm-preload.js': Object.freeze({ role: 'operator_tool', why: '#4065 G1 arm preload loaded only into runner children; appends scheduler inputs to its own sink file and replaces network and model methods with refusing guards.' }), 'lib/cognitive-lab-m9-corpus.js': Object.freeze({ role: 'operator_tool', why: '#4388 seeded M9 holdout corpus generator; writes only the caller-named request JSON it is explicitly asked to emit, opens no store and adds no production authority.' }), 'lib/cognitive-lab-m9-holdout.js': Object.freeze({ role: 'operator_tool', why: '#4388 explicitly invoked M9 measurement runner; writes only its own manifest and single-use report files, spawns no child, opens no store and adds no production authority.' }),
-  'lib/cognitive-lab-m10-episode.js': Object.freeze({ role: 'operator_tool', why: '#4071 M10 episode creates and removes only its own temporary graph directory, opens no persistent store and adds no production authority.' }),
-  'lib/cognitive-lab-m10-runner.js': Object.freeze({ role: 'operator_tool', why: '#4071 explicitly invoked M10 measurement runner; writes only its own single-use manifest and report files under the caller-named work directory, opens no store and adds no production authority.' }),
-  // #2168 split backupRestore.js; its writes and spawns now live in these three.
+  'lib/cognitive-lab-m7-value-runtime.js': Object.freeze({ role: 'operator_tool', why: '#4065 isolated M9 causality child writes only its private task-output artifacts; safe tool execution retains existing guards and no production authority is added.' }), 'lib/cognitive-lab-g1-holdout.js': Object.freeze({ role: 'operator_tool', why: '#4065 explicitly invoked G1 measurement runner; writes only its own work directory and manifest/report files and spawns the fixed episode child with the fixed arm preload.' }), 'lib/cognitive-lab-g1-episode.js': Object.freeze({ role: 'operator_tool', why: '#4065 G1 child: drives the production Coder HTTP route handler; every Coder write still needs a case, a separate operator capability decision and the existing gate; writes only its private state and target directories.' }), 'lib/cognitive-lab-g1-arm-preload.js': Object.freeze({ role: 'operator_tool', why: '#4065 G1 arm preload loaded only into runner children; appends scheduler inputs to its own sink file and replaces network and model methods with refusing guards.' }), 'lib/cognitive-lab-m9-corpus.js': Object.freeze({ role: 'operator_tool', why: '#4388 seeded M9 holdout corpus generator; writes only the caller-named request JSON it is explicitly asked to emit, opens no store and adds no production authority.' }), 'lib/cognitive-lab-m9-holdout.js': Object.freeze({ role: 'operator_tool', why: '#4388 explicitly invoked M9 measurement runner; writes only its own manifest and single-use report files, spawns no child, opens no store and adds no production authority.' }),  // #2168 split backupRestore.js; its writes and spawns now live in these three.
   'lib/storage/backup-restore-store.js': Object.freeze({
     role: 'operator_tool',
     why: 'the backup store behind the human-invoked backup/restore CLI: directory and file copies, pruning, the manifest, and the SQLite online-backup child process',
@@ -397,6 +394,6 @@ const BASE_CLASSIFIED = Object.freeze({
 // this file sat directly under the large-file threshold (#328) and the cluster
 // would have pushed it over. The merge is a plain union -- the modules share no
 // keys, and the stale-entry invariant is checked against the merged map.
-const CLASSIFIED = Object.freeze({ ...BASE_CLASSIFIED, ...INJECTED_FETCH_CLASSIFIED });
+const CLASSIFIED = Object.freeze({ ...BASE_CLASSIFIED, ...INJECTED_FETCH_CLASSIFIED, ...M10_CLASSIFIED });
 
 module.exports = { ROLES, CLASSIFIED };
