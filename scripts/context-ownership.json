@@ -5563,6 +5563,11 @@
   }
  ],
  "publishedPorts": {
+  "lib/mutation-journal.js": {
+   "owner": "Knowledge",
+   "consumers": ["Platform"],
+   "evidence": "#4069 explicit read-only prediction snapshot reuses the existing completed mutation-row reader without Graph construction or writes"
+  },
   "lib/cognitive-lab-g1-corpus.js": {
    "owner": "AgentAction",
    "consumers": [
