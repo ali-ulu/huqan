@@ -51,6 +51,18 @@ test('reward context and selected native acceptance survive a Graph reopen', t =
   assert.deepEqual(pair.binding, input.binding);
 });
 
+test('contextual receipts use the same controlled clock as their timestamp producer', t => {
+  const RealDate = Date, at = new RealDate(RealDate.now() + 60000).toISOString();
+  t.mock.method(global, 'Date', class extends RealDate { constructor(...args) { super(...(args.length ? args : [at])); } });
+  const graph = memoryGraph(tempDir(t)), input = rewardFixture();
+  delete input.at; input.rewardContext.history.historyBoundary.at = at;
+  recordPrediction(graph, input);
+  recordOutcome(graph, { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'clock', acceptance: input.acceptance });
+  const pair = readPredictionPairs(graph)[input.decisionId];
+  assert.equal(pair.prediction.at, at); assert.equal(pair.outcome.at, at);
+  assert.deepEqual(pair.rewardContext, input.rewardContext);
+});
+
 test('frozen reward expectations cannot be replaced by replaying the prediction', t => {
   const graph = memoryGraph(tempDir(t)), input = rewardFixture();
   recordPrediction(graph, input);
