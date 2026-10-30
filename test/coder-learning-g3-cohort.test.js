@@ -167,7 +167,7 @@ function snapshotTree(root) {
       if (SNAPSHOT_IGNORE.has(entry.name) || isRuntimeFile(entry.name)) continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else files[path.relative(root, full)] = digest(fs.readFileSync(full));
+      else files[path.relative(root, full).split(path.sep).join('/')] = digest(fs.readFileSync(full));
     }
   };
   walk(root);
