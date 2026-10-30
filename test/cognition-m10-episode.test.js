@@ -57,6 +57,17 @@ test('the runner freezes the manifest before the holdout and refuses a second ru
   }
 });
 
+test('a calibration split that cannot estimate sigma fails closed before the manifest', () => {
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-m10-lab-'));
+  try {
+    assert.throws(() => runM10Lab({ workDir, splitSizes: { monitor: 2, calibration: 1, holdout: 2 } }),
+      /M10_CALIBRATION_TOO_SMALL/);
+    assert.equal(fs.existsSync(path.join(workDir, MANIFEST_FILE)), false);
+  } finally {
+    fs.rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
 test('the Lab CLI exposes the m10 subcommand without touching the state-store paths', async () => {
   const help = await runCognitiveLab(['--help']);
   assert.ok(help.usage.some((line) => line.includes('m10 --m10-workdir DIR')));

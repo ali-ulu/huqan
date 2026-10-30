@@ -140,6 +140,8 @@ test('integrity bypass, holdout leakage and mismatched arms are rejected', () =>
   assert.equal(evaluate({ executions: { candidate: valid.candidate, control: valid.control.slice(1) } }).reasons[0],
     'arm_group_sets_differ');
   assert.equal(evaluate({ manifest: manifest({ seed: 1 }), executions: valid }).reasons[0], 'manifest_seed_mismatch');
+  assert.equal(evaluateM10({ corpus: { ...corpus, groups: undefined }, manifest: manifest(), executions: valid, integrity }).reasons[0],
+    'invalid_corpus_groups');
   assert.equal(evaluate({ executions: { candidate: valid.candidate, control: valid.control.map((row, index) => (index === 0 ? { ...row, verified: 11 } : row)) } }).reasons[0],
     'control:invalid_verified');
 });

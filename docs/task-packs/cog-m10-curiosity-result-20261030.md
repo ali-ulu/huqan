@@ -16,7 +16,7 @@ node bin/huqan-cognitive-lab.js m10 --m10-workdir <temp-dir>
 - Corpus: seed `40710`; `monitor=8`, `calibration=16`, `holdout=256` grup (grup = kaynak grubu × görev ailesi).
 - İzleme probe'u: `probeSetId=m10-monitor-p1`, `frameRef=frame-m10-v1`; predictor sürümleri `m10-p1` → `m10-p2`.
 - Her iki kol da gerçek dream→verify yolundan geçti: Dream loop seçimi (`lib/agent-v3-dream-loop-adapter.js`), doğrulama adımı `lib/agent-step-executor.js` firewall'u + `kernel.verify`. Grup gerçekleri taze bir Kernel graph'ına tohumlandı; yalnız aday havuzu dream sonucu olarak enjekte edildi.
-- Kollar: `candidate` = `opts.cognition.curiosity=true` + izleme geçmişi; `control` = bayrak kapalı (confidence sırası). Aynı bütçe: 3 hipotez/grup, 1 cycle.
+- Kollar: `candidate` = dream adımına top-level `curiosity: true` + izleme geçmişi (`curiosityHistory`) geçirilir; `control` = bayrak kapalı (confidence sırası). Lab episode bu seçeneği `processDreamStep`'e doğrudan verir; `opts.cognition.curiosity` yalnız AgentV3 seam'i için geçerlidir. Aynı bütçe: 3 hipotez/grup, 1 cycle.
 
 ## 2. Donmuş manifest
 
