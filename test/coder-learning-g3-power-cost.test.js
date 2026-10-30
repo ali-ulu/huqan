@@ -47,7 +47,11 @@ const median = values => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-const sumCpu = cpu => (cpu ? cpu.reduce((total, row) => total + row.totalMs, 0) : null);
+// Sum of child CPU for a run. A missing log is `null` (unmeasured) and an empty
+// log is `null` too: a zero-byte file means the probe recorded nothing, not that
+// the run used zero CPU, so treating it as a measured 0 could let an unmeasured
+// repeat reach GAIN.
+const sumCpu = cpu => (cpu && cpu.length ? cpu.reduce((total, row) => total + row.totalMs, 0) : null);
 
 // §7/§8 verdict vocabulary, mirroring the #4380 eval: a metric verdict
 // classifies the measured value, and an unmeasured value stays NOT_MEASURED.
@@ -146,7 +150,15 @@ function trainLearned(roots, label, cpuDir) {
     { cpuLog: path.join(cpuDir, `${label}-train-b.jsonl`) });
   assert.equal(string.result.data.outcome, 'applied_tested', JSON.stringify(string.result));
   commit(roots.learned);
-  return { wallMs: arith.wallMs + string.wallMs, cpuMs: sumCpu(arith.cpu) + sumCpu(string.cpu) };
+  const arithCpuMs = sumCpu(arith.cpu), stringCpuMs = sumCpu(string.cpu);
+  // A missing training CPU log must stay `null`, not become 0, so the caller's
+  // cpuMeasured sees it: a repeat with no training CPU record is NOT_MEASURED,
+  // and the preregistration never lets an unmeasured CPU cost reach GAIN. An
+  // incomplete log (a probe row missing) is treated the same way.
+  const cpuMs = arithCpuMs === null || stringCpuMs === null
+    || arith.cpuComplete === false || string.cpuComplete === false
+    ? null : arithCpuMs + stringCpuMs;
+  return { wallMs: arith.wallMs + string.wallMs, cpuMs };
 }
 
 // One paired pass over a task list. Returns per-task rows and totals for both
@@ -177,7 +189,8 @@ function pairedPass(roots, items, install, label, cpuDir, wrongWrites) {
     wrongWrites.assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${label} ${item.name} baseline`);
     wrongWrites.assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${label} ${item.name} learned`);
     const baselineCpu = sumCpu(baseline.cpu), learnedCpu = sumCpu(learned.cpu);
-    if (baselineCpu === null || learnedCpu === null) cpuMeasured = false;
+    if (baselineCpu === null || learnedCpu === null
+      || baseline.cpuComplete === false || learned.cpuComplete === false) cpuMeasured = false;
     rows.push({ task: item.name, taskHash: baselineFixture.taskHash,
       baselineProcesses: baseline.processes, learnedProcesses: learned.processes,
       processDelta: baseline.processes - learned.processes,
@@ -189,7 +202,12 @@ function pairedPass(roots, items, install, label, cpuDir, wrongWrites) {
     baselineWallMs += baseline.wallMs; learnedWallMs += learned.wallMs;
     baselineCpuMs += baselineCpu || 0; learnedCpuMs += learnedCpu || 0;
   }
-  return { rows, baselineWallMs, learnedWallMs, baselineCpuMs, learnedCpuMs, cpuMeasured };
+  // An incomplete CPU sample must not read as a measured total: report `null`
+  // totals when any row was unmeasured, so a partial log cannot bias the median.
+  return { rows, baselineWallMs, learnedWallMs,
+    baselineCpuMs: cpuMeasured ? baselineCpuMs : null,
+    learnedCpuMs: cpuMeasured ? learnedCpuMs : null,
+    cpuMeasured };
 }
 
 test('preregistered G3 power + repeated cost: the cohort is powered and cost is measured across repeats', t => {
@@ -236,15 +254,20 @@ test('preregistered G3 power + repeated cost: the cohort is powered and cost is 
   };
 
   // §6 repeated cost: passes 2 and 3 re-run the same paired holdout on fresh
-  // roots so the wall-time and CPU distributions are over independent runs.
+  // roots so the wall-time and CPU distributions are over independent runs. The
+  // training CPU is part of the amortized cost, so a repeat whose training CPU
+  // was not measured is unmeasured too. Totals are rounded to whole milliseconds
+  // here so every reported gain equals its own displayed components exactly.
+  const roundOrNull = value => (value === null ? null : Math.round(value));
+  const sumOrNull = (left, right) => (left === null || right === null ? null : left + right);
   const repeatTotals = [{
-    baselineWallMs: holdout1.baselineWallMs + holdout1b.baselineWallMs,
-    learnedWallMs: holdout1.learnedWallMs + holdout1b.learnedWallMs,
-    trainingWallMs: training1.wallMs,
-    baselineCpuMs: holdout1.baselineCpuMs + holdout1b.baselineCpuMs,
-    learnedCpuMs: holdout1.learnedCpuMs + holdout1b.learnedCpuMs,
-    trainingCpuMs: training1.cpuMs,
-    cpuMeasured: holdout1.cpuMeasured && holdout1b.cpuMeasured,
+    baselineWallMs: Math.round(holdout1.baselineWallMs + holdout1b.baselineWallMs),
+    learnedWallMs: Math.round(holdout1.learnedWallMs + holdout1b.learnedWallMs),
+    trainingWallMs: Math.round(training1.wallMs),
+    baselineCpuMs: roundOrNull(sumOrNull(holdout1.baselineCpuMs, holdout1b.baselineCpuMs)),
+    learnedCpuMs: roundOrNull(sumOrNull(holdout1.learnedCpuMs, holdout1b.learnedCpuMs)),
+    trainingCpuMs: roundOrNull(training1.cpuMs),
+    cpuMeasured: holdout1.cpuMeasured && holdout1b.cpuMeasured && training1.cpuMs !== null,
     processGain: holdout1.rows.filter(r => r.learnedProcesses < r.baselineProcesses).length
       + holdout1b.rows.filter(r => r.learnedProcesses < r.baselineProcesses).length,
   }];
@@ -254,13 +277,13 @@ test('preregistered G3 power + repeated cost: the cohort is powered and cost is 
     const arith = pairedPass(roots, ARITH_HOLDOUT, installArith, `p${index}-arith`, cpuDir, wrongWrites);
     const string = pairedPass(roots, STRING_HOLDOUT, installString, `p${index}-string`, cpuDir, wrongWrites);
     repeatTotals.push({
-      baselineWallMs: arith.baselineWallMs + string.baselineWallMs,
-      learnedWallMs: arith.learnedWallMs + string.learnedWallMs,
-      trainingWallMs: training.wallMs,
-      baselineCpuMs: arith.baselineCpuMs + string.baselineCpuMs,
-      learnedCpuMs: arith.learnedCpuMs + string.learnedCpuMs,
-      trainingCpuMs: training.cpuMs,
-      cpuMeasured: arith.cpuMeasured && string.cpuMeasured,
+      baselineWallMs: Math.round(arith.baselineWallMs + string.baselineWallMs),
+      learnedWallMs: Math.round(arith.learnedWallMs + string.learnedWallMs),
+      trainingWallMs: Math.round(training.wallMs),
+      baselineCpuMs: roundOrNull(sumOrNull(arith.baselineCpuMs, string.baselineCpuMs)),
+      learnedCpuMs: roundOrNull(sumOrNull(arith.learnedCpuMs, string.learnedCpuMs)),
+      trainingCpuMs: roundOrNull(training.cpuMs),
+      cpuMeasured: arith.cpuMeasured && string.cpuMeasured && training.cpuMs !== null,
       processGain: arith.rows.filter(r => r.learnedProcesses < r.baselineProcesses).length
         + string.rows.filter(r => r.learnedProcesses < r.baselineProcesses).length,
     });
@@ -271,11 +294,14 @@ test('preregistered G3 power + repeated cost: the cohort is powered and cost is 
   const processGainStable = repeatTotals.every(r => r.processGain === repeatTotals[0].processGain);
   const perTaskProcessGain = repeatTotals[0].processGain;
 
-  const wallGains = repeatTotals.map(r => Math.round(r.baselineWallMs - r.learnedWallMs - r.trainingWallMs));
+  // Classification and the stability check read the sign of the gain; the
+  // totals are whole milliseconds, so each gain equals its displayed components.
+  const wallGains = repeatTotals.map(r => r.baselineWallMs - r.learnedWallMs - r.trainingWallMs);
   const wallVerdicts = wallGains.map(gain => classifyGainVerdict(gain, true));
   const wallGainStable = wallVerdicts.every(verdict => verdict === wallVerdicts[0]);
   const cpuMeasured = repeatTotals.every(r => r.cpuMeasured);
-  const cpuGains = repeatTotals.map(r => Math.round(r.baselineCpuMs - r.learnedCpuMs - r.trainingCpuMs));
+  const cpuGains = cpuMeasured
+    ? repeatTotals.map(r => r.baselineCpuMs - r.learnedCpuMs - r.trainingCpuMs) : [];
 
   // §8 decision order: integrity first, then sufficiency, then the label. The
   // label reads the SIGN and the STABILITY, not a single run's magnitude, so
@@ -300,15 +326,17 @@ test('preregistered G3 power + repeated cost: the cohort is powered and cost is 
       string: holdout1b.rows.map(r => [r.task, r.baselineProcesses, r.learnedProcesses]) },
     repeatedCost: {
       repeats: repeatTotals.length,
-      wallGainMs: wallGains, wallVerdicts, wallGainStable,
+      wallGainMs: wallGains.map(gain => Math.round(gain)), wallVerdicts, wallGainStable,
       wallGainMedianMs: Math.round(median(wallGains)),
-      cpuMeasured, cpuGainMs: cpuGains,
+      cpuMeasured, cpuGainMs: cpuGains.map(gain => Math.round(gain)),
       cpuGainMedianMs: cpuMeasured ? Math.round(median(cpuGains)) : null,
-      cpuGainVerdict: classifyGainVerdict(median(cpuGains), cpuMeasured),
+      cpuGainVerdict: cpuMeasured ? classifyGainVerdict(median(cpuGains), true) : 'NOT_MEASURED',
       perRepeat: repeatTotals.map(r => ({ baselineWallMs: Math.round(r.baselineWallMs),
         learnedWallMs: Math.round(r.learnedWallMs), trainingWallMs: Math.round(r.trainingWallMs),
-        baselineCpuMs: Math.round(r.baselineCpuMs), learnedCpuMs: Math.round(r.learnedCpuMs),
-        trainingCpuMs: Math.round(r.trainingCpuMs), processGain: r.processGain, cpuMeasured: r.cpuMeasured })),
+        baselineCpuMs: r.baselineCpuMs === null ? null : Math.round(r.baselineCpuMs),
+        learnedCpuMs: r.learnedCpuMs === null ? null : Math.round(r.learnedCpuMs),
+        trainingCpuMs: r.trainingCpuMs === null ? null : Math.round(r.trainingCpuMs),
+        processGain: r.processGain, cpuMeasured: r.cpuMeasured })),
     },
     metricVerdicts: {
       wrongWrites: wrongWrites.count === 0 && CONTRACT.wrongWriteTolerance === 0 ? 'REJECT_THRESHOLD_UNTRIGGERED' : 'REJECT',

@@ -154,7 +154,13 @@ function run(root, name, mode, options = {}) {
   const cpu = cpuLog && fs.existsSync(cpuLog)
     ? fs.readFileSync(cpuLog, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
     : null;
-  return { result, processes, wallMs, cpu, changed: changedPaths(before, snapshotTree(root)) };
+  // Every process a run spawns inherits NODE_OPTIONS, so the probe should record
+  // one row for the CLI plus one per test process. Fewer rows mean a process
+  // died before it appended, so its CPU is missing; the caller must treat that as
+  // NOT_MEASURED rather than a smaller total. Extra rows are not treated as
+  // failure (an unexpected process can only add, never hide, CPU).
+  const cpuComplete = cpu === null ? null : cpu.length >= processes + 1;
+  return { result, processes, wallMs, cpu, cpuComplete, changed: changedPaths(before, snapshotTree(root)) };
 }
 
 module.exports = {

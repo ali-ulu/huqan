@@ -126,7 +126,8 @@ boyutunun gerektirdiği örnekle gerekçelenir (birincil, deterministik metrik).
   - process sayıları (deterministik kapı; yinelemeler arası değişmezlik assert edilir).
 - **Raporlanan:** her boyut için `min / median / max` ve yinelemeler arası verdict kararlılığı.
 - **CPU fail-closed:** probe herhangi bir tekrarda kayıt üretemezse (dosya yok/boş veya
-  `NaN`), CPU boyutu `NOT_MEASURED` olur ve `GAIN` iddiası kurulamaz.
+  `NaN`) ya da bir koşumun satır sayısı spawn edilen process sayısından (`processes + 1`)
+  azsa, CPU boyutu `NOT_MEASURED` olur ve `GAIN` iddiası kurulamaz.
 
 ## 7. Ön-kayıtlı eşikler (ölçümden önce kilitlendi; testte `CONTRACT` olarak da sabittir)
 
