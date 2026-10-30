@@ -5,9 +5,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const crypto = require('node:crypto');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 const { openCoderJournal } = require('../lib/coder/journal-store');
+const {
+  digest, write, commit, installArith, installString, createWrongWriteCounter, run,
+} = require('./helpers/coder-g3-cohort-fixtures');
 
 // Preregistration: docs/task-packs/coder-learning-g3-cohort-preregistration-20261030.md
 // Thresholds were locked before this evaluation ever ran; they mirror §7 there.
@@ -17,8 +19,6 @@ const CONTRACT = Object.freeze({
   holdoutPerFamily: 3,
   wrongWriteTolerance: 0,
 });
-
-const digest = text => crypto.createHash('sha256').update(text).digest('hex');
 
 // Preregistration §7/§8 verdict vocabulary: a metricVerdict classifies the
 // measured metric, not the test run's exit status. 'GAIN' requires a measured
@@ -82,115 +82,9 @@ const STRING_SHIFT = { name: 'string-shift', fn: 'fold', parameter: 'label',
 const ARITH_QUALIFY = { drift: 'qualify/drift.md', ambiguous: 'qualify/ambiguous.md' };
 const STRING_QUALIFY = { drift: 'qualify/string-drift.md', ambiguous: 'qualify/string-ambiguous.md' };
 
-function write(root, file, text) {
-  fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
-  fs.writeFileSync(path.join(root, file), text);
-}
-
-function commit(root) {
-  const git = args => execFileSync('git', args, { cwd: root, stdio: 'pipe' });
-  git(['add', 'src', 'test', 'qualify', '.gitignore']);
-  git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture']);
-}
-
-function arithFixture(name, checks, expected = input => input % 2) {
-  return `const fs = require('node:fs'); fs.mkdirSync('.huqan/gain', { recursive: true });
-fs.appendFileSync('.huqan/gain/${name}.log', 'test-process\\n');
-const assert = require('node:assert/strict'); const f = require('../src/${name}');
-${checks.map(input => `assert.equal(f(${input}), ${expected(input)});`).join('\n')}
-`;
-}
-
-function installArith(root, item, expected = input => input % 2) {
-  const content = `module.exports = ${item.parameter} => ${item.parameter} + 1;\n`;
-  const task = { id: item.name, level: 'l0', allowedPaths: [`src/${item.name}.js`],
-    operation: { type: 'replace_text', path: `src/${item.name}.js` },
-    test: { command: `node test/${item.name}.js` },
-    synthesis: { family: 'arithmetic-expression',
-      examples: item.examples.map(input => ({ input, expected: expected(input) })) } };
-  write(root, `src/${item.name}.js`, content);
-  write(root, `test/${item.name}.js`, arithFixture(item.name, item.checks, expected));
-  write(root, `${item.name}.json`, JSON.stringify(task));
-  return { task, content, taskHash: digest(JSON.stringify(task)), testHash: digest(arithFixture(item.name, item.checks, expected)) };
-}
-
-function stringFixture(name, checks) {
-  return `const fs = require('node:fs'); fs.mkdirSync('.huqan/gain', { recursive: true });
-fs.appendFileSync('.huqan/gain/${name}.log', 'test-process\\n');
-const assert = require('node:assert/strict'); const f = require('../src/${name}');
-${checks.map(([input, expected]) => `assert.equal(f(${JSON.stringify(input)}), ${JSON.stringify(expected)});`).join('\n')}
-`;
-}
-
-function installString(root, item) {
-  const content = `function ${item.fn}(${item.parameter}) { return ${item.parameter}.toUpperCase(); }\nmodule.exports = ${item.fn};\n`;
-  const task = { id: item.name, level: 'l0', allowedPaths: [`src/${item.name}.js`],
-    operation: { type: 'replace_text', path: `src/${item.name}.js` },
-    test: { command: `node test/${item.name}.js` },
-    synthesis: { family: 'string-expression', functionName: item.fn,
-      examples: item.examples.map(([input, expected]) => ({ input, expected })) } };
-  write(root, `src/${item.name}.js`, content);
-  write(root, `test/${item.name}.js`, stringFixture(item.name, item.checks));
-  write(root, `${item.name}.json`, JSON.stringify(task));
-  return { task, content, taskHash: digest(JSON.stringify(task)), testHash: digest(stringFixture(item.name, item.checks)) };
-}
-
-function run(root, name, mode, expectedStatus = 0) {
-  const before = snapshotTree(root);
-  const started = process.hrtime.bigint();
-  const child = spawnSync(process.execPath, [path.resolve(__dirname, '..', 'cli.js'),
-    'coder', `${name}.json`, mode, '--authorize', '--root', root,
-    '--journal', path.join(root, 'journal.db'), '--run-id', name, '--json'], {
-    cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 1048576,
-    env: { ...process.env, HUQAN_STATE_ROOT: path.join(root, '.huqan', 'runtime-state') },
-  });
-  const wallMs = Number(process.hrtime.bigint() - started) / 1e6;
-  assert.equal(child.error, undefined, String(child.error));
-  assert.equal(child.status, expectedStatus, child.stdout + child.stderr);
-  const result = JSON.parse(child.stdout);
-  const log = path.join(root, '.huqan', 'gain', `${name}.log`);
-  const processes = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('test-process').length - 1 : 0;
-  return { result, processes, wallMs, changed: changedPaths(before, snapshotTree(root)) };
-}
-
-// A full content snapshot of the working tree, ignoring only runtime state
-// (`node_modules`, `.huqan/`) and the SQLite databases (`journal.db`,
-// `memory.db`, and their `-wal`/`-shm` sidecars). This is stronger than
-// `git status --porcelain`: the fixtures ignore `*.json`, so git would not
-// report a stray write to a task JSON file, but this does.
-const SNAPSHOT_IGNORE = new Set(['.git', '.huqan', 'node_modules']);
-const isRuntimeFile = name => /\.db(-(wal|shm|journal))?$/.test(name);
-function snapshotTree(root) {
-  const files = {};
-  const walk = dir => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (SNAPSHOT_IGNORE.has(entry.name) || isRuntimeFile(entry.name)) continue;
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else files[path.relative(root, full).split(path.sep).join('/')] = digest(fs.readFileSync(full));
-    }
-  };
-  walk(root);
-  return files;
-}
-
-function changedPaths(before, after) {
-  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
-    .filter(file => before[file] !== after[file]).sort();
-}
-
-// Zero mis-write tolerance: the only tree change after a paired run must be the
-// task's own source file. An empty expectation means the tree is untouched.
-// Any deviation is counted so the report's wrongWrites verdict is measured, not
-// a constant read off the contract.
-let WRONG_WRITES = 0;
-function assertChangedPaths(actual, expected, label) {
-  WRONG_WRITES += actual.filter(file => !expected.includes(file)).length;
-  assert.deepEqual(actual, expected, `${label}: changed ${JSON.stringify(actual)}`);
-}
-
 test('preregistered G3 cohort: learned arms hold accuracy and cut amortized total cost in two families', t => {
-  WRONG_WRITES = 0;
+  const wrongWrites = createWrongWriteCounter();
+  const assertChangedPaths = wrongWrites.assertChangedPaths;
   const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-g3-cohort-')));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const roots = { baseline: path.join(parent, 'baseline'), learned: path.join(parent, 'learned') };
@@ -301,7 +195,7 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
     checks: [[' RED ', 'red'], [' BLUE ', 'blue']] };
   const crossFixture = installString(crossRoot, crossItem);
   commit(crossRoot);
-  const crossRejected = run(crossRoot, crossItem.name, '--adapt-memory', 6);
+  const crossRejected = run(crossRoot, crossItem.name, '--adapt-memory', { expectedStatus: 6 });
   assert.equal(crossRejected.result.data.reason, 'no_applicable_candidate', JSON.stringify(crossRejected.result));
   assert.equal(crossRejected.processes, 0);
   assert.equal(fs.readFileSync(path.join(crossRoot, `src/${crossItem.name}.js`), 'utf8'), crossFixture.content);
@@ -316,7 +210,7 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
   const novelFixture = installArith(roots.learned, ARITH_NOVEL, novelExpected);
   installArith(roots.baseline, ARITH_NOVEL, novelExpected);
   for (const root of Object.values(roots)) commit(root);
-  const rejected = run(roots.learned, ARITH_NOVEL.name, '--adapt-memory', 6);
+  const rejected = run(roots.learned, ARITH_NOVEL.name, '--adapt-memory', { expectedStatus: 6 });
   const fresh = run(roots.baseline, ARITH_NOVEL.name, '--synthesize');
   assert.equal(rejected.result.data.outcome, 'needs_human_decision');
   assert.equal(rejected.result.data.attempts[0].apply.reason, 'transfer_verification_failed');
@@ -393,7 +287,7 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
       learnedProcesses: stillLearned.processes, held: stillLearned.processes < stillBaseline.processes },
     metricVerdicts: {
       accuracy: 'MEASURED',
-      wrongWrites: WRONG_WRITES === 0 && CONTRACT.wrongWriteTolerance === 0 ? 'REJECT_THRESHOLD_UNTRIGGERED' : 'REJECT',
+      wrongWrites: wrongWrites.count === 0 && CONTRACT.wrongWriteTolerance === 0 ? 'REJECT_THRESHOLD_UNTRIGGERED' : 'REJECT',
       holdoutCount: holdoutCountMet ? 'MEASURED' : 'INSUFFICIENT',
       perTaskProcessGain: `${perTaskProcessGain}/${evidence.length}`,
       amortizedWallGainMs: wallGainVerdict, cpuCost: 'NOT_MEASURED',
