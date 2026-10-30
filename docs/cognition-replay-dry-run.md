@@ -181,6 +181,9 @@ ve kontrollü canary girdileri gerçek operatör kararı veya M3 kazanımı say�
 `--prediction-journal <dosya>` mevcut Graph JSON mutation journal'ını veya
 checkpoint alınmış SQLite dosyasını açıkça seçer. Kaynak salt okunur açılır;
 yeni depo oluşturulmaz. Priority ve recent aynı görüntüyü ve zaman sınırını kullanır.
+Bu kaynak en çok 256 MiB olabilir; daha büyük dosya baytları yüklenmeden reddedilir.
+Okuma sırasında büyüme de reddedilir. SQLite, aynı tutamaçtan alınan baytların
+özel kopyasından açılır; kaynak yolu ikinci kez açılmaz.
 
 Yeni native Coder kayıtları, karar başlamadan kalıcı prediction içeriğinin
 özetini `run_started.payload.predecision` içine bağlar. Replay bu özeti,

@@ -38,6 +38,32 @@ function bytes(dir) {
 }
 const invalid = action => assert.throws(action, error => error.code === 'INVALID_PREDICTION_SOURCE' && error.exitCode === 2);
 
+test('SQLite rows come from the single descriptor snapshot without reopening its pathname', t => {
+  const f = fixture(t, true), open = fs.openSync;
+  let opens = 0;
+  t.mock.method(fs, 'openSync', function(file, ...args) {
+    if (file === f.file) opens++;
+    return open.call(this, file, ...args);
+  });
+  assert.deepEqual(openPredictionSource(f.file, f.opts).pairs.native, f.pairs.native);
+  assert.equal(opens, 1);
+});
+
+test('prediction snapshots above 256 MiB refuse before loading source bytes', t => {
+  const f = fixture(t), file = path.join(f.dir, 'oversize');
+  const fd = fs.openSync(file, 'w');
+  try { fs.ftruncateSync(fd, 256 * 1024 * 1024 + 1); } finally { fs.closeSync(fd); }
+  let reads = 0;
+  const readFile = fs.readFileSync, read = fs.readSync;
+  t.mock.method(fs, 'readFileSync', function(file, ...args) {
+    if (typeof file === 'number') reads++;
+    return readFile.call(this, file, ...args);
+  });
+  t.mock.method(fs, 'readSync', function(...args) { reads++; return read.call(this, ...args); });
+  invalid(() => openPredictionSource(file, f.opts));
+  assert.equal(reads, 0);
+});
+
 for (const sqlite of [false, true]) test(`closed ${sqlite ? 'SQLite' : 'JSON'} writer reads the same scoped durable pairs without changing files`, t => {
   const f = fixture(t, sqlite), before = bytes(f.dir);
   const first = openPredictionSource(f.file, f.opts);
@@ -153,9 +179,9 @@ test('pending sidecars, hardlinks and linked sources are rejected without changi
 });
 
 test('a source replaced during its read is refused', t => {
-  const f = fixture(t), read = fs.readFileSync;
+  const f = fixture(t), read = fs.readSync;
   let changed = false;
-  t.mock.method(fs, 'readFileSync', function(file, ...args) {
+  t.mock.method(fs, 'readSync', function(file, ...args) {
     const result = read.call(this, file, ...args);
     if (typeof file === 'number' && !changed) { changed = true; fs.appendFileSync(f.file, ' '); }
     return result;

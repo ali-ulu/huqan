@@ -119,6 +119,18 @@ test('ordinary observation predeclares at most eight approved native candidate r
   }
 });
 
+test('refused ordinary predecision binding cannot produce an observed acceptance', t => {
+  const f = ordinaryFixture(t, { replacements: ['2'] });
+  const coder = { ...f.coder, bindPrediction: () => false };
+  const args = { graph: f.kernel.graph, state: f.state, step: f.step, opts: f.opts, coder };
+  const pending = beginObservation(args);
+  assert.equal(pending, null);
+  const result = coder.execute(args);
+  assert.equal(result.ok, true, 'observation failure never changes execution authority');
+  assert.equal(finishObservation({ ...args, pending, report: { status: 'done', result } }).status, 'ABSTAIN');
+  assert.ok(Object.values(readPredictionPairs(f.kernel.graph)).every(pair => pair.outcome === null && !pair.acceptance));
+});
+
 test('ordinary test timeout and unsupported synthesis never become observed success', t => {
   const f = ordinaryFixture(t, { replacements: ['2'], timeout: true });
   const args = { graph: f.kernel.graph, state: f.state, step: f.step, opts: f.opts, coder: f.coder };

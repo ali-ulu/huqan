@@ -139,8 +139,9 @@ Holdout veya genel öğrenme kazanımı bu kayıt bağlantısıyla tamamlanmış
 
 ## Native beklenti özeti ve replay
 
-Normal `replace_text` gözleminde alıcı, görev girdisinden bağımsız olarak karar
-kimliğini, onaylı adayları ve test komutu özetini hazırlar. Kalıcı prediction
+Normal `replace_text` gözleminde alıcı, karar kimliğini gözlem çağıranından alır;
+adayların ve test komutu özetinin kaynağı değiştirilemez onaylı görev nesnesidir.
+Görev girdisindeki bir beklenti özeti kanıt sayılmaz. Kalıcı prediction
 içeriğinin özeti ilk dosya etkisinden önce bu başlığa bağlanır; bütün c1–cN
 kayıtları aynı başlığı taşır. Sonraki kabul bilgisi prediction özetini değiştirmez.
 Beklenti bulunamıyorsa yeni başlık açıkça boş özet taşır ve replay bunu başarı
