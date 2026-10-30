@@ -123,6 +123,27 @@ function createWrongWriteCounter() {
   };
 }
 
+// Sum of child CPU rows. A missing log (`null`) and an empty log both mean the
+// probe recorded nothing, so both are `null` (unmeasured), not a measured 0.
+function sumCpu(cpu) {
+  return cpu && cpu.length ? cpu.reduce((total, row) => total + row.totalMs, 0) : null;
+}
+
+// Fail closed on an incomplete CPU sample: `null` when the log was not captured
+// or empty, otherwise whether every spawned process (the CLI plus one per test
+// process) contributed a row. A short log means a process died before it
+// appended, so the caller reports NOT_MEASURED instead of a smaller total.
+function isCpuComplete(cpu, processes) {
+  return cpu === null ? null : cpu.length >= processes + 1;
+}
+
+// Whether a run's CPU sample is usable. A run with no log, an empty log, or a
+// short log is unmeasured: the caller must treat that as NOT_MEASURED, not as a
+// smaller total, so an unmeasured cost cannot reach GAIN.
+function cpuSampleComplete(run) {
+  return sumCpu(run.cpu) !== null && run.cpuComplete !== false;
+}
+
 // Runs one real CLI invocation. `cpuLog`, when given, makes the run capture the
 // CPU/RSS of every Node process it spawns (the CLI plus each test process) by
 // preloading the probe; the parsed lines come back as `cpu`.
@@ -159,7 +180,7 @@ function run(root, name, mode, options = {}) {
   // died before it appended, so its CPU is missing; the caller must treat that as
   // NOT_MEASURED rather than a smaller total. Extra rows are not treated as
   // failure (an unexpected process can only add, never hide, CPU).
-  const cpuComplete = cpu === null ? null : cpu.length >= processes + 1;
+  const cpuComplete = isCpuComplete(cpu, processes);
   return { result, processes, wallMs, cpu, cpuComplete, changed: changedPaths(before, snapshotTree(root)) };
 }
 
@@ -167,4 +188,5 @@ module.exports = {
   CLI, CPU_PROBE, digest, write, commit,
   arithFixture, installArith, stringFixture, installString,
   snapshotTree, changedPaths, createWrongWriteCounter, run,
+  sumCpu, isCpuComplete, cpuSampleComplete,
 };

@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const {
   digest, write, commit, installArith, installString, createWrongWriteCounter, run,
+  sumCpu, isCpuComplete, cpuSampleComplete,
 } = require('./helpers/coder-g3-cohort-fixtures');
 
 // Preregistration: docs/task-packs/coder-learning-g3-power-cost-preregistration-20261030.md
@@ -46,12 +47,6 @@ const median = values => {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
-
-// Sum of child CPU for a run. A missing log is `null` (unmeasured) and an empty
-// log is `null` too: a zero-byte file means the probe recorded nothing, not that
-// the run used zero CPU, so treating it as a measured 0 could let an unmeasured
-// repeat reach GAIN.
-const sumCpu = cpu => (cpu && cpu.length ? cpu.reduce((total, row) => total + row.totalMs, 0) : null);
 
 // §7/§8 verdict vocabulary, mirroring the #4380 eval: a metric verdict
 // classifies the measured value, and an unmeasured value stays NOT_MEASURED.
@@ -150,14 +145,8 @@ function trainLearned(roots, label, cpuDir) {
     { cpuLog: path.join(cpuDir, `${label}-train-b.jsonl`) });
   assert.equal(string.result.data.outcome, 'applied_tested', JSON.stringify(string.result));
   commit(roots.learned);
-  const arithCpuMs = sumCpu(arith.cpu), stringCpuMs = sumCpu(string.cpu);
-  // A missing training CPU log must stay `null`, not become 0, so the caller's
-  // cpuMeasured sees it: a repeat with no training CPU record is NOT_MEASURED,
-  // and the preregistration never lets an unmeasured CPU cost reach GAIN. An
-  // incomplete log (a probe row missing) is treated the same way.
-  const cpuMs = arithCpuMs === null || stringCpuMs === null
-    || arith.cpuComplete === false || string.cpuComplete === false
-    ? null : arithCpuMs + stringCpuMs;
+  const cpuMs = cpuSampleComplete(arith) && cpuSampleComplete(string)
+    ? sumCpu(arith.cpu) + sumCpu(string.cpu) : null;
   return { wallMs: arith.wallMs + string.wallMs, cpuMs };
 }
 
@@ -189,8 +178,7 @@ function pairedPass(roots, items, install, label, cpuDir, wrongWrites) {
     wrongWrites.assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${label} ${item.name} baseline`);
     wrongWrites.assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${label} ${item.name} learned`);
     const baselineCpu = sumCpu(baseline.cpu), learnedCpu = sumCpu(learned.cpu);
-    if (baselineCpu === null || learnedCpu === null
-      || baseline.cpuComplete === false || learned.cpuComplete === false) cpuMeasured = false;
+    if (!cpuSampleComplete(baseline) || !cpuSampleComplete(learned)) cpuMeasured = false;
     rows.push({ task: item.name, taskHash: baselineFixture.taskHash,
       baselineProcesses: baseline.processes, learnedProcesses: learned.processes,
       processDelta: baseline.processes - learned.processes,
@@ -364,4 +352,31 @@ test('preregistered G3 power + repeated cost: the cohort is powered and cost is 
   assert.equal(report.repeatedCost.wallGainMs.length, CONTRACT.repeats);
   assert.ok(['INSUFFICIENT', 'MEASURED_NO_GAIN', 'GAIN'].includes(report.verdict.status), report.verdict.status);
   t.diagnostic(JSON.stringify(report));
+});
+
+// §6/§7 fail-closed CPU: a missing, empty or short probe log must read as
+// NOT_MEASURED, never as a smaller measured total, so an unmeasured cost cannot
+// reach GAIN. These are the shared guards both `trainLearned` and `pairedPass`
+// call; a regression here would silently let a partial log pass as measured.
+test('CPU sampling fails closed on a missing, empty or incomplete probe log', () => {
+  // Missing (no log captured) and empty (the probe recorded nothing) are both
+  // unmeasured: a zero-byte file is not a measured 0.
+  assert.equal(sumCpu(null), null);
+  assert.equal(sumCpu([]), null);
+  assert.equal(sumCpu([{ totalMs: 12 }, { totalMs: 8 }]), 20);
+
+  // Completeness is row count vs spawned processes: the CLI plus one per test
+  // process. `null` stays unmeasured; a short log is incomplete; extra rows are
+  // allowed (an unexpected process can only add CPU, never hide it).
+  assert.equal(isCpuComplete(null, 2), null);
+  assert.equal(isCpuComplete([{ totalMs: 1 }, { totalMs: 1 }], 2), false);
+  assert.equal(isCpuComplete([{ totalMs: 1 }, { totalMs: 1 }, { totalMs: 1 }], 2), true);
+  assert.equal(isCpuComplete([{ totalMs: 1 }, { totalMs: 1 }, { totalMs: 1 }, { totalMs: 1 }], 2), true);
+
+  // The composite guard the callers use: a run is only measured when its log is
+  // present, non-empty and complete.
+  assert.equal(cpuSampleComplete({ cpu: null, cpuComplete: null }), false);
+  assert.equal(cpuSampleComplete({ cpu: [], cpuComplete: true }), false);
+  assert.equal(cpuSampleComplete({ cpu: [{ totalMs: 1 }, { totalMs: 1 }], cpuComplete: false }), false);
+  assert.equal(cpuSampleComplete({ cpu: [{ totalMs: 1 }, { totalMs: 1 }, { totalMs: 1 }], cpuComplete: true }), true);
 });
