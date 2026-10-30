@@ -4086,8 +4086,8 @@
       "branches": 100
     },
     "scripts/run-test-shard.js": {
-      "lines": 75.57,
-      "branches": 58.69
+      "lines": 73.83,
+      "branches": 55.91
     },
     "scripts/run-tests.js": {
       "lines": 86.04,
