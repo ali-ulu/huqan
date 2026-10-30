@@ -144,6 +144,14 @@ function cpuSampleComplete(run) {
   return sumCpu(run.cpu) !== null && run.cpuComplete !== false;
 }
 
+// Paired CPU delta, or `null` when either side's sample is incomplete. A short
+// but nonempty log still has a numeric sum, so gating on `null` alone would let
+// a partial sample report a measured delta; both sides must be complete.
+function cpuPairDeltaMs(baselineRun, learnedRun) {
+  if (!cpuSampleComplete(baselineRun) || !cpuSampleComplete(learnedRun)) return null;
+  return Math.round(sumCpu(baselineRun.cpu) - sumCpu(learnedRun.cpu));
+}
+
 // Runs one real CLI invocation. `cpuLog`, when given, makes the run capture the
 // CPU/RSS of every Node process it spawns (the CLI plus each test process) by
 // preloading the probe; the parsed lines come back as `cpu`.
@@ -188,5 +196,5 @@ module.exports = {
   CLI, CPU_PROBE, digest, write, commit,
   arithFixture, installArith, stringFixture, installString,
   snapshotTree, changedPaths, createWrongWriteCounter, run,
-  sumCpu, isCpuComplete, cpuSampleComplete,
+  sumCpu, isCpuComplete, cpuSampleComplete, cpuPairDeltaMs,
 };

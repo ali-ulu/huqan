@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const {
   digest, write, commit, installArith, installString, createWrongWriteCounter, run,
-  sumCpu, isCpuComplete, cpuSampleComplete,
+  sumCpu, isCpuComplete, cpuSampleComplete, cpuPairDeltaMs,
 } = require('./helpers/coder-g3-cohort-fixtures');
 
 // Preregistration: docs/task-packs/coder-learning-g3-power-cost-preregistration-20261030.md
@@ -178,15 +178,16 @@ function pairedPass(roots, items, install, label, cpuDir, wrongWrites) {
     wrongWrites.assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${label} ${item.name} baseline`);
     wrongWrites.assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${label} ${item.name} learned`);
     const baselineCpu = sumCpu(baseline.cpu), learnedCpu = sumCpu(learned.cpu);
-    if (!cpuSampleComplete(baseline) || !cpuSampleComplete(learned)) cpuMeasured = false;
+    const cpuPairComplete = cpuSampleComplete(baseline) && cpuSampleComplete(learned);
+    if (!cpuPairComplete) cpuMeasured = false;
     rows.push({ task: item.name, taskHash: baselineFixture.taskHash,
       baselineProcesses: baseline.processes, learnedProcesses: learned.processes,
       processDelta: baseline.processes - learned.processes,
       wallDeltaMs: Math.round(baseline.wallMs - learned.wallMs),
-      cpuDeltaMs: baselineCpu === null || learnedCpu === null ? null : Math.round(baselineCpu - learnedCpu),
+      cpuDeltaMs: cpuPairDeltaMs(baseline, learned),
       baselineWallMs: Math.round(baseline.wallMs), learnedWallMs: Math.round(learned.wallMs),
-      baselineCpuMs: baselineCpu === null ? null : Math.round(baselineCpu),
-      learnedCpuMs: learnedCpu === null ? null : Math.round(learnedCpu) });
+      baselineCpuMs: cpuSampleComplete(baseline) ? Math.round(baselineCpu) : null,
+      learnedCpuMs: cpuSampleComplete(learned) ? Math.round(learnedCpu) : null });
     baselineWallMs += baseline.wallMs; learnedWallMs += learned.wallMs;
     baselineCpuMs += baselineCpu || 0; learnedCpuMs += learnedCpu || 0;
   }
@@ -379,4 +380,14 @@ test('CPU sampling fails closed on a missing, empty or incomplete probe log', ()
   assert.equal(cpuSampleComplete({ cpu: [], cpuComplete: true }), false);
   assert.equal(cpuSampleComplete({ cpu: [{ totalMs: 1 }, { totalMs: 1 }], cpuComplete: false }), false);
   assert.equal(cpuSampleComplete({ cpu: [{ totalMs: 1 }, { totalMs: 1 }, { totalMs: 1 }], cpuComplete: true }), true);
+
+  // The paired delta must be null when either side is short, even though a short
+  // nonempty log still sums to a number. Gating on `null` alone would let a
+  // partial sample report a measured delta and feed powerFor a false sigma.
+  const complete = { cpu: [{ totalMs: 10 }, { totalMs: 6 }], cpuComplete: true };
+  const short = { cpu: [{ totalMs: 4 }], cpuComplete: false };
+  assert.equal(cpuPairDeltaMs(complete, complete), 0);
+  assert.equal(cpuPairDeltaMs({ cpu: [{ totalMs: 9 }, { totalMs: 5 }], cpuComplete: true }, complete), -2);
+  assert.equal(cpuPairDeltaMs(short, complete), null);
+  assert.equal(cpuPairDeltaMs(complete, short), null);
 });
