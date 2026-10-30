@@ -10,9 +10,10 @@
 | Boyut | Sonuç | Verdict |
 |---|---|---|
 | Holdout doğruluğu (2 aile × 3 görev = 6) | 6/6 `applied_tested`, `observedVerification.ok` | **MEASURED** |
-| Yanlış yazma (holdout + anti-vaka + shift + non-inferiority) | 0 | **eşik tetiklenmedi** |
+| Yanlış yazma (holdout + anti-vaka + shift + non-inferiority) | 0 (ölçüldü, sabit değil) | **eşik tetiklenmedi** |
 | Görev başına process kazancı | 6/6 (arith 4→1, string 3→1) | **kanıtlandı** |
-| Amortize duvar-saati kazancı (eğitim dahil) | **−1009 ms** | **INSUFFICIENT** |
+| Holdout sayısı (aile başına ≥3) | 3 + 3 | **MEASURED** |
+| Amortize duvar-saati kazancı (eğitim dahil) | **−1009 / −992 / −1096 ms** | **INSUFFICIENT** |
 | Farklı-aile aktarımı (anti-vaka) | `no_applicable_candidate` reddi, dosya değişmedi | fail-closed |
 | Farklı-yöntem kontrolü | bellek denemesi `transfer_verification_failed` + rollback; baseline taze aramada çözer | fail-closed |
 | Dağılım kayması | shift 4→1, string-shift 3→1 | kazanç korundu |
@@ -42,7 +43,8 @@ kanıtlanmamış bırakır — ön-kayıt §1/§8 fail-closed tanımı gereği.
 - **Amortize edilmiş process tasarrufu: 21 − 6 − 7 = 8 process.**
 - **Amortize edilmiş duvar-saati kazancı: 4923 − 4235 − 1697 = −1009 ms** (negatif → `INSUFFICIENT`).
 - İki bağımsız koşumda process sayıları ve görev/test hash'leri birebir aynı (deterministik);
-  duvar-saati kazancı −1009 ms ve −992 ms → verdict her ikisinde de `INSUFFICIENT`.
+  duvar-saati kazancı −1009 ms ve −992 ms → verdict her ikisinde de `INSUFFICIENT`
+  (CodeRabbit düzeltmelerinden sonraki koşumda −1096 ms, aynı verdict).
 
 ## 3. Yorum
 

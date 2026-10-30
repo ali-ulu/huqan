@@ -136,6 +136,7 @@ function installString(root, item) {
 }
 
 function run(root, name, mode, expectedStatus = 0) {
+  const before = snapshotTree(root);
   const started = process.hrtime.bigint();
   const child = spawnSync(process.execPath, [path.resolve(__dirname, '..', 'cli.js'),
     'coder', `${name}.json`, mode, '--authorize', '--root', root,
@@ -149,18 +150,47 @@ function run(root, name, mode, expectedStatus = 0) {
   const result = JSON.parse(child.stdout);
   const log = path.join(root, '.huqan', 'gain', `${name}.log`);
   const processes = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('test-process').length - 1 : 0;
-  return { result, processes, wallMs };
+  return { result, processes, wallMs, changed: changedPaths(before, snapshotTree(root)) };
 }
 
-// Zero mis-write tolerance: after a paired run the only tree modification must be
-// the task's own source file (test JSON and test fixture were committed beforehand).
-function assertNoStrayWrites(root, name) {
-  const lines = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' })
-    .split('\n').filter(Boolean);
-  assert.deepEqual(lines, [` M src/${name}.js`], `stray writes in ${root}: ${lines.join(' | ')}`);
+// A full content snapshot of the working tree, ignoring only runtime state
+// (`node_modules`, `.huqan/`) and the SQLite databases (`journal.db`,
+// `memory.db`, and their `-wal`/`-shm` sidecars). This is stronger than
+// `git status --porcelain`: the fixtures ignore `*.json`, so git would not
+// report a stray write to a task JSON file, but this does.
+const SNAPSHOT_IGNORE = new Set(['.git', '.huqan', 'node_modules']);
+const isRuntimeFile = name => /\.db(-(wal|shm|journal))?$/.test(name);
+function snapshotTree(root) {
+  const files = {};
+  const walk = dir => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (SNAPSHOT_IGNORE.has(entry.name) || isRuntimeFile(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else files[path.relative(root, full)] = digest(fs.readFileSync(full));
+    }
+  };
+  walk(root);
+  return files;
+}
+
+function changedPaths(before, after) {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter(file => before[file] !== after[file]).sort();
+}
+
+// Zero mis-write tolerance: the only tree change after a paired run must be the
+// task's own source file. An empty expectation means the tree is untouched.
+// Any deviation is counted so the report's wrongWrites verdict is measured, not
+// a constant read off the contract.
+let WRONG_WRITES = 0;
+function assertChangedPaths(actual, expected, label) {
+  WRONG_WRITES += actual.filter(file => !expected.includes(file)).length;
+  assert.deepEqual(actual, expected, `${label}: changed ${JSON.stringify(actual)}`);
 }
 
 test('preregistered G3 cohort: learned arms hold accuracy and cut amortized total cost in two families', t => {
+  WRONG_WRITES = 0;
   const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-g3-cohort-')));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   const roots = { baseline: path.join(parent, 'baseline'), learned: path.join(parent, 'learned') };
@@ -222,8 +252,8 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
     assert.ok(learned.processes < baseline.processes);
     assert.equal(fs.readFileSync(path.join(roots.baseline, `src/${item.name}.js`), 'utf8'),
       fs.readFileSync(path.join(roots.learned, `src/${item.name}.js`), 'utf8'));
-    assertNoStrayWrites(roots.baseline, item.name);
-    assertNoStrayWrites(roots.learned, item.name);
+    assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${item.name} baseline`);
+    assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${item.name} learned`);
     evidence.push({ task: item.name, taskHash: baselineFixture.taskHash, testHash: baselineFixture.testHash,
       baselineProcesses: baseline.processes, learnedProcesses: learned.processes, maxProcesses: BUDGET,
       baselineWallMs: Math.round(baseline.wallMs), learnedWallMs: Math.round(learned.wallMs),
@@ -244,7 +274,8 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
     const learned = run(roots.learned, item.name, '--adapt-memory');
     assert.equal(baseline.result.data.outcome, 'applied_tested');
     assert.equal(learned.result.data.outcome, 'applied_tested');
-    assertNoStrayWrites(roots.learned, item.name);
+    assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${item.name} baseline`);
+    assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${item.name} learned`);
     shiftEvidence.push({ task: item.name, baselineProcesses: baseline.processes, learnedProcesses: learned.processes });
   }
 
@@ -274,10 +305,9 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
   assert.equal(crossRejected.result.data.reason, 'no_applicable_candidate', JSON.stringify(crossRejected.result));
   assert.equal(crossRejected.processes, 0);
   assert.equal(fs.readFileSync(path.join(crossRoot, `src/${crossItem.name}.js`), 'utf8'), crossFixture.content);
-  // The refusal must leave the tree untouched: the fixture was committed before
-  // the run, so a clean status is the proof that nothing was written.
-  assert.deepEqual(execFileSync('git', ['status', '--porcelain'], { cwd: crossRoot, encoding: 'utf8' })
-    .split('\n').filter(Boolean), []);
+  // The refusal must leave the tree untouched: an empty changed-set is the proof
+  // that nothing was written, including to the ignored task JSON.
+  assertChangedPaths(crossRejected.changed, [], `${crossItem.name} refusal`);
 
   // §4 anti-case: different-method control. A matching repair context must not
   // make the memory solve a new method, and there must be no automatic fallback:
@@ -294,7 +324,11 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
   assert.equal(rejected.result.data.attempts[0].rolledBack, true);
   assert.equal(rejected.processes, 1);
   assert.equal(fs.readFileSync(path.join(roots.learned, `src/${ARITH_NOVEL.name}.js`), 'utf8'), novelFixture.content);
+  // The learned novel run rolls back its memory attempt, so the learned tree must
+  // be untouched; the baseline fresh run writes only its own source file.
+  assertChangedPaths(rejected.changed, [], `${ARITH_NOVEL.name} learned rollback`);
   assert.equal(fresh.result.data.outcome, 'applied_tested');
+  assertChangedPaths(fresh.changed, [`src/${ARITH_NOVEL.name}.js`], `${ARITH_NOVEL.name} baseline`);
 
   // §4 previous-skill non-inferiority: after the negative controls, the learned
   // arm must still replay the remembered parity procedure on a new same-family task.
@@ -306,7 +340,8 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
   assert.equal(stillLearned.result.data.outcome, 'applied_tested');
   assert.equal(stillBaseline.result.data.outcome, 'applied_tested');
   assert.ok(stillLearned.processes < stillBaseline.processes);
-  assertNoStrayWrites(roots.learned, ARITH_REGRESSION.name);
+  assertChangedPaths(stillLearned.changed, [`src/${ARITH_REGRESSION.name}.js`], `${ARITH_REGRESSION.name} learned`);
+  assertChangedPaths(stillBaseline.changed, [`src/${ARITH_REGRESSION.name}.js`], `${ARITH_REGRESSION.name} baseline`);
 
   // §4 restart: every CLI call was already a fresh process; reopen the journal
   // store and confirm the eligibility ledger survived.
@@ -323,14 +358,19 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
 
   const perTaskProcessGain = evidence.filter(row => row.learnedProcesses < row.baselineProcesses).length;
   const amortizedWallGainMs = Math.round(baselineWallMs - learnedWallMs - trainingWallMs);
+  // §7 requires every family to carry at least CONTRACT.holdoutPerFamily
+  // holdouts; a short or unbalanced split is INSUFFICIENT regardless of gains.
+  const holdoutCountMet = ARITH_HOLDOUT.length >= CONTRACT.holdoutPerFamily
+    && STRING_HOLDOUT.length >= CONTRACT.holdoutPerFamily;
   // Every preregistered gate is a hard assert above, so reaching the report means
   // accuracy (H1a), per-task process gain (H1b) and the anti-case and restart
   // gates all held. The wall-time threshold (H1c) is the only gate classified
   // here rather than asserted: a CI timing is one observation, not an assertion.
   const wallGainVerdict = classifyWallGainVerdict(amortizedWallGainMs, true);
   // Test-run success and hypothesis success stay separate: exit 0 proves only
-  // that the measurement is valid. H1 (§1) needs H1c to clear its threshold.
-  const hypothesisVerdict = wallGainVerdict === 'GAIN' && perTaskProcessGain === evidence.length
+  // that the measurement is valid. H1 (§1) needs H1c to clear its threshold and
+  // the preregistered holdout count to be met in both families.
+  const hypothesisVerdict = holdoutCountMet && wallGainVerdict === 'GAIN' && perTaskProcessGain === evidence.length
     ? 'PROVEN' : 'NOT_PROVEN';
   const report = {
     preregistration: CONTRACT.preregistration, scope: 'two-family (arithmetic/parity + string/trim-lowercase) paired transfer eval',
@@ -352,11 +392,16 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
     previousSkillNonInferiority: { task: ARITH_REGRESSION.name, baselineProcesses: stillBaseline.processes,
       learnedProcesses: stillLearned.processes, held: stillLearned.processes < stillBaseline.processes },
     metricVerdicts: {
-      accuracy: 'MEASURED', wrongWrites: CONTRACT.wrongWriteTolerance === 0 ? 'REJECT_THRESHOLD_UNTRIGGERED' : 'REJECT',
+      accuracy: 'MEASURED',
+      wrongWrites: WRONG_WRITES === 0 && CONTRACT.wrongWriteTolerance === 0 ? 'REJECT_THRESHOLD_UNTRIGGERED' : 'REJECT',
+      holdoutCount: holdoutCountMet ? 'MEASURED' : 'INSUFFICIENT',
       perTaskProcessGain: `${perTaskProcessGain}/${evidence.length}`,
       amortizedWallGainMs: wallGainVerdict, cpuCost: 'NOT_MEASURED',
     },
     verdict: { testRun: 'PASSED', h1: hypothesisVerdict },
   };
+  // The preregistered H1 verdict must be the report's actual value; this pins the
+  // expected outcome for this measurement so a silent change in the verdict fails.
+  assert.equal(report.verdict.h1, 'NOT_PROVEN');
   t.diagnostic(JSON.stringify(report));
 });

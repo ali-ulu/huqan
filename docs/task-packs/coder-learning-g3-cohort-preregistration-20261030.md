@@ -1,8 +1,10 @@
 # Coder öğrenme kazanımı — G3 bağımsız kohort ön-kaydı (preregistration)
 
 **Status:** protokol ölçümden önce kilitlendi. Külliyat (§4), aile bölmesi, metrikler
-(§6) ve eşikler (§7) bu commit ile donduruldu; ölçüm bu belge main'e girdikten sonra
-koşulur ve sonuç ayrı bir sonuç belgesinde raporlanır.
+(§6) ve eşikler (§7) bu commit ile donduruldu. Ölçüm aynı PR'da, bu commit'ten **sonra**
+koşuldu; sonuç ayrı bir belgede raporlanır (`coder-learning-g3-cohort-result-20261030.md`).
+Protokol bu sonuç görülmeden dondurulduğu için ön-kayıt geçerlidir; koşumun PR içinde
+gerçekleşmiş olması ön-kayıt sırasını değiştirmez (ön-kayıt commit'i koşumdan önce atıldı).
 
 **Base:** `14871fea` (origin/main), issue [#4380](https://github.com/ali-ulu/huqan/issues/4380).
 **Epic:** [#4060](https://github.com/ali-ulu/huqan/issues/4060) (G3 — birleşik sistem kabulü).
