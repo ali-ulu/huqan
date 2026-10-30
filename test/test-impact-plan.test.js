@@ -92,6 +92,40 @@ test('package and workflow changes fail closed to the complete known test set', 
   }
 });
 
+test('a high-risk path forces the full suite even when other files are in the same change', () => {
+  // `matchesAny` matches one path against a pattern list; passing it the whole
+  // `changed` array stringified the list ("package.json,lib/x.js") and matched
+  // nothing, so a manifest change only failed closed when it was the *only*
+  // change. Every multi-file pull request that touched package.json ran the
+  // 974-file dependency subset instead of the full suite -- a silent fail-open
+  // on the exact path the full-suite rule exists to guard.
+  const plan = buildTestImpactPlan({
+    changedFiles: ['package.json', 'lib/memory-store.js'],
+    runtimeOrTest: true,
+  });
+  assert.equal(plan.fullSuite, true);
+  assert.deepEqual(plan.selectedTests, knownTests);
+  assert.match(plan.fallbackReason, /high-risk/);
+});
+
+test('an impact-only path still selects its tests alongside unrelated files', () => {
+  // Same array-vs-string defect on the impact-only side. `runtimeOrTest: false`
+  // is the case the classifier actually produces for a documentation change: the
+  // hand-written impact rules are then the only selector. With the array passed
+  // to `matchesAny`, `README.md` + `docs/x.md` matched nothing and the plan ran
+  // zero tests -- a documentation pull request whose README pin silently stopped
+  // running (#3895).
+  const plan = buildTestImpactPlan({
+    changedFiles: ['README.md', 'docs/x.md'],
+    runtimeOrTest: false,
+  });
+  assert.equal(plan.runTests, true);
+  assert.ok(
+    plan.selectedTests.includes('test/readme-inventory-pin.test.js'),
+    'the README pin must survive a change that also touches another document',
+  );
+});
+
 test('valid agent plan can add known tests but cannot reduce deterministic coverage', () => {
   const selected = tempPlan({
     schemaVersion: 1,
