@@ -19,9 +19,11 @@ const { authorityLift } = require('./helpers/authority-lift');
 const { createAgentCoderExecution } = require('../lib/agent-coder-execution');
 const { createExperienceJournal } = require('../lib/experience/journal');
 const { readSealedRun } = require('../lib/experience/learning-intake');
+const { openJournalConnection } = require('../lib/experience/journal-connection');
+const { readPredictionPairs } = require('../lib/prediction-outcome-pairs');
 const { beginObservation, finishObservation } = require('../lib/agent-cognition-observation');
 
-function ordinaryFixture(t, { replacements = ['3', '2'], timeout = false, synthesis = false } = {}) {
+function ordinaryFixture(t, { replacements = ['3', '2'], timeout = false, synthesis = false, persistent = false } = {}) {
   const dir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ordinary-coder-feedback-')));
   const root = path.join(dir, 'repo'); fs.mkdirSync(root);
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
@@ -38,7 +40,10 @@ function ordinaryFixture(t, { replacements = ['3', '2'], timeout = false, synthe
   const goal = 'return two'; const workspaceId = 'default';
   const memoryPath = path.join(dir, 'graph.json');
   const kernel = new KernelV2({ noLoad: true, useSQLite: false, loadPlugins: false, memoryPath });
-  const journal = { ...createExperienceJournal() };
+  const journalFile = path.join(dir, 'journal.db');
+  const store = persistent ? openJournalConnection({ dbPath: journalFile }) : null;
+  if (persistent) assert.ok(store);
+  const journal = { ...createExperienceJournal(store ? { store } : {}) };
   const approvalRuntime = createHumanOversightApprovalRuntime({ graph: kernel.graph,
     ledger: createTrustEvidenceLedger({ graph: kernel.graph }),
     resolveIdentity: ({ role, action: scoped }) => ({ decision: 'allow', identity: {
@@ -61,8 +66,9 @@ function ordinaryFixture(t, { replacements = ['3', '2'], timeout = false, synthe
       environment: 'test', actor: 'operator', time: '2026-10-25T00:00:00Z', goal, task: task.id },
     cognitionCoderExpectations: { [step.id]: { workspaceId, expected: 'passed', sourceGroup: 'ordinary-source', riskScore: 20 } } };
   const agents = [];
-  t.after(() => { for (const agent of agents) agent.storage.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  return { dir, root, git, task, goal, workspaceId, memoryPath, kernel, journal, config, coder, step, state, opts, agents };
+  t.after(() => { for (const agent of agents) agent.storage.close(); store?.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  return { dir, root, git, task, goal, workspaceId, memoryPath, kernel, journal, journalFile,
+    closeJournal: () => store?.close(), config, coder, step, state, opts, agents };
 }
 
 for (const replacements of [['3', '2'], ['3', '4']]) {
@@ -128,20 +134,42 @@ test('ordinary test timeout and unsupported synthesis never become observed succ
 });
 
 test('ordinary AgentV3 records real native acceptance and a fresh process reads the same outcome', t => {
-  const f = ordinaryFixture(t);
+  const f = ordinaryFixture(t, { persistent: true });
   const agent = new AgentV3({ kernel: f.kernel, dbPath: path.join(f.dir, 'agent.db'),
     dreamExperimentLoop: false, coderExecution: f.config });
   f.agents.push(agent);
+  const append = f.journal.append;
+  const beforeEffects = [];
+  f.journal.append = event => {
+    if (event.type === 'run_started') beforeEffects.push(structuredClone(Object.values(readPredictionPairs(f.kernel.graph))
+      .find(pair => pair.rewardContext?.key === 'risk:coder:replace_text')));
+    return append(event);
+  };
   const run = agent.run(f.goal, f.opts);
   assert.equal(run.data.steps[0].result.data.attempts.length, 2);
   assert.equal(run.data.steps[0].result.data.attempts[0].rolledBack, true);
   assert.ok(run.data.cognition.trail.some(row => row.outcome === 'confirmed'), JSON.stringify(run.data.cognition));
+  assert.equal(beforeEffects.length, 2);
+  assert.ok(beforeEffects.every(pair => pair.rewardContext.expected === null && pair.outcome === null));
+  const pair = Object.values(readPredictionPairs(f.kernel.graph)).find(row => row.acceptance);
+  assert.ok(pair);
+  assert.deepEqual(pair.rewardContext, beforeEffects[0].rewardContext);
+  assert.equal(pair.acceptance.sourceRef.endsWith(':c2'), true);
+  assert.equal(pair.acceptance.scopeHash, pair.binding.expectationHash);
+  assert.equal(pair.acceptance.sourceHash, readSealedRun(f.journal, pair.acceptance.runId, f.workspaceId).sourceHash);
   execFileSync(process.execPath, ['check.js'], { cwd: f.root, windowsHide: true });
+  f.closeJournal();
+  const journalDigest = createHash('sha256').update(fs.readFileSync(f.journalFile)).digest('hex');
   const child = spawnSync(process.execPath, ['-e',
-    "const Graph=require('./graph');const {readPredictionPairs}=require('./lib/prediction-outcome-pairs');const g=new Graph({useSQLite:false,memoryPath:process.argv[1]});console.log(JSON.stringify(Object.values(readPredictionPairs(g)).map(p=>p.outcome?.state)));", f.memoryPath],
+    "const a=require('node:assert/strict'),Graph=require('./graph');const {readPredictionPairs}=require('./lib/prediction-outcome-pairs');"
+      + "const {openJournalConnection}=require('./lib/experience/journal-connection'),{createExperienceJournal}=require('./lib/experience/journal'),{readSealedRun}=require('./lib/experience/learning-intake');"
+      + "const g=new Graph({useSQLite:false,memoryPath:process.argv[1]}),s=openJournalConnection({dbPath:process.argv[2],readOnly:true});a.ok(s);"
+      + "try{const p=Object.values(readPredictionPairs(g)).find(p=>p.acceptance),j=createExperienceJournal({store:s,readOnly:true}),sealed=readSealedRun(j,p.acceptance.runId,p.binding.workspaceId);"
+      + "a.equal(sealed.ok,true);a.equal(sealed.sourceHash,p.acceptance.sourceHash);a.ok(p.binding.sourceRefs.includes(p.acceptance.sourceRef));console.log(JSON.stringify(p));}finally{s.close();}", f.memoryPath, f.journalFile],
   { cwd: path.join(__dirname, '..'), encoding: 'utf8', windowsHide: true });
   assert.equal(child.status, 0, child.stderr);
-  assert.ok(JSON.parse(child.stdout).includes('confirmed'));
+  assert.deepEqual(JSON.parse(child.stdout), pair);
+  assert.equal(createHash('sha256').update(fs.readFileSync(f.journalFile)).digest('hex'), journalDigest);
 });
 
 test('native rollback observation changes the next approved Coder choice and survives a fresh process', () => {

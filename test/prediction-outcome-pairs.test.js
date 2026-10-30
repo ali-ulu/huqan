@@ -27,6 +27,139 @@ function memoryGraph(dir) {
 
 const AT = '2026-01-01T00:00:00.000Z';
 
+function rewardFixture(decisionId = 'durable') {
+  const binding = { workspaceId: 'default', runId: 'agent-run', stepId: 'coder:repair',
+    frameHash: 'a'.repeat(64), expectationHash: 'b'.repeat(64), perceptKey: 'percept:repair',
+    sourceGroup: 'independent-repair', sourceRefs: ['coder-run:native:c1', 'coder-run:native:c2'] };
+  const rewardContext = { key: 'risk:coder:replace_text', expected: -1,
+    history: { workspaceId: binding.workspaceId, frameHash: binding.frameHash,
+      historyBoundary: { at: AT, decisionId, priorDecisionIds: ['prior-1', 'prior-2', 'prior-3'] } } };
+  const acceptance = { sourceRef: 'coder-run:native:c2', sourceHash: 'c'.repeat(64),
+    scopeHash: binding.expectationHash, runId: 'native:c2' };
+  return { decisionId, score: 20, actionClass: 'coder:replace_text', at: AT, binding, rewardContext, acceptance };
+}
+
+test('reward context and selected native acceptance survive a Graph reopen', t => {
+  const dir = tempDir(t), graph = memoryGraph(dir), input = rewardFixture();
+  recordPrediction(graph, input);
+  assert.deepEqual(readPredictionPairs(memoryGraph(dir))[input.decisionId].rewardContext, input.rewardContext);
+  recordOutcome(graph, { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'accepted',
+    at: AT, acceptance: input.acceptance });
+  const pair = readPredictionPairs(memoryGraph(dir))[input.decisionId];
+  assert.deepEqual(pair.rewardContext, input.rewardContext);
+  assert.deepEqual(pair.acceptance, input.acceptance);
+  assert.deepEqual(pair.binding, input.binding);
+});
+
+test('contextual receipts use the same controlled clock as their timestamp producer', t => {
+  const RealDate = Date, at = new RealDate(RealDate.now() + 60000).toISOString();
+  t.mock.method(global, 'Date', class extends RealDate { constructor(...args) { super(...(args.length ? args : [at])); } });
+  const graph = memoryGraph(tempDir(t)), input = rewardFixture();
+  delete input.at; input.rewardContext.history.historyBoundary.at = at;
+  recordPrediction(graph, input);
+  recordOutcome(graph, { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'clock', acceptance: input.acceptance });
+  const pair = readPredictionPairs(graph)[input.decisionId];
+  assert.equal(pair.prediction.at, at); assert.equal(pair.outcome.at, at);
+  assert.deepEqual(pair.rewardContext, input.rewardContext);
+});
+
+test('frozen reward expectations cannot be replaced by replaying the prediction', t => {
+  const graph = memoryGraph(tempDir(t)), input = rewardFixture();
+  recordPrediction(graph, input);
+  assert.equal(recordPrediction(graph, structuredClone(input)).replayed, true);
+  const before = graph.getCommittedMutationResultsByPrefix('prediction-outcome:');
+  for (const change of [context => { context.expected = 1; },
+    context => { context.history.historyBoundary.priorDecisionIds.reverse(); },
+    context => { context.history.historyBoundary.at = '2025-12-31T23:59:59.000Z'; }]) {
+    const changed = structuredClone(input); change(changed.rewardContext);
+    assert.throws(() => recordPrediction(graph, changed));
+  }
+  assert.deepEqual(graph.getCommittedMutationResultsByPrefix('prediction-outcome:'), before);
+  input.rewardContext.expected = 1;
+  assert.equal(readPredictionPairs(graph).durable.rewardContext.expected, -1, 'caller mutation does not rewrite history');
+});
+
+test('reward context rejects mismatched scope, future history, self-reference and invalid expectation', t => {
+  const graph = memoryGraph(tempDir(t));
+  const changes = [
+    input => { delete input.binding; },
+    input => { input.rewardContext.key = 'risk:ask'; },
+    input => { input.rewardContext.history.workspaceId = 'foreign'; },
+    input => { input.rewardContext.history.frameHash = 'd'.repeat(64); },
+    input => { input.rewardContext.history.historyBoundary.decisionId = 'other'; },
+    input => { input.rewardContext.history.historyBoundary.at = '2026-01-01T00:00:00.001Z'; },
+    input => { input.rewardContext.history.historyBoundary.priorDecisionIds.push(input.decisionId); },
+    ...[NaN, Infinity, -1.01, 1.01, '0', undefined].map(expected => input => { input.rewardContext.expected = expected; }),
+  ];
+  for (const change of changes) {
+    const input = rewardFixture(); change(input);
+    assert.throws(() => recordPrediction(graph, input), String(change));
+    assert.deepEqual(readPredictionPairs(graph), {}, 'refused metadata leaves no prediction');
+  }
+  for (const expected of [null, -1, 0, 1]) {
+    const input = rewardFixture(`expected-${expected}`); input.rewardContext.expected = expected;
+    recordPrediction(graph, input);
+    assert.equal(readPredictionPairs(graph)[input.decisionId].rewardContext.expected, expected);
+  }
+});
+
+test('native acceptance is bound to the predeclared source and same-key replay cannot change evidence', t => {
+  const graph = memoryGraph(tempDir(t)), input = rewardFixture();
+  recordPrediction(graph, input);
+  const outcome = { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'native-accepted',
+    at: AT, acceptance: input.acceptance };
+  for (const patch of [{ sourceRef: 'coder-run:foreign' }, { runId: 'native:c1' },
+    { runId: ' native:c2 ' }, { sourceHash: { toString: () => 'c'.repeat(64) } },
+    { scopeHash: 'e'.repeat(64) }, { sourceHash: 'not-a-hash' }, { extra: 'unapproved' }])
+    assert.throws(() => recordOutcome(graph, { ...outcome, acceptance: { ...input.acceptance, ...patch } }));
+  assert.equal(readPredictionPairs(graph).durable.outcome, null);
+  assert.equal(recordOutcome(graph, outcome).replayed, false);
+  assert.equal(recordOutcome(graph, structuredClone(outcome)).replayed, true);
+  const before = graph.getCommittedMutationResultsByPrefix('prediction-outcome:');
+  for (const changed of [{ ...outcome, acceptance: { ...input.acceptance, sourceHash: 'f'.repeat(64) } },
+    { ...outcome, acceptance: { ...input.acceptance, sourceRef: 'coder-run:native:c1', runId: 'native:c1' } },
+    { ...outcome, acceptance: undefined }, { ...outcome, outcome: 'contradiction' }])
+    assert.throws(() => recordOutcome(graph, changed));
+  assert.deepEqual(graph.getCommittedMutationResultsByPrefix('prediction-outcome:'), before);
+  input.acceptance.sourceHash = '0'.repeat(64);
+  assert.equal(readPredictionPairs(graph).durable.acceptance.sourceHash, 'c'.repeat(64));
+});
+
+test('persisted contextual pairs reject changed outcome scope and future or reversed timestamps', t => {
+  const graph = memoryGraph(tempDir(t)), input = rewardFixture();
+  recordPrediction(graph, input);
+  recordOutcome(graph, { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'accepted',
+    at: AT, acceptance: input.acceptance });
+  const original = graph.getCommittedMutationResultsByPrefix('prediction-outcome:');
+  for (const change of [row => { row.workspaceId = 'other'; }, row => { row.frameHash = 'd'.repeat(64); },
+    row => { row.outcome.at = '2025-12-31T23:59:59.000Z'; }, row => { row.outcome.at = '2999-01-01T00:00:00.000Z'; }]) {
+    const rows = structuredClone(original); change(rows.find(row => row.result.outcome).result);
+    const reader = { runMutationOnce() { throw new Error('read-only'); }, getCommittedMutationResultsByPrefix: () => rows };
+    assert.throws(() => readPredictionPairs(reader), /persisted outcome binding/);
+  }
+  assert.deepEqual(graph.getCommittedMutationResultsByPrefix('prediction-outcome:'), original);
+});
+
+test('legacy pair read shape stays unchanged without durable reward metadata', t => {
+  const graph = memoryGraph(tempDir(t));
+  recordPrediction(graph, { decisionId: 'legacy', score: 10, at: AT, binding: rewardFixture().binding });
+  recordOutcome(graph, { decisionId: 'legacy', outcome: 'confirmed', idempotencyKey: 'legacy-result', at: AT });
+  assert.deepEqual(readPredictionPairs(graph).legacy, { decisionId: 'legacy',
+    prediction: { score: 10, unknown: '', actionClass: null, at: AT }, outcome: { state: 'confirmed', at: AT } });
+});
+
+test('a bound acceptance remains readable when reward was not enabled', t => {
+  const graph = memoryGraph(tempDir(t)), input = rewardFixture('no-reward');
+  delete input.rewardContext;
+  recordPrediction(graph, input);
+  recordOutcome(graph, { decisionId: input.decisionId, outcome: 'confirmed', idempotencyKey: 'no-reward-result',
+    at: AT, acceptance: input.acceptance });
+  const pair = readPredictionPairs(graph)[input.decisionId];
+  assert.deepEqual(pair.acceptance, input.acceptance);
+  assert.deepEqual(pair.binding, input.binding);
+  assert.equal(pair.rewardContext, undefined);
+});
+
 test('a prediction pairs with its later outcome, unknown until then', (t) => {
   const graph = memoryGraph(tempDir(t));
   const recorded = recordPrediction(graph, {

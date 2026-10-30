@@ -45,6 +45,10 @@ test('predecision expectation excludes later same-frame evidence and preserves s
   for (let i = 0; i < 3; i++) assert.equal(history(f, `past-${i}`).outcome, 'contradiction');
   const sourceRows = f.graph.getCommittedMutationResultsByPrefix('prediction-outcome:');
   const pending = beginStepCognition(f); assert.ok(pending);
+  const frozenContext = readPredictionPairs(f.graph)[pending.decisionId].rewardContext;
+  assert.equal(frozenContext?.expected, -1, 'pre-action reward expectation is durable before observation');
+  assert.equal(frozenContext.key, 'risk:ask');
+  assert.equal(frozenContext.history.historyBoundary.decisionId, pending.decisionId);
   for (let i = 0; i < 4; i++) history(f, `later-${i}`, 'expected');
   const result = observeStepCognition({ ...f, report: { status: 'done', ok: false } });
   assert.equal(result.reward.status, 'MEASURED');
@@ -60,6 +64,20 @@ test('predecision expectation excludes later same-frame evidence and preserves s
   assert.deepEqual(after.slice(0, sourceRows.length), sourceRows);
   const pairs = readPredictionPairs(f.graph);
   assert.equal(pairs[pending.decisionId].outcome.state, 'confirmed');
+  assert.deepEqual(pairs[pending.decisionId].rewardContext, frozenContext);
+  assert.deepEqual(pairs[pending.decisionId].binding, pending.binding);
+  assert.deepEqual(pairs[pending.decisionId].rewardContext.history, result.rewardHistory);
+  const reopened = new Graph({ useSQLite: false, memoryPath: f.memoryPath });
+  assert.deepEqual(readPredictionPairs(reopened)[pending.decisionId], pairs[pending.decisionId]);
+  const beforeRestart = reopened.getCommittedMutationResultsByPrefix('prediction-outcome:');
+  const child = spawnSync(process.execPath, ['-e',
+    "const Graph=require('./graph');const {readPredictionPairs}=require('./lib/prediction-outcome-pairs');const graph=new Graph({useSQLite:false,memoryPath:process.argv[1]});console.log(JSON.stringify(readPredictionPairs(graph)[process.argv[2]]));",
+    f.memoryPath, pending.decisionId],
+  { cwd: path.resolve(__dirname, '..'), encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), pairs[pending.decisionId]);
+  assert.deepEqual(new Graph({ useSQLite: false, memoryPath: f.memoryPath })
+    .getCommittedMutationResultsByPrefix('prediction-outcome:'), beforeRestart);
 });
 
 test('workspace/frame isolation and shared-source history retain the labeled prior', t => {
