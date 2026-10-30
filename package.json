@@ -1518,6 +1518,8 @@
     "bin/huqan-cognitive-lab.js",
     "lib/cognitive-lab-cli.js",
     "lib/cognitive-lab-evaluator.js",
+    "lib/cognitive-lab-cost-evaluator.js",
+    "lib/cognitive-lab-request-reader.js",
     "lib/cognitive-lab-m9-evaluator.js",
     "lib/cognitive-lab-m10-corpus.js",
     "lib/cognitive-lab-m10-episode.js",

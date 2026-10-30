@@ -5482,6 +5482,14 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-cost-evaluator.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-request-reader.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cognitive-lab-comparison-contract.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
