@@ -1028,12 +1028,12 @@
       ],
       "sites": [
         {
-          "line": 31,
+          "line": 32,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 66,
+          "line": 67,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         }
