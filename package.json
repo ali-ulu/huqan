@@ -75,6 +75,7 @@
     "bench:agent-brake": "node benchmarks/bench-agent-brake.js",
     "train": "node scripts/knowledge-graph-demo.js --demo",
     "test": "node scripts/run-tests.js --test-concurrency=4",
+    "test:changed": "node scripts/test-changed.js",
     "test:serial": "node scripts/run-tests.js --test-concurrency=1",
     "test:property": "node scripts/run-tests.js \"test/property/*.test.js\"",
     "test:watch": "node scripts/run-tests.js --watch",
