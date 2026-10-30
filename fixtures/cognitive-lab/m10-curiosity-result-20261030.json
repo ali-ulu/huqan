@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "huqan-cognitive-lab-m10-report-v1",
+  "seed": 40710,
+  "nRequired": 233,
+  "pairedGroups": 256,
+  "corpusDigest": "359cc9f8d2c9b16f02293f28160152f57e4482c0caac5895db6ebd07a79562ac",
+  "groupDigest": "9baba8c9ffd97536dc980ad5e7ec05d391ab05e67a6bb44fecb188a5eccfa6e9",
+  "error": {
+    "delta": "control-minus-candidate",
+    "direction": "lower-error-is-better",
+    "mean": 0.038143,
+    "lower": 0.020025,
+    "upper": 0.05622
+  },
+  "success": {
+    "delta": "candidate-minus-control",
+    "direction": "higher-success-is-better",
+    "mean": 0.167969,
+    "lower": 0.132812,
+    "upper": 0.204427
+  },
+  "difficulty": {
+    "candidateMean": 0.507032,
+    "controlMean": 0.511151,
+    "drift": -0.004119,
+    "limit": 0.05
+  },
+  "integrity": {
+    "firewallBypass": 0,
+    "approvalBypass": 0
+  },
+  "coverage": {
+    "holdoutGroups": 256,
+    "paired": 256,
+    "uncovered": []
+  },
+  "evidenceClass": "controlled-fixture",
+  "intelligenceGain": "NOT_MEASURED",
+  "assertsGain": false,
+  "label": "GAIN",
+  "reasons": [
+    "error_interval_lower_above_zero",
+    "success_interval_lower_above_zero"
+  ],
+  "blockedSteps": 0,
+  "calibration": {
+    "groups": 16,
+    "sigma": 0.2721655269759087,
+    "nRequired": 233
+  }
+}

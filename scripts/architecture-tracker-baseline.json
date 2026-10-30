@@ -311,6 +311,9 @@
       "lib/cognition-value-ledger-pairs.js": "Adapters",
       "lib/cognition/cognition-config.js": "Core",
       "lib/cognition/contract.js": "Core",
+      "lib/cognition/curiosity.js": "Core",
+      "lib/cognition/dual-process-router.js": "Core",
+      "lib/cognition/global-workspace.js": "Core",
       "lib/cognition/independent-sources.js": "Core",
       "lib/cognition/percept-adapters.js": "Core",
       "lib/cognition/percept.js": "Core",
@@ -320,6 +323,8 @@
       "lib/cognition/reward-signal.js": "Core",
       "lib/cognition/salience.js": "Core",
       "lib/cognition/value-ledger.js": "Core",
+      "lib/cognition/working-memory.js": "Core",
+      "lib/cognition/workspace-specialists.js": "Core",
       "lib/cognitive-lab-b1-manifest.js": "Core",
       "lib/cognitive-lab-b1-replay.js": "Core",
       "lib/cognitive-lab-b4-evaluator.js": "Core",
@@ -339,15 +344,23 @@
       "lib/cognitive-lab-contradiction-fusion.js": "Core",
       "lib/cognitive-lab-contradiction-policy.js": "Core",
       "lib/cognitive-lab-contradiction-report.js": "Core",
+      "lib/cognitive-lab-cost-evaluator.js": "Core",
       "lib/cognitive-lab-evaluator.js": "Core",
       "lib/cognitive-lab-g1-arm-preload.js": "Application",
       "lib/cognitive-lab-g1-corpus.js": "Application",
       "lib/cognitive-lab-g1-episode.js": "UI",
       "lib/cognitive-lab-g1-holdout.js": "Application",
       "lib/cognitive-lab-g1-stats.js": "Application",
+      "lib/cognitive-lab-m10-corpus.js": "Core",
+      "lib/cognitive-lab-m10-episode.js": "Core",
+      "lib/cognitive-lab-m10-evaluator.js": "Core",
+      "lib/cognitive-lab-m10-runner.js": "Core",
       "lib/cognitive-lab-m7-experiment.js": "Application",
       "lib/cognitive-lab-m7-runtime.js": "Application",
       "lib/cognitive-lab-m7-value-runtime.js": "Application",
+      "lib/cognitive-lab-m9-corpus.js": "Core",
+      "lib/cognitive-lab-m9-evaluator.js": "Core",
+      "lib/cognitive-lab-m9-holdout.js": "Core",
       "lib/cognitive-lab-manifest.js": "Core",
       "lib/cognitive-lab-model-comparison.js": "Application",
       "lib/cognitive-lab-neural-design.js": "Application",
@@ -355,6 +368,7 @@
       "lib/cognitive-lab-neural-world.js": "Application",
       "lib/cognitive-lab-paired-delta.js": "Core",
       "lib/cognitive-lab-probability-calibration.js": "Core",
+      "lib/cognitive-lab-request-reader.js": "Core",
       "lib/cognitive-lab-world-model-design.js": "Application",
       "lib/cognitive-lab-world-model-experiment.js": "Application",
       "lib/cognitive-lab-world-model-world.js": "Application",
@@ -510,6 +524,7 @@
       "lib/external-action-agent-detection.js": "Core",
       "lib/external-action-agent-overview.js": "Core",
       "lib/external-action-agent-roster.js": "Core",
+      "lib/external-action-allowlist.js": "Core",
       "lib/external-action-command-policy.js": "Core",
       "lib/external-action-custom-agent-status.js": "Core",
       "lib/external-action-egress-gates.js": "Core",
@@ -1491,6 +1506,7 @@
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
       "scripts/enforcement-coverage-classification-injected-fetch.js": "UI",
+      "scripts/enforcement-coverage-classification-m10.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
       "scripts/enforcement-coverage.js": "UI",
       "scripts/explain-npm-publish-failure.js": "UI",
@@ -2082,11 +2098,13 @@
         "lib/cognition-value-ledger-pairs.js",
         "lib/cognition/cognition-config.js",
         "lib/cognition/contract.js",
+        "lib/cognition/dual-process-router.js",
         "lib/cognition/percept-adapters.js",
         "lib/cognition/prediction-error.js",
         "lib/cognition/reward-signal.js",
         "lib/cognition/salience.js",
         "lib/cognition/value-ledger.js",
+        "lib/cognition/working-memory.js",
         "lib/prediction-outcome-pairs.js"
       ],
       "lib/agent-exit-reasons.js": [
@@ -2157,6 +2175,7 @@
         "lib/agent-v3-loop-budget.js"
       ],
       "lib/agent-v3-dream-loop-adapter.js": [
+        "lib/cognition/curiosity.js",
         "lib/dream-experiment-loop.js",
         "lib/gate-outcome-projection.js"
       ],
@@ -2966,6 +2985,17 @@
         "lib/cognition/contract.js",
         "lib/is-plain-object.js"
       ],
+      "lib/cognition/curiosity.js": [
+        "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/dual-process-router.js": [
+        "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/global-workspace.js": [
+        "lib/cognition/contract.js"
+      ],
       "lib/cognition/independent-sources.js": [
         "lib/is-plain-object.js"
       ],
@@ -3013,6 +3043,13 @@
         "lib/cognition/independent-sources.js",
         "lib/cognition/reward-signal.js",
         "lib/is-plain-object.js"
+      ],
+      "lib/cognition/working-memory.js": [
+        "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/workspace-specialists.js": [
+        "lib/cognition/contract.js"
       ],
       "lib/cognitive-lab-b1-manifest.js": [
         "lib/cognitive-lab-manifest.js",
@@ -3062,7 +3099,11 @@
         "lib/cognitive-lab-comparison-store.js",
         "lib/cognitive-lab-contradiction-evaluator.js",
         "lib/cognitive-lab-contradiction-report.js",
-        "lib/cognitive-lab-evaluator.js"
+        "lib/cognitive-lab-cost-evaluator.js",
+        "lib/cognitive-lab-evaluator.js",
+        "lib/cognitive-lab-m10-runner.js",
+        "lib/cognitive-lab-m9-evaluator.js",
+        "lib/cognitive-lab-request-reader.js"
       ],
       "lib/cognitive-lab-comparison-contract.js": [
         "lib/cognitive-lab-budget-envelope.js",
@@ -3154,6 +3195,25 @@
       "lib/cognitive-lab-g1-stats.js": [
         "lib/cognitive-lab-paired-delta.js"
       ],
+      "lib/cognitive-lab-m10-corpus.js": [
+        "lib/cognition/curiosity.js",
+        "lib/cognitive-lab-paired-delta.js"
+      ],
+      "lib/cognitive-lab-m10-episode.js": [
+        "kernel.js",
+        "lib/agent-step-executor.js",
+        "lib/agent-v3-dream-loop-adapter.js",
+        "lib/dream-experiment-loop.js"
+      ],
+      "lib/cognitive-lab-m10-evaluator.js": [
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-m10-runner.js": [
+        "lib/cognitive-lab-m10-corpus.js",
+        "lib/cognitive-lab-m10-episode.js",
+        "lib/cognitive-lab-m10-evaluator.js"
+      ],
       "lib/cognitive-lab-m7-runtime.js": [
         "agent.v3.js",
         "graph.js",
@@ -3176,6 +3236,19 @@
         "lib/prediction-outcome-pairs.js",
         "llmAdapter.js",
         "storage.js"
+      ],
+      "lib/cognitive-lab-m9-corpus.js": [
+        "lib/cognitive-lab-paired-delta.js"
+      ],
+      "lib/cognitive-lab-m9-evaluator.js": [
+        "lib/cognition/reward-signal.js",
+        "lib/cognition/value-ledger.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-m9-holdout.js": [
+        "lib/cognitive-lab-m9-corpus.js",
+        "lib/cognitive-lab-m9-evaluator.js"
       ],
       "lib/cognitive-lab-manifest.js": [
         "lib/content-hash.js",
@@ -3758,6 +3831,7 @@
       ],
       "lib/external-action-envelope.js": [
         "lib/action-risk-classifier.js",
+        "lib/external-action-allowlist.js",
         "lib/is-plain-object.js"
       ],
       "lib/external-action-gate-install-command.js": [
@@ -7373,7 +7447,8 @@
         "scripts/contradiction-eval-freeze-contract.js"
       ],
       "scripts/enforcement-coverage-classification.js": [
-        "scripts/enforcement-coverage-classification-injected-fetch.js"
+        "scripts/enforcement-coverage-classification-injected-fetch.js",
+        "scripts/enforcement-coverage-classification-m10.js"
       ],
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",

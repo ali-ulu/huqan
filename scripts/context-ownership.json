@@ -4298,6 +4298,22 @@
    "kind": "infra",
    "evidence": "#4388 M9 holdout measurement runner (calibrate/holdout) behind the standalone module entry; no production default or gain claim"
   },
+  "lib/cognitive-lab-m10-corpus.js": {
+   "kind": "infra",
+   "evidence": "#4071 COG-M10 seeded Lab corpus with group-level splits and a frozen monitoring probe; controlled fixture, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m10-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#4071 COG-M10 paired error/success evaluator behind the cognitive-lab CLI; controlled fixture, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m10-episode.js": {
+   "kind": "infra",
+   "evidence": "#4071 COG-M10 episode: one holdout group x one arm through the real dream loop and agent-step-executor firewall/kernel.verify path; controlled fixture, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m10-runner.js": {
+   "kind": "infra",
+   "evidence": "#4071 COG-M10 Lab runner: calibration sigma/nRequired, frozen manifest before the sealed holdout, then the paired report; controlled fixture, no production default or gain claim"
+  },
   "lib/cognitive-lab-g1-holdout.js": {
    "kind": "infra",
    "evidence": "#4065 G1 synthetic holdout measurement runner (holdout); no production default or gain claim"
@@ -5470,6 +5486,14 @@
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
   },
+  "lib/cognitive-lab-cost-evaluator.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
+  "lib/cognitive-lab-request-reader.js": {
+   "kind": "infra",
+   "evidence": "ownership-map-2446.md#R-SHARED-P"
+  },
   "lib/cognitive-lab-comparison-contract.js": {
    "kind": "infra",
    "evidence": "ownership-map-2446.md#R-SHARED-P"
@@ -5894,9 +5918,17 @@
   "lib/dream-experiment-loop.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; #4071 adds the Platform Lab episode as a consumer"
+  },
+  "lib/agent-v3-dream-loop-adapter.js": {
+   "owner": "AgentAction",
+   "consumers": [
+    "Platform"
+   ],
+   "evidence": "#4071 the M10 Lab episode drives the same Dream experiment loop through the adapter; no production default or gain claim"
   },
   "lib/gate-outcome-projection.js": {
    "owner": "Knowledge",
@@ -6149,9 +6181,10 @@
   "lib/agent-step-executor.js": {
    "owner": "AgentAction",
    "consumers": [
-    "Trust"
+    "Trust",
+    "Platform"
    ],
-   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01"
+   "evidence": "ownership-map-2446.md: measured cross-context import set 2026-10-01; #4071 the Platform Lab episode executes verification steps through the same firewall+tool executor"
   },
   "lib/experience/verifier.js": {
    "owner": "Trust",
@@ -8142,9 +8175,10 @@
   "lib/cognition/curiosity.js": {
    "owner": "Knowledge",
    "consumers": [
-    "AgentAction"
+    "AgentAction",
+    "Platform"
    ],
-   "evidence": "#4071 the AgentV3 dream-loop adapter injects the M10 ranker behind opts.cognition.curiosity; it only reorders Dream hypotheses before the bounded selection and carries no action authority"
+   "evidence": "#4071 the AgentV3 dream-loop adapter injects the M10 ranker behind opts.cognition.curiosity; the Lab corpus computes the same learning progress from its frozen monitoring history, and neither caller gains action authority"
   },
   "lib/cognition/reward-signal.js": {
    "owner": "Knowledge",

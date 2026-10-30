@@ -110,6 +110,7 @@ const UNROUTED_SINK_CALLS = Object.freeze({
 
   // --- standalone tooling --------------------------------------------------
   'scripts/seed-demo.js': { why: 'standalone demo seeder; not a production mutation path', sinks: { addNode: 2, addEdge: 1 } },
+  'lib/cognitive-lab-m10-episode.js': { why: '#4071 Lab episode seeds a throwaway per-group synthetic graph (useSQLite:false) so kernel.verify has ground truth; no production caller, no store and no workspace data', sinks: { addNode: 2, addEdge: 1 } },
 
   // --- V5 unit-of-work audit boundary (Gate 2 closeout) --------------------
   // Gate 2 closed with NO_EXISTING_UNIVERSAL_HOOK; the V5 package import
@@ -464,7 +465,11 @@ test('mutation admission: the debt ledger reflects the routing done so far', () 
   // appends APPROVAL_DECIDED / APPROVAL_RBAC_DENIED for every governed
   // decision, so a refused decision leaves a record while its approval row
   // stays pending. Unrouted rises by one; routed is unchanged.
-  assert.equal(unrouted, 26, 'unrouted sink calls');
+  // #4071 adds three unrouted sinks in lib/cognitive-lab-m10-episode.js: the
+  // Lab episode seeds a throwaway per-group graph (addNode x2, addEdge) so
+  // kernel.verify has ground truth. It is an operator tool with no production
+  // caller and no persistent store; the count is raised on purpose, not routed.
+  assert.equal(unrouted, 29, 'unrouted sink calls');
   assert.equal(routed, 33, 'sink calls routed through admission (K2 + DEL callbacks + hypothesis + conflict-candidate review + research candidate surfaces + cross-link derivation + plugin node write)');
-  assert.equal(unrouted + routed, 59, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, the external research candidate surface, the #3034 drift audit append, and the #4205 approval-decision audit append');
+  assert.equal(unrouted + routed, 62, 'total sink calls, raised by K2 delegation, DEL audit, maintenance evidence, the hypothesis surface, the external-action receipt projection, the now-visible review audit write, the conflict-candidate review verdict, the external research candidate surface, the #3034 drift audit append, the #4205 approval-decision audit append, and the #4071 Lab episode seed');
 });
