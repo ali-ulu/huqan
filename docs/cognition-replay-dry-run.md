@@ -175,3 +175,23 @@ Alanlar kabul veya dosya değiştirme yetkisi üretmez: canlı authority fişi,
 gerçekten seçilen tam hash denetimi, qualification, bağımsız kabul testi ve
 rollback mevcut yolda kalır. Entegrasyon testindeki fixture authority kararı
 ve kontrollü canary girdileri gerçek operatör kararı veya M3 kazanımı sayılmaz.
+
+## Eylem öncesinde kaydedilen beklenti
+
+`--prediction-journal <dosya>` mevcut Graph JSON mutation journal'ını veya
+checkpoint alınmış SQLite dosyasını açıkça seçer. Kaynak salt okunur açılır;
+yeni depo oluşturulmaz. Priority ve recent aynı görüntüyü ve zaman sınırını kullanır.
+
+Yeni native Coder kayıtları, karar başlamadan kalıcı prediction içeriğinin
+özetini `run_started.payload.predecision` içine bağlar. Replay bu özeti,
+workspace/frame/kapsamı, zaman sırasını ve son kabulün kaynak hash'ini yeniden
+eşleştirir. Başarısız c1 geri alınıp c2 kabul edildiğinde yalnız son koşu bir
+epizottur; önceki denemeler bağımlılık kanıtı olarak korunur.
+
+Başlık bulunan kayıtta eksik veya uyuşmayan kaynak atlanır; prior'a düşülmez.
+Başlık taşımayan eski kayıtların açık prior davranışı `legacy_prior` olarak
+etiketlenir. Başarılı eşleşme `bound_prediction` etiketiyle dondurulmuş beklentiyi
+kullanır. Bu bağlantı aday önizlemesidir; terfi yetkisi veya ölçülmüş kazanım değildir.
+Graph pair kayıtları ayrı imzalı zaman otoritesi taşımaz. `committedAt` denetimi
+yapısal zaman tutarlılığıdır; iki kaynak dosyasını birlikte yeniden yazabilen
+bir saldırgana karşı bağımsız zaman damgası veya değiştirilemez depo garantisi değildir.

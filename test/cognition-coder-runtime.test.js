@@ -157,6 +157,13 @@ test('ordinary AgentV3 records real native acceptance and a fresh process reads 
   assert.equal(pair.acceptance.sourceRef.endsWith(':c2'), true);
   assert.equal(pair.acceptance.scopeHash, pair.binding.expectationHash);
   assert.equal(pair.acceptance.sourceHash, readSealedRun(f.journal, pair.acceptance.runId, f.workspaceId).sourceHash);
+  const headers = pair.binding.sourceRefs.map(ref => readSealedRun(f.journal, ref.slice('coder-run:'.length), f.workspaceId)
+    .events.find(event => event.type === 'run_started').payload.predecision);
+  assert.ok(headers.every(header => header?.predictionHash === beforeEffects[0].predictionHash));
+  assert.deepEqual(headers[0], headers[1]);
+  assert.equal(headers[0].decisionId, pair.decisionId);
+  assert.equal(headers[0].scopeHash, pair.binding.expectationHash);
+  assert.equal(headers[0].task.candidates.length, 2);
   execFileSync(process.execPath, ['check.js'], { cwd: f.root, windowsHide: true });
   f.closeJournal();
   const journalDigest = createHash('sha256').update(fs.readFileSync(f.journalFile)).digest('hex');

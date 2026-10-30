@@ -420,6 +420,7 @@
     "lib/cli-plugin-status.js",
     "lib/cli-promote.js",
     "lib/cli-replay.js",
+    "lib/cli-replay-prediction-source.js",
     "lib/cli-operator-presence.js",
     "lib/cli-helpers.js",
     "lib/cli-company-ingest.js",

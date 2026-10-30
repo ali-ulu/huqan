@@ -4734,6 +4734,10 @@
    "kind": "entry",
    "evidence": "#4069 read-only CLI composition of the sealed journal, pure cognition and existing learning intake/compiler; no promotion or registration"
   },
+  "lib/cli-replay-prediction-source.js": {
+   "kind": "entry",
+   "evidence": "#4069 explicit read-only existing prediction journal snapshot for the operator replay; no store creation or authority"
+  },
   "lib/cli-operator-presence.js": {
    "kind": "entry",
    "evidence": "ownership-map-2446.md#R-CLI-P"
@@ -8170,6 +8174,11 @@
     "Platform"
    ],
    "evidence": "#4065 isolated Lab composition root builds the existing approved Coder capability"
+  },
+  "lib/agent-coder-project-task.js": {
+   "owner": "AgentAction",
+   "consumers": ["Platform"],
+   "evidence": "#4069 CLI reuses the existing sealed ordinary candidate-chain reader without execution or approval authority"
   },
   "lib/agent-cognition-observation.js": {
    "owner": "AgentAction",
