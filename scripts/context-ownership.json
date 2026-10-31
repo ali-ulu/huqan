@@ -2612,6 +2612,10 @@
    "context": "Knowledge",
    "evidence": "#4069: pure COG-M3 PR-1 prioritized replay selection over measured prediction error and reward"
   },
+  "lib/cognition/causal-attribution.js": {
+   "context": "Knowledge",
+   "evidence": "#4392: pure COG-B PR-1 causal attribution and specific-repair closure; execution is not causation, self-report is not evidence, and the observation/journal wiring is the following slice"
+  },
   "lib/cognition/appraisal.js": {
    "context": "Knowledge",
    "evidence": "#4391: pure COG-A PR-1 appraisal of source-bound observations; unknown provenance stays unknown, only satisfaction/surprise/regret are derivable, the file-effect/Coder ingress is the PR-2 caller"
