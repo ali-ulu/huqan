@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  buildM4Corpus, holdoutGroups, SPLIT_SIZES, RISK_EVERY, RECALL_K, NOW, digestGroups,
+  buildM4Corpus, holdoutGroups, SPLIT_SIZES, RISK_EVERY, RECALL_K, NOW, digestGroups, digestCorpus,
 } = require('../lib/cognitive-lab-m4-corpus');
 const { evaluateM4, lockGroupCount, MIN_GROUPS, RESTORE_RATE_MAX } = require('../lib/cognitive-lab-m4-evaluator');
 
@@ -157,6 +157,33 @@ test('integrity bypass, a non-reversible archive, mismatched arms and digests ar
   const malformed = { ...corpus.groups[0], queries: null };
   assert.equal(evaluateM4({ corpus: { ...corpus, groups: [malformed] }, manifest: manifest(), executions: valid, integrity }).reasons[0],
     'invalid_corpus_groups');
+  // A query scored at another k would make the reported recallK disagree with
+  // the k the recallHits were measured at.
+  const wrongK = { ...corpus.groups[0], queries: corpus.groups[0].queries.map((query) => ({ ...query, k: corpus.recallK + 1 })) };
+  const kGroups = [wrongK, ...corpus.groups.slice(1)];
+  const kCorpus = { ...corpus, groups: kGroups, groupDigest: digestGroups(kGroups) };
+  kCorpus.corpusDigest = digestCorpus(kCorpus);
+  const kManifest = manifest({ corpusDigest: kCorpus.corpusDigest, groupDigest: kCorpus.groupDigest });
+  assert.equal(evaluateM4({ corpus: kCorpus, manifest: kManifest, executions: valid, integrity }).reasons[0], 'query_k_mismatch');
+  // A value JSON cannot serialize is a REJECT, not a thrown TypeError.
+  const circular = { ...corpus.groups[0] };
+  circular.memories = [...circular.memories];
+  circular.memories[0] = { ...circular.memories[0], self: circular };
+  const cGroups = [circular, ...corpus.groups.slice(1)];
+  // The digests are left as the valid corpus carries them; recomputing throws
+  // on the circular value, which must come back as a REJECT.
+  const cCorpus = { ...corpus, groups: cGroups };
+  assert.equal(evaluateM4({ corpus: cCorpus, manifest: manifest(), executions: valid, integrity }).reasons[0],
+    'invalid_corpus_groups');
+  // A repeated holdout id would be collapsed by the Map and never scored.
+  const holdout = corpus.groups.filter((group) => group.split === 'holdout');
+  const duplicated = [...corpus.groups, { ...holdout[0] }];
+  const dupCorpus = { ...corpus, groups: duplicated, groupDigest: digestGroups(duplicated) };
+  dupCorpus.corpusDigest = digestCorpus(dupCorpus);
+  const dupManifest = manifest({ corpusDigest: dupCorpus.corpusDigest, groupDigest: dupCorpus.groupDigest });
+  assert.equal(evaluateM4({ corpus: dupCorpus, manifest: dupManifest, executions: valid, integrity }).reasons[0], 'duplicate_holdout_group');
+  // A calibration episode that archived without restoring is non-reversible too.
+  assert.equal(evaluate({ executions: valid, otherExecutions: [{ restoreFailures: 1 }] }).reasons[0], 'non_reversible_archive');
 });
 
 test('the group floor follows the preregistered power formula', () => {
