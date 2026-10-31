@@ -106,6 +106,17 @@ function changedPaths(before, after) {
   return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(file => before[file] !== after[file]).sort();
 }
 
+/** Run one real CLI invocation with explicit flags; returns status and parsed result. */
+function runGate(root, name, flags, runId = name) {
+  const child = spawnSync(process.execPath, [CLI, 'coder', `${name}.json`, ...flags,
+    '--root', root, '--journal', path.join(root, 'journal.db'), '--run-id', runId, '--json'], {
+    cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 1048576,
+    env: { ...process.env, HUQAN_STATE_ROOT: path.join(root, '.huqan', 'runtime-state') },
+  });
+  assert.equal(child.error, undefined, String(child.error));
+  return { status: child.status, result: child.stdout ? JSON.parse(child.stdout) : null };
+}
+
 test('the verified-failure source drives deterministic repairs across two families', t => {
   const parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-g3-repair-')));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
@@ -142,7 +153,9 @@ test('the verified-failure source drives deterministic repairs across two famili
     const result = JSON.parse(child.stdout);
     const changed = changedPaths(before, snapshot(root));
     const declared = [item.file];
-    const stray = changed.filter(file => !declared.includes(file) && file !== `${item.name}.json`);
+    // The task JSON was written before the snapshot, so any changed path outside
+    // the declared file is a stray write, with nothing excluded.
+    const stray = changed.filter(file => !declared.includes(file));
     wrongWrites += stray.length;
     assert.equal(result.data.outcome, 'applied', `${item.name}: ${JSON.stringify(result)}`);
     assert.equal(fs.readFileSync(path.join(root, item.file), 'utf8'), item.after, `${item.name} content`);
@@ -155,7 +168,33 @@ test('the verified-failure source drives deterministic repairs across two famili
   const trials = evidence.length;
   const successes = evidence.filter(row => row.outcome === 'applied').length;
   const repairLower = clopperPearsonLower(successes, trials, 0.05);
-  const powerMet = trials >= CONTRACT.minimumSamples;
+
+  // §6/§8 integrity, measured rather than assumed: re-run one *source* (not
+  // docs) corpus task on a restored tree WITHOUT `--authorize`. A docs-only task
+  // is `LOW_RISK_DOCS_ONLY` and applies without authorization, so it cannot
+  // exercise the REVIEW gate; a `src/*.js` task is held at
+  // `SOURCE_CHANGE_REQUIRES_REVIEW` unless `--authorize` releases it
+  // (lib/cli-coder.js:54-55). An applied result from that run is an approval
+  // bypass; a write it leaves is a firewall bypass.
+  const probe = CORPUS.find(item => item.file.startsWith('src/'));
+  fs.writeFileSync(path.join(root, probe.file), probe.content, 'utf8');
+  settle(root);
+  const beforeProbe = snapshot(root);
+  const unauthorized = runGate(root, probe.name, [], `${probe.name}-unauthorized`);
+  const probeChanged = changedPaths(beforeProbe, snapshot(root));
+  const probeDeclared = [probe.file];
+  if (unauthorized.result?.data?.outcome === 'applied') approvalBypass += 1;
+  firewallBypass += probeChanged.filter(file => !probeDeclared.includes(file)).length;
+  assert.equal(unauthorized.result?.data?.outcome, 'refused', JSON.stringify(unauthorized.result));
+  assert.equal(unauthorized.result?.data?.detail, 'SOURCE_CHANGE_REQUIRES_REVIEW');
+  assert.equal(fs.readFileSync(path.join(root, probe.file), 'utf8'), probe.content, 'unauthorized run wrote');
+  assert.equal(probeChanged.length, 0, `unauthorized stray writes: ${JSON.stringify(probeChanged)}`);
+
+  // §7 locks a sample-size rule whose `sigma` comes from a *calibration split
+  // measured before the holdout opens*. This corpus has no calibration split, so
+  // `sigma` — and with it the §7 requirement — cannot be derived here.
+  // `minimumSamples` is reported as what it is: a floor, not a power claim.
+  const sampleFloorMet = trials >= CONTRACT.minimumSamples;
   const repairVerified = repairLower >= CONTRACT.repairLowerBound;
   // §7 locks a 0.90 exact lower bound. At a perfect rate that bound is
   // `0.05^(1/n)`, so the threshold implies its own required sample: the smallest
@@ -166,15 +205,19 @@ test('the verified-failure source drives deterministic repairs across two famili
     requiredTrialsForBound += 1;
   }
   let label;
-  if (!powerMet) label = 'INSUFFICIENT';
+  if (firewallBypass > 0 || approvalBypass > 0) label = 'REJECT';
+  else if (!sampleFloorMet) label = 'INSUFFICIENT';
   else if (repairVerified && wrongWrites === 0) label = 'REPAIR_VERIFIED';
   else label = 'REPAIR_INSUFFICIENT';
 
   const report = {
     preregistration: CONTRACT.preregistration,
     source: 'verified failure record -> produceTask -> deterministic coder',
-    corpus: { families: [...new Set(evidence.map(row => row.family))], trials, minimumSamples: CONTRACT.minimumSamples, powerMet },
+    corpus: { families: [...new Set(evidence.map(row => row.family))], trials, minimumSamples: CONTRACT.minimumSamples, sampleFloorMet,
+      power: { status: 'NOT_DERIVED', reason: 'no_calibration_split_for_sigma' } },
     evidence,
+    integrityProbe: { task: probe.name, authorized: false, outcome: unauthorized.result?.data?.outcome,
+      detail: unauthorized.result?.data?.attempts?.[0]?.apply?.detail, changedPaths: probeChanged },
     metrics: {
       repair: { successes, trials, lower: repairLower, lowerBound: CONTRACT.repairLowerBound, repairVerified,
         requiredTrialsForBound },
@@ -185,7 +228,7 @@ test('the verified-failure source drives deterministic repairs across two famili
   t.diagnostic(JSON.stringify(report));
 
   assert.equal(report.verdict.assertsGain, false);
-  assert.ok(['REPAIR_VERIFIED', 'REPAIR_INSUFFICIENT', 'INSUFFICIENT'].includes(label));
+  assert.ok(['REPAIR_VERIFIED', 'REPAIR_INSUFFICIENT', 'INSUFFICIENT', 'REJECT'].includes(label));
 });
 
 test('anti-cases fail closed: no task, no write, no fabricated repair (§4, §8)', () => {

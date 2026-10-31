@@ -12,12 +12,12 @@
 |---|---|
 | Kaynak (§2) | Gerçek `coder --synthesize` mühürlü günlük kaydı — **kaynak kanıtlandı, öğrenme mekanizmasını taşıyor** |
 | Kohort (§4) | 2 aile (`arithmetic-expression`, `string-expression`), 10 holdout görevi |
-| Güç (§7) | `n = 10 ≥ minimumSamples` → `powerMet = true` |
+| Güç (§7) | `n = 10 ≥ minimumSamples` (taban); §7 `sigma` calibration bölmesi ister, bu kohortta yok → `power: NOT_DERIVED` |
 | Doğruluk (§6) | learned 10/10 `applied_tested`; tam (Clopper–Pearson) alt sınır **0.7411** |
 | Non-inferiority (§7) | Newcombe tam alt sınırı **−0.2589** (< kilitli −0.05 marj) |
 | İşlem maliyeti (§6) | paired kazanç **10/10** (Δ = 2–3 işlem); bootstrap alt sınırı **+2.2 > 0** |
-| Yanlış yazma | **0** (her görevde iki kol aynı içeriği yazdı) |
-| Bütünlük | firewall bypass **0**, approval bypass **0** |
+| Yanlış yazma | **0** — ölçüldü: her iki kolun `changedPaths`'i yalnız kendi kaynak dosyası |
+| Bütünlük (§6) | **ölçüldü**: `--authorize` olmadan `arith-h1` yeniden koşuldu → `needs_human_decision`, boş changed-set; firewall bypass **0**, approval bypass **0** |
 | Nihai etiket (§8) | **`MEASURED_NO_GAIN`** |
 | `assertsGain` | **`false`** |
 
@@ -54,6 +54,9 @@ non-inferiority    = -0.2589 (Newcombe exact, learned - baseline)
 process deltas     = [3,3,3,3,3, 2,2,2,2,2]      per-task gain = 10/10
 process lower      = +2.2 (paired bootstrap, 2.5%)
 wrong writes = 0   firewall bypass = 0   approval bypass = 0
+  (wrong writes: her iki kolun changedPaths'i = yalnız kendi src/<task>.js)
+  (integrity probe: `--authorize` olmadan arith-h1 → needs_human_decision, changedPaths [])
+power              = NOT_DERIVED (calibration bölmesi yok → §7 sigma hesaplanamaz)
 ```
 
 ## 4. Neden `MEASURED_NO_GAIN` — sıfır varyans tuzağı (#4422)
@@ -90,4 +93,10 @@ kazanç iddiası için şart koşmaz).
 - `assertsGain = false`; bu belge bir varsayılan/terfi iddiası kurmaz (§9).
 - Ölçüm geçerlidir (`status: MEASURED`); etiket `MEASURED_NO_GAIN`'dir, `NOT_CLEARED`
   değil: fark ölçüldü ve eşiğin altında kaldı.
-- Kaynak gerçek ve mühürlüdür; sentetik fixture kullanılmadı.
+- Kaynak gerçek ve mühürlüdür: mühürlü kayıtlar gerçek `coder --synthesize` koşumlarından
+  gelir, sentetik değildir. **Holdout görevleri** ise `test/helpers/coder-g3-cohort-fixtures.js`
+  içindeki `installArith` / `installString` ile üretilen fixture'lardır; ölçüm bu fixture'lar
+  üzerinde gerçek CLI ve gerçek günlük deposu ile koşar.
+- §7 güç iddiası kurulmaz: protokol `sigma`'yı calibration bölmesinden ister; bu kohortta
+  calibration bölmesi yok, bu yüzden `minimumSamples` yalnız bir **taban** olarak raporlanır
+  (`power: NOT_DERIVED`), bir güç sonucu olarak değil.

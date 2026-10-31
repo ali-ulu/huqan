@@ -19,12 +19,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const { readSealedRun } = require('../lib/experience/learning-intake');
 const {
-  installArith, installString, write, run,
+  CLI, installArith, installString, write, run, snapshotTree, changedPaths,
 } = require('./helpers/coder-g3-cohort-fixtures');
 const {
   clopperPearsonLower, clopperPearsonUpper, newcombeDifferenceLower,
@@ -82,6 +82,22 @@ function sealedManifest(root, runId) {
   } finally {
     close();
   }
+}
+
+// The shared fixture always passes `--authorize`; the integrity probe must not,
+// so it runs the same CLI on a restored tree without that flag. A `src/*.js`
+// change is held at `SOURCE_CHANGE_REQUIRES_REVIEW` until `--authorize` releases
+// it (lib/cli-coder.js:54-55), so an applied result here is an approval bypass
+// and any write it leaves is a firewall bypass.
+function runUnauthorized(root, name, runId) {
+  const child = spawnSync(process.execPath, [CLI,
+    'coder', `${name}.json`, '--adapt-memory', '--root', root,
+    '--journal', path.join(root, 'journal.db'), '--run-id', runId, '--json'], {
+    cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 1048576,
+    env: { ...process.env, HUQAN_STATE_ROOT: path.join(root, '.huqan', 'runtime-state') },
+  });
+  assert.equal(child.error, undefined, String(child.error));
+  return JSON.parse(child.stdout);
 }
 
 test('the sealed-run source carries learning and the two arms are measured on a ten-task cohort', t => {
@@ -155,6 +171,7 @@ test('the sealed-run source carries learning and the two arms are measured on a 
     evidence.push({ task: item.name, family: item.name.startsWith('string') ? 'string-expression' : 'arithmetic-expression',
       baselineProcesses: baseline.processes, learnedProcesses: learned.processes,
       baselineOutcome: baseline.result.data.outcome, learnedOutcome: learned.result.data.outcome,
+      baselineChanged: baseline.changed, learnedChanged: learned.changed,
       sealedEligibility: manifest.learningEligibility });
     pairedProcessDeltas.push(baseline.processes - learned.processes);
   }
@@ -174,7 +191,13 @@ test('the sealed-run source carries learning and the two arms are measured on a 
   // own; the interval must clear zero.
   const processDelta = pairedBootstrap(pairedProcessDeltas);
 
-  const powerMet = trials >= CONTRACT.minimumSamples;
+  // §7 locks a sample-size rule `n = ceil(((z_alpha + z_power) * sigma /
+  // MIN_EFFECT)^2)` whose `sigma` comes from a *calibration split measured before
+  // the holdout opens*. This corpus has no calibration split, so `sigma` — and
+  // with it the §7 requirement — cannot be derived here. The contract's
+  // `minimumSamples` is therefore reported as what it is: a floor, not a power
+  // claim. Naming it `powerMet` would assert a §7 result the run never produced.
+  const sampleFloorMet = trials >= CONTRACT.minimumSamples;
   const accuracyNonInferior = nonInferiorityLower >= CONTRACT.nonInferiorityMargin;
   const observedAccuracyDelta = (successes - baselineSuccesses) / trials;
   // §8 label ladder, in priority order. §7 makes the exact lower bound the
@@ -184,25 +207,59 @@ test('the sealed-run source carries learning and the two arms are measured on a 
   //   else accuracy lower bound below -0.05            -> MEASURED_NO_GAIN
   //   else                                             -> NOT_CLEARED
   let label;
-  if (!powerMet) label = 'INSUFFICIENT';
+  if (!sampleFloorMet) label = 'INSUFFICIENT';
   else if (processDelta.lower > 0 && accuracyNonInferior) label = 'GAIN';
   else if (nonInferiorityLower < CONTRACT.nonInferiorityMargin) label = 'MEASURED_NO_GAIN';
   else label = 'NOT_CLEARED';
+
+  // §6/§8 integrity, measured rather than assumed: re-install one holdout task so
+  // its source is the buggy original again, then re-run it WITHOUT `--authorize`.
+  // The fixture always passes it, so an applied result from this run is an
+  // approval bypass, and any write it leaves is a firewall bypass. The declared
+  // file must stay at the pre-run content.
+  const probeItem = holdout[0];
+  const probeRunId = `${probeItem.name}-unauthorized`;
+  const probeFile = `src/${probeItem.name}.js`;
+  installArith(roots.learned, probeItem);
+  settle(roots.learned);
+  const probeBefore = snapshotTree(roots.learned);
+  const probeContentBefore = fs.readFileSync(path.join(roots.learned, probeFile), 'utf8');
+  const unauthorized = runUnauthorized(roots.learned, probeItem.name, probeRunId);
+  const probeChanged = changedPaths(probeBefore, snapshotTree(roots.learned));
+  let firewallBypass = 0;
+  let approvalBypass = 0;
+  if (unauthorized?.data?.outcome === 'applied_tested' || unauthorized?.data?.outcome === 'applied') approvalBypass += 1;
+  firewallBypass += probeChanged.filter(file => file !== probeFile).length;
+  assert.equal(unauthorized?.data?.outcome, 'needs_human_decision', JSON.stringify(unauthorized));
+  assert.equal(fs.readFileSync(path.join(roots.learned, probeFile), 'utf8'), probeContentBefore, 'unauthorized run wrote');
+  assert.equal(probeChanged.length, 0, `unauthorized stray writes: ${JSON.stringify(probeChanged)}`);
+
+  // §6 mis-writes, measured: every holdout run's changed set must be exactly its
+  // own source file (the fixture records it; nothing is read off the contract).
+  let wrongWrites = 0;
+  for (const row of evidence) {
+    wrongWrites += row.learnedChanged.filter(file => file !== `src/${row.task}.js`).length;
+    wrongWrites += row.baselineChanged.filter(file => file !== `src/${row.task}.js`).length;
+  }
 
   const report = {
     preregistration: CONTRACT.preregistration,
     source: 'sealed synthesis run journal (real CLI + journal store + sealed read)',
     cohort: {
-      families: [...new Set(evidence.map(row => row.family))], trials, minimumSamples: CONTRACT.minimumSamples, powerMet,
+      families: [...new Set(evidence.map(row => row.family))], trials, minimumSamples: CONTRACT.minimumSamples, sampleFloorMet,
+      power: { status: 'NOT_DERIVED', reason: 'no_calibration_split_for_sigma',
+        note: '§7 sigma comes from a calibration split measured before the holdout; this corpus has none, so minimumSamples is a floor, not a power claim' },
       trainingSealed: [ARITH_TRAIN.name, STRING_TRAIN.name].map(name => sealedManifest(roots.learned, `${name}:c1`)),
     },
     holdoutEvidence: evidence,
+    integrityProbe: { task: probeItem.name, authorized: false, outcome: unauthorized?.data?.outcome,
+      changedPaths: probeChanged },
     metrics: {
       accuracy: { successes, trials, lower: accuracyLower, upper: accuracyUpper },
       nonInferiorityLower, margin: CONTRACT.nonInferiorityMargin, accuracyNonInferior, observedAccuracyDelta,
       perTaskProcessGain: `${perTaskProcessGain}/${trials}`, pairedProcessDeltas,
       processLower: processDelta.lower, processCostPositive: processDelta.lower > 0,
-      firewallBypass: 0, approvalBypass: 0, wrongWrites: 0,
+      firewallBypass, approvalBypass, wrongWrites,
     },
     verdict: { status: 'MEASURED', label, assertsGain: false },
   };
@@ -212,6 +269,9 @@ test('the sealed-run source carries learning and the two arms are measured on a 
   // #4428 proved the failure-record source does not.
   assert.equal(evidence.every(row => row.sealedEligibility === 'positive_procedure'), true);
   assert.equal(report.verdict.assertsGain, false);
+  assert.equal(wrongWrites, 0, 'wrong writes measured');
+  assert.equal(firewallBypass, 0, 'firewall bypass measured');
+  assert.equal(approvalBypass, 0, 'approval bypass measured');
   assert.ok(['GAIN', 'MEASURED_NO_GAIN', 'INSUFFICIENT'].includes(label));
 });
 

@@ -12,12 +12,12 @@
 |---|---|
 | Kaynak (§2) | Doğrulanmış başarısızlık kaydı → `produceTask` → deterministik `coder` |
 | Kohort (§4) | 2 aile (`replace_text`, `rename_identifier`), 10 görev |
-| Güç (§7) | `n = 10 ≥ minimumSamples` → `powerMet = true` |
+| Güç (§7) | `n = 10 ≥ minimumSamples` (taban); §7 `sigma` calibration bölmesi ister, bu kohortta yok → `power: NOT_DERIVED` |
 | Onarım başarısı (§6) | 10/10 `outcome = applied`; tam (Clopper–Pearson) alt sınır **0.7411** |
-| Kilitli eşik (§7) | 0.90 tam alt sınır |
-| Yanlış yazma (§6) | **0** — her görevde yalnız beyan edilen dosya değişti |
+| Kilitli eşik (§7) | 0.90 tam alt sınır (bu eşik `n ≥ 29` ister) |
+| Yanlış yazma (§6) | **0** — ölçüldü: her görevde `changedPaths` yalnız beyan edilen dosya |
 | Anti-vaka (§4, §8) | 3/3 fail-closed (`NO_SUPPORTED_OPERATION`, `IDENTIFIER_PAIR_INVALID`, `FAILURE_NOT_VERIFIED`) |
-| Bütünlük | firewall bypass **0**, approval bypass **0** |
+| Bütünlük (§6) | **ölçüldü**: `--authorize` olmadan `repair-n1` yeniden koşuldu → `refused` / `SOURCE_CHANGE_REQUIRES_REVIEW`, yazma yok; firewall bypass **0**, approval bypass **0** |
 | Nihai etiket (§8) | **`REPAIR_INSUFFICIENT`** |
 | `assertsGain` | **`false`** |
 
@@ -45,6 +45,8 @@ trials = 10        families = [replace_text, rename_identifier]
 outcome = 10/10 applied        repair lower = 0.7411 (exact, one-sided 95%)
 wrong writes = 0   firewall bypass = 0   approval bypass = 0
 anti-cases = 3/3 fail-closed
+  (integrity probe: `--authorize` olmadan repair-n1 → refused/SOURCE_CHANGE_REQUIRES_REVIEW, yazma yok)
+power = NOT_DERIVED (calibration bölmesi yok → §7 sigma hesaplanamaz)
 ```
 
 ## 4. Neden `REPAIR_INSUFFICIENT` — eşiğin gerektirdiği örnek (ölçülmüş)
@@ -80,5 +82,9 @@ asla bir düzenlemeye çevirmez.
 
 - `assertsGain = false`; bu belge bir varsayılan/terfi iddiası kurmaz (§9).
 - Ölçüm geçerlidir (`status: MEASURED`); etiket `REPAIR_INSUFFICIENT`'tir.
+- §7 güç iddiası kurulmaz: protokol `sigma`'yı calibration bölmesinden ister; bu kohortta
+  calibration bölmesi yok, bu yüzden `minimumSamples` yalnız bir **taban** olarak raporlanır
+  (`power: NOT_DERIVED`). Bunun yerine, 0.90 eşiğinin kendi gerektirdiği örnek boyutu
+  (`requiredTrialsForBound = 29`) ölçülüp raporlanır.
 - Öğrenme/process kazancı **ölçülmedi** (bu kaynak öğrenme taşımaz, #4428); öğrenme sorusu
   ayrı ölçümdür (`docs/task-packs/g3-sealed-run-learning-result-20261030.md`).
