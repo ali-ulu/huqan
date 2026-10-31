@@ -45,6 +45,10 @@ const PORT = 47821;
 const VERSION = require('../package.json').version;
 const POWERSHELL = 'powershell.exe';
 const PS_FLAGS = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass'];
+// Windows PowerShell 5.1 inherits PSModulePath from a pwsh 7 parent (the CI
+// step shell) and then cannot load its own Microsoft.PowerShell.Security, so
+// Get-AuthenticodeSignature is missing. Without it, 5.1 uses its defaults.
+const PS_ENV = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PSMODULEPATH'));
 
 /** sha512 in the registry's `sha512-<base64>` spelling. */
 function integrityOf(file) {
@@ -52,7 +56,7 @@ function integrityOf(file) {
 }
 
 function powershell(command) {
-  return spawnSync(POWERSHELL, [...PS_FLAGS, '-Command', command], { encoding: 'utf8' });
+  return spawnSync(POWERSHELL, [...PS_FLAGS, '-Command', command], { encoding: 'utf8', env: PS_ENV });
 }
 
 /**
@@ -67,7 +71,7 @@ function installWithEnrollment(tarball, integrity) {
   return new Promise((resolve) => {
     const child = spawn(POWERSHELL, [...PS_FLAGS, '-File', INSTALL, '-Version', VERSION, '-Port', String(PORT),
       '-NodePath', process.execPath, '-TarballPath', tarball, '-Integrity', integrity, '-EnrollCodeStdin'],
-    { stdio: ['pipe', 'pipe', 'pipe'] });
+    { stdio: ['pipe', 'pipe', 'pipe'], env: PS_ENV });
     let out = '';
     let err = '';
     let answered = 0;
@@ -91,7 +95,7 @@ function installWithEnrollment(tarball, integrity) {
 }
 
 function uninstall() {
-  return spawnSync(POWERSHELL, [...PS_FLAGS, '-File', UNINSTALL], { encoding: 'utf8' });
+  return spawnSync(POWERSHELL, [...PS_FLAGS, '-File', UNINSTALL], { encoding: 'utf8', env: PS_ENV });
 }
 
 const state = { installed: false, packDir: null };
