@@ -116,6 +116,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // families with a CPU probe per child: 55s locally on Node 24, and the same
   // loaded-Windows-runner variance that reddened the entries above applies.
   'test/coder-learning-g3-power-cost.test.js',
+  // M5 G2 (#4068) runs 79 real `cli.js coder` child processes (1 training + 30
+  // trust warm-up + 48 paired), which is the frozen N=24/30 protocol and cannot
+  // be shortened. It passes in 60s locally on Node 24 and was SIGTERM-killed at
+  // the 90s cap on the windows-latest Node 24 shard 2 of PR #4422: the same
+  // loaded-runner variance as the entries above, not a hang.
+  'test/cognitive-lab-m5-g2.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {
