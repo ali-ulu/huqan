@@ -5571,6 +5571,13 @@
   }
  ],
  "publishedPorts": {
+  "lib/cognition/forgetting-score.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "Memory"
+   ],
+   "evidence": "#4070 pure COG-M4 retention score; its first production caller is the opt-in MemoryLifecycle.consolidate retention policy in lib/memory-consolidation.js (Memory), proposal only, no deletion"
+  },
   "lib/mutation-journal.js": {
    "owner": "Knowledge",
    "consumers": ["Platform"],

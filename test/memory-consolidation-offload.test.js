@@ -305,3 +305,140 @@ test('the CLI archive/restore/consolidate actions drive the lifecycle end-to-end
 
   kernel.close?.();
 });
+
+// ---------------------------------------------------------------------------
+// #4070 (COG-M4, PR-2): the opt-in retention policy over the same selector.
+// The pure score and its guards are unit-tested in
+// test/cognition-forgetting-score.test.js; these tests exercise the *wiring* --
+// that the selector reads a record's declared metadata, abstains when a signal
+// is absent, keeps every guard, and that MemoryLifecycle still archives only
+// through the receipt-bound path.
+// ---------------------------------------------------------------------------
+
+const NOW = '2026-10-31T00:00:00.000Z';
+const OLD = '2020-01-01T00:00:00.000Z'; // recency ~0 at NOW
+
+function seedRecord(store, content, metadata, workspaceId = 'default') {
+  const result = store.store({
+    content,
+    workspaceId,
+    metadata,
+    provenance: makeProvenance('tester', workspaceId, '1.0.0'),
+  });
+  assert.equal(result.ok, true, JSON.stringify(result.error));
+  return result.memory.memoryId;
+}
+
+function selectRetention(memories, opts = {}) {
+  return selectConsolidationCandidates({ list: () => ({ ok: true, memories }) }, {
+    workspaceId: 'default', now: NOW, retention: { enabled: true }, ...opts,
+  });
+}
+
+test('[#4070] default consolidation is unchanged when retention is absent or disabled', () => {
+  const memories = [
+    { memoryId: 'a', status: 'superseded', createdAt: OLD, metadata: {} },
+    { memoryId: 'b', status: 'active', createdAt: OLD, metadata: { importance: 0.01, importanceSource: 'x', dependencyProtected: false } },
+  ];
+  const byDefault = selectConsolidationCandidates({ list: () => ({ ok: true, memories }) }, { workspaceId: 'default', now: NOW });
+  const disabled = selectConsolidationCandidates({ list: () => ({ ok: true, memories }) }, { workspaceId: 'default', now: NOW, retention: { enabled: false } });
+  // The low-importance active record is only ever a candidate under retention.
+  assert.deepEqual(byDefault.candidates.map((c) => c.memoryId), ['a']);
+  assert.deepEqual(disabled.candidates.map((c) => c.memoryId), ['a']);
+  assert.equal(byDefault.total, disabled.total);
+});
+
+test('[#4070] unknown importance abstains even when the record is old', () => {
+  const memories = [
+    { memoryId: 'known', status: 'active', createdAt: OLD, metadata: { importance: 0.01, importanceSource: 'declared-task-criticality', dependencyProtected: false } },
+    { memoryId: 'unknown', status: 'active', createdAt: OLD, metadata: { dependencyProtected: false } },
+    // A high provenance confidence must not stand in for importance.
+    { memoryId: 'confident', status: 'active', createdAt: OLD, metadata: { dependencyProtected: false }, provenance: { confidence: 0.99 } },
+    // Importance without its declared source is also unknown.
+    { memoryId: 'unsourced', status: 'active', createdAt: OLD, metadata: { importance: 0.01, dependencyProtected: false } },
+  ];
+  const result = selectRetention(memories);
+  assert.deepEqual(result.candidates.map((c) => c.memoryId), ['known']);
+});
+
+test('[#4070] policy and capability kinds, pinned and dependency-protected records are never selected', () => {
+  const low = { importance: 0.001, importanceSource: 'x' };
+  const memories = [
+    { memoryId: 'ok', status: 'active', createdAt: OLD, content: { kind: 'fact' }, metadata: { ...low, dependencyProtected: false } },
+    { memoryId: 'policy', status: 'active', createdAt: OLD, content: { kind: 'policy' }, metadata: { ...low, dependencyProtected: false } },
+    { memoryId: 'capability', status: 'active', createdAt: OLD, content: { kind: 'capability' }, metadata: { ...low, dependencyProtected: false } },
+    { memoryId: 'pinned', status: 'active', createdAt: OLD, content: { kind: 'fact' }, metadata: { ...low, dependencyProtected: false, pinned: true } },
+    { memoryId: 'protected', status: 'active', createdAt: OLD, content: { kind: 'fact' }, metadata: { ...low, dependencyProtected: true } },
+    // A missing dependency view withholds eligibility rather than assuming it safe.
+    { memoryId: 'unknown-deps', status: 'active', createdAt: OLD, content: { kind: 'fact' }, metadata: { ...low } },
+  ];
+  const result = selectRetention(memories);
+  assert.deepEqual(result.candidates.map((c) => c.memoryId), ['ok']);
+});
+
+test('[#4070] replay protection floors retention so a recently replayed record is kept', () => {
+  const memories = [
+    { memoryId: 'stale', status: 'active', createdAt: OLD, content: { kind: 'fact' }, metadata: { importance: 0.05, importanceSource: 'x', uses: 0, dependencyProtected: false } },
+    { memoryId: 'replayed', status: 'active', createdAt: OLD, content: { kind: 'fact' }, metadata: { importance: 0.05, importanceSource: 'x', uses: 0, replayedWithinDays: 1, dependencyProtected: false } },
+  ];
+  const result = selectRetention(memories);
+  // Without the floor the replayed record would score ~0; the floor lifts it
+  // above the forget threshold so only the genuinely stale record is proposed.
+  assert.deepEqual(result.candidates.map((c) => c.memoryId), ['stale']);
+  assert.ok(result.candidates[0].retention < 0.05);
+});
+
+test('[#4070] known usage discounts and the ranking is lowest-retention first, capped', () => {
+  const aged = '2026-07-01T00:00:00.000Z'; // ~122 days before NOW
+  const memories = [
+    { memoryId: 'higher', status: 'active', createdAt: aged, content: { kind: 'fact' }, metadata: { importance: 0.4, importanceSource: 'x', uses: 0, dependencyProtected: false } },
+    { memoryId: 'lower', status: 'active', createdAt: aged, content: { kind: 'fact' }, metadata: { importance: 0.2, importanceSource: 'x', uses: 0, dependencyProtected: false } },
+  ];
+  const ranked = selectRetention(memories);
+  assert.deepEqual(ranked.candidates.map((c) => c.memoryId), ['lower', 'higher']);
+  assert.ok(ranked.candidates[0].retention < ranked.candidates[1].retention);
+
+  const capped = selectRetention(memories, { limit: 1 });
+  assert.equal(capped.candidates.length, 1);
+  assert.equal(capped.total, 2, 'total reports every eligible record, not just the capped slice');
+});
+
+test('[#4070] MemoryLifecycle retention is dry-run by default and archives reversibly through a receipt', () => {
+  const { kernel, store, root } = makeKernel(false, 'retention-lifecycle');
+  const chain = require('../lib/receipt/receipt-chain');
+  const lifecycle = new MemoryLifecycle(kernel, {
+    memoryStore: store,
+    chain: {
+      GENESIS_PREVIOUS_HASH: chain.GENESIS_PREVIOUS_HASH,
+      appendReceiptToChain: chain.appendReceiptToChain,
+      validateReceiptChain: chain.validateReceiptChain,
+    },
+  });
+
+  const stale = seedRecord(store, { fact: 'unused and unimportant' }, { importance: 0.01, importanceSource: 'declared-task-criticality', dependencyProtected: false });
+  const kept = seedRecord(store, { fact: 'important' }, { importance: 0.9, importanceSource: 'declared-task-criticality', dependencyProtected: false });
+  // No declared importance at all -> abstains, stays out of the candidate set.
+  const unknown = seedRecord(store, { fact: 'no importance declared' }, { dependencyProtected: false });
+
+  const dry = lifecycle.consolidate({ workspaceId: 'default', actor: 'op', now: NOW, retention: { enabled: true } });
+  assert.equal(dry.ok, true);
+  assert.equal(dry.dryRun, true, 'retention does not change the dry-run default');
+  assert.deepEqual(dry.candidates.map((c) => c.memoryId), [stale]);
+  assert.equal(store.list({ workspaceId: 'default' }).total, 3, 'dry run archives nothing');
+
+  const applied = lifecycle.consolidate({ workspaceId: 'default', actor: 'op', now: NOW, retention: { enabled: true }, dryRun: false, reason: 'retention housekeeping' });
+  assert.equal(applied.archived.length, 1);
+  assert.match(applied.archived[0].receiptId, /^mlr_archive_/);
+  assert.equal(store.findById(stale, { workspaceId: 'default', includeArchived: true }).memory.status, 'archived');
+  assert.equal(store.list({ workspaceId: 'default' }).total, 2, 'the kept and unknown records remain in the read set');
+  assert.equal(store.findById(kept, { workspaceId: 'default' }).ok, true);
+  assert.equal(store.findById(unknown, { workspaceId: 'default' }).ok, true);
+
+  // Reversible: restore returns the archived record to 'active'.
+  const restored = lifecycle.restore(stale, { workspaceId: 'default', actor: 'op', reason: 'undo' });
+  assert.equal(restored.ok, true);
+  assert.equal(store.findById(stale, { workspaceId: 'default' }).memory.status, 'active');
+
+  kernel.close?.();
+  cleanup(root);
+});
