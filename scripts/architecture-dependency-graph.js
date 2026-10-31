@@ -82,7 +82,7 @@ const RULES = [
       'lib/cognitive-model-local-ssm.js', 'lib/cognitive-model-local-family.js',
       'lib/cognitive-model-local-rwkv.js', 'lib/cognitive-model-local-mamba.js', 'lib/cognitive-model-local-transformer.js',
       'lib/semantic-model-inference.js', 'lib/semantic-model-provider.js',
-      'fixtures/cognitive-lab/causal-confirmatory-generator.js',
+      'fixtures/cognitive-lab/causal-confirmatory-generator.js', 'lib/cognitive-lab-m4-episode.js', 'lib/cognitive-lab-m4-runner.js', // #4070 M4 assembles MemoryLifecycle (Adapters) and the receipt chain (Application).
     ],
     dirs: [
       'plugins/', 'lib/a2a/', 'lib/automation-safety-gate/', 'lib/causal/', 'lib/calibration/', 'lib/coder/', 'lib/error-prevention/',

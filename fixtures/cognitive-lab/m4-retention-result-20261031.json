@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "huqan-cognitive-lab-m4-report-v1",
+  "seed": 40701,
+  "nRequired": 24,
+  "pairedGroups": 32,
+  "recallK": 3,
+  "corpusDigest": "57795cd85c9e7075fc010e6c01d75b13a4332e4a43156a516d28a0672bbd560a",
+  "groupDigest": "fed49243f89785d21aba302a299a47eedc1e84239c4ce56e12267a9ad381d492",
+  "recall": {
+    "delta": "candidate-minus-control",
+    "direction": "higher-recall-is-better",
+    "mean": -0.020833,
+    "lower": -0.041667,
+    "upper": -0.005208
+  },
+  "shrink": {
+    "mean": 4.125,
+    "total": 132
+  },
+  "restoreRate": 0.030303,
+  "restoreRateMax": 0.05,
+  "margin": 0.05,
+  "integrity": {
+    "firewallBypass": 0,
+    "approvalBypass": 0
+  },
+  "coverage": {
+    "holdoutGroups": 32,
+    "paired": 32,
+    "uncovered": []
+  },
+  "evidenceClass": "controlled-fixture",
+  "intelligenceGain": "NOT_MEASURED",
+  "assertsGain": false,
+  "label": "GAIN",
+  "reasons": [
+    "recall_non_inferior",
+    "read_set_shrank",
+    "restore_rate_within_limit"
+  ],
+  "calibration": {
+    "groups": 32,
+    "sigma": 0.056001792086020574,
+    "nRequired": 24
+  },
+  "preregistrationDigest": "b3de08208ac5befaf8bac055001332d6f620c127b0e63b9d82cb92d74904285d"
+}

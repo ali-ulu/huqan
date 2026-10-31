@@ -86,6 +86,10 @@ const PRODUCTION_SURFACE = Object.freeze({
   // The scale benchmark's JSON snapshot reads events through timeline once the
   // SQLite backend keeps no event array (#3208 slice 2).
   timeline: 'benchmarks/bench-memory-scale.js',
+  // First non-test caller for importPackage (#4070): the COG-M4 Lab episode
+  // seeds a throwaway store with the group's records through the public import
+  // path, so the measured retention score is a function of the seeded fields.
+  importPackage: 'lib/cognitive-lab-m4-episode.js',
 });
 
 /**
@@ -96,7 +100,7 @@ const TEST_ONLY_SURFACE = Object.freeze([
   'before', 'between', 'contradict', 'eventsForMemory', 'exportPackage',
   'findByContentHash', 'findById', 'findByKind', 'findBySourceRef',
   'findByStatus', 'findLinkedMemories', 'findLinks', 'getBacklinks',
-  'getLinks', 'importPackage', 'link', 'linkMemories',
+  'getLinks', 'link', 'linkMemories',
   'linksForMemory', 'load', 'memoriesBetween', 'patchMetadata',
   'save', 'since', 'traverseLinks',
 ]);

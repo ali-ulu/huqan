@@ -1,6 +1,6 @@
 'use strict';
 
-const { INJECTED_FETCH_CLASSIFIED } = require('./enforcement-coverage-classification-injected-fetch'); const { M10_CLASSIFIED } = require('./enforcement-coverage-classification-m10');
+const { INJECTED_FETCH_CLASSIFIED } = require('./enforcement-coverage-classification-injected-fetch'); const { M10_CLASSIFIED } = require('./enforcement-coverage-classification-m10'); const { M4_CLASSIFIED } = require('./enforcement-coverage-classification-m4');
 
 /**
  * Who is allowed to touch the world, and on what grounds.
@@ -394,6 +394,6 @@ const BASE_CLASSIFIED = Object.freeze({
 // this file sat directly under the large-file threshold (#328) and the cluster
 // would have pushed it over. The merge is a plain union -- the modules share no
 // keys, and the stale-entry invariant is checked against the merged map.
-const CLASSIFIED = Object.freeze({ ...BASE_CLASSIFIED, ...INJECTED_FETCH_CLASSIFIED, ...M10_CLASSIFIED });
+const CLASSIFIED = Object.freeze({ ...BASE_CLASSIFIED, ...INJECTED_FETCH_CLASSIFIED, ...M10_CLASSIFIED, ...M4_CLASSIFIED });
 
 module.exports = { ROLES, CLASSIFIED };
