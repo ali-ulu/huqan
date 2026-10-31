@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "huqan-cog-m3-b4-replay-evidence-v1",
+  "issue": 4069,
+  "epic": 4060,
+  "preregistration": "docs/task-packs/cog-m3-replay-preregistration-20261027.md",
+  "previousStatusReport": "docs/task-packs/cog-m3-b4-replay-status-20261029.md",
+  "boundary": "selection-level characterization; the section 9 H1 experiment is NOT_RUN without the locked corpus/split manifest and family-level paired adapter",
+  "assertsGain": false,
+  "intelligenceGain": "NOT_MEASURED",
+  "corpus": {
+    "digest": "5fa51be02462c8d8fa2b16c013b7d31a3bf8931d8130d6aa1aa1810fa459ef62",
+    "tasks": 32,
+    "holdout": 24,
+    "transfer": 8,
+    "budget": 3,
+    "workspaceId": "default",
+    "replayedAt": "2026-10-30T00:00:00.000Z",
+    "classes": {
+      "P_win": { "holdout": 5, "transfer": 2, "label": "procedure" },
+      "R_win": { "holdout": 5, "transfer": 2, "label": "procedure" },
+      "BOTH": { "holdout": 6, "transfer": 2, "label": "procedure" },
+      "NONE": { "holdout": 3, "transfer": 2, "label": "none" },
+      "NEG": { "holdout": 3, "transfer": 0, "label": "avoidance" },
+      "FAIL": { "holdout": 2, "transfer": 0, "label": "none" }
+    }
+  },
+  "contract": {
+    "metric": "correct-outcome-rate",
+    "direction": "higher-is-better",
+    "seed": 3310,
+    "resamples": 2000,
+    "confidenceLevel": 0.95,
+    "meaningfulEffect": 0,
+    "wrongWriteTolerance": 0,
+    "minimumSamples": 24,
+    "minimumTransfer": 8
+  },
+  "result": {
+    "status": "MEASURED",
+    "reason": "interval_below_meaningful_effect",
+    "clearsEffect": false,
+    "assertsGain": false,
+    "holdoutSize": 24,
+    "correct": { "A0": 5, "A1": 19, "A2": 19, "O": 24 },
+    "transferCorrect": { "A0": 2, "A1": 6, "A2": 6, "O": 8 },
+    "wrongWrites": { "A0": 0, "A1": 0, "A2": 0 },
+    "primary": { "mean": 0, "lower": -0.25, "upper": 0.25 },
+    "secondary": { "mean": 0.5833333333333334, "lower": 0.375, "upper": 0.75 },
+    "oracleRecovery": 0.7916666666666666,
+    "mechanisms": { "B4": "ENABLED" },
+    "intelligenceGain": "NOT_MEASURED"
+  },
+  "learnedObject": {
+    "candidateKind": "procedure|avoidance",
+    "registered": false,
+    "authority": "CANDIDATE_ONLY",
+    "promotionInput": null,
+    "gates": { "MIN_GROUP_SIZE": 3, "CONSISTENCY_MIN": 0.8 },
+    "constants": { "PRIORITY_EPSILON": 0.01, "PRIORITY_ALPHA": 0.6, "IMPORTANCE_WEIGHT": 1.0, "DEFAULT_REPLAY_BUDGET": 32, "MAX_REPLAY_BUDGET": 256 },
+    "liveAcceptance": "authority-bound promotion receipt (PR #4354)"
+  },
+  "g3": {
+    "h1Experiment": "NOT_RUN",
+    "h1Blocker": "locked corpus/split manifest and family-level paired adapter (preregistration section 6)",
+    "composition": "NOT_MEASURED",
+    "leaveOneOut": "NOT_MEASURED",
+    "changedEnvironmentAdaptation": "NOT_MEASURED",
+    "restartReuse": "NOT_MEASURED",
+    "legacySkillNonInferiority": "NOT_MEASURED",
+    "power": "NOT_MEASURED",
+    "cost": "NOT_MEASURED"
+  }
+}
