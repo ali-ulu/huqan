@@ -237,6 +237,10 @@ runner also has no controlling terminal for `/dev/tty`, so
 `--enroll-code-stdin` reads the code from stdin instead; the default path still
 prompts on the terminal.
 
+Windows has the same shape: `.github/workflows/authority-windows-e2e.yml` and
+`test/authority-windows-install.e2e.test.js`, with `-TarballPath`, `-Integrity`
+and `-EnrollCodeStdin` on `install-authority.ps1` (ADR-016).
+
 The job is **not** a required status check and does not run on a main push: it
 mutates the runner and says nothing about the ordinary build. It is thrown
 away, so no cleanup is promised beyond the uninstaller the last case runs.

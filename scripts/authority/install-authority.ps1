@@ -15,6 +15,14 @@
   menu shortcut that opens the operator window runs elevated from the
   protected install, so its window is out of an agent's reach.
 
+  CI installs the tarball `npm pack` just produced instead of reading the
+  registry metadata: -TarballPath names the file and -Integrity is the sha512
+  the caller computed from it (both or neither). The check is the same one the
+  registry path performs, so the trust decision is unchanged; only its source
+  is. -EnrollCodeStdin reads the enrollment code from stdin instead of
+  Read-Host, because a runner has no one to type it (ADR-016, ADR-020 section
+  10).
+
   Paths are fixed, not taken from the environment: the runtime trusts the pin
   at C:\ProgramData\huqan-authority\public\authority.json and nothing else.
 
@@ -26,7 +34,10 @@ param(
   [Parameter(Mandatory = $true)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
   [string]$NodePath,
   [ValidateRange(1024, 65535)][int]$Port = 47821,
-  [switch]$AllowUnsignedNode
+  [switch]$AllowUnsignedNode,
+  [string]$TarballPath,
+  [Alias('Integrity')][string]$PackageIntegrity,
+  [switch]$EnrollCodeStdin
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,12 +86,22 @@ function Invoke-Checked([string]$file, [string[]]$arguments) {
   if ($LASTEXITCODE -ne 0) { Fail "$file $($arguments -join ' ') exited $LASTEXITCODE" }
 }
 
+# With -TarballPath the registry is not consulted at all: the file is the one
+# the caller built, and -Integrity is the sha512 the caller computed from it.
+# The check below is the same one the registry path performs, so the trust
+# decision is unchanged -- only its source is.
 function Get-VerifiedPackage([string]$staging) {
-  $meta = Invoke-RestMethod -Uri "https://registry.npmjs.org/huqan/$Version" -UseBasicParsing
-  $integrity = [string]$meta.dist.integrity
-  if (-not $integrity.StartsWith('sha512-')) { Fail "registry metadata for $Version carries no sha512 integrity" }
   $tarball = Join-Path $staging 'huqan.tgz'
-  Invoke-WebRequest -Uri ([string]$meta.dist.tarball) -OutFile $tarball -UseBasicParsing
+  if ($TarballPath) {
+    if (-not $PackageIntegrity.StartsWith('sha512-')) { Fail '-TarballPath needs -Integrity sha512-<base64>' }
+    Copy-Item -LiteralPath $TarballPath -Destination $tarball
+    $integrity = $PackageIntegrity
+  } else {
+    $meta = Invoke-RestMethod -Uri "https://registry.npmjs.org/huqan/$Version" -UseBasicParsing
+    $integrity = [string]$meta.dist.integrity
+    if (-not $integrity.StartsWith('sha512-')) { Fail "registry metadata for $Version carries no sha512 integrity" }
+    Invoke-WebRequest -Uri ([string]$meta.dist.tarball) -OutFile $tarball -UseBasicParsing
+  }
   $hex = (Get-FileHash -LiteralPath $tarball -Algorithm SHA512).Hash
   $bytes = [byte[]]::new($hex.Length / 2)
   for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [Convert]::ToByte($hex.Substring($i * 2, 2), 16) }
@@ -160,9 +181,20 @@ function Invoke-Enrollment {
   Write-Host "  Account: HUQAN Authority:operator   Key: $secret"
   Write-Host "  or the URI: $($init.otpauthUri)"
   for ($attempt = 1; $attempt -le 3; $attempt++) {
-    $code = Read-Host 'Enter the 6-digit code your app shows now'
+    if ($EnrollCodeStdin) {
+      # EOF is an input failure, not a wrong code: looping it would spend the
+      # three attempts on empty strings and record TOTP failures in the state.
+      $code = [Console]::In.ReadLine()
+      if ($null -eq $code) { Fail 'stdin closed before an enrollment code was read' }
+    } else {
+      $code = Read-Host 'Enter the 6-digit code your app shows now'
+    }
     & $NodeExe $serviceMain enroll-check --state-dir $StateDir --code $code | Out-Null
-    if ($LASTEXITCODE -eq 0) { Clear-Host; return $init.keyId }
+    if ($LASTEXITCODE -eq 0) {
+      # Clear-Host needs a console; with the code on stdin there may be none.
+      if (-not $EnrollCodeStdin) { Clear-Host }
+      return $init.keyId
+    }
     Write-Host 'That code did not match; wait for the next one and try again.'
   }
   Fail 'enrollment was not confirmed; nothing was started'
@@ -217,6 +249,13 @@ function New-OperatorShortcut {
   [IO.File]::WriteAllBytes($Shortcut, $bytes)
 }
 
+# -Integrity without -TarballPath would be silently ignored, which reads as a
+# verified install; refuse instead. Checked before anything is created, so a
+# mistyped invocation leaves no directory behind for Assert-FreshInstall to
+# trip over on the next run.
+if (-not $TarballPath -and $PackageIntegrity) { Fail '-Integrity is only used with -TarballPath' }
+if ($TarballPath -and -not $PackageIntegrity) { Fail '-TarballPath needs -Integrity sha512-<base64>' }
+if ($TarballPath -and -not (Test-Path -LiteralPath $TarballPath -PathType Leaf)) { Fail "-TarballPath is not a regular file: $TarballPath" }
 Assert-Elevated
 Assert-FreshInstall
 # Windows PowerShell 5.1 does not offer TLS 1.2 by default; npm and GitHub require it.
