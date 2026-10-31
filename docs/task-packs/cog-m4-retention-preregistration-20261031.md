@@ -43,7 +43,7 @@ Aşağıdaki sabitler `lib/cognition/forgetting-score.js` ve `lib/memory-consoli
 4. Uygunluk korumaları sırayla: `active` değilse, `policy`/`capability` ise, `pinned` ise, dependency görünümü boolean değilse veya `dependencyProtected` ise → `eligible=false` (skor ne olursa olsun).
 5. Yakın replay (`replayedWithinDays ≤ 30`) skoru `REPLAY_PROTECT_FLOOR`'a yükseltir.
 6. Korumaları geçen ve `retention < FORGET_THRESHOLD` olan kayıt adaydır; sıra `retention asc`, `createdAt asc`, `memoryId`.
-7. `opts.retention` yoksa veya `enabled !== true` ise seçici **bayt-bayt aynıdır** (yalnız `superseded`).
+7. `opts.retention` yoksa veya `enabled !== true` ise seçici retention'a ait dalları **uygulamaz**; varsayılan davranış değişmez: varsayılan aday durumu yalnız `superseded`'dır. `includeLowConfidence === true` (varsayılan `false`) verilirse provenance güveni `maxConfidence` (varsayılan `0.25`) altındaki `active` kayıtlar da seçilir.
 8. Mutasyon yalnız `MemoryLifecycle.archive` (fişli) üzerinden; `opts.dryRun === false` olmadan hiçbir şey arşivlenmez.
 
 ## 3. Hipotez H1 (§9, niyetle aynen)
@@ -51,7 +51,7 @@ Aşağıdaki sabitler `lib/cognition/forgetting-score.js` ve `lib/memory-consoli
 > Unutma sonrası held-out sorgularda recall@k **non-inferior** (marj §6) iken varsayılan okuma kümesi **küçülür**.
 
 - **Aday kol (candidate):** `opts.retention.enabled === true`; `MemoryLifecycle.consolidate({ dryRun:false, retention })` düşük skorlu `active` kayıtları fişli arşive taşır. Gerçek arşiv/geri-yükleme yolu üzerinden **gerçekten yürütülür**.
-- **Taban kol (control):** `retention` yok; varsayılan seçici (yalnız `superseded`). Aynı gerçek yol, aynı sorgu seti, aynı `k`.
+- **Taban kol (control):** `retention` yok; varsayılan seçici — varsayılan olarak yalnız `superseded`, ve ölçümde `includeLowConfidence` açıkça `false` bırakılır (aksi halde `active` düşük-güven kayıtlar da seçilir). Aynı gerçek yol, aynı sorgu seti, aynı `k`.
 - **Ana ölçü A (kalite):** held-out sorgular üzerinde `recall@k` (doğru kayıt ilk `k` içinde); düşük daha kötü. Karar **non-inferiority** ile verilir.
 - **Ana ölçü B (etki):** varsayılan okuma kümesi boyutu (arşiv sonrası görünür `active` kayıt sayısı); küçülme beklenir.
 - **Guard (bütünlük):** sonradan geri yükleme gereken arşiv oranı (`restoreRate`) ≤ `RESTORE_RATE_MAX` (§6).
@@ -61,7 +61,7 @@ Aşağıdaki sabitler `lib/cognition/forgetting-score.js` ve `lib/memory-consoli
 ## 4. İzleme / nihai holdout ayrımı (sızıntı koruması)
 
 - **İzleme probe kümesi:** kalibrasyon/pilot split; yalnız `sigma` ve `N_required` tahminini besler. Nihai değerlendirme holdout'u değildir.
-- **Nihai holdout:** kaynak/görev grubu düzeyinde izleme kümesinden ayrılır. `corpusDigest` ve grup düzeyi `groupDigest` değerleri, holdout açılmadan **önce** kalibrasyon manifestinde (`wx`, tek kullanımlık) kaydedilir ve commit edilir.
+- **Nihai holdout:** `sourceGroup` düzeyinde izleme kümesinden ayrılır. `corpusDigest` ve grup düzeyi `groupDigest` değerleri, holdout açılmadan **önce** kalibrasyon manifestinde (`wx`, tek kullanımlık) kaydedilir ve commit edilir.
 - **Örtüşme yasak:** izleme probe'ları ile nihai holdout aynı `sourceGroup`'u paylaşamaz; koşucu örtüşmeyi `REJECT` ile reddeder.
 - **Erişim sınırı:** nihai holdout girdileri, etiketleri ve ara/toplu sonuçları seçiciye, `retention` eşiklerine veya model/eşik seçimine **verilmez**. Eşikler, yarı-ömür ve bütçe dondurulduktan sonra yalnız değerlendirme yolu holdout'u açar.
 - **Yeniden kullanım:** sonuçlara göre yeni ayar yapılırsa o set geliştirme verisi olur; yeni bağımsız holdout olmadan doğrulayıcı kazanç iddiası kurulamaz. Tüketilmiş holdout tekrar kullanılmaz.
@@ -69,15 +69,15 @@ Aşağıdaki sabitler `lib/cognition/forgetting-score.js` ve `lib/memory-consoli
 
 ## 5. Örnek birimi ve güç gerekçesi
 
-- **Birim:** bağımsız eşli **grup** (kaynak grubu × sorgu ailesi). Tekil kayıtlar/sorgular bağımsız örnek sayılmaz; aynı gruptaki kayıtlar birlikte taşınır.
-- **Taban:** `minimumPairedGroups = 24`. Altında → `INSUFFICIENT`.
+- **Birim:** bağımsız eşli **kaynak grubu** (`sourceGroup`). Bir kaynak grubunun tüm sorgu aileleri tek eşli fark olarak ortalanır; tekil kayıtlar/sorgular ve aile düzeyi birimler bağımsız örnek sayılmaz. Bootstrap bu `sourceGroup` düzeyi farklar üzerinde resample eder.
+- **Taban:** `minimumPairedGroups = 24` **farklı `sourceGroup`** sayısı. Altında → `INSUFFICIENT`.
 - **Güç formülü (dondurulmuş):** `N_required = ceil(((z_0.975 + z_0.80)² × σ̂²) / δ²)`, `δ = 0.05` (recall@k için mutlak marj), `z_0.975 ≈ 1.96`, `z_0.80 ≈ 0.8416`; `σ̂` yalnız **kalibrasyon gruplarında** koşulan pilot koşudan gelir (holdout'a dokunmaz).
-- **Kural:** `N = max(24, N_required)`. Gerçek eşli grup sayısı `N_required`ın altındaysa sonuç `INSUFFICIENT`'tır; pilot yalnız varyans tahmini içindir, eşik/kol seçmez.
+- **Kural:** `N = max(24, N_required)`. Gerçek eşli grup sayısı (farklı `sourceGroup`) `N` altındaysa sonuç `INSUFFICIENT`'tır; pilot yalnız varyans tahmini içindir, eşik/kol seçmez.
 - Pilot koşu holdout'u açamaz ve sonuçları bu belgeye eklenmez; yalnız `σ̂` ve `N_required` manifestte kaydedilir.
 
 ## 6. Donmuş eşli kontrat
 
-Eşli farklar mevcut `lib/cognitive-lab-paired-delta.js` üzerinden alınır; kontrat sonuç görülmeden dondurulur:
+Eşli farklar mevcut bootstrap ilkelleri (`createPairedSampler`, `pairedPercentile`) ve `lib/cognitive-lab-g1-stats.js::pairedBootstrap` üzerinden alınır. **`lockContract` kullanılmaz**: o fonksiyon Brier yönüne sabittir (`lower-brier-is-better`) ve recall@k ölçmez. Bu belge recall@k kontratını (yön: `higher-recall-is-better`) kendisi tanımlar ve doğrular; kontrat sonuç görülmeden dondurulur:
 
 | Alan | Değer |
 | --- | --- |
@@ -92,12 +92,12 @@ Eşli farklar mevcut `lib/cognitive-lab-paired-delta.js` üzerinden alınır; ko
 | `recallK` | `3` |
 | `RESTORE_RATE_MAX` | `0.05` |
 
-Bilinmeyen alan, eksik alan veya skorlama anında seçilmiş eşik → `REJECT`. Eşleşmeyen kollar (farklı sorgu seti, farklı `k`, farklı corpus) `REJECT` edilir.
+Bilinmeyen alan, eksik alan veya skorlama anında seçilmiş eşik → `REJECT`. Eşleşmeyen kollar (farklı sorgu seti, farklı `k`, farklı corpus) `REJECT` edilir. Eşli farklar önce `sourceGroup` düzeyinde ortalanır (§5), sonra bootstrap edilir.
 
 ## 7. Karar kuralları (sonuç görülmeden, öncelik sırası)
 
 1. **REJECT** — bütünlük ihlali (`firewall bypass > 0` veya `approval bypass > 0`), kol uyuşmazlığı, izleme/holdout kaynak-grubu örtüşmesi, eksik `corpusDigest`/`groupDigest`, **geri alınamayan mutasyon** (fişsiz arşiv veya `restore` ile dönmeyen kayıt).
-2. **INSUFFICIENT** — eşli grup sayısı `N_required` altında, boş/kapalı holdout, karşılaştırılabilir çift yok.
+2. **INSUFFICIENT** — eşli grup sayısı (farklı `sourceGroup`) `N` altında, boş/kapalı holdout, karşılaştırılabilir çift yok.
 3. Aksi halde eşli bootstrap CIs hesaplanır:
    - `recallDelta = candidateRecall@k − controlRecall@k` (pozitif = aday daha iyi)
    - `shrink = controlReadSetSize − candidateReadSetSize` (pozitif = aday okuma kümesini küçültmüş)
@@ -108,8 +108,8 @@ Bilinmeyen alan, eksik alan veya skorlama anında seçilmiş eşik → `REJECT`.
 
 ## 8. Antivakalar ve G3 katkısı
 
-- **Uniform önem:** her kayıt aynı (yüksek) öneme sahipse hiçbir kayıt `FORGET_THRESHOLD` altına inmez → `shrink = 0` → **NOT_CLEARED** (kazanç uydurulmaz).
-- **Gerekli-kayıt corpus'u:** düşük skorlu kayıtlar sorgu hedefleriyle çakışıyorsa recall düşer → **HARM**.
+- **Uniform önem:** her kayıt aynı (yüksek) öneme sahip **ve** yakın/çok kullanılan (recency·usage yeterince yüksek) ise hiçbir kayıt `FORGET_THRESHOLD` altına inmez → `shrink = 0` → **NOT_CLEARED** (kazanç uydurulmaz). Uniform önem tek başına yetmez: yaşlı/kullanılmamış bir kayıt `retention = 1 · recency · usage` ile eşiğin altına düşebilir ve aday olur.
+- **Gerekli-kayıt corpus'u:** düşük skorlu kayıtlar sorgu hedefleriyle çakışıyorsa ve `upper(recallDelta) < −0.05` ise → **HARM**; aksi halde §7 kuralları uygulanır (NOT_CLEARED/GAIN).
 - **Bilinmeyen önem:** `importanceSource` yoksa `ABSTAIN`; arşivlenmez → `shrink = 0` → **NOT_CLEARED**.
 - **Koruma (pin/dependency):** `pinned`/`dependencyProtected`/`policy`/`capability` kayıtlar hiç arşivlenmez; `skipped` nedenleri raporda görünür.
 - **Geri alınabilirlik:** her arşiv fişli ve `restore` ile dönmelidir; dönmeyen kayıt `REJECT`'tir. `dryRun` varsayılanı değişmez.
@@ -122,7 +122,7 @@ Bilinmeyen alan, eksik alan veya skorlama anında seçilmiş eşik → `REJECT`.
 2. Aynı corpus, aynı seed ile iki koşuda ve gerçek CLI girişi (`bin/huqan-cognitive-lab.js`) üzerinden bayt-bayt aynı JSON'u üretir (saat/rastgelelik/store sızıntısı yok).
 3. Holdout izolasyonu kanıtlanır: kaynak-grubu örtüşmesi `REJECT`, holdout sonucu besleme izolasyon testini bozar, holdout etiketi değişimi değerlendirme öncesi seçimi değiştirmez.
 4. Mutasyon testi: aday kolda arşiv adımını devre dışı bırakmak uçtan-uca ölçümü **bozmalıdır** (aday == taban → `shrink = 0`).
-5. Rapor zorunlu alanları: `corpusDigest`, `groupDigest`, `N_required`, eşli grup sayısı, `recallDelta` nokta tahmini ve %95 CI, `shrink` ortalaması, `restoreRate`, bütünlük sayaçları, antivaka metrikleri, `GAIN`/`HARM`/`NOT_CLEARED`/`INSUFFICIENT`/`REJECT` etiketi.
+5. Rapor zorunlu alanları: `corpusDigest`, `groupDigest`, ön-kayıt belgesinin `preregistrationDigest`'i, `N_required`, farklı `sourceGroup` sayısı (eşli grup sayısı), `recallDelta` nokta tahmini ve %95 CI, `shrink` ortalaması, `restoreRate`, bütünlük sayaçları, antivaka metrikleri, `GAIN`/`HARM`/`NOT_CLEARED`/`INSUFFICIENT`/`REJECT` etiketi.
 6. `assertsGain`, varsayılan terfi, wiring, ledger/baseline ve güvenlik eşikleri PR-4'te **değişmez**.
 
 ## 10. Sonuçların eklenmemesi ve takip
