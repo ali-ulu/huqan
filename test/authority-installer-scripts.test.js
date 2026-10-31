@@ -1,8 +1,11 @@
 'use strict';
 
-// ADR-016 P5: the Windows installer cannot run in CI, so its load-bearing
-// properties are pinned here, and on Windows its syntax is checked by the
-// PowerShell parser itself.
+// ADR-016 P5: the shards cannot run the Windows installer (it needs an
+// elevated session and a real service manager), so its load-bearing properties
+// are pinned here, and on Windows its syntax is checked by the PowerShell
+// parser itself. The real install runs only in
+// .github/workflows/authority-windows-e2e.yml, on a windows-latest runner
+// (test/authority-windows-install.e2e.test.js).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -34,8 +37,10 @@ test('the state directory is closed to users and, after enrollment, to administr
   const stateGrant = install.split('\n').find(line => line.includes('$StateDir') && line.includes('/inheritance:r'));
   assert.ok(stateGrant, 'the state ACL drops inheritance');
   assert.doesNotMatch(stateGrant, /Users/);
-  assert.match(install, /\$StateDir, '\/remove:g', \$Sid\.Admins, '\/T'/);
+  assert.match(install, /\$StateDir, '\/remove:g', \$Sid\.Admins\)/);
   assert.match(install, /'\/setowner', \$Sid\.System/);
+  // Ownership moves before the Administrators grant goes, or icacls loses access mid-walk.
+  assert.ok(install.indexOf("'/setowner', $Sid.System, '/T'") < install.indexOf("'/remove:g', $Sid.Admins)"));
 });
 
 test('the installer refuses ground it did not prepare and code it cannot vouch for', () => {
@@ -58,6 +63,36 @@ test('the operator window is a Start menu shortcut that always asks to elevate',
   assert.match(install, /Start Menu\\Programs\\HUQAN Authority\.lnk/);
   assert.match(install, /\$bytes\[0x15\] = \$bytes\[0x15\] -bor 0x20/);
   assert.match(install, /lib\\authority\\operator-cli\.js/);
+});
+
+test('-TarballPath is paired with -Integrity, and the local file is held to the same sha512 check', () => {
+  assert.match(install, /\[switch\]\$EnrollCodeStdin/);
+  assert.match(install, /\[string\]\$TarballPath/);
+  assert.match(install, /\[Alias\('Integrity'\)\]\[string\]\$PackageIntegrity/);
+  assert.match(install, /if \(-not \$TarballPath -and \$PackageIntegrity\) \{ Fail '-Integrity is only used with -TarballPath' \}/);
+  assert.match(install, /if \(\$TarballPath -and -not \$PackageIntegrity\) \{ Fail '-TarballPath needs -Integrity sha512-<base64>' \}/);
+  assert.match(install, /if \(-not \$PackageIntegrity\.StartsWith\('sha512-'\)\) \{ Fail '-TarballPath needs -Integrity sha512-<base64>' \}/);
+  // One hash and one comparison serve both sources: the local file is not
+  // given a weaker check than the registry download.
+  assert.equal(install.split('-ne $integrity').length - 1, 1);
+  assert.equal(install.split('Get-FileHash -LiteralPath $tarball -Algorithm SHA512').length - 1, 1);
+  const getPackage = install.slice(install.indexOf('function Get-VerifiedPackage'), install.indexOf('function Install-Node'));
+  const hashAt = getPackage.indexOf('Get-FileHash');
+  assert.ok(getPackage.indexOf('Copy-Item -LiteralPath $TarballPath') < hashAt, 'the local tarball is hashed after it is staged');
+  assert.ok(getPackage.indexOf('Invoke-RestMethod') > getPackage.indexOf('} else {'), 'the registry is consulted only without -TarballPath');
+  assert.ok(getPackage.indexOf('Invoke-RestMethod') < hashAt, 'the registry download is hashed too');
+});
+
+test('-EnrollCodeStdin reads one line from stdin and treats EOF as a failure, not a wrong code', () => {
+  assert.match(install, /\$code = \[Console\]::In\.ReadLine\(\)/);
+  assert.match(install, /if \(\$null -eq \$code\) \{ Fail 'stdin closed before an enrollment code was read' \}/);
+  assert.match(install, /\$code = Read-Host 'Enter the 6-digit code your app shows now'/);
+});
+
+test('the Authenticode and WinSW checks stay unconditional on the CI parameters', () => {
+  assert.match(install, /Get-AuthenticodeSignature -LiteralPath \$NodeExe/);
+  assert.match(install, /Get-FileHash -LiteralPath \$ServiceExe -Algorithm SHA256/);
+  assert.doesNotMatch(install, /if \(\$(TarballPath|EnrollCodeStdin)[^\r\n]*(Authenticode|WinSw|AllowUnsignedNode)/);
 });
 
 test('the PowerShell parser accepts both scripts', { skip: process.platform !== 'win32' && 'PowerShell is checked on Windows' }, () => {

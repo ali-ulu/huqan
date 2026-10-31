@@ -1,0 +1,75 @@
+name: Authority Windows install e2e
+
+# The real install of the Windows approval authority (ADR-016, ADR-020
+# section 10). Every other Windows check reads the installer's text or runs the
+# PowerShell parser over it; this one runs an elevated session, the Service
+# Control Manager, WinSW and a real npm tarball, on an ephemeral runner that is
+# thrown away afterwards.
+#
+# Pull-request only, on purpose, for the same reasons as the POSIX job: it
+# mutates the runner (installs a service, writes C:\Program Files and
+# C:\ProgramData), ADR-020 risk 4 says the e2e must not run in the shards, and
+# running it on every main push would make Main CI Watch wait on a job that says
+# nothing about the ordinary build. It is not a required status check, so a pull
+# request still merges on the gates that are.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: authority-windows-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-e2e:
+    name: Install e2e (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      HUQAN_AUTHORITY_E2E: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Same step as semantic-model.yml: the bundled npm's node-gyp cannot find
+      # the image's Visual Studio, so better-sqlite3 fails to build.
+      - name: Upgrade Windows npm for current Visual Studio support
+        shell: pwsh
+        run: npm install -g npm@11.6.3
+
+      - name: Install repository dependencies
+        shell: pwsh
+        run: npm ci
+
+      # The installer needs no gnupg or curl: it fetches only WinSW (sha256
+      # pinned) and checks the node it copies for an Authenticode signature,
+      # which setup-node's node.exe carries. tar.exe ships with the image.
+      - name: Check the installer's own prerequisites
+        shell: pwsh
+        run: |
+          foreach ($tool in 'C:\Windows\System32\tar.exe', 'C:\Windows\System32\icacls.exe', 'C:\Windows\System32\sc.exe') {
+            if (-not (Test-Path -LiteralPath $tool)) { throw "missing $tool" }
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath (Get-Command node.exe).Source
+          Write-Host "node.exe signature: $($signature.Status) / $($signature.SignerCertificate.Subject)"
+
+      # The hosted runner's user is an administrator with an elevated token,
+      # which is what the installer's elevation check needs. The test file packs
+      # the tarball itself (`npm pack`), passes its sha512 as -Integrity and
+      # answers enrollment from stdin, so no registry access is needed at
+      # install time.
+      - name: Run the Windows install e2e
+        shell: pwsh
+        run: node --test test/authority-windows-install.e2e.test.js

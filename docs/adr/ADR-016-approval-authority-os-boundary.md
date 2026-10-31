@@ -111,6 +111,18 @@ response envelopes, sealed decision requests, and the bundle manifest.
 P2 adds the service, P3 the runtime client and mode, P4 the decision path,
 P5 the installer and operator CLI, P6 detection and the remaining consumers.
 
+The Windows installer is exercised for real in CI by
+`.github/workflows/authority-windows-e2e.yml` (`windows-latest`, pull request
+and manual dispatch only, not a required check), whose test file
+`test/authority-windows-install.e2e.test.js` skips unless
+`HUQAN_AUTHORITY_E2E=1`. Mirroring ADR-020 section 10, the installer accepts
+`-TarballPath <path> -Integrity <sha512-...>` (both or neither; the local file
+is held to the same sha512 comparison as the registry download) and
+`-EnrollCodeStdin` (the code is read from stdin instead of `Read-Host`). The
+Authenticode check on node.exe, the WinSW SHA-256 pin, the link check and the
+ACLs are the same on every path. Never run the installer on a developer
+machine to test it; the e2e is for the ephemeral runner.
+
 ## The decision path (P4)
 
 `lib/authority/decision-guard.js` runs in `handleMcpApprovalDecision`, after

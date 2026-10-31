@@ -15,6 +15,14 @@
   menu shortcut that opens the operator window runs elevated from the
   protected install, so its window is out of an agent's reach.
 
+  CI installs the tarball `npm pack` just produced instead of reading the
+  registry metadata: -TarballPath names the file and -Integrity is the sha512
+  the caller computed from it (both or neither). The check is the same one the
+  registry path performs, so the trust decision is unchanged; only its source
+  is. -EnrollCodeStdin reads the enrollment code from stdin instead of
+  Read-Host, because a runner has no one to type it (ADR-016, ADR-020 section
+  10).
+
   Paths are fixed, not taken from the environment: the runtime trusts the pin
   at C:\ProgramData\huqan-authority\public\authority.json and nothing else.
 
@@ -26,7 +34,10 @@ param(
   [Parameter(Mandatory = $true)][ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
   [string]$NodePath,
   [ValidateRange(1024, 65535)][int]$Port = 47821,
-  [switch]$AllowUnsignedNode
+  [switch]$AllowUnsignedNode,
+  [string]$TarballPath,
+  [Alias('Integrity')][string]$PackageIntegrity,
+  [switch]$EnrollCodeStdin
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,18 +86,33 @@ function Invoke-Checked([string]$file, [string[]]$arguments) {
   if ($LASTEXITCODE -ne 0) { Fail "$file $($arguments -join ' ') exited $LASTEXITCODE" }
 }
 
+# With -TarballPath the registry is not consulted at all: the file is the one
+# the caller built, and -Integrity is the sha512 the caller computed from it.
+# The check below is the same one the registry path performs, so the trust
+# decision is unchanged -- only its source is.
 function Get-VerifiedPackage([string]$staging) {
-  $meta = Invoke-RestMethod -Uri "https://registry.npmjs.org/huqan/$Version" -UseBasicParsing
-  $integrity = [string]$meta.dist.integrity
-  if (-not $integrity.StartsWith('sha512-')) { Fail "registry metadata for $Version carries no sha512 integrity" }
   $tarball = Join-Path $staging 'huqan.tgz'
-  Invoke-WebRequest -Uri ([string]$meta.dist.tarball) -OutFile $tarball -UseBasicParsing
+  if ($TarballPath) {
+    if (-not $PackageIntegrity.StartsWith('sha512-')) { Fail '-TarballPath needs -Integrity sha512-<base64>' }
+    Copy-Item -LiteralPath $TarballPath -Destination $tarball
+    $integrity = $PackageIntegrity
+  } else {
+    $meta = Invoke-RestMethod -Uri "https://registry.npmjs.org/huqan/$Version" -UseBasicParsing
+    $integrity = [string]$meta.dist.integrity
+    if (-not $integrity.StartsWith('sha512-')) { Fail "registry metadata for $Version carries no sha512 integrity" }
+    Invoke-WebRequest -Uri ([string]$meta.dist.tarball) -OutFile $tarball -UseBasicParsing
+  }
   $hex = (Get-FileHash -LiteralPath $tarball -Algorithm SHA512).Hash
   $bytes = [byte[]]::new($hex.Length / 2)
   for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [Convert]::ToByte($hex.Substring($i * 2, 2), 16) }
   if (('sha512-' + [Convert]::ToBase64String($bytes)) -ne $integrity) { Fail 'the downloaded package does not match the registry integrity' }
   Invoke-Checked $Tar @('-xzf', $tarball, '-C', $staging)
-  return (Join-Path $staging 'package')
+  $package = Join-Path $staging 'package'
+  # A -TarballPath package passes integrity whatever its version; refuse one
+  # that is not the -Version this install reports.
+  $packageVersion = (Get-Content -Raw -LiteralPath (Join-Path $package 'package.json') | ConvertFrom-Json).version
+  if ($packageVersion -ne $Version) { Fail "the package reports version $packageVersion, not $Version" }
+  return $package
 }
 
 function Install-Node {
@@ -141,10 +167,13 @@ function Install-ServiceHost {
 }
 
 function New-ProtectedTree {
-  New-Item -ItemType Directory -Path $DataDir | Out-Null
+  # WinSW creates <logpath> (and so DataDir) when Install-ServiceHost registers
+  # the service. Assert-FreshInstall proved neither existed before this run, so
+  # reuse them; the ACLs below are set explicitly and replace what they inherited.
+  New-Item -ItemType Directory -Path $DataDir -Force | Out-Null
   Invoke-Checked $Icacls @($DataDir, '/inheritance:r', '/grant:r', "$($Sid.System):(OI)(CI)F", "$($Sid.Admins):(OI)(CI)F", "$($Sid.Users):(OI)(CI)RX")
   Invoke-Checked $Icacls @($DataDir, '/setowner', $Sid.System)
-  New-Item -ItemType Directory -Path $PublicDir, $LogDir, $StateDir | Out-Null
+  New-Item -ItemType Directory -Path $PublicDir, $LogDir, $StateDir -Force | Out-Null
   Invoke-Checked $Icacls @($LogDir, '/grant', "${ServiceAccount}:(OI)(CI)M")
   # Administrators keep access to state only until enrollment is proven.
   Invoke-Checked $Icacls @($StateDir, '/inheritance:r', '/grant:r', "$($Sid.System):(OI)(CI)F", "$($Sid.Admins):(OI)(CI)F", "${ServiceAccount}:(OI)(CI)M")
@@ -160,24 +189,41 @@ function Invoke-Enrollment {
   Write-Host "  Account: HUQAN Authority:operator   Key: $secret"
   Write-Host "  or the URI: $($init.otpauthUri)"
   for ($attempt = 1; $attempt -le 3; $attempt++) {
-    $code = Read-Host 'Enter the 6-digit code your app shows now'
+    if ($EnrollCodeStdin) {
+      # EOF is an input failure, not a wrong code: looping it would spend the
+      # three attempts on empty strings and record TOTP failures in the state.
+      $code = [Console]::In.ReadLine()
+      if ($null -eq $code) { Fail 'stdin closed before an enrollment code was read' }
+    } else {
+      $code = Read-Host 'Enter the 6-digit code your app shows now'
+    }
     & $NodeExe $serviceMain enroll-check --state-dir $StateDir --code $code | Out-Null
-    if ($LASTEXITCODE -eq 0) { Clear-Host; return $init.keyId }
+    if ($LASTEXITCODE -eq 0) {
+      # Clear-Host needs a console; with the code on stdin there may be none.
+      if (-not $EnrollCodeStdin) { Clear-Host }
+      return $init.keyId
+    }
     Write-Host 'That code did not match; wait for the next one and try again.'
   }
   Fail 'enrollment was not confirmed; nothing was started'
 }
 
 function Lock-State {
-  Invoke-Checked $Icacls @($StateDir, '/remove:g', $Sid.Admins, '/T')
+  # Ownership first, while Administrators can still reach every file. Then drop
+  # their grant on the directory only: the files carry it as an inherited ACE,
+  # which Windows removes when the parent changes. '/remove:g ... /T' locked the
+  # directory first and then failed with Access is denied on its files.
   Invoke-Checked $Icacls @($StateDir, '/setowner', $Sid.System, '/T')
+  Invoke-Checked $Icacls @($StateDir, '/remove:g', $Sid.Admins)
 }
 
 function Test-Installed([string]$keyId) {
   Start-Service -Name $ServiceName
   $client = Join-Path $AppDir 'lib\authority\authority-client.js'
   $pin = Join-Path $AppDir 'lib\authority\authority-pin.js'
-  $script = 'const fs=require("fs");const p=require(process.argv[2]).parseAuthorityPin(fs.readFileSync(process.argv[3],"utf8"));' +
+  # Windows PowerShell 5.1 drops embedded double quotes from native arguments
+  # (require("fs") arrives as require(fs)), so the script uses single quotes only.
+  $script = 'const fs=require(''fs'');const p=require(process.argv[2]).parseAuthorityPin(fs.readFileSync(process.argv[3],''utf8''));' +
     'if(!p.ok)process.exit(3);require(process.argv[1]).createAuthorityClient({pin:p.pin}).identity()' +
     '.then(r=>{process.stdout.write(String(r.body&&r.body.keyId));process.exit(r.status===200?0:4)},()=>process.exit(5))'
   for ($wait = 0; $wait -lt 20; $wait++) {
@@ -217,6 +263,13 @@ function New-OperatorShortcut {
   [IO.File]::WriteAllBytes($Shortcut, $bytes)
 }
 
+# -Integrity without -TarballPath would be silently ignored, which reads as a
+# verified install; refuse instead. Checked before anything is created, so a
+# mistyped invocation leaves no directory behind for Assert-FreshInstall to
+# trip over on the next run.
+if (-not $TarballPath -and $PackageIntegrity) { Fail '-Integrity is only used with -TarballPath' }
+if ($TarballPath -and -not $PackageIntegrity) { Fail '-TarballPath needs -Integrity sha512-<base64>' }
+if ($TarballPath -and -not (Test-Path -LiteralPath $TarballPath -PathType Leaf)) { Fail "-TarballPath is not a regular file: $TarballPath" }
 Assert-Elevated
 Assert-FreshInstall
 # Windows PowerShell 5.1 does not offer TLS 1.2 by default; npm and GitHub require it.
