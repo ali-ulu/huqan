@@ -43,6 +43,12 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      # Same step as semantic-model.yml: the bundled npm's node-gyp cannot find
+      # the image's Visual Studio, so better-sqlite3 fails to build.
+      - name: Upgrade Windows npm for current Visual Studio support
+        shell: pwsh
+        run: npm install -g npm@11.6.3
+
       - name: Install repository dependencies
         shell: pwsh
         run: npm ci
