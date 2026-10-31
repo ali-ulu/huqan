@@ -8192,6 +8192,13 @@
    ],
    "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; #4063 adds the Platform cognitive-lab CLI value-ledger H1 measurement surface (opt-in, store-free, no authority) as the only Platform caller"
   },
+  "lib/cognition/appraisal.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "lib/agent-cognition-seam.js derives the appraisal from the bound file-effect/Coder outcome behind opts.cognition.appraisal; execution is not causation, so regret stays withheld and no action authority is added"
+  },
   "lib/cognition/curiosity.js": {
    "owner": "Knowledge",
    "consumers": [

@@ -9,9 +9,9 @@ const { COGNITION_STATUS, AUTHORITY } = require('../lib/cognition/contract');
 const ALL_OFF = Object.fromEntries(COGNITION_FLAGS.map((f) => [f, false]));
 const ALL_ON = Object.fromEntries(COGNITION_FLAGS.map((f) => [f, true]));
 
-test('declares exactly the nine namespace flags from the plan', () => {
+test('declares exactly the ten namespace flags from the plan', () => {
   assert.deepEqual([...COGNITION_FLAGS].sort(), [
-    'curiosity', 'dualProcess', 'percept', 'predictionError', 'reward',
+    'appraisal', 'curiosity', 'dualProcess', 'percept', 'predictionError', 'reward',
     'salience', 'value', 'workingMemory', 'workspace',
   ]);
   assert.ok(Object.isFrozen(COGNITION_FLAGS));
