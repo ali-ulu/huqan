@@ -2612,6 +2612,10 @@
    "context": "Knowledge",
    "evidence": "#4069: pure COG-M3 PR-1 prioritized replay selection over measured prediction error and reward"
   },
+  "lib/cognition/forgetting-score.js": {
+   "context": "Knowledge",
+   "evidence": "#4070: pure COG-M4 PR-1 retention score and forget-candidate ranking over explicit importance, age and usage; first caller is the opt-in memory-consolidation retention policy"
+  },
   "lib/cognition/replay-generalize.js": {
    "context": "Knowledge",
    "evidence": "#4069 pure replay grouping produces candidate data only; lib/cli-replay.js is the measured operator preview caller"
