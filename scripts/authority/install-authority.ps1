@@ -216,7 +216,9 @@ function Test-Installed([string]$keyId) {
   Start-Service -Name $ServiceName
   $client = Join-Path $AppDir 'lib\authority\authority-client.js'
   $pin = Join-Path $AppDir 'lib\authority\authority-pin.js'
-  $script = 'const fs=require("fs");const p=require(process.argv[2]).parseAuthorityPin(fs.readFileSync(process.argv[3],"utf8"));' +
+  # Windows PowerShell 5.1 drops embedded double quotes from native arguments
+  # (require("fs") arrives as require(fs)), so the script uses single quotes only.
+  $script = 'const fs=require(''fs'');const p=require(process.argv[2]).parseAuthorityPin(fs.readFileSync(process.argv[3],''utf8''));' +
     'if(!p.ok)process.exit(3);require(process.argv[1]).createAuthorityClient({pin:p.pin}).identity()' +
     '.then(r=>{process.stdout.write(String(r.body&&r.body.keyId));process.exit(r.status===200?0:4)},()=>process.exit(5))'
   for ($wait = 0; $wait -lt 20; $wait++) {
