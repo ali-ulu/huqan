@@ -4143,6 +4143,10 @@
     "lib/cognition/conversation-turn.js": {
       "context": "Memory",
       "evidence": "#4393: pure COG-C PR-1 conversation-turn contract; workspace-bound conversation/session/message identity with idempotency and reply-to, admitted-path context selection under an explicit budget, and message content treated as data-only; first caller is the workspace-bound conversation/session surface the plan defers to a later slice"
+    },
+    "lib/conversation-store.js": {
+      "context": "Memory",
+      "evidence": "#4393 COG-C PR-2: durable workspace-bound conversation store over the single journal (append-only turn rows under a conversation: prefix, tombstone delete, retention-gated write); the production caller of the pure conversation-turn contract"
     }
   },
   "platform": {
@@ -5581,6 +5585,10 @@
     "lib/cli-evidence-commands.js": {
       "kind": "entry",
       "evidence": "ownership-map-2446.md#R-CLI-P; #4092 PR-A2: argv dispatch for `evidence pack|verify`, the same entry role as cli-backup-commands"
+    },
+    "lib/http/conversation-route.js": {
+      "kind": "entry",
+      "evidence": "#4393 COG-C PR-2: POST/GET/DELETE /api/conversation/turns transport surface"
     }
   },
   "unassigned": {},
@@ -8314,6 +8322,20 @@
         "Trust"
       ],
       "evidence": "#4092 PR-A2: the evidence pack (Trust) reuses this existing function rather than growing a copy"
+    },
+    "lib/conversation-store.js": {
+      "owner": "Memory",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "#4393 COG-C PR-2: the conversation HTTP route composes the Memory-owned store through its public contract"
+    },
+    "lib/cognition/conversation-turn.js": {
+      "owner": "Memory",
+      "consumers": [
+        "Memory"
+      ],
+      "evidence": "#4393 COG-C PR-2: the pure conversation-turn contract is planned inside its Memory-owned store (lib/conversation-store.js planConversationTurnFromStore); the store is the published port Platform consumes"
     }
   },
   "legacyEdges": {
