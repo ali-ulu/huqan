@@ -316,6 +316,7 @@
     "lib/cognition/contract.js",
     "lib/cognition/curiosity.js",
     "lib/cognition/dual-process-router.js",
+    "lib/cognition/forgetting-score.js",
     "lib/cognition/independent-sources.js",
     "lib/cognition/percept-adapters.js",
     "lib/cognition/percept.js",
