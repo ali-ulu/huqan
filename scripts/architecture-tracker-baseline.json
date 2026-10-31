@@ -263,6 +263,7 @@
       "lib/cli-plugin-status.js": "Core",
       "lib/cli-promote.js": "Core",
       "lib/cli-repl.js": "Core",
+      "lib/cli-replay-prediction-source.js": "Application",
       "lib/cli-replay.js": "Application",
       "lib/cli-runtime-methods.js": "Core",
       "lib/cli-status-command.js": "Core",
@@ -308,11 +309,16 @@
       "lib/coder/verify-derivation.js": "Application",
       "lib/coder/verify-ocr.js": "Application",
       "lib/cognition-prediction-error-pairs.js": "Adapters",
+      "lib/cognition-repair-events.js": "Core",
       "lib/cognition-value-ledger-pairs.js": "Adapters",
+      "lib/cognition/appraisal.js": "Core",
+      "lib/cognition/causal-attribution.js": "Core",
       "lib/cognition/cognition-config.js": "Core",
       "lib/cognition/contract.js": "Core",
+      "lib/cognition/conversation-turn.js": "Core",
       "lib/cognition/curiosity.js": "Core",
       "lib/cognition/dual-process-router.js": "Core",
+      "lib/cognition/forgetting-score.js": "Core",
       "lib/cognition/global-workspace.js": "Core",
       "lib/cognition/independent-sources.js": "Core",
       "lib/cognition/percept-adapters.js": "Core",
@@ -355,6 +361,10 @@
       "lib/cognitive-lab-m10-episode.js": "Core",
       "lib/cognitive-lab-m10-evaluator.js": "Core",
       "lib/cognitive-lab-m10-runner.js": "Core",
+      "lib/cognitive-lab-m4-corpus.js": "Core",
+      "lib/cognitive-lab-m4-episode.js": "Application",
+      "lib/cognitive-lab-m4-evaluator.js": "Core",
+      "lib/cognitive-lab-m4-runner.js": "Application",
       "lib/cognitive-lab-m7-experiment.js": "Application",
       "lib/cognitive-lab-m7-runtime.js": "Application",
       "lib/cognitive-lab-m7-value-runtime.js": "Application",
@@ -1507,6 +1517,7 @@
       "scripts/deprecation-policy.js": "UI",
       "scripts/enforcement-coverage-classification-injected-fetch.js": "UI",
       "scripts/enforcement-coverage-classification-m10.js": "UI",
+      "scripts/enforcement-coverage-classification-m4.js": "UI",
       "scripts/enforcement-coverage-classification.js": "UI",
       "scripts/enforcement-coverage.js": "UI",
       "scripts/explain-npm-publish-failure.js": "UI",
@@ -1531,6 +1542,7 @@
       "scripts/generate-mcp-client-envelope-vectors.js": "UI",
       "scripts/generate-protocol-vectors.js": "UI",
       "scripts/github-app-reconcile-writeback.js": "UI",
+      "scripts/heavy-test-files.js": "UI",
       "scripts/huqan-watchdog.js": "UI",
       "scripts/junit-merge.js": "UI",
       "scripts/knowledge-graph-demo.js": "UI",
@@ -1570,6 +1582,7 @@
       "scripts/shard-hang-diagnostics.js": "UI",
       "scripts/shipped-runtime-files.js": "UI",
       "scripts/spawn-windows-aware.js": "UI",
+      "scripts/test-changed.js": "UI",
       "scripts/test-consumer-compile.js": "UI",
       "scripts/test-state-sandbox.js": "UI",
       "scripts/train-semantic-model-v2.js": "UI",
@@ -2095,7 +2108,10 @@
         "lib/agent-cognition-observation.js",
         "lib/agent-step-progression.js",
         "lib/cognition-prediction-error-pairs.js",
+        "lib/cognition-repair-events.js",
         "lib/cognition-value-ledger-pairs.js",
+        "lib/cognition/appraisal.js",
+        "lib/cognition/causal-attribution.js",
         "lib/cognition/cognition-config.js",
         "lib/cognition/contract.js",
         "lib/cognition/dual-process-router.js",
@@ -2747,7 +2763,15 @@
         "lib/cli-mutation-gate.js",
         "lib/cli-workflow-adapter.js"
       ],
+      "lib/cli-replay-prediction-source.js": [
+        "lib/experience/journal-connection.js",
+        "lib/is-plain-object.js",
+        "lib/mutation-journal.js",
+        "lib/prediction-outcome-pairs.js"
+      ],
       "lib/cli-replay.js": [
+        "lib/agent-coder-project-task.js",
+        "lib/cli-replay-prediction-source.js",
         "lib/cli-workflow-adapter.js",
         "lib/cognition/independent-sources.js",
         "lib/cognition/prediction-error.js",
@@ -2976,13 +3000,31 @@
         "lib/cognition/prediction-error.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/cognition-repair-events.js": [
+        "lib/is-plain-object.js"
+      ],
       "lib/cognition-value-ledger-pairs.js": [
         "lib/cognition/contract.js",
         "lib/cognition/value-ledger.js",
         "lib/prediction-outcome-pairs.js"
       ],
+      "lib/cognition/appraisal.js": [
+        "lib/cognition/contract.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/causal-attribution.js": [
+        "lib/cognition/contract.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/cognition/cognition-config.js": [
         "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/conversation-turn.js": [
+        "lib/cognition/contract.js",
+        "lib/hash-chain.js",
         "lib/is-plain-object.js"
       ],
       "lib/cognition/curiosity.js": [
@@ -2990,6 +3032,10 @@
         "lib/is-plain-object.js"
       ],
       "lib/cognition/dual-process-router.js": [
+        "lib/cognition/contract.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognition/forgetting-score.js": [
         "lib/cognition/contract.js",
         "lib/is-plain-object.js"
       ],
@@ -3102,6 +3148,7 @@
         "lib/cognitive-lab-cost-evaluator.js",
         "lib/cognitive-lab-evaluator.js",
         "lib/cognitive-lab-m10-runner.js",
+        "lib/cognitive-lab-m4-runner.js",
         "lib/cognitive-lab-m9-evaluator.js",
         "lib/cognitive-lab-request-reader.js"
       ],
@@ -3213,6 +3260,22 @@
         "lib/cognitive-lab-m10-corpus.js",
         "lib/cognitive-lab-m10-episode.js",
         "lib/cognitive-lab-m10-evaluator.js"
+      ],
+      "lib/cognitive-lab-m4-episode.js": [
+        "kernel.js",
+        "lib/cognitive-lab-m4-corpus.js",
+        "lib/memory-lifecycle.js",
+        "lib/receipt/receipt-chain.js"
+      ],
+      "lib/cognitive-lab-m4-evaluator.js": [
+        "lib/cognitive-lab-m4-corpus.js",
+        "lib/cognitive-lab-paired-delta.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-m4-runner.js": [
+        "lib/cognitive-lab-m4-corpus.js",
+        "lib/cognitive-lab-m4-episode.js",
+        "lib/cognitive-lab-m4-evaluator.js"
       ],
       "lib/cognitive-lab-m7-runtime.js": [
         "agent.v3.js",
@@ -5642,7 +5705,10 @@
         "lib/memory-schema-checks.js"
       ],
       "lib/memory-consolidation.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/forgetting-score.js",
         "lib/is-plain-object.js",
+        "lib/memory-recency-decay.js",
         "lib/memory-store-utils.js"
       ],
       "lib/memory-decontamination.js": [
@@ -6109,6 +6175,7 @@
         "lib/turkish-copula.js"
       ],
       "lib/prediction-outcome-pairs.js": [
+        "lib/hash-chain.js",
         "lib/is-plain-object.js",
         "lib/risk-scale.js"
       ],
@@ -7448,7 +7515,8 @@
       ],
       "scripts/enforcement-coverage-classification.js": [
         "scripts/enforcement-coverage-classification-injected-fetch.js",
-        "scripts/enforcement-coverage-classification-m10.js"
+        "scripts/enforcement-coverage-classification-m10.js",
+        "scripts/enforcement-coverage-classification-m4.js"
       ],
       "scripts/enforcement-coverage.js": [
         "scripts/binding-site-scan.js",
@@ -7603,6 +7671,7 @@
       ],
       "scripts/run-test-shard.js": [
         "scripts/ci-shard-manifest.js",
+        "scripts/heavy-test-files.js",
         "scripts/junit-merge.js",
         "scripts/shard-hang-diagnostics.js",
         "scripts/test-state-sandbox.js"
@@ -7643,6 +7712,10 @@
       ],
       "scripts/setup-sqlite.js": [
         "lib/sqlite-availability.js"
+      ],
+      "scripts/test-changed.js": [
+        "scripts/ci-impact-plan.js",
+        "scripts/ci-shard-manifest.js"
       ],
       "scripts/test-consumer-compile.js": [
         "scripts/spawn-windows-aware.js"
@@ -8031,6 +8104,12 @@
         "to": "lib/http/workflow-envelope.js",
         "fromLayer": "Core",
         "toLayer": "UI"
+      },
+      {
+        "from": "lib/cognitive-lab-cli.js",
+        "to": "lib/cognitive-lab-m4-runner.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
       },
       {
         "from": "lib/conflict-detector.js",
