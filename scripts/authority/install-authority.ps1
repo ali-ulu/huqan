@@ -204,8 +204,12 @@ function Invoke-Enrollment {
 }
 
 function Lock-State {
-  Invoke-Checked $Icacls @($StateDir, '/remove:g', $Sid.Admins, '/T')
+  # Ownership first, while Administrators can still reach every file. Then drop
+  # their grant on the directory only: the files carry it as an inherited ACE,
+  # which Windows removes when the parent changes. '/remove:g ... /T' locked the
+  # directory first and then failed with Access is denied on its files.
   Invoke-Checked $Icacls @($StateDir, '/setowner', $Sid.System, '/T')
+  Invoke-Checked $Icacls @($StateDir, '/remove:g', $Sid.Admins)
 }
 
 function Test-Installed([string]$keyId) {

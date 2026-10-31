@@ -37,8 +37,10 @@ test('the state directory is closed to users and, after enrollment, to administr
   const stateGrant = install.split('\n').find(line => line.includes('$StateDir') && line.includes('/inheritance:r'));
   assert.ok(stateGrant, 'the state ACL drops inheritance');
   assert.doesNotMatch(stateGrant, /Users/);
-  assert.match(install, /\$StateDir, '\/remove:g', \$Sid\.Admins, '\/T'/);
+  assert.match(install, /\$StateDir, '\/remove:g', \$Sid\.Admins\)/);
   assert.match(install, /'\/setowner', \$Sid\.System/);
+  // Ownership moves before the Administrators grant goes, or icacls loses access mid-walk.
+  assert.ok(install.indexOf("'/setowner', $Sid.System, '/T'") < install.indexOf("'/remove:g', $Sid.Admins)"));
 });
 
 test('the installer refuses ground it did not prepare and code it cannot vouch for', () => {
