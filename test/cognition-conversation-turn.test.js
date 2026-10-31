@@ -118,11 +118,69 @@ test('a reported feeling is recorded as reported and carries no reward authority
 test('malformed identity, sequence, content and history are rejected', () => {
   assert.equal(planConversationTurn({ workspaceId: '', turn: turn() }).reason, 'invalid_workspace');
   assert.equal(plan({ turn: turn({ sequence: -1 }) }).reason, 'invalid_sequence');
+  assert.equal(plan({ turn: turn({ sequence: Number.MAX_SAFE_INTEGER + 1 }) }).reason, 'invalid_sequence');
   assert.equal(plan({ turn: turn({ messageId: '' }) }).reason, 'invalid_identity');
   assert.equal(plan({ turn: turn({ content: '' }) }).reason, 'invalid_content');
   assert.equal(plan({ turn: turn({ content: 'x'.repeat(100001) }) }).reason, 'content_too_long');
   assert.equal(plan({ turn: turn({ extra: 1 }) }).reason, 'invalid_turn');
   assert.equal(plan({ history: 'nope' }).reason, 'invalid_history');
+});
+
+test('a malformed link field is rejected rather than dropped', () => {
+  assert.equal(plan({ turn: turn({ replyToMessageId: 42 }) }).reason, 'invalid_link');
+  assert.equal(plan({ turn: turn({ decisionRef: 42 }) }).reason, 'invalid_link');
+  assert.equal(plan({ turn: turn({ repairRef: {} }) }).reason, 'invalid_link');
+  // An omitted link stays null, and a valid one is trimmed.
+  const ok = plan({ turn: turn({ replyToMessageId: ' msg_1 ' }), history: [item()] });
+  assert.equal(ok.replyTo.messageId, 'msg_1');
+});
+
+test('a padded history messageId is normalized for replay and reply-to', () => {
+  const replay = plan({ history: [item({ messageId: ' msg_3 ', sequence: 3, admissionId: 'adm_p' })] });
+  assert.equal(replay.reason, 'duplicate_message');
+  const reply = plan({ turn: turn({ replyToMessageId: 'msg_1' }), history: [item({ messageId: ' msg_1 ' })] });
+  assert.equal(reply.replyTo.resolved, true);
+  assert.equal(reply.replyTo.messageId, 'msg_1');
+});
+
+test('an admitted cross-session replay is rejected, and malformed history keeps its reason', () => {
+  const crossSession = plan({
+    history: [item({ messageId: 'msg_3', sessionId: 'sess_2', sequence: 3, admissionId: 'adm_x' })],
+  });
+  assert.equal(crossSession.reason, 'duplicate_message');
+  // Unadmitted history keeps not_admitted even when it shares the turn's id.
+  const unadmitted = plan({
+    history: [item({ messageId: 'msg_3', sequence: 3, admissionId: '' })],
+  });
+  assert.ok(unadmitted.dropped.includes('not_admitted'));
+  assert.equal(unadmitted.status, 'MEASURED');
+  // Truthy non-string content is dropped, not coerced.
+  const badContent = plan({ history: [item({ content: { toString: null } })] });
+  assert.ok(badContent.dropped.includes('invalid_history_item'));
+});
+
+test('a repeated admitted messageId fills at most one context slot', () => {
+  const result = plan({
+    history: [
+      item({ messageId: 'msg_1', sequence: 1, admissionId: 'adm_a', sourceLabel: 'user' }),
+      item({ messageId: 'msg_1', sequence: 1, admissionId: 'adm_b', sourceLabel: 'system' }),
+    ],
+  });
+  assert.equal(result.status, 'MEASURED');
+  assert.equal(result.context.length, 1);
+  assert.equal(result.context[0].messageId, 'msg_1');
+});
+
+test('a non-plain or null input budget is rejected, not defaulted', () => {
+  assert.equal(plan({ budget: null }).reason, 'invalid_budget');
+  assert.equal(plan({ budget: 'tight' }).reason, 'invalid_budget');
+  // An omitted budget still uses the defaults.
+  assert.equal(plan().budget.maxItems, MAX_CONTEXT_ITEMS);
+});
+
+test('a null or undefined input is rejected instead of throwing', () => {
+  assert.equal(planConversationTurn(null).reason, 'invalid_workspace');
+  assert.equal(planConversationTurn(undefined).reason, 'invalid_workspace');
 });
 
 test('the plan is deterministic and frozen', () => {
