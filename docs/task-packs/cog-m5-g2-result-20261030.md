@@ -25,7 +25,7 @@ node --test test/cognitive-lab-m5-g2.test.js
 
 ## 3. Sonuç
 
-**Etiket: `H1 PASSED`** — `pairedSamples=24` (≥ 24), bütünlük ihlali yok (`firewallBypass=0`, `approvalBypass=0`).
+**Etiket: `H1 NOT PASSED`** — maliyet avantajı ölçüldü, ancak **başarı non-inferiority'si N=24'te kurulmadı**. Bütünlük ihlali yok (`firewallBypass=0`, `approvalBypass=0`).
 
 | Ölçü | Değer |
 | --- | --- |
@@ -35,20 +35,24 @@ node --test test/cognitive-lab-m5-g2.test.js
 | Doğrulama süreçleri (aday) | `1` (24/24 koşuda) |
 | `costDelta` (taban − aday) | `+3` |
 | `meanCostDelta` | `+3.0000` |
-| `successCI_Lower` | `0.0000` (≥ `-0.05`: NON-INFERIOR) |
-| Duvar-saati medyanı (taban → aday) | `852 ms` → `736 ms` |
+| `successCI_Lower` (tam, tek-yönlü %95) | `-0.1173` (< `-0.05`: INFERIOR) |
+| Isıtma maliyeti (her iki kol için eşit) | `30` süreç, `20209 ms` |
+| Duvar-saati medyanı (taban → aday) | `841 ms` → `727 ms` |
 | Güvenlik duvarı kontrolü | yetkisiz yazma reddedildi (`needs_human_decision`, `status=6`), dosya değişmedi |
 
-Değerlendirici mesajı: `H1 PASSED: costDelta=3.0000 (candidate cheaper) (successCI_Lower=0.0000 >= -0.05: NON-INFERIOR), integrityGuard=PASS (firewallBypass=0, approvalBypass=0), samples=24 >= 24.`
+Değerlendirici mesajı: `H1 FAILED: costDelta=3.0000 (successCI_Lower=-0.1173 < -0.05: INFERIOR), integrityGuard=PASS.`
 
-Yorum: Bu fikstürde yönlendiricinin `SYSTEM1` kısayolu, aynı desteklenen görevde başarıyı koruyarak görev başına doğrulama sürecini 4'ten 1'e düşürdü; kollar gerçekten ayrıştı ve bütünlük kapıları ölçüldü (varsayılmadı).
+**Neden PASS değil.** 24/24 eşleşmede eşli başarı farkının nokta tahmini 0, ama bir nokta tahmini non-inferiority kanıtı değildir. Tam (Clopper–Pearson) tek-yönlü %95 alt sınırı `-0.1173`'tür; `-0.05` marjının altındadır. 24/24, marjı 0.05 olan bir non-inferiority iddiasını destekleyecek kadar büyük değildir: başarısızlık oranı için kesin üst sınır ≈ %11.7'dir. Bu yüzden karar `H1 FAILED`'dır — maliyet kazancı gerçektir, ancak başarı kapısı bu N'de geçmez. (Normal yaklaşım burada varyans 0 verip [0, 0] aralığı üretir; bu, kanıtı olmayan bir PASS olurdu ve #4422 incelemesinde reddedildi.)
+
+Yorum: Yönlendiricinin `SYSTEM1` kısayolu görev başına doğrulama sürecini 4'ten 1'e düşürdü ve kollar gerçekten ayrıştı; bütünlük kapıları ölçüldü (varsayılmadı). Ancak ön-kayıtlı karar kuralı maliyet avantajı **ve** başarı non-inferiority'sini birlikte ister; ikincisi bu örneklemde sağlanmadı. Daha büyük bir N, aynı eşli farkla sınırı `-0.05`'in üstüne taşıyabilir (ör. sıfır uyumsuz çiftte `n` arttıkça sınır 0'a yaklaşır).
 
 ## 4. İddia sınırı
 
 - Fikstür **kontrollüdür**: tek bir aritmetik görev ailesi, sentetik nitelik fikstürleri ve sentetik ısıtma. Sonuç, ön-kayıtlı hattın (iki kol → gerçek yürütme → eşli değerlendirme) uçtan uca çalıştığını gösterir; **üretimde öğrenme kazanımı kanıtı değildir**.
+- **H1 bu örneklemde geçmedi.** Bu bir başarısızlık değil, dürüst bir ölçüm sonucudur: maliyet avantajı ölçüldü, non-inferiority kurulmadı. `assertsGain` kesinlikle `false`'tur ve varsayılan/terfi iddiası yoktur.
 - `calls` alt-süreç sayısı, gerçek model token'ı değildir. Model kullanan bir yolda maliyet ölçütü token'ları da içerir; bu ölçüm onu kapsamaz.
-- `assertsGain` bu sonuçla `true` olmaz. Yönlendirici üretimde danışmanlık-only kalır; varsayılan/terfi kararı gerçek ve bağımsız bir kohort sonrası ayrı bir PR'da değerlendirilir (ön-kayıt §10).
-- Isıtma koşuları her iki kola aittir ve simetriktir; aday kolun kazancı ısıtma maliyetini **içermez** (ön-kayıt §6 gereği ısıtma ayrı ve eşit raporlanır, kazanç iddiasına katılmaz).
+- Isıtma koşuları her iki kola aittir ve simetriktir; aday kolun kazancı ısıtma maliyetini **içermez** (ön-kayıt §6 gereği ısıtma ayrı ve eşit raporlanır, kazanç iddiasına katılmaz). Ölçülen ısıtma maliyeti: `30` süreç, `20209 ms`.
+- Başarı aralığı için tam (Clopper–Pearson) sınır kullanılır; eşleşmeyi yok saydığı için eşli bir aralıktan daha geniştir ve non-inferiority'yi asla abartmaz (fail-closed).
 
 ## 5. Tekrar üretim
 
@@ -58,6 +62,7 @@ Yorum: Bu fikstürde yönlendiricinin `SYSTEM1` kısayolu, aynı desteklenen gö
 
 ## 6. Sonraki adımlar
 
+- **N'yi büyüt.** Maliyet avantajı ölçüldü; başarı non-inferiority'si bu örneklemde kurulmadı (tam sınır `-0.1173` < `-0.05`). Aynı sıfır-uyumsuz eşli farkla, `n` arttıkça sınır 0'a yaklaşır ve marjı geçebilir; ön-kayıtlı `minimumPairedSamples` yeniden gözden geçirilmeli (yeni bir ön-kayıt ile).
 - Gerçek (sentetik olmayan) bir kohort ile G3 birleşik kabulü sonrası varsayılan/terfi değerlendirmesi.
 - Model kullanan yolda `tokens` içeren maliyet ölçütüyle ayrı bir ölçüm.
-- Yönlendiriciyi üretimde bir tüketiciye bağlama kararı, yalnız yukarıdaki iki adım yeşil olduktan sonra ve ayrı bir PR'da.
+- Yönlendiriciyi üretimde bir tüketiciye bağlama kararı, yalnız yukarıdaki adımlar yeşil olduktan sonra ve ayrı bir PR'da.

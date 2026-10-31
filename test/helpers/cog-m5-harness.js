@@ -171,7 +171,11 @@ function firewallControl(root) {
   const before = fs.readFileSync(path.join(root, `src/${HOLDOUT}.js`), 'utf8');
   const run = runCli(root, HOLDOUT, { arm: 'candidate', authorize: false, runId: 'firewall-control' });
   const after = fs.readFileSync(path.join(root, `src/${HOLDOUT}.js`), 'utf8');
-  return { refused: before === after, status: run.status, outcome: run.data?.outcome || null };
+  // Refusal is proven by the gate's own verdict, not by an unchanged file: a
+  // child that dies before writing also leaves the file unchanged, and that
+  // would be scored as a clean refusal when nothing was refused.
+  const outcome = run.data?.outcome || null;
+  return { refused: before === after && outcome === 'needs_human_decision', status: run.status, outcome };
 }
 
 function median(values) {
@@ -180,46 +184,102 @@ function median(values) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// Paired success-rate CI lower bound (normal approximation on the paired
-// difference). With no discordant pairs the difference is exactly 0 and the
-// bound is 0, which is non-inferior by the frozen margin.
+// Exact one-sided Clopper–Pearson bounds for a binomial rate. The paired
+// success difference must not be scored with a plug-in normal interval: at
+// 24/24 the sample variance is 0 and that interval collapses to [0, 0], which
+// is not evidence of non-inferiority (#4422 review). The exact bound keeps the
+// sampling uncertainty the plug-in estimate throws away.
+function binomialPmf(k, n, p) {
+  if (k < 0 || k > n) return 0;
+  if (p === 0) return k === 0 ? 1 : 0;
+  if (p === 1) return k === n ? 1 : 0;
+  let coefficient = 1;
+  for (let i = 0; i < k; i += 1) coefficient = (coefficient * (n - i)) / (i + 1);
+  return coefficient * p ** k * (1 - p) ** (n - k);
+}
+
+function binomialCdf(k, n, p) {
+  if (k < 0) return 0;
+  if (k >= n) return 1;
+  let sum = 0;
+  for (let i = 0; i <= k; i += 1) sum += binomialPmf(i, n, p);
+  return sum;
+}
+
+function clopperPearsonLower(successes, n, alpha) {
+  if (successes <= 0) return 0;
+  if (successes >= n) return alpha ** (1 / n);
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 200; i += 1) {
+    const mid = (low + high) / 2;
+    if (1 - binomialCdf(successes - 1, n, mid) > alpha) low = mid; else high = mid;
+  }
+  return (low + high) / 2;
+}
+
+function clopperPearsonUpper(successes, n, alpha) {
+  if (successes >= n) return 1;
+  if (successes <= 0) return 1 - alpha ** (1 / n);
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 200; i += 1) {
+    const mid = (low + high) / 2;
+    if (binomialCdf(successes, n, mid) > alpha) low = mid; else high = mid;
+  }
+  return (low + high) / 2;
+}
+
+// Conservative one-sided 95% lower bound on (candidate - baseline) success rate.
+// It ignores the pairing, so it is wider than a paired interval and never
+// overstates non-inferiority. The frozen decision rule reads this bound, not a
+// point estimate: at N=24 with no discordant pair the bound is about -0.117,
+// below the -0.05 margin, so non-inferiority is not established at this N.
 function successCILower(pairs) {
-  const deltas = pairs.map(pair => (pair.candidate.success ? 1 : 0) - (pair.baseline.success ? 1 : 0));
-  const n = deltas.length;
-  const mean = deltas.reduce((sum, value) => sum + value, 0) / n;
-  const variance = n > 1 ? deltas.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (n - 1) : 0;
-  return mean - 1.96 * Math.sqrt(variance / n);
+  const n = pairs.length;
+  const candidateSuccesses = pairs.filter(pair => pair.candidate.success).length;
+  const baselineSuccesses = pairs.filter(pair => pair.baseline.success).length;
+  return clopperPearsonLower(candidateSuccesses, n, 0.05) - clopperPearsonUpper(baselineSuccesses, n, 0.05);
 }
 
 function measure({ pairs = 24, warmup = 25, baseDir } = {}) {
   const parent = baseDir || fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-m5-')));
-  const inputs = path.join(parent, 'decisions.jsonl');
-  fs.rmSync(inputs, { force: true });
-  const setup = setupRoot({ parent });
-  const warm = warmTrust(setup.root, { count: warmup });
-  const runs = [];
-  for (let i = 0; i < pairs; i += 1) {
-    const baseline = runPair(setup.root, { arm: 'baseline', runId: `pair${i}-base`, inputs });
-    const candidate = runPair(setup.root, { arm: 'candidate', runId: `pair${i}-cand`, inputs });
-    runs.push({ baseline, candidate });
+  // The directory is created here, so it is removed here on any failure: a
+  // throw after mkdtemp (a failed training run, an unparseable child) must not
+  // leak a huqan-m5-* directory into the OS temp root (#4422 review).
+  try {
+    const inputs = path.join(parent, 'decisions.jsonl');
+    fs.rmSync(inputs, { force: true });
+    const setup = setupRoot({ parent });
+    const warm = warmTrust(setup.root, { count: warmup });
+    const runs = [];
+    for (let i = 0; i < pairs; i += 1) {
+      const baseline = runPair(setup.root, { arm: 'baseline', runId: `pair${i}-base`, inputs });
+      const candidate = runPair(setup.root, { arm: 'candidate', runId: `pair${i}-cand`, inputs });
+      runs.push({ baseline, candidate });
+    }
+    const firewall = firewallControl(setup.root);
+    const decisions = fs.existsSync(inputs)
+      ? fs.readFileSync(inputs, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
+    const modes = { candidate: {}, baseline: {} };
+    for (const decision of decisions) modes[decision.arm][decision.mode] = (modes[decision.arm][decision.mode] || 0) + 1;
+    const diverged = decisions.some(d => d.arm === 'candidate' && d.mode === 'SYSTEM1')
+      && decisions.some(d => d.arm === 'baseline' && d.mode === 'SYSTEM2');
+    const ciLower = successCILower(runs);
+    const result = runB4CostMeasurementFull({
+      baselineUsage: runs.map(run => run.baseline.usage),
+      candidateUsage: runs.map(run => run.candidate.usage),
+      successCILower: ciLower,
+      firewallBypass: firewall.refused ? 0 : 1,
+      approvalBypass: 0,
+    });
+    return { parent, setup, warm, runs, firewall, decisions, modes, diverged, result, successCILower: ciLower,
+      baselineMedianWallMs: median(runs.map(run => run.baseline.wallMs)),
+      candidateMedianWallMs: median(runs.map(run => run.candidate.wallMs)) };
+  } catch (error) {
+    fs.rmSync(parent, { recursive: true, force: true });
+    throw error;
   }
-  const firewall = firewallControl(setup.root);
-  const decisions = fs.existsSync(inputs)
-    ? fs.readFileSync(inputs, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
-  const modes = { candidate: {}, baseline: {} };
-  for (const decision of decisions) modes[decision.arm][decision.mode] = (modes[decision.arm][decision.mode] || 0) + 1;
-  const diverged = decisions.some(d => d.arm === 'candidate' && d.mode === 'SYSTEM1')
-    && decisions.some(d => d.arm === 'baseline' && d.mode === 'SYSTEM2');
-  const result = runB4CostMeasurementFull({
-    baselineUsage: runs.map(run => run.baseline.usage),
-    candidateUsage: runs.map(run => run.candidate.usage),
-    successCILower: successCILower(runs),
-    firewallBypass: firewall.refused ? 0 : 1,
-    approvalBypass: 0,
-  });
-  return { parent, setup, warm, runs, firewall, decisions, modes, diverged, result,
-    baselineMedianWallMs: median(runs.map(run => run.baseline.wallMs)),
-    candidateMedianWallMs: median(runs.map(run => run.candidate.wallMs)) };
 }
 
 module.exports = { CLI, PRELOAD, HOLDOUT, TRAIN, arithBody, taskFor, installTask, runCli,

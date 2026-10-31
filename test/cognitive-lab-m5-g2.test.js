@@ -47,22 +47,32 @@ test('M5 G2: two-arm Lab measures a real router-vs-SYSTEM2 paired delta', { time
   assert.ok(m.runs.every(run => run.baseline.success && run.candidate.success),
     'an arm failed a supported task; failed work must stay visible, not be excluded');
 
-  // The decision uses the frozen N=24 and the frozen evaluator.
+  // The decision uses the frozen N=24 and the frozen evaluator. The cost
+  // advantage is measured; the success gate is scored on the exact lower bound,
+  // and at N=24 with no discordant pair that bound (~-0.117) does not clear the
+  // -0.05 margin. So H1 is not passed: the cost advantage is real, the
+  // non-inferiority claim is not established at this N. A zero-variance plug-in
+  // interval would have reported 0 and a false PASS (#4422 review).
   assert.equal(m.result.pairedSamples, CONTRACT.pairedSamples);
   assert.equal(m.result.integrityGuard, true);
   assert.ok(m.result.meanCostDelta > 0, 'candidate was not cheaper per task');
-  assert.equal(m.result.success, true, m.result.message);
+  assert.equal(m.result.nonInferior, false, `non-inferiority was claimed from a degenerate bound: ${m.result.message}`);
+  assert.equal(m.result.success, false, 'H1 was recorded as passed from a zero-width success bound');
+  assert.ok(m.successCILower < -0.05 && m.successCILower > -0.2,
+    `the success bound is not the conservative one the review asked for: ${m.successCILower}`);
 
   // Evidence for the result document.
   const evidence = {
     preregistration: CONTRACT.preregistration,
     pairedSamples: CONTRACT.pairedSamples, warmupRuns: CONTRACT.warmupRuns,
+    warmupProcesses: m.warm.processes, warmupWallMs: Math.round(m.warm.wallMs),
     modes: m.modes, diverged: m.diverged, firewall: m.firewall,
     baselineProcesses: m.runs.map(run => run.baseline.processes),
     candidateProcesses: m.runs.map(run => run.candidate.processes),
     baselineWallMedianMs: Math.round(m.baselineMedianWallMs),
     candidateWallMedianMs: Math.round(m.candidateMedianWallMs),
     costDelta: m.result.costDelta, meanCostDelta: m.result.meanCostDelta,
+    successCILower: m.successCILower, nonInferior: m.result.nonInferior,
     integrityGuard: m.result.integrityGuard, decision: m.result.message,
   };
   console.log(`M5_G2_EVIDENCE ${JSON.stringify(evidence)}`);

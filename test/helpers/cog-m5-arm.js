@@ -67,13 +67,20 @@ function trustStateFor({ journal, workspaceId, candidate, requestId, seededRunId
   const procedureHash = latestBoundVersion({ journal, workspaceId, capabilityId })
     || (candidate && (candidate.sourceProcedureHash || candidate.procedureHash || candidate.hash));
   if (!procedureHash) return 'insufficient-data';
-  const trust = createCapabilityTrustRegistry();
-  const created = trust.createCapability({ workspaceId, capabilityId, boundProcedureVersion: procedureHash });
-  if (!created.ok && created.code !== 'already_exists') return 'insufficient-data';
-  const replay = replayCoderTrust({ journal, workspaceId, requestId, capabilityId, procedureHash,
-    trust, seededRunIds: seededRunIds.length ? seededRunIds : (candidate.sourceRunIds || []) });
-  if (!replay.ok) return 'insufficient-data';
-  return trust.get(workspaceId, capabilityId, Date.now()).trustState;
+  try {
+    const trust = createCapabilityTrustRegistry();
+    const created = trust.createCapability({ workspaceId, capabilityId, boundProcedureVersion: procedureHash });
+    if (!created.ok && created.code !== 'already_exists') return 'insufficient-data';
+    const replay = replayCoderTrust({ journal, workspaceId, requestId, capabilityId, procedureHash,
+      trust, seededRunIds: seededRunIds.length ? seededRunIds : (candidate.sourceRunIds || []) });
+    if (!replay.ok) return 'insufficient-data';
+    return trust.get(workspaceId, capabilityId, Date.now()).trustState;
+  } catch (_) {
+    // An unreplayable journal (integrity mismatch, unreadable run) must resolve
+    // to insufficient-data so the router deliberates, not abort the arm: this
+    // helper's contract is "unknown trust", never a thrown measurement.
+    return 'insufficient-data';
+  }
 }
 
 // The router's fast path is the reuse of a compiled procedure; SYSTEM2 is

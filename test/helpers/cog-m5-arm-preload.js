@@ -21,6 +21,12 @@ const ARM = process.env.HUQAN_M5_ARM;
 const INPUTS = process.env.HUQAN_M5_INPUTS || '';
 
 if (ARM) {
+  // Fail closed on an unrecognized arm. The branch below treats anything that is
+  // not `baseline` as the candidate arm, so a typo (`basline`) would silently run
+  // candidate logic and record candidate evidence under the wrong label.
+  if (ARM !== 'candidate' && ARM !== 'baseline') {
+    throw new Error(`HUQAN_M5_ARM must be 'candidate' or 'baseline', got '${ARM}'`);
+  }
   const arm = require('./cog-m5-arm');
   const onDecision = entry => {
     if (!INPUTS) return;
