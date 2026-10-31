@@ -170,6 +170,24 @@ test('replay is deterministic, digest-bound and does not mutate the input', () =
   assert.equal(appraise({ ...input }).sourceDigest, first.sourceDigest);
 });
 
+test('throwing getters and proxy traps are rejected instead of escaping', () => {
+  const withThrowingGetter = (target, key) => Object.defineProperty(target, key, {
+    configurable: true, enumerable: true, get() { throw new Error('hostile getter'); },
+  });
+  for (const hostile of [
+    withThrowingGetter(observation(), 'eventId'),
+    withThrowingGetter(observation(), 'goalImpact'),
+    observation({ goalImpact: withThrowingGetter({ source: 'verified-outcome:run-1' }, 'value') }),
+    observation({ alternative: withThrowingGetter({ source: 'counterfactual:plan-b' }, 'better') }),
+  ]) {
+    const result = appraise(hostile);
+    assert.equal(result.status, 'REJECT');
+    assert.equal(result.reason, 'invalid_input');
+  }
+  const hostileKeys = new Proxy({}, { ownKeys() { throw new Error('hostile trap'); } });
+  assert.equal(appraise(hostileKeys).reason, 'invalid_input');
+});
+
 test('the thresholds are the documented design starting points', () => {
   assert.equal(SATISFACTION_GOAL_MIN, 0.5);
   assert.equal(SURPRISE_UNEXPECTEDNESS_MIN, 0.5);
