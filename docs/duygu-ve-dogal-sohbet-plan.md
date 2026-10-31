@@ -1,7 +1,8 @@
 # HUQAN duygu döngüsü ve doğal sohbet uygulama planı
 
-Tarih: 2026-10-29. Durum: PLANLANDI; uygulama, eğitim ve kazanım kanıtı değildir.
-Kaynak taban: ali-ulu/huqan main `3825b6b91910759085070bcad82433914462b228`.
+Tarih: 2026-10-29. Son güncelleme: 2026-10-31.
+Durum: A ve B teslim edildi; C–F açık ve izleniyor. Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
+Kaynak taban: ali-ulu/huqan main `fed7be80c075d45c6d73b98af7f9cffa9111eff6`.
 COG ana program: #4060. Bu plan mevcut mimari sözleşmenin yerine geçmez.
 Kapsam onayı: duygu motoru ve doğal sohbeti planlamak, belgelemek, GitHub Project ve issue bağlarını kurmak. Runtime kodu/eğitim/model indirme bu teslimde yoktur.
 
@@ -9,16 +10,16 @@ Kapsam onayı: duygu motoru ve doğal sohbeti planlamak, belgelemek, GitHub Proj
 Üst plan: https://github.com/ali-ulu/huqan/issues/4390
 COG Project: https://github.com/users/ali-ulu/projects/7
 
-| İş | Issue | Önkoşul / ilişkili işler |
-| --- | --- | --- |
-| A — Çekirdek ve gerçek gözlem | #4391 | M1 #4064, M2 #4061, M8 #4062, M9 #4063 tekrar kullanılır |
-| B — Sorumluluk ve onarım | #4392 | A #4391 |
-| C — Konuşma/hafıza girişi | #4393 | A #4391 ve B #4392 ile sözleşme uyumu; ilk bağımsız altyapı tasarımı paralel olabilir |
-| D — Laya/yorumlayıcı | #4394 | C #4393 şeması; Laya kapanış denetimi ilk alt adımdır |
-| E — Yerel üretken sohbet | #4395 | C #4393 ve D #4394'teki tek hat/kapanış kararı |
-| F — Birleşik ölçüm | #4396 | A–E; #4387 M7 düzeltmesi ve #4388 M9 ölçümüyle koordinasyon |
+| İş | Issue | Durum | Teslimat / bağlantı | Önkoşul / ilişkili işler |
+| --- | --- | --- | --- | --- |
+| A — Çekirdek ve gerçek gözlem | #4391 | Kapandı | PR-1 #4437, PR-2 #4441 | M1 #4064, M2 #4061, M8 #4062, M9 #4063 tekrar kullanılır |
+| B — Sorumluluk ve onarım | #4392 | Kapandı | PR-1 #4442, PR-2 #4443, PR-3 #4444 | A #4391 |
+| C — Konuşma/hafıza girişi | #4393 | Açık | — | A #4391 ve B #4392 ile sözleşme uyumu; ilk bağımsız altyapı tasarımı paralel olabilir |
+| D — Laya/yorumlayıcı | #4394 | Açık | — | C #4393 şeması; Laya kapanış denetimi ilk alt adımdır |
+| E — Yerel üretken sohbet | #4395 | Açık | — | C #4393 ve D #4394'teki tek hat/kapanış kararı |
+| F — Birleşik ölçüm | #4396 | Açık | — | A–E; #4387 M7 düzeltmesi ve #4388 M9 ölçümüyle koordinasyon |
 
-A–F bu planın iş paketi adlarıdır; yeni COG M-modülü numarası değildir. Kapalı modül issue'ları yeniden açılmaz. #4387/#4388 bu epic'in altına taşınmaz; mevcut COG sahipliği korunur. Yeni işler başlangıçta Todo ve NOT_MEASURED'dır; bağımlı işler ayrıca Bağımlılık bekliyor olarak işaretlenir. Henüz kodu olmayan plan kartlarına bağlama durumu verilmez.
+A–F bu planın iş paketi adlarıdır; yeni COG M-modülü numarası değildir. Kapalı modül issue'ları yeniden açılmaz. #4387/#4388 bu epic'in altına taşınmaz; mevcut COG sahipliği korunur. Yeni işler başlangıçta Todo ve NOT_MEASURED'dır; bağımlı işler ayrıca Bağımlılık bekliyor olarak işaretlenir. Henüz kodu olmayan plan kartlarına bağlama durumu verilmez. Bu plan kendisi bir uygulama teslimatı değildir; gerçek bağlama ve ölçüm durumu yukarıdaki alt işlerde ve COG Project'te izlenir.
 
 ## Amaç ve başarı tanımı
 HUQAN'ın olaylardan türetilen iç durumunun konuşma, hafızadan geri çağırma ve izinli eylem önerileriyle nedensel olarak birleşmesi. Başarı; duygu kelimesi üretmesi değil, geçmiş olayın sonraki gerçek seçimde ölçülebilir iz bırakması ve doğrulanmış onarım sonrasında durumun uygun güncellenmesidir. Öznel yaşantı veya insanın duygusunu kesin bilme iddiası yapılmaz.
