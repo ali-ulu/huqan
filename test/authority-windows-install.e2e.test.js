@@ -98,7 +98,7 @@ function uninstall() {
   return spawnSync(POWERSHELL, [...PS_FLAGS, '-File', UNINSTALL], { encoding: 'utf8', env: PS_ENV });
 }
 
-const state = { installed: false, packDir: null };
+const state = { installed: false, packDir: null, secret: null };
 
 before(async () => {
   if (!ENABLED || !WINDOWS) return;
@@ -113,6 +113,8 @@ before(async () => {
   assert.ok(fs.existsSync(tarball), `npm pack produced no ${tarball}`);
   const installed = await installWithEnrollment(tarball, integrityOf(tarball));
   state.installed = installed.code === 0;
+  const enrolled = /secret=([A-Z2-7]+)/.exec(`${installed.out}\n${installed.err}`);
+  state.secret = enrolled ? base32Decode(enrolled[1]) : null;
   assert.equal(installed.code, 0, `installer failed (${installed.code}):\n${installed.out}\n${installed.err}`);
 });
 
@@ -187,7 +189,13 @@ test('a decision without an operator code is refused', { skip: SKIP }, async () 
     expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
   assert.equal(registered.status, 201, `register failed: ${JSON.stringify(registered.body)}`);
-  const sealed = sealDecisionRequest({ approvalId, actionHash, decision: 'approved', reason: 'e2e', totp: '000000' }, pin.pin.sealingKey);
+  // A fixed code can be the operator's real one; pick one outside every step
+  // the service could still accept (one each side, plus margin).
+  assert.ok(state.secret, 'the enrollment secret was not captured');
+  const step = Math.floor(Date.now() / 1000 / 30);
+  const live = new Set([-2, -1, 0, 1, 2].map(offset => totpAt(state.secret, step + offset)));
+  const wrong = ['000000', '111111', '222222', '333333', '444444', '555555'].find(code => !live.has(code));
+  const sealed = sealDecisionRequest({ approvalId, actionHash, decision: 'approved', reason: 'e2e', totp: wrong }, pin.pin.sealingKey);
   const decided = await api.decide(approvalId, sealed);
   assert.notEqual(decided.status, 200, 'a decision was accepted without the operator code');
   assert.ok(['TOTP_INVALID', 'TOTP_REPLAYED', 'LOCKED'].includes(decided.body.code), `unexpected refusal ${JSON.stringify(decided.body)}`);

@@ -107,7 +107,12 @@ function Get-VerifiedPackage([string]$staging) {
   for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [Convert]::ToByte($hex.Substring($i * 2, 2), 16) }
   if (('sha512-' + [Convert]::ToBase64String($bytes)) -ne $integrity) { Fail 'the downloaded package does not match the registry integrity' }
   Invoke-Checked $Tar @('-xzf', $tarball, '-C', $staging)
-  return (Join-Path $staging 'package')
+  $package = Join-Path $staging 'package'
+  # A -TarballPath package passes integrity whatever its version; refuse one
+  # that is not the -Version this install reports.
+  $packageVersion = (Get-Content -Raw -LiteralPath (Join-Path $package 'package.json') | ConvertFrom-Json).version
+  if ($packageVersion -ne $Version) { Fail "the package reports version $packageVersion, not $Version" }
+  return $package
 }
 
 function Install-Node {
