@@ -2612,6 +2612,10 @@
    "context": "Knowledge",
    "evidence": "#4069: pure COG-M3 PR-1 prioritized replay selection over measured prediction error and reward"
   },
+  "lib/cognition-repair-events.js": {
+   "context": "Knowledge",
+   "evidence": "#4392: durable COG-B repair-closure records under their own journal prefix; only a confirmed repair with an independent verifier is written, and the pair schema is unchanged"
+  },
   "lib/cognition/causal-attribution.js": {
    "context": "Knowledge",
    "evidence": "#4392: pure COG-B PR-1 causal attribution and specific-repair closure; execution is not causation, self-report is not evidence, and the observation/journal wiring is the following slice"
@@ -8195,6 +8199,13 @@
     "Platform"
    ],
    "evidence": "#4062 lib/agent-cognition-seam.js reads expectedFor from its workspace/frame-scoped predecision history; #4063 adds the Platform cognitive-lab CLI value-ledger H1 measurement surface (opt-in, store-free, no authority) as the only Platform caller"
+  },
+  "lib/cognition-repair-events.js": {
+   "owner": "Knowledge",
+   "consumers": [
+    "AgentAction"
+   ],
+   "evidence": "lib/agent-cognition-seam.js records a confirmed repair closure after the independently observed repair outcome; the reader is restart-safe and the pair schema is unchanged"
   },
   "lib/cognition/causal-attribution.js": {
    "owner": "Knowledge",
