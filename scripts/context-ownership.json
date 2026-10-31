@@ -8329,13 +8329,6 @@
         "Platform"
       ],
       "evidence": "#4393 COG-C PR-2: the conversation HTTP route composes the Memory-owned store through its public contract"
-    },
-    "lib/cognition/conversation-turn.js": {
-      "owner": "Memory",
-      "consumers": [
-        "Memory"
-      ],
-      "evidence": "#4393 COG-C PR-2: the pure conversation-turn contract is planned inside its Memory-owned store (lib/conversation-store.js planConversationTurnFromStore); the store is the published port Platform consumes"
     }
   },
   "legacyEdges": {
