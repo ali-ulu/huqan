@@ -59,3 +59,33 @@ test('never derives a match from strings, comments, member names or regex litera
 test('does not equate legacy octal with decimal constants', () => {
   assert.equal(adaptExpression({ oldText: 'n + 10', newText: 'n * 2', content: 'return value + 010;' }).ok, false);
 });
+
+// The cross-family fallback re-derives an arithmetic procedure into a
+// conditional target. It must stay confined to the function the task named and
+// reach a target whose guard uses `<`, which the arithmetic tokenizer rejects.
+test('cross-family fallback stays inside the named function and tolerates guard syntax', () => {
+  const nested = [
+    'function fix(value) { return value + 1; }',
+    'function pick(a, b) { return a < b ? a : b; }',
+    'module.exports = fix;',
+    '',
+  ].join('\n');
+  const adapted = adaptExpression({ oldText: 'm + 1', newText: 'm % 2', content: nested,
+    functionName: 'fix', family: 'conditional-expression' });
+  assert.deepEqual(adapted, { ok: true, oldText: 'value + 1', newText: '(value % 2)', bindings: { m: 'value' } });
+
+  // The source expression appears only in a sibling function: the write must not
+  // land there, so the transfer is refused.
+  const sibling = [
+    'function fix(value) { return value * 3; }',
+    'function other(x) { return x + 1; }',
+    'module.exports = fix;',
+    '',
+  ].join('\n');
+  assert.equal(adaptExpression({ oldText: 'm + 1', newText: 'm % 2', content: sibling,
+    functionName: 'fix', family: 'conditional-expression' }).ok, false);
+
+  // A disjoint family still refuses, even though the fallback IR could match.
+  assert.equal(adaptExpression({ oldText: 'm + 1', newText: 'm % 2', content: nested,
+    functionName: 'fix', family: 'string-expression' }).ok, false);
+});
