@@ -83,6 +83,33 @@ function installString(root, item) {
   return { task, content, taskHash: digest(JSON.stringify(task)), testHash: digest(stringFixture(item.name, item.checks)) };
 }
 
+// §4 family C — conditional-expression. Shares the integer-expression IR with
+// `arithmetic-expression`, so a procedure learned in one is re-derivable into
+// the other. The buggy body is `p + 1`; the real target is `p % mod`. The
+// synthesis examples are all multiples of `mod` (so many guard forms match and
+// only the real test separates them); the target's own search enumerates guard
+// forms only, so it cannot reach a plain-branch solution.
+function conditionalFixture(name, checks) {
+  return `const fs = require('node:fs'); fs.mkdirSync('.huqan/gain', { recursive: true });
+fs.appendFileSync('.huqan/gain/${name}.log', 'test-process\\n');
+const assert = require('node:assert/strict'); const f = require('../src/${name}');
+${checks.map(([input, expected]) => `assert.equal(f(${input}), ${expected});`).join('\n')}
+`;
+}
+
+function installConditional(root, item, mod = 2) {
+  const content = `function ${item.fn}(${item.parameter}) { return ${item.parameter} + 1; }\nmodule.exports = ${item.fn};\n`;
+  const task = { id: item.name, level: 'l0', allowedPaths: [`src/${item.name}.js`],
+    operation: { type: 'replace_text', path: `src/${item.name}.js` },
+    test: { command: `node test/${item.name}.js` },
+    synthesis: { family: 'conditional-expression', functionName: item.fn,
+      examples: item.examples.map(input => ({ input, expected: input % mod })) } };
+  write(root, `src/${item.name}.js`, content);
+  write(root, `test/${item.name}.js`, conditionalFixture(item.name, item.checks));
+  write(root, `${item.name}.json`, JSON.stringify(task));
+  return { task, content, taskHash: digest(JSON.stringify(task)), testHash: digest(conditionalFixture(item.name, item.checks)) };
+}
+
 // A full content snapshot of the working tree, ignoring only runtime state
 // (`node_modules`, `.huqan/`) and the root-level SQLite databases (`journal.db`,
 // `memory.db`, and their `-wal`/`-shm`/`-journal` sidecars). This is stronger than
@@ -205,6 +232,7 @@ function run(root, name, mode, options = {}) {
 module.exports = {
   CLI, CPU_PROBE, digest, write, commit,
   arithFixture, installArith, stringFixture, installString,
+  conditionalFixture, installConditional,
   snapshotTree, changedPaths, createWrongWriteCounter, run,
   sumCpu, isCpuComplete, cpuSampleComplete, cpuPairDeltaMs,
 };
