@@ -2612,6 +2612,10 @@
    "context": "Knowledge",
    "evidence": "#4069: pure COG-M3 PR-1 prioritized replay selection over measured prediction error and reward"
   },
+  "lib/cognition/appraisal.js": {
+   "context": "Knowledge",
+   "evidence": "#4391: pure COG-A PR-1 appraisal of source-bound observations; unknown provenance stays unknown, only satisfaction/surprise/regret are derivable, the file-effect/Coder ingress is the PR-2 caller"
+  },
   "lib/cognition/forgetting-score.js": {
    "context": "Knowledge",
    "evidence": "#4070: pure COG-M4 PR-1 retention score and forget-candidate ranking over explicit importance, age and usage; first caller is the opt-in memory-consolidation retention policy"
