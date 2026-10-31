@@ -313,6 +313,7 @@
     "lib/cognition-prediction-error-pairs.js",
     "lib/cognition-value-ledger-pairs.js",
     "lib/cognition/appraisal.js",
+    "lib/cognition/causal-attribution.js",
     "lib/cognition/cognition-config.js",
     "lib/cognition/contract.js",
     "lib/cognition/curiosity.js",
