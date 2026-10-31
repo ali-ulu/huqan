@@ -162,10 +162,13 @@ function Install-ServiceHost {
 }
 
 function New-ProtectedTree {
-  New-Item -ItemType Directory -Path $DataDir | Out-Null
+  # WinSW creates <logpath> (and so DataDir) when Install-ServiceHost registers
+  # the service. Assert-FreshInstall proved neither existed before this run, so
+  # reuse them; the ACLs below are set explicitly and replace what they inherited.
+  New-Item -ItemType Directory -Path $DataDir -Force | Out-Null
   Invoke-Checked $Icacls @($DataDir, '/inheritance:r', '/grant:r', "$($Sid.System):(OI)(CI)F", "$($Sid.Admins):(OI)(CI)F", "$($Sid.Users):(OI)(CI)RX")
   Invoke-Checked $Icacls @($DataDir, '/setowner', $Sid.System)
-  New-Item -ItemType Directory -Path $PublicDir, $LogDir, $StateDir | Out-Null
+  New-Item -ItemType Directory -Path $PublicDir, $LogDir, $StateDir -Force | Out-Null
   Invoke-Checked $Icacls @($LogDir, '/grant', "${ServiceAccount}:(OI)(CI)M")
   # Administrators keep access to state only until enrollment is proven.
   Invoke-Checked $Icacls @($StateDir, '/inheritance:r', '/grant:r', "$($Sid.System):(OI)(CI)F", "$($Sid.Admins):(OI)(CI)F", "${ServiceAccount}:(OI)(CI)M")
