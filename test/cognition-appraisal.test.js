@@ -124,6 +124,19 @@ test('uncertainty is recorded but never converts into a label or a confidence', 
   assert.equal('confidence' in result, false);
 });
 
+test('timestamps must carry an explicit zone', () => {
+  for (const at of [
+    '2026-10-31T10:00:00', '2026-10-31', '2026-10-31T10:00:00+0300', '2026-10-31 10:00:00Z',
+  ]) {
+    const result = appraise(observation({ at }));
+    assert.equal(result.status, 'REJECT');
+    assert.equal(result.reason, 'invalid_input');
+  }
+  assert.equal(appraise(observation({ asOf: '2026-10-31T10:00:01' })).reason, 'invalid_input');
+  assert.equal(appraise(observation({ at: '2026-10-31T13:00:00+03:00' })).status, 'MEASURED');
+  assert.equal(appraise(observation({ at: '2026-10-31T10:00:00.123Z' })).status, 'MEASURED');
+});
+
 test('a future observation is rejected', () => {
   const result = appraise(observation({
     at: '2026-10-31T10:00:02.000Z',
