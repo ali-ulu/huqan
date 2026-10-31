@@ -148,6 +148,18 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' checker, leaving cli-doctor.js free of the client.',
     review_by: '2026-12-31',
   },
+  {
+    from: 'lib/cognitive-lab-cli.js',
+    to: 'lib/cognitive-lab-m4-runner.js',
+    why: 'The M4 retention measurement (#4070) must run the real reversible-forgetting path, so the'
+      + ' episode assembles MemoryLifecycle (Adapters) and the receipt chain (Application) and the'
+      + ' runner sits in the Application ring with it; the m4 subcommand lives beside the other Lab'
+      + ' commands (Core) and requires it directly -- the same Core -> Application shape as the'
+      + ' cli-coder -> coder/journal-store edge above. The follow-up fix is the one every exception'
+      + ' above names: resolve the runner behind the bin/huqan-cognitive-lab.js entrypoint and pass'
+      + ' it into runCognitiveLab, leaving the Core command free of the Application module.',
+    review_by: '2027-03-31',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {

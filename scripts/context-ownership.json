@@ -4330,6 +4330,22 @@
    "kind": "infra",
    "evidence": "#4071 COG-M10 Lab runner: calibration sigma/nRequired, frozen manifest before the sealed holdout, then the paired report; controlled fixture, no production default or gain claim"
   },
+  "lib/cognitive-lab-m4-corpus.js": {
+   "kind": "infra",
+   "evidence": "#4070 COG-M4 seeded Lab corpus with group-level splits and a fixed reference instant; controlled fixture, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m4-evaluator.js": {
+   "kind": "infra",
+   "evidence": "#4070 COG-M4 paired recall/shrink evaluator behind the cognitive-lab CLI; controlled fixture, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m4-episode.js": {
+   "kind": "infra",
+   "evidence": "#4070 COG-M4 episode: one group x one arm through the real consolidate/archive path; controlled fixture, no production default or gain claim"
+  },
+  "lib/cognitive-lab-m4-runner.js": {
+   "kind": "infra",
+   "evidence": "#4070 COG-M4 Lab runner: calibration sigma/nRequired, frozen manifest before the sealed holdout, then the paired report; controlled fixture, no production default or gain claim"
+  },
   "lib/cognitive-lab-g1-holdout.js": {
    "kind": "infra",
    "evidence": "#4065 G1 synthetic holdout measurement runner (holdout); no production default or gain claim"
