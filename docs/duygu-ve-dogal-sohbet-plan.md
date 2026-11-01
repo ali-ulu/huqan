@@ -1,7 +1,7 @@
 # HUQAN duygu döngüsü ve doğal sohbet uygulama planı
 
 Tarih: 2026-10-29. Son güncelleme: 2026-11-01.
-Durum: A ve B teslim edildi; C altyapısı teslim edildi (PR-1 #4446, PR-2 #4447, PR-3 #4453); D'nin Laya kapanış denetimi teslim edildi (karar STAY_SHADOW) ve yorumlayıcı ön-kaydı donduruldu; C'nin ölçümü ile D'nin kalan adımları ve E–F açık ve izleniyor. Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
+Durum: A ve B teslim edildi; C altyapısı teslim edildi (PR-1 #4446, PR-2 #4447, PR-3 #4453); D'nin Laya kapanış denetimi teslim edildi (karar STAY_SHADOW) ve yorumlayıcı ön-kaydı donduruldu; E'nin fizibilite kaydı teslim (FEASIBILITY_BLOCKED); C'nin ölçümü ile D/E'nin kalan adımları ve F açık ve izleniyor. Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
 Kaynak taban: ali-ulu/huqan main `fed7be80c075d45c6d73b98af7f9cffa9111eff6`.
 COG ana program: #4060. Bu plan mevcut mimari sözleşmenin yerine geçmez.
 Kapsam onayı: duygu motoru ve doğal sohbeti planlamak, belgelemek, GitHub Project ve issue bağlarını kurmak. Runtime kodu/eğitim/model indirme bu teslimde yoktur.
@@ -16,7 +16,7 @@ COG Project: https://github.com/users/ali-ulu/projects/7
 | B — Sorumluluk ve onarım | #4392 | Kapandı | PR-1 #4442, PR-2 #4443, PR-3 #4444 | A #4391 |
 | C — Konuşma/hafıza girişi | #4393 | Altyapı teslim | PR-1 #4446 (saf sözleşme), PR-2 #4447 (workspace'e bağlı yüzey), PR-3 #4453 (mevcut `/answer` ve proxy girişlerine ince adapter) | A #4391 ve B #4392 ile sözleşme uyumu; kalan: G2 ölçümü (F #4396) |
 | D — Laya/yorumlayıcı | #4394 | Kapanış denetimi teslim; yorumlayıcı ön-kaydı teslim | `docs/audits/laya-closure-audit-20261101.md` (karar: STAY_SHADOW); `docs/task-packs/cog-d-interpreter-preregistration-20261101.md` (dondurulmuş eşikler) | C #4393 şeması; kalan: ONNX/Node paritesi, lisans, pilot+corpus, daha büyük holdout |
-| E — Yerel üretken sohbet | #4395 | Açık | — | C #4393 ve D #4394'teki tek hat/kapanış kararı |
+| E — Yerel üretken sohbet | #4395 | Fizibilite kaydı teslim (FEASIBILITY_BLOCKED) | `docs/task-packs/cog-e-local-chat-feasibility-20261101.md` | C #4393 ve D #4394'teki tek hat/kapanış kararı; kalan: üretken model kararı + gerçek makinede ölçüm |
 | F — Birleşik ölçüm | #4396 | Açık | — | A–E; #4387 M7 düzeltmesi ve #4388 M9 ölçümüyle koordinasyon |
 
 A–F bu planın iş paketi adlarıdır; yeni COG M-modülü numarası değildir. Kapalı modül issue'ları yeniden açılmaz. #4387/#4388 bu epic'in altına taşınmaz; mevcut COG sahipliği korunur. Yeni işler başlangıçta Todo ve NOT_MEASURED'dır; bağımlı işler ayrıca Bağımlılık bekliyor olarak işaretlenir. Henüz kodu olmayan plan kartlarına bağlama durumu verilmez. Bu plan kendisi bir uygulama teslimatı değildir; gerçek bağlama ve ölçüm durumu yukarıdaki alt işlerde ve COG Project'te izlenir.
