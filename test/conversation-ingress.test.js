@@ -93,6 +93,9 @@ test('an incomplete identity records nothing, so an ordinary caller is unaffecte
   // between a first attempt and a retry, turning a replay into a conflict.
   assert.equal(record(graph, { sequence: undefined }).reason, 'identity_incomplete');
   assert.equal(record(graph, { sequence: 'nope' }).reason, 'identity_incomplete');
+  // A null argument must not reach the destructuring: the contract is no throw.
+  assert.equal(recordIngressTurn(null).reason, 'identity_incomplete');
+  assert.equal(recordIngressTurn().reason, 'identity_incomplete');
   assert.equal(record(graph, { content: '   ' }).reason, 'empty_content');
   assert.equal(record(graph, { content: 'x'.repeat(100001) }).reason, 'content_too_long');
 
@@ -132,18 +135,29 @@ test('a journal outage or a conflicting retry degrades to a reason, never a thro
 
   // A graph whose prefix read throws is an outage, not a conflict.
   const broken = { runMutationOnce: () => {}, getCommittedMutationResultsByPrefix: () => { throw new Error('down'); } };
-  const outage = recordIngressTurn({
-    graph: broken,
-    evaluateAdmission: evaluateMemoryAdmission,
-    workspaceId: WORKSPACE,
-    conversationId: CONVERSATION,
-    sessionId: 's_1',
-    messageId: 'm_2',
-    sequence: 2,
-    content: 'hello there',
-  });
-  assert.equal(outage.recorded, false);
-  assert.equal(outage.reason, 'store_unavailable');
+  const logged = [];
+  const originalError = console.error;
+  console.error = (...args) => logged.push(args.join(' '));
+  try {
+    const outage = recordIngressTurn({
+      graph: broken,
+      evaluateAdmission: evaluateMemoryAdmission,
+      workspaceId: WORKSPACE,
+      conversationId: CONVERSATION,
+      sessionId: 's_1',
+      messageId: 'm_2',
+      sequence: 2,
+      content: 'hello there',
+    });
+    assert.equal(outage.recorded, false);
+    assert.equal(outage.reason, 'store_unavailable');
+  } finally {
+    console.error = originalError;
+  }
+  // The caller discards the return value, so the log is the only trace an
+  // unrecorded turn leaves.
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /store_unavailable/);
 });
 
 test('another workspace never sees the turn', (t) => {
