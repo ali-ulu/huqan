@@ -28,6 +28,18 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
+// #4470: the measurement spawns ~81 real `cli.js coder` children, and each one
+// runs its own `node --test` workers. Under `c8` every child inherits
+// `NODE_V8_COVERAGE`, so the run writes ~284 coverage files (~131 MB); c8 merges
+// them after the suite and the merge OOMs the 4 GB heap (run 41326941162), even
+// though all 14187 tests passed first. The children's coverage is redundant --
+// the same `lib/cli-coder.js` / coder paths are covered by cli.test.js and the
+// coder suites -- so this file drops the variable for its children, the same
+// trade `test/durable-mutation-journal.test.js` makes for its workers (#3342).
+// The variable is read by the child at spawn, so deleting it here does not stop
+// this file's own worker from writing its coverage.
+delete process.env.NODE_V8_COVERAGE;
+
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const { readSealedRun } = require('../lib/experience/learning-intake');
 const { installArith, installString, write, commit, run, snapshotTree, changedPaths,
