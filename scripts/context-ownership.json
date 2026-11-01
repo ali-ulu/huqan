@@ -8333,6 +8333,13 @@
         "Platform"
       ],
       "evidence": "#4393 COG-C PR-2: the conversation HTTP route composes the Memory-owned store through its public contract"
+    },
+    "lib/conversation-ingress.js": {
+      "owner": "Memory",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "#4393 COG-C PR-3: the existing ingress surfaces (Platform-owned UI route and Adapters proxy) reach the Memory-owned conversation service through this one Core adapter"
     }
   },
   "legacyEdges": {
