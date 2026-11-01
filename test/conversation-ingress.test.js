@@ -124,6 +124,33 @@ test('an unadmitted turn never becomes context', (t) => {
   assert.deepEqual(history(graph), []);
 });
 
+test('an admission evaluator that throws degrades to a logged reason, never a throw', (t) => {
+  const graph = graphIn(t);
+  const logged = [];
+  const originalError = console.error;
+  console.error = (...args) => logged.push(args.join(' '));
+  try {
+    const result = recordIngressTurn({
+      graph,
+      evaluateAdmission: () => { throw new Error('gate exploded'); },
+      workspaceId: WORKSPACE,
+      conversationId: CONVERSATION,
+      sessionId: 's_1',
+      messageId: MESSAGE,
+      sequence: SEQUENCE,
+      content: 'hello there',
+    });
+    assert.equal(result.recorded, false);
+    assert.equal(result.reason, 'admission_failed');
+  } finally {
+    console.error = originalError;
+  }
+  assert.deepEqual(history(graph), []);
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /admission_failed/);
+  assert.match(logged[0], /gate exploded/);
+});
+
 test('a journal outage or a conflicting retry degrades to a reason, never a throw', (t) => {
   const graph = graphIn(t);
   assert.equal(record(graph).recorded, true);
