@@ -75,6 +75,10 @@ jobs:
 
           alerts=0
           latest_sha="${shas[0]}"
+          # #4451: runs the watcher could not re-run, across the whole pass.
+          # They are reported in the job summary and in the alert body, so a
+          # refusal is visible instead of looking like a successful retry.
+          non_retriable='[]'
 
           # #4128: inspect the latest main commits plus the run that triggered
           # this watcher. The event SHA is an alert candidate only; the
@@ -111,6 +115,7 @@ jobs:
                     | {
                         id,
                         name,
+                        event,
                         conclusion,
                         run_number,
                         run_attempt,
@@ -150,14 +155,64 @@ jobs:
               continue
             fi
 
-            rerunnable="$(jq '[.[] | select(.run_attempt == 1 and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure"))]' <<<"$failures")"
+            # #4451: a Dependabot `dynamic` run cannot be re-run; GitHub
+            # answers `rerun-failed-jobs` with 403 "This workflow run cannot be
+            # retried". It is classified here, before any retry, so the 403 is
+            # not the first thing the watcher learns, and a retry that is
+            # refused anyway (below) is tolerated the same way. Either one used
+            # to abort the whole pass under `set -e`, leaving later commits
+            # uninspected and alert handling unrun.
+            classified_non_retriable="$(
+              jq --arg reason "GitHub does not allow re-running a dynamic (Dependabot) workflow run" \
+                '[.[] | select(.event == "dynamic") | {id, event, reason: $reason}]' <<<"$failures"
+            )"
+            rerunnable="$(jq '[.[] | select(.event != "dynamic" and .run_attempt == 1 and (.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure"))]' <<<"$failures")"
             rerun_count="$(jq 'length' <<<"$rerunnable")"
+            refused_retries='[]'
 
             if [[ "$rerun_count" -gt 0 ]]; then
               while IFS= read -r run_id; do
                 echo "$short: re-running failed jobs for workflow run $run_id once."
-                gh api --method POST "repos/$REPO/actions/runs/$run_id/rerun-failed-jobs"
+                # #4451: `gh api` exits non-zero on the 403. Inside a
+                # process-substitution `while`, that failure is local to this
+                # loop, so `set -e` does not abort the pass; the non-retriable
+                # outcome is recorded and the scan continues to the next run
+                # and the next commit.
+                if ! gh api --method POST "repos/$REPO/actions/runs/$run_id/rerun-failed-jobs" > /tmp/main-ci-watch-rerun-out.txt 2> /tmp/main-ci-watch-rerun-error.txt; then
+                  reason="$(jq -r '.message // empty' /tmp/main-ci-watch-rerun-out.txt 2>/dev/null || true)"
+                  [[ -n "$reason" ]] || reason="$(sed -n 's/^gh: //p' /tmp/main-ci-watch-rerun-error.txt | head -n 1)"
+                  [[ -n "$reason" ]] || reason="the re-run request failed"
+                  echo "$short: workflow run $run_id is not re-runnable: $reason"
+                  refused_retries="$(
+                    jq --argjson id "$run_id" --arg reason "$reason" --argjson all "$failures" \
+                      '. + [{id: $id, reason: $reason, event: (($all | map(select(.id == $id)) | .[0].event) // null)}]' \
+                      <<<"$refused_retries"
+                  )"
+                fi
               done < <(jq -r '.[].id' <<<"$rerunnable")
+
+              # A re-run whose result is not known yet is held back; every
+              # other failure (classified non-retriable, refused retry, or
+              # never eligible) stays an alert candidate.
+              failures="$(
+                jq --argjson retried "$(jq '[.[].id]' <<<"$rerunnable")" \
+                  --argjson refused "$(jq '[.[].id]' <<<"$refused_retries")" \
+                  '[.[] | . as $f | select((($retried | index($f.id)) == null) or (($refused | index($f.id)) != null))]' \
+                  <<<"$failures"
+              )"
+            fi
+
+            non_retriable="$(
+              jq --argjson add "$(jq -c -n --argjson a "$classified_non_retriable" --argjson b "$refused_retries" '$a + $b')" \
+                --arg sha "$sha" '. + [$add[] + {sha: $sha}]' <<<"$non_retriable"
+            )"
+            sha_non_retriable="$(
+              jq -c -n --argjson a "$classified_non_retriable" --argjson b "$refused_retries" '$a + $b'
+            )"
+
+            count="$(jq 'length' <<<"$failures")"
+            if [[ "$count" -eq 0 ]]; then
+              echo "$short: every failure was re-run or is non-rerunnable; nothing new to alert."
               continue
             fi
 
@@ -206,7 +261,14 @@ jobs:
               echo "Commit: https://github.com/$REPO/commit/$sha"
               echo
               echo "### Current failing workflows"
-              jq -r '.[] | "- **\(.name)**: \(.conclusion) ([run #\(.run_number), attempt \(.run_attempt)](\(.html_url)))"' <<<"$failures"
+              jq -r '.[] | "- **\(.name)**: \(.conclusion) (event `\(.event // "unknown")`, [run #\(.run_number), attempt \(.run_attempt)](\(.html_url)))"' <<<"$failures"
+              refused_count="$(jq 'length' <<<"$sha_non_retriable")"
+              if [[ "$refused_count" -gt 0 ]]; then
+                echo
+                echo "### Not re-runnable"
+                echo
+                jq -r '.[] | "- run `\(.id)` (event `\(.event // "unknown")`): \(.reason)"' <<<"$sha_non_retriable"
+              fi
               echo
               echo "_Created automatically by the repository-native Main CI Watch workflow. The watcher scans the latest 10 main commits plus the run that triggered it, automatically re-runs eligible failed jobs once, and opens an issue only when the failure persists or cannot be safely re-run._"
             } > /tmp/main-ci-watch.md
@@ -369,4 +431,22 @@ jobs:
             echo "Current main is not verified green ($verdict); CI alert issues remain open."
           fi
 
-          echo "Scanned ${#candidates[@]} commit(s) (${#shas[@]} recent main plus the triggering run); opened $alerts new alert issue(s)."
+          # #4451: report every run the watcher could not re-run, with the run
+          # id, its event and the reason. The summary never claims a retry
+          # succeeded for one of them, and a pass that only refused retries
+          # still ends green (#4451) rather than failing the watcher itself.
+          non_retriable_count="$(jq 'length' <<<"$non_retriable")"
+          if [[ "$non_retriable_count" -gt 0 ]]; then
+            {
+              echo
+              echo "### Not re-runnable runs ($non_retriable_count)"
+              echo
+              echo "| Run id | Commit | Event | Reason |"
+              echo "|---|---|---|---|"
+              jq -r '.[] | "| \(.id) | \(.sha[0:7]) | \(.event // "unknown") | \(.reason) |"' <<<"$non_retriable"
+              echo
+              echo "These runs cannot be re-run through the API, so no retry was attempted twice and no retry succeeded. They are reported for a human."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "Scanned ${#candidates[@]} commit(s) (${#shas[@]} recent main plus the triggering run); opened $alerts new alert issue(s); $non_retriable_count non-rerunnable run(s) reported."
