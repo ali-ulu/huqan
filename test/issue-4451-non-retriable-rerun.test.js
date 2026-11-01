@@ -213,6 +213,12 @@ function fixtures(dir, { shape }) {
       JSON.stringify({ workflow_runs: [DEPENDABOT_RUN] }));
     fs.writeFileSync(path.join(data, `runs-${MAIN_SHAS[9]}.json`),
       JSON.stringify({ workflow_runs: [PERSISTENT_RUN] }));
+    // Keep main from being called green: a non-actionable dynamic run no longer
+    // withholds green (#4458), and a green main retires the alerts this test is
+    // about. A failed gate is a real, non-overdue reason to withhold green.
+    fs.writeFileSync(path.join(data, `checks-${MAIN_SHAS[0]}.json`), JSON.stringify({
+      check_runs: GREEN_CHECKS.map((run, index) => (index === 0 ? { ...run, conclusion: 'failure' } : run)),
+    }));
     refuse.push(DEPENDABOT_RUN.id);
   }
   if (shape === 'benchmark') {
@@ -290,9 +296,10 @@ test('#4451: a refused re-run does not abort the pass; later commits are still s
   // The scan reached the oldest commit and alerted on its actionable failure.
   assert.ok(result.lookedUp.includes(MAIN_SHAS[9]),
     'the scan must continue to later candidates after a non-retriable run');
-  // The newest commit's Dependabot run also raises an alert: main-ci-watch-state
-  // counts any failed workflow run on the commit as blocking main green, so the
-  // non-retriable run is reported as a failure, not silently skipped.
+  // The newest commit's Dependabot run also raises an alert: the watcher
+  // reports every failed run on a commit, and the alert is opened while the
+  // verdict is not green for another reason (#4458). The non-retriable run is
+  // reported, not silently skipped.
   assert.deepEqual(result.created, [
     `ci(main): ${MAIN_SHAS[0].slice(0, 7)} has failing workflow(s)`,
     `ci(main): ${MAIN_SHAS[9].slice(0, 7)} has failing workflow(s)`,

@@ -151,6 +151,44 @@ test('a failing latest workflow attempt blocks green even when every gate passed
   assert.deepEqual(verdict.blockingWorkflows, ['Publish to npm']);
 });
 
+test('#4458: a Dependabot dynamic run does not withhold green and is reported as not actionable', () => {
+  // The retry loop classifies a `dynamic` run as non-retriable before asking
+  // (#4451); the verdict must not name the same run as the reason main is not
+  // green. GitHub refuses to re-run it, so it can never turn into a pass.
+  const workflows = [
+    ...WORKFLOWS_OK,
+    { name: 'npm_and_yarn in /. for minimatch - Update #1668558748', event: 'dynamic', status: 'completed', conclusion: 'failure', run_number: 39, run_attempt: 1 },
+  ];
+  const verdict = state({ workflowRuns: workflows });
+  assert.equal(verdict.verdict, VERDICTS.GREEN);
+  assert.equal(verdict.mainGreen, true);
+  assert.deepEqual(verdict.blockingWorkflows, []);
+  assert.deepEqual(verdict.nonActionableWorkflows, ['npm_and_yarn in /. for minimatch - Update #1668558748']);
+  // It stays counted, so the summary still shows that a run existed and failed.
+  assert.equal(verdict.workflowRunCount, 3);
+});
+
+test('#4458: a push failure still blocks even when a non-actionable run failed too', () => {
+  const workflows = [
+    ...WORKFLOWS_OK,
+    { name: 'npm_and_yarn in /. for minimatch - Update #1668558748', event: 'dynamic', status: 'completed', conclusion: 'failure', run_number: 39, run_attempt: 1 },
+    { name: 'Benchmark Regression', event: 'push', status: 'completed', conclusion: 'failure', run_number: 7953, run_attempt: 1 },
+  ];
+  const verdict = state({ workflowRuns: workflows });
+  assert.equal(verdict.verdict, VERDICTS.WORKFLOW_BLOCKING);
+  assert.deepEqual(verdict.blockingWorkflows, ['Benchmark Regression']);
+  assert.deepEqual(verdict.nonActionableWorkflows, ['npm_and_yarn in /. for minimatch - Update #1668558748']);
+});
+
+test('#4458: the watcher passes the run event to the verdict and states why a run is not actionable', () => {
+  const watch = yaml.load(fs.readFileSync(WATCH_PATH, 'utf8'));
+  const run = watch.jobs['inspect-main'].steps.map((step) => step.run || '').join('\n');
+  // Without `event` the script cannot tell a Dependabot run from a push run.
+  const selectors = run.match(/\.workflow_runs\[\] \| \{name, status, conclusion, run_number, run_attempt, event\}/g) || [];
+  assert.equal(selectors.length, 2, 'both verdict calls must select the run event');
+  assert.match(run, /\.nonActionableWorkflows\[\]/, 'the summary names the runs it did not count against main');
+});
+
 test('#4055: a gate still missing or pending past the overdue window is reported as overdue', () => {
   const runs = greenCheckRuns().slice(1);
   runs[1] = checkRun(3, GATES[2], null, 'in_progress');
