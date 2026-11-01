@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { runCognitiveLab } = require('../lib/cognitive-lab-cli');
+const { runM3FamilyExperiment } = require('../lib/cognitive-lab-m3-experiment');
 const { readComparisonDesign } = require('../lib/cognitive-lab-comparison-store');
 
 function readDesign(dbPath, runId) {
@@ -36,7 +37,7 @@ function readDesign(dbPath, runId) {
   }
 }
 
-runCognitiveLab(process.argv.slice(2), { openGraph: options => new Graph(options), readDesign })
+runCognitiveLab(process.argv.slice(2), { openGraph: options => new Graph(options), readDesign, runM3FamilyExperiment })
   .then(result => {
     process.stdout.write(`${JSON.stringify(result)}\n`);
     // A replay can succeed (`status: REPLAYED`) while the fail-closed gain

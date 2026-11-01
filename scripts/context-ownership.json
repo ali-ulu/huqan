@@ -4390,6 +4390,14 @@
       "kind": "infra",
       "evidence": "#3562 I6c B4 procedure-transfer evaluator and frozen contract"
     },
+    "lib/cognitive-lab-m3-evaluator.js": {
+      "kind": "infra",
+      "evidence": "#4069 frozen-contract family-level paired diagnostics; caller data cannot assert gain"
+    },
+    "lib/cognitive-lab-m3-experiment.js": {
+      "kind": "entry",
+      "evidence": "#4069 opt-in readonly Lab composition of locked replay snapshots, native acceptance and separate oracle"
+    },
     "lib/cognitive-lab-b4-experiment.js": {
       "kind": "infra",
       "evidence": "#3562 I6c B4 manifest-emitting measurement runner"
