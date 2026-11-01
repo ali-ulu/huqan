@@ -266,6 +266,57 @@ test('/answer without a conversation identity answers as before and records noth
   assert.deepEqual(history(graph), []);
 });
 
+test('/answer without a recorder at all still serves, and records nothing', async (t) => {
+  const graph = graphIn(t);
+  // No `recordConversationTurn` in the deps: the capture is opt-in, so the
+  // surface the answer route already had must keep working.
+  const handle = createAnswerRoute(answerDeps({ graph }));
+
+  const res = captureRes();
+  await handle(answerReq({
+    question: 'what is a graph?',
+    workspaceId: WORKSPACE,
+    conversationId: CONVERSATION,
+    sessionId: 's_1',
+    messageId: MESSAGE,
+    sequence: SEQUENCE,
+  }), res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(JSON.parse(res.body).ok, true);
+  assert.deepEqual(history(graph), []);
+});
+
+test('a recorder that throws never changes the answer the caller already served', async (t) => {
+  const graph = graphIn(t);
+  const logged = [];
+  const originalError = console.error;
+  console.error = (...args) => logged.push(args.join(' '));
+  try {
+    const handle = createAnswerRoute(answerDeps({
+      graph,
+      recordConversationTurn: () => { throw new Error('capture exploded'); },
+    }));
+
+    const res = captureRes();
+    await handle(answerReq({
+      question: 'what is a graph?',
+      workspaceId: WORKSPACE,
+      conversationId: CONVERSATION,
+      sessionId: 's_1',
+      messageId: MESSAGE,
+      sequence: SEQUENCE,
+    }), res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(JSON.parse(res.body).ok, true);
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /capture exploded/);
+});
+
 /* ------------------------------------------------------------------ */
 /* The proxy stays byte-verbatim and captures from headers only.        */
 /* ------------------------------------------------------------------ */
