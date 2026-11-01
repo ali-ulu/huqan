@@ -4147,6 +4147,10 @@
     "lib/conversation-store.js": {
       "context": "Memory",
       "evidence": "#4393 COG-C PR-2: durable workspace-bound conversation store over the single journal (append-only turn rows under a conversation: prefix, tombstone delete, retention-gated write); the production caller of the pure conversation-turn contract"
+    },
+    "lib/conversation-ingress.js": {
+      "context": "Memory",
+      "evidence": "#4393 COG-C PR-3: the Core ingress adapter the plan asks for between the existing surfaces (lib/http/answer-route.js, lib/llm-proxy/proxy-handler.js) and the workspace-bound conversation service; Core ring because both a UI surface and the Adapters proxy require it, with the Trust-owned admission gate injected by the caller"
     }
   },
   "platform": {
@@ -8329,6 +8333,13 @@
         "Platform"
       ],
       "evidence": "#4393 COG-C PR-2: the conversation HTTP route composes the Memory-owned store through its public contract"
+    },
+    "lib/conversation-ingress.js": {
+      "owner": "Memory",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "#4393 COG-C PR-3: the existing ingress surfaces (Platform-owned UI route and Adapters proxy) reach the Memory-owned conversation service through this one Core adapter"
     }
   },
   "legacyEdges": {
