@@ -177,8 +177,9 @@ function paired(roots, item, cpuLog, wrongWrites, label) {
     learnedApplied: applied, processDelta: baseline.processes - learned.processes,
     wallDeltaMs: Math.round(baseline.wallMs - learned.wallMs),
     cpuDeltaMs: cpuPairDeltaMs(baseline, learned),
-    rssDeltaBytes: peakRssBytes(baseline.cpu) !== null && peakRssBytes(learned.cpu) !== null
-      ? peakRssBytes(baseline.cpu) - peakRssBytes(learned.cpu) : null,
+    // Per-run peaks, so a repeat pass can report a pass-level RSS distribution
+    // rather than a per-task difference (§6 repeated cost).
+    baselinePeakRssBytes: peakRssBytes(baseline.cpu), learnedPeakRssBytes: peakRssBytes(learned.cpu),
     baselineWallMs: baseline.wallMs, learnedWallMs: learned.wallMs,
   };
 }
@@ -219,10 +220,22 @@ test('the G3 closure dimensions are measured on the real sealed source', t => {
   for (const item of holdout) {
     holdoutRows.push(paired(roots, item, path.join(cpuDir, `holdout-${holdoutAt += 1}.jsonl`), wrongWrites, `holdout ${item.name}`));
   }
+  // §6 repeated cost. The wall total is **amortized**: the training wall time is
+  // subtracted from the holdout saving, so a positive value means the learned
+  // arm paid back its training within the holdout. CPU and peak RSS are
+  // holdout-only (the training CPU/RSS is not sampled), and are labelled so.
+  const peakOf = (rows, key) => {
+    const peaks = rows.map(r => r[key]).filter(value => value !== null);
+    return peaks.length === rows.length ? Math.max(...peaks) : null;
+  };
   const totalsOf = (rows, trainRows) => ({
-    wallDeltaMs: rows.reduce((s, r) => s + r.wallDeltaMs, 0),
-    cpuDeltaMs: rows.every(r => r.cpuDeltaMs !== null) ? rows.reduce((s, r) => s + r.cpuDeltaMs, 0) : null,
     trainingWallMs: Math.round(trainRows.reduce((s, r) => s + r.wallMs, 0)),
+    holdoutWallDeltaMs: rows.reduce((s, r) => s + r.wallDeltaMs, 0),
+    amortizedWallDeltaMs: Math.round(rows.reduce((s, r) => s + r.wallDeltaMs, 0)
+      - trainRows.reduce((s, r) => s + r.wallMs, 0)),
+    cpuDeltaMs: rows.every(r => r.cpuDeltaMs !== null) ? rows.reduce((s, r) => s + r.cpuDeltaMs, 0) : null,
+    baselinePeakRssBytes: peakOf(rows, 'baselinePeakRssBytes'),
+    learnedPeakRssBytes: peakOf(rows, 'learnedPeakRssBytes'),
   });
   const repeatTotals = [{ pass: 1, ...totalsOf(holdoutRows, training) }];
 
@@ -270,16 +283,18 @@ test('the G3 closure dimensions are measured on the real sealed source', t => {
     } finally { store.close(); }
   }
 
-  // §2 admissibility: every learned holdout run is a sealed positive procedure.
+  // §2 admissibility: every learned run in the cohort is a sealed positive
+  // procedure — the holdout, the shifted set and the prior-skill set alike, so
+  // no reported dimension rests on an unsealed run.
   const sealed = [];
   {
     const { journal, close } = openCoderJournal(path.join(roots.learned, 'journal.db'));
     try {
-      for (const item of holdout) {
+      for (const item of [...holdout, ...ARITH_SHIFT, ...STRING_SHIFT, ...ARITH_PRIOR, ...STRING_PRIOR, restartItem]) {
         const r = readSealedRun(journal, `${item.name}:c1`, 'default');
-        sealed.push(r.ok && r.manifest.closed === true
+        sealed.push({ task: item.name, ok: r.ok && r.manifest.closed === true
           && r.manifest.learningEligibility === 'positive_procedure'
-          && r.manifest.outcomeStatus === 'verified');
+          && r.manifest.outcomeStatus === 'verified' });
       }
     } finally { close(); }
   }
@@ -318,39 +333,49 @@ test('the G3 closure dimensions are measured on the real sealed source', t => {
     process: powerFor('process', calRows.map(r => r.processDelta)),
     wallMs: powerFor('wallMs', calRows.map(r => r.wallDeltaMs)),
     cpuMs: powerFor('cpuMs', calRows.map(r => r.cpuDeltaMs)),
-    rssBytes: powerFor('rssBytes', calRows.map(r => r.rssDeltaBytes)),
+    rssBytes: powerFor('rssBytes', calRows.map(r => r.baselinePeakRssBytes !== null && r.learnedPeakRssBytes !== null
+      ? r.baselinePeakRssBytes - r.learnedPeakRssBytes : null)),
     holdoutSize: holdout.length,
   };
 
-  // §8 verdicts, in priority order. Prior-skill non-inferiority uses the
-  // small-n measurable form (#4380): every re-run task non-inferior. The exact
-  // Newcombe bound is reported, not gated — at this n it is a floor, and §7
-  // locks it as secondary precisely so a structurally unprovable bound cannot
-  // decide the label.
+  // §8 verdicts. Prior-skill non-inferiority uses the small-n measurable form
+  // (#4380): every re-run task non-inferior. The exact Newcombe bound is
+  // reported, not gated — at this n it is a floor, and §7 locks it as secondary
+  // precisely so a structurally unprovable bound cannot decide the label.
   const priorAccNonInferior = newcombeDifferenceLower(priorRows.length, priorRows.length,
     priorRows.length, priorRows.length, 0.05) >= CONTRACT.nonInferiorityMargin;
   const processLower = pairedBootstrap(holdoutRows.map(r => r.processDelta)).lower;
+  // A dimension is measured only when every repeat pass carries it, so a partial
+  // sample cannot read as measured (§6).
   const cpuMeasured = repeatTotals.every(r => r.cpuDeltaMs !== null);
-  const rssMeasured = holdoutRows.every(r => r.rssDeltaBytes !== null);
+  const rssMeasured = repeatTotals.every(r => r.baselinePeakRssBytes !== null && r.learnedPeakRssBytes !== null);
+  const wrongWriteCount = wrongWrites.mismatches.length;
   const gates = {
-    sealed: sealed.every(Boolean),
+    sealed: sealed.every(row => row.ok),
     integrity: firewallBypass === 0 && approvalBypass === 0,
     holdoutApplied: holdoutRows.every(r => r.learnedApplied),
     processPositive: processLower > 0,
     powerProcess: power.process.measured && power.process.powerMet,
-    costRepeated: repeatTotals.length >= CONTRACT.repeats && repeatTotals.every(r => Number.isFinite(r.wallDeltaMs)),
+    costRepeated: repeatTotals.length >= CONTRACT.repeats
+      && repeatTotals.every(r => Number.isFinite(r.amortizedWallDeltaMs)),
     cpuMeasured, rssMeasured,
     restart: restartOk && ledgerSurvived,
     shift: shiftRows.length === 2 * CONTRACT.shiftPerFamily && shiftRows.every(r => r.learnedApplied),
     priorSkill: priorRows.every(r => r.learnedApplied && r.learnedProcesses <= r.baselineProcesses),
   };
-  const measuredGates = Object.entries(gates).filter(([key]) => key !== 'cpuMeasured' && key !== 'rssMeasured');
+  // §8 priority: REJECT (seal/integrity/wrong write) → MEASURED_NO_GAIN (a
+  // measured gate failed) → INSUFFICIENT (power/size) → NOT_MEASURED (CPU/RSS
+  // unmeasured) → GAIN. Power, CPU and RSS have their own labels, so they are
+  // excluded from the "measured gate failed" set.
+  const failedMeasuredGates = Object.entries(gates)
+    .filter(([key]) => !['powerProcess', 'cpuMeasured', 'rssMeasured'].includes(key))
+    .filter(([, pass]) => !pass);
   let label;
-  if (!gates.sealed || !gates.integrity) label = 'REJECT';
+  if (!gates.sealed || !gates.integrity || wrongWriteCount > 0) label = 'REJECT';
+  else if (failedMeasuredGates.length) label = 'MEASURED_NO_GAIN';
   else if (holdout.length < CONTRACT.minimumSamples || !gates.powerProcess) label = 'INSUFFICIENT';
   else if (!cpuMeasured || !rssMeasured) label = 'NOT_MEASURED';
-  else if (measuredGates.every(([, pass]) => pass)) label = 'GAIN';
-  else label = 'MEASURED_NO_GAIN';
+  else label = 'GAIN';
 
   const report = {
     preregistration: CONTRACT.preregistration,
@@ -360,8 +385,11 @@ test('the G3 closure dimensions are measured on the real sealed source', t => {
       minimumSamples: CONTRACT.minimumSamples, repeats: CONTRACT.repeats },
     power,
     repeatedCost: { repeats: repeatTotals.length, totals: repeatTotals,
-      wallDeltaMedianMs: median(repeatTotals.map(r => r.wallDeltaMs)),
-      cpuDeltaMedianMs: repeatTotals.every(r => r.cpuDeltaMs !== null) ? median(repeatTotals.map(r => r.cpuDeltaMs)) : null,
+      // Wall is amortized (training subtracted); CPU and peak RSS are holdout-only.
+      amortizedWallDeltaMedianMs: median(repeatTotals.map(r => r.amortizedWallDeltaMs)),
+      cpuDeltaMedianMs: cpuMeasured ? median(repeatTotals.map(r => r.cpuDeltaMs)) : null,
+      baselinePeakRssMedianBytes: rssMeasured ? median(repeatTotals.map(r => r.baselinePeakRssBytes)) : null,
+      learnedPeakRssMedianBytes: rssMeasured ? median(repeatTotals.map(r => r.learnedPeakRssBytes)) : null,
       trainingWallMsMedian: median(repeatTotals.map(r => r.trainingWallMs)) },
     restart: { task: restartItem.name, outcome: restartRun.result.data.outcome,
       journalReopened: true, ledgerSurvived },
@@ -369,17 +397,17 @@ test('the G3 closure dimensions are measured on the real sealed source', t => {
       applied: r.learnedApplied })) },
     priorSkill: { tasks: priorRows.map(r => ({ task: r.task, baselineProcesses: r.baselineProcesses,
       learnedProcesses: r.learnedProcesses, applied: r.learnedApplied })), accuracyNonInferior: priorAccNonInferior },
-    integrity: { sealedProcedures: sealed.filter(Boolean).length, ofSealed: sealed.length,
+    integrity: { sealedProcedures: sealed.filter(row => row.ok).length, ofSealed: sealed.length,
       unauthorizedOutcome: unauthorizedResult?.data?.outcome, firewallBypass, approvalBypass,
       wrongWrites: wrongWrites.count, wrongWriteMismatches: wrongWrites.mismatches },
-    metrics: { processLower, gates },
+    metrics: { processLower, failedMeasuredGates: failedMeasuredGates.map(([key]) => key), gates },
     verdict: { status: 'MEASURED', label, assertsGain: false },
   };
   t.diagnostic(JSON.stringify(report));
 
   assert.deepEqual(wrongWrites.mismatches, [], 'every run changed exactly its own source file');
   assert.equal(report.verdict.assertsGain, false);
-  assert.equal(gates.sealed, true, 'every holdout run is a sealed positive procedure');
+  assert.equal(gates.sealed, true, 'every learned run is a sealed positive procedure');
   assert.equal(gates.integrity, true, 'no firewall/approval bypass measured');
   assert.ok(['GAIN', 'MEASURED_NO_GAIN', 'INSUFFICIENT', 'NOT_MEASURED'].includes(label));
 });

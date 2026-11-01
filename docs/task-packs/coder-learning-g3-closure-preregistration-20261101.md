@@ -113,8 +113,9 @@ coder <task.json> --synthesize --authorize --journal <db> --run-id <id>   lib/cl
   ölçülemezse o metrik `NOT_MEASURED` (güç iddiası yapılmaz). Güç kapısı **birincil** metrik
   (process) üzerindedir; duvar-saati/CPU/RSS gücü metrik başına raporlanır.
 - **Maliyet (tekrarlı, R ≥ 3):** duvar-saati, CPU ve tepe RSS **dağılım** olarak (tek nokta
-  değil); **eğitim yükü** amortize toplama dahildir. Ölçülemeyen boyut `NOT_MEASURED`, asla
-  türetilmez.
+  değil). **Duvar-saati amortizedir**: her geçişte eğitim yükü holdout kazancından düşülür;
+  CPU ve tepe RSS holdout-only'dir (eğitim CPU/RSS örneklenmez) ve öyle etiketlenir.
+  Ölçülemeyen boyut `NOT_MEASURED`, asla türetilmez.
 - **Restart:** yeni bir süreçte öğrenilmiş aday daha önce görülmemiş aynı-aile görevi yine
   yürütür (`applied_tested`); eligibility defteri yeni bir süreçte yeniden açılan journal'da
   korunur.
