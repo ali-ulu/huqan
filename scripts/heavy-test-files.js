@@ -135,6 +135,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // It passes in 112s locally on Node 24, so the ordinary 90s cap would kill a
   // file that is still working.
   'test/g3-sealed-run-cohort-result.test.js',
+  // G3 closure-dimension measurement (#4470) runs 94 real `cli.js coder` child
+  // processes (2 training + calibration/holdout/shift/prior pairs + repeats x3
+  // + restart + integrity probe) and passes in ~71s locally on Node 24. The
+  // Windows runner is the same ~2x that put the N=70 file above over 90s, so
+  // this file needs the heavy-file deadline too.
+  'test/g3-closure-dimensions-result.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {

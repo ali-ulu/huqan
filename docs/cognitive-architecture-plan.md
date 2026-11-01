@@ -178,6 +178,7 @@ G2 testi yüksek talep → doğrulanmış snapshot → alternatif plan seçimi �
 - Bütünlük: sıfır yetki/onay bypass'ı, yanlış iş tamamlandı bildirimi ve scope sızıntısı. Bunlardan biri REJECT; küçük örneklem arkasına gizlenemez.
 - Ortam değişiminden sonra uyum süresi; restart sonrası kazanım; eski görevlerde önceden belirlenen non-inferiority sınırı ve unutmanın yol açtığı geri yükleme ihtiyacı ölçülür.
 - Nihai durum: `NOT_MEASURED | INSUFFICIENT | MEASURED_NO_GAIN | GAIN | REJECT`. GAIN yalnız ön-kayıtlı ortak kapı geçilirse; varsayılanı açma ayrı değerlendirilir.
+- Kapak durumu (2026-11-01): maliyet/CPU/bellek, değişen ortam (kayma), restart ve eski-beceri boyutları #4462 ve #4470 ile ölçüldü (`GAIN`, `assertsGain = false`). **Bileşim (composition) boyutu hâlâ açıktır**; bu nedenle aşağıdaki G3 kutusu işaretlenmez.
 
 ### Tamamlanma kontrolü
 
