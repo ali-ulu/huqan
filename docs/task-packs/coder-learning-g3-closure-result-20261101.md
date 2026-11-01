@@ -25,8 +25,8 @@
 | Tekrarlı tepe-RSS (eğitim dahil, R=3) | **+614028 / +619680 / +623776 KB**, 3/3 aynı işaret | rapor (kazanç kapısı değil) |
 | Restart (§6) | learned yeni same-family görevi dağıttı (4→1 process), defter yeniden açılışta korundu | **MEASURED** |
 | Dağılım kayması (§6) | OOD görev 2/2 `applied_tested` (4→1, 3→1) | **MEASURED** |
-| Eski beceri non-inferiority (§6) | 2/2 doğruluk eşit, process kötüleşmedi | **MEASURED** |
-| Yanlış yazma / firewall / approval bypass | **0 / 0 / 0** (ölçüldü) | eşik tetiklenmedi |
+| Eski beceri non-inferiority (§6) | 4/4 doğruluk eşit, process kötüleşmedi (aile başına 2, §4) | **INSUFFICIENT** |
+| Yanlış yazma / firewall / approval bypass | **0 / 0 / 0** (gerçek probe ile ölçüldü) | eşik tetiklenmedi |
 | Nihai etiket (§8) | — | **`MEASURED_NO_GAIN`** |
 | `assertsGain` | — | **`false`** |
 
@@ -64,10 +64,32 @@ cpuGains  = [-1314, -1340, -1218] signStable true
 rssGains  = [+614028, +619680, +623776] signStable true
 restart   = { dispatch true, ledgerSurvived true, baseline 4, learned 1 }
 shift     = 2/2 applied_tested
-priorSkill= 2/2 applied_tested, nonInferior true (Newcombe alt -0.776, N=2 -> marginProvable false)
-wrongWrites = 0   firewallBypass = 0   approvalBypass = 0
+priorSkill= 4/4 applied_tested, nonInferior true (Newcombe alt -0.527, N=4 -> marginProvable false)
+wrongWrites = 0   firewallBypass = 0   approvalBypass = 0   probeRefused = true
 label = MEASURED_NO_GAIN   assertsGain = false
 ```
+
+> **Revizyon notu (aynı PR, thread düzeltmeleri).** Aşağıdaki boyutlar ilk koşumdan sonra
+> sıkılaştırıldı; eski değerler silinmedi, karşılaştırma için burada:
+>
+> - **Eski beceri:** aile başına 1 → **2** görev (§4 ile hizalı), `N=2` → `N=4`.
+> - **§7 marjı artık kapı:** `priorBound` hesaplanıp `-0.05` marjına karşı okunuyor; marj bu
+>   kohort boyutunda kanıtlanamadığı için boyut `MEASURED` değil `INSUFFICIENT`
+>   (`priorMarginProvable=false`, tıpkı #4462'nin `marginProvable` kuralı).
+> - **Integrity artık ölçülüyor:** `firewallBypass`/`approvalBypass` sabit `0` yerine gerçek
+>   yetkisiz koşum probe'u ile ölçülüyor (`--authorize` yok → `needs_human_decision`, stray
+>   write yok). §8 bu sayıları `REJECT` koşulu yapar, dolayısıyla sabit değer bir iddiaydı.
+> - **Kaynak bağı:** her holdout koşumunun mühürlü `sourceHash`'i rapora giriyor.
+> - **Etiket:** kayıtsız `NOT_CLEARED` kaldırıldı; §7 maliyet kapısı hatası `MEASURED_NO_GAIN`.
+> - **Yanlış yazma kapısı:** shift/prior/restart koşumlarının tümü artık `assertChangedPaths`'ten
+>   geçiyor (önceden yalnız learned shift/prior + holdout çiftleri).
+> - **Eski beceri kapsamı:** öğrenilen bellek aile başına **tek** aday tutar; bu yüzden ölçüm
+>   "daha önce öğrenilmiş farklı bir becerinin korunması"nı (retention) değil, taze bir
+>   same-family görevinin dağıtımını (transfer) ölçer. Prior fixture'ları değerlendirilen
+>   öğrenmeden **önce** öğrenmek havuzda iki uygulanabilir aday bırakır ve seçim
+>   `candidate_selection_ambiguous` ile fail-closed düşer; bu yüzden §4'ün "daha önce öğrenilmiş"
+>   parantezi çok-adaylı bellek modeli olmadan temsil edilemiyor. Bu sınır rapora
+>   `priorSkill.scope = 'fresh-same-family-transfer'` olarak yazılıyor.
 
 ## 4. Neden `MEASURED_NO_GAIN`
 
@@ -76,6 +98,11 @@ amortize maliyet negatif: learned kol her holdout'ta daha az process kullansa da
 maliyeti (2 synthesis koşumu, ~1.63 s duvar-saati / ~1.54 s CPU / ~0.58 GB RSS) bu kazancı
 aşar. Üç tekrarda da işaret aynı (kararlı), yani bu bir gürültü artefaktı değil, sabit CLI
 başına maliyetin baskınlığıdır — #4380/#4416/#4449 ile tutarlı.
+
+Not: eski beceri boyutu `INSUFFICIENT` olduğu için `GAIN` bu ölçümde **zaten ulaşılamaz**
+(§8 `GAIN` koşulu bu kapıyı ister); etiket yine de maliyet dalından `MEASURED_NO_GAIN` gelir.
+Yani sıkılaştırma etiketi değiştirmedi, ama artık etiketin gerekçesi dürüst: kanıtlanamayan
+bir marj `MEASURED` sayılmıyor.
 
 ## 5. İddia sınırı
 
@@ -93,5 +120,11 @@ başına maliyetin baskınlığıdır — #4380/#4416/#4449 ile tutarlı.
   kohortta `false` ve dürüstçe raporlanır. RSS dağılımı rapor, kazanç kapısı değildir.
 - **Güç:** bağlayıcı sufficiency kapısı birincil (deterministik) metrik olan process'tir
   (#4416 örneği); duvar-saati/CPU/RSS güç sonuçları raporlanır.
+- **Eski beceri kapsamı (dürüst sınır):** boyut, aile başına 2 görevle (N=4) ölçülür ve
+  doğruluk/process deterministik olarak geçer, ama `-0.05` Newcombe marjı N=4'te
+  kanıtlanamaz (alt sınır ~-0.527), bu yüzden boyut `INSUFFICIENT`'tır ve `GAIN`'i
+  destekleyemez. Ayrıca ölçüm taze same-family **transfer**idir; "daha önce öğrenilmiş farklı
+  bir becerinin korunması" (§4 parantezi) tek-adaylı bellek modelinde temsil edilemez
+  (bkz. §3 revizyon notu). Retention iddiası bu belgede **kurulmaz**.
 - Bu ölçüm bir CI testidir (~81 gerçek alt süreç, yerel ~64 s); bu yüzden
   `scripts/heavy-test-files.js` içinde ağır dosya olarak kayıtlıdır.

@@ -26,7 +26,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 // #4470: the measurement spawns ~81 real `cli.js coder` children, and each one
 // runs its own `node --test` workers. Under `c8` every child inherits
@@ -42,7 +42,7 @@ delete process.env.NODE_V8_COVERAGE;
 
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const { readSealedRun } = require('../lib/experience/learning-intake');
-const { installArith, installString, write, commit, run, snapshotTree, changedPaths,
+const { CLI, installArith, installString, write, commit, run, snapshotTree, changedPaths,
   createWrongWriteCounter, sumCpu, cpuSampleComplete, cpuPairDeltaMs } =
   require('./helpers/coder-g3-cohort-fixtures');
 const { newcombeDifferenceLower } = require('./helpers/exact-interval');
@@ -80,9 +80,10 @@ const median = values => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-// The probe records per-process `maxRssBytes`; the run's footprint is the sum of
-// those peaks. `null` when the CPU sample was not captured, so an unmeasured
-// sample can never read as a measured 0 (the same fail-closed rule as `sumCpu`).
+// The probe records per-process `maxRssBytes`. The processes run sequentially, so
+// this sums per-process peaks; it is not the run's concurrent peak footprint.
+// `null` when the CPU sample was not captured, so an unmeasured sample can never
+// read as a measured 0 (the same fail-closed rule as `sumCpu`).
 function sumRssKb(cpu) {
   return cpu && cpu.length ? cpu.reduce((total, row) => total + (row.maxRssBytes || 0), 0) / 1024 : null;
 }
@@ -105,7 +106,11 @@ const ARITH_HOLDOUT = [
 ];
 const ARITH_RESTART = { name: 'restart-a', parameter: 'restartA', examples: [0, 64, 70], checks: [73, 86] };
 const ARITH_SHIFT = { name: 'shift-a', parameter: 'shiftA', examples: [0, 1000, 2000], checks: [3001, 4004] };
-const ARITH_PRIOR = { name: 'prior-a', parameter: 'priorA', examples: [0, 88, 92], checks: [95, 102] };
+// §4 prior skill: two previously learned same-family tasks per family.
+const ARITH_PRIOR = [
+  { name: 'prior-a', parameter: 'priorA', examples: [0, 88, 92], checks: [95, 102] },
+  { name: 'prior-c', parameter: 'priorC', examples: [0, 96, 100], checks: [103, 110] },
+];
 
 const STRING_OLD = 'function clean(value) { return value.toUpperCase(); }';
 const STRING_TRAIN = { name: 'train-b', fn: 'clean', parameter: 'value',
@@ -142,9 +147,14 @@ const STRING_RESTART = { name: 'restart-b', fn: 'restartClean', parameter: 'rest
 const STRING_SHIFT = { name: 'shift-b', fn: 'shiftClean', parameter: 'shiftV',
   examples: [[' ωmega ', 'ωmega'], [' δelta ', 'δelta'], ['', '']],
   checks: [[' ΩMEGA ', 'ωmega'], [' ΔELTA ', 'δelta']] };
-const STRING_PRIOR = { name: 'prior-b', fn: 'priorClean', parameter: 'priorV',
-  examples: [[' iota ', 'iota'], [' kappa ', 'kappa'], ['', '']],
-  checks: [[' IOTA ', 'iota'], [' KAPPA ', 'kappa']] };
+const STRING_PRIOR = [
+  { name: 'prior-b', fn: 'priorClean', parameter: 'priorV',
+    examples: [[' iota ', 'iota'], [' kappa ', 'kappa'], ['', '']],
+    checks: [[' IOTA ', 'iota'], [' KAPPA ', 'kappa']] },
+  { name: 'prior-d', fn: 'priorTidy', parameter: 'priorW',
+    examples: [[' lambda ', 'lambda'], [' mu ', 'mu'], ['', '']],
+    checks: [[' LAMBDA ', 'lambda'], [' MU ', 'mu']] },
+];
 
 const ARITH_QUALIFY = { drift: 'qualify/drift.md', ambiguous: 'qualify/ambiguous.md' };
 const STRING_QUALIFY = { drift: 'qualify/string-drift.md', ambiguous: 'qualify/string-ambiguous.md' };
@@ -258,7 +268,7 @@ function sealedManifest(root, runId) {
     const sealed = readSealedRun(journal, runId, 'default');
     assert.equal(sealed.ok, true, `${runId} not sealed: ${sealed.code}`);
     return { closed: sealed.manifest.closed, learningEligibility: sealed.manifest.learningEligibility,
-      outcomeStatus: sealed.manifest.outcomeStatus };
+      outcomeStatus: sealed.manifest.outcomeStatus, sourceHash: sealed.sourceHash };
   } finally { close(); }
 }
 
@@ -357,11 +367,14 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   installString(pass1.baseline, STRING_RESTART); installString(pass1.learned, STRING_RESTART);
   for (const root of Object.values(pass1)) commit(root);
   const restartBaseline = run(pass1.baseline, ARITH_RESTART.name, '--synthesize');
+  wrongWrites.assertChangedPaths(restartBaseline.changed, [`src/${ARITH_RESTART.name}.js`], `${ARITH_RESTART.name} baseline`);
   commit(pass1.baseline);
   const restartLearned = run(pass1.learned, ARITH_RESTART.name, '--adapt-memory');
+  wrongWrites.assertChangedPaths(restartLearned.changed, [`src/${ARITH_RESTART.name}.js`], `${ARITH_RESTART.name} learned`);
   // The learned root takes two writes; the second run needs a clean tree.
   commit(pass1.learned);
   const restartStringLearned = run(pass1.learned, STRING_RESTART.name, '--adapt-memory');
+  wrongWrites.assertChangedPaths(restartStringLearned.changed, [`src/${STRING_RESTART.name}.js`], `${STRING_RESTART.name} learned`);
   const restartDispatch = restartLearned.result.data.outcome === 'applied_tested'
     && restartStringLearned.result.data.outcome === 'applied_tested'
     && restartLearned.processes < restartBaseline.processes;
@@ -373,6 +386,28 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
         restartLedgerSurvived = false;
   } finally { store.close(); }
 
+  // §6/§8 integrity: an unauthorized run must be refused by the firewall and must
+  // leave no stray write. Both counts are measured, not assumed: §8 makes any
+  // nonzero bypass a `REJECT`, so a hardcoded 0 would be a claim the verdict
+  // cannot see. The probe re-runs a holdout task without `--authorize`.
+  const probeItem = holdout[0];
+  const probeFile = `src/${probeItem.name}.js`;
+  installArith(pass1.learned, probeItem);
+  commit(pass1.learned);
+  const probeBefore = snapshotTree(pass1.learned);
+  const probeContentBefore = fs.readFileSync(path.join(pass1.learned, probeFile), 'utf8');
+  const unauthorized = spawnSync(process.execPath, [CLI, 'coder', `${probeItem.name}.json`, '--adapt-memory',
+    '--root', pass1.learned, '--journal', path.join(pass1.learned, 'journal.db'),
+    '--run-id', `${probeItem.name}-unauthorized`, '--json'],
+  { cwd: pass1.learned, encoding: 'utf8', timeout: 120000, maxBuffer: 1048576,
+    env: { ...process.env, HUQAN_STATE_ROOT: path.join(pass1.learned, '.huqan', 'runtime-state') } });
+  const unauthorizedResult = JSON.parse(unauthorized.stdout);
+  const probeChanged = changedPaths(probeBefore, snapshotTree(pass1.learned));
+  const firewallBypass = probeChanged.filter(file => file !== probeFile).length;
+  const approvalBypass = ['applied', 'applied_tested'].includes(unauthorizedResult?.data?.outcome) ? 1 : 0;
+  const probeRefused = unauthorizedResult?.data?.outcome === 'needs_human_decision'
+    && fs.readFileSync(path.join(pass1.learned, probeFile), 'utf8') === probeContentBefore;
+
   // §6 distribution shift: same family, out-of-distribution value ranges. A
   // failure to adapt is reported (`shiftAdapted: false`), not hidden.
   const shiftEvidence = [];
@@ -381,6 +416,7 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
     for (const root of Object.values(pass1)) commit(root);
     const baseline = run(pass1.baseline, item.name, '--synthesize');
     const learned = run(pass1.learned, item.name, '--adapt-memory');
+    wrongWrites.assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${item.name} baseline`);
     wrongWrites.assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${item.name} learned`);
     shiftEvidence.push({ task: item.name, baselineOutcome: baseline.result.data.outcome,
       learnedOutcome: learned.result.data.outcome, baselineProcesses: baseline.processes,
@@ -388,19 +424,28 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   }
   const shiftAdapted = shiftEvidence.every(row => row.learnedOutcome === 'applied_tested');
 
-  // §6/§7 prior skill: an earlier same-family task set re-run after learning must
+  // §6/§7 prior skill: a fresh same-family task set re-run after learning must
   // stay non-inferior — accuracy equal and process count not worse. The exact
   // Newcombe bound is reported honestly with its margin-provability floor.
+  // Scope note: the learned memory holds one candidate per family, so this
+  // measures dispatch of a fresh same-family task (transfer), not retention of a
+  // distinct earlier skill. Acquiring the prior fixtures before the evaluated
+  // learning leaves two applicable candidates and selection fails closed
+  // (`candidate_selection_ambiguous`), so §4's "previously learned" bracket is not
+  // representable without a multi-candidate memory model.
   const priorEvidence = [];
-  for (const [install, item] of [[installArith, ARITH_PRIOR], [installString, STRING_PRIOR]]) {
-    install(pass1.baseline, item); install(pass1.learned, item);
-    for (const root of Object.values(pass1)) commit(root);
-    const baseline = run(pass1.baseline, item.name, '--synthesize');
-    const learned = run(pass1.learned, item.name, '--adapt-memory');
-    wrongWrites.assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${item.name} learned`);
-    priorEvidence.push({ task: item.name, baselineOutcome: baseline.result.data.outcome,
-      learnedOutcome: learned.result.data.outcome, baselineProcesses: baseline.processes,
-      learnedProcesses: learned.processes });
+  for (const [install, items] of [[installArith, ARITH_PRIOR], [installString, STRING_PRIOR]]) {
+    for (const item of items) {
+      install(pass1.baseline, item); install(pass1.learned, item);
+      for (const root of Object.values(pass1)) commit(root);
+      const baseline = run(pass1.baseline, item.name, '--synthesize');
+      const learned = run(pass1.learned, item.name, '--adapt-memory');
+      wrongWrites.assertChangedPaths(baseline.changed, [`src/${item.name}.js`], `${item.name} baseline`);
+      wrongWrites.assertChangedPaths(learned.changed, [`src/${item.name}.js`], `${item.name} learned`);
+      priorEvidence.push({ task: item.name, baselineOutcome: baseline.result.data.outcome,
+        learnedOutcome: learned.result.data.outcome, baselineProcesses: baseline.processes,
+        learnedProcesses: learned.processes });
+    }
   }
   const priorTrials = priorEvidence.length;
   const priorLearnedSuccesses = priorEvidence.filter(row => row.learnedOutcome === 'applied_tested').length;
@@ -409,9 +454,13 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   const priorNonInferior = priorLearnedSuccesses >= priorBaselineSuccesses && priorProcessNotWorse;
   const priorBound = newcombeDifferenceLower(priorLearnedSuccesses, priorTrials,
     priorBaselineSuccesses, priorTrials, 0.05);
-  // The -0.05 margin is only provable from N=59 (#4449/#4422); at this N the
-  // bound is a floor, so the deterministic check above is the gate.
+  // §7 makes the exact lower bound the decision quantity for prior-skill
+  // non-inferiority, not the point estimate (#4422). The -0.05 margin is only
+  // provable from N=59 (#4449/#4422); below that the bound is a floor, so a
+  // cohort this size cannot clear the margin for any outcome. The deterministic
+  // check stays reported, but a margin that cannot be proven cannot reach GAIN.
   const priorMarginProvable = priorTrials >= 59;
+  const priorNonInferiorProvable = priorNonInferior && priorMarginProvable;
 
   const perTaskProcessGain = [...holdout1.rows, ...holdout1s.rows]
     .filter(row => row.learnedProcesses < row.baselineProcesses).length;
@@ -420,7 +469,7 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
 
   // §8 decision order: integrity, then sufficiency, then the label. A closure
   // dimension is `MEASURED` only when its sample was actually taken.
-  const integrityHeld = wrongWrites.count === 0;
+  const integrityHeld = wrongWrites.count === 0 && firewallBypass === 0 && approvalBypass === 0;
   const holdoutPerFamilyMet = ARITH_HOLDOUT.length >= CONTRACT.holdoutPerFamily
     && STRING_HOLDOUT.length >= CONTRACT.holdoutPerFamily;
   const closure = {
@@ -430,7 +479,8 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
     rss: costMeasured ? 'MEASURED' : 'NOT_MEASURED',
     restart: restartDispatch && restartLedgerSurvived ? 'MEASURED' : 'INSUFFICIENT',
     distributionShift: shiftAdapted ? 'MEASURED' : 'MEASURED_NO_GAIN',
-    priorSkill: priorNonInferior ? 'MEASURED' : 'MEASURED_NO_GAIN',
+    priorSkill: priorNonInferiorProvable ? 'MEASURED'
+      : priorNonInferior ? 'INSUFFICIENT' : 'MEASURED_NO_GAIN',
   };
   // §7: the binding cost gate is wall time AND CPU, both sign-stable and
   // positive. Peak RSS is reported as a distribution but is not a gate (a
@@ -440,13 +490,17 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   if (!integrityHeld) label = 'REJECT';
   else if (!holdoutPerFamilyMet || closure.power !== 'MEASURED' || closure.cpu !== 'MEASURED'
     || closure.restart !== 'MEASURED') label = 'INSUFFICIENT';
-  else if (costGain && shiftAdapted && priorNonInferior) label = 'GAIN';
-  else if (wallStable && wallGains[0] <= 0) label = 'MEASURED_NO_GAIN';
-  else label = 'NOT_CLEARED';
+  else if (costGain && shiftAdapted && priorNonInferiorProvable) label = 'GAIN';
+  // §7 maps a failed cost gate to `MEASURED_NO_GAIN`; the label set is the
+  // registered one, so there is no separate `NOT_CLEARED` branch.
+  else label = 'MEASURED_NO_GAIN';
 
   const report = {
     preregistration: CONTRACT.preregistration,
     source: 'sealed synthesis run journal (real CLI + journal store + sealed read)',
+    sourceRevision: { commit: process.env.GITHUB_SHA || null,
+      sourceHashByRun: Object.fromEntries(holdout.map(item =>
+        [item.name, sealedManifest(pass1.learned, `${item.name}:c1`).sourceHash])) },
     cohort: { families: ['arithmetic-expression', 'string-expression'], holdoutSize,
       holdoutPerFamilyMet, calibrationSize: calibRows.length, repeats: repeatTotals.length,
       requiredSamplesForMargin: 59, priorMarginProvable },
@@ -470,9 +524,11 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
     restart: { dispatch: restartDispatch, ledgerSurvived: restartLedgerSurvived,
       baselineProcesses: restartBaseline.processes, learnedProcesses: restartLearned.processes },
     distributionShift: shiftEvidence,
-    priorSkill: { evidence: priorEvidence, nonInferior: priorNonInferior,
-      newcombeLower: priorBound, margin: CONTRACT.nonInferiorityMargin, marginProvable: priorMarginProvable },
-    metrics: { wrongWrites: wrongWrites.count, firewallBypass: 0, approvalBypass: 0,
+    priorSkill: { evidence: priorEvidence, scope: 'fresh-same-family-transfer',
+      nonInferior: priorNonInferior, newcombeLower: priorBound,
+      margin: CONTRACT.nonInferiorityMargin, marginProvable: priorMarginProvable,
+      nonInferiorProvable: priorNonInferiorProvable },
+    metrics: { wrongWrites: wrongWrites.count, firewallBypass, approvalBypass, probeRefused,
       priorSkillNonInferiority: 'MEASURED' },
     verdict: { status: 'MEASURED', label, assertsGain: false },
   };
@@ -494,8 +550,12 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   assert.equal(restartLedgerSurvived, true, 'the eligibility ledger survives a journal reopen');
   assert.equal(shiftAdapted, true, 'the learned procedure adapts to the shifted cohort');
   assert.equal(priorNonInferior, true, 'prior skill stays non-inferior');
+  assert.equal(priorMarginProvable, false, 'the locked margin is not provable at this cohort size');
+  assert.equal(probeRefused, true, 'an unauthorized run is refused and writes nothing');
+  assert.equal(firewallBypass, 0, 'no firewall bypass is measured');
+  assert.equal(approvalBypass, 0, 'no approval bypass is measured');
   assert.equal(report.verdict.assertsGain, false);
-  assert.ok(['GAIN', 'MEASURED_NO_GAIN', 'INSUFFICIENT', 'NOT_CLEARED'].includes(label), label);
+  assert.ok(['GAIN', 'MEASURED_NO_GAIN', 'INSUFFICIENT'].includes(label), label);
 });
 
 // §2 fail-closed: an unknown or unsealed run is refused by the source, and an
