@@ -236,3 +236,25 @@ test('the mandatory floor keeps the path-containment safety test on an impact-on
     'the CLI path-containment safety test must stay in the mandatory floor',
   );
 });
+
+test('the bounded Coder E2E is selected whenever Coder, task-producer, test-execution, routing or admission code changes (#4450)', () => {
+  // The release-grade Coder contract is only worth having if CI actually runs
+  // it. These five surfaces are the acceptance criteria's list; a change to any
+  // of them must pull `test/coder-e2e-contract.test.js` into the selection
+  // through the dependency graph, with no hand-written rule.
+  const coderE2e = 'test/coder-e2e-contract.test.js';
+  assert.ok(knownTests.includes(coderE2e), 'the bounded Coder E2E must be a discovered test');
+  const surfaces = [
+    'lib/coder/apply-derivation.js',      // Coder execution core
+    'lib/task-producer.js',               // task derivation
+    'lib/coder/test-execution.js',        // declared test execution
+    'lib/experience/coder-routing-runtime.js', // learned routing
+    'lib/error-prevention/index.js',      // admission / failure records
+  ];
+  for (const surface of surfaces) {
+    const plan = buildTestImpactPlan({ changedFiles: [surface], runtimeOrTest: true });
+    assert.ok(plan.selectedTests.includes(coderE2e), `${surface} must select the bounded Coder E2E`);
+    assert.match(JSON.stringify(plan.selectedReasons[coderE2e]), /depends on/, surface);
+  }
+});
+

@@ -51,6 +51,13 @@ const HEAVY_FILE_TIMEOUT_MS = 240_000;
 // every other heavy file keeps the 240s hang detection.
 const HEAVY_FILE_TIMEOUT_OVERRIDES = Object.freeze({
   'test/kernel-facade-contract.test.js': 540_000,
+  // The G3 enlarged sealed-run cohort (#4449) is the heaviest non-install file:
+  // 142 real `cli.js coder` child processes at the frozen N=70 protocol, ~112s
+  // locally on Node 24. Windows process spawn is the same ~2x that turned the
+  // 60s M5 file into a >90s kill above, so the 240s shared cap leaves too little
+  // headroom for a file that cannot be shortened without dropping below the
+  // margin-provable size (59).
+  'test/g3-sealed-run-cohort-result.test.js': 360_000,
 });
 const HEAVY_FILES = Object.freeze(new Set([
   // Real per-case Git/approval/rollback checks passed in 221s under local load.
@@ -122,6 +129,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // the 90s cap on the windows-latest Node 24 shard 2 of PR #4422: the same
   // loaded-runner variance as the entries above, not a hang.
   'test/cognitive-lab-m5-g2.test.js',
+  // G3 enlarged sealed-run cohort (#4449) runs 142 real `cli.js coder` child
+  // processes (2 training + 2x70 paired) at the frozen N=70 protocol, which
+  // cannot be shortened without dropping below the margin-provable size (59).
+  // It passes in 112s locally on Node 24, so the ordinary 90s cap would kill a
+  // file that is still working.
+  'test/g3-sealed-run-cohort-result.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {

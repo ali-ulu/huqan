@@ -351,7 +351,10 @@ const GOLDEN = {
   // #3892 adds the `receipt verify <id> [--workspace <id>]` usage line (one line).
   // #3905 re-words the `stop` usage line (one line): the stop now covers every
   // agent, MCP, HTTP and CLI call in a workspace.
-  'yardım': '27df26f412b49365788b972459d4f3d96116ea0b96ae52fe725ed01db050ed84',
+  // #4450 re-words the `coder` description (one line) to state the bounded
+  // contract and claim boundary; diffing the help text against main shows
+  // exactly that one changed line and nothing else.
+  'yardım': 'f8b9e9bd559ee709b1e1619ac2fef8b593c0f894e02eb92930966a741cc38154',
   // #4339 adds `[--journal <existing-experience.db>]` to the terfi usage line; re-recorded.
   'terfi': '51b73aa264d7598f4a4279e41bc0e2463ff2bb43c00366eddd9d9223176b5a88',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',

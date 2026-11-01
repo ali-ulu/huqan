@@ -19,6 +19,8 @@
  * Main is green only when the commit has settled, at least one workflow ran,
  * no latest workflow run is blocking, and every post-merge context is SUCCESS.
  * PR-only contexts are listed as not observable post-merge, never as green.
+ * A run the watcher can never re-run (a Dependabot `dynamic` run, #4451) is
+ * reported separately and does not withhold green (#4458).
  *
  * Node built-ins only: the watcher job runs without `npm ci`.
  *
@@ -73,6 +75,13 @@ function contextState(run) {
   return PASSING_CONCLUSIONS.has(run.conclusion) ? 'SUCCESS' : 'FAILED';
 }
 
+// Events the watcher can never re-run: GitHub refuses `rerun-failed-jobs` for a
+// Dependabot `dynamic` run with 403 "This workflow run cannot be retried", so
+// the retry loop classifies it as non-retriable before it asks (#4451). The
+// verdict must agree about the same run and not name it as the reason main is
+// withheld from green (#4458).
+const NON_ACTIONABLE_EVENTS = new Set(['dynamic']);
+
 /** Workflow runs whose latest attempt is still running or did not pass. */
 function blockingWorkflowRuns(workflowRuns) {
   const latest = new Map();
@@ -84,9 +93,14 @@ function blockingWorkflowRuns(workflowRuns) {
     if (!known || rank[0] > knownRank[0] || (rank[0] === knownRank[0] && rank[1] > knownRank[1])) latest.set(run.name, run);
   }
   const runs = [...latest.values()];
+  // A non-actionable run stays counted and reported so it is visible; it only
+  // stops being a reason to withhold green.
+  const nonActionable = runs.filter((run) => NON_ACTIONABLE_EVENTS.has(run.event)).map((run) => run.name);
+  const actionable = runs.filter((run) => !NON_ACTIONABLE_EVENTS.has(run.event));
   return {
     count: runs.length,
-    blocking: runs.filter((run) => run.status !== 'completed' || !PASSING_CONCLUSIONS.has(run.conclusion)).map((run) => run.name),
+    blocking: actionable.filter((run) => run.status !== 'completed' || !PASSING_CONCLUSIONS.has(run.conclusion)).map((run) => run.name),
+    nonActionable,
   };
 }
 
@@ -126,6 +140,7 @@ function mainCiState({ inventory, checkRuns, workflowRuns, committedAt, now }) {
     ageSeconds,
     overdueAfterSeconds: OVERDUE_SECONDS,
     blockingWorkflows: workflows.blocking,
+    nonActionableWorkflows: workflows.nonActionable,
     workflowRunCount: workflows.count,
     notObservablePostMerge: prOnly,
   };
