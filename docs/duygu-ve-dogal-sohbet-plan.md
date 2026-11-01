@@ -1,7 +1,7 @@
 # HUQAN duygu döngüsü ve doğal sohbet uygulama planı
 
 Tarih: 2026-10-29. Son güncelleme: 2026-11-01.
-Durum: A ve B teslim edildi; C altyapısı teslim edildi (PR-1 #4446, PR-2 #4447, PR-3 #4453), C'nin ölçümü ile D–F açık ve izleniyor. Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
+Durum: A ve B teslim edildi; C altyapısı teslim edildi (PR-1 #4446, PR-2 #4447, PR-3 #4453); D'nin Laya kapanış denetimi teslim edildi (karar STAY_SHADOW); C'nin ölçümü ile D'nin kalan adımları ve E–F açık ve izleniyor. Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
 Kaynak taban: ali-ulu/huqan main `fed7be80c075d45c6d73b98af7f9cffa9111eff6`.
 COG ana program: #4060. Bu plan mevcut mimari sözleşmenin yerine geçmez.
 Kapsam onayı: duygu motoru ve doğal sohbeti planlamak, belgelemek, GitHub Project ve issue bağlarını kurmak. Runtime kodu/eğitim/model indirme bu teslimde yoktur.
@@ -15,7 +15,7 @@ COG Project: https://github.com/users/ali-ulu/projects/7
 | A — Çekirdek ve gerçek gözlem | #4391 | Kapandı | PR-1 #4437, PR-2 #4441 | M1 #4064, M2 #4061, M8 #4062, M9 #4063 tekrar kullanılır |
 | B — Sorumluluk ve onarım | #4392 | Kapandı | PR-1 #4442, PR-2 #4443, PR-3 #4444 | A #4391 |
 | C — Konuşma/hafıza girişi | #4393 | Altyapı teslim | PR-1 #4446 (saf sözleşme), PR-2 #4447 (workspace'e bağlı yüzey), PR-3 #4453 (mevcut `/answer` ve proxy girişlerine ince adapter) | A #4391 ve B #4392 ile sözleşme uyumu; kalan: G2 ölçümü (F #4396) |
-| D — Laya/yorumlayıcı | #4394 | Açık | — | C #4393 şeması; Laya kapanış denetimi ilk alt adımdır |
+| D — Laya/yorumlayıcı | #4394 | Kapanış denetimi teslim | `docs/audits/laya-closure-audit-20261101.md` (karar: STAY_SHADOW) | C #4393 şeması; kalan: ONNX/Node paritesi, lisans ve daha büyük holdout |
 | E — Yerel üretken sohbet | #4395 | Açık | — | C #4393 ve D #4394'teki tek hat/kapanış kararı |
 | F — Birleşik ölçüm | #4396 | Açık | — | A–E; #4387 M7 düzeltmesi ve #4388 M9 ölçümüyle koordinasyon |
 
