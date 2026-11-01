@@ -294,8 +294,17 @@ test('preregistered G3 cohort: learned arms hold accuracy and cut amortized tota
     },
     verdict: { testRun: 'PASSED', h1: hypothesisVerdict },
   };
-  // The preregistered H1 verdict must be the report's actual value; this pins the
-  // expected outcome for this measurement so a silent change in the verdict fails.
-  assert.equal(report.verdict.h1, 'NOT_PROVEN');
+  // The preregistered deterministic H1 inputs are pinned; the H1 verdict itself
+  // is not, because H1c (§1c, amortized wall gain) is a single hrtime observation
+  // and §7 classifies it as a threshold report, not a CI assertion (#4464). A
+  // sub-second scheduling shift flips wallGainVerdict and with it the verdict, so
+  // pinning it fails on a loaded runner for reasons the measurement did not change.
+  assert.equal(holdoutCountMet, true);
+  assert.equal(perTaskProcessGain, evidence.length);
+  assert.equal(report.verdict.testRun, 'PASSED');
+  assert.ok(['PROVEN', 'NOT_PROVEN'].includes(report.verdict.h1));
+  // The wall gain stays in the report as one observation; it is never asserted.
+  assert.equal(report.totals.amortizedWallGainMs, amortizedWallGainMs);
+  assert.equal(report.metricVerdicts.amortizedWallGainMs, wallGainVerdict);
   t.diagnostic(JSON.stringify(report));
 });
