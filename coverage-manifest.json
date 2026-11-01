@@ -826,22 +826,22 @@
       ],
       "sites": [
         {
-          "line": 137,
+          "line": 141,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 139,
+          "line": 143,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 158,
+          "line": 162,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 175,
+          "line": 179,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
