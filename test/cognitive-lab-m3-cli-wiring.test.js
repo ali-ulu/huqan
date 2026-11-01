@@ -48,14 +48,15 @@ function fixture(t) {
       journalHash: digest(file('source.db')), predictionHash: digest(file('prediction.json')), requestHash: digest(file('replay.json')) }],
     tasks: [{ taskId: 'held-out', familyId: 'evaluation-family', split: 'holdout', oracleId: 'oracle' }],
     records: [{ taskId: 'held-out', A1: null, A2: null }], oracleFile: 'oracle.json', oracleHash: digest(file('oracle.json')),
-    protocolHash: digest(path.resolve(__dirname, '../docs/task-packs/cog-m3-family-evaluation-contract.md')) };
+    protocolHash: sha256Hex(fs.readFileSync(path.resolve(__dirname, '../docs/task-packs/cog-m3-family-evaluation-contract.md'), 'utf8').replace(/\r\n/g, '\n')) };
   const save = () => {
     delete request.lockHash;
     request.lockHash = sha256Hex(stableStringify(request));
     fs.writeFileSync(file('request.json'), JSON.stringify(request));
   };
   save();
-  fs.writeFileSync(file('no-graph.js'), `const p=require.resolve(${JSON.stringify(path.resolve(__dirname, '../graph'))});require(p);require.cache[p].exports=class {constructor(){throw Error('Graph constructor forbidden')}};`);
+  fs.writeFileSync(file('no-graph.js'), `const p=require.resolve(${JSON.stringify(path.resolve(__dirname, '../graph'))});require(p);require.cache[p].exports=class {constructor(){throw Error('Graph constructor forbidden')}};
+const fs=require('node:fs'),open=fs.openSync;fs.openSync=function(file,...args){if(String(file).replaceAll('\\\\','/').includes('/docs/task-packs/'))throw Error('Packaged runtime must not read task-pack docs');return open.call(this,file,...args)};`);
   const invoke = (...args) => spawnSync(process.execPath,
     ['--require', file('no-graph.js'), path.resolve(__dirname, '../bin/huqan-cognitive-lab.js'), ...args],
     { cwd: dir, windowsHide: true, encoding: 'utf8', timeout: 20000 });

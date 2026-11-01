@@ -17,7 +17,10 @@ Herhangi kolda yanlış yazma veya güven ihlali küçük örneklemden önce `RE
 Lab girişi açık `m3 --m3-records FILE` komutudur. İstek contract, workspaceId,
 asOf, splits, families, tasks, records, oracleFile/oracleHash, protocolHash ve
 lockHash içerir. lockHash, kendisi dışındaki tüm isteğin canonical SHA256'ıdır.
-protocolHash bu belgenin bayt hash'i; oracleHash ayrı oracle dosyasının hash'idir.
+protocolHash bu belgenin UTF-8, LF satır sonlarıyla SHA-256 özetidir;
+çalıştırıcı bu özeti sabitler ve yayımlanan pakette belge dosyası gerektirmez.
+Kaynak testi belge ile sabit özetin eşleşmesini doğrular.
+oracleHash ayrı oracle dosyasının bayt hash'idir.
 Ailelerin journal/prediction/request hash'leri kilitlenir. Kaynaklar salt okunur
 açılır, yeni Graph/depo oluşturulmaz; otomatik onay veya yürütme yapılmaz.
 
