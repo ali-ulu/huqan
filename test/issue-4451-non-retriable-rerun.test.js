@@ -227,10 +227,19 @@ function fixtures(dir, { shape }) {
   return { data };
 }
 
-function runWatcher(t, { shape }) {
+/**
+ * Run the workflow's own shell against the `gh` shim and report what it did.
+ *
+ * `setup` may adjust the fixture before the run. Windows `jq` emits CRLF, so
+ * the captured streams are stripped of `\r`: the watcher job runs on ubuntu
+ * only, and a trailing carriage return inside a captured run id is a harness
+ * artifact, not the behavior under test.
+ */
+function runScript(t, { shape, setup } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-issue-4451-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fixtures(dir, { shape });
+  if (setup) setup(path.join(dir, 'data'));
 
   const harness = `${ghShim()}\n${alertScript()}`;
   const testDir = dir.replaceAll(path.sep, '/');
@@ -250,17 +259,26 @@ function runWatcher(t, { shape }) {
     },
   });
   assert.ifError(result.error);
+
   const read = (file) => (fs.existsSync(path.join(dir, file))
-    ? fs.readFileSync(path.join(dir, file), 'utf8').trim().split('\n').filter(Boolean) : []);
-  const summary = fs.existsSync(path.join(dir, 'summary.md'))
-    ? fs.readFileSync(path.join(dir, 'summary.md'), 'utf8') : '';
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr, dir, summary,
-    created: read('created.log'), closed: read('closed.log'), retried: read('retried.log'),
-    lookedUp: read('looked-up.log') };
+    ? fs.readFileSync(path.join(dir, file), 'utf8').replaceAll('\r', '').trim().split('\n').filter(Boolean)
+    : []);
+  const summaryPath = path.join(dir, 'summary.md');
+  return {
+    status: result.status,
+    stdout: result.stdout.replaceAll('\r', ''),
+    stderr: result.stderr.replaceAll('\r', ''),
+    dir,
+    summary: fs.existsSync(summaryPath) ? fs.readFileSync(summaryPath, 'utf8').replaceAll('\r', '') : '',
+    created: read('created.log'),
+    closed: read('closed.log'),
+    retried: read('retried.log'),
+    lookedUp: read('looked-up.log'),
+  };
 }
 
 test('#4451: a refused re-run does not abort the pass; later commits are still scanned', { skip: SKIP }, (t) => {
-  const result = runWatcher(t, { shape: 'dependabot' });
+  const result = runScript(t, { shape: 'dependabot' });
 
   assert.equal(result.status, 0,
     `a 403 from rerun-failed-jobs must not fail the watcher; stderr:\n${result.stderr}`);
@@ -295,40 +313,24 @@ test('#4451: a refused re-run does not abort the pass; later commits are still s
 });
 
 test('#4451: a retry the API refuses is recorded as non-retriable, not as a success', { skip: SKIP }, (t) => {
-  // The same run, but this time it is not classified as dynamic (a `push`
-  // failure the API refuses anyway), so the refusal path itself is exercised.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-issue-4451-refused-'));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  fixtures(dir, { shape: 'benchmark' });
-  const data = path.join(dir, 'data');
-  // Make the benchmark retry itself refused, so the 403 arrives at the retry.
-  fs.writeFileSync(path.join(data, 'refuse-rerun.json'), JSON.stringify([BENCHMARK_RUN.id]));
-
-  const harness = `${ghShim()}\n${alertScript()}`;
-  const testDir = dir.replaceAll(path.sep, '/');
-  const scriptPath = path.join(dir, 'harness.sh');
-  fs.writeFileSync(scriptPath, harness);
-  const result = spawnSync(BASH, ['-e', '-o', 'pipefail', scriptPath], {
-    encoding: 'utf8', timeout: 20000, cwd: REPO_ROOT,
-    env: { ...process.env, TEST_DIR: testDir, REPO: 'ali-ulu/huqan', EVENT_SHA: '',
-      GH_TOKEN: 'fixture-token', GITHUB_STEP_SUMMARY: path.join(testDir, 'summary.md') },
+  // The benchmark retry itself is refused, so the 403 arrives at the retry call
+  // rather than from the pre-classification.
+  const result = runScript(t, {
+    shape: 'benchmark',
+    setup: (data) => fs.writeFileSync(path.join(data, 'refuse-rerun.json'), JSON.stringify([BENCHMARK_RUN.id])),
   });
-  assert.ifError(result.error);
-  const summary = fs.readFileSync(path.join(dir, 'summary.md'), 'utf8');
-  const created = fs.existsSync(path.join(dir, 'created.log'))
-    ? fs.readFileSync(path.join(dir, 'created.log'), 'utf8').trim().split('\n').filter(Boolean) : [];
 
   assert.equal(result.status, 0, `a refused retry must not fail the watcher; stderr:\n${result.stderr}`);
   assert.doesNotMatch(result.stderr, /no fixture/, 'the shim must answer every request');
   assert.match(result.stdout, new RegExp(`${BENCHMARK_RUN.id} is not re-runnable: This workflow run cannot be retried`));
-  assert.match(summary, /Not re-runnable runs \(1\)/);
-  assert.match(summary, new RegExp(`\\| ${BENCHMARK_RUN.id} \\| ${MAIN_SHAS[0].slice(0, 7)} \\| push \\|`));
+  assert.match(result.summary, /Not re-runnable runs \(1\)/);
+  assert.match(result.summary, new RegExp(`\\| ${BENCHMARK_RUN.id} \\| ${MAIN_SHAS[0].slice(0, 7)} \\| push \\|`));
   // A refused retry is a persistent failure, so it still raises the alert.
-  assert.deepEqual(created, [`ci(main): ${MAIN_SHAS[0].slice(0, 7)} has failing workflow(s)`]);
+  assert.deepEqual(result.created, [`ci(main): ${MAIN_SHAS[0].slice(0, 7)} has failing workflow(s)`]);
 });
 
 test('#4451: a successful retry still holds the alert back and is not reported as non-retriable', { skip: SKIP }, (t) => {
-  const result = runWatcher(t, { shape: 'benchmark' });
+  const result = runScript(t, { shape: 'benchmark' });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.retried, [String(BENCHMARK_RUN.id)], 'the eligible failure is retried once');
   assert.deepEqual(result.created, [], 'a re-run in flight must not raise an alert yet');
@@ -336,36 +338,24 @@ test('#4451: a successful retry still holds the alert back and is not reported a
 });
 
 test('#4451: the alert stays idempotent when a non-retriable run is the only failure', { skip: SKIP }, (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-issue-4451-idem-'));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  fixtures(dir, { shape: 'dependabot' });
-  const data = path.join(dir, 'data');
-  // Only the dynamic failure on the newest commit; the oldest commit is green.
-  fs.writeFileSync(path.join(data, `runs-${MAIN_SHAS[9]}.json`), JSON.stringify({
-    workflow_runs: [{ id: 1, name: 'Benchmark Regression', status: 'completed', conclusion: 'success', run_number: 1, run_attempt: 1, html_url: 'https://example.invalid/1' }],
-  }));
-  // An open alert for that commit already exists.
-  fs.writeFileSync(path.join(data, 'issues-open.json'), JSON.stringify([
-    { number: 1000, title: `ci(main): ${MAIN_SHAS[0].slice(0, 7)} has failing workflow(s)`,
-      body: `Main commit \`${MAIN_SHAS[0]}\` has completed workflow failures.\n\n_${MARKER}._` },
-  ]));
-
-  const harness = `${ghShim()}\n${alertScript()}`;
-  const testDir = dir.replaceAll(path.sep, '/');
-  const scriptPath = path.join(dir, 'harness.sh');
-  fs.writeFileSync(scriptPath, harness);
-  const result = spawnSync(BASH, ['-e', '-o', 'pipefail', scriptPath], {
-    encoding: 'utf8', timeout: 20000, cwd: REPO_ROOT,
-    env: { ...process.env, TEST_DIR: testDir, REPO: 'ali-ulu/huqan', EVENT_SHA: '',
-      GH_TOKEN: 'fixture-token', GITHUB_STEP_SUMMARY: path.join(testDir, 'summary.md') },
+  const result = runScript(t, {
+    shape: 'dependabot',
+    setup: (data) => {
+      // Only the dynamic failure on the newest commit; the oldest is green.
+      fs.writeFileSync(path.join(data, `runs-${MAIN_SHAS[9]}.json`), JSON.stringify({
+        workflow_runs: [{ id: 1, name: 'Benchmark Regression', status: 'completed', conclusion: 'success', run_number: 1, run_attempt: 1, html_url: 'https://example.invalid/1' }],
+      }));
+      // An open alert for that commit already exists.
+      fs.writeFileSync(path.join(data, 'issues-open.json'), JSON.stringify([
+        { number: 1000, title: `ci(main): ${MAIN_SHAS[0].slice(0, 7)} has failing workflow(s)`,
+          body: `Main commit \`${MAIN_SHAS[0]}\` has completed workflow failures.\n\n_${MARKER}._` },
+      ]));
+    },
   });
-  assert.ifError(result.error);
-  const created = fs.existsSync(path.join(dir, 'created.log'))
-    ? fs.readFileSync(path.join(dir, 'created.log'), 'utf8').trim().split('\n').filter(Boolean) : [];
 
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(created, [], 'the existing alert must not be duplicated');
+  assert.deepEqual(result.created, [], 'the existing alert must not be duplicated');
   assert.match(result.stdout, /alert issue #1000 already exists/);
-  const open = JSON.parse(fs.readFileSync(path.join(data, 'issues-open.json'), 'utf8'));
+  const open = JSON.parse(fs.readFileSync(path.join(result.dir, 'data', 'issues-open.json'), 'utf8'));
   assert.equal(open.length, 1, 'the pass leaves exactly the one pre-existing alert');
 });
