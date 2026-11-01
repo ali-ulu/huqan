@@ -1619,6 +1619,7 @@
     "specs/huqan-evidence-pack/0.1/README.md",
     "specs/huqan-evidence-pack/0.1/verify_pack.py",
     "SECURITY_INVARIANTS.md",
+    "lib/conversation-ingress.js",
     "lib/conversation-store.js",
     "lib/http/conversation-route.js",
     "lib/cognition/conversation-turn.js"
