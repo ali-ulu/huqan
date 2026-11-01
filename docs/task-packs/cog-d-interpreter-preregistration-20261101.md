@@ -88,13 +88,21 @@ için (denetim §5) o kaynak bu ön-kayıt kapsamında **kullanılmaz**.
 ## 5. Metrikler ve donmuş eşikler
 
 Ölçüm **eşlenmiş (paired)** ve sınıf bazlıdır. Birincil karşılaştırma: **yorumlayıcı kol (D)**
-vs **taban kol (B = mevcut Laya/`shadow` sinyali)**.
+vs **taban kol (B)**.
+
+**Taban kol B (dondurulmuş):** deterministik, kural tabanlı yorumlayıcı (model yok). Sınıf
+başına anahtar-kelime/kural seti ve `unknown` eşiği bu ön-kayıtla dondurulur; sonuç görülmeden
+değiştirilmez. **Laya-v1 bu etiketler için taban olamaz:** denetim §8.1'e göre Laya'nın
+appraisal/duygu görevi yoktur, C şemasına etiket alanı eklenmemiştir ve Laya-v1 BEV çelişki
+tespitidir. Bu yüzden B, Laya `shadow` sinyali değil, dondurulmuş deterministik kural tabanıdır.
+Laya yalnız §5'in son satırındaki mevcut-görev non-inferiority kapısında referanstır.
 
 | Metrik | Yön | Donmuş eşik |
 | --- | --- | --- |
 | Sınıf-bazlı F1 (`irony`,`quotation`,`anger`,`achievement`,`responsibility`) | yüksek iyi | her sınıf ≥ taban; macro-F1 farkı paired-bootstrap %95 CA alt sınırı > 0 |
 | `unknown`/abstention precision | yüksek iyi | ≥ 0.80 (yanlış kesinlik üretmeme) |
-| Abstention coverage | — | ≥ 0.10 (aşırı abstain yasak) ve ≤ 0.50 |
+| Non-abstain coverage (abstain etmeyen payı) | — | ≥ 0.10 (R51 devralınan kapı; aşırı abstain yasak) |
+| Abstention share (abstain payı) | düşük iyi | ≤ 0.50 |
 | ECE (10-bin) | düşük iyi | bozulma ≤ 0.02 (taban'a göre) |
 | Non-inferiority (mevcut görevler) | — | mevcut Laya BEV görevinde F1 düşüşü ≤ 0.01 |
 | Non-inferiority (güvenlik) | — | firewall/risk kararlarında **sıfır** gerileme (kapı, eşik değil) |
@@ -102,8 +110,11 @@ vs **taban kol (B = mevcut Laya/`shadow` sinyali)**.
 **Karar kuralları (dondurulmuş):**
 
 - Paired-bootstrap: seed `4394`, resamples `2000`, güven `0.95`.
-- `GAIN`: macro-F1 paired CA alt sınırı > 0 **ve** ECE bozulması ≤ 0.02 **ve** abstention
-  coverage ∈ [0.10, 0.50] **ve** güvenlik non-inferiority geçti.
+- `GAIN`: macro-F1 paired CA alt sınırı > 0 **ve** her sınıf F1 ≥ taban **ve**
+  `unknown`/abstention precision ≥ 0.80 **ve** non-abstain coverage ≥ 0.10 **ve**
+  abstention share ≤ 0.50 **ve** ECE bozulması ≤ 0.02 **ve** mevcut Laya BEV görevinde
+  F1 düşüşü ≤ 0.01 **ve** güvenlik non-inferiority geçti. Tablodaki tüm satırlar GAIN
+  koşuludur; hiçbiri yalnız yardımcı değildir.
 - `MEASURED_NO_GAIN`: metrikler ölçüldü, `GAIN` koşulu sağlanmadı.
 - `INSUFFICIENT`: holdout adjudication `PENDING`, örnek yetersiz veya sızıntı kapısı kırmızı.
 - `REJECT`: güvenlik non-inferiority geriledi veya sızıntı kanıtlandı.
@@ -114,8 +125,13 @@ vs **taban kol (B = mevcut Laya/`shadow` sinyali)**.
 Örnek sayısı "kanıt" sayılmaz; güç hesabıyla gerekçelenir (biçim: `coder-learning-g3-power-cost-preregistration-20261030.md`).
 
 - `alpha 0.05` / `power 0.8` → `z_alpha 1.96`, `z_power 0.84`.
-- **Pilot:** ilk 40 parça (calibration bölmesinden, holdout dışı) eşlenmiş deltalardan `sigma`
-  (sınıf-bazlı F1 farkı standart sapması) ölçülür. Pilot holdout'tan **ayrıdır**.
+- **Gözlem birimi (dondurulmuş):** bir **parça** (konuşma, en az iki tur). Eşlenmiş gözlem,
+  aynı parça üzerinde D ve B kollarının macro-F1 katkısı arasındaki farktır; birim `delta_i =
+  f1_D(parça_i) − f1_B(parça_i)`. Sınıf-bazlı F1, önce parça düzeyinde hesaplanıp sonra
+  bölme genelinde mikro-ortalanır; `delta_i` bu mikro-ortalamanın parça katkısıdır.
+- **Pilot:** ilk 40 parça (calibration bölmesinden, holdout dışı) üzerinden `delta_i`
+  dizisinden `sigma` = örnek standart sapması. `sigma`, §5 birincil ölçüsü olan macro-F1
+  farkıyla **aynı ölçektedir**; pilot holdout'tan **ayrıdır**.
 - **Asgari anlamlı etki (dondurulmuş):** `MIN_EFFECT = 0.05` macro-F1 (Laya R50 paired Brier
   iyileşmesinin 0.01 eşiğiyle aynı ölçek değil; yorumlayıcı için daha büyük etki aranır).
 - `requiredSample = ceil(((z_alpha + z_power) * sigma / MIN_EFFECT)^2)`.
