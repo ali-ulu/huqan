@@ -132,14 +132,9 @@
       ],
       "sites": [
         {
-          "line": 19,
+          "line": 20,
           "capability": "fs_write",
           "call": "fs.chmodSync"
-        },
-        {
-          "line": 23,
-          "capability": "fs_write",
-          "call": "fs.copyFileSync"
         },
         {
           "line": 24,
@@ -147,7 +142,12 @@
           "call": "fs.copyFileSync"
         },
         {
-          "line": 34,
+          "line": 25,
+          "capability": "fs_write",
+          "call": "fs.copyFileSync"
+        },
+        {
+          "line": 35,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
@@ -826,22 +826,22 @@
       ],
       "sites": [
         {
-          "line": 141,
+          "line": 140,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 143,
+          "line": 142,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 162,
+          "line": 161,
           "capability": "fs_write",
           "call": "fs.chmodSync"
         },
         {
-          "line": 179,
+          "line": 178,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }

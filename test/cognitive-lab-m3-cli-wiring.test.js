@@ -14,6 +14,13 @@ const { runM3FamilyExperiment } = require('../lib/cognitive-lab-m3-experiment');
 
 const schemaVersion = 'huqan-cog-m3-family-evaluation-v1';
 const digest = file => sha256Hex(fs.readFileSync(file));
+test('library callers must inject the M3 runner instead of opening a Graph or an implicit store', async () => {
+  const { runCognitiveLab } = require('../lib/cognitive-lab-cli');
+  await assert.rejects(runCognitiveLab(['m3', '--m3-records', 'unused.json'], {
+    openGraph() { throw new Error('unexpected Graph'); },
+  }), /M3 runner unavailable/);
+});
+
 function inventory(dir) {
   const result = {};
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
