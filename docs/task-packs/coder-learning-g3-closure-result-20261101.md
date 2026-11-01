@@ -79,7 +79,11 @@ label = MEASURED_NO_GAIN   assertsGain = false
 > - **Integrity artık ölçülüyor:** `firewallBypass`/`approvalBypass` sabit `0` yerine gerçek
 >   yetkisiz koşum probe'u ile ölçülüyor (`--authorize` yok → `needs_human_decision`, stray
 >   write yok). §8 bu sayıları `REJECT` koşulu yapar, dolayısıyla sabit değer bir iddiaydı.
-> - **Kaynak bağı:** her holdout koşumunun mühürlü `sourceHash`'i rapora giriyor.
+> - **Kaynak bağı:** rapor artık **her katkıda bulunan koşumu** mühürlü kaynağına bağlar —
+>   `sourceRevision.sealedRuns` altında training, calibration, holdout (her tekrar için),
+>   restart, dağılım kayması ve eski beceri koşumlarının `sourceHash` + `manifest.closed`'ı.
+>   Test, her girdinin kapalı ve 64-hex hash taşıdığını doğrular; `null` bir girdi, raporun
+>   kimliklendiremediği bir koşumdan ölçüm geldiği anlamına gelirdi.
 > - **Etiket:** kayıtsız `NOT_CLEARED` kaldırıldı; §7 maliyet kapısı hatası `MEASURED_NO_GAIN`.
 > - **Yanlış yazma kapısı:** shift/prior/restart koşumlarının tümü artık `assertChangedPaths`'ten
 >   geçiyor (önceden yalnız learned shift/prior + holdout çiftleri).

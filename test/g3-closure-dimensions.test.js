@@ -272,6 +272,21 @@ function sealedManifest(root, runId) {
   } finally { close(); }
 }
 
+/** Non-asserting sealed-source lookup: `null` when a run left no sealed record. */
+function sealedSource(root, runId) {
+  const { journal, close } = openCoderJournal(path.join(root, 'journal.db'));
+  try {
+    const sealed = readSealedRun(journal, `${runId}:c1`, 'default');
+    return sealed.ok ? { sourceHash: sealed.sourceHash, closed: sealed.manifest.closed } : null;
+  } finally { close(); }
+}
+
+/** The sealed source of every named run on one root, so each dimension is tied
+ *  to an exact source rather than only the holdout. */
+function sealedSources(root, runIds) {
+  return Object.fromEntries(runIds.map(name => [name, sealedSource(root, name)]));
+}
+
 test('G3 closure dimensions: power, repeated cost, restart, distribution shift and prior skill', t => {
   // Deferred so a wrong write still yields the REJECT report before the test fails.
   const wrongWrites = createWrongWriteCounter({ deferFailure: true });
@@ -283,6 +298,7 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   // §3/§5: pass 1 measures sigma (calibration), the holdout gain and the first
   // cost sample; passes 2..R re-run the same paired holdout on fresh roots.
   const pass1 = seedRoots(parent, 'p1');
+  const passRoots = [{ label: 'p1', roots: pass1 }];
   const training = trainLearned(pass1, 'p1', cpuDir);
   const calib = pairedPass(pass1, ARITH_CALIB, installArith, 'calib', cpuDir, wrongWrites);
   const calibString = pairedPass(pass1, STRING_CALIB, installString, 'calib-s', cpuDir, wrongWrites);
@@ -338,6 +354,7 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   const repeatTotals = [totalsFor(holdout1, holdout1s)];
   for (let index = 2; index <= CONTRACT.repeats; index += 1) {
     const roots = seedRoots(parent, `p${index}`);
+    passRoots.push({ label: `p${index}`, roots });
     const repeatTraining = trainLearned(roots, `p${index}`, cpuDir);
     const arith = pairedPass(roots, ARITH_HOLDOUT, installArith, `p${index}-a`, cpuDir, wrongWrites);
     const string = pairedPass(roots, STRING_HOLDOUT, installString, `p${index}-s`, cpuDir, wrongWrites);
@@ -499,8 +516,15 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
     preregistration: CONTRACT.preregistration,
     source: 'sealed synthesis run journal (real CLI + journal store + sealed read)',
     sourceRevision: { commit: process.env.GITHUB_SHA || null,
-      sourceHashByRun: Object.fromEntries(holdout.map(item =>
-        [item.name, sealedManifest(pass1.learned, `${item.name}:c1`).sourceHash])) },
+      sealedRuns: {
+        training: sealedSources(pass1.learned, [ARITH_TRAIN.name, STRING_TRAIN.name]),
+        calibration: sealedSources(pass1.learned, [...ARITH_CALIB, ...STRING_CALIB].map(item => item.name)),
+        holdout: Object.fromEntries(passRoots.map(({ label, roots }) =>
+          [label, sealedSources(roots.learned, holdout.map(item => item.name))])),
+        restart: sealedSources(pass1.learned, [ARITH_RESTART.name, STRING_RESTART.name]),
+        distributionShift: sealedSources(pass1.learned, [ARITH_SHIFT.name, STRING_SHIFT.name]),
+        priorSkill: sealedSources(pass1.learned, [...ARITH_PRIOR, ...STRING_PRIOR].map(item => item.name)),
+      } },
     cohort: { families: ['arithmetic-expression', 'string-expression'], holdoutSize,
       holdoutPerFamilyMet, calibrationSize: calibRows.length, repeats: repeatTotals.length,
       requiredSamplesForMargin: 59, priorMarginProvable },
@@ -554,6 +578,17 @@ test('G3 closure dimensions: power, repeated cost, restart, distribution shift a
   assert.equal(probeRefused, true, 'an unauthorized run is refused and writes nothing');
   assert.equal(firewallBypass, 0, 'no firewall bypass is measured');
   assert.equal(approvalBypass, 0, 'no approval bypass is measured');
+  // Every contributing run must be tied to a sealed source (a closed manifest and
+  // a real source hash); a null entry would mean a reported dimension came from a
+  // run the report cannot identify.
+  const sealedEntries = Object.values(report.sourceRevision.sealedRuns).flatMap(group =>
+    Object.values(group).flatMap(entry =>
+      entry && typeof entry === 'object' && !('sourceHash' in entry) ? Object.values(entry) : [entry]));
+  assert.ok(sealedEntries.length > 0, 'the report binds contributing runs to sealed sources');
+  for (const entry of sealedEntries) {
+    assert.ok(entry && entry.closed === true && /^[0-9a-f]{64}$/.test(entry.sourceHash),
+      `unsealed contributing run: ${JSON.stringify(entry)}`);
+  }
   assert.equal(report.verdict.assertsGain, false);
   assert.ok(['GAIN', 'MEASURED_NO_GAIN', 'INSUFFICIENT'].includes(label), label);
 });
