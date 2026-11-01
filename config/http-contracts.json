@@ -247,6 +247,14 @@
       "response": {"owner": "lib/http/memory-query-route.js"}
     },
     {
+      "family": "conversation-turns",
+      "routeIds": ["conversation-turns"],
+      "exposure": "authenticated",
+      "methods": ["GET", "POST", "DELETE"],
+      "request": {"mode": "bounded-parser", "owner": "lib/http/conversation-route.js", "evidence": ["parseJsonRequest", "maxBytes"]},
+      "response": {"owner": "lib/http/conversation-route.js", "emergencyStop": {"enforced": true, "status": 423, "code": "EMERGENCY_STOPPED", "scope": "workspace", "owner": "lib/http/emergency-stop-gate.js"}}
+    },
+    {
       "family": "observability",
       "routeIds": ["observability"],
       "exposure": "authenticated",
