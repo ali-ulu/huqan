@@ -305,7 +305,7 @@ jobs:
           fi
           if [[ -n "$latest_committed_at" ]] \
             && gh api "repos/$REPO/actions/runs?head_sha=$latest_sha&per_page=100" \
-              --jq '[.workflow_runs[] | {name, status, conclusion, run_number, run_attempt}]' > /tmp/workflow-runs.json \
+              --jq '[.workflow_runs[] | {name, status, conclusion, run_number, run_attempt, event}]' > /tmp/workflow-runs.json \
             && gh api --paginate "repos/$REPO/commits/$latest_sha/check-runs?per_page=100" \
               --jq '.check_runs[] | {id, name, status, conclusion}' | jq -s '.' > /tmp/check-runs.json \
             && node scripts/main-ci-watch-state.js \
@@ -321,6 +321,15 @@ jobs:
               echo "| Post-merge required check | State |"
               echo "|---|---|"
               jq -r '.contexts[] | "| \(.context) | \(.state) |"' /tmp/main-state.json
+              non_actionable_count="$(jq '.nonActionableWorkflows | length' /tmp/main-state.json)"
+              if [[ "$non_actionable_count" -gt 0 ]]; then
+                echo
+                echo "### Not actionable, does not withhold green (#4451, #4458)"
+                echo
+                echo "The watcher cannot re-run these (a Dependabot \`dynamic\` run); they are reported, not counted against main:"
+                echo
+                jq -r '.nonActionableWorkflows[] | "- \(.)"' /tmp/main-state.json
+              fi
               echo
               echo "Not observable after merge, enforced on the pull request by branch protection: $(jq -r '.notObservablePostMerge | join(", ")' /tmp/main-state.json)"
             } >> "$GITHUB_STEP_SUMMARY"
@@ -349,7 +358,7 @@ jobs:
               candidate_at="$(gh api "repos/$REPO/commits/$candidate" --jq '.commit.committer.date' || true)"
               [[ -n "$candidate_at" ]] || continue
               if gh api "repos/$REPO/actions/runs?head_sha=$candidate&per_page=100" \
-                  --jq '[.workflow_runs[] | {name, status, conclusion, run_number, run_attempt}]' > /tmp/overdue-runs.json \
+                  --jq '[.workflow_runs[] | {name, status, conclusion, run_number, run_attempt, event}]' > /tmp/overdue-runs.json \
                 && gh api --paginate "repos/$REPO/commits/$candidate/check-runs?per_page=100" \
                   --jq '.check_runs[] | {id, name, status, conclusion}' | jq -s '.' > /tmp/overdue-checks.json \
                 && node scripts/main-ci-watch-state.js \
