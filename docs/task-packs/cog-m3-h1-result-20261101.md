@@ -109,7 +109,33 @@ dağılım). Bu, ayrı bir ön-kayıt ve ayrı bir külliyat gerektirir; bu belg
 - Yetki: `authority: CANDIDATE_ONLY`, `intelligenceGain: NOT_MEASURED`, `assertsGain: false`.
   Ölçüm hiçbir varsayılanı terfi ettirmez.
 
-## 6. Kapsam dışı (dokunulmadı)
+## 6. Maliyet ve çözülmemiş kanıt sınırları
+
+Issue #4465 kabul kriteri 6: gözlenen sonuç, aralık, yanlış yazmalar, **gerçek maliyetler** ve
+**çözülmemiş kanıt sınırları** yayımlanmalı; gözlenmeyen maliyet için `NOT_MEASURED`, eksik
+kanıt için `INSUFFICIENT` kullanılmalı.
+
+- **Maliyet: `NOT_MEASURED`.** Adapter `cost: 'NOT_MEASURED'` döndürür. Külliyat gerçek koşumla
+  üretilir (864 mühürlü kaynak koşumu + 64 native kol koşumu), ama bu ölçüm model çağrısı, token
+  veya CPU maliyeti **saymaz** ve hiçbir maliyet iddiası kurmaz. `experiment: 'NOT_RUN'`: canlı
+  terfi deneyi koşulmadı.
+- **Native kabul yolu:** adapter her kolu gerçek kabul kaydından (`readOrdinaryAcceptance`) ve
+  sabitlenmiş `sourceHash` üzerinden bağlar; sahte kabul yoktur. Ancak **promotion / canary /
+  admission** canlı yolu bu külliyatta **koşulmaz** (`registered: false`, `authority:
+  CANDIDATE_ONLY`); ölçüm salt-okuma doğrulamasıdır (`evidence: 'READ_ONLY_VALIDATED'`).
+- **Zaman aşımı ve kısmi sonuç:** adapter aday yokluğunu (`unexpected_execution`) ve eksik native
+  kanıtı (`native_evidence_unavailable` → `INSUFFICIENT`) sessizce düşürmeden raporlar. Gerçek bir
+  **timeout** vakası bu külliyatta ayrıca üretilmedi; kapsanmış sayılmaz.
+- **Aile bağımsızlığı beyanı:** `familyLabels: 'CALLER_DECLARED'`. Adapter yalnız hash ve bölme
+  eşitliğini doğrular; aile bağımsızlığını ve kronolojisini **kanıtlamaz** (#4465: "Hash equality
+  alone does not prove independence or chronology"). Külliyat kendi kaynak dağılımını denetler
+  (`sourceEligibility`), ama bağımsızlık iddiası çağıran tarafındır.
+- **Görev fixture sınırı:** holdout/transfer **görevleri** fixture'dır (hedef içerik ön-kilitli);
+  kaynak gerçektir. G3 ölçümleriyle aynı sınırdır (§9).
+- **Güç ve genel zeka:** güç analizi (`sigma`) türetilmedi, `minimumSamples` bir tabandır; genel
+  zeka iddiası yoktur (`intelligenceGain: 'NOT_MEASURED'`).
+
+## 7. Kapsam dışı (dokunulmadı)
 
 - `lib/` altında hiçbir dosya değişmedi; M3 adapter (#4469) ve mevcut sabitler aynen kullanıldı.
 - Mevcut ön-kayıtlar ve sonuçlar (`cog-m3-replay-preregistration-20261027.md`,
