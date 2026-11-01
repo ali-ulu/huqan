@@ -1,0 +1,137 @@
+{
+  "status": "NOT_READY",
+  "experiment": "NOT_RUN",
+  "assertsGain": false,
+  "registered": false,
+  "sourceRepo": "ali-ulu/huqan",
+  "sourceCommit": "34824d75a50114e6580d6d58878b708e90af76a6",
+  "observedAtUTC": "2026-11-01T18:53:13.098Z",
+  "selectionRule": "GitHub açık issue listesi, limit 100; #4465 koordinasyon issue’su hariç. Yalnız issue gövdesinde gerçek ve sınırlı desteklenen Coder hata görevi girdisi bulunan adaylar kabul edilir.",
+  "bodyHashAlgorithm": "SHA-256 of the UTF-8 bytes of the decoded GitHub issue body string; no newline or Unicode normalization",
+  "observedIssueNumbers": [
+    4470,
+    4465,
+    4396,
+    4395,
+    4394,
+    4060
+  ],
+  "excluded": [
+    {
+      "number": 4465,
+      "title": "[COG-M3/B4] Lock an independent H1 corpus and run the paired native evaluation",
+      "url": "https://github.com/ali-ulu/huqan/issues/4465",
+      "createdAt": "2026-11-01T15:29:37Z",
+      "updatedAt": "2026-11-01T16:20:54Z",
+      "bodyHash": "b760ee3ca8687ee3a9c88a71770d73e2e454be1d8ac82159b2a336b69ee96950",
+      "reason": "Bu envanterin koordinasyon ve öz değerlendirme issue’su; aday havuzundan ayrı tutuldu."
+    }
+  ],
+  "candidates": [
+    {
+      "number": 4470,
+      "title": "[learning][P1] Complete the G3 closure-gate dimensions on the enlarged sealed cohort (power, CPU/memory, restart, distribution shift, prior skill)",
+      "url": "https://github.com/ali-ulu/huqan/issues/4470",
+      "createdAt": "2026-11-01T16:10:51Z",
+      "updatedAt": "2026-11-01T16:23:06Z",
+      "bodyHash": "f5f6a17afd8769047e659021a23db988021894b4032ac6cc53ea3dbf0d21ee25",
+      "status": "REJECTED_FOR_THIS_POOL",
+      "reason": "G3 kapanış boyutları için ölçüm planı; sınırlı Coder hata görevi girdisi sunmaz.",
+      "taskBeforeCommit": null,
+      "originalTaskExamples": [],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "split": null,
+      "familyId": null
+    },
+    {
+      "number": 4396,
+      "title": "[COG-F] Duygu–sohbet–eylem döngüsü: ön kayıt ve bağımsız G1/G2/G3 ölçümü",
+      "url": "https://github.com/ali-ulu/huqan/issues/4396",
+      "createdAt": "2026-10-29T12:45:02Z",
+      "updatedAt": "2026-10-29T12:45:02Z",
+      "bodyHash": "cf471306f95d20ec293c58e3f9cdd9b24c510058d5fa1f8a31a1ff4e671dccdd",
+      "status": "REJECTED_FOR_THIS_POOL",
+      "reason": "Model ve öğrenme programına yönelik issue; sınırlı Coder hata görevi girdisi sunmaz.",
+      "taskBeforeCommit": null,
+      "originalTaskExamples": [],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "split": null,
+      "familyId": null
+    },
+    {
+      "number": 4395,
+      "title": "[COG-E] Kendi ağırlıklarıyla doğal sohbet: saf JS fizibilitesi ve gerçek konuşma yolu",
+      "url": "https://github.com/ali-ulu/huqan/issues/4395",
+      "createdAt": "2026-10-29T12:45:01Z",
+      "updatedAt": "2026-10-29T12:45:01Z",
+      "bodyHash": "3148d1921151c81b4b29611d40555ba52e44eb25ccca0a77bcf1b95c5aed9c16",
+      "status": "REJECTED_FOR_THIS_POOL",
+      "reason": "Model ve öğrenme programına yönelik issue; sınırlı Coder hata görevi girdisi sunmaz.",
+      "taskBeforeCommit": null,
+      "originalTaskExamples": [],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "split": null,
+      "familyId": null
+    },
+    {
+      "number": 4394,
+      "title": "[COG-D] Laya kapanış denetimi ve Türkçe duygu yorumlayıcısı distillation",
+      "url": "https://github.com/ali-ulu/huqan/issues/4394",
+      "createdAt": "2026-10-29T12:44:59Z",
+      "updatedAt": "2026-11-01T15:50:58Z",
+      "bodyHash": "db614fc4328335a1235a27b9895eaa5917272415783d56dcd69cf8b098c1ada8",
+      "status": "REJECTED_FOR_THIS_POOL",
+      "reason": "Model ve öğrenme programına yönelik issue; sınırlı Coder hata görevi girdisi sunmaz.",
+      "taskBeforeCommit": null,
+      "originalTaskExamples": [],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "split": null,
+      "familyId": null
+    },
+    {
+      "number": 4060,
+      "title": "[COG] Bilişsel mimari programı (epic)",
+      "url": "https://github.com/ali-ulu/huqan/issues/4060",
+      "createdAt": "2026-10-19T13:41:36Z",
+      "updatedAt": "2026-10-31T06:46:06Z",
+      "bodyHash": "393b7493dbc796ed00d61ec4fae892fb50edd0d24bc6dc5d3b51878de18df928",
+      "status": "REJECTED_FOR_THIS_POOL",
+      "reason": "Bilişsel mimari programı epic ve kabul kapıları; sınırlı Coder hata görevi girdisi sunmaz.",
+      "taskBeforeCommit": null,
+      "originalTaskExamples": [],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "split": null,
+      "familyId": null
+    }
+  ],
+  "counts": {
+    "candidates": 5,
+    "accepted": 0,
+    "rejected": 5,
+    "acceptedHoldoutFamilies": 0,
+    "acceptedTransferFamilies": 0
+  },
+  "requirements": {
+    "independentHoldoutFamilies": 24,
+    "independentTransferFamilies": 8,
+    "K": 32
+  },
+  "produced": {
+    "oracle": false,
+    "prediction": false,
+    "nativeOutput": false
+  },
+  "limitations": [
+    "Bu tarama yalnız gözlemlenen altı açık issue ile sınırlıdır; diğer GitHub kaynaklarının uygunluğu değerlendirilmedi.",
+    "Boş originalTaskExamples yalnız bu issue gövdesinden uygun sınırlı Coder örneği çıkarılmadığını gösterir.",
+    "sourceCommit incelenen HUQAN kaynağıdır; görev öncesi commit kanıtı değildir.",
+    "Hash görev artefaktı hash’i, ön kayıt veya ön kilit değildir.",
+    "Bağımsızlık ve ancestor ilişkileri bilinmiyor; 32 bağımsız aile bulunduğu iddia edilmiyor.",
+    "Bu belge verisidir; runtime manifest olarak kullanılamaz."
+  ]
+}
