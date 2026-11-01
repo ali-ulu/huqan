@@ -135,6 +135,11 @@ const HEAVY_FILES = Object.freeze(new Set([
   // It passes in 112s locally on Node 24, so the ordinary 90s cap would kill a
   // file that is still working.
   'test/g3-sealed-run-cohort-result.test.js',
+  // G3 closure-gate dimensions (#4470) runs ~81 real `cli.js coder` child
+  // processes (3 training + 4 calibration + 3x10 paired + restart/shift/prior)
+  // with a CPU/RSS probe per child, at ~64s locally on Node 24. The same
+  // loaded-Windows-runner variance that reddened the entries above applies.
+  'test/g3-closure-dimensions.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {
