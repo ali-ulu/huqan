@@ -95,6 +95,11 @@ const HEAVY_FILES = Object.freeze(new Set([
   // On Node 22 locally it passes in 11-20s, so the cost is runner/Node
   // variance, not a hang.
   'test/cognitive-lab-b4-transfer.test.js',
+  // cog-m3-h1-corpus builds 32 independent families from real sealed Coder runs
+  // (864 sealed source runs + 64 native arm runs) and drives the real M3
+  // adapter: ~24s on Node 24 locally, and Windows process/file cost is the same
+  // ~2-3x that turned the B4 file above into a kill (#4465).
+  'test/cog-m3-h1-corpus.test.js',
   // production-http-adversarial boots a full server process per case -- seven
   // of them -- and was SIGTERM-killed at 90.883s on the Windows Node 22 shard
   // of main (54559c77), reddening a commit that never touched it. It passes
