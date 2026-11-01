@@ -75,7 +75,7 @@ const RULES = [
     files: [
       'agent.js', 'agent.v3.js', 'agentRuntime.js', 'dream.js', 'finalizer.js', 'plugin.js', 'lib/agent-cognition-seam.js', 'lib/agent-coder-execution.js', 'lib/agent-coder-project-task.js',
       'workflow-agent.js', 'workflow-runtime.js', 'workflow-tools.js', 'lib/cli-replay.js', 'lib/cli-replay-prediction-source.js',
-      'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js',
+      'lib/cognitive-lab-causal-experiment.js', 'lib/cognitive-lab-causal-world.js', 'lib/cognitive-lab-m3-experiment.js',
       'lib/cognitive-lab-world-model-experiment.js', 'lib/cognitive-lab-world-model-world.js', 'lib/cognitive-lab-world-model-design.js',
       'lib/cognitive-lab-neural-experiment.js', 'lib/cognitive-lab-neural-world.js', 'lib/cognitive-lab-neural-design.js', 'lib/authority/decision-attestation.js', // #4205: signed receipt evidence orchestration
       'lib/cognitive-lab-model-comparison.js', 'lib/cognitive-lab-m7-experiment.js', 'lib/cognitive-lab-m7-runtime.js', 'lib/cognitive-lab-m7-value-runtime.js', 'lib/cognitive-lab-g1-holdout.js', 'lib/cognitive-lab-g1-arm-preload.js', 'lib/cognitive-lab-g1-corpus.js', 'lib/cognitive-lab-g1-stats.js',
