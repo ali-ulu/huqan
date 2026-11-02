@@ -5,6 +5,12 @@ Durum: `NOT_READY`; H1 deneyi `NOT_RUN`; `assertsGain:false`.
 Bu teslim yalnız gözlenen açık issue havuzunda kaynak uygunluğunu tarar.
 Corpus tamamlanmış, oracle hazırlanmış veya bağımsız denetçi atanmış değildir.
 
+## Yerel SQLite journal envanteri
+
+2026-11-02 08:31:56 UTC'de canonical clone ve desktop worktree altında .db, .sqlite ve .sqlite3 uzantılı dosyalar; node_modules, .git, test ve tests hariç tutularak tarandı. Üç SQLite dosyası salt okunur açıldı: yalnız canonical clone içindeki memory.db dosyasında experience_journal tablosu vardı ve bu tablonun satır sayısı 0'dı; diğer iki dosyada tablo yoktu. Bu nedenle incelenen üç SQLite kaydında doğrulanmış uygun support sayısı 0'dır.
+
+Durum EMPTY_IN_SCANNED_SQLITE_SOURCES olarak kaydedildi. Bu, yalnız belirtilen iki ağaçta bulunan ve tarama kapsamına giren SQLite dosyalarındaki bulgudur; JSON journal dosyaları veya tüm makine hakkında yokluk iddiası değildir. Görev payload'ı okunmadı, SQLite'a yazılmadı. Ayrıntılı envanter ve dosya boyutları eşlik eden JSON'dadır.
+
 ## Gözlenen havuz ve sınır
 
 `ali-ulu/huqan` public deposunda `gh issue list --state open --limit 100`
@@ -33,6 +39,14 @@ değildir. Gövdelerden görev öncesi SHA, ortak ancestor ve aile bağımsızl�
 kanıtı çıkmadı. #4465'in kendisi aday değerlendirmesi değildir; JSON'da ayrı
 `excluded` kaydı olarak tutulur. `reviewed`/incelenmiş olma kaydı, bağımsız
 harici denetçinin var olduğu iddiası taşımaz.
+
+## Ayrı dış qualification adayı
+
+[date-fns/date-fns#4346 — Negative fractional month amounts can subtract an extra month](https://github.com/date-fns/date-fns/issues/4346), ilk HUQAN havuzundan ayrı bir dış adaydır. Durumu `PENDING_EVIDENCE` / `NOT_QUALIFIED`; kabul edilmiş aile veya split değildir. İlk havuzun **0 kabul / 5 ret** sonucu değişmez. Görev öncesi sabit kaynak SHA'sı `717ce0a807ea4c6b540d015b5c408723175b2838`; ilgili yollar `pkgs/core/src/addMonths/index.ts` ve `pkgs/core/src/subMonths/index.ts`.
+
+Issue'nun özgün örnekleri `new Date(2026, 2, 31)` için yerel takvimde `addMonths(date, -0.5)` → 2026-03-31, `addMonths(date, -1.5)` → 2026-02-28 ve `subMonths(date, 0.5)` → 2026-03-31 bekler. Bunlar kaynak görevin gereksinimleridir; bağımsız oracle veya çalıştırma sonucu değildir. Statik kaynak okunmuştur; runtime çalıştırılmamıştır. Issue ayrıca sıfıra kırpılan miktarlarda DST geri alma çevresindeki mevcut sıfır artış davranışının korunmasını ister.
+
+Qualification için üç bağımsız mühürlü source support, learned method ve procedure hash kanıtı; operatör yetkisi; gerçek native kabul, rollback ve restart kanıtı; ayrı oracle gereklidir. Soy, aile bağımsızlığı ve önceki maruziyet `UNKNOWN`; split yoktur. Mevcut sentez sınırı tüm Coder görevlerinin desteklenmediği anlamına gelmez: bu aday için öğrenilmiş `replace_text` yöntemi kanıtı yoktur. Bu envanter yalnız bu Markdown ve eşlik eden JSON dosyasını kapsar.
 
 ## Sonraki adım ve sabit sınırlar
 
