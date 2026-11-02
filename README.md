@@ -90,6 +90,14 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
+Two short films explain the same boundary in words. In the first, an agent walks through what it actually does and where it stops being reliable — it cannot tell which file is production, whether its memory is still true, or why it did what it did. In the second, the gate shows how a request is judged and why the gate, not the agent, writes the receipt.
+
+[![An agent mascot explains its own steps and its three blind spots](docs/assets/huqan-mascot-agent.gif)](docs/assets/huqan-mascot-agent.mp4)
+
+[![The gate mascot shows a request moving to allow, review or block](docs/assets/huqan-mascot-gate.gif)](docs/assets/huqan-mascot-gate.mp4)
+
+[Film 1 — the agent explains itself (34s)](docs/assets/huqan-mascot-agent.mp4) · [Film 2 — the gate explains HUQAN (43s)](docs/assets/huqan-mascot-gate.mp4) · [Both with sound, on huqan.com](https://huqan.com)
+
 Escalation and overrides are human decisions, recorded in the receipt. **Escalation is a decision a person makes, not one the gate returns**: a reviewer can move a pending case to `escalated`, which needs a second approver, so it is absent in a single-user install. Decision types: `approve`, `reject`, `expire`, `cancel`, `escalate`, `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
 ## Limits (honest)
