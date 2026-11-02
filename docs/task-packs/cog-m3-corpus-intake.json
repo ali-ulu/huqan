@@ -210,5 +210,60 @@
       "assertsGain": false,
       "registered": false
     }
-  ]
+  ],
+  "localJournalInventory": {
+    "observedAtUTC": "2026-11-02T08:31:56Z",
+    "status": "EMPTY_IN_SCANNED_SQLITE_SOURCES",
+    "scope": {
+      "roots": [
+        {
+          "tree": "canonical_clone"
+        },
+        {
+          "tree": "desktop_worktree"
+        }
+      ],
+      "extensions": [
+        ".db",
+        ".sqlite",
+        ".sqlite3"
+      ],
+      "exclusions": [
+        "node_modules",
+        ".git",
+        "test",
+        "tests"
+      ]
+    },
+    "sources": [
+      {
+        "tree": "canonical_clone",
+        "relativePath": "memory.db",
+        "bytes": 225280,
+        "hasExperienceJournalTable": true,
+        "experienceJournalRows": 0
+      },
+      {
+        "tree": "desktop_worktree",
+        "relativePath": "huqan/memory.db",
+        "bytes": 155648,
+        "hasExperienceJournalTable": false,
+        "experienceJournalRows": null
+      },
+      {
+        "tree": "desktop_worktree",
+        "relativePath": "capacity-dream-baseline/memory.db",
+        "bytes": 139264,
+        "hasExperienceJournalTable": false,
+        "experienceJournalRows": null
+      }
+    ],
+    "withExperienceTable": 1,
+    "journalRows": 0,
+    "verifiedEligibleSupports": 0,
+    "noTaskPayloadRead": true,
+    "readOnly": true,
+    "interpretation": "Bu üç SQLite kaydı içinde experience_journal tablosu yalnız canonical clone memory.db dosyasında bulundu; tablonun satır sayısı sıfırdı. verifiedEligibleSupports yalnız bu incelenen kayıtlar için sıfırdır. JSON journal dosyaları, başka dizinler veya tüm sistem hakkında yokluk iddiası değildir.",
+    "filesInspected": 3
+  }
 }
