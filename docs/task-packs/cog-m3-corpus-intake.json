@@ -6,7 +6,7 @@
   "sourceRepo": "ali-ulu/huqan",
   "sourceCommit": "34824d75a50114e6580d6d58878b708e90af76a6",
   "observedAtUTC": "2026-11-01T18:53:13.098Z",
-  "selectionRule": "GitHub açık issue listesi, limit 100; #4465 koordinasyon issue’su hariç. Yalnız issue gövdesinde gerçek ve sınırlı desteklenen Coder hata görevi girdisi bulunan adaylar kabul edilir.",
+  "selectionRule": "Initial pool: GitHub açık HUQAN issue listesi, limit 100; #4465 koordinasyon issue’su hariç. Yalnız issue gövdesinde gerçek ve sınırlı desteklenen Coder hata görevi girdisi bulunan adaylar kabul edilir. Dış qualification adayları externalQualificationCandidates içinde ayrı tutulur; initial counts bu adayları içermez.",
   "bodyHashAlgorithm": "SHA-256 of the UTF-8 bytes of the decoded GitHub issue body string; no newline or Unicode normalization",
   "observedIssueNumbers": [
     4470,
@@ -127,11 +127,88 @@
     "nativeOutput": false
   },
   "limitations": [
-    "Bu tarama yalnız gözlemlenen altı açık issue ile sınırlıdır; diğer GitHub kaynaklarının uygunluğu değerlendirilmedi.",
-    "Boş originalTaskExamples yalnız bu issue gövdesinden uygun sınırlı Coder örneği çıkarılmadığını gösterir.",
+    "Initial pool taraması yalnız gözlemlenen altı açık HUQAN issue ile sınırlıdır; o ilk havuzda diğer GitHub kaynaklarının uygunluğu değerlendirilmedi. Sonraki dış qualification incelemesi externalQualificationCandidates alanında ayrı tutulur.",
+    "Initial candidates içindeki boş originalTaskExamples yalnız o issue gövdelerinden uygun sınırlı Coder örneği çıkarılmadığını gösterir.",
     "sourceCommit incelenen HUQAN kaynağıdır; görev öncesi commit kanıtı değildir.",
     "Hash görev artefaktı hash’i, ön kayıt veya ön kilit değildir.",
     "Bağımsızlık ve ancestor ilişkileri bilinmiyor; 32 bağımsız aile bulunduğu iddia edilmiyor.",
     "Bu belge verisidir; runtime manifest olarak kullanılamaz."
+  ],
+  "externalQualificationCandidates": [
+    {
+      "id": "date-fns/date-fns#4346",
+      "sourceRepo": "date-fns/date-fns",
+      "number": 4346,
+      "title": "Negative fractional month amounts can subtract an extra month",
+      "url": "https://github.com/date-fns/date-fns/issues/4346",
+      "createdAt": "2026-10-02T13:01:55Z",
+      "updatedAt": "2026-10-02T13:01:55Z",
+      "observedAtUTC": "2026-11-02T08:17:58.076Z",
+      "bodyHash": "3500ed668e4a0603098a8721236d6ed9e3a8e4d505b06762a8162e2e44db25ff",
+      "bodyHashAlgorithm": "SHA-256 of the UTF-8 bytes of the decoded GitHub issue body string; no newline or Unicode normalization",
+      "status": "PENDING_EVIDENCE",
+      "qualificationStatus": "NOT_QUALIFIED",
+      "accepted": false,
+      "taskBeforeCommit": "717ce0a807ea4c6b540d015b5c408723175b2838",
+      "commitEvidence": "Issue yazarının bildirdiği current main 717ce0a referansı tam commit ağacına çözülerek doğrulandı; görev öncesi mühür veya ön kilit kanıtı değildir.",
+      "sourceArtifacts": [
+        {
+          "path": "pkgs/core/src/addMonths/index.ts",
+          "gitBlob": "48ec06c3797018cb348c1d3eda339c5f780ea7d3",
+          "url": "https://github.com/date-fns/date-fns/blob/717ce0a807ea4c6b540d015b5c408723175b2838/pkgs/core/src/addMonths/index.ts"
+        },
+        {
+          "path": "pkgs/core/src/subMonths/index.ts",
+          "gitBlob": "6a68b833f1bc15133f16d4a73cba13bfba0cbe8e",
+          "url": "https://github.com/date-fns/date-fns/blob/717ce0a807ea4c6b540d015b5c408723175b2838/pkgs/core/src/subMonths/index.ts"
+        }
+      ],
+      "originalTaskExamples": [
+        {
+          "input": "addMonths(new Date(2026, 2, 31), -0.5)",
+          "authorReportedActualLocalDate": "2026-02-28",
+          "authorExpectedLocalDate": "2026-03-31"
+        },
+        {
+          "input": "addMonths(new Date(2026, 2, 31), -1.5)",
+          "authorReportedActualLocalDate": "2026-01-31",
+          "authorExpectedLocalDate": "2026-02-28"
+        },
+        {
+          "input": "subMonths(new Date(2026, 2, 31), 0.5)",
+          "authorReportedActualLocalDate": "2026-02-28",
+          "authorExpectedLocalDate": "2026-03-31"
+        }
+      ],
+      "dateSemantics": "new Date(2026, 2, 31) yerel takvim tarihidir. YYYY-MM-DD alanları yerel takvim sonuçlarını gösterir; UTC ISO instant veya toISOString çıktısı değildir.",
+      "evidence": {
+        "issueReport": "AUTHOR_REPORTED: hata, beklenen davranış, Node sürümleri, zaman dilimleri ve yerel test başarısızlıkları issue yazarının beyanıdır.",
+        "staticInspection": "VERIFIED: addMonths amount değerini sıfıra doğru kesmeden _date.getMonth() + amount + 1 ifadesinde kullanır; subMonths addMonths(date, -amount, options) çağrısına delegasyon yapar. Bu statik incelemedir.",
+        "independentRuntime": "NOT_RUN",
+        "independentOracle": "NOT_PRODUCED",
+        "qualification": "Public örnekler üç bağımsız mühürlü support örneği veya bağımsız oracle değildir."
+      },
+      "coderBoundary": "Mevcut finite synthesis fractional calendar aritmetiğini desteklemiyor. Bu bütün Coder yollarının imkânsız olduğunu göstermez; öğrenilmiş replace_text yöntemi için henüz kanıt yok.",
+      "missingEvidence": [
+        "En az üç bağımsız ve mühürlü support örneği",
+        "Öğrenilmiş source yöntemi ve procedureHash",
+        "Gerçek onay, native kabul, rollback ve restart kanıtı",
+        "Support ve public örneklerden ayrı bağımsız oracle",
+        "Soy, bağımsızlık ve exposure kanıtları",
+        "Qualification sonrası split ve aile ataması"
+      ],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "exposure": "UNKNOWN",
+      "split": null,
+      "familyId": null,
+      "procedureHash": null,
+      "supportExamples": [],
+      "nativeAcceptance": "NOT_RUN",
+      "rollback": "NOT_RUN",
+      "restart": "NOT_RUN",
+      "assertsGain": false,
+      "registered": false
+    }
   ]
 }
