@@ -1,7 +1,7 @@
 # HUQAN duygu döngüsü ve doğal sohbet uygulama planı
 
 Tarih: 2026-10-29. Son güncelleme: 2026-11-01.
-Durum: A ve B teslim edildi; C altyapısı teslim edildi (PR-1 #4446, PR-2 #4447, PR-3 #4453); D'nin Laya kapanış denetimi teslim edildi (karar STAY_SHADOW) ve yorumlayıcı ön-kaydı donduruldu; E'nin fizibilite kaydı teslim (FEASIBILITY_BLOCKED). C, D, E ve F `not_planned` kapatıldı: kalan kabul kriterleri bu ortam dışına bağımlı (ONNX/Node paritesi, lisans, insan etiketli holdout; üretken hat yok). Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
+Durum: A ve B teslim edildi (completed); C altyapısı teslim edildi (completed; PR-1 #4446, PR-2 #4447, PR-3 #4453); D'nin Laya kapanış denetimi teslim edildi (karar STAY_SHADOW) ve yorumlayıcı ön-kaydı donduruldu; E'nin fizibilite kaydı teslim (FEASIBILITY_BLOCKED). D, E ve F `not_planned` kapatıldı: kalan kabul kriterleri bu ortam dışına bağımlı (ONNX/Node paritesi, lisans, insan etiketli holdout; üretken hat yok). Planlama ve issue/Project bağları tamamlandı; uygulama, eğitim ve kazanım kanıtı yalnızca ilgili alt işlerde aranır.
 Kaynak taban: ali-ulu/huqan main `fed7be80c075d45c6d73b98af7f9cffa9111eff6`.
 COG ana program: #4060. Bu plan mevcut mimari sözleşmenin yerine geçmez.
 Kapsam onayı: duygu motoru ve doğal sohbeti planlamak, belgelemek, GitHub Project ve issue bağlarını kurmak. Runtime kodu/eğitim/model indirme bu teslimde yoktur.
@@ -12,9 +12,9 @@ COG Project: https://github.com/users/ali-ulu/projects/7
 
 | İş | Issue | Durum | Teslimat / bağlantı | Önkoşul / ilişkili işler |
 | --- | --- | --- | --- | --- |
-| A — Çekirdek ve gerçek gözlem | #4391 | Kapandı | PR-1 #4437, PR-2 #4441 | M1 #4064, M2 #4061, M8 #4062, M9 #4063 tekrar kullanılır |
-| B — Sorumluluk ve onarım | #4392 | Kapandı | PR-1 #4442, PR-2 #4443, PR-3 #4444 | A #4391 |
-| C — Konuşma/hafıza girişi | #4393 | Altyapı teslim | PR-1 #4446 (saf sözleşme), PR-2 #4447 (workspace'e bağlı yüzey), PR-3 #4453 (mevcut `/answer` ve proxy girişlerine ince adapter) | A #4391 ve B #4392 ile sözleşme uyumu; kalan: G2 ölçümü (F #4396) |
+| A — Çekirdek ve gerçek gözlem | #4391 | Kapandı (completed) | PR-1 #4437, PR-2 #4441 | M1 #4064, M2 #4061, M8 #4062, M9 #4063 tekrar kullanılır |
+| B — Sorumluluk ve onarım | #4392 | Kapandı (completed) | PR-1 #4442, PR-2 #4443, PR-3 #4444 | A #4391 |
+| C — Konuşma/hafıza girişi | #4393 | Kapandı (completed) | PR-1 #4446 (saf sözleşme), PR-2 #4447 (workspace'e bağlı yüzey), PR-3 #4453 (mevcut `/answer` ve proxy girişlerine ince adapter) | A #4391 ve B #4392 ile sözleşme uyumu; G2 ölçümü F #4396'da izleniyordu, F de kapandı (ölçüm yapılmadı) |
 | D — Laya/yorumlayıcı | #4394 | Kapandı (not_planned) | `docs/audits/laya-closure-audit-20261101.md` (karar: STAY_SHADOW); `docs/task-packs/cog-d-interpreter-preregistration-20261101.md` (dondurulmuş eşikler) | C #4393 şeması; kalan (harici): ONNX/Node paritesi, lisans, pilot+corpus, daha büyük holdout |
 | E — Yerel üretken sohbet | #4395 | Kapandı (not_planned) | `docs/task-packs/cog-e-local-chat-feasibility-20261101.md` (FEASIBILITY_BLOCKED) | C #4393 ve D #4394'teki tek hat/kapanış kararı; kalan (harici): üretken model kararı + gerçek makinede ölçüm |
 | F — Birleşik ölçüm | #4396 | Kapandı (not_planned) | — | A–E; D/E kabul kriterleri karşılanamadan kapandığı için F'nin deney kolları kurulamadı |
