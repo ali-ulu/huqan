@@ -79,3 +79,12 @@ test('no operationId keeps legacy non-journaled behavior', () => {
   assert.equal(result.operationId, undefined);
   assert.equal(result.replayed, undefined);
 });
+
+test('replay receipt carries replayed true and original receiptId', () => {
+  const kernel = makeKernel({ withJournal: true });
+  companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-r1' });
+  const replay = companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-r1' });
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.receiptId, 'r-op-r1');
+  assert.equal(replay.operationId, 'op-r1');
+});
