@@ -90,7 +90,7 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-Two short films explain the same boundary in words. In the first, an agent walks through what it actually does and where it stops being reliable — it cannot tell which file is production, whether its memory is still true, or why it did what it did. In the second, the gate shows how a request is judged and why the receipt is the part the agent cannot write.
+Two short films explain the same boundary in words. In the first, an agent walks through what it actually does and where it stops being reliable — it cannot tell which file is production, whether its memory is still true, or why it did what it did. In the second, the gate shows how a request is judged and why the gate, not the agent, writes the receipt.
 
 [![An agent mascot explains its own steps and its three blind spots](docs/assets/huqan-mascot-agent.gif)](docs/assets/huqan-mascot-agent.mp4)
 
