@@ -104,3 +104,42 @@ test('public companyBrain.run forwards operationId and receiptId through journal
   assert.equal(result.replayed, false);
   assert.equal(result.receiptId, 'r-pub-op-1');
 });
+
+test('a journal outcome without a receipt reports a null receiptId', () => {
+  const kernel = makeKernel({ withJournal: true });
+  kernel.graph.runMutationOnce = (operationId, run) => ({ result: run(), replayed: false });
+  const result = companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-no-receipt' });
+  assert.equal(result.ok, true);
+  assert.equal(result.operationId, 'op-no-receipt');
+  assert.equal(result.receiptId, null);
+});
+
+test('a bare `id` on the receipt is accepted as the receiptId', () => {
+  const kernel = makeKernel({ withJournal: true });
+  kernel.graph.runMutationOnce = (operationId, run) => ({ result: run(), replayed: false, receipt: { id: 'bare-' + operationId } });
+  const result = companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-bare-id' });
+  assert.equal(result.receiptId, 'bare-op-bare-id');
+});
+
+test('a receipt carrying no id at all falls back to null', () => {
+  const kernel = makeKernel({ withJournal: true });
+  kernel.graph.runMutationOnce = (operationId, run) => ({ result: run(), replayed: false, receipt: {} });
+  const result = companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-empty-receipt' });
+  assert.equal(result.receiptId, null);
+});
+
+test('a journal outcome without a result field is spread directly', () => {
+  const kernel = makeKernel({ withJournal: true });
+  kernel.graph.runMutationOnce = () => ({ ok: true, added: 0, replayed: false });
+  const result = companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-bare-outcome' });
+  assert.equal(result.ok, true);
+  assert.equal(result.operationId, 'op-bare-outcome');
+});
+
+test('a null journal outcome degrades to an empty result without throwing', () => {
+  const kernel = makeKernel({ withJournal: true });
+  kernel.graph.runMutationOnce = () => null;
+  const result = companyBrain._test.ingestDecision(kernel, { ...DECISION, operationId: 'op-null-outcome' });
+  assert.equal(result.operationId, 'op-null-outcome');
+  assert.equal(result.receiptId, null);
+});
