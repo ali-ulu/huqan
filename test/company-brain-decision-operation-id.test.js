@@ -88,3 +88,19 @@ test('replay receipt carries replayed true and original receiptId', () => {
   assert.equal(replay.receiptId, 'r-op-r1');
   assert.equal(replay.operationId, 'op-r1');
 });
+
+test('public companyBrain.run forwards operationId and receiptId through journal flow', async () => {
+  const kernel = makeKernel({ withJournal: true });
+  const result = await companyBrain.run(kernel, {
+    action: 'decision',
+    title: DECISION.title,
+    rationale: DECISION.rationale,
+    date: DECISION.date,
+    decidedBy: DECISION.decidedBy,
+    operationId: 'pub-op-1',
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.operationId, 'pub-op-1');
+  assert.equal(result.replayed, false);
+  assert.equal(result.receiptId, 'r-pub-op-1');
+});
