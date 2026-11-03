@@ -213,7 +213,7 @@ transport in section 12 (#4170).
 | Service started as root | `serve` refuses |
 | Runtime user has passwordless sudo | `os-service` is kept; `status` and `doctor` report `escalation: 'passwordless_sudo'` (open question 3) |
 | Agent uid is 0 | `same-user`, `agent_uid_is_root` |
-| Container (`/.dockerenv`, `/proc/1/cgroup`, `/run/.containerenv`) | not detected and not supported in the MVP; a container with a trusted pin still resolves `service` today. The model is fixed in [ADR-021](ADR-021-container-support-model.md), which records that the probe this row used to promise (`container_unverified`) was never implemented |
+| Container (`/.dockerenv`, `/proc/1/cgroup`, `/run/.containerenv`) | not supported in the MVP. Since #4484 a detected container resolves `required_unavailable` / `container_unverified` before any pin is trusted (a probe that cannot tell: `container_probe_failed`), per the fail-closed rule of [ADR-021](ADR-021-container-support-model.md) §4 |
 
 ### 10. CI end-to-end (PR-6)
 
@@ -367,8 +367,8 @@ written before this change is unchanged and TCP remains the default.
   stays on the host; a container replaces the Layer B user and reaches the
   service only through the signed channel), with no date. ADR-021 also records
   that the `container_unverified` probe §9 used to promise was never
-  implemented, and that a container with a trusted pin still resolves `service`
-  today -- the gap the fail-closed rule there closes first.
+  implemented; its fail-closed rule (§4) has since landed in #4484, so a
+  container with a trusted pin no longer resolves `service`.
 - Windows behaviour and tests do not change. The `not_windows` expectations in
   `test/store-acl.test.js:71-74,102-104` and `test/agent-user-boundary.test.js:131-140`
   are rewritten when the matching POSIX branches land (**done**: PR-9 moved the
