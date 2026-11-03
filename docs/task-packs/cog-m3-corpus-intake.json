@@ -136,6 +136,60 @@
   ],
   "externalQualificationCandidates": [
     {
+      "id": "BugsJS/express#Express1",
+      "sourceRepo": "BugsJS/express",
+      "url": "https://github.com/expressjs/express/issues/2458",
+      "taskBeforeCommit": "3387916efcac19302188151a24927a0405a373e8",
+      "datasetRevision": "7abbad3e4df12cd5294110bb5db11b7d5bc758a6",
+      "status": "PENDING_EVIDENCE",
+      "qualificationStatus": "NOT_QUALIFIED",
+      "accepted": false,
+      "methodLearned": false,
+      "independentRuntime": {
+        "verdict": "REPRODUCED",
+        "control": {
+          "scenario": "one GET, one POST",
+          "status": 200,
+          "allow": "GET,POST",
+          "exit": 0
+        },
+        "expectedNegative": {
+          "scenario": "two GET, one POST",
+          "status": 200,
+          "allow": "GET,GET,POST",
+          "exit": 1,
+          "failure": "Allow must not contain duplicate methods"
+        },
+        "validation": {
+          "status": "PASS",
+          "wrapper_exit": 0,
+          "boundary": "NO_FIX",
+          "evidence": "Independent runner reported HTTP 200 GET,POST exit 0 and HTTP 200 GET,GET,POST exit 1 with duplicate assertion; source status and hashes checked."
+        }
+      },
+      "coderBoundary": {
+        "staticStatus": "NO_VERIFIED_NATIVE_SYNTHESIS_PATH",
+        "runtimeGrammar": "NOT_RUN",
+        "generalizedImpossibilityClaim": false
+      },
+      "evidenceFiles": [
+        {
+          "path": "checks/express-1-observation.json",
+          "sha256": "696cc714afa9e30dd0f08112c9219ba93f45ec7ffcc800a4906b749f4b752ce5"
+        },
+        {
+          "path": "checks/express-1-options.acceptance.js",
+          "sha256": "88433296f3e70b5ba20afddd567e7ad979b6a37627dedcbce73dc8191dd21597"
+        }
+      ],
+      "ancestor": "UNKNOWN",
+      "independence": "UNKNOWN",
+      "exposure": "UNKNOWN",
+      "split": null,
+      "familyId": null,
+      "procedureHash": null
+    },
+    {
       "id": "date-fns/date-fns#4346",
       "sourceRepo": "date-fns/date-fns",
       "number": 4346,
