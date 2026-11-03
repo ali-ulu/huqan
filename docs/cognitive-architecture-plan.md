@@ -190,23 +190,33 @@ G2 testi yüksek talep → doğrulanmış snapshot → alternatif plan seçimi �
 - [ ] G3 bileşim, maliyet, değişen ortam, restart ve eski beceri ölçümleri kaynak SHA/manifest ile raporlandı.
 - [ ] Varsayılan/opt-in/donanım-dağıtım durumu ile ölçülmüş gain ayrı yazıldı.
 
+### Kapanış kararı (2026-11-03)
+
+Sahip kararı: program **"ölçüldü, kazanç yok"** sonucuyla kapanır. Bu, yukarıdaki kutuları işaretlemez ve hiçbir kazanç iddiası doğurmaz.
+
+- 11 modül issue'su (#4061–#4071) birleştirilmiş PR kanıtıyla kapalı.
+- G1: tek seferlik holdout #4370 `HARM` (aday 103/384, kontrol 128/384); düzeltme ölçümü #4402 `MEASURED_NO_GAIN`.
+- G2: `H1 NOT PASSED` (N=24, alt sınır −0,1173 < eşik −0,05); yönlendirici üretimde `ROUTING_ADVICE_ONLY` kalır.
+- G3: doğruluk ve process non-inferiority #4462 `GAIN` (N=70 mühürlü kohort); eğitim dahil amortize maliyet #4472 `MEASURED_NO_GAIN` (`assertsGain = false`); gerçek kohort ölçümü #4428 `NOT_MEASURED`; bileşim boyutu ölçülmedi.
+- Varsayılanlar ve yetki sınırları değişmedi. Yeni bir kazanç iddiası ancak yeni, ön-kayıtlı bir ölçümle açılabilir.
+
 ### Bu programdan sonraya bırakılan kapasite
 
 Sürekli nöral temsil/plastisite öğrenimi, iç ihtiyaçlardan hedef üretimi, geniş duyusal-motor çevrim ve farklı alanlar arasında genel aktarım bu 11 modülün teslimi sayılmaz. İleriki program bunların her biri için öğrenilen nesneyi, veri kaynağını, güncelleme kuralını, kabul ölçümünü ve mevcut yetki sınırını ayrı tanımlamalıdır. Bu kapsam sınırı G1–G3'ü veya mevcut güvenlik kapılarını gevşetmez.
 
 ## Modül issue'ları
 
-- [ ] #4061 Faz 1 · Tahmin hatası (COG-M2)
-- [ ] #4062 Faz 1 · Ödül / RPE (COG-M8)
-- [ ] #4063 Faz 1 · Değer defteri (COG-M9)
-- [ ] #4064 Faz 2 · Ortak algı (COG-M1)
-- [ ] #4065 Faz 2 · Dikkat/salience (COG-M7)
-- [ ] #4066 Faz 2 · Çalışma belleği (COG-M11)
-- [ ] #4067 Faz 2 · Global workspace (COG-M6)
-- [ ] #4068 Faz 3 · Sistem1/2 (COG-M5)
-- [ ] #4069 Faz 4 · Pekiştirme (COG-M3)
-- [ ] #4070 Faz 4 · Unutma (COG-M4)
-- [ ] #4071 Faz 4 · Merak (COG-M10)
+- [x] #4061 Faz 1 · Tahmin hatası (COG-M2)
+- [x] #4062 Faz 1 · Ödül / RPE (COG-M8)
+- [x] #4063 Faz 1 · Değer defteri (COG-M9)
+- [x] #4064 Faz 2 · Ortak algı (COG-M1)
+- [x] #4065 Faz 2 · Dikkat/salience (COG-M7)
+- [x] #4066 Faz 2 · Çalışma belleği (COG-M11)
+- [x] #4067 Faz 2 · Global workspace (COG-M6)
+- [x] #4068 Faz 3 · Sistem1/2 (COG-M5)
+- [x] #4069 Faz 4 · Pekiştirme (COG-M3)
+- [x] #4070 Faz 4 · Unutma (COG-M4)
+- [x] #4071 Faz 4 · Merak (COG-M10)
 
 **Project:** https://github.com/users/ali-ulu/projects/7 · **İlk iş:** #4061 PR-0a (halka kuralı + contract + purity testi)
 
