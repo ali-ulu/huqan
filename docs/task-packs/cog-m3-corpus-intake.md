@@ -63,3 +63,13 @@ ayrı oracle, source/qualification/evaluation ayrımı, ön kilit ve aynı gerç
 approval/promotion/admission/native Coder kabul-rollback yolu. H1 `NOT_RUN`,
 corpus `NOT_READY`, `assertsGain:false`; bu envanter bunları değiştirmez.
 G3 closure-gate issue #4470 ayrı ve bu teslimle kapanmaz.
+
+## Yeni native qualification follow-up (yerel ve yalnızca qualification kaydı)
+
+İlk Express dış adayına daha sonra ayrı bir native qualification kaydı eklendi; önceki gözlem ve sınırları değiştirilmedi. Kanıt `BugsJS/express` issue #2458 için kaynak commit `3387916efcac19302188151a24927a0405a373e8` üzerinde, `2026-11-03T19:35:31.537Z` tarihinde oluşturulan `express-reviewed:c1` run’ıdır (`sealed:true`, `closed:true`, `learningEligibility:positive_procedure`). Operatör inceleme politikası `OPERATOR_AUTHORIZED_REVIEW` idi; 2 sonlu program değerlendirildi, 1’i seçildi.
+
+Native kontrolde tek GET ve tek POST önce/sonra HTTP 200, `Allow: GET,POST`, exit 0 verdi. Yinelenen GET senaryosu önce HTTP 200 ve `Allow: GET,GET,POST` ile exit 1 (beklenen assertion: `Allow must not contain duplicate methods`), sonrasında HTTP 200 ve `Allow: GET,POST` ile exit 0 verdi. Bu, aynı bug’ın tekrarlı incelemesidir; bağımsız support değildir ve `independence` `UNKNOWN` kalır.
+
+Hash temsilleri ayrıdır: kaynak çalışma kopyasının ham UTF-8 kaynak öncesi SHA-256 değeri `499160f16cd25c2ee453be9845b56866b2f06e1bda08ff3965071fbf21a5d3d3`; v3 türetiminin LF-normalize edilmiş girdisi `3867c0f5ac5216d4c4056aceac3e528c1fac08e2fb1e3b28ae719695e950cf5a`, çıktısı `64d4295d77da4f0e6349147d8c4d2454c3e446eee5695f8aac4edc9f6d7cbb8e`’dir. Ham çalışma kopyası özeti, Git blob'unun bayt özeti değildir. Run source hash `9f31f2b97b64bc7bee253e5c7f79a5ffb476bc8dfde0b1fca3e1cb2dc8962df0`, record hash `559df79ca152cc3afe218e961d0acbd3893266fd8c346a304f56c8150386c1a0`’dır. Kontrol artefaktları JSON’daki kapsam klasörüne göreli `m3-string-array-qualification-reviewed/checks/` yolları ve SHA-256 değerleriyle listelenmiştir; kapsam `LOCAL_NOT_PUBLISHED`’dır.
+
+Kayıt `localQualificationOnly:true`, `remembered:false`, `promoted:false`, `corpusAccepted:false` ve `assertsGain:false` olarak kalır. İlk havuzun 0 kabul / 5 ret sayımları, adayın mevcut durum alanları ve M3 `NOT_READY` / `NOT_RUN` sınırları değişmez. Uygulama referansı PR #4499’un gözlem sırasında main’e birleşmemiş `18b99c623295678b23cbd60a073262c78a9ab466` commitidir; bu koşum sonrasında bağlanan bir referanstır, sonuç öncesi kilit değildir. Bu kayıt main’de kodun mevcut olduğu iddiası taşımaz. Bu doküman envanteridir; runtime manifest veya deney ön kaydı değildir.
