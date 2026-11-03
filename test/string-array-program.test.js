@@ -60,3 +60,21 @@ test('rendered programs preserve native join conversion of nullish elements', ()
   assert.equal(unique(input), 'GET,,,POST');
   assert.equal(validStringArray(input), false);
 });
+
+test('rendered programs read each element and the length exactly once, like native join', () => {
+  const render = (type) => vm.runInNewContext(`(function(value){${renderStringArrayProgram({ type, separator: ',' })}})`);
+  for (const type of ['join', 'stableUniqueJoin']) {
+    let lengthReads = 0; const elementReads = [];
+    const arr = {};
+    Object.defineProperty(arr, 'length', { get() { lengthReads += 1; return 3; } });
+    for (let i = 0; i < 3; i += 1) {
+      Object.defineProperty(arr, String(i), {
+        enumerable: true,
+        get() { elementReads.push(i); return ['a', 'b', 'a'][i]; },
+      });
+    }
+    assert.equal(render(type)(arr), type === 'join' ? 'a,b,a' : 'a,b');
+    assert.deepEqual(elementReads, [0, 1, 2], `${type} must read each element once, in order`);
+    assert.equal(lengthReads, 1, `${type} must read the length once`);
+  }
+});
