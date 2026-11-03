@@ -1,6 +1,6 @@
 # ADR-021: Container support model for the approval authority
 
-- **Status:** Accepted (model only; no implementation authorised, no date)
+- **Status:** Accepted (model only, no date; the section 4 fail-closed rule is implemented by #4484 -- see the note under section 4)
 - **Date:** 2026-10-21
 - **Deciders:** repository owner
 - **Supersedes:** none
@@ -136,6 +136,14 @@ resolver returns `boundary: os-service` for a container that holds a trusted pin
 at the fixed path (GROUNDED, reproduced locally; see Context). Closing that gap
 is the first implementation step when a real request arrives, and it is what the
 documents must stop implying is already done.
+
+**Implemented (#4484).** The shared helper of section 2 is
+`lib/container-detection.js`; the bind doctor and `resolveApprovalAuthorityMode`
+both read it. The resolver consults it before any pin is read or trusted: a
+detected container is `required_unavailable` / `container_unverified`, and a
+marker that cannot be inspected is `required_unavailable` /
+`container_probe_failed`. The model of sections 1, 3 and 5 is still
+unimplemented, so a container cannot reach the authority at all.
 
 ### 5. Access is configured on the host, and is closed by default
 
