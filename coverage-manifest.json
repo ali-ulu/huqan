@@ -730,7 +730,7 @@
           "call": "fs.mkdirSync"
         },
         {
-          "line": 100,
+          "line": 106,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
