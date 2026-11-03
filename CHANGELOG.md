@@ -39,7 +39,9 @@ program's measured results.
 ### Fixed
 - **The approval authority reconciles stuck leaseless claims** against the
   mutation journal (#4486).
-- **Company Brain decisions are atomic**, keyed by a client operation ID (#4483).
+- **Company Brain decisions are atomic when a client operation ID is
+  supplied** (#4483). Decisions without an ID keep the legacy non-journaled
+  behavior.
 
 ### Security
 - **The gate is enforced on the read/query surfaces** as well as writes, and the
