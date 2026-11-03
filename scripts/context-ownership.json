@@ -4100,6 +4100,18 @@
       "context": "Trust",
       "evidence": "closed string AST reader and bounded program enumeration"
     },
+    "lib/experience/string-array-program.js": {
+      "context": "Trust",
+      "evidence": "closed string-array programs and bounded two-candidate enumeration"
+    },
+    "lib/experience/string-array-target.js": {
+      "context": "Trust",
+      "evidence": "parse-only bounded expression selection and sealed method adaptation"
+    },
+    "lib/coder/string-array-synthesis.js": {
+      "context": "AgentAction",
+      "evidence": "model-free single-expression string-array repair planning"
+    },
     "lib/coder/string-synthesis.js": {
       "context": "AgentAction",
       "evidence": "model-free string repair planning"
@@ -8207,6 +8219,20 @@
         "AgentAction"
       ],
       "evidence": "string synthesis consumes the closed program grammar"
+    },
+    "lib/experience/string-array-program.js": {
+      "owner": "Trust",
+      "consumers": [
+        "AgentAction"
+      ],
+      "evidence": "string-array synthesis consumes the closed finite program grammar"
+    },
+    "lib/experience/string-array-target.js": {
+      "owner": "Trust",
+      "consumers": [
+        "AgentAction"
+      ],
+      "evidence": "string-array synthesis and memory consume the parse-only expression reader"
     },
     "lib/cognition/percept-adapters.js": {
       "owner": "Knowledge",

@@ -1613,6 +1613,9 @@
     "lib/semantic-model-artifacts/transformer.calibration.json",
     "lib/experience/string-program.js",
     "lib/coder/string-synthesis.js",
+    "lib/experience/string-array-program.js",
+    "lib/experience/string-array-target.js",
+    "lib/coder/string-array-synthesis.js",
     "lib/evidence-pack/collect.js",
     "lib/evidence-pack/collector-seals.js",
     "lib/evidence-pack/control-matrix.js",
@@ -1628,6 +1631,7 @@
     "lib/cognition/conversation-turn.js"
   ],
   "dependencies": {
+    "acorn": "8.19.0",
     "better-sqlite3": "^13.0.3",
     "fast-xml-parser": "^5.2.5",
     "js-yaml": "^5.2.3",
