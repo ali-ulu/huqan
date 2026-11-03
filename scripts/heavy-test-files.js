@@ -87,6 +87,10 @@ const HEAVY_FILES = Object.freeze(new Set([
   // Fresh CLI processes, sealed replay, independent vetoes and shared-budget
   // retry passed in 137s locally; use the existing heavy-file deadline.
   'test/coder-string-learning.test.js',
+  // Native string-array CLI authorization, rollback, sealed pool selection and
+  // fresh-process reuse passed in 101s / 94s locally; retain the shared cap.
+  'test/coder-string-array-synthesis.test.js',
+  'test/coder-string-array-learning.test.js',
   // Native pipeline authority/refusal and eight acceptance/rollback attempts
   // passed in 133s locally; use the existing install-scale deadline.
   'test/coder-pipeline-synthesis.test.js',

@@ -51,3 +51,12 @@ test('program validation rejects unsafe records and search fails closed on ambig
   assert.equal(contradictory.enumerated, 2); assert.equal(contradictory.matchingPrograms, 0);
   assert.equal(contradictory.candidates.length, 0);
 });
+
+test('rendered programs preserve native join conversion of nullish elements', () => {
+  const input = ['GET', 'GET', null, undefined, 'POST'];
+  const join = vm.runInNewContext(`(function(value){${renderStringArrayProgram({ type: 'join', separator: ',' })}})`);
+  const unique = vm.runInNewContext(`(function(value){${renderStringArrayProgram({ type: 'stableUniqueJoin', separator: ',' })}})`);
+  assert.equal(join(input), 'GET,GET,,,POST');
+  assert.equal(unique(input), 'GET,,,POST');
+  assert.equal(validStringArray(input), false);
+});

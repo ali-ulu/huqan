@@ -30,6 +30,9 @@ ve birleştirme. Bu, grammar'ın kendiliğinden öğrenilmesi değildir.
 Görev hazır replacement veya program içermez. Ayraç aranmaz; seçicideki
 literal kaynak ifadesiyle aynı olmalıdır. İsteğe bağlı `target.sourceHash`,
 işlem öncesi kaynak dosyasının UTF-8 SHA-256 özetidir. Özet değişirse yazılmaz.
+Hazırlanan aday bu kaynak özetini gerçek yazma noktasına taşır; yazma öncesi
+yeniden okuma uyuşmazsa `SYNTHESIS_SOURCE_CHANGED` ile reddedilir. Bu kontrol
+işletim sistemi düzeyinde atomik compare-and-swap veya dosya kilidi değildir.
 En az üç, en fazla 32 farklı giriş örneği gerekir. Girdiler en fazla 128
 elemanlı yoğun string dizileridir; her string en fazla 1024 UTF-16 birimidir.
 Ayraç en fazla 64 birimdir. Çelişkili örnekler veya tek programın seçilememesi
@@ -50,6 +53,9 @@ ayraç, `with`, doğrudan `eval`, bozuk kaynak ve desteklenmeyen seçici reddedi
 Regex, yorum veya template içindeki benzer metin hedef sayılmaz. Üretilmiş ES5
 ifade, `Set` veya `Array` global isimlerine bağımlı değildir. Yalnız seçilen
 ifadenin baytları değişir; mevcut Coder kaynak/işlem doğrulamaları korunur.
+Üretilen döngü çalışma anındaki null/undefined elemanları native join gibi boş
+stringe çevirir; bu, sentez örneklerinin string dışı değer kabul ettiği anlamına
+gelmez. Acorn yalnız bu ailenin kaynak okuyucusu gerektiğinde yüklenir.
 
 ## Kayıt ve yeniden kullanım
 
@@ -83,10 +89,10 @@ Varsayılanlar, yetki kapıları, terfi politikası ve sürüm değişmez.
 - Planlama ve bellek: `lib/coder/string-array-synthesis.js`,
   `lib/coder/arithmetic-synthesis.js`, `lib/coder/synthesis-memory.js`,
   `lib/coder/learned-candidate.js`, `lib/experience/expression-adaptation.js`,
-  `lib/experience/coder-routing-runtime.js`.
+  `lib/experience/coder-routing-runtime.js`, `lib/coder/apply-derivation.js`.
 - Testler: `test/string-array-program.test.js`,
   `test/string-array-target.test.js`, `test/coder-string-array-synthesis.test.js`,
   `test/coder-string-array-learning.test.js`.
 - Paket ve kayıtlar: `package.json`, `package-lock.json`,
   `scripts/context-ownership.json`, `config/reachability-baseline.json`,
-  `coverage-manifest.json` ve bu belge.
+  `coverage-manifest.json`, `scripts/heavy-test-files.js` ve bu belge.

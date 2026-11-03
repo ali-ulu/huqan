@@ -4,6 +4,21 @@ const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { readStringArrayTarget, adaptStringArray, bindStringArrayQualification } = require('../lib/experience/string-array-target');
 const target = { binding: 'options', separator: ',' };
+
+test('unrelated Coder paths do not load Acorn until an expression is inspected', () => {
+  const { spawnSync } = require('node:child_process');
+  const child = spawnSync(process.execPath, ['-e', `
+    const assert=require('node:assert/strict');
+    require('./lib/experience/expression-adaptation');
+    const parser=require.resolve('acorn');
+    assert.equal(require.cache[parser],undefined);
+    const {readStringArrayTarget}=require('./lib/experience/string-array-target');
+    assert(readStringArrayTarget('options.join(",")',{binding:'options',separator:','}));
+    assert(require.cache[parser]);
+  `], { cwd: require('node:path').resolve(__dirname, '..'), encoding: 'utf8', windowsHide: true });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+});
 test('AST selection survives regex template comments and division before closure expression', () => {
   const source = 'const rx=/[{}]/; const s=`literal ${1/2}`; /* options.join(",") */ function send(options){ return options.join(","); }';
   const found = readStringArrayTarget(source, target);

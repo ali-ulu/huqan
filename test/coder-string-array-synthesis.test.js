@@ -46,3 +46,53 @@ test('native CLI requires authorization and rolls back the whole file on accepta
   assert.ok(accepted.result.data.synthesis.enumerated <= accepted.result.data.synthesis.searchBudget);
   assert.match(fs.readFileSync(path.join(root, 'target.js'), 'utf8'), /\^GET\|POST\$/);
 });
+
+test('prepared synthesis refuses source drift before apply and at the pre-write boundary', t => {
+  const { produceArithmeticRepair } = require('../lib/coder/arithmetic-synthesis');
+  const { applyDerivation } = require('../lib/coder/apply-derivation');
+  const { createExperienceJournal } = require('../lib/experience/journal');
+  const { createHash } = require('node:crypto');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'coder-array-pin-')));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, 'target.js');
+  const before = 'module.exports=function(options){return options.join(",");};\n';
+  const changed = before + '// independently changed\n';
+  const task = { id: 'source-pin', level: 'l0', allowedPaths: ['target.js'],
+    operation: { type: 'replace_text', path: 'target.js' }, test: { command: 'node --version' },
+    synthesis: { family: 'string-array-join', target: { binding: 'options', separator: ',' },
+      examples: [{ input: [], output: '' }, { input: ['A','A'], output: 'A' }, { input: ['B','A','B'], output: 'B,A' }] } };
+  for (const phase of ['before-apply', 'pre-write']) {
+    fs.writeFileSync(file, before);
+    const produced = produceArithmeticRepair({ task, root }); assert.equal(produced.ok, true);
+    assert.equal(produced.task.synthesisSourcePin.sha256, createHash('sha256').update(before).digest('hex'));
+    const journal = createExperienceJournal();
+    let checked = false;
+    if (phase === 'before-apply') fs.writeFileSync(file, changed);
+    const result = applyDerivation({ task: produced.task, root, authorized: true,
+      repoState: { known: true, branch: 'feat/pin-fixture', dirty: false, hasUntracked: false },
+      journal: { ...journal, writeCostGuard() {
+        checked = true;
+        if (phase === 'pre-write') fs.writeFileSync(file, changed);
+        return { decision: 'allow' };
+      } } });
+    assert.equal(checked, true);
+    assert.equal(result.ok, false); assert.equal(result.reason, 'SYNTHESIS_SOURCE_CHANGED');
+    assert.equal(fs.readFileSync(file, 'utf8'), changed);
+  }
+});
+
+test('source pins reject unsafe or mismatched metadata before reading a path', () => {
+  const { matchesSynthesisSourcePin } = require('../lib/experience/coder-routing-runtime');
+  const { createHash } = require('node:crypto');
+  const before = 'original'; const sha256 = createHash('sha256').update(before).digest('hex');
+  const pin = { path: 'target.js', sha256 }; const patch = [{ path: 'target.js', before }];
+  let reads = 0; const read = () => { reads += 1; return before; };
+  for (const invalid of [null, {}, { path: 'target.js', sha256: 'bad' }, { ...pin, extra: true },
+    new Proxy(pin, {}), Object.defineProperty({}, 'path', { get() { throw new Error('getter'); } })])
+    assert.equal(matchesSynthesisSourcePin(invalid, patch, read), false);
+  assert.equal(matchesSynthesisSourcePin(pin, [], read), false);
+  assert.equal(matchesSynthesisSourcePin(pin, [{ path: 'other.js', before }], read), false);
+  assert.equal(matchesSynthesisSourcePin(pin, [{ path: 'target.js', before: 'changed' }], read), false);
+  assert.equal(reads, 0);
+  assert.equal(matchesSynthesisSourcePin(pin, patch, read), true); assert.equal(reads, 1);
+});
