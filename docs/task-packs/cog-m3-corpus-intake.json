@@ -187,7 +187,90 @@
       "exposure": "UNKNOWN",
       "split": null,
       "familyId": null,
-      "procedureHash": null
+      "procedureHash": null,
+      "nativeQualificationFollowups": [
+        {
+          "runId": "express-reviewed:c1",
+          "createdAt": "2026-11-03T19:35:31.537Z",
+          "implementationReference": {
+            "sourceRepo": "ali-ulu/huqan",
+            "commit": "18b99c623295678b23cbd60a073262c78a9ab466",
+            "pullRequest": 4499,
+            "binding": "POST_RUN_REFERENCE_NOT_PRELOCK",
+            "availableOnMainAtObservation": false
+          },
+          "sealed": true,
+          "closed": true,
+          "learningEligibility": "positive_procedure",
+          "recordHash": "559df79ca152cc3afe218e961d0acbd3893266fd8c346a304f56c8150386c1a0",
+          "operatorReview": {
+            "policy": "OPERATOR_AUTHORIZED_REVIEW",
+            "finiteProgramsEnumerated": 2,
+            "finiteProgramsSelected": 1
+          },
+          "nativeAcceptance": {
+            "control": {
+              "before": {
+                "status": 200,
+                "allow": "GET,POST",
+                "exit": 0
+              },
+              "after": {
+                "status": 200,
+                "allow": "GET,POST",
+                "exit": 0
+              }
+            },
+            "duplicate": {
+              "before": {
+                "status": 200,
+                "allow": "GET,GET,POST",
+                "exit": 1,
+                "expectedFailure": "Allow must not contain duplicate methods"
+              },
+              "after": {
+                "status": 200,
+                "allow": "GET,POST",
+                "exit": 0
+              }
+            }
+          },
+          "sourceEvidence": {
+            "sourceRepo": "BugsJS/express",
+            "issue": 2458,
+            "sourceCommit": "3387916efcac19302188151a24927a0405a373e8",
+            "rawUtf8SourceBeforeSha256": "499160f16cd25c2ee453be9845b56866b2f06e1bda08ff3965071fbf21a5d3d3",
+            "rawUtf8SourceBeforeRepresentation": "WORKTREE_BYTES_BEFORE_LF_NORMALIZATION",
+            "derivationV3LfNormalizedBeforeSha256": "3867c0f5ac5216d4c4056aceac3e528c1fac08e2fb1e3b28ae719695e950cf5a",
+            "derivationV3LfNormalizedAfterSha256": "64d4295d77da4f0e6349147d8c4d2454c3e446eee5695f8aac4edc9f6d7cbb8e"
+          },
+          "artifacts": {
+            "classification": "LOCAL_NOT_PUBLISHED",
+            "paths": [
+              {
+                "path": "m3-string-array-qualification-reviewed/checks/task.json",
+                "sha256": "19f95c78c84b09e11da5d974863c8733212b9304d95da219e0bf90a120bfcc48"
+              },
+              {
+                "path": "m3-string-array-qualification-reviewed/checks/native-result.json",
+                "sha256": "7bde34956bae5bf1b7565a1525b0ec09881c9ef6cca5477ad1b608abe4d3f7ba"
+              },
+              {
+                "path": "m3-string-array-qualification-reviewed/checks/observations.json",
+                "sha256": "963b82340cf71f19f4ecc9f0aa59f8f4a576ffc208de92e727b888c9a64841d4"
+              }
+            ]
+          },
+          "localQualificationOnly": true,
+          "remembered": false,
+          "promoted": false,
+          "corpusAccepted": false,
+          "assertsGain": false,
+          "independence": "UNKNOWN",
+          "repeatAssessment": "same_bug_repeat_not_independent_support",
+          "sourceHash": "9f31f2b97b64bc7bee253e5c7f79a5ffb476bc8dfde0b1fca3e1cb2dc8962df0"
+        }
+      ]
     },
     {
       "id": "date-fns/date-fns#4346",
