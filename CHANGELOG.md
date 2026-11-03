@@ -1,5 +1,59 @@
 # Changelog
 
+## v1.2.0
+
+Released 2026-11-03. The first release under the dual license: the core moves
+from AGPL-3.0-only to Apache-2.0, and the enterprise surfaces (SSO, SIEM export,
+the SOC 2-mapped evidence pack) ship under the HUQAN Enterprise License. It also
+carries the POSIX parity work for the approval authority and the cognition
+program's measured results.
+
+### Changed
+- **The core is now [Apache-2.0](./LICENSE); the enterprise surfaces are under
+  the [HUQAN Enterprise License](./LICENSE-ENTERPRISE)** (#4356). Versions up to
+  `1.1.1` stay available under AGPL-3.0-only. See
+  [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md).
+- **The README leads with pre-execution blocking**, with the two mascot films at
+  the top and a plain "what it stops, what it lets through" table (#4489).
+
+### Added
+- **Approval authority on POSIX** (#4082): Linux (systemd) and macOS (launchd)
+  installers and uninstallers, the agent/user boundary, the protected-store ACL,
+  the install-path trust probe, and an optional `0660` unix-socket transport.
+  The authority now fails closed inside a container (#4494).
+- **Multi-party approval** (#4215, #4216, #4270): N-of-M quorum with distinct
+  voters, signed operator identity, and opt-in RBAC (#4205).
+- **Enterprise SSO and export** (#4256, #4267, #4093): a SAML SP with signature
+  validation and replay protection, an OIDC relying party with PKCE, and the
+  SIEM export rendered as ECS, HEC, CEF and jsonl over syslog TLS or HTTPS.
+- **Evidence pack** (#4092): collector, counter-seal chain, verifier and the
+  SOC 2 control matrix.
+- **MCP Registry entry** (#4130): `mcpName` and `server.json`, pinned to the
+  package version.
+- **`huqan coder`** learns bounded string-array repairs and reuses verified
+  methods across paths and projects (#4499), and binds project generation to
+  native approval (#4268).
+- **Trust Command Center** (#4294, #4305): receipt timeline, batch approvals and
+  the overview trend with live SSE.
+
+### Fixed
+- **The approval authority reconciles stuck leaseless claims** against the
+  mutation journal (#4486).
+- **Company Brain decisions are atomic**, keyed by a client operation ID (#4483).
+
+### Security
+- **The gate is enforced on the read/query surfaces** as well as writes, and the
+  emergency stop reaches the HTTP and CLI read paths (#3937, #3951).
+- **Dependency overrides** clear the moderate `minimatch`/`glob` advisories (#4463).
+
+### Internal
+- **The cognition program (COG-A…M) landed as measured work**: appraisal,
+  attribution, prediction error, salience, replay priority, the value ledger and
+  the M3 family evaluation, each with a sealed corpus and a recorded verdict —
+  including the ones that measured **no gain** (#4060). See
+  [`docs/audits`](./docs/audits).
+- **The Agent Brake Layer claim is measured** with `npm run bench:agent-brake` (#4326).
+
 ## v1.1.1
 
 Released 2026-10-19. `huqan@1.1.0` is on npm with provenance from its release

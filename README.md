@@ -8,6 +8,18 @@ Every decision is recorded as a verifiable Trust Receipt — the evidence behind
 
 **Every decision is made on your machine. No model. No cloud. No API key.**
 
+[![The gate mascot shows a request moving to allow, review or block](docs/assets/huqan-mascot-gate.gif)](docs/assets/huqan-mascot-gate.mp4)
+
+[Film 1 — the agent explains itself (34s)](docs/assets/huqan-mascot-agent.mp4) · [Film 2 — the gate explains HUQAN (43s)](docs/assets/huqan-mascot-gate.mp4) · [Both with sound, on huqan.com](https://huqan.com)
+
+## Try it in 30 seconds
+
+```bash
+npx -y huqan quickstart
+```
+
+A 30-second tour: propose → approve → verify → Trust Receipt. No global install is required; the run uses a throwaway store. The same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
+
 ## What it stops, what it lets through
 
 Default `claude-code` gate profile, no custom policy:
@@ -33,14 +45,6 @@ Agents can write code, delete files, spend money, and change memory — usually 
 **Individual and community — your agent's emergency brake.** HUQAN holds a mutating call until a person approves it, and `huqan.emergency_stop` stops one agent or a whole workspace. This is the [Agent Brake Layer](./docs/demo-mcp-agent-brake-layer.md).
 
 **Team and enterprise — an audit record the operator does not write.** A Trust Receipt is produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it. Where "independent" is claimed, read the boundary under [Limits](#limits-honest).
-
-## Try it in 30 seconds
-
-```bash
-npx -y huqan quickstart
-```
-
-A 30-second tour: propose → approve → verify → Trust Receipt. No global install is required; the run uses a throwaway store. The same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
 
 ## Install
 
@@ -90,14 +94,6 @@ The outcome is one of:
 
 ALLOW / REVIEW / QUARANTINE / DRY-RUN ONLY / BLOCK / REJECT
 
-Two short films explain the same boundary in words. In the first, an agent walks through what it actually does and where it stops being reliable — it cannot tell which file is production, whether its memory is still true, or why it did what it did. In the second, the gate shows how a request is judged and why the gate, not the agent, writes the receipt.
-
-[![An agent mascot explains its own steps and its three blind spots](docs/assets/huqan-mascot-agent.gif)](docs/assets/huqan-mascot-agent.mp4)
-
-[![The gate mascot shows a request moving to allow, review or block](docs/assets/huqan-mascot-gate.gif)](docs/assets/huqan-mascot-gate.mp4)
-
-[Film 1 — the agent explains itself (34s)](docs/assets/huqan-mascot-agent.mp4) · [Film 2 — the gate explains HUQAN (43s)](docs/assets/huqan-mascot-gate.mp4) · [Both with sound, on huqan.com](https://huqan.com)
-
 Escalation and overrides are human decisions, recorded in the receipt. **Escalation is a decision a person makes, not one the gate returns**: a reviewer can move a pending case to `escalated`, which needs a second approver, so it is absent in a single-user install. Decision types: `approve`, `reject`, `expire`, `cancel`, `escalate`, `override` — see [`lib/human-oversight-approval-runtime.js`](./lib/human-oversight-approval-runtime.js).
 
 ## Limits (honest)
@@ -114,7 +110,7 @@ Full details and edge cases: [docs](./docs).
 ## License
 
 - **Core — [Apache-2.0](./LICENSE).** The gate, CLI, MCP server, Approval Authority (including RBAC and N-of-M approval) and Trust Receipts. Free for any use, including commercial.
-- **Enterprise — [HUQAN Enterprise License](./LICENSE-ENTERPRISE).** SSO (`lib/oidc/`, `lib/saml/`), SIEM export (`lib/siem/`) and the SOC 2-mapped evidence pack (`lib/evidence-pack/`). Free to develop, test and evaluate; production use needs a subscription — contact Ali Ulu, `aliulu@ai-ulu.com`.
+- **Enterprise — [HUQAN Enterprise License](./LICENSE-ENTERPRISE).** SSO (`lib/oidc/`, `lib/saml/`), SIEM export (`lib/siem/`) and the SOC 2-mapped evidence pack (`lib/evidence-pack/`). Free to develop, test and evaluate; production use needs a subscription — see [`LICENSE-ENTERPRISE`](./LICENSE-ENTERPRISE) for contact terms.
 
 Versions up to `1.1.1` were published under AGPL-3.0-only and stay available under it. Record and contribution terms: [`docs/legal/dual-licensing-status.md`](./docs/legal/dual-licensing-status.md).
 
