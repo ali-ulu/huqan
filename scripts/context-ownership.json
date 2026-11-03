@@ -4702,6 +4702,10 @@
       "kind": "infra",
       "evidence": "ownership-map-2446.md#R-SHARED-P"
     },
+    "lib/container-detection.js": {
+      "kind": "infra",
+      "evidence": "ownership-map-2446.md#R-SHARED-P"
+    },
     "lib/cli-doctor-probe.js": {
       "kind": "infra",
       "evidence": "ownership-map-2446.md#R-SHARED-P"
