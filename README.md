@@ -12,6 +12,12 @@ Every decision is recorded as a verifiable Trust Receipt — the evidence behind
 
 [Film 1 — the agent explains itself (34s)](docs/assets/huqan-mascot-agent.mp4) · [Film 2 — the gate explains HUQAN (43s)](docs/assets/huqan-mascot-gate.mp4) · [Both with sound, on huqan.com](https://huqan.com)
 
+## Who it is for
+
+**Individual and community — your agent's emergency brake.** HUQAN holds a mutating call until a person approves it, and `huqan.emergency_stop` stops one agent or a whole workspace. This is the [Agent Brake Layer](./docs/demo-mcp-agent-brake-layer.md).
+
+**Team and enterprise — an audit record the operator does not write.** A Trust Receipt is produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it. Where "independent" is claimed, read the boundary under [Limits](#limits-honest).
+
 ## Try it in 30 seconds
 
 ```bash
@@ -39,12 +45,6 @@ Agents can write code, delete files, spend money, and change memory — usually 
 - Risky calls are **blocked or held before they execute**, not explained afterwards.
 - With the Approval Authority — an OS service (a Windows service today, systemd on Linux or launchd on macOS, [ADR-020](./docs/adr/ADR-020-posix-authority-parity.md)) guarded by TOTP and cryptographic envelopes — the agent cannot approve its own actions.
 - Every decision produces a **Trust Receipt** — a local record you can verify from the receipt itself.
-
-## Who it is for
-
-**Individual and community — your agent's emergency brake.** HUQAN holds a mutating call until a person approves it, and `huqan.emergency_stop` stops one agent or a whole workspace. This is the [Agent Brake Layer](./docs/demo-mcp-agent-brake-layer.md).
-
-**Team and enterprise — an audit record the operator does not write.** A Trust Receipt is produced by the gate that made the decision, held locally, and verifiable from the receipt itself, so the record of an action is not the agent's own account of it. Where "independent" is claimed, read the boundary under [Limits](#limits-honest).
 
 ## Install
 
