@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.2.1
+
+Released 2026-11-04. `v1.2.0` carries the dual-license change and the POSIX
+parity work, but its Publish run ended red in the full test suite and no npm
+upload happened. The failure was not in the release content: the workflow
+checks out a detached HEAD, where `git branch --show-current` is empty, so the
+cognition lab's reference frame had no branch and four M9 tests failed
+deterministically. This release ships that fix.
+
+### Fixed
+- **The M9/M7 reference frame stays valid on a detached HEAD** (#4503, #4504).
+  `lib/cognitive-lab-m7-value-runtime.js` and `lib/cognitive-lab-m7-runtime.js`
+  fall back to `GITHUB_REF_NAME` when no branch is checked out, so the salience
+  seam is no longer silently disabled and the release suite passes from a tag
+  checkout. `v1.2.0`'s Publish run cannot be re-run green, because release tags
+  are immutable; the fix ships as `1.2.1`.
+- **The env-compat bypass scan exempts the M7/M9 lab runtimes** (#4510). The
+  detached-HEAD fallback read `HUQAN_FRAME_BRANCH` off `process.env`, which broke
+  the environment-compat-bypass invariant on `main` and failed the full suite
+  that `publish.yml` runs. `HUQAN_FRAME_BRANCH` belongs to the `HUQAN_FRAME_*`
+  family, which never had an `AXIOM_`-era spelling, so it is exempted from the
+  scan the same way the frozen G1 knobs are (#4364) rather than given a
+  meaningless `AXIOM_FRAME_BRANCH` alias.
+
 ## v1.2.0
 
 Released 2026-11-03. The first release under the dual license: the core moves
