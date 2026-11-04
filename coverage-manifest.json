@@ -1221,17 +1221,17 @@
           "call": "fs.writeFileSync"
         },
         {
-          "line": 311,
+          "line": 314,
           "capability": "process",
           "call": "spawnSync"
         },
         {
-          "line": 328,
+          "line": 331,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 331,
+          "line": 334,
           "capability": "process",
           "call": "spawnSync"
         }
@@ -1258,32 +1258,32 @@
           "call": "fetch"
         },
         {
-          "line": 76,
-          "capability": "process",
-          "call": "execFileSync"
-        },
-        {
           "line": 77,
           "capability": "process",
           "call": "execFileSync"
         },
         {
-          "line": 93,
+          "line": 81,
+          "capability": "process",
+          "call": "execFileSync"
+        },
+        {
+          "line": 97,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 98,
+          "line": 102,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 123,
+          "line": 127,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 149,
+          "line": 153,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
