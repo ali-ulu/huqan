@@ -149,6 +149,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // with a CPU/RSS probe per child, at ~64s locally on Node 24. The same
   // loaded-Windows-runner variance that reddened the entries above applies.
   'test/g3-closure-dimensions.test.js',
+  // G3 break-even + prior-skill retention (#4505) runs ~127 real `cli.js coder`
+  // child processes (6 training + 2x60 paired + integrity probe) at the frozen
+  // N=60 retention cohort, which cannot be shortened without dropping below the
+  // margin-provable size (59). It passes in ~104s locally on Node 24, so the
+  // ordinary 90s cap would kill a file that is still working.
+  'test/g3-breakeven-retention.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {
