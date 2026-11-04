@@ -8,6 +8,10 @@ const digest = value => createHash('sha256').update(JSON.stringify(value)).diges
 
 test('measured M9 arousal alone changes an actual safe-family execution and replays after restart', () => {
   const result = runM7ValuePilot();
+  // CI checks out a detached HEAD, so `git branch --show-current` is empty
+  // there. An empty branch fails reference-frame validation and silently
+  // disables the salience seam (scorer would be undefined below).
+  assert.ok(result.training.frame.branch, 'reference frame branch must be non-empty on a detached checkout');
   assert.equal(result.assertsGain, false);
   assert.equal(result.status, 'CONTROLLED_FIXTURE_ONLY');
   const { candidate, arousalOff, replay } = result.arms;
