@@ -2,16 +2,21 @@
 
 **Status:** implementation + release runbook
 
-**Source reality at this revision:** `package.json` is `1.2.0`. The `v1.0.0`
+**Source reality at this revision:** `package.json` is `1.2.1`. The `v1.0.0`
 and `v1.0.1` tags exist, but neither is published: both Publish runs stopped
 before `npm publish` (`v1.0.0` on a suite failure, `v1.0.1` at the independent
 release evaluation gate, which had no evaluation record and was removed in
-#3867). The `1.1.0` and `1.1.1` packages are on npm with trusted-publisher
-provenance, but `1.1.0` ended on npm's staged 409 and `1.1.1` on npm's 403 (see
-"A version the registry already holds" below), so the latest
-GitHub Release is still `v0.13.2` until `v1.2.0` publishes. Existing version/tag state must
-be checked again immediately before any publication because npm versions and
-Git tags are immutable release identities.
+#3867). The `v1.2.0` tag exists too, but its Publish run stopped in the full
+test suite, before `npm publish`: a detached-HEAD checkout left the M9 reference
+frame without a branch, so four cognition tests failed deterministically. That
+defect is fixed on `main` (#4503, #4504); because release tags are immutable,
+the fix ships as the next version rather than by moving the tag. The `1.1.0`
+and `1.1.1` packages are on npm with trusted-publisher provenance, but `1.1.0`
+ended on npm's staged 409 and `1.1.1` on npm's 403 (see "A version the registry
+already holds" below), so the latest GitHub Release is still `v0.13.2` until
+`v1.2.1` publishes. Existing version/tag state must be checked again
+immediately before any publication because npm versions and Git tags are
+immutable release identities.
 
 `huqan` is already public on npm. Every later publish therefore changes what
 existing installs can upgrade into. Never edit or repoint an already-published
