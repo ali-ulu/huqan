@@ -16,6 +16,13 @@ deterministically. This release ships that fix.
   seam is no longer silently disabled and the release suite passes from a tag
   checkout. `v1.2.0`'s Publish run cannot be re-run green, because release tags
   are immutable; the fix ships as `1.2.1`.
+- **The env-compat bypass scan exempts the M7/M9 lab runtimes** (#4510). The
+  detached-HEAD fallback read `HUQAN_FRAME_BRANCH` off `process.env`, which broke
+  the environment-compat-bypass invariant on `main` and failed the full suite
+  that `publish.yml` runs. `HUQAN_FRAME_BRANCH` belongs to the `HUQAN_FRAME_*`
+  family, which never had an `AXIOM_`-era spelling, so it is exempted from the
+  scan the same way the frozen G1 knobs are (#4364) rather than given a
+  meaningless `AXIOM_FRAME_BRANCH` alias.
 
 ## v1.2.0
 
