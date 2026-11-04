@@ -97,7 +97,15 @@ describe('conflict triage browser smoke (#1929)', { skip: skipReason ?? false },
             return Promise.resolve(new Response(body, { status, headers: { 'Content-Type': 'application/json' } }));
           }
           const real = window.__realFetch(input, init);
-          return isGraphData ? real.then(response => { window.__graphResponses += 1; return response; }) : real;
+          if (!isGraphData) return real;
+          // Count once the body is read, not when the headers arrive: the page's
+          // json() helper awaits response.json(), so counting at headers would let
+          // the before() drain return while the navigation render is still pending.
+          return real.then(response => {
+            const readJson = response.json.bind(response);
+            response.json = () => readJson().finally(() => { window.__graphResponses += 1; });
+            return response;
+          });
         };
         return true;
       })()
