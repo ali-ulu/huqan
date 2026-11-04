@@ -76,6 +76,8 @@ describe('conflict triage browser smoke (#1929)', { skip: skipReason ?? false },
   /**
    * Installs the /graph-data stub. `window.__graphStub` selects what the next
    * fetch of that path answers with; every other request still hits the server.
+   * Every completed real /graph-data response is counted, so the hook can tell
+   * the page's own bootstrap loads apart from the ones a case starts itself.
    */
   async function installStub() {
     await browser.evaluate(`
@@ -83,26 +85,49 @@ describe('conflict triage browser smoke (#1929)', { skip: skipReason ?? false },
         if (window.__realFetch) return true;
         window.__realFetch = window.fetch.bind(window);
         window.__graphStub = null;
+        window.__graphResponses = 0;
         window.fetch = (input, init) => {
           const url = String(typeof input === 'string' ? input : (input && input.url) || '');
+          const isGraphData = url.split('?')[0].endsWith('/graph-data');
           const stub = window.__graphStub;
-          if (stub && url.split('?')[0].endsWith('/graph-data')) {
+          if (stub && isGraphData) {
             if (stub.mode === 'hang') return new Promise(() => {});
             const status = stub.mode === 'error' ? 500 : 200;
             const body = stub.mode === 'error' ? '{}' : JSON.stringify(stub.payload);
             return Promise.resolve(new Response(body, { status, headers: { 'Content-Type': 'application/json' } }));
           }
-          return window.__realFetch(input, init);
+          const real = window.__realFetch(input, init);
+          if (!isGraphData) return real;
+          // Count once the body is read, not when the headers arrive: the page's
+          // json() helper awaits response.json(), so counting at headers would let
+          // the before() drain return while the navigation render is still pending.
+          return real.then(response => {
+            const readJson = response.json.bind(response);
+            response.json = () => readJson().finally(() => { window.__graphResponses += 1; });
+            return response;
+          });
         };
         return true;
       })()
     `);
   }
 
-  /** Applies a stub mode and reloads the conflict view through the real loadGraph(). */
+  /**
+   * Applies a stub mode and reloads the conflict view through the real
+   * loadGraph(), awaiting that call so its render is complete before an
+   * assertion reads the DOM.
+   *
+   * Clicking #crefresh returned immediately, so a case raced the fetch it had
+   * just started -- and a *bootstrap* load could still be in flight and repaint
+   * the stubbed result away (#4506: the empty real response landed after the
+   * fixture and the view read "showing 0 of 0"). Awaiting the page's own
+   * loadGraph() promise removes both races; the before() hook drains the
+   * bootstrap loads first, so nothing repaints after this returns.
+   */
   async function serveGraph(stub) {
     await browser.evaluate(`window.__graphStub = ${JSON.stringify(stub)}; true;`);
-    await browser.evaluate(`document.getElementById('crefresh').click(); true;`);
+    const outcome = await browser.evaluate(`loadGraph().then(() => 'settled', () => 'settled')`);
+    if (outcome !== 'settled') throw new Error(`loadGraph() did not settle: ${outcome}`);
   }
 
   /**
@@ -157,11 +182,29 @@ describe('conflict triage browser smoke (#1929)', { skip: skipReason ?? false },
 
     browser = await launchBrowserSession();
     await browser.navigate(`${base}/`);
+    // Arm the fetch wrapper, then drain both bootstrap loads before the first
+    // case runs.
+    //
+    // The page fires loadGraph() twice on first paint: the `refresh()` from
+    // `probeAuthMode().finally()` and the one `go('conflicts')` runs when the
+    // nav button is clicked. Neither is awaited, so either could still be in
+    // flight when a case installs its fixture and then repaint the view with
+    // the real (empty) workspace -- which is exactly how #4506 read
+    // "showing 0 of 0". `refresh()` sets the graph surface to CHECKING, so
+    // waiting for it to leave CHECKING proves the first load is done; the nav
+    // load never touches that surface, so its own completed-response counter is
+    // what proves the second one is done.
+    await installStub();
     await waitFor(
-      `!/CHECKING/.test(document.getElementById('meshbadgestate').textContent)`,
-      'the graph surface to settle after first load',
+      `typeof state !== 'undefined' && state.surfaces.graph.s !== 'checking'`,
+      'the bootstrap graph load to settle',
     );
+    const bootstrapLoads = await browser.evaluate('window.__graphResponses');
     await browser.evaluate(`document.querySelector('.nav button[data-v="conflicts"]').click(); true;`);
+    await waitFor(
+      `window.__graphResponses > ${bootstrapLoads}`,
+      'the navigation graph load to finish',
+    );
   });
 
   after(async () => {
