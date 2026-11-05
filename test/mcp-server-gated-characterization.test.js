@@ -372,3 +372,13 @@ test('mcpServer gated responses match the recorded characterisation', async () =
     assert.deepEqual(actual.runs[key], expected.runs[key], key);
   }
 });
+
+// The refusal is what a blocked operator reads first; it must point at the way
+// to get a capability, because the static HUQAN_MCP_OPERATOR_TOKEN alone never
+// authorises a network MCP call (#mcp-operator-capability-docs).
+test('unauthorised operator approval refusal names the grant route', async () => {
+  const calls = [];
+  const result = await mcp.callTool(recordingKernel(calls), { name: 'huqan.approvals', arguments: { workspaceId: 'default' } }, {});
+  assert.equal(result.error?.code, 'OPERATOR_AUTH_REQUIRED');
+  assert.match(result.error.message, /POST \/api\/v2\/operator\/grant/);
+});
