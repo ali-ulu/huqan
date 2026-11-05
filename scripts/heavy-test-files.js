@@ -58,6 +58,12 @@ const HEAVY_FILE_TIMEOUT_OVERRIDES = Object.freeze({
   // headroom for a file that cannot be shortened without dropping below the
   // margin-provable size (59).
   'test/g3-sealed-run-cohort-result.test.js': 360_000,
+  // The G3 break-even + retention measurement (#4505) runs ~127 real `cli.js
+  // coder` children at the frozen N=60 cohort (~104s locally on Node 24). On the
+  // Windows runner that exceeded the 240s shared cap (elapsed 240.963s, SIGTERM,
+  // #4516): the same ~2x spawn cost the entry above documents, on a cohort that
+  // cannot be shortened without dropping below the margin-provable size (59).
+  'test/g3-breakeven-retention.test.js': 420_000,
 });
 const HEAVY_FILES = Object.freeze(new Set([
   // Real per-case Git/approval/rollback checks passed in 221s under local load.
@@ -149,6 +155,12 @@ const HEAVY_FILES = Object.freeze(new Set([
   // with a CPU/RSS probe per child, at ~64s locally on Node 24. The same
   // loaded-Windows-runner variance that reddened the entries above applies.
   'test/g3-closure-dimensions.test.js',
+  // G3 break-even + prior-skill retention (#4505) runs ~127 real `cli.js coder`
+  // child processes (6 training + 2x60 paired + integrity probe) at the frozen
+  // N=60 retention cohort, which cannot be shortened without dropping below the
+  // margin-provable size (59). It passes in ~104s locally on Node 24, so the
+  // ordinary 90s cap would kill a file that is still working.
+  'test/g3-breakeven-retention.test.js',
 ]));
 
 function fileTimeoutMs(relativePath) {

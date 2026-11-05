@@ -178,7 +178,7 @@ G2 testi yüksek talep → doğrulanmış snapshot → alternatif plan seçimi �
 - Bütünlük: sıfır yetki/onay bypass'ı, yanlış iş tamamlandı bildirimi ve scope sızıntısı. Bunlardan biri REJECT; küçük örneklem arkasına gizlenemez.
 - Ortam değişiminden sonra uyum süresi; restart sonrası kazanım; eski görevlerde önceden belirlenen non-inferiority sınırı ve unutmanın yol açtığı geri yükleme ihtiyacı ölçülür.
 - Nihai durum: `NOT_MEASURED | INSUFFICIENT | MEASURED_NO_GAIN | GAIN | REJECT`. GAIN yalnız ön-kayıtlı ortak kapı geçilirse; varsayılanı açma ayrı değerlendirilir.
-- Kapak durumu (2026-11-01): doğruluk ve process non-inferiority #4462 (N=70 mühürlü kohort, `GAIN`) ile; güç, CPU/bellek, restart, değişen ortam (kayma) ve eski-beceri boyutları #4470 ile gerçek mühürlü kaynakta ölçüldü (eğitim dahil amortize maliyet `MEASURED_NO_GAIN`; `assertsGain = false`). **Bileşim (composition) boyutu hâlâ açıktır**; bu nedenle aşağıdaki G3 kutusu işaretlenmez.
+- Kapak durumu (2026-11-01): doğruluk ve process non-inferiority #4462 (N=70 mühürlü kohort, `GAIN`) ile; güç, CPU/bellek, restart, değişen ortam (kayma) ve eski-beceri boyutları #4470 ile gerçek mühürlü kaynakta ölçüldü (eğitim dahil amortize maliyet `MEASURED_NO_GAIN`; `assertsGain = false`). Break-even ufku ve önceki-beceri korunumu #4505 ile eklendi: aile A becerisi aile B öğrenmesinden sonra korunuyor (60/60, Newcombe −0.0487 ≥ −0.05, marj kanıtlandı) ama bağlayıcı CPU ufku n\*=41 > 32 → `MEASURED_NO_GAIN` (`assertsGain = false`). **Bileşim (composition) boyutu hâlâ açıktır**; bu nedenle aşağıdaki G3 kutusu işaretlenmez.
 
 ### Tamamlanma kontrolü
 
@@ -197,7 +197,7 @@ Sahip kararı: program **"ölçüldü, kazanç yok"** sonucuyla kapanır. Bu, yu
 - 11 modül issue'su (#4061–#4071) birleştirilmiş PR kanıtıyla kapalı.
 - G1: tek seferlik holdout #4370 `HARM` (aday 103/384, kontrol 128/384); düzeltme ölçümü #4402 `MEASURED_NO_GAIN`.
 - G2: `H1 NOT PASSED` (N=24, alt sınır −0,1173 < eşik −0,05); yönlendirici üretimde `ROUTING_ADVICE_ONLY` kalır.
-- G3: doğruluk ve process non-inferiority #4462 `GAIN` (N=70 mühürlü kohort); eğitim dahil amortize maliyet #4472 `MEASURED_NO_GAIN` (`assertsGain = false`); gerçek kohort ölçümü #4428 `NOT_MEASURED`; bileşim boyutu ölçülmedi.
+- G3: doğruluk ve process non-inferiority #4462 `GAIN` (N=70 mühürlü kohort); eğitim dahil amortize maliyet #4472 `MEASURED_NO_GAIN` (`assertsGain = false`); break-even ufku ve önceki-beceri korunumu #4505 `MEASURED_NO_GAIN` (retention geçti, CPU ufku 41 > 32); gerçek kohort ölçümü #4428 `NOT_MEASURED`; bileşim boyutu ölçülmedi.
 - Varsayılanlar ve yetki sınırları değişmedi. Yeni bir kazanç iddiası ancak yeni, ön-kayıtlı bir ölçümle açılabilir.
 
 ### Bu programdan sonraya bırakılan kapasite
