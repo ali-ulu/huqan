@@ -171,7 +171,12 @@ test('formatQuickstartResult says a removed demo store cannot read its receipt b
   assert.doesNotMatch(output, /HUQAN_MEMORY_PATH=/);
 });
 
-test('formatQuickstartResult shows how to read the receipt while the demo store remains (#3902)', () => {
+test('formatQuickstartResult never suggests reading the receipt from the demo store (#3902)', () => {
+  // The quickstart receipt is materialized in memory only; it is never
+  // persisted into the demo store's receipt index. Suggesting
+  // `HUQAN_MEMORY_PATH=... huqan receipt <id>` therefore reproduced NOT_FOUND
+  // for every reader who ran it, even with the store left on disk. The output
+  // must not advertise that command in either cleanup outcome.
   const output = formatQuickstartResult({
     ok: true,
     steps: [{ step: 'receipt', ok: true, detail: 'receiptId abc (status canonical)' }],
@@ -179,11 +184,10 @@ test('formatQuickstartResult shows how to read the receipt while the demo store 
   }, { storePath: '/tmp/huqan-quickstart-xyz', storeRemoved: false });
 
   assert.match(output, /left on disk/);
-  // path.join renders separators per platform; escape the whole path so the
-  // Windows backslashes are matched literally instead of as regex escapes.
-  const expectedStore = path.join('/tmp/huqan-quickstart-xyz', 'memory.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  assert.match(output, new RegExp(`HUQAN_MEMORY_PATH=${expectedStore}`));
-  assert.match(output, /huqan receipt abc/);
+  assert.doesNotMatch(output, /HUQAN_MEMORY_PATH=/);
+  assert.doesNotMatch(output, /HUQAN_DB_PATH=/);
+  // It still explains why the id cannot be read back instead of leaving it bare.
+  assert.match(output, /cannot read it back/);
 });
 
 test('the seeded statement uses a supported relation marker', () => {
