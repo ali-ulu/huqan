@@ -324,3 +324,36 @@ test('--task-id binds a task-scoped card to its task end to end (#2505 C)', t =>
   assert.equal(floating.process.status, 2, floating.process.stderr);
   assert.equal(JSON.parse(floating.process.stdout).decision, 'block');
 });
+
+// Regression: a claude-code-shaped payload fed to the hook without --profile
+// used to block with the bare reason `malformed_external_action_blocked`,
+// which hid the real cause. The block is correct; the reason must now name
+// the missing fields (envelope.errors). Under the default generic profile the
+// missing fields are tool_name and session_id (the generic normalizer
+// defaults agentName), so that is what an honest reason says.
+test('flagsless claude-code payload blocks with the missing fields named in the reason', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-gate-flagsless-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const flagsless = spawnSync(process.execPath, [
+    hook,
+    '--workspace-root', root,
+    '--receipt-log', path.join(directory, 'receipts.jsonl'),
+    '--memory-path', path.join(directory, 'memory.json'),
+    '--db-path', path.join(directory, 'memory.db'),
+  ], {
+    cwd: root,
+    input: JSON.stringify({
+      session_id: 's1',
+      tool_name: 'Bash',
+      tool_input: { command: 'git status' },
+    }),
+    encoding: 'utf8',
+    env: PROJECTION_ENV,
+  });
+  assert.equal(flagsless.status, 2, flagsless.stderr);
+  const output = JSON.parse(flagsless.stdout);
+  assert.equal(output.decision, 'block');
+  assert.ok(output.reason.startsWith('malformed_external_action_blocked'), output.reason);
+  assert.match(output.reason, /missing_tool_name/);
+  assert.match(output.reason, /missing_session_id/);
+});

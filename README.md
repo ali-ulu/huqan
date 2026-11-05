@@ -28,7 +28,7 @@ A 30-second tour: propose → approve → verify → Trust Receipt. No global in
 
 ## What it stops, what it lets through
 
-Default `claude-code` gate profile, no custom policy:
+Default `claude-code` gate profile, no custom policy. Invoke the hook with the profile explicit — e.g. `huqan-gate-hook evaluate --profile claude-code` (claude-code payloads carry their own `session_id`; the agent name derives from the profile, or pass `--agent-name`/`--session-id` to override). Without `--profile` the generic profile runs and a claude-code-shaped payload is rejected as malformed; the block reason names the missing fields (e.g. `missing_tool_name`, `missing_session_id`):
 
 | Agent runs | HUQAN |
 |---|---|

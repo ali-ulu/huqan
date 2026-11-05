@@ -13,7 +13,7 @@
   "external/memory": {"decision":"review","reason":"external_action_review_required","score":80,"level":"HIGH"},
   "external/automation": {"decision":"review","reason":"external_action_review_required","score":80,"level":"HIGH"},
   "external/deployment": {"decision":"block","reason":"DEPLOY_REQUIRES_APPROVAL","score":100,"level":"CRITICAL"},
-  "external/malformed": {"decision":"block","reason":"malformed_external_action_blocked","score":100,"level":"CRITICAL"},
+  "external/malformed": {"decision":"block","reason":"malformed_external_action_blocked (missing_tool_name, missing_agent_name, missing_session_id)","score":100,"level":"CRITICAL"},
   "external/residencyViolation": {"decision":"block","reason":"data_residency_violation","score":100,"level":"CRITICAL"},
   "external/unexpectedEgressReview": {"decision":"review","reason":"external_action_review_required","score":80,"level":"HIGH"},
   "external/unexpectedEgressBlock": {"decision":"block","reason":"unexpected_egress_destination","score":95,"level":"CRITICAL"},
