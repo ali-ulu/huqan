@@ -104,6 +104,11 @@ Reachable at `/viewer` on a running server; its title is
 restrictive CSP, `no-store`, and a strict same-origin session exchange, so a
 non-browser client is refused with `cross_origin` rather than served.
 
+On the server's default HTTP listener (`http://127.0.0.1:3000`) the
+same-origin session exchange is accepted for loopback origins only
+(`127.0.0.1`, `localhost`, `[::1]`); set `HUQAN_VIEWER_INSECURE_LOOPBACK=0`
+to require HTTPS origins even on loopback.
+
 It is a primary *surface* but not an independent product mode: it renders
 receipts the local server already owns.
 

@@ -366,3 +366,49 @@ test('V4-UI-0B server wiring keeps viewer auth isolated from the canonical API',
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+// Regression: the server's default listener is http://127.0.0.1:3000, so a
+// same-origin session exchange over loopback HTTP must succeed without any
+// HUQAN_VIEWER_INSECURE_LOOPBACK opt-in (read-only viewer); the opt-out
+// (HUQAN_VIEWER_INSECURE_LOOPBACK=0) must keep failing it closed.
+test('V4-UI-0B loopback HTTP viewer login works by default and honours the opt-out', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-v4-ui-0b-loopback-'));
+  const loopbackEnvNames = ['HUQAN_VIEWER_INSECURE_LOOPBACK', 'AXIOM_VIEWER_INSECURE_LOOPBACK'];
+  const previous = Object.fromEntries(loopbackEnvNames.map((name) => [name, { present: Object.hasOwn(process.env, name), value: process.env[name] }]));
+  const savedDisableAutoListen = { present: Object.hasOwn(process.env, 'HUQAN_DISABLE_AUTO_LISTEN'), value: process.env.HUQAN_DISABLE_AUTO_LISTEN };
+  let server;
+  try {
+    for (const name of loopbackEnvNames) delete process.env[name];
+    process.env.HUQAN_DISABLE_AUTO_LISTEN = '1';
+    process.env.HUQAN_API_KEY = API_KEY;
+    process.env.HUQAN_MEMORY_PATH = path.join(tempDir, 'memory.json');
+    process.env.HUQAN_USE_SQLITE = 'false';
+    server = require('../server');
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = server.address().port;
+    const origin = `http://127.0.0.1:${port}`;
+
+    const loginResponse = await serverRequest(port, '/viewer/session', {
+      method: 'POST', headers: { Origin: origin, Referer: `${origin}/viewer` }, body: { apiKey: API_KEY },
+    });
+    assert.equal(loginResponse.statusCode, 200, JSON.stringify(loginResponse.body));
+
+    process.env.HUQAN_VIEWER_INSECURE_LOOPBACK = '0';
+    const optOutResponse = await serverRequest(port, '/viewer/session', {
+      method: 'POST', headers: { Origin: origin }, body: { apiKey: API_KEY },
+    });
+    assert.equal(optOutResponse.statusCode, 403);
+    assert.equal(optOutResponse.body.error.code, 'cross_origin');
+  } finally {
+    if (server?.listening) await new Promise((resolve) => server.close(resolve));
+    server?.closeHuqan?.();
+    delete require.cache[require.resolve('../server')];
+    for (const [name, snapshot] of Object.entries(previous)) {
+      if (snapshot.present) process.env[name] = snapshot.value;
+      else delete process.env[name];
+    }
+    if (savedDisableAutoListen.present) process.env.HUQAN_DISABLE_AUTO_LISTEN = savedDisableAutoListen.value;
+    else delete process.env.HUQAN_DISABLE_AUTO_LISTEN;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
