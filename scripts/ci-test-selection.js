@@ -58,6 +58,26 @@
  * forced the narrow rule does not apply, and they are the more valuable
  * signal -- a stale JSON fixture is invisible to every other gate.
  *
+ * ## The tree-scan edge
+ *
+ * The two kinds above are both invisible to the runtime scanner tests.
+ * `lib/environment-compat-bypass.test.js` scans every shipped runtime file for
+ * a direct `process.env.HUQAN_*` read but requires none of them; it requires
+ * `scripts/shipped-runtime-files.js`, which enumerates them. So a change to
+ * `lib/cognitive-lab-m7-runtime.js` selected neither it nor its siblings, and
+ * #4503 reached `main` with two direct reads that broke shard 1 on the next PR
+ * that did select the test (#4513). A module that walks the tracked tree and
+ * reads what it finds is the same shape one level up: its answer is a function
+ * of every file it enumerates, so it gets an edge to each tracked source file.
+ * The bypass test is then reached transitively, through the enumerator it does
+ * require -- the edge lives with the enumeration, not with each caller.
+ *
+ * The target set is every tracked non-test `.js` file, deliberately a little
+ * wider than the shipped-runtime list the bypass test itself walks: reading
+ * `package.json` here would mean requiring the enumerator, which is the same
+ * edge the enumeration already provides, and a tooling script that is scanned
+ * by mistake is a false positive the floor is allowed to have.
+ *
  * Scope note: this is a static analysis. A path assembled at runtime from
  * unrelated pieces is not detected, and neither is a file fetched over the
  * network. The `MUST_HAVE_PATTERNS` union in `ci-impact-plan.js` remains the
@@ -80,6 +100,22 @@ const PROSE_ONLY_TARGET = /\.(md|txt)$/;
 // record named there is a contract it asserts, and #3895 changed the README
 // with every such test unselected and main went red. Prose in lib/ stays out.
 const READS_FILES = /\breadFileSync\s*\(|\breadFile\s*\(/;
+
+/**
+ * Modules that enumerate the tracked tree rather than requiring it.
+ *
+ * Two shapes reach the same answer: shelling out to `git ls-files` (optionally
+ * narrowed by a pathspec), or calling one of the shared tree helpers that do
+ * that for them. `ls-files --others` is excluded because it lists *untracked*
+ * files -- the G1 holdout uses it to assert the tree is unchanged, which is the
+ * opposite of depending on what the tree contains.
+ */
+const GIT_LS_FILES = /(?:execFileSync|spawnSync|execSync|execFile)\s*\(\s*['"`]git['"`]\s*,\s*\[[^\]]{0,240}?['"`]ls-files['"`]/;
+const UNTRACKED_ONLY = /['"`]ls-files['"`]\s*,\s*['"`]--others['"`]/;
+const TREE_HELPERS = /(?<![\w.])(?:listRuntimeFiles|listSourceFiles|productionFiles|listTrackedFiles|discoverTestFiles)\s*\(/;
+// Enumerating without reading proves nothing about a file's contents, and
+// reading without enumerating is already covered by the named-file rule.
+const READS_CONTENT = /\b(?:readFileSync|readFile|createReadStream)\s*\(/;
 
 /**
  * Files that start processes. Used to decide whether a `.js` named in a string
@@ -191,6 +227,22 @@ function resolveNamedFile(literal, known, basenames) {
   return unique.length === 1 ? unique[0] : null;
 }
 
+function isTreeScanner(source) {
+  if (!READS_CONTENT.test(source)) return false;
+  if (TREE_HELPERS.test(source)) return true;
+  return GIT_LS_FILES.test(source) && !UNTRACKED_ONLY.test(source);
+}
+
+/**
+ * Tracked source files a tree scanner's answer depends on: every `.js` file
+ * that is not itself a test. The scanner reads these and nothing else in the
+ * tree has a dependency edge of its own, so the set is the whole reachable
+ * surface -- no `package.json` read is needed to narrow it further.
+ */
+function treeScanTargets(tracked) {
+  return tracked.filter((file) => file.endsWith('.js') && !isTestFile(file));
+}
+
 function buildDependencyIndex({ root = REPO_ROOT, trackedFiles } = {}) {
   const tracked = (trackedFiles || listTrackedFiles(root)).map(normalizePath);
   const known = new Set(tracked);
@@ -202,6 +254,8 @@ function buildDependencyIndex({ root = REPO_ROOT, trackedFiles } = {}) {
   }
 
   const graph = new Map();
+  const scanners = [];
+  const scanTargets = treeScanTargets(tracked);
   for (const file of tracked) {
     if (!file.endsWith('.js')) {
       graph.set(file, []);
@@ -231,7 +285,12 @@ function buildDependencyIndex({ root = REPO_ROOT, trackedFiles } = {}) {
       if (isJavaScript(named) && !runsProcesses) continue;
       edges.add(named);
     }
+    if (isTreeScanner(source)) scanners.push(file);
     graph.set(file, [...edges].sort());
+  }
+
+  for (const scanner of scanners) {
+    graph.set(scanner, [...new Set([...graph.get(scanner), ...scanTargets])].sort());
   }
 
   const tests = tracked.filter(isTestFile).sort();

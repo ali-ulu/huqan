@@ -252,3 +252,65 @@ test('building an index over a synthetic tree honours trackedFiles', () => {
   const derived = deriveTestsForChange(['dep.js'], synthetic);
   assert.ok(derived.has('test-case.test.js'));
 });
+
+// #4513. The env-compat bypass test scans every shipped runtime file, but it
+// requires only scripts/shipped-runtime-files.js -- none of the files it
+// actually inspects. Without a tree-scan edge a change to one of them selected
+// neither it nor its siblings, and #4503 landed two direct `process.env` reads
+// that went unnoticed until an unrelated PR happened to select the test.
+test('#4513 a shipped runtime change selects the whole-tree scanner tests', () => {
+  for (const changed of ['lib/cognitive-lab-m7-runtime.js', 'lib/cognitive-lab-m7-value-runtime.js']) {
+    const derived = deriveTestsForChange([changed], index);
+    assert.ok(derived.has('lib/environment-compat-bypass.test.js'), changed);
+  }
+});
+
+// The edge lives with the enumeration, not with each caller: the enumerator is
+// itself a tree scanner, so the bypass test reaches the runtime transitively
+// through the one require it already has. That is why the fix adds no new
+// require -- a new import edge would move the architecture tracker's graph.
+test('#4513 the bypass test reaches the runtime through the enumerator it requires', () => {
+  assert.ok(index.graph.get('scripts/shipped-runtime-files.js').includes('lib/cognitive-lab-m7-runtime.js'));
+  const closure = reachableFrom('lib/environment-compat-bypass.test.js', index.graph);
+  assert.ok(closure.has('scripts/shipped-runtime-files.js'));
+  assert.ok(closure.has('lib/cognitive-lab-m7-runtime.js'));
+});
+
+test('a module that enumerates the tree and reads it depends on the tracked sources', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-tree-scan-'));
+  fs.mkdirSync(path.join(root, 'lib'), { recursive: true });
+  const sources = {
+    'lib/target.js': 'module.exports = 1;\n',
+    'git-scan.test.js':
+      "const fs = require('node:fs');\nconst { execFileSync } = require('node:child_process');\n"
+      + "const out = execFileSync('git', ['ls-files', '*.js'], { encoding: 'utf8' });\n"
+      + "const body = fs.readFileSync(out.split('\\n')[0], 'utf8');\nmodule.exports = body;\n",
+    'helper-scan.test.js':
+      "const fs = require('node:fs');\nconst { listSourceFiles } = require('./scan-source');\n"
+      + "for (const file of listSourceFiles()) fs.readFileSync(file, 'utf8');\n",
+    'enumerate-only.test.js':
+      "const { execFileSync } = require('node:child_process');\n"
+      + "module.exports = execFileSync('git', ['ls-files', '*.js'], { encoding: 'utf8' });\n",
+    'untracked-only.test.js':
+      "const fs = require('node:fs');\nconst { execFileSync } = require('node:child_process');\n"
+      + "const out = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { encoding: 'utf8' });\n"
+      + "module.exports = fs.readFileSync(out.split('\\n')[0], 'utf8');\n",
+    'read-only.test.js':
+      "const fs = require('node:fs');\nmodule.exports = () => fs.readFileSync(process.argv[2], 'utf8');\n",
+    'scan-source.js': 'module.exports = { listSourceFiles: () => [] };\n',
+  };
+  for (const [file, source] of Object.entries(sources)) fs.writeFileSync(path.join(root, file), source);
+  const synthetic = buildDependencyIndex({ root, trackedFiles: Object.keys(sources) });
+  // Both enumeration shapes reach the same answer.
+  assert.ok(synthetic.graph.get('git-scan.test.js').includes('lib/target.js'));
+  assert.ok(synthetic.graph.get('helper-scan.test.js').includes('lib/target.js'));
+  // Enumerating without reading proves nothing about the contents...
+  assert.equal(synthetic.graph.get('enumerate-only.test.js').includes('lib/target.js'), false);
+  // ...and `--others` lists what is *not* tracked, so it is not a tree scan.
+  assert.equal(synthetic.graph.get('untracked-only.test.js').includes('lib/target.js'), false);
+  // Reading a single path is the named-file rule's job, not this one.
+  assert.equal(synthetic.graph.get('read-only.test.js').includes('lib/target.js'), false);
+  // The widening reaches the tests that pin the scanners, not every test.
+  const derived = deriveTestsForChange(['lib/target.js'], synthetic);
+  assert.deepEqual([...derived.keys()].sort(), ['git-scan.test.js', 'helper-scan.test.js']);
+});
