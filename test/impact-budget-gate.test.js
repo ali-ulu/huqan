@@ -104,7 +104,7 @@ test('missing scope and broken graphs degrade to review, never throw', (t) => {
   assert.equal(nosession.decision, 'block');
   assert.equal(
     nosession.findings.find((finding) => finding.gate === 'envelope').reason,
-    'malformed_external_action_blocked',
+    'malformed_external_action_blocked (missing_session_id)',
     'a sessionless invocation never reaches the budget gate',
   );
 

@@ -272,7 +272,10 @@ test('an outcome receipt inherits the admission identity and cannot re-attribute
 test('a malformed envelope still records who submitted it', () => {
   const result = evaluateExternalAction({ toolName: 'Bash', agentName: 'drifting-agent' });
   assert.equal(result.decision, 'block');
-  assert.equal(result.reason, 'malformed_external_action_blocked');
+  // The rule token stays the prefix; the missing fields are named in the
+  // reason so a block does not read as a bare "malformed".
+  assert.ok(result.reason.startsWith('malformed_external_action_blocked'), result.reason);
+  assert.match(result.reason, /missing_session_id/);
   assert.equal(result.receipt.metadata.identity.agentName, 'drifting-agent');
   assert.ok(identityFinding(result), 'the identity gate runs before the envelope check');
 });
