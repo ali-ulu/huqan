@@ -94,6 +94,23 @@ test('JSON review and block decisions keep the existing gate authoritative', asy
   }
 });
 
+// The queueing shell is normally not a TTY, so the decision is refused there
+// by design (#3560). The queued message must point the person at the terminal
+// command instead of leaving them with an unreachable id.
+test('queued learn review names the terminal command that decides it', async () => {
+  const stdout = [];
+  const cli = fakeCli({
+    parsed: { command: 'öğret', args: 'cats are animals', workflowId: 'learn-review' },
+    gate: { canExecute: false, decision: 'review', reason: 'policy' },
+  });
+  cli.queueLearnReview = async () => ({ approval: { id: 'approval-hint-1' } });
+  const result = await runCliArgv(['learn:', 'cats', 'are', 'animals'], { cli, stdout: value => stdout.push(value) });
+  assert.equal(result.exitCode, CLI_EXIT_CODES.review_required);
+  const text = stdout.join('\n');
+  assert.match(text, /Approval queued: approval-hint-1/);
+  assert.match(text, /huqan approve approval-hint-1 approved\|rejected/);
+});
+
 test('JSON mode distinguishes invalid, unsupported, partial, and failed outcomes', async () => {
   const cases = [
     { parsed: { command: 'anlamadım', args: '', workflowId: null }, expected: 2, status: 'failed' },
