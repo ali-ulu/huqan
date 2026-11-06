@@ -134,8 +134,7 @@ Türkçe ve İngilizce alt kümeleri ek olarak, kapı kararı vermeden raporlan�
 **Değerlendirme kuralları.**
 
 - Seed 1 holdout v2 üzerinde **bir kez** değerlendirilir. Seed 0 değerlendirilmez. Sıcaklık, eşik, seed veya başka hiçbir parametre holdout v2'ye bakılarak seçilmez, ayarlanmaz, yeniden kalibre edilmez.
-- Yalnız teknik bir hata (metrik üretilmeden çökme) yeniden koşuyu haklı kılar; bu durumda sonuç raporunda belirtilir.
+- Yeniden koşunun iki yetkili tetikleyicisi vardır: (a) teknik bir hata (metrik üretilmeden çökme); bu durumda sonuç raporunda belirtilir. (b) Bağımsız insan incelemesinin bir etiketi değiştirmesi. Her iki durumda da yeni koşu aynı donmuş parametrelerle yapılır ve önceki sayılar geçersiz sayılır; başka hiçbir gerekçe (istenmeyen sonuç, eşik altı kalan metrik) yeniden koşuyu haklı kılmaz.
 - Sonuç ne olursa olsun yayınlanır; kapı eşiği geçilmese de, geçilse de aynı şekilde raporlanır.
-- Bağımsız insan incelemesi herhangi bir etiketi değiştirirse ölçüm yeniden çalıştırılır ve bu bölümün sayıları geçersiz olur.
 - Ölçüm başlamadan önce `holdout_v2.jsonl` baytları yukarıdaki kalıcı konuma push edilmiş olmalıdır; yerel bir kopya
   sha256'yı doğrulayabilir ama kalıcı kanıt sayılmaz. Push edilen commit sha'sı sonuç raporunda anılır.
