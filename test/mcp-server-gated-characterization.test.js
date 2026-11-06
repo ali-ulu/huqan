@@ -45,6 +45,11 @@ const POLICY_APPROVAL_ID = /\bapproval-\d{13}-[0-9a-f]{12}\b/g;
 // value, whatever the value is. An approval key is `mcp.<tool>.<id>` of its own
 // record, so that relationship is written as a marker; any other shape stays raw.
 const APPROVAL_KEY_FIELD = ['approval', 'Key'].join('');
+// An ingest source manifest carries a derived idempotency key (sha256 of the
+// source), a 16-hex value that gitleaks' generic-api-key rule reads as a secret.
+// The shape is what is pinned; the value is a hash of the fixture input.
+const IDEMPOTENCY_KEY_FIELD = ['idempotency', 'Key'].join('');
+const IDEMPOTENCY_KEY = /^[0-9a-f]{16}$/;
 
 function snapshot(value) {
   return JSON.parse(JSON.stringify(value, function replace(key, item) {
@@ -55,6 +60,9 @@ function snapshot(value) {
         && /^mcp\.huqan\.[\w-]+\./.test(item) && item.endsWith(`.${this.approvalId}`)) {
         return '<mcp.tool.approvalId>';
       }
+    }
+    if (key === IDEMPOTENCY_KEY_FIELD && typeof item === 'string' && IDEMPOTENCY_KEY.test(item)) {
+      return '<idempotency-key>';
     }
     if (item === undefined) return UNDEFINED;
     if (typeof item === 'bigint') return `${item}n`;
@@ -152,7 +160,7 @@ const GATED_CALLS = [
   ['huqan.learn', { text: 'water boils at 100 degrees' }],
   ['huqan.learn', { text: 'my api_key is sk-live-1234567890abcdef1234' }],
   ['huqan.ask', { question: 'what is water' }],
-  ['huqan.verify', { claim: 'water is wet' }],
+  ['huqan.verify', { statement: 'water is wet' }],
   ['huqan.plan', { goal: 'summarise the repo', maxSteps: 3 }],
   ['huqan.agent', { goal: 'delete every file in the repo', maxSteps: 4 }],
   ['huqan.agent', { goal: 'summarise the repo' }],
@@ -164,7 +172,7 @@ const GATED_CALLS = [
   ['huqan.self-evolve', { mode: 'apply' }],
   ['huqan.search', { query: 'water' }],
   ['huqan.status', {}],
-  ['huqan.ingest_preview', { source: 'notes', text: 'hello' }],
+  ['huqan.ingest_preview', { sourceType: 'manual', text: 'hello' }],
   ['huqan.ingest_execute', { sourceType: 'markdown', path: 'README.md' }],
   ['huqan.nope', {}],
 ];
@@ -223,7 +231,12 @@ async function operatorScenarios() {
   // 256-byte binding limit, but long enough that the bound the handler applies
   // to the id is visible in what reaches the store.
   for (const name of ['huqan.approvals', 'huqan.approval_detail']) {
-    const args = { approvalId: 'a1', workspaceId: 'w'.repeat(100), limit: 3 };
+    // Each tool's own declared parameters: dispatch refuses an argument the
+    // tool did not announce, so approvals carries limit and approval_detail
+    // carries approvalId.
+    const args = name === 'huqan.approvals'
+      ? { workspaceId: 'w'.repeat(100), limit: 3 }
+      : { approvalId: 'a1', workspaceId: 'w'.repeat(100) };
     const calls = [];
     const runtime = { approvalStore: recordingApprovalStore(calls), operatorSecret: 'secret', operatorCapabilityNonces: new Map() };
     out[`operator/${name}/authorised-long-workspace`] = await capture(async () => {

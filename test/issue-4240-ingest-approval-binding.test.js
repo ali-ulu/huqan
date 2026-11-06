@@ -180,4 +180,22 @@ describe('#4240 the bound approval row reaches whichever store saves it', () => 
     const silent = { saveToolApprovalIfAbsent: () => null };
     assert.equal(saveMcpIngestApproval(silent, decisionArgs()).notPersistedReason, 'approval_store_write_unconfirmed');
   });
+
+  it('refuses to persist when the snapshot gate blocks the request', () => {
+    // Dispatch enforces the tool's announced inputSchema, so an undeclared
+    // external source never reaches this lib function through the MCP surface
+    // (see test/mcp-ingest-execute-contract.test.js). The fail-closed branch
+    // still has to hold for any direct caller, so exercise it here.
+    const store = { saveToolApproval: () => { throw new Error('the store must not be reached'); } };
+    const blocked = saveMcpIngestApproval(store, {
+      sourceType: 'github',
+      repoUrl: 'https://github.com/ali-ulu/huqan',
+      branch: 'main',
+    });
+    assert.equal(blocked.persisted, false);
+    assert.equal(blocked.status, 'blocked');
+    assert.equal(blocked.decision, 'blocked');
+    assert.equal(blocked.notPersistedReason, 'INGEST_SNAPSHOT_REQUIRED');
+    assert.equal(blocked.error.code, 'INGEST_SNAPSHOT_REQUIRED');
+  });
 });

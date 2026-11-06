@@ -176,7 +176,9 @@ test('no fake receiptId is returned when no stored or materialized receipt exist
     name: 'axiom.learn',
     arguments: {
       text: 'receipt must not be fabricated',
-      provenanceId: 'prov-v4-pr5-no-fake-receipt',
+      // provenance (carrying provenanceId) is the declared huqan.learn
+      // parameter; a bare provenanceId key is not in the announced schema.
+      provenance: { provenanceId: 'prov-v4-pr5-no-fake-receipt' },
     },
   });
 
