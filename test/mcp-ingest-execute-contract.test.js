@@ -171,10 +171,27 @@ describe('huqan.ingest_execute (#787 P0)', () => {
     assert.equal(kernel.calls.length, 1, 'idempotent approval must not execute twice');
   });
 
-  it('fails closed for external snapshot-required sources', () => {
+  it('refuses the undeclared external-source parameters the schema does not announce', () => {
+    // Dispatch now enforces the tool's announced inputSchema, so repoUrl --
+    // never declared by huqan.ingest_execute -- is refused before the queue is
+    // reached, rather than surfacing the snapshot gate's own refusal.
     const kernel = makeKernel();
     const approvalStore = makeApprovalStore();
     const result = queue(kernel, approvalStore, ingestArgs({ sourceType: 'github', repoUrl: 'https://github.com/example/repo' }));
+    assert.equal(result.ok, false);
+    assert.equal(result.error.code, 'INVALID_INPUT');
+    assert.match(result.error.message, /arguments\.repoUrl is not allowed by the tool's input schema/);
+    assert.equal(kernel.calls.length, 0);
+  });
+
+  it('fails closed for a schema-conforming external source that cannot be queued', () => {
+    // `sourceType: 'github'` is declared, so dispatch lets it through and the
+    // snapshot gate is the thing that refuses: an unpinned github source has
+    // no immutable binding, so it fails closed before any queueable snapshot
+    // exists. Nothing reaches the kernel and nothing is persisted.
+    const kernel = makeKernel();
+    const approvalStore = makeApprovalStore();
+    const result = queue(kernel, approvalStore, ingestArgs({ sourceType: 'github' }));
     assert.equal(result.ok, false);
     assert.equal(result.error.code, 'REVIEW_NOT_PERSISTED');
     assert.equal(result.approval.persisted, false);

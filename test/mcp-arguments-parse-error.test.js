@@ -80,3 +80,24 @@ test('a JSON string that is not an object falls back to empty, as before', () =>
   assert.equal(scalarResult.ok, true);
   assert.equal(scalarResult.verdict, 'allow');
 });
+
+test('a raw array or scalar arguments value is refused, not run as an empty call', () => {
+  // #4525: parseJsonObject normalized a raw array/scalar to {}, so huqan.status
+  // (closed schema, no declared parameters) ran as if the caller had supplied
+  // nothing. A non-object raw value is now a parse error. A raw array/scalar is
+  // valid JSON, so its refusal says "must be a JSON object", not "not valid
+  // JSON" -- only a non-JSON string gets the parse-error wording.
+  for (const raw of [[1, 2, 3], 42, true]) {
+    const result = callTool(mockKernel(), { name: 'huqan.status', arguments: raw });
+    assert.equal(result.ok, false, JSON.stringify(raw));
+    assert.equal(result.error.code, 'ARGUMENTS_PARSE_ERROR', JSON.stringify(raw));
+    assert.match(result.error.message, /must be a JSON object/, JSON.stringify(raw));
+  }
+  const notJson = callTool(mockKernel(), { name: 'huqan.status', arguments: 'not-json' });
+  assert.equal(notJson.ok, false);
+  assert.equal(notJson.error.code, 'ARGUMENTS_PARSE_ERROR');
+  assert.match(notJson.error.message, /not valid JSON/);
+  // An omitted value stays an empty call; an object is used unchanged.
+  assert.equal(callTool(mockKernel(), { name: 'huqan.status' }).ok, true);
+  assert.equal(callTool(mockKernel(), { name: 'huqan.ask', arguments: {} }).ok, true);
+});

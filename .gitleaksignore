@@ -74,3 +74,15 @@ b1a93168144a3bede1d6d58671e8f43b7545080f:test/v5-trusted-key-resolver-binding.te
 a8f9c3b79b76252d5de17428e1cba076177541d1:lib/saml/assertion.js:generic-api-key:30
 a8f9c3b79b76252d5de17428e1cba076177541d1:lib/saml/metadata.js:generic-api-key:20
 80a760f1433509de388f6c76d0c51b12f0b81f33:lib/saml/assertion.js:generic-api-key:30
+
+# #4525: the gated-response fixture pinned an ingest source manifest whose
+# derived idempotency key is a 16-hex sha256 of the fixture input. gitleaks'
+# generic-api-key rule reads the key name beside the hex value as a secret;
+# it is a hash of a synthetic test input, nothing to rotate. The scenario now
+# snapshots that field to a marker, so later commits introduce no new finding.
+# These use the SHA-independent global fingerprint (file:rule:line) so a rebase
+# that rewrites the commit does not resurface them.
+test/fixtures/mcp-server-gated-responses.json:generic-api-key:64
+test/fixtures/mcp-server-gated-responses.json:generic-api-key:65
+test/fixtures/mcp-server-gated-responses.json:generic-api-key:66
+test/fixtures/mcp-server-gated-responses.json:generic-api-key:67

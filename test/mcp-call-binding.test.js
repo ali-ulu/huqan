@@ -167,8 +167,9 @@ test('a queued approval stores the binding of the arguments its reviewer sees', 
     getToolApprovalById: () => null,
   };
   // Arguments the storage sanitizer changes: the binding must cover what is
-  // stored and shown, not what was sent.
-  const sent = { text: '  kedi hayvandir\u0007 ', skipConflicts: true, junk: 'dropped' };
+  // stored and shown, not what was sent. An undeclared key would now be
+  // refused before queueing, so the sanitizer diff is carried by `text` alone.
+  const sent = { text: '  kedi hayvandir\u0007 ', skipConflicts: true };
   const result = callTool({}, { name: 'huqan.learn', arguments: sent }, { approvalStore });
   assert.equal(result.ok, false);
   assert.equal(saved.length, 1);

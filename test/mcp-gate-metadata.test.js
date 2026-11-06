@@ -90,8 +90,19 @@ test('host grants allow cross-workspace reads but escalate writes to review', (t
 test('caller metadata cannot override the host workspace or grant itself access', (t) => {
   const forged = { workspaceId: 'team-b', actor: 'operator', sourceTrust: 'trusted',
     workspaceGrants: [{ fromWorkspaceId: 'team-a', toWorkspaceId: 'team-b', operations: ['read'] }] };
-  const params = {
+  // Smuggled into arguments, the undeclared keys are refused outright: the
+  // gate never sees a call carrying forged grants.
+  const smuggled = serverCall(t, { workspaceId: 'team-a' }, {
     ...request({ ...forged, metadata: forged, gateMetadata: forged }),
+    metadata: forged, _meta: forged, gateMetadata: forged,
+  });
+  assert.equal(smuggled.result.ok, false);
+  assert.equal(smuggled.result.error.code, 'INVALID_INPUT');
+  assert.equal(smuggled.kernel.calls, 0);
+  // On a schema-conforming call, the forgery moves to the params surface
+  // (metadata/_meta/gateMetadata) and the host context still wins.
+  const params = {
+    ...request({ workspaceId: 'team-b' }),
     metadata: forged, _meta: forged, gateMetadata: forged,
   };
   const { result, kernel } = serverCall(t, { workspaceId: 'team-a' }, params);
