@@ -127,7 +127,7 @@ v2 için geçerliliği iddia edilmez.
 3. FPR artışı (D FPR − B FPR) <= 0.02;
 4. non-abstain coverage >= 0.10; coverage, R50 §12 ile aynı tanımla eşikte pozitif denen çiftlerin oranıdır (D için raporlanır). Modelin cevap verdiği çift oranı ayrıca raporlanır.
 
-Paired bootstrap: seeded, çift başına Brier farkı, 10000 yeniden örnekleme, iki yönlü %95 yüzdelik aralık, seed 3583 (numpy `default_rng`).
+Paired bootstrap: **R50/R51 donmuş sözleşmesi geçerlidir** ve bu ek onu değiştirmez: `seed 3582`, `resamples 2000`, `confidenceLevel 0.95`, iki yönlü %95 yüzdelik aralık, seeded paired-bootstrap (`lib/cognitive-lab-contradiction-report.js` `DEFAULT_REPORT_CONTRACT`, `lib/cognitive-lab-paired-delta.js`). Yukarıdaki R50/R51 eşikleri ve bu sözleşme v2 ölçümüne aynen uygulanır; farklı bir bootstrap (farklı seed veya yeniden örnekleme sayısı) kullanılmaz, çünkü bu ölçümü değiştirmek olur.
 ECE: 10 eşit genişlikli kutu, kutu ağırlıklı |ortalama olasılık − pozitif oranı| (laya-v2 `eval/r50` tanımıyla aynı); iki kolda aynı fonksiyon.
 Türkçe ve İngilizce alt kümeleri ek olarak, kapı kararı vermeden raporlanır.
 
