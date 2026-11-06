@@ -402,5 +402,81 @@
     "readOnly": true,
     "interpretation": "Bu üç SQLite kaydı içinde experience_journal tablosu yalnız canonical clone memory.db dosyasında bulundu; tablonun satır sayısı sıfırdı. verifiedEligibleSupports yalnız bu incelenen kayıtlar için sıfırdır. JSON journal dosyaları, başka dizinler veya tüm sistem hakkında yokluk iddiası değildir.",
     "filesInspected": 3
-  }
+  },
+  "screeningObservations": [
+    {
+      "sourceCommit": "42c8378a5b47a88d6bde9ce36de5f19bfc8975ea",
+      "selectionRule": "Önceki salt okunur aday taramasında bildirilen üç issue yeniden okundu. Bu, önceden dondurulmuş veya kapsamlı bir bağımsız corpus örneklemi değildir.",
+      "runtimeVerified": false,
+      "accepted": 0,
+      "candidates": [
+        {
+          "sourceRepo": "fastify/fastify-cors",
+          "number": 422,
+          "title": "bug: header tokens with whitespace preceding commas are dropped in vary parser",
+          "url": "https://github.com/fastify/fastify-cors/issues/422",
+          "issueUpdatedAt": "2026-11-05T10:00:08Z",
+          "observedAtUTC": "2026-11-05T23:52:26.260Z",
+          "bodyHash": "f03ad1e1657f9c1d71e2f43e4c5523b4a13a447573c333b5fa803402c6fd3346",
+          "bodyHashAlgorithm": "SHA-256 of the UTF-8 bytes of the decoded GitHub issue body string; no newline or Unicode normalization",
+          "screeningDecision": "OUTSIDE_CURRENT_SYNTHESIS",
+          "reason": "Virgülden önceki boşlukta token kaybı bildirilmiştir. Ayrıştırıcı sınırı hatasıdır; mevcut string-array join sentezi bu davranışı karşılamaz.",
+          "evidence": "AUTHOR_REPORTED_ISSUE_BODY",
+          "sourceCommit": null,
+          "sourceCommitStatus": "UNKNOWN",
+          "independence": "UNKNOWN",
+          "exposure": "ISSUE_BODY_SEEN",
+          "nativeAcceptance": "NOT_RUN",
+          "rollback": "NOT_RUN",
+          "restart": "NOT_RUN",
+          "accepted": false,
+          "assertsGain": false
+        },
+        {
+          "sourceRepo": "fastify/fastify-compress",
+          "number": 435,
+          "title": "bug: Vary header normalization produces duplicate headers, substring false-positives, and violates RFC 7231 wildcard",
+          "url": "https://github.com/fastify/fastify-compress/issues/435",
+          "issueUpdatedAt": "2026-10-13T08:30:55Z",
+          "observedAtUTC": "2026-11-05T23:52:26.961Z",
+          "bodyHash": "26094c246a48dbdd65098d5dee564b975e9be324ea3c67806309c339504cda77",
+          "bodyHashAlgorithm": "SHA-256 of the UTF-8 bytes of the decoded GitHub issue body string; no newline or Unicode normalization",
+          "screeningDecision": "OUTSIDE_CURRENT_SYNTHESIS",
+          "reason": "Büyük/küçük harf duyarsız token kontrolü, substring ve wildcard davranışı gerekir; concat(...).join(...) doğrudan identifier.join(literal) hedefi değildir.",
+          "evidence": "AUTHOR_REPORTED_ISSUE_BODY",
+          "sourceCommit": null,
+          "sourceCommitStatus": "UNKNOWN",
+          "independence": "UNKNOWN",
+          "exposure": "ISSUE_BODY_SEEN",
+          "nativeAcceptance": "NOT_RUN",
+          "rollback": "NOT_RUN",
+          "restart": "NOT_RUN",
+          "accepted": false,
+          "assertsGain": false
+        },
+        {
+          "sourceRepo": "ramda/ramda",
+          "number": 1740,
+          "title": "Proposal for circular indexes",
+          "url": "https://github.com/ramda/ramda/issues/1740",
+          "issueUpdatedAt": "2016-04-19T18:21:38Z",
+          "observedAtUTC": "2026-11-05T23:52:27.675Z",
+          "bodyHash": "46df79c0017a95d12d1ac6fddce9046b1d3c8030a3f44e2086fd2b840f1645e0",
+          "bodyHashAlgorithm": "SHA-256 of the UTF-8 bytes of the decoded GitHub issue body string; no newline or Unicode normalization",
+          "screeningDecision": "QUALIFICATION_ONLY_UNVERIFIED",
+          "reason": "Yeni circle API önerisidir; çözüm issue gövdesinde açık olduğundan yeni holdout değildir. Mevcut kaynak hedefi ve tek koşullu sentez uyumu doğrulanmadı.",
+          "evidence": "AUTHOR_REPORTED_ISSUE_BODY",
+          "sourceCommit": null,
+          "sourceCommitStatus": "UNKNOWN",
+          "independence": "UNKNOWN",
+          "exposure": "ISSUE_BODY_SEEN",
+          "nativeAcceptance": "NOT_RUN",
+          "rollback": "NOT_RUN",
+          "restart": "NOT_RUN",
+          "accepted": false,
+          "assertsGain": false
+        }
+      ]
+    }
+  ]
 }
