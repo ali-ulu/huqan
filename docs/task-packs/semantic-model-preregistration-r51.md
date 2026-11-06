@@ -71,3 +71,70 @@ alanındadır. Test artifact'i gerçek iki girdiden yeniden üretip karşılaşt
 Güncel main `8ef3d0e0` tabanında yeni dört offline script,
 classified-unreachable toplamını 204'ten ölçülen 208'e çıkarır;
 runtime reachable kümesine öğretmen bağımlılığı eklenmez.
+
+### Amendment 1 (2026-11-05): holdout v2 — yeni datasetVersion, tek değerlendirme
+
+Bu ek, holdout v2 üzerinde herhangi bir tahmin hesaplanmadan önce kaydedilir. Push edilen commit'in zamanı kayıttır.
+Yukarıdaki satırlar değişmez; eşikler değişmez.
+
+**Neden.** R50 holdout'u 13 skorlanabilir çift (5 pozitif) taşır; Brier güven aralığı bu boyutta anlamlı değildir.
+`contradiction-eval-v1` donmuş kalır. Yeni holdout, R50 §3'ün "yeni dataset ancak yeni `datasetVersion` ve yeni ön-kayıtla doğar"
+kuralına göre ayrı bir sürüm olarak eklenir; `contradiction-eval-v1` holdout'unun yerine geçmez.
+
+**Dataset.**
+
+| Alan | Değer |
+|---|---|
+| datasetVersion | `contradiction-holdout-v2` |
+| sha256 (LF baytları) | `16d31ea2c92a88a10798eddd84b7cb1db65fe63c5a0404f5c032493f1e610d75` |
+| dosya | `train/laya-v2/holdout_v2/holdout_v2.jsonl`, repo `huqan-decision-engine` (yol, kalıcı konum); baytlar bu konuma push edilmeden ölçüm başlamaz ve sha256 push edilen baytları doğrular |
+| çift sayısı | 371: 200 CONTRADICTION / 171 NOT_CONTRADICTION; 196 Türkçe / 175 İngilizce |
+| seed | 3584 |
+| yazar | `mistral-small3.2:24b` |
+| etiket paneli | `llama3.1:8b`, `phi4:14b`, `granite3.3:8b`; etiket = panel çoğunluğu, yazarın niyeti çoğunlukla aynı değilse çift atılır (471 üretilen, 100'ü atıldı, 371 kaldı; 96'sı panel/niyet uyuşmazlığı, kalan 4'ünün gerekçesi baytlarla birlikte push edilen dataset provenance kaydında; 283'ü oybirliği) |
+| öğretmen zinciri ile ilişki | Yazar ve panel ailelerinin hiçbiri laya-v2 öğretmen zincirinde (`qwen3.8`, `nemotron-3.5-bolt`, `openjev`) yok |
+| örtüşme | laya-v2 öğretmen train/calibration/test, üretilen tüm öğretmen çiftleri ve R50 ile ayrık (birebir iddia ve token-Jaccard >= 0.8 kontrol edildi) |
+
+Dosyayı değerlendirenin baytları bu sha256 ile eşleşmelidir; eşleşmiyorsa değerlendirme durur.
+Mevcut `scripts/semantic-model-holdout-eval.js` yalnız `contradiction-eval-v1` korpusunu okur, bu yüzden v2 ölçümü
+ayrı bir v2 girdisiyle yapılır: değerlendirici önce `holdout_v2.jsonl` baytlarının sha256'sını yukarıdaki değerle
+karşılaştırır ve eşleşmezse durur; ardından aynı R50/R51 karşılaştırma, bootstrap ve kalibrasyon sözleşmesini
+v2 kayıtları üzerinde uygular. v1 script'i v2 verisi üzerinde çalıştırmak v1 sonuçları verir ve geçersizdir.
+
+**Adjudication: `MODEL_PANEL`.** Etiketler model panelinin çoğunluğudur; bağımsız bir insan gözden geçiren
+tarafından doğrulanmamıştır. R50 `provenance.adjudication` alanı `ADJUDICATED` **değildir** ve bu ek onu o değere getirmez.
+Bu yüzden promotion kapısı, sonuç ne olursa olsun, bağımsız insan incelemesi tamamlanana kadar **kapalı** kalır (R50 §3, §12, §14).
+Bu holdout'tan çıkan sayılar `shadow` kararını `on`a çevirmek için kullanılamaz; yalnız hazırlık kanıtıdır.
+Bağımsız insan incelemesi tamamlandıktan sonra bile bu holdout tek başına promotion açmaz: promotion ancak yeni bir
+ön-kayıt ekiyle açılabilir, çünkü v2 sonucu `MODEL_PANEL` etiketlerine dayanır ve inceleme çiftleri değiştirirse
+ölçüm geçersiz olur. R50 §12'nin "başarılı değerlendirme promotion açar" kuralı bu ek için uygulanmaz.
+
+**Karşılaştırma.** D = laya-v2, seçilmiş **seed 1**, HUQAN tek-sıcaklık kalibrasyonu (T = 1.45) uygulanmış olasılık.
+Seed, HUQAN calibration üzerindeki kalibre Brier ile önceden seçilmiştir; holdout v2 seçime katılmaz.
+Baseline = R50 §12 **B kolu**: `runContradictionRules` kuralları, `score = max(declared confidence)`, calibration split'te fit edilmiş donmuş
+score→P(contradiction) eşlemesi (artifact digest `ae922532c617d70f65593331b7e129745e992969fd62eee7e289dcb2e03d9f37`,
+`contradiction-eval-v1` calibration split'inden yeniden üretilir ve bu digest ile doğrulanır). Holdout v2 çiftlerinde
+kurallara yalnız iddia metni verilir (subject/relation/sourceType/frameId yoktur); `Stored claim:` satırı stored, `Incoming claim:` satırı incoming'dir.
+Bu, R50 §12 B kolundan farklı bir girdidir: R50 B kolu `subject`/`relation` alanlarını okur, v2'de bunlar yoktur, dolayısıyla
+v2 B skorları R50 B skoruna eşit değildir. Donmuş score→P eşlemesi yapısal girdi üzerinde fit edilmiştir ve metin-only
+girdi için doğrulanmamıştır; bu yüzden v2 B kolu metin-only bir baseline olarak raporlanır ve kalibrasyon haritasının
+v2 için geçerliliği iddia edilmez.
+
+**Eşikler (değişmez, R50 §5 ve R51 "Donmuş bütçe ve promotion").** Karar eşiği 0.5. Skorlanabilir çift >= 10. Her biri D vs B, aynı 371 çift üzerinde:
+
+1. paired Brier iyileşmesinin (B Brier − D Brier) %95 güven aralığı alt sınırı > 0 **ve** nokta iyileşmesi >= 0.01;
+2. ECE bozulması (D ECE − B ECE) <= 0.02;
+3. FPR artışı (D FPR − B FPR) <= 0.02;
+4. non-abstain coverage >= 0.10; coverage, R50 §12 ile aynı tanımla eşikte pozitif denen çiftlerin oranıdır (D için raporlanır). Modelin cevap verdiği çift oranı ayrıca raporlanır.
+
+Paired bootstrap: **R50/R51 donmuş sözleşmesi geçerlidir** ve bu ek onu değiştirmez: `seed 3582`, `resamples 2000`, `confidenceLevel 0.95`, iki yönlü %95 yüzdelik aralık, seeded paired-bootstrap (`lib/cognitive-lab-contradiction-report.js` `DEFAULT_REPORT_CONTRACT`, `lib/cognitive-lab-paired-delta.js`). Yukarıdaki R50/R51 eşikleri ve bu sözleşme v2 ölçümüne aynen uygulanır; farklı bir bootstrap (farklı seed veya yeniden örnekleme sayısı) kullanılmaz, çünkü bu ölçümü değiştirmek olur.
+ECE: 10 eşit genişlikli kutu, kutu ağırlıklı |ortalama olasılık − pozitif oranı| (laya-v2 `eval/r50` tanımıyla aynı); iki kolda aynı fonksiyon.
+Türkçe ve İngilizce alt kümeleri ek olarak, kapı kararı vermeden raporlanır.
+
+**Değerlendirme kuralları.**
+
+- Seed 1 holdout v2 üzerinde **bir kez** değerlendirilir. Seed 0 değerlendirilmez. Sıcaklık, eşik, seed veya başka hiçbir parametre holdout v2'ye bakılarak seçilmez, ayarlanmaz, yeniden kalibre edilmez.
+- Yeniden koşunun iki yetkili tetikleyicisi vardır: (a) teknik bir hata (metrik üretilmeden çökme); bu durumda sonuç raporunda belirtilir. (b) Bağımsız insan incelemesinin bir etiketi değiştirmesi. Her iki durumda da yeni koşu aynı donmuş parametrelerle yapılır ve önceki sayılar geçersiz sayılır; başka hiçbir gerekçe (istenmeyen sonuç, eşik altı kalan metrik) yeniden koşuyu haklı kılmaz.
+- Sonuç ne olursa olsun yayınlanır; kapı eşiği geçilmese de, geçilse de aynı şekilde raporlanır.
+- Ölçüm başlamadan önce `holdout_v2.jsonl` baytları yukarıdaki kalıcı konuma push edilmiş olmalıdır; yerel bir kopya
+  sha256'yı doğrulayabilir ama kalıcı kanıt sayılmaz. Push edilen commit sha'sı sonuç raporunda anılır.
