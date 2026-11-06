@@ -84,6 +84,29 @@ test('every external-action admission receipt carries a bounded rule identity', 
   assert.equal(receipt.metadata.ruleIdentity.instanceId, receipt.receiptId);
 });
 
+test('the malformed rule id stays stable while the reason names the fields', () => {
+  const env = normalizeExternalActionEnvelope({
+    invocationId: 'inv-r54-malformed',
+    workspaceId: 'default',
+    agent: { name: 'codex', version: '1' },
+    action: { kind: 'shell', command: 'npm test' },
+  });
+  const receiptFor = (detail) => buildExternalActionAdmissionReceipt(env, {
+    decision: 'block',
+    reason: `malformed_external_action_blocked (${detail})`,
+    risk: { level: 'critical', score: 100 },
+    findings: [],
+  }, { now: () => '2026-09-04T00:00:00.000Z' });
+  const missingTool = receiptFor('missing_tool_name');
+  const missingSession = receiptFor('missing_session_id, missing_tool_name');
+  // One rule, one id: the appended fields must not mint a new ruleId, or SIEM
+  // events for the same rule split by rule id (#4524).
+  assert.equal(missingTool.metadata.ruleIdentity.ruleId, 'malformed_external_action_blocked');
+  assert.equal(missingSession.metadata.ruleIdentity.ruleId, 'malformed_external_action_blocked');
+  // The detail is not lost: it still travels on the human-readable reason.
+  assert.equal(missingTool.reason, 'malformed_external_action_blocked (missing_tool_name)');
+});
+
 test('the rule identity is covered by the canonical receipt hash', () => {
   const receipt = memoryReceipt();
   const base = canonicalFromReceipt(receipt);

@@ -356,4 +356,7 @@ test('flagsless claude-code payload blocks with the missing fields named in the 
   assert.ok(output.reason.startsWith('malformed_external_action_blocked'), output.reason);
   assert.match(output.reason, /missing_tool_name/);
   assert.match(output.reason, /missing_session_id/);
+  // The generic normalizer defaults the agent name, so the reason must NOT
+  // name it: if that default ever regresses, this assertion fails (#4524).
+  assert.doesNotMatch(output.reason, /missing_agent_name/);
 });
