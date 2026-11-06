@@ -73,3 +73,14 @@ Native kontrolde tek GET ve tek POST önce/sonra HTTP 200, `Allow: GET,POST`, ex
 Hash temsilleri ayrıdır: kaynak çalışma kopyasının ham UTF-8 kaynak öncesi SHA-256 değeri `499160f16cd25c2ee453be9845b56866b2f06e1bda08ff3965071fbf21a5d3d3`; v3 türetiminin LF-normalize edilmiş girdisi `3867c0f5ac5216d4c4056aceac3e528c1fac08e2fb1e3b28ae719695e950cf5a`, çıktısı `64d4295d77da4f0e6349147d8c4d2454c3e446eee5695f8aac4edc9f6d7cbb8e`’dir. Ham çalışma kopyası özeti, Git blob'unun bayt özeti değildir. Run source hash `9f31f2b97b64bc7bee253e5c7f79a5ffb476bc8dfde0b1fca3e1cb2dc8962df0`, record hash `559df79ca152cc3afe218e961d0acbd3893266fd8c346a304f56c8150386c1a0`’dır. Kontrol artefaktları JSON’daki kapsam klasörüne göreli `m3-string-array-qualification-reviewed/checks/` yolları ve SHA-256 değerleriyle listelenmiştir; kapsam `LOCAL_NOT_PUBLISHED`’dır.
 
 Kayıt `localQualificationOnly:true`, `remembered:false`, `promoted:false`, `corpusAccepted:false` ve `assertsGain:false` olarak kalır. İlk havuzun 0 kabul / 5 ret sayımları, adayın mevcut durum alanları ve M3 `NOT_READY` / `NOT_RUN` sınırları değişmez. Uygulama referansı PR #4499’un gözlem sırasında main’e birleşmemiş `18b99c623295678b23cbd60a073262c78a9ab466` commitidir; bu koşum sonrasında bağlanan bir referanstır, sonuç öncesi kilit değildir. Bu kayıt main’de kodun mevcut olduğu iddiası taşımaz. Bu doküman envanteridir; runtime manifest veya deney ön kaydı değildir.
+
+
+## Ek aday elemesi — 2026-11-06
+
+Bu takip kaydı üç issue gövdesinin yeniden okunmasına dayanır. Bildirilen hatalar `AUTHOR_REPORTED`; görev öncesi kaynak SHA ve bağımsızlık `UNKNOWN`, native kabul/rollback/restart `NOT_RUN` kalır. Tarama önceden kilitli bir corpus veya tüm dış görevler hakkında yokluk kanıtı değildir.
+
+- [fastify/fastify-cors#422](https://github.com/fastify/fastify-cors/issues/422): Virgülden önceki boşlukta token kaybı bildirilmiştir. Ayrıştırıcı sınırı hatasıdır; mevcut string-array join sentezi bu davranışı karşılamaz. Karar: `OUTSIDE_CURRENT_SYNTHESIS`; `accepted:false`.
+- [fastify/fastify-compress#435](https://github.com/fastify/fastify-compress/issues/435): Büyük/küçük harf duyarsız token kontrolü, substring ve wildcard davranışı gerekir; concat(...).join(...) doğrudan identifier.join(literal) hedefi değildir. Karar: `OUTSIDE_CURRENT_SYNTHESIS`; `accepted:false`.
+- [ramda/ramda#1740](https://github.com/ramda/ramda/issues/1740): Yeni circle API önerisidir; çözüm issue gövdesinde açık olduğundan yeni holdout değildir. Mevcut kaynak hedefi ve tek koşullu sentez uyumu doğrulanmadı. Karar: `QUALIFICATION_ONLY_UNVERIFIED`; `accepted:false`.
+
+Gövde SHA-256 değerleri, güncel issue tarihleri ve gerçek gözlem zamanları JSON kaydındadır. İlk havuzun sayımları, eski Express/date-fns kayıtları, `methodLearned:false`, `NOT_READY`, `NOT_RUN` ve `assertsGain:false` korunur. Bu adaylar üç bağımsız support, holdout/transfer ailesi veya öğrenme kazanımı sayılmaz. Runtime koşumu yapılmadı.
