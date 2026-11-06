@@ -77,7 +77,14 @@ npx -y --package=huqan huqan-gate install --profile claude-code
 
 Profiles: `claude-code`, `codex`, `openhands`, `opencode`, `pi`, `hermes`.
 
-Operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model and require `HUQAN_MCP_OPERATOR_TOKEN` — an agent cannot approve its own proposal.
+Operator tools (`huqan.approve`, `huqan.approvals`, `huqan.approval_detail`, `huqan.agent_resume`, `huqan.emergency_stop`) are hidden from the model — an agent cannot approve its own proposal.
+
+**How operator authorization actually works.** A network MCP caller (anything driving `huqan-mcp` over stdio or HTTP) must present a *scoped operator capability* in the tool arguments (`operatorCapability`): a short-lived, one-use, scope-bound token minted with `HUQAN_MCP_OPERATOR_TOKEN` as the secret, valid for at most a minute and bound to one tool, workspace and approval (or run). Setting `HUQAN_MCP_OPERATOR_TOKEN` in the MCP server's environment is *not* enough by itself — the server never accepts the static token over the wire; that path is deprecated in-process compatibility only. Callers that pass `operatorToken` in the tool arguments get the same refusal.
+
+Two ways to obtain a scoped capability:
+
+- **HTTP grant route (Control Room):** `POST /api/v2/operator/grant` with the operator token and the decision's approval id, workspace, verdict and reason. It mints exactly one capability for exactly one decision — see [ADR-019](./docs/adr/ADR-019-control-room-operator-grant.md). (The Control Room UI does this for you.)
+- **CLI approval commands:** `huqan approve` / the REPL approval flow mint and attach the capability themselves; the operator token stays in the CLI process and is never sent to the model.
 
 The gate only governs actions when the client calls it before execution.
 
