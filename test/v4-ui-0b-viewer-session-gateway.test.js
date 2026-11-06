@@ -116,6 +116,22 @@ test('V4-UI-0B viewer session gateway', async (t) => {
     for (const res of [wrong, missing, crossOrigin, noOrigin]) assert.equal(res.headers['set-cookie'], undefined);
   });
 
+  // A local reverse proxy forwards a remote caller to the loopback listener
+  // with loopback Host/Origin intact, so the socket address names the proxy,
+  // not the client. Any forwarded header must forfeit the HTTP exception and
+  // fall back to the Secure cookie (#4521).
+  await t.test('a proxied request cannot use the loopback HTTP exception', async () => {
+    const { gateway, store } = makeGateway();
+    for (const header of ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'forwarded', 'x-real-ip']) {
+      const proxied = await login(gateway, { headers: { [header]: '203.0.113.7' } });
+      assert.equal(proxied.statusCode, 403, header);
+      assert.equal(proxied.headers['set-cookie'], undefined, header);
+    }
+    assert.equal(store.size(), 0);
+    const direct = await login(gateway);
+    assert.equal(direct.statusCode, 200);
+  });
+
   await t.test('rejects unsupported, malformed, and oversized login bodies', async () => {
     const { gateway, store } = makeGateway();
     const unsupported = await invoke(gateway, {
@@ -374,8 +390,8 @@ test('V4-UI-0B server wiring keeps viewer auth isolated from the canonical API',
 test('V4-UI-0B loopback HTTP viewer login works by default and honours the opt-out', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-v4-ui-0b-loopback-'));
   const loopbackEnvNames = ['HUQAN_VIEWER_INSECURE_LOOPBACK', 'AXIOM_VIEWER_INSECURE_LOOPBACK'];
-  const previous = Object.fromEntries(loopbackEnvNames.map((name) => [name, { present: Object.hasOwn(process.env, name), value: process.env[name] }]));
-  const savedDisableAutoListen = { present: Object.hasOwn(process.env, 'HUQAN_DISABLE_AUTO_LISTEN'), value: process.env.HUQAN_DISABLE_AUTO_LISTEN };
+  const envNames = [...loopbackEnvNames, 'HUQAN_DISABLE_AUTO_LISTEN', 'HUQAN_API_KEY', 'HUQAN_MEMORY_PATH', 'HUQAN_USE_SQLITE'];
+  const previous = Object.fromEntries(envNames.map((name) => [name, { present: Object.hasOwn(process.env, name), value: process.env[name] }]));
   let server;
   try {
     for (const name of loopbackEnvNames) delete process.env[name];
@@ -407,8 +423,6 @@ test('V4-UI-0B loopback HTTP viewer login works by default and honours the opt-o
       if (snapshot.present) process.env[name] = snapshot.value;
       else delete process.env[name];
     }
-    if (savedDisableAutoListen.present) process.env.HUQAN_DISABLE_AUTO_LISTEN = savedDisableAutoListen.value;
-    else delete process.env.HUQAN_DISABLE_AUTO_LISTEN;
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
