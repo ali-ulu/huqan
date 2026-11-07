@@ -354,7 +354,11 @@ const GOLDEN = {
   // #4450 re-words the `coder` description (one line) to state the bounded
   // contract and claim boundary; diffing the help text against main shows
   // exactly that one changed line and nothing else.
-  'yardım': 'f8b9e9bd559ee709b1e1619ac2fef8b593c0f894e02eb92930966a741cc38154',
+  // #4535 documents the coder subcommands: generated help gains the
+  // `coder subcommands:` block (seven wrapped usage lines) pointing at
+  // docs/coder-quickstart.md; diffing the help text against main shows
+  // exactly that added block and nothing else.
+  'yardım': '6224d2732d9cf3c5b33e16c4a969b4c9476e7cffac10cc6972b8f45b2a7bf62f',
   // #4339 adds `[--journal <existing-experience.db>]` to the terfi usage line; re-recorded.
   'terfi': '51b73aa264d7598f4a4279e41bc0e2463ff2bb43c00366eddd9d9223176b5a88',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
