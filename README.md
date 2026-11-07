@@ -26,6 +26,8 @@ npx -y huqan quickstart
 
 A 30-second tour: propose → approve → verify → Trust Receipt. No global install is required; the run uses a throwaway store. The same flow runs in the browser at [huqan.com](https://huqan.com). What to run when: [product surfaces](./docs/product-surfaces.md).
 
+> **Note:** run it on a host machine, not inside a container. In Docker/Kubernetes the approval step fails closed (`AUTHORITY_UNAVAILABLE`, reason `container_unverified` — a container is no OS boundary, ADR-021); quickstart prints the next step when this happens. npm releases can also lag `main`; the command above always gives you the latest published version.
+
 ## What it stops, what it lets through
 
 Default `claude-code` gate profile, no custom policy. Invoke the gate with the profile explicit — e.g. `huqan-gate evaluate --profile claude-code` (a global install provides `huqan-gate`, not `huqan-gate-hook`; claude-code payloads carry their own `session_id`, and the agent name derives from the profile). Without `--profile` the generic profile runs and a claude-code-shaped payload is rejected as malformed; the block reason names the missing fields (e.g. `missing_tool_name`, `missing_session_id`):
@@ -53,6 +55,10 @@ npm install -g huqan    # Node.js 22.14.0 or newer
 ```
 
 Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.
+
+## Bounded coder
+
+`huqan coder` runs one bounded, deterministic code transform (a task file) through the code-change gate — not general autonomous coding. Task schema, subcommands (`create`, `revise`, `propose`, `verify`, `remember`), the `node <file>`-only acceptance-test rule and the prerequisites (clean feature branch, required `allowedPaths`) are in [`docs/coder-quickstart.md`](./docs/coder-quickstart.md); the claim boundary is in [`docs/coder-bounded-contract.md`](./docs/coder-bounded-contract.md).
 
 ## Connect your agent
 
