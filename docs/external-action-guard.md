@@ -635,7 +635,9 @@ tek tek dosyaları adlandırır ve state root'a göre önceliklidir. Test suiti
 `scripts/run-tests.js` üzerinden koşulur: her koşuma tek kullanımlık bir state
 root verilir ve bu iki dar değişken ortamdan düşürülür, böylece bir test
 operatörün gerçek politikasını okuyamaz ve gerçek makbuz zincirine sentetik bir
-karar ekleyemez (#1846).
+karar ekleyemez (#1846). `HUQAN_STATE_ROOT` set edildiğinde default memory
+store da bu köke taşınır (`memory.json` + yanındaki `memory.db`); açık bir
+`MEMORY_PATH`/`DB_PATH` yine önceliklidir (#4537).
 
 Executor tamamlandığında library API ile ayrı outcome receipt yazılır:
 

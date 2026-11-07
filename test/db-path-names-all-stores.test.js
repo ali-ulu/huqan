@@ -124,7 +124,11 @@ describe('a named store directory owns its defaulted companions (#3669)', { conc
     }
   });
 
-  it('with a store already registered, a stray cwd store is still refused', () => {
+  it('with a store registered in the state root, another cwd opens the same store and stays clean', () => {
+    // #4537: HUQAN_STATE_ROOT names the store's directory, so every cwd shares
+    // the one store there instead of each dropping a stray memory.db of its
+    // own. The refusal path for a genuinely unnamed cwd store stays covered by
+    // test/store-creation-guard.test.js.
     const root = keptDir('guard');
     const state = path.join(root, 'state');
     const seed = path.join(root, 'seed');
@@ -132,13 +136,14 @@ describe('a named store directory owns its defaulted companions (#3669)', { conc
     fs.mkdirSync(seed);
     fs.mkdirSync(fresh);
     try {
-      // Register one store, so the machine is past the first-install exemption.
+      // Register the shared store, so the machine is past the first-install exemption.
       const seeded = runCli(['durum'], { cwd: seed, environment: { HUQAN_STATE_ROOT: state } });
       assert.equal(seeded.status, 0, seeded.stderr);
 
-      const refused = runCli(['durum'], { cwd: fresh, environment: { HUQAN_STATE_ROOT: state } });
-      assert.match(refused.stdout + refused.stderr, /refusing to create a new store at an unnamed path/);
+      const opened = runCli(['durum'], { cwd: fresh, environment: { HUQAN_STATE_ROOT: state } });
+      assert.equal(opened.status, 0, opened.stderr + opened.stdout);
       assert.deepEqual(fs.readdirSync(fresh), [], 'a stray store was created in the working directory');
+      assert.ok(fs.existsSync(path.join(state, 'memory.db')), 'the shared store lives in the state root');
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
