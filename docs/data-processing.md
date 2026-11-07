@@ -45,8 +45,12 @@ Persistence is local by default: `memory.json` in the working directory
 (`lib/default-persistence-path.js`). `HUQAN_DB_PATH`, `AXIOM_DB_PATH`,
 `HUQAN_MEMORY_PATH` and `AXIOM_MEMORY_PATH` override it; a path that names a
 directory puts `memory.json` inside it, a path that names a file uses that
-file. Under `node --test` the default is a per-run temporary directory instead,
-so a test run never writes into the repository root.
+file. Setting `HUQAN_STATE_ROOT` moves the unnamed default into that state
+root as well (`memory.json` and its sibling `memory.db`), so a command run
+from an arbitrary directory does not drop a store into it (#4537); explicit
+`MEMORY_PATH`/`DB_PATH` still win. Under `node --test` the default is a
+per-run temporary directory instead, so a test run never writes into the
+repository root.
 
 The operator therefore decides the jurisdiction and the storage medium. Moving
 the store to another machine, backup destination or hosted volume is an operator
