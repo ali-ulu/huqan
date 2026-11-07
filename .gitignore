@@ -61,3 +61,6 @@ benchmarks/observability-soak-current.json
 
 # Archify diagram working artifacts
 .archify/
+
+# Mimosa agent-session artifacts (must never be committed)
+.mimosa/

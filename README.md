@@ -49,7 +49,7 @@ Agents can write code, delete files, spend money, and change memory — usually 
 ## Install
 
 ```bash
-npm install -g huqan    # Node.js 22.13.0 or newer
+npm install -g huqan    # Node.js 22.14.0 or newer
 ```
 
 Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.

@@ -5066,6 +5066,10 @@
       "kind": "infra",
       "evidence": "ownership-map-2446.md#R-SHARED-P"
     },
+    "lib/node-runtime-guard.js": {
+      "kind": "infra",
+      "evidence": "#4532 boot-time Node/NAPI runtime assertion; no domain logic, required at boot by the cli.js and mcpServer.js entry points via lib/environment-compat.js"
+    },
     "lib/enterprise-module.js": {
       "kind": "infra",
       "evidence": "Apache-2.0 relicense (PR #4356): the shared on-demand loader for the five LICENSE-ENTERPRISE entry points; no domain logic, it only resolves a declared module or reports it as not shipped"

@@ -2,7 +2,7 @@
 
 const {
   assertBootEnvironment, readCompatibleEnvironmentVariable, reportBootConflict,
-  reportIgnoredBareEnvironment,
+  reportIgnoredBareEnvironment, assertSupportedNodeRuntime,
 } = require('./lib/environment-compat');
 const crypto = require('crypto');
 const { createKernel } = require('./lib/kernel-factory');
@@ -182,6 +182,9 @@ installCliRuntimeMethods(CLI.prototype, {
 });
 
 async function runCliArgv(argv = [], io = {}) {
+  // #4532: better-sqlite3's prebuild segfaults (silent SIGSEGV) on NAPI < 10,
+  // so stop here with a readable error instead of crashing inside the store.
+  assertSupportedNodeRuntime();
   assertBootEnvironment();
   reportIgnoredBareEnvironment(console);
   return runWorkflowCliArgv(argv, io, {

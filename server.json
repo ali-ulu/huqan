@@ -32,7 +32,7 @@
   ],
   "_meta": {
     "io.github.ali-ulu/requirements": {
-      "node": ">=22.13.0"
+      "node": ">=22.14.0"
     }
   }
 }
