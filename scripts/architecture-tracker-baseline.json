@@ -303,6 +303,7 @@
       "lib/coder/project-templates.js": "Application",
       "lib/coder/project-verification.js": "Application",
       "lib/coder/requirements-parser.js": "Application",
+      "lib/coder/string-array-synthesis.js": "Application",
       "lib/coder/string-synthesis.js": "Application",
       "lib/coder/synthesis-memory.js": "Application",
       "lib/coder/test-execution.js": "Application",
@@ -361,6 +362,8 @@
       "lib/cognitive-lab-m10-episode.js": "Core",
       "lib/cognitive-lab-m10-evaluator.js": "Core",
       "lib/cognitive-lab-m10-runner.js": "Core",
+      "lib/cognitive-lab-m3-evaluator.js": "Core",
+      "lib/cognitive-lab-m3-experiment.js": "Application",
       "lib/cognitive-lab-m4-corpus.js": "Core",
       "lib/cognitive-lab-m4-episode.js": "Application",
       "lib/cognitive-lab-m4-evaluator.js": "Core",
@@ -425,6 +428,7 @@
       "lib/connectors/repo-memory-github.js": "Adapters",
       "lib/connectors/repo-memory-path-ingest.js": "Adapters",
       "lib/connectors/repo-memory-records.js": "Adapters",
+      "lib/container-detection.js": "Core",
       "lib/content-hash.js": "Core",
       "lib/contested-read-policy.js": "Core",
       "lib/context-canary.js": "Core",
@@ -434,6 +438,8 @@
       "lib/contradiction-rules-vocabulary.js": "Core",
       "lib/contradiction-rules.js": "Core",
       "lib/control-plane-paths.js": "Core",
+      "lib/conversation-ingress.js": "Core",
+      "lib/conversation-store.js": "Core",
       "lib/cross-workspace-access-gate.js": "Core",
       "lib/data-egress-gate.js": "Core",
       "lib/data-residency-gate.js": "Core",
@@ -525,6 +531,8 @@
       "lib/experience/run-repair.js": "Application",
       "lib/experience/runtime-seam.js": "Application",
       "lib/experience/step-lifecycle.js": "Application",
+      "lib/experience/string-array-program.js": "Application",
+      "lib/experience/string-array-target.js": "Application",
       "lib/experience/string-program.js": "Application",
       "lib/experience/verifier.js": "Application",
       "lib/experience/write-cost-budget.js": "Application",
@@ -709,6 +717,7 @@
       "lib/http/background-timers.js": "UI",
       "lib/http/claim-read-route.js": "UI",
       "lib/http/command-policy-route.js": "UI",
+      "lib/http/conversation-route.js": "UI",
       "lib/http/core-http-routes.js": "UI",
       "lib/http/crash-recovery-inventory.js": "UI",
       "lib/http/deployment-gated-route-auth.js": "UI",
@@ -1032,6 +1041,7 @@
       "lib/mutation-admission.js": "Core",
       "lib/mutation-journal-lock.js": "Core",
       "lib/mutation-journal.js": "Core",
+      "lib/node-runtime-guard.js": "Core",
       "lib/observability/agent-worker.js": "Application",
       "lib/observability/alert-lifecycle.js": "Application",
       "lib/observability/api-contract-schemas.js": "Application",
@@ -1738,7 +1748,8 @@
       "bin/huqan-cognitive-lab.js": [
         "graph.js",
         "lib/cognitive-lab-cli.js",
-        "lib/cognitive-lab-comparison-store.js"
+        "lib/cognitive-lab-comparison-store.js",
+        "lib/cognitive-lab-m3-experiment.js"
       ],
       "bin/huqan-gate-hook.js": [
         "lib/authority/autonomy-activation.js",
@@ -2300,6 +2311,7 @@
         "lib/authority/authority-pin.js",
         "lib/authority/install-trust.js",
         "lib/authority/posix-path-trust.js",
+        "lib/container-detection.js",
         "lib/environment-compat.js"
       ],
       "lib/authority/authority-pin.js": [
@@ -2870,11 +2882,13 @@
         "lib/coder/learned-candidate.js",
         "lib/coder/pipeline-synthesis.js",
         "lib/coder/project-spec-data.js",
+        "lib/coder/string-array-synthesis.js",
         "lib/coder/string-synthesis.js",
         "lib/coder/synthesis-memory.js",
         "lib/experience/array-fold-program.js",
         "lib/experience/conditional-expression-program.js",
         "lib/experience/expression-adaptation.js",
+        "lib/experience/string-array-target.js",
         "lib/experience/string-program.js"
       ],
       "lib/coder/cli-composition.js": [
@@ -2920,6 +2934,7 @@
         "lib/experience/expression-adaptation.js",
         "lib/experience/learning-intake.js",
         "lib/experience/replacement-sequence-adaptation.js",
+        "lib/experience/string-array-target.js",
         "lib/path-safety.js",
         "lib/task-identifier-lexer.js"
       ],
@@ -2974,6 +2989,11 @@
       "lib/coder/requirements-parser.js": [
         "lib/coder/project-spec-data.js"
       ],
+      "lib/coder/string-array-synthesis.js": [
+        "lib/coder/project-spec-data.js",
+        "lib/experience/string-array-program.js",
+        "lib/experience/string-array-target.js"
+      ],
       "lib/coder/string-synthesis.js": [
         "lib/coder/project-spec-data.js",
         "lib/experience/string-program.js"
@@ -2984,6 +3004,7 @@
         "lib/experience/array-fold-program.js",
         "lib/experience/conditional-expression-program.js",
         "lib/experience/expression-adaptation.js",
+        "lib/experience/string-array-target.js",
         "lib/experience/string-program.js"
       ],
       "lib/coder/test-execution.js": [
@@ -3260,6 +3281,22 @@
         "lib/cognitive-lab-m10-corpus.js",
         "lib/cognitive-lab-m10-episode.js",
         "lib/cognitive-lab-m10-evaluator.js"
+      ],
+      "lib/cognitive-lab-m3-evaluator.js": [
+        "lib/cognition/contract.js",
+        "lib/cognitive-lab-b4-evaluator.js",
+        "lib/is-plain-object.js"
+      ],
+      "lib/cognitive-lab-m3-experiment.js": [
+        "lib/agent-coder-project-task.js",
+        "lib/cli-replay.js",
+        "lib/cognitive-lab-m3-evaluator.js",
+        "lib/cognitive-lab-request-reader.js",
+        "lib/experience/journal-connection.js",
+        "lib/experience/journal.js",
+        "lib/experience/learning-intake.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
       ],
       "lib/cognitive-lab-m4-episode.js": [
         "kernel.js",
@@ -3540,6 +3577,14 @@
         "lib/contradiction-rules-value-detectors.js",
         "lib/contradiction-rules-vocabulary.js"
       ],
+      "lib/conversation-ingress.js": [
+        "lib/conversation-store.js",
+        "lib/hash-chain.js"
+      ],
+      "lib/conversation-store.js": [
+        "lib/cognition/conversation-turn.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/cross-workspace-access-gate.js": [
         "lib/is-plain-object.js"
       ],
@@ -3591,7 +3636,8 @@
         "lib/workspace-id.js"
       ],
       "lib/environment-compat.js": [
-        "lib/legacy-alias-usage.js"
+        "lib/legacy-alias-usage.js",
+        "lib/node-runtime-guard.js"
       ],
       "lib/error-prevention/admission.js": [
         "lib/error-prevention/rule-proposal.js",
@@ -3783,6 +3829,7 @@
         "lib/experience/array-fold-program.js",
         "lib/experience/conditional-expression-program.js",
         "lib/experience/integer-expression-ast.js",
+        "lib/experience/string-array-target.js",
         "lib/experience/string-program.js"
       ],
       "lib/experience/journal-connection.js": [
@@ -3853,6 +3900,9 @@
         "lib/experience/learn-read-back.js",
         "lib/experience/runtime-seam.js",
         "lib/experience/verifier.js"
+      ],
+      "lib/experience/string-array-target.js": [
+        "lib/experience/string-array-program.js"
       ],
       "lib/experience/string-program.js": [
         "lib/experience/arithmetic-function.js"
@@ -4619,8 +4669,18 @@
         "lib/external-action-command-policy.js",
         "requestGuards.js"
       ],
+      "lib/http/conversation-route.js": [
+        "lib/conversation-ingress.js",
+        "lib/conversation-store.js",
+        "lib/hash-chain.js",
+        "lib/http/emergency-stop-gate.js",
+        "lib/is-plain-object.js",
+        "lib/memory-admission-gate.js",
+        "lib/workspace-id.js"
+      ],
       "lib/http/core-http-routes.js": [
         "lib/error-taxonomy.js",
+        "lib/http/conversation-route.js",
         "lib/http/emergency-stop-gate.js",
         "lib/http/http-provenance.js",
         "lib/http/structured-log.js",
@@ -4810,6 +4870,7 @@
         "lib/server-response-helpers.js"
       ],
       "lib/http/server-read-route-runtime.js": [
+        "lib/conversation-ingress.js",
         "lib/http-trust-query.js",
         "lib/http/answer-route.js",
         "lib/http/core-http-routes.js",
@@ -4821,6 +4882,7 @@
         "lib/http/structured-log.js",
         "lib/http/v2-status-phases.js",
         "lib/kernel-factory.js",
+        "lib/memory-admission-gate.js",
         "lib/receipt/receipt-read-index.js",
         "lib/server-response-helpers.js",
         "lib/workbench/workbench-read-http-router.js",
@@ -5271,8 +5333,10 @@
         "lib/trust-evidence-ledger.js"
       ],
       "lib/llm-proxy/proxy-mount.js": [
+        "lib/conversation-ingress.js",
         "lib/llm-proxy/proxy-config.js",
-        "lib/llm-proxy/proxy-handler.js"
+        "lib/llm-proxy/proxy-handler.js",
+        "lib/memory-admission-gate.js"
       ],
       "lib/mcp-agent-approval-execution.js": [
         "agentRuntime.js",
@@ -5320,6 +5384,7 @@
         "storage.js"
       ],
       "lib/mcp-approval-store.js": [
+        "lib/approval-execution-evidence.js",
         "lib/conflict-detector.js",
         "lib/kernel-factory.js",
         "lib/mcp-approval-expiry.js",
@@ -6666,7 +6731,8 @@
         "lib/text-utils.js"
       ],
       "lib/server-bind-doctor.js": [
-        "lib/api-auth-opt-out.js"
+        "lib/api-auth-opt-out.js",
+        "lib/container-detection.js"
       ],
       "lib/server-response-helpers.js": [
         "lib/environment-compat.js",

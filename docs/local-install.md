@@ -4,7 +4,7 @@
 
 ## Requirements
 
-- **Node.js >= 22.13.0** (no GPU, no API key, no Docker)
+- **Node.js >= 22.14.0** (no GPU, no API key, no Docker)
 - **OS**: macOS, Linux, or Windows (PowerShell)
 - **Disk**: ~50 MB (including dependencies)
 - **RAM**: ~100 MB at runtime
@@ -149,7 +149,7 @@ Teach causal chains:
 ## Troubleshooting
 
 **`npm run setup:sqlite` fails:**
-- Check Node.js version: `node --version` (the project requires Node.js >= 22.13.0)
+- Check Node.js version: `node --version` (the project requires Node.js >= 22.14.0)
 - Retry after `npm cache clean --force`.
 - If the message reports an ABI mismatch, the script attempts `npm rebuild better-sqlite3`; if that also fails, remove `node_modules` and run the setup command again.
 

@@ -20,7 +20,7 @@ receipt that records the decision.
 
 ## Requirements
 
-- **Node.js >= 22.13.0** (verify with `node --version`)
+- **Node.js >= 22.14.0** (verify with `node --version`)
 - **Build tools** for the native `better-sqlite3` module: `make`, a C++
   compiler (`g++`), and `python3`. The one-line install below includes them; a
   minimal image without them fails at `npm run setup:sqlite` (see
