@@ -108,4 +108,35 @@ describe('HUQAN_STATE_ROOT redirects the default memory store (#4537)', () => {
       fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
+
+  it('a production process creates a not-yet-existing HUQAN_STATE_ROOT (#4537)', () => {
+    // The override names a directory nothing else creates: SQLite makes files,
+    // not directories, so a freshly named state root used to fail its first
+    // store open with "the directory does not exist" (coder suites caught it).
+    const repo = path.resolve(__dirname, '..');
+    const parent = tmpDir('huqan-state-root-mkdir-');
+    const stateRoot = path.join(parent, 'state'); // deliberately never mkdir'd
+    const cwd = tmpDir('huqan-state-root-cwd-');
+    const script = `
+      const { Graph } = require(${JSON.stringify(path.join(repo, 'graph'))});
+      const graph = new Graph({ useSQLite: true });
+      graph.addNode('n1', 'N');
+      graph.save();
+      graph.close();
+    `;
+    let result;
+    try {
+      result = spawnSync(process.execPath, ['-e', script], {
+        cwd,
+        encoding: 'utf8',
+        env: { ...process.env, NODE_TEST_CONTEXT: '', HUQAN_STATE_ROOT: stateRoot },
+      });
+      assert.strictEqual(result.status, 0, result.stderr);
+      assert.ok(fs.existsSync(path.join(stateRoot, 'memory.db')), 'db inside the created state root');
+      assert.ok(!fs.existsSync(path.join(cwd, 'memory.db')), 'nothing in the caller cwd');
+    } finally {
+      fs.rmSync(parent, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
 });

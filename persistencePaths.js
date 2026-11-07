@@ -5,7 +5,7 @@ const { resolveContainedPath, siblingPersistencePath } = require('./lib/memory-s
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 const { probeWritablePathSync } = require('./lib/secure-file-write');
 const { protectedMemoryPathIfSelected } = require('./lib/protected-store-path');
-const { stateRootOverride } = require('./lib/huqan-state-root');
+const { stateRootOverride, ensureStateRootDir } = require('./lib/huqan-state-root');
 const { isTestRunner } = require('./lib/default-persistence-path');
 
 function resolvePersistencePaths(opts = {}) {
@@ -36,7 +36,12 @@ function resolvePersistencePaths(opts = {}) {
     ? stateRootOverride()
     : null;
   const storeBaseDir = stateRootStore || cwd;
-  if (stateRootStore) allowedRoots.push(stateRootStore);
+  if (stateRootStore) {
+    // #4537: the override directory may not exist yet; SQLite creates files,
+    // not directories, so the derived store would fail to open (#4537 follow-up).
+    ensureStateRootDir(stateRootStore);
+    allowedRoots.push(stateRootStore);
+  }
   const memoryPath = resolveContainedPath(
     protectedSelection ? protectedSelection.memoryPath : path.resolve(storeBaseDir, namedMemory || 'memory.json'),
     allowedRoots,
