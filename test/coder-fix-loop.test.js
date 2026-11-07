@@ -411,6 +411,54 @@ describe('runFixLoop', () => {
     assert.equal(result.attempts[0].apply.reason, 'TRANSFORM_REFUSED');
     assert.equal(result.attempts[1].kept, true);
   });
+
+  it('surfaces the single candidate\'s apply detail as the loop reason', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    write(root, 'test/check.js', 'process.exit(0);\n');
+    const spawn = fakeSpawn([]);
+
+    const result = runFixLoop({
+      task: loopTask({
+        // 'nope' does not occur: the transform refuses with a detail, and with
+        // only one candidate the loop has nothing left to try.
+        operation: { type: 'replace_text', path: 'docs/notes.md', find: 'nope', replace: 'hi v2' },
+      }),
+      root,
+      repoState: CLEAN_BRANCH,
+      spawn,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.outcome, LOOP_OUTCOMES.NEEDS_HUMAN_DECISION);
+    // The top-level reason names the real refusal, not the aggregate label.
+    assert.equal(result.reason, 'REPLACEMENT_NOT_UNIQUE');
+    assert.equal(result.attempts[0].apply.detail, 'REPLACEMENT_NOT_UNIQUE');
+    assert.equal(spawn.calls.length, 0);
+  });
+
+  it('keeps ALL_CANDIDATES_EXHAUSTED when multiple candidates are exhausted', () => {
+    const root = makeRoot();
+    write(root, 'docs/notes.md', 'greeting: hello v1\n');
+    write(root, 'test/check.js', 'process.exit(0);\n');
+    const spawn = fakeSpawn([]);
+
+    const result = runFixLoop({
+      task: loopTask({
+        candidates: [
+          { type: 'replace_text', path: 'docs/notes.md', find: 'nope', replace: 'hi v2' },
+          { type: 'replace_text', path: 'docs/notes.md', find: 'also nope', replace: 'hi v2' },
+        ],
+      }),
+      root,
+      repoState: CLEAN_BRANCH,
+      spawn,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'ALL_CANDIDATES_EXHAUSTED');
+    assert.equal(result.attempts.length, 2);
+  });
 });
 
 describe('coder CLI fix-loop wiring', () => {
