@@ -54,6 +54,10 @@ npm install -g huqan    # Node.js 22.13.0 or newer
 
 Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.
 
+## Bounded coder
+
+`huqan coder` runs one bounded, deterministic code transform (a task file) through the code-change gate — not general autonomous coding. Task schema, subcommands (`create`, `revise`, `propose`, `verify`, `remember`), the `node <file>`-only acceptance-test rule and the prerequisites (clean feature branch, required `allowedPaths`) are in [`docs/coder-quickstart.md`](./docs/coder-quickstart.md); the claim boundary is in [`docs/coder-bounded-contract.md`](./docs/coder-bounded-contract.md).
+
 ## Connect your agent
 
 **MCP (Claude, Cursor, any MCP client):**
