@@ -85,6 +85,34 @@ describe('Deterministic coding task benchmarks', () => {
     assert.deepEqual(result.files, task.files);
   });
 
+  it('reports REPLACEMENT_TARGET_ABSENT when find does not occur at all (#4533)', () => {
+    const task = fixture('l0-version-bump');
+    delete task.expectedPatch;
+    task.files = { 'src/file.js': 'const x = 1;\n' };
+    task.allowedPaths = ['src/file.js'];
+    task.operation = { type: 'replace_text', path: 'src/file.js', find: 'nope', replace: 'y' };
+
+    const result = runTask(task);
+
+    assert.equal(result.status, STATUS.NEEDS_HUMAN_DECISION);
+    assert.equal(result.reason, 'REPLACEMENT_TARGET_ABSENT');
+    assert.deepEqual(result.files, task.files);
+  });
+
+  it('reports ANCHOR_NOT_FOUND when the insert_after anchor does not occur (#4533)', () => {
+    const task = fixture('l0-version-bump');
+    delete task.expectedPatch;
+    task.files = { 'src/file.js': 'const x = 1;\n' };
+    task.allowedPaths = ['src/file.js'];
+    task.operation = { type: 'insert_after', path: 'src/file.js', anchor: 'nope', insert: 'y' };
+
+    const result = runTask(task);
+
+    assert.equal(result.status, STATUS.NEEDS_HUMAN_DECISION);
+    assert.equal(result.reason, 'ANCHOR_NOT_FOUND');
+    assert.deepEqual(result.files, task.files);
+  });
+
   it('rejects an unsupported operation without changing files', () => {
     const task = fixture('l1-mcp-tool-registration');
     task.operation.type = 'invent_missing_code';

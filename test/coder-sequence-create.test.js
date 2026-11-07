@@ -119,7 +119,8 @@ describe('sequence', () => {
     }, ['lib/a.js'], files));
 
     assert.equal(result.status, STATUS.NEEDS_HUMAN_DECISION);
-    assert.equal(result.reason, 'STEP_2_ANCHOR_NOT_UNIQUE');
+    // #4533: the anchor occurs zero times, so the honest reason is not-found.
+    assert.equal(result.reason, 'STEP_2_ANCHOR_NOT_FOUND');
     assert.deepEqual(result.files, files);
     assert.deepEqual(result.patch, []);
   });
