@@ -1,4 +1,7 @@
-const { assertBootEnvironment, reportBootConflict, reportIgnoredBareEnvironment } = require('./lib/environment-compat');
+const {
+  assertBootEnvironment, reportBootConflict, reportIgnoredBareEnvironment,
+  assertSupportedNodeRuntime,
+} = require('./lib/environment-compat');
 
 // The HUQAN MCP server entrypoint: it builds the runtime a server needs and
 // wires the pieces together. The tool list, operator authorisation, dispatch,
@@ -119,6 +122,9 @@ function createServer(kernelOrOptions = {}) {
 }
 
 function runStdio() {
+  // #4532: same fail-closed runtime gate as the CLI -- the native SQLite
+  // prebuild segfaults without a message on NAPI < 10.
+  assertSupportedNodeRuntime();
   assertBootEnvironment();
   // console.warn writes to stderr, so the stdio JSON-RPC frames on stdout stay intact.
   reportIgnoredBareEnvironment(console);

@@ -1041,6 +1041,7 @@
       "lib/mutation-admission.js": "Core",
       "lib/mutation-journal-lock.js": "Core",
       "lib/mutation-journal.js": "Core",
+      "lib/node-runtime-guard.js": "Core",
       "lib/observability/agent-worker.js": "Application",
       "lib/observability/alert-lifecycle.js": "Application",
       "lib/observability/api-contract-schemas.js": "Application",
@@ -3636,7 +3637,8 @@
         "lib/workspace-id.js"
       ],
       "lib/environment-compat.js": [
-        "lib/legacy-alias-usage.js"
+        "lib/legacy-alias-usage.js",
+        "lib/node-runtime-guard.js"
       ],
       "lib/error-prevention/admission.js": [
         "lib/error-prevention/rule-proposal.js",

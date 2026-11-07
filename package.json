@@ -131,7 +131,7 @@
   "author": "Huqan Contributors",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.14.0"
   },
   "files": [
     "NOTICE",
@@ -238,6 +238,7 @@
     "lib/admission-horizon.js",
     "lib/blast-radius.js",
     "lib/memory-blast-radius.js",
+    "lib/node-runtime-guard.js",
     "lib/session-impact.js",
     "lib/run-impact.js",
     "lib/emergency-stop.js",
