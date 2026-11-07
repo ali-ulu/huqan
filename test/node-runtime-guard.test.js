@@ -20,7 +20,7 @@ describe('lib/node-runtime-guard (#4532)', () => {
       const reason = describeUnsupportedNodeRuntime({ nodeVersion: node, napiVersion: '9' });
       assert.ok(typeof reason === 'string' && reason.length > 0, `expected a reason for ${node}`);
       assert.match(reason, /NAPI/);
-      assert.match(reason, new RegExp(MIN_NODE_VERSION.replace(/\./g, '\\.')));
+      assert.ok(reason.includes(MIN_NODE_VERSION), `expected the reason for ${node} to name ${MIN_NODE_VERSION}`);
     }
   });
 
