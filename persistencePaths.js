@@ -5,6 +5,8 @@ const { resolveContainedPath, siblingPersistencePath } = require('./lib/memory-s
 const { readCompatibleEnvironmentVariable } = require('./lib/environment-compat');
 const { probeWritablePathSync } = require('./lib/secure-file-write');
 const { protectedMemoryPathIfSelected } = require('./lib/protected-store-path');
+const { stateRootOverride, ensureStateRootDir } = require('./lib/huqan-state-root');
+const { isTestRunner } = require('./lib/default-persistence-path');
 
 function resolvePersistencePaths(opts = {}) {
   const cwd = path.resolve(opts.rootDir || process.cwd());
@@ -20,8 +22,28 @@ function resolvePersistencePaths(opts = {}) {
     ? null
     : protectedMemoryPathIfSelected({ workspaceRoot: cwd });
   if (protectedSelection) allowedRoots.push(path.dirname(protectedSelection.memoryPath));
+  // #4537: `HUQAN_STATE_ROOT` names the one directory HUQAN's machine-local
+  // state lives in (lib/huqan-state-root.js), so the derived store lands there
+  // instead of in the working directory -- the same redirect the graph's own
+  // default applies (lib/default-persistence-path.js). Explicit choices still
+  // win: opts.memoryPath, MEMORY_PATH, DB_PATH and the ADR-018 protected store
+  // all take precedence. Production only: the test sandbox's HUQAN_STATE_ROOT
+  // is a harness fixture (#1846), and the derived default must keep following
+  // the isolated cwd under `node --test` (cli.test.js asserts exactly that).
+  const stateRootStore = (!namedMemory && !opts.dbPath
+    && !readCompatibleEnvironmentVariable('DB_PATH')
+    && !protectedSelection && !isTestRunner())
+    ? stateRootOverride()
+    : null;
+  const storeBaseDir = stateRootStore || cwd;
+  if (stateRootStore) {
+    // #4537: the override directory may not exist yet; SQLite creates files,
+    // not directories, so the derived store would fail to open (#4537 follow-up).
+    ensureStateRootDir(stateRootStore);
+    allowedRoots.push(stateRootStore);
+  }
   const memoryPath = resolveContainedPath(
-    protectedSelection ? protectedSelection.memoryPath : path.resolve(cwd, namedMemory || 'memory.json'),
+    protectedSelection ? protectedSelection.memoryPath : path.resolve(storeBaseDir, namedMemory || 'memory.json'),
     allowedRoots,
   );
   const dbPath = resolveContainedPath(

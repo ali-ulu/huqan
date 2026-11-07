@@ -240,6 +240,7 @@ const BASE_CLASSIFIED = Object.freeze({
   'lib/huqan-package-format.js': Object.freeze({ role: 'persistence', why: 'writes an exported package to the caller-named output path' }),
   'lib/agent-memory-runtime.js': Object.freeze({ role: 'persistence', why: 'writes agent memory (goals, runs, tool stats) through a temp file and rename so a run can resume, and moves a corrupt memory file aside; the path is the Agent constructor memoryPath or derived from the kernel graph memoryPath, never a request field' }),
   'lib/store-creation-guard.js': Object.freeze({ role: 'persistence', why: 'the registry of store paths this machine keeps, under the resolved state root; the recorded path is a store path the runtime already resolved, never a request field, and every write failure is swallowed so the registry can never refuse an open' }),
+  'lib/huqan-state-root.js': Object.freeze({ role: 'persistence', why: 'creates the one directory HUQAN keeps its own machine-local state in (#4537): ensureStateRootDir mkdirs the root the product resolves, from the operator\'s HUQAN_STATE_ROOT or the platform default, never a path an agent supplies, so a freshly named override exists before a store derived into it opens' }),
   'lib/mcp-capability-nonce-store.js': Object.freeze({
     role: 'persistence',
     why: 'the durable single-use MCP capability nonce store, reached from mcpServer.js; the directory is resolved from config or beside memoryPath and the file name is a hash of the attacker-influenced nonce, so a nonce cannot escape that directory',
