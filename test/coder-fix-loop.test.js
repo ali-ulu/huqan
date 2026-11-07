@@ -421,7 +421,9 @@ describe('runFixLoop', () => {
     const result = runFixLoop({
       task: loopTask({
         // 'nope' does not occur: the transform refuses with a detail, and with
-        // only one candidate the loop has nothing left to try.
+        // only one candidate the loop has nothing left to try. An absent
+        // target reports REPLACEMENT_TARGET_ABSENT (#4533), not the ambiguous
+        // REPLACEMENT_NOT_UNIQUE.
         operation: { type: 'replace_text', path: 'docs/notes.md', find: 'nope', replace: 'hi v2' },
       }),
       root,
@@ -432,8 +434,8 @@ describe('runFixLoop', () => {
     assert.equal(result.ok, false);
     assert.equal(result.outcome, LOOP_OUTCOMES.NEEDS_HUMAN_DECISION);
     // The top-level reason names the real refusal, not the aggregate label.
-    assert.equal(result.reason, 'REPLACEMENT_NOT_UNIQUE');
-    assert.equal(result.attempts[0].apply.detail, 'REPLACEMENT_NOT_UNIQUE');
+    assert.equal(result.reason, 'REPLACEMENT_TARGET_ABSENT');
+    assert.equal(result.attempts[0].apply.detail, 'REPLACEMENT_TARGET_ABSENT');
     assert.equal(spawn.calls.length, 0);
   });
 
