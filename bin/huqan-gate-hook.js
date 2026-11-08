@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
+// #4551: same fail-closed runtime gate as cli.js and mcpServer.js (#4532).
+// This runs before ANY other require: the hook path reaches the native SQLite
+// binding through the receipt writer's Graph, so an unsupported runtime must
+// stop here with a readable error instead of a silent SIGSEGV.
+require('../lib/node-runtime-guard').assertSupportedNodeRuntime();
+
 const { queryIdentityLog } = require('../lib/gate-hook-identity');
 const { issueIdentityCard } = require('../lib/external-action-identity-issue');
 const {
