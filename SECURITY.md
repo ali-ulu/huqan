@@ -13,6 +13,8 @@ Canonical repository: `https://github.com/ali-ulu/huqan`
 
 ## Reporting a Vulnerability
 
+Security contact: `aliulu@huqan.com`. Prefer the private channels below over email; use the address when private reporting is unavailable.
+
 **Do not disclose sensitive details publicly.**
 
 - Use **GitHub Private Vulnerability Reporting** (Security tab → "Report a vulnerability") if available.
