@@ -1109,6 +1109,7 @@
     "lib/store-creation-guard.js",
     "lib/huqan-state-root.js",
     "lib/memory-store-utils.js",
+    "lib/use-sqlite-flag.js",
     "lib/memory-persistence-paths.js",
     "lib/sqlite-busy-retry.js",
     "lib/memory-store-json-persistence.js",

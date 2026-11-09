@@ -5070,6 +5070,10 @@
       "kind": "infra",
       "evidence": "#4532/#4551 boot-time Node/NAPI runtime assertion; no domain logic, required at boot by the cli.js, mcpServer.js, server.js and bin/huqan-gate-hook.js entry points (cli.js/mcpServer.js via lib/environment-compat.js; server.js/huqan-gate-hook.js by direct require)"
     },
+    "lib/use-sqlite-flag.js": {
+      "kind": "infra",
+      "evidence": "#4559/#4558 one pure rule for reading a useSQLite value (env opt-in or direct option); no fs/driver/domain state, required by lib/kernel-factory.js (Core) and re-exported by lib/memory-store-utils.js so both normalize the same spellings"
+    },
     "lib/enterprise-module.js": {
       "kind": "infra",
       "evidence": "Apache-2.0 relicense (PR #4356): the shared on-demand loader for the five LICENSE-ENTERPRISE entry points; no domain logic, it only resolves a declared module or reports it as not shipped"
