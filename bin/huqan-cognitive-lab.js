@@ -43,6 +43,12 @@ runCognitiveLab(process.argv.slice(2), { openGraph: options => new Graph(options
     // A replay can succeed (`status: REPLAYED`) while the fail-closed gain
     // evaluator rejects the same measurement. The evaluator verdict is part of
     // the top-level result, so its REJECT must fail the process too.
+    //
+    // INSUFFICIENT deliberately stays exit 0: it is an honest "not enough
+    // observed samples to decide", not a failure (docs/cognitive-architecture-plan.md).
+    // The sibling experiment labs (causal/neural) fail on INSUFFICIENT; this
+    // lab's M3 path pins INSUFFICIENT + exit 0 (test/cognitive-lab-m3-cli-wiring.test.js),
+    // and the B1 replay path pins the same here (test/cognitive-lab-b1-replay-cli-wiring.test.js).
     if (result.status === 'REJECT' || result.evaluation?.status === 'REJECT') process.exitCode = 1;
   })
   .catch(error => {

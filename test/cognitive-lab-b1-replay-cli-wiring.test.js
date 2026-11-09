@@ -32,6 +32,7 @@ const {
 const {
   EVALUATOR_SCHEMA_VERSION,
   EVALUATOR_STATUS,
+  EVALUATOR_ERROR_CODES,
   evaluateGain,
 } = require('../lib/cognitive-lab-evaluator');
 const { comparisonInput } = require('./helpers/cognitive-lab-comparison');
@@ -209,6 +210,26 @@ test('an evaluator REJECT fails the process even when the replay itself succeede
   assert.equal(result.code, 1, 'an evaluator REJECT must set a non-zero exit code');
   assert.equal(result.output.status, REPLAY_STATUS.REPLAYED);
   assert.equal(result.output.evaluation.status, EVALUATOR_STATUS.REJECT);
+  assertCanonicalUntouched(box);
+});
+
+test('an evaluator INSUFFICIENT stays exit 0 — not enough observed samples is not a failure', { timeout: 60000 }, (t) => {
+  const box = sandbox(t);
+  // Every holdout outcome is censored, so the replay and the evaluator both
+  // report INSUFFICIENT (no observed sample reached calibration authority).
+  // Unlike causal/neural labs, the cognitive lab deliberately reports that
+  // honest "cannot decide" verdict with exit 0; only REJECT fails the process.
+  const censored = experiment({ outcomes: { h1: 'censored', h2: 'censored' }, observations: {} });
+  const frozen = manifest();
+  const request = { manifest: frozen, manifestDigest: computeManifestDigest(frozen), experiment: censored };
+  const file = writeText(box, 'insufficient.json', JSON.stringify(request));
+
+  const result = invoke(['replay', '--replay-manifest', file], box);
+  assert.equal(result.code, 0, 'an evaluator INSUFFICIENT must not fail the process');
+  assert.equal(result.output.status, REPLAY_STATUS.INSUFFICIENT);
+  assert.equal(result.output.evaluation.status, EVALUATOR_STATUS.INSUFFICIENT);
+  assert.equal(result.output.evaluation.error.code, EVALUATOR_ERROR_CODES.MISSING_OUTCOME);
+  assert.equal(result.output.evaluation.intelligenceGain, 'NOT_MEASURED');
   assertCanonicalUntouched(box);
 });
 

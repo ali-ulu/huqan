@@ -56,6 +56,8 @@ npm install -g huqan    # Node.js 22.14.0 or newer
 
 Seven binaries: `huqan` (CLI), `huqan-mcp` (MCP server), `huqan-gate` (pre-execution guard), `huqan-authority` (approval authority, ADR-016), plus the experiment CLIs `huqan-cognitive-lab`, `huqan-causal-lab` and `huqan-neural-lab`.
 
+The experiment CLIs surface the fail-closed evaluator verdict in their process exit code. `REJECT` always fails the process (exit 1). On `INSUFFICIENT` they differ by design: `huqan-cognitive-lab` exits 0 (an honest "not enough observed samples to decide", not a failure), while `huqan-causal-lab` and `huqan-neural-lab` exit 1.
+
 ## Bounded coder
 
 `huqan coder` runs one bounded, deterministic code transform (a task file) through the code-change gate — not general autonomous coding. Task schema, subcommands (`create`, `revise`, `propose`, `verify`, `remember`), the `node <file>`-only acceptance-test rule and the prerequisites (clean feature branch, required `allowedPaths`) are in [`docs/coder-quickstart.md`](./docs/coder-quickstart.md); the claim boundary is in [`docs/coder-bounded-contract.md`](./docs/coder-bounded-contract.md).
