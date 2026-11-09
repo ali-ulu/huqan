@@ -21,8 +21,9 @@ const fixture = path.join(__dirname, 'fixtures', 'huqan-fake-unsupported-runtime
 // both the run and the paths it was told to use. The assertions then check real
 // files: `spawnSync` does not hand back `env`, so a check that read the child's
 // environment would pass no matter what the child created.
-function spawnEntrypoint(entry) {
+function spawnEntrypoint(t, entry) {
   const directory = fs.mkdtempSync(path.join(tmpdir(), 'huqan-guard-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const dbPath = path.join(directory, 'graph.db');
   const memoryPath = path.join(directory, 'memory.json');
   const receiptLog = path.join(directory, 'receipts.jsonl');
@@ -54,8 +55,8 @@ function spawnEntrypoint(entry) {
 }
 
 describe('entrypoint runtime guard (#4551)', () => {
-  it('server.js fails closed before SQLite open on an unsupported runtime', () => {
-    const { dbPath, memoryPath, result } = spawnEntrypoint('server.js');
+  it('server.js fails closed before SQLite open on an unsupported runtime', (t) => {
+    const { dbPath, memoryPath, result } = spawnEntrypoint(t, 'server.js');
     assert.ok(result.status !== 0, `expected non-zero exit, got ${result.status}\nstderr:\n${result.stderr}`);
     assert.match(result.stderr, /HUQAN_NODE_UNSUPPORTED/);
     assert.match(result.stderr, /NAPI/);
@@ -65,8 +66,8 @@ describe('entrypoint runtime guard (#4551)', () => {
     assert.ok(!fs.existsSync(memoryPath), 'memory file must not be created');
   });
 
-  it('bin/huqan-gate-hook.js fails closed before SQLite open on an unsupported runtime', () => {
-    const { dbPath, memoryPath, receiptLog, result } = spawnEntrypoint('bin/huqan-gate-hook.js');
+  it('bin/huqan-gate-hook.js fails closed before SQLite open on an unsupported runtime', (t) => {
+    const { dbPath, memoryPath, receiptLog, result } = spawnEntrypoint(t, 'bin/huqan-gate-hook.js');
     assert.ok(result.status !== 0, `expected non-zero exit, got ${result.status}\nstderr:\n${result.stderr}`);
     // The guard runs before any other require at the top of the entrypoint,
     // so the error surfaces uncaught with its HUQAN_NODE_UNSUPPORTED code.
