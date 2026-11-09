@@ -263,8 +263,24 @@ describe('canonical workflow data routes', () => {
     assert.equal(replay.write.json.error.code, 'OPERATOR_AUTH_REQUIRED');
   });
 
-  it('leaves ingest-row decisions on the transport key (#3926)', async () => {
+  it('refuses an ingest-row decision on the transport key once an operator token is set (#4561)', async () => {
     const { invoke } = fixture([approval('a', 'alpha')], { withOperatorToken: true });
+    const result = await invoke('POST', '/api/v2/approvals/a/decision?workspaceId=alpha', { decision: 'approved' });
+    assert.equal(result.write.status, 403);
+    assert.equal(result.write.json.error.code, 'OPERATOR_AUTH_REQUIRED');
+    assert.deepEqual(result.decisions, []);
+  });
+
+  it('accepts an ingest-row decision with a capability bound to the request (#4561)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')], { withOperatorToken: true });
+    const result = await invoke('POST', '/api/v2/approvals/a/decision?workspaceId=alpha', { decision: 'approved' },
+      decisionHeaders('a', 'alpha', 'approved'));
+    assert.equal(result.write.status, 200);
+    assert.deepEqual(result.decisions, [{ approvalId: 'a', workspaceId: 'alpha', decision: 'approved', reason: '' }]);
+  });
+
+  it('leaves ingest-row decisions on the transport key when no operator token is configured (#3926)', async () => {
+    const { invoke } = fixture([approval('a', 'alpha')], { operatorToken: '' });
     const result = await invoke('POST', '/api/v2/approvals/a/decision?workspaceId=alpha', { decision: 'approved' });
     assert.equal(result.write.status, 200);
     assert.deepEqual(result.decisions, [{ approvalId: 'a', workspaceId: 'alpha', decision: 'approved', reason: '' }]);
