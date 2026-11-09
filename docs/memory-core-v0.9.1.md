@@ -84,6 +84,19 @@ Depo şu yollarla dolabilir:
 
 `memory-query`'nin grafı da taraması **kasıtlı olarak yapılmaz**: iki yüzeyin karıştırılması `memory-lifecycle` tombstone/supersede sözleşmesini ve grafın admission semantiğini bozar.
 
+### Kalıcılık Varsayılanı ve Boot Uyarısı
+
+İki yüzeyin varsayılanları **kasten farklıdır** ve bu fark artık sessiz değildir (#4558):
+
+* **Graf** `useSQLite !== false` iken SQLite'a yazar (`graph.js`); yani açıkça kapatılmadıkça kalıcıdır.
+* **MemoryStore** SQLite'ı yalnızca `useSQLite === true` iken açar (`lib/memory-store-sqlite-writer.js`); aksi halde `memoryPath` verilmişse JSON backend'e, o da yoksa süreç-içi **memory** backend'ine düşer (`lib/memory-store-port.js`).
+
+Bu yüzden varsayılan bir üretim açılışında (`server.js`, `cli.js`, `mcpServer.js` → `buildKernelOptsFromEnv`) graf diske inerken kayıt deposu süreç-içi kalabilir. Süreç-içi mod bilinçli bir birinci sınıf moddur; değişen, artık **görünür** olmasıdır:
+
+* Açılışta bir kez operatör-okunur bir `console.warn` basılır: `HUQAN memory core is not persistent (backend: memory): ...`. Uyarı yalnızca memory backend'i gerçekten seçildiğinde çıkar; graf da kalıcıysa iki yüzeyin ayrıştığını adıyla söyler. Değer (yol) hiçbir zaman mesaja girmez.
+* Kalıcılık aktif değilken `store()` / `supersede()` / `linkMemories()` başarı yanıtı kalıcılık durumunu taşır: `{ ok: true, persistent: false, backend: 'memory' }`. Kalıcı backend'lerde (`sqlite`, `json`) `persistent: true` döner. Böylece `.ok` okuyan bir çağıran, kaydın süreç ölünce kaybolacağını yanıttan anlar.
+* `USE_SQLITE` env değeri artık `MemoryStore` ile aynı biçimde normalleştirilir (`lib/kernel-factory.js`): truthy (`1`, `true`) SQLite'ı açar, falsy (`0`, `false`) kapatır, tanınmayan değer sessizce yok sayılmak yerine reddedilir (`HUQAN_INVALID_USE_SQLITE`). Yani `USE_SQLITE=1` (bir `DB_PATH`/`HUQAN_DB_PATH` ile) kalıcılığı açar; önceden yalnız `'false'` eşleniyordu ve truthy opt-in sessizce düşüyordu.
+
 ### Boş Depo Nasıl Anlaşılır?
 
 `memory-query` çıktısındaki `total`, **metin filtresinden geçen** kayıt sayısıdır; hem gerçekten boş bir depoda hem de dolu bir depoda eşleşmeyen bir metinde `0` olur. İkisini ayırt etmek için sorguya `storeTotal: true` eklenir (CLI bunu kendisi gönderir): projeksiyon, **aynı okumada** deponun filtresiz kayıt sayısını `storeTotal` ve türetilmiş `storeEmpty` alanlarıyla döndürür. Böylece:

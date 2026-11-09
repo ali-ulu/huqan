@@ -28,12 +28,12 @@ test('MS: supersede logic is delegated to lib/memory-supersede.js (only ownershi
   assert.ok(match, 'supersede method still exists');
   const body = match[0];
   assert.ok(
-    /supersede\(oldMemoryId, newContent, opts = \{\}\) \{\s*return runSupersede\(/.test(body),
+    /supersede\(oldMemoryId, newContent, opts = \{\}\) \{\s*return tagMemoryPersistence\(this, runSupersede\(/.test(body),
     'supersede is a one-line delegation to runSupersede',
   );
 
   // Delegated body must not keep any payload construction/validation logic.
-  const stripped = body.replace(/return runSupersede\([\s\S]*?\);/, '');
+  const stripped = body.replace(/return tagMemoryPersistence\(this, runSupersede\([\s\S]*?\)\);/, '');
   for (const banned of [
     'validateMemoryRecord',
     'validateMemoryEvent',

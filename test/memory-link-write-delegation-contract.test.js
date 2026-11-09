@@ -27,11 +27,11 @@ test('MS: link-write logic is delegated to lib/memory-link-write.js', () => {
   const body = methodMatch[0];
   assert.match(
     body,
-    /linkMemories\(opts = \{\}\) \{\s*return runLinkMemories\(this\._linkWriteStoreApi\(\), opts\);/,
+    /linkMemories\(opts = \{\}\) \{\s*return tagMemoryPersistence\(this, runLinkMemories\(this\._linkWriteStoreApi\(\), opts\)\);/,
     'linkMemories is a one-line delegation',
   );
 
-  const stripped = body.replace(/return runLinkMemories\([\s\S]*?\);/, '');
+  const stripped = body.replace(/return tagMemoryPersistence\(this, runLinkMemories\([\s\S]*?\)\);/, '');
   for (const banned of [
     'validateMemoryLink',
     'validateMemoryEvent',

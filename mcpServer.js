@@ -17,7 +17,7 @@ const {
   verifyMcpOperatorCapability,
 } = require('./lib/mcp-operator-capability');
 const { createDurableCapabilityNonceStore, resolveCapabilityNonceDirectory } = require('./lib/mcp-capability-nonce-store');
-const { buildKernelOptsFromEnv } = require('./lib/kernel-factory');
+const { buildKernelOptsFromEnv, warnIfMemoryBackendEphemeral } = require('./lib/kernel-factory');
 const { createAgent, resolveExperienceJournal } = require('./agentRuntime');
 const { CANONICAL_MCP_TOOL_NAMES, LEGACY_MCP_TOOL_NAMES } = require('./lib/mcp-tool-names');
 const { VERIFY_STATUS } = require('./lib/mcp-envelope-schema');
@@ -133,6 +133,8 @@ function runStdio() {
   // sits beside the memory store the server resolved.
   let recordPresence = () => {};
   const server = createServer({ onActivity: event => recordPresence(event) });
+  // #4558: console.warn writes to stderr, so the stdio frames stay intact.
+  warnIfMemoryBackendEphemeral(server.kernel);
   recordPresence = createPresenceRecorderFor(server.kernel.graph && server.kernel.graph.memoryPath);
   serveStdio(server);
 }

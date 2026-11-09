@@ -27,11 +27,11 @@ test('MS: store record construction is delegated to the write runner', () => {
   const body = methodMatch[0];
   assert.match(
     body,
-    /\n  store\(input = \{\}\) \{\s*\n    return runStore\(this\._storeStoreApi\(\), input\);\s*\n  \}/,
+    /\n  store\(input = \{\}\) \{\s*\n    return tagMemoryPersistence\(this, runStore\(this\._storeStoreApi\(\), input\)\);\s*\n  \}/,
     'store is a one-line delegation',
   );
 
-  const stripped = body.replace(/return runStore\([\s\S]*?\);/, '');
+  const stripped = body.replace(/return tagMemoryPersistence\(this, runStore\([\s\S]*?\)\);/, '');
   for (const banned of [
     'validateMemoryRecord',
     'normalizeMemoryRecord',

@@ -5,7 +5,7 @@ const {
   reportIgnoredBareEnvironment, assertSupportedNodeRuntime,
 } = require('./lib/environment-compat');
 const crypto = require('crypto');
-const { createKernel } = require('./lib/kernel-factory');
+const { createKernel, warnIfMemoryBackendEphemeral } = require('./lib/kernel-factory');
 const {
   createProcessFailureHandlers, failureCodeFor,
 } = require('./lib/http/process-failure-handlers');
@@ -188,7 +188,15 @@ async function runCliArgv(argv = [], io = {}) {
   assertBootEnvironment();
   reportIgnoredBareEnvironment(console);
   return runWorkflowCliArgv(argv, io, {
-    createCli: options => new CLI(options),
+    createCli: options => {
+      const cli = new CLI(options);
+      // #4558: report a process-only memory core once per CLI boot, before the
+      // command writes a record that would be lost on exit. A caller that
+      // injects a kernel (the ephemeral quickstart/--help boot, or a test) owns
+      // that store and knows its lifetime, so only the default boot warns.
+      if (!options || !options.kernel) warnIfMemoryBackendEphemeral(cli.kernel);
+      return cli;
+    },
     parseCommand,
     version: require('./package.json').version,
     // #3892: a stop is recorded with the approval authority after it holds locally.

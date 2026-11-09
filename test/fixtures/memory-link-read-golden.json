@@ -1,5 +1,5 @@
 {
-  "note": "sha256 of JSON.stringify(result) per link read, recorded on origin/main from the live session (full in-memory link array) before #3208 slice 3. Regenerate only if a read contract changes on purpose: UPDATE_MEMORY_READ_GOLDEN=1 node --test test/memory-store-sqlite-links.test.js",
+  "note": "sha256 of JSON.stringify(result) per link read, recorded on origin/main from the live session (full in-memory link array) before #3208 slice 3. Regenerate only if a read contract changes on purpose: UPDATE_MEMORY_READ_GOLDEN=1 node --test test/memory-store-sqlite-links.test.js. The `relink` digest also moved with #4558, which tags every memory-store mutation success with `persistent`/`backend` so an ephemeral write is not mistaken for a durable one.",
   "digests": {
     "getLinks.0": "5665ed292795deb15d2ac1def6de374bab6284d447f5dab59c7268ed9c2d75d8",
     "getBacklinks.0": "dfc27e4693792b548dada91e2c19481d7bad5a33d7034de66f4d826643585889",
@@ -44,6 +44,6 @@
     "export": "e2bcb1c6e882f826bfacb786fb32b92944041765caeb21027d3222170f6bd923",
     "export.tombstoned": "ec0d7760cf9e543f182fc3b725f98be2c0e2e351a83bab9f64956fb07fd4e555",
     "reimport": "9064e965aba82354909b26f22eb0008b3719bb034bb0b378abe635f0abb86fd3",
-    "relink": "7a97b258002cbcee14351a9864bfde080ee6246a5e785b3ab45207fa76b65d65"
+    "relink": "93223b2f7ae2c76d6e2e377f4db141edf48edb38ebc7e7577de4b548df9e3b5f"
   }
 }

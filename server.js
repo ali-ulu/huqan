@@ -13,7 +13,7 @@ reportIgnoredBareEnvironment(console);
 require('./lib/node-runtime-guard').assertSupportedNodeRuntime();
 
 const http = require('http');
-const { createKernel } = require('./lib/kernel-factory');
+const { createKernel, warnIfMemoryBackendEphemeral } = require('./lib/kernel-factory');
 const { createBackgroundTimers } = require('./lib/http/background-timers');
 const { createServerLifecycle, requireApiKeyAtBoot } = require('./lib/http/server-boot'), { resolveHttpServerTimeouts, resolveRequestLimits, createConcurrencyLimiter } = require('./lib/http/server-timeouts');
 const { createTrustQueryRoutes } = require('./lib/http/trust-query-routes');
@@ -38,6 +38,9 @@ if (configuredDbPath) kernelOpts.dbPath = configuredDbPath;
 if (readCompatibleEnvironmentVariable('USE_SQLITE') === 'false') kernelOpts.useSQLite = false;
 const kernel = createKernel(kernelOpts);
 kernel.graph.load();
+// #4558: report a process-only memory core once at boot, before the server
+// serves a write that would be lost.
+warnIfMemoryBackendEphemeral(kernel);
 const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
 const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
 const backgroundTimers = createBackgroundTimers();
