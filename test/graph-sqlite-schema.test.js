@@ -75,6 +75,30 @@ test('#3010: the statement set is exactly the statements the runtime calls', () 
   db.close();
 });
 
+// #4560: writeNodeRow used to re-prepare its own node upsert on every row and
+// that SQL carried `vector = excluded.vector` while the cached upsertNode did
+// not. Routing the row writer through upsertNode is only correct once the
+// cached statement updates vector on conflict too, or a re-written node would
+// keep its old vector.
+test('#4560: upsertNode updates the vector column on conflict', () => {
+  const Database = require('better-sqlite3');
+  const { dir, dbPath } = tempDb('upsert-node-vector');
+  const db = new Database(dbPath);
+  initGraphSchema(db, {});
+  const stmts = createGraphStmts(db);
+
+  stmts.upsertNode.run('n1', 'default', 'first', 0.5, 1, 't0', 1, 't0', '{"v":[1]}', 'null');
+  stmts.upsertNode.run('n1', 'default', 'second', 0.6, 1, 't0', 2, 't1', '{"v":[2]}', 'null');
+
+  const row = db.prepare('SELECT label, weight, vector FROM nodes WHERE id = ?').get('n1');
+  assert.equal(row.label, 'second', 'upsert updates the label on conflict');
+  assert.equal(row.weight, 0.6, 'upsert updates the weight on conflict');
+  assert.equal(row.vector, '{"v":[2]}', 'upsert updates the vector on conflict');
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('#2126: legacy single-PK nodes table migrates with data preserved', () => {
   const Database = require('better-sqlite3');
   const { dir, dbPath, memoryPath } = tempDb('legacy');
