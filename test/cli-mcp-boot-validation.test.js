@@ -15,8 +15,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
 
-const { assertBootEnvironment, formatBootError } = require('../lib/environment-compat');
+const { assertBootEnvironment, formatBootError, reportBootError } = require('../lib/environment-compat');
 
 const CLI = path.join(__dirname, '..', 'cli.js');
 const MCP = path.join(__dirname, '..', 'mcpServer.js');
@@ -134,12 +136,60 @@ test('server boot error rethrows for an in-process consumer instead of exiting',
   assert.match(output, /HUQAN_KERNEL_VERSION_UNSUPPORTED/, `the in-process caller must see the error; output=${output}`);
 });
 
+// #4557: the environment-driven limits are validated before the store opens,
+// so a bad value fails closed with the readable line instead of a raw stack
+// after the graph already opened its SQLite handle. Isolated --db-path and
+// --memory-path prove nothing was created on disk.
+test('server boot validates request limits before opening the store', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-boot-limit-'));
+  try {
+    const dbPath = path.join(dir, 'graph.sqlite');
+    const memoryPath = path.join(dir, 'memory.json');
+    const env = {
+      ...process.env,
+      HUQAN_MAX_CONCURRENT_REQUESTS: '0',
+      HUQAN_DISABLE_AUTO_LISTEN: '1',
+      HUQAN_DB_PATH: dbPath,
+      HUQAN_MEMORY_PATH: memoryPath,
+    };
+    const child = spawnSync(process.execPath, [SERVER], { env, encoding: 'utf8', timeout: 60_000 });
+    const output = `${child.stdout}${child.stderr}`;
+    assert.equal(child.status, 1, `expected a fail-closed exit; output=${output}`);
+    assert.match(output, /HUQAN server cannot start/, `readable line missing; output=${output}`);
+    assert.match(output, /HUQAN_REQUEST_LIMIT_INVALID/, `error code missing; output=${output}`);
+    assert.doesNotMatch(output, /^\s+at /m, 'boot failure must not dump a raw stack');
+    assert.equal(fs.existsSync(dbPath), false, 'the store must not be created before validation');
+    assert.equal(fs.existsSync(memoryPath), false, 'the memory store must not be created before validation');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('server env conflict rethrows for an in-process consumer instead of exiting', () => {
   const env = { ...process.env, HUQAN_LANG: 'canonical-secret-sentinel', AXIOM_LANG: 'legacy-secret-sentinel' };
   const child = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(SERVER)})`], { env, encoding: 'utf8', timeout: 60_000 });
   const output = `${child.stdout}${child.stderr}`;
   assert.notEqual(child.status, 0, `expected a non-zero exit; output=${output}`);
   assert.match(output, /HUQAN_ENV_CONFLICT/, `the in-process caller must see the error; output=${output}`);
+});
+
+// #4557: a pipe can accept only part of a long write, so reportBootError must
+// loop until the whole line is out. Stub fs.writeSync to hand back three bytes
+// at a time and assert the reassembled output is the complete line.
+test('reportBootError writes the whole line across partial writes', () => {
+  const realWriteSync = fs.writeSync;
+  const chunks = [];
+  fs.writeSync = (fd, buffer, offset) => {
+    const size = Math.min(3, buffer.length - offset);
+    chunks.push(buffer.slice(offset, offset + size));
+    return size;
+  };
+  try {
+    reportBootError('server', Object.assign(new Error('partial'), { code: 'HUQAN_PARTIAL' }));
+  } finally {
+    fs.writeSync = realWriteSync;
+  }
+  assert.equal(chunks.join(''), 'HUQAN server cannot start: partial (code=HUQAN_PARTIAL)\n');
 });
 
 // #4557: the diagnostic must survive the fail-closed exit. console.error() only
@@ -156,8 +206,10 @@ process.exit(1);`;
   const child = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
   const output = `${child.stdout}${child.stderr}`;
   assert.equal(child.status, 1, `expected the fail-closed exit; output=${output.slice(0, 200)}`);
-  assert.match(output, /^HUQAN server cannot start: m+ \(code=HUQAN_KERNEL_VERSION_UNSUPPORTED\)\n?$/,
-    `the full diagnostic must reach the pipe; got ${output.length} bytes`);
+  // Compare the complete line: a regex like /m+ \(code=...\)/ would still pass
+  // on a truncated body, which is exactly the failure this guards against.
+  const expected = `HUQAN server cannot start: ${'m'.repeat(200000)} (code=HUQAN_KERNEL_VERSION_UNSUPPORTED)\n`;
+  assert.equal(output, expected, `the full diagnostic must reach the pipe; got ${output.length} of ${expected.length} bytes`);
 });
 
 // The synchronous write is the point: on a closed fd 2 (or an unavailable

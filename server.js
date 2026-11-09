@@ -47,13 +47,25 @@ if (configuredMemoryPath) kernelOpts.memoryPath = configuredMemoryPath;
 if (configuredDbPath) kernelOpts.dbPath = configuredDbPath;
 if (readCompatibleEnvironmentVariable('USE_SQLITE') === 'false') kernelOpts.useSQLite = false;
 let kernel;
+let requestLimits;
+let httpTimeouts;
 try {
+  // #4557: validate the environment-driven limits before the store opens, so a
+  // bad value fails closed with the readable line instead of a raw stack after
+  // the graph already opened its SQLite handle.
+  requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
+  httpTimeouts = resolveHttpServerTimeouts(readCompatibleEnvironmentVariable);
   kernel = createKernel(kernelOpts);
   kernel.graph.load();
 } catch (error) {
-  // #4557: a boot-time kernel/store failure gets the same single readable
-  // line as cli.js and a deliberate exit instead of a raw Node stack dump.
-  // In-process consumers still get the throw.
+  // #4557: release the graph the kernel opened before it failed, so an
+  // in-process consumer that catches the rethrow does not leak the handle.
+  if (kernel && kernel.graph && typeof kernel.graph.close === 'function') {
+    try { kernel.graph.close(); } catch (_) {}
+  }
+  // #4557: a boot-time failure gets the same single readable line as cli.js and
+  // a deliberate exit instead of a raw Node stack dump. In-process consumers
+  // still get the throw.
   if (require.main !== module) throw error;
   if (!reportBootConflict('server', error)) reportBootError('server', error);
   process.exit(1);
@@ -61,7 +73,6 @@ try {
 // #4558: report a process-only memory core once at boot, before the server
 // serves a write that would be lost.
 warnIfMemoryBackendEphemeral(kernel);
-const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
 const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
 const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
@@ -192,7 +203,7 @@ const requestHandler = createServerRequestHandler({
   handlePublicApiRoute,
 });
 const server = http.createServer(
-  resolveHttpServerTimeouts(readCompatibleEnvironmentVariable),
+  httpTimeouts,
   requestHandler,
 );
 
