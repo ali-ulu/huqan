@@ -76,6 +76,10 @@ describe('boot warns when the memory core cannot persist (#4558)', () => {
     assert.strictEqual(warnings.length, 1);
     assert.match(warnings[0], /memory core is not persistent/);
     assert.match(warnings[0], /graph persists to SQLite while memory records do not/);
+    // The remedy must name the environment variables the runtime actually reads.
+    assert.match(warnings[0], /HUQAN_USE_SQLITE=1/);
+    assert.match(warnings[0], /HUQAN_DB_PATH/);
+    assert.doesNotMatch(warnings[0], /\bUSE_SQLITE=1\b/);
     // The warning reports a state, never the resolved path.
     assert.equal(warnings[0].includes(memoryPath), false, 'the message must not leak the path');
     // Reading the backend must not itself create the JSON store.
@@ -112,6 +116,18 @@ describe('boot warns when the memory core cannot persist (#4558)', () => {
   it('a kernel with no memory core is tolerated', () => {
     assert.strictEqual(warnIfMemoryBackendEphemeral({}, { warn: () => { throw new Error('must not warn'); } }), false);
     assert.strictEqual(warnIfMemoryBackendEphemeral(null, { warn: () => {} }), false);
+  });
+
+  it('reports no warning when the sink cannot warn', () => {
+    const dir = tmpDir();
+    const store = new MemoryStore({ memoryPath: path.join(dir, 'memory.json') });
+    assert.strictEqual(store._storePort.backend(), 'memory');
+    // A missing or warn-less sink means nothing was emitted; the return value
+    // must say so rather than claim a warning that never reached the operator.
+    assert.strictEqual(warnIfMemoryBackendEphemeral({ memory: store, graph: {} }, {}), false);
+    assert.strictEqual(warnIfMemoryBackendEphemeral({ memory: store, graph: {} }, null), false);
+    store.close();
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });
 

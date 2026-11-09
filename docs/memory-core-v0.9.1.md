@@ -95,7 +95,7 @@ Bu yüzden varsayılan bir üretim açılışında (`server.js`, `cli.js`, `mcpS
 
 * Açılışta bir kez operatör-okunur bir `console.warn` basılır: `HUQAN memory core is not persistent (backend: memory): ...`. Uyarı yalnızca memory backend'i gerçekten seçildiğinde çıkar; graf da kalıcıysa iki yüzeyin ayrıştığını adıyla söyler. Değer (yol) hiçbir zaman mesaja girmez.
 * Kalıcılık aktif değilken `store()` / `supersede()` / `linkMemories()` başarı yanıtı kalıcılık durumunu taşır: `{ ok: true, persistent: false, backend: 'memory' }`. Kalıcı backend'lerde (`sqlite`, `json`) `persistent: true` döner. Böylece `.ok` okuyan bir çağıran, kaydın süreç ölünce kaybolacağını yanıttan anlar.
-* `USE_SQLITE` env değeri artık `MemoryStore` ile aynı biçimde normalleştirilir (`lib/kernel-factory.js`): truthy (`1`, `true`) SQLite'ı açar, falsy (`0`, `false`) kapatır, tanınmayan değer sessizce yok sayılmak yerine reddedilir (`HUQAN_INVALID_USE_SQLITE`). Yani `USE_SQLITE=1` (bir `DB_PATH`/`HUQAN_DB_PATH` ile) kalıcılığı açar; önceden yalnız `'false'` eşleniyordu ve truthy opt-in sessizce düşüyordu.
+* `HUQAN_USE_SQLITE` env değeri artık `MemoryStore` ile aynı biçimde normalleştirilir (`lib/kernel-factory.js`): truthy (`1`, `true`) SQLite'ı açar, falsy (`0`, `false`) kapatır, tanınmayan değer sessizce yok sayılmak yerine reddedilir (`HUQAN_INVALID_USE_SQLITE`). Yani `HUQAN_USE_SQLITE=1` (bir `HUQAN_DB_PATH` ile) kalıcılığı açar; önceden yalnız `'false'` eşleniyordu ve truthy opt-in sessizce düşüyordu. Ayar adları ortam sözleşmesiyle aynıdır: kanonik ad `HUQAN_USE_SQLITE`/`HUQAN_DB_PATH`, eski `AXIOM_` adı geriye dönük okunur; ön eksiz `USE_SQLITE` okunmaz.
 
 ### Boş Depo Nasıl Anlaşılır?
 
