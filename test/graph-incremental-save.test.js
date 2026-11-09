@@ -45,17 +45,14 @@ function openReader(graph) {
   return reader;
 }
 
-// Counts the rows a save physically writes, by watching the node UPSERT (built
-// inline in graph-persistence-runtime) and the edge UPSERT (a prepared
-// statement). This measures the write amplification the issue is about, not an
-// implementation detail: whatever statement a row goes through, it is counted.
+// Counts the rows a save physically writes, by watching the node UPSERT and
+// the edge UPSERT (both cached prepared statements since #4560). This measures
+// the write amplification the issue is about, not an implementation detail:
+// whatever statement a row goes through, it is counted.
 function countRowWrites(graph) {
   const counts = { nodes: 0, edges: 0 };
-  const originalPrepare = graph._db.prepare.bind(graph._db);
-  graph._db.prepare = (sql) => {
-    if (/INSERT INTO nodes/i.test(sql)) counts.nodes += 1;
-    return originalPrepare(sql);
-  };
+  const originalNodeRun = graph._stmts.upsertNode.run.bind(graph._stmts.upsertNode);
+  graph._stmts.upsertNode = { ...graph._stmts.upsertNode, run: (...args) => { counts.nodes += 1; return originalNodeRun(...args); } };
   const originalEdgeRun = graph._stmts.upsertEdge.run.bind(graph._stmts.upsertEdge);
   graph._stmts.upsertEdge = { ...graph._stmts.upsertEdge, run: (...args) => { counts.edges += 1; return originalEdgeRun(...args); } };
   return counts;
