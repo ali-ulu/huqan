@@ -2,8 +2,18 @@ const {
   readCompatibleEnvironmentVariable,
   reportIgnoredBareEnvironment,
   validateEnvironmentCompatibility,
+  reportBootConflict,
+  reportBootError,
 } = require('./lib/environment-compat');
-validateEnvironmentCompatibility();
+try {
+  validateEnvironmentCompatibility();
+} catch (error) {
+  // #4557: readable boot line + fail-closed exit, like cli.js. In-process
+  // consumers still get the throw so they can handle it themselves.
+  if (require.main !== module) throw error;
+  if (!reportBootConflict('server', error)) reportBootError('server', error);
+  process.exit(1);
+}
 reportIgnoredBareEnvironment(console);
 
 // #4551: same fail-closed runtime gate as cli.js and mcpServer.js (#4532) --
@@ -36,12 +46,33 @@ const configuredDbPath = readCompatibleEnvironmentVariable('DB_PATH');
 if (configuredMemoryPath) kernelOpts.memoryPath = configuredMemoryPath;
 if (configuredDbPath) kernelOpts.dbPath = configuredDbPath;
 if (readCompatibleEnvironmentVariable('USE_SQLITE') === 'false') kernelOpts.useSQLite = false;
-const kernel = createKernel(kernelOpts);
-kernel.graph.load();
+let kernel;
+let requestLimits;
+let httpTimeouts;
+try {
+  // #4557: validate the environment-driven limits before the store opens, so a
+  // bad value fails closed with the readable line instead of a raw stack after
+  // the graph already opened its SQLite handle.
+  requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
+  httpTimeouts = resolveHttpServerTimeouts(readCompatibleEnvironmentVariable);
+  kernel = createKernel(kernelOpts);
+  kernel.graph.load();
+} catch (error) {
+  // #4557: release the graph the kernel opened before it failed, so an
+  // in-process consumer that catches the rethrow does not leak the handle.
+  if (kernel && kernel.graph && typeof kernel.graph.close === 'function') {
+    try { kernel.graph.close(); } catch (_) {}
+  }
+  // #4557: a boot-time failure gets the same single readable line as cli.js and
+  // a deliberate exit instead of a raw Node stack dump. In-process consumers
+  // still get the throw.
+  if (require.main !== module) throw error;
+  if (!reportBootConflict('server', error)) reportBootError('server', error);
+  process.exit(1);
+}
 // #4558: report a process-only memory core once at boot, before the server
 // serves a write that would be lost.
 warnIfMemoryBackendEphemeral(kernel);
-const requestLimits = resolveRequestLimits(readCompatibleEnvironmentVariable);
 const concurrencyLimiter = createConcurrencyLimiter({ maxConcurrent: requestLimits.maxConcurrent });
 const backgroundTimers = createBackgroundTimers();
 backgroundTimers.add(setInterval(() => {
@@ -172,7 +203,7 @@ const requestHandler = createServerRequestHandler({
   handlePublicApiRoute,
 });
 const server = http.createServer(
-  resolveHttpServerTimeouts(readCompatibleEnvironmentVariable),
+  httpTimeouts,
   requestHandler,
 );
 
@@ -216,6 +247,8 @@ if (require.main === module && readCompatibleEnvironmentVariable('DISABLE_AUTO_L
     process.exitCode = 1;
     process.exit(1);
   }
+  // createServerLifecycle().bind() installs the uncaughtException /
+  // unhandledRejection handlers; #4557 only needed the module-load boot line.
   serverLifecycle.bind();
   startAgentWorkerIfEnabled();
   startServer(PORT, HOST);
