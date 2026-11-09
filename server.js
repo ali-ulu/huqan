@@ -6,6 +6,12 @@ const {
 validateEnvironmentCompatibility();
 reportIgnoredBareEnvironment(console);
 
+// #4551: same fail-closed runtime gate as cli.js and mcpServer.js (#4532) --
+// the server constructs the Kernel/Graph and opens the native SQLite binding
+// below, so an unsupported runtime must stop here with a readable error
+// instead of a silent SIGSEGV.
+require('./lib/node-runtime-guard').assertSupportedNodeRuntime();
+
 const http = require('http');
 const { createKernel } = require('./lib/kernel-factory');
 const { createBackgroundTimers } = require('./lib/http/background-timers');

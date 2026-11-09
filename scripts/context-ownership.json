@@ -5068,7 +5068,7 @@
     },
     "lib/node-runtime-guard.js": {
       "kind": "infra",
-      "evidence": "#4532 boot-time Node/NAPI runtime assertion; no domain logic, required at boot by the cli.js and mcpServer.js entry points via lib/environment-compat.js"
+      "evidence": "#4532/#4551 boot-time Node/NAPI runtime assertion; no domain logic, required at boot by the cli.js, mcpServer.js, server.js and bin/huqan-gate-hook.js entry points (cli.js/mcpServer.js via lib/environment-compat.js; server.js/huqan-gate-hook.js by direct require)"
     },
     "lib/enterprise-module.js": {
       "kind": "infra",
