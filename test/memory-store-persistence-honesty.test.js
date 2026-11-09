@@ -77,3 +77,45 @@ describe('MemoryStore persistence reporting (#1028)', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe('MemoryStore useSQLite normalization (#4559)', () => {
+  // The same truthy opt-in used to mean two things: with no driver it threw,
+  // with a driver it silently dropped to the ephemeral memory backend. Now the
+  // accepted spellings of true/false are normalized at the entry and anything
+  // else is refused, so "ask for SQLite" always means the same thing.
+  const truthy = [true, 1, '1', 'true'];
+  const falsy = [false, 0, '0', 'false'];
+
+  for (const value of truthy) {
+    it(`useSQLite: ${JSON.stringify(value)} opens SQLite`, () => {
+      const dir = tmpDir();
+      const store = new MemoryStore({ useSQLite: value, dbPath: path.join(dir, 'memory.db') });
+      assert.ok(store._db, 'a truthy useSQLite must open SQLite, not fall to memory');
+      assert.strictEqual(store._storePort.backend(), 'sqlite');
+      store.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+  }
+
+  for (const value of falsy) {
+    it(`useSQLite: ${JSON.stringify(value)} selects the JSON backend when a path is given`, () => {
+      const dir = tmpDir();
+      const store = new MemoryStore({ useSQLite: value, memoryPath: path.join(dir, 'memory.json') });
+      assert.ok(!store._db, 'a falsy useSQLite must not open SQLite');
+      assert.strictEqual(store._storePort.backend(), 'json');
+      store.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+  }
+
+  it('an unrecognized useSQLite value is refused, not guessed', () => {
+    assert.throws(() => new MemoryStore({ useSQLite: 'yes' }), { code: 'HUQAN_INVALID_USE_SQLITE' });
+    assert.throws(() => new MemoryStore({ memoryStoreUseSQLite: 2 }), { code: 'HUQAN_INVALID_USE_SQLITE' });
+  });
+
+  it('an absent useSQLite keeps the memory default', () => {
+    const store = new MemoryStore({});
+    assert.ok(!store._db);
+    assert.strictEqual(store._storePort.backend(), 'memory');
+  });
+});
