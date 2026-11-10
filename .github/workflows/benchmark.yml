@@ -1192,8 +1192,12 @@ jobs:
       # The full suite needs the same browser and global-WebSocket support the
       # runtime shards require; a smoke that skips silently would measure a
       # different (and lower) coverage set than the one the baseline records.
-      - name: Install Chromium for the browser smokes
-        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+      # The ubuntu-latest image already ships Chrome, which is what the shards
+      # rely on, and HUQAN_REQUIRE_BROWSER_SMOKE below fails closed if it is
+      # ever absent -- so no install step is needed. The old
+      # `apt-get install chromium-browser` only pulled Ubuntu's snap stub and,
+      # on 2026-11-10, stalled for ~18 minutes here, consuming most of this
+      # job's 45-minute budget and cancelling the measurement (main run #8339).
       - name: Measure the suite under c8
         env:
           HUQAN_REQUIRE_BROWSER_SMOKE: '1'
