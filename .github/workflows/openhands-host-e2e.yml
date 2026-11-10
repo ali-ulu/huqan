@@ -77,4 +77,8 @@ jobs:
         with:
           name: openhands-host-e2e-report
           path: ${{ runner.temp }}/openhands-host-e2e-report.ndjson
-          if-no-files-found: warn
+          # The report is written only when the e2e actually runs. If the SDK
+          # failed to install or the interpreter probe missed it, the tests skip
+          # and this file is absent -- which must fail the job, not pass green on
+          # a run that proved nothing.
+          if-no-files-found: error

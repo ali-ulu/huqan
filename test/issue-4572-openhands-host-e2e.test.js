@@ -21,7 +21,9 @@
 // not install, so this file must never run there; it is skipped unless the
 // workflow opts in. When it does run it skips, rather than fails, if no
 // interpreter or SDK is present, so a developer machine without the SDK is not
-// turned red.
+// turned red. On CI a skip must never pass: the workflow's evidence-upload step
+// fails the job when the report file this test writes is absent, so a run that
+// proved nothing cannot report green.
 //
 // What it pins, honestly: the host FAILS OPEN on hook timeout, missing command,
 // a non-2 non-zero exit and malformed/empty output; it blocks only on exit 2 or
@@ -53,13 +55,18 @@ const GUARD_ENV = Object.freeze({
 
 function findPython() {
   const candidates = process.platform === 'win32'
-    ? [['py', ['-3']], ['python', []]]
+    ? [['py', ['-3']], ['python', []], ['python3', []]]
     : [['python3', []], ['python', []]];
+  const available = [];
   for (const [command, prefix] of candidates) {
     const probe = spawnSync(command, [...prefix, '--version'], { encoding: 'utf8' });
-    if (!probe.error && probe.status === 0) return { command, prefix };
+    if (!probe.error && probe.status === 0) available.push({ command, prefix });
   }
-  return null;
+  // Prefer an interpreter that actually carries the SDK. On a CI runner the
+  // first `python3` on PATH can differ from the interpreter `pip install`
+  // targeted (setup-python's), and picking the wrong one skips the whole e2e
+  // silently -- the failure mode this test exists to avoid.
+  return available.find((candidate) => sdkAvailable(candidate)) || available[0] || null;
 }
 
 function sdkAvailable(python) {
