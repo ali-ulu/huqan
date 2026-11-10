@@ -21,6 +21,11 @@ Bir sınır istiyorsan gate'i kur; araçları da istiyorsan MCP'yi ekle.
 | Local GUI | Tam | Ayarlar ekranı + config dosyası | Görsel yapılandırma ve yedekleme. |
 | OpenHands Cloud | Tam | Cloud ayarları | Yönetilen barındırma, ekip paylaşımı. |
 
+Bu tablo **MCP desteğini** anlatır, gate uygulamasını değil. Gate'in host
+sınırında gerçekten uygulandığı ise yalnız SDK yüzeyinde E2E ile kanıtlanmıştır
+(aşağıdaki § Host seviyesi E2E kanıtı); CLI, Local GUI ve Cloud yüzeyleri için
+host seviyesi gate kanıtı henüz yoktur.
+
 HUQAN tarafında MCP sunucusu her istemcide aynı config ile bağlanır:
 
 ```json
@@ -166,6 +171,33 @@ tam metnini verir; yukarıdaki elle çağrı yerine onu da kullanabilirsin.
 Kartı hook'a bağlamadıysan zararsız bir komut bile `agent_identity_card_required`
 ile bloklanır; bu beklenen fail-closed davranıştır ve çözümü yukarıdaki
 § Kimlik kartını hook'a bağlama adımıdır.
+
+### Host seviyesi E2E kanıtı
+
+`test/issue-4572-openhands-host-e2e.test.js`, `bin/huqan-gate-hook.js`'i doğrudan
+çağırmaz: gerçek bir OpenHands SDK host'u (`scripts/openhands-host-e2e/host_driver.py`)
+`.openhands/hooks.json`'u yükler, `pre_tool_use` hook'unu çalıştırır ve engellenen
+eylemi executor'a varmadan ayıklar. Executor bir sentinel dosyasına yazar; bu
+yüzden engellenen bir komut sentinel'de iz bırakmaz. CI'da
+`.github/workflows/openhands-host-e2e.yml` sabitlenmiş bir SDK sürümüyle koşar
+(`HUQAN_OPENHANDS_E2E=1`); shard'lar bu dosyayı çalıştırmaz, çünkü SDK bir Python
+bağımlılığıdır ve npm kurulumunda yoktur.
+
+Bu koşum host sözleşmesini olduğu gibi kaydeder:
+
+- **Güvenli okuma** executor'a ulaşır ve makbuz yazılır.
+- **Denylist eylemi** executor'dan önce engellenir; sentinel boş kalır; `reason`
+  alanındaki makbuz kimliği makbuz iziyle eşleşir.
+- **HUQAN'ın `review` kararı** host'ta `deny` olarak uygulanır.
+
+Host'un hata davranışı **fail-open**'dır, fail-closed değil: hook zaman aşımına
+uğrarsa, komut bulunamazsa, 2 dışında sıfırdan farklı çıkarsa veya çıktı bozuk/boş
+olursa OpenHands çağrıyı geçirir. Host yalnız üç durumda engeller: hook exit `2`
+dönerse, stdout'ta üst düzey `{"decision":"deny"}` varsa, ya da stdout'ta üst düzey
+`{"continue":false}` varsa. Fail-closed
+garanti bu yüzden HUQAN'dan gelir: hook, ayrıştıramadığı bir payload'da exit `2`
+döner. Kullanılabilirlik/güvenlik dengesi bu ayrımı bilerek kurar; host'un
+fail-open davranışı bir HUQAN hatası değildir.
 
 ### Platform farkları
 
