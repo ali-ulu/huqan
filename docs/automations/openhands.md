@@ -192,8 +192,9 @@ Bu koşum host sözleşmesini olduğu gibi kaydeder:
 
 Host'un hata davranışı **fail-open**'dır, fail-closed değil: hook zaman aşımına
 uğrarsa, komut bulunamazsa, 2 dışında sıfırdan farklı çıkarsa veya çıktı bozuk/boş
-olursa OpenHands çağrıyı geçirir. Host yalnız iki durumda engeller: hook exit `2`
-dönerse, ya da stdout'ta üst düzey `{"decision":"deny"}` varsa. Fail-closed
+olursa OpenHands çağrıyı geçirir. Host yalnız üç durumda engeller: hook exit `2`
+dönerse, stdout'ta üst düzey `{"decision":"deny"}` varsa, ya da stdout'ta üst düzey
+`{"continue":false}` varsa. Fail-closed
 garanti bu yüzden HUQAN'dan gelir: hook, ayrıştıramadığı bir payload'da exit `2`
 döner. Kullanılabilirlik/güvenlik dengesi bu ayrımı bilerek kurar; host'un
 fail-open davranışı bir HUQAN hatası değildir.
