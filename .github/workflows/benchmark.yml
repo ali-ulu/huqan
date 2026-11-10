@@ -1201,6 +1201,14 @@ jobs:
       - name: Measure the suite under c8
         env:
           HUQAN_REQUIRE_BROWSER_SMOKE: '1'
+          # c8 holds every file's coverage map in memory until it writes the
+          # summary, so the process needs headroom above Node's ~4GB default
+          # heap. On 2026-11-10 the measurement ran to completion (14345 tests,
+          # 0 failures) and then died with "Ineffective mark-compacts near heap
+          # limit" while writing the report, so the job saw no summary and the
+          # ratchet could not run. The ubuntu-latest runner has 16GB, so 8GB
+          # leaves the suite plenty and stays well inside the runner.
+          NODE_OPTIONS: --max-old-space-size=8192
         # The npm test gate owns test correctness; this job owns the ratio. A
         # single flaky test must not turn the ratchet red, but a run that never
         # produced a summary must, so the summary is the pass condition here.
