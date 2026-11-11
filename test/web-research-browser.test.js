@@ -46,7 +46,7 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
     server = require('../server');
     await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); server.startServer(0); });
     browser = await launchBrowserSession();
-    await browser.navigate(`http://127.0.0.1:${server.address().port}/`);
+    await browser.navigate(`http://127.0.0.1:${server.address().port}/dashboard`);
     await browser.evaluate(`(() => {
       document.getElementById('key').value = 'research-browser-test-key';
       document.getElementById('workspace').value = 'default';
