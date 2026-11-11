@@ -113,7 +113,7 @@ describe('Observability readiness browser smoke (#1825)', { skip: skipReason ?? 
   // Open the Observability view the way a user does, which is what triggers
   // the load and therefore the readiness decision.
   async function openObservability(base) {
-    await browser.navigate(`${base}/`);
+    await browser.navigate(`${base}/dashboard`);
     await browser.evaluate(`
       document.getElementById('key').value = ${JSON.stringify(API_KEY)};
       document.getElementById('workspace').value = 'default';

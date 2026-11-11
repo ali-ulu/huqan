@@ -181,7 +181,7 @@ describe('conflict triage browser smoke (#1929)', { skip: skipReason ?? false },
     base = `http://127.0.0.1:${server.address().port}`;
 
     browser = await launchBrowserSession();
-    await browser.navigate(`${base}/`);
+    await browser.navigate(`${base}/dashboard`);
     // Arm the fetch wrapper, then drain both bootstrap loads before the first
     // case runs.
     //

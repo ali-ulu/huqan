@@ -35,7 +35,7 @@ What it is not:
 
 ### 2. Canonical local developer UI
 
-Canonical file: `public/index.html`
+Canonical file: `public/index.html`, served at `/dashboard`
 
 Use this surface when:
 - running `node server.js`;
@@ -48,6 +48,10 @@ What it is:
 - the UI that reflects the running HUQAN server; its title is
   `HUQAN — Trust Command Center`.
 
+It is no longer the page a visitor lands on: the root `/` now serves the
+Operator Control Room (surface 3), which is the surface the operator sees and
+uses. This developer console stays reachable at `/dashboard`.
+
 What it is not:
 - not the public static marketing/demo landing;
 - not intended for static hosting without the local server.
@@ -57,7 +61,7 @@ What it is not:
 ### 3. Operator Control Room
 
 Canonical files: `public/control-room/`, served by
-`lib/http/static-assets.js` at `/control-room`.
+`lib/http/static-assets.js` at `/` (the default surface) and `/control-room`.
 
 **Status: present, local/runtime-backed.** Use this surface for the daily
 operator questions: what agents attempted, what HUQAN decided, what needs human
@@ -121,8 +125,8 @@ receipts the local server already owns.
 - Static public demo: `demo/index.html` can be deployed by a static host. The
   repository currently does not treat static hosting as proof of a HUQAN runtime
   deployment.
-- Local product UI: serve `public/index.html` through `node server.js`.
-- Operator Control Room: served at `/control-room` by the same local server.
+- Local product UI: serve `public/index.html` through `node server.js` at `/dashboard`.
+- Operator Control Room: served at `/` (default) and `/control-room` by the same local server.
 - Trust Receipt Viewer: served at `/viewer` by the same `node server.js`.
 - Docs entry: optional repository/docs landing only.
 

@@ -98,7 +98,7 @@ describe('default-workspace graph browser smoke (#1821)', { skip: skipReason ?? 
     base = `http://127.0.0.1:${server.address().port}`;
 
     browser = await launchBrowserSession();
-    await browser.navigate(`${base}/`);
+    await browser.navigate(`${base}/dashboard`);
   });
 
   after(async () => {

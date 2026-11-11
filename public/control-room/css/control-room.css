@@ -51,6 +51,21 @@ body {
     radial-gradient(50rem 40rem at 45% 120%, var(--glow-b), transparent 65%),
     var(--bg);
   background-attachment: fixed;
+  min-height: 100vh;
+}
+/* Glass canvas: a fixed, blurred colour field behind the app so the frosted
+   surfaces have something to refract. Purely decorative; the app grid paints
+   on top of it and nothing here carries content or interaction. */
+body::before {
+  content: ""; position: fixed; inset: -20vmax; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(38rem 38rem at 22% 18%, var(--glow-a), transparent 60%),
+    radial-gradient(34rem 34rem at 78% 26%, var(--glow-b), transparent 60%),
+    radial-gradient(40rem 40rem at 58% 88%, color-mix(in oklab, var(--gold) 22%, transparent), transparent 62%),
+    radial-gradient(30rem 30rem at 12% 82%, var(--glow-b), transparent 60%);
+  filter: blur(46px) saturate(135%);
+  -webkit-filter: blur(46px) saturate(135%);
+  opacity: .9;
 }
 h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: -.01em; }
 button, input, select { font: inherit; color: inherit; }

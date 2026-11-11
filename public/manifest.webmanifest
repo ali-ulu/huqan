@@ -1,9 +1,9 @@
 {
-  "id": "/",
+  "id": "/dashboard",
   "name": "HUQAN Trust Command Center",
   "short_name": "HUQAN",
   "description": "Local-first AI governance, verification, and human approval.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "prefer_related_applications": false,

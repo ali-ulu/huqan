@@ -164,13 +164,13 @@ after(async () => {
 });
 
 describe('Server - index page cache (#420)', () => {
-  it('reads public/index.html once and reuses the cached bytes', () => {
+  it('reads the root shell once and reuses the cached bytes', () => {
     const first = server.getHtmlPage();
     const second = server.getHtmlPage();
     // Same object identity, so no second readFileSync happened.
     assert.strictEqual(first, second);
     assert.ok(Buffer.isBuffer(first));
-    assert.deepStrictEqual(first, fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+    assert.deepStrictEqual(first, fs.readFileSync(path.join(__dirname, 'public', 'control-room', 'index.html')));
   });
 
   it('GET / serves the cached page on repeated requests', async () => {
@@ -973,9 +973,21 @@ describe('Server - API', () => {
     assert.strictEqual(r.status, 200);
     const html = await r.text();
     assert.ok(html.includes('HUQAN'));
-    assert.ok(html.includes('Trust Command Center'));
+    // The Control Room owns `/`; the Trust Command Center is the developer
+    // console and moved to /dashboard (asserted in the case below).
+    assert.ok(html.includes('HUQAN Control Room'));
     // kendi kendine yeten light UI: betik yalniz kendi kaynagimizdan gelir,
     // harici (CDN) betik sarmalanmaz
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=["']?(?:https?:)?\/\//);
+    assert.match(html, /<script[^>]*\ssrc="\/control-room\/js\/control-room-[a-z-]+\.js"/);
+    assert.ok(html.includes('Content-Security-Policy'));
+  });
+
+  it('GET /dashboard serves the Trust Command Center shell', async () => {
+    const r = await request(`${BASE}/dashboard`);
+    assert.strictEqual(r.status, 200);
+    const html = await r.text();
+    assert.ok(html.includes('Trust Command Center'));
     assert.doesNotMatch(html, /<script[^>]*\ssrc=["']?(?:https?:)?\/\//);
     assert.match(html, /<script[^>]*\ssrc="\/js\/app-(?:core|wiring)\.js"/);
     assert.ok(html.includes('Content-Security-Policy'));
