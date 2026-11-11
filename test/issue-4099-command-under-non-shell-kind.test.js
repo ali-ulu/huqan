@@ -67,6 +67,8 @@ const TEARDOWN_CASES = [
   ['helm uninstall app', ACTION_CATEGORIES.DEPLOYMENT],
   ['helm delete app', ACTION_CATEGORIES.DEPLOYMENT],
   ['docker rmi registry.example/huqan:latest', ACTION_CATEGORIES.DEPLOYMENT],
+  ['docker rm container-1', ACTION_CATEGORIES.DEPLOYMENT],
+  ['docker remove container-1', ACTION_CATEGORIES.DEPLOYMENT],
   ['docker system prune -f', ACTION_CATEGORIES.DEPLOYMENT],
   ['kubectl drain node-1 --ignore-daemonsets', ACTION_CATEGORIES.DEPLOYMENT],
   ['pulumi destroy --yes', ACTION_CATEGORIES.DEPLOYMENT],
