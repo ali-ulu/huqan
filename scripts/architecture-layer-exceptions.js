@@ -160,6 +160,20 @@ const LAYER_EXCEPTIONS = Object.freeze([
       + ' it into runCognitiveLab, leaving the Core command free of the Application module.',
     review_by: '2027-03-31',
   },
+  {
+    from: 'lib/trust-policy.js',
+    to: 'lib/receipt/policy-seal.js',
+    why: 'The trust-policy loader (#4582, R35 follow-up) must verify an Ed25519 seal before it'
+      + ' returns the policy weights, and the seal verifier lives with the receipt family'
+      + ' (Application) while the loader is a flat lib/*.js domain module (Core). The edge is the'
+      + ' same Core -> Application shape as the issuer-seal-config -> receipt/issuer-seal edge'
+      + ' recorded in the baseline, and the same reason: a Core module verifies with a pure'
+      + ' primitive that currently sits in an outer ring. The follow-up fix is the one #3860 took'
+      + ' for lib/authority/keys.js -- move lib/receipt/policy-seal.js and its pure closure'
+      + ' (canonical-receipt, issuer-seal) into Core so the verifier sits with the domain it'
+      + ' serves -- rather than lifting a security check out of the load path.',
+    review_by: '2027-06-30',
+  },
 ]);
 
 function exceptionMessages(exceptions, current, today) {
