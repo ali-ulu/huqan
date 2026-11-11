@@ -1198,6 +1198,18 @@ jobs:
       # `apt-get install chromium-browser` only pulled Ubuntu's snap stub and,
       # on 2026-11-10, stalled for ~18 minutes here, consuming most of this
       # job's 45-minute budget and cancelling the measurement (main run #8339).
+      # The measurement runs through scripts/run-test-shard.js (shard 1/1), not
+      # scripts/run-tests.js, so each file is bounded by the same per-file
+      # deadline the runtime shards use: 90s, 240s for a heavy file, and the
+      # scoped overrides above that (see scripts/heavy-test-files.js). A file
+      # that hangs is killed at its own limit and its process tree is logged
+      # (#2814), so one stuck file can no longer consume the job's whole
+      # budget. That is the failure mode that produced main run #8339: on
+      # 2026-11-10 the measurement hit the 45-minute timeout and was cancelled
+      # after writing no summary, which left the coverage alarm unresolved and
+      # reddened the next three source commits (#4573, #4577, #4579) with a red
+      # that was not theirs. c8 merges the per-file V8 coverage as before; only
+      # the process orchestration changes.
       - name: Measure the suite under c8
         env:
           HUQAN_REQUIRE_BROWSER_SMOKE: '1'
