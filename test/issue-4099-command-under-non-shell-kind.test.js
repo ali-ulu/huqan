@@ -57,6 +57,22 @@ const CASES = [
   ['cp evil /etc/sudoers', ACTION_CATEGORIES.FILESYSTEM_WRITE],
   ['cat a; echo b', ACTION_CATEGORIES.TOOL_CHAIN_EXECUTION],
 ];
+
+// #4588: DEPLOY_SHELL listed only the provisioning verbs, so the teardown that
+// destroys the same resource fell through to TOOL_CHAIN_EXECUTION and asked for
+// review instead of reaching the DEPLOYMENT block. A destroy has the larger
+// blast radius, so the two halves must land in the same category.
+const TEARDOWN_CASES = [
+  ['terraform destroy -auto-approve', ACTION_CATEGORIES.DEPLOYMENT],
+  ['helm uninstall app', ACTION_CATEGORIES.DEPLOYMENT],
+  ['helm delete app', ACTION_CATEGORIES.DEPLOYMENT],
+  ['docker rmi registry.example/huqan:latest', ACTION_CATEGORIES.DEPLOYMENT],
+  ['docker system prune -f', ACTION_CATEGORIES.DEPLOYMENT],
+  ['kubectl drain node-1 --ignore-daemonsets', ACTION_CATEGORIES.DEPLOYMENT],
+  ['pulumi destroy --yes', ACTION_CATEGORIES.DEPLOYMENT],
+  ['pulumi up --yes', ACTION_CATEGORIES.DEPLOYMENT],
+  ['npm unpublish huqan --force', ACTION_CATEGORIES.DEPLOYMENT],
+];
 const KINDS = [['read', 'file_read'], ['fetch', 'network'], ['remember', 'memory']];
 
 test('normalisation keeps the command under a non-shell kind', () => {
@@ -110,4 +126,15 @@ test('shell keeps its safe-command and allowlist downgrade', () => {
 test('an allowlisted command does not downgrade a non-shell kind', () => {
   const envelope = normalizeExternalActionEnvelope(payload('fetch', 'network', 'npm test'), { allowedCommands: ['npm test'] });
   assert.equal(envelope.riskCategory, ACTION_CATEGORIES.NETWORK_CALL);
+});
+
+test('teardown verbs are graded DEPLOYMENT and the gate blocks them (#4588)', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4588-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  for (const [command, expected] of TEARDOWN_CASES) {
+    const envelope = normalizeExternalActionEnvelope(payload('Bash', 'shell', command), {});
+    assert.equal(envelope.riskCategory, expected, `${command} was not DEPLOYMENT`);
+    const decision = runHook(payload('Bash', 'shell', command), directory);
+    assert.equal(decision.decision, 'block', `${command} was ${decision.decision}, not block`);
+  }
 });
