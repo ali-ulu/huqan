@@ -199,6 +199,17 @@ garanti bu yüzden HUQAN'dan gelir: hook, ayrıştıramadığı bir payload'da e
 döner. Kullanılabilirlik/güvenlik dengesi bu ayrımı bilerek kurar; host'un
 fail-open davranışı bir HUQAN hatası değildir.
 
+Bu ayrım yüzünden OpenHands entegrasyonu **fail-closed bir güvenlik sınırı
+değil, en-iyi-çaba (best-effort) bir ön-çalıştırma denetimidir** (#4587). Sentinel
+yalnız HUQAN'ın kararının host'a ulaştığını kanıtlar; hook kendisi zaman aşımına
+uğrar, çöker, bulunamaz veya bozuk çıktı verirse host eylemi geçirir ve HUQAN bu
+durumda devreye girmez. `install` ve `status` çıktısı bu sınıflandırmayı
+`hostFailureBoundary` alanıyla açıkça yazar
+(`{ host: 'openhands', failMode: 'open', classification: 'best_effort', securityBoundary: false, … }`);
+ölçülmemiş host'lar için alan hiç eklenmez. Sınırı fail-closed istiyorsan
+denetimi host'un kendi kararından bağımsız bir katmanda (ör. executor öncesi
+zorunlu sarmalayıcı) kurman gerekir; bu entegrasyon onu sağlamaz.
+
 ### Platform farkları
 
 | Konu | OpenHands | Claude Code / Codex |

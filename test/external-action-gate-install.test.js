@@ -401,6 +401,29 @@ test('trust state is readable without reinstalling, and only claimed for hosts t
   assert.equal(manageGate('status', options(paths, 'opencode')).clients[0].hostTrust, null);
 });
 
+test('the OpenHands integration is reported as best-effort, not a fail-closed boundary (#4587)', t => {
+  // The blocked sentinel proves HUQAN's decision reaches the host; it does not
+  // prove the host stays closed when the hook itself times out, crashes, is
+  // missing or emits malformed output. The OpenHands SDK host proceeds with the
+  // action in those cases, so install/status must not present the integration
+  // as a fail-closed security boundary.
+  const paths = sandbox(t);
+
+  const install = manageGate('install', options(paths, 'openhands'));
+  assert.equal(install.hostFailureBoundary.classification, 'best_effort');
+  assert.equal(install.hostFailureBoundary.failMode, 'open');
+  assert.equal(install.hostFailureBoundary.securityBoundary, false);
+  assert.equal(install.sentinel.decision, 'block');
+
+  const status = manageGate('status', options(paths, 'openhands')).clients[0];
+  assert.equal(status.hostFailureBoundary.classification, 'best_effort');
+  assert.equal(status.hostFailureBoundary.securityBoundary, false);
+
+  // A host whose failure contract was not measured gets no boundary claim.
+  assert.equal(manageGate('install', options(paths, 'claude-code')).hostFailureBoundary, undefined);
+  assert.equal(manageGate('status', options(paths, 'claude-code')).clients[0].hostFailureBoundary, undefined);
+});
+
 // #2505: an operator binds a capability card to the recorded hook command, so
 // a fresh install arms the gate instead of denying every call with
 // `agent_identity_card_required`. The install has to prove the card it binds
