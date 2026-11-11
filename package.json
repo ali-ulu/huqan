@@ -1156,6 +1156,7 @@
     "lib/receipt/issuer-seal.js",
     "lib/receipt/canonical-receipt.js",
     "lib/receipt/receipt-chain.js",
+    "lib/receipt/policy-seal.js",
     "lib/receipt/receipt-export.js",
     "lib/receipt/receipt-read-index.js",
     "lib/receipt/receipt-read-index-anchor.js",

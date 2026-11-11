@@ -85,7 +85,7 @@ A control that could not be traced to code is listed under **Planned** or **Not 
 **Impact**: Policy bypass, privilege escalation, tool misuse.
 
 **Existing Mitigations**:
-- **Not implemented** — Code signing for critical policy files: policy is plain JSON (`config/trust-policy.default.json`) read and validated for shape, not cryptographically signed. Rollback/tamper defence rests on git and the deployment environment, not on a signing step in the code.
+- **Partial** — Code signing for critical policy files: policy is plain JSON (`config/trust-policy.default.json`) read and validated for shape. The loader (`lib/trust-policy.js`) can additionally require and verify an Ed25519 seal over the policy object (`lib/receipt/policy-seal.js`, ADR-015): a deployment that sets `HUQAN_TRUST_POLICY_PUBLIC_KEY`, or a file that declares `signatureRequired: true`, fails closed on a missing, tampered or wrong-key seal. The requirement is read from the environment, not the file, so a policy-file rewrite cannot switch it off. Absent that configuration, a default deployment still reads unsigned plain JSON, and rollback/tamper defence rests on git and the deployment environment.
 - **Planned** — Access control for deployment infrastructure is an operator/environment responsibility. The repository adds no deployment-infrastructure access control of its own beyond the API-key and RBAC surfaces documented elsewhere.
 
 **Remaining Gaps**:
