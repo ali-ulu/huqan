@@ -74,6 +74,11 @@ const TEARDOWN_CASES = [
   ['pulumi destroy --yes', ACTION_CATEGORIES.DEPLOYMENT],
   ['pulumi up --yes', ACTION_CATEGORIES.DEPLOYMENT],
   ['npm unpublish huqan --force', ACTION_CATEGORIES.DEPLOYMENT],
+  // Chained forms: `;`, `|` and `&&` are command boundaries too, so the
+  // operator cannot smuggle a destroy past the block by prefixing a no-op.
+  ['true;terraform destroy -auto-approve', ACTION_CATEGORIES.DEPLOYMENT],
+  ['true|helm uninstall app', ACTION_CATEGORIES.DEPLOYMENT],
+  ['terraform destroy -auto-approve;echo done', ACTION_CATEGORIES.DEPLOYMENT],
 ];
 const KINDS = [['read', 'file_read'], ['fetch', 'network'], ['remember', 'memory']];
 
