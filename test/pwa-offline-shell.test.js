@@ -12,20 +12,20 @@ const readPublic = relativePath => fs.readFileSync(path.join(repoRoot, 'public',
 function serviceWorkerHarness({ online = false } = {}) {
   const listeners = new Map();
   const shellEntries = new Map([
-    ['/', new Response('cached shell')],
+    ['/dashboard', new Response('cached shell')],
     ['/js/app-core.js', new Response('cached script')],
   ]);
   const unrelatedEntries = new Map([
-    ['/', new Response('poisoned shell')],
+    ['/dashboard', new Response('poisoned shell')],
     ['/js/app-core.js', new Response('poisoned script')],
   ]);
   const stores = new Map([
-    ['huqan-shell-v1', shellEntries],
+    ['huqan-shell-v2', shellEntries],
     ['unrelated-cache', unrelatedEntries],
   ]);
   const added = [];
   const deleted = [];
-  const cacheNames = ['huqan-shell-old', 'unrelated-cache'];
+  const cacheNames = ['huqan-shell-v1', 'huqan-shell-old', 'unrelated-cache'];
   const context = {
     URL,
     Response,
@@ -122,8 +122,8 @@ function controllerHarness({ online = true, healthReachable = true } = {}) {
 
 test('PWA manifest declares an installable, same-origin dashboard', () => {
   const manifest = JSON.parse(readPublic('manifest.webmanifest'));
-  assert.equal(manifest.id, '/');
-  assert.equal(manifest.start_url, '/');
+  assert.equal(manifest.id, '/dashboard');
+  assert.equal(manifest.start_url, '/dashboard');
   assert.equal(manifest.scope, '/');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.prefer_related_applications, false);
@@ -147,7 +147,7 @@ test('service worker precaches only the bounded public application shell', async
   await dispatchLifecycle(harness.listeners.get('install'));
   assert.equal(harness.added.length, 1);
   const shell = harness.added[0].paths;
-  assert.ok(shell.includes('/'));
+  assert.ok(shell.includes('/dashboard'));
   assert.ok(shell.includes('/manifest.webmanifest'));
   assert.ok(shell.includes('/js/pwa-shell.js'));
   assert.ok(shell.every(value => typeof value === 'string' && value.startsWith('/')));
@@ -167,7 +167,7 @@ test('service worker never intercepts API, authenticated, user-data, or mutation
 
 test('offline navigation returns the cached shell without pretending live data is available', async () => {
   const { listeners } = serviceWorkerHarness();
-  const response = await dispatchFetch(listeners.get('fetch'), '/', { mode: 'navigate' });
+  const response = await dispatchFetch(listeners.get('fetch'), '/dashboard', { mode: 'navigate' });
   assert.equal(await response.text(), 'cached shell');
 
   const html = readPublic('index.html');
@@ -178,14 +178,14 @@ test('offline navigation returns the cached shell without pretending live data i
 test('activation deterministically removes old HUQAN shell caches only', async () => {
   const harness = serviceWorkerHarness();
   await dispatchLifecycle(harness.listeners.get('activate'));
-  assert.deepEqual(harness.deleted, ['huqan-shell-old']);
+  assert.deepEqual(harness.deleted, ['huqan-shell-v1', 'huqan-shell-old']);
 });
 
 test('shell fetches revalidate online and fall back only to the named HUQAN cache', async () => {
   const online = serviceWorkerHarness({ online: true });
   const fresh = await dispatchFetch(online.listeners.get('fetch'), '/js/app-core.js');
   assert.equal(await fresh.text(), 'network:/js/app-core.js');
-  assert.equal(await (await online.stores.get('huqan-shell-v1').get('/js/app-core.js')).text(), 'network:/js/app-core.js');
+  assert.equal(await (await online.stores.get('huqan-shell-v2').get('/js/app-core.js')).text(), 'network:/js/app-core.js');
 
   const offline = serviceWorkerHarness();
   const cached = await dispatchFetch(offline.listeners.get('fetch'), '/js/app-core.js');

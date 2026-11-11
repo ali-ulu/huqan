@@ -57,8 +57,9 @@ function probe(paths) {
       return new Promise((resolve, reject) => {
         const req = http.request({ hostname: '127.0.0.1', port: server.address().port, path: urlPath, method: 'GET' }, (res) => {
           let bytes = 0;
-          res.on('data', (chunk) => { bytes += chunk.length; });
-          res.on('end', () => resolve({ path: urlPath, status: res.statusCode, contentType: res.headers['content-type'] || null, bytes }));
+          const chunks = [];
+          res.on('data', (chunk) => { bytes += chunk.length; chunks.push(chunk); });
+          res.on('end', () => resolve({ path: urlPath, status: res.statusCode, contentType: res.headers['content-type'] || null, bytes, body: Buffer.concat(chunks).toString('utf8') }));
         });
         req.on('error', reject);
         req.end();
@@ -128,4 +129,24 @@ test('control room static assets', async (t) => {
       assert.equal(isPublicRoute(urlPath, 'GET'), true, `${urlPath} should be a public route in lib/http/route-auth-policy.js`);
     }
   });
+});
+
+test('the Control Room is the default surface at / and the developer UI moved to /dashboard', () => {
+  const [root, dashboard] = probe(['/', '/dashboard']);
+  const controlRoomHtml = fs.readFileSync(path.join(repoRoot, 'public', 'control-room', 'index.html'), 'utf8');
+  const developerHtml = fs.readFileSync(path.join(repoRoot, 'public', 'index.html'), 'utf8');
+
+  // The point of the change: a visitor at `/` gets the Control Room, not the
+  // developer console. Comparing bytes, not just the title, is what stops the
+  // two shells from silently swapping back.
+  assert.equal(root.status, 200);
+  assert.equal(root.body, controlRoomHtml, 'GET / must serve public/control-room/index.html');
+
+  assert.equal(dashboard.status, 200);
+  assert.equal(dashboard.body, developerHtml, 'GET /dashboard must serve public/index.html');
+
+  const { isPublicRoute } = require('../lib/http/route-auth-policy');
+  for (const urlPath of ['/', '/dashboard']) {
+    assert.equal(isPublicRoute(urlPath, 'GET'), true, `${urlPath} should be public`);
+  }
 });

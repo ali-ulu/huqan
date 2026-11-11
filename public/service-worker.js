@@ -1,8 +1,8 @@
 'use strict';
 
-const SHELL_CACHE = 'huqan-shell-v1';
+const SHELL_CACHE = 'huqan-shell-v2';
 const SHELL_PATHS = Object.freeze([
-  '/',
+  '/dashboard',
   '/css/app.css',
   '/icons/huqan-192.svg',
   '/icons/huqan-512.svg',
@@ -45,8 +45,8 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
   if (url.search !== '') return;
 
-  if (request.mode === 'navigate' && url.pathname === '/') {
-    event.respondWith(networkFirst(request, '/'));
+  if (request.mode === 'navigate' && url.pathname === '/dashboard') {
+    event.respondWith(networkFirst(request, '/dashboard'));
     return;
   }
 

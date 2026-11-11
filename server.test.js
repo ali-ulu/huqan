@@ -164,13 +164,13 @@ after(async () => {
 });
 
 describe('Server - index page cache (#420)', () => {
-  it('reads public/index.html once and reuses the cached bytes', () => {
+  it('reads the root shell once and reuses the cached bytes', () => {
     const first = server.getHtmlPage();
     const second = server.getHtmlPage();
     // Same object identity, so no second readFileSync happened.
     assert.strictEqual(first, second);
     assert.ok(Buffer.isBuffer(first));
-    assert.deepStrictEqual(first, fs.readFileSync(path.join(__dirname, 'public', 'index.html')));
+    assert.deepStrictEqual(first, fs.readFileSync(path.join(__dirname, 'public', 'control-room', 'index.html')));
   });
 
   it('GET / serves the cached page on repeated requests', async () => {

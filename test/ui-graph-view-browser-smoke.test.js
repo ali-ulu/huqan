@@ -163,7 +163,7 @@ describe('graph view browser smoke (#4292)', { skip: skipReason ?? false }, () =
     base = `http://127.0.0.1:${server.address().port}`;
 
     browser = await launchBrowserSession();
-    await browser.navigate(`${base}/`);
+    await browser.navigate(`${base}/dashboard`);
     // Arm the stub with the fixture *before* any load races it, then drain.
     //
     // Two loads race the page's bootstrap: the `refresh()` from

@@ -141,7 +141,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     base = `http://127.0.0.1:${server.address().port}`;
 
     browser = await launchBrowserSession();
-    await browser.navigate(`${base}/`);
+    await browser.navigate(`${base}/dashboard`);
 
     // Runtime copy is catalogue-backed since #1957, so every assertion below
     // reads whatever language the page resolved. The default is Turkish and the
@@ -149,7 +149,7 @@ describe('Claim Workspace browser smoke (#785 AC-10)', { skip: skipReason ?? fal
     // assertions depend on the machine running them. Pin English and reload, so
     // what is under test is the surface state and not the locale.
     await browser.evaluate(`localStorage.setItem('huqan-locale','en'); true;`);
-    await browser.navigate(`${base}/`);
+    await browser.navigate(`${base}/dashboard`);
     await waitFor(`document.documentElement.lang === 'en'`, 'the page to settle on the pinned locale');
 
     // Authenticate through the settings panel rather than seeding storage, so
