@@ -69,13 +69,31 @@ function withEnv(vars, fn) {
   }
 }
 
+// Every trust-policy setting the loader reads, in both spellings. A test must
+// never inherit the maintainer's live environment: an inherited key would make
+// the unsigned-policy case reject for the wrong reason, and an inherited
+// transparency opt-out would defeat the missing-transparency case.
+const TRUST_ENV_KEYS = Object.freeze([
+  'HUQAN_TRUST_POLICY_ROOTS', 'AXIOM_TRUST_POLICY_ROOTS',
+  'HUQAN_TRUST_POLICY_PUBLIC_KEY', 'AXIOM_TRUST_POLICY_PUBLIC_KEY',
+  'HUQAN_TRUST_POLICY_ALLOW_MISSING_TRANSPARENCY', 'AXIOM_TRUST_POLICY_ALLOW_MISSING_TRANSPARENCY',
+]);
+
+function trustEnv(overrides) {
+  const env = {};
+  for (const key of TRUST_ENV_KEYS) env[key] = undefined;
+  return { ...env, ...overrides };
+}
+
 // A tmpdir holding the policy file and, when a key is supplied, the public key.
+// `publicKeyPem` is written whenever it is defined, so an empty string exercises
+// the "configured but empty" case rather than reading as unconfigured.
 function fixture({ envelope, publicKeyPem }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-signed-policy-'));
   const policyPath = path.join(dir, 'trust-policy.json');
   fs.writeFileSync(policyPath, JSON.stringify(envelope));
-  const env = { HUQAN_TRUST_POLICY_ROOTS: dir };
-  if (publicKeyPem) {
+  const env = trustEnv({ HUQAN_TRUST_POLICY_ROOTS: dir });
+  if (publicKeyPem !== undefined) {
     const keyPath = path.join(dir, 'trust-policy.pub.pem');
     fs.writeFileSync(keyPath, publicKeyPem);
     env.HUQAN_TRUST_POLICY_PUBLIC_KEY = keyPath;
@@ -143,12 +161,36 @@ test('without a configured public key the loader is unchanged', () => {
 
 test('a configured but unreadable public key fails closed', () => {
   const { dir, policyPath } = fixture({ envelope: weights() });
-  withEnv({ HUQAN_TRUST_POLICY_ROOTS: dir, HUQAN_TRUST_POLICY_PUBLIC_KEY: path.join(dir, 'missing.pem') }, () => {
+  withEnv(trustEnv({ HUQAN_TRUST_POLICY_ROOTS: dir, HUQAN_TRUST_POLICY_PUBLIC_KEY: path.join(dir, 'missing.pem') }), () => {
     assert.throws(
       () => loadTrustPolicy(policyPath),
       (error) => error.code === 'TRUST_POLICY_CONFIG_INVALID',
     );
   });
+});
+
+test('a configured but empty public key file fails closed instead of reading as unconfigured', () => {
+  const { policyPath, env } = fixture({ envelope: weights(), publicKeyPem: '' });
+  withEnv(env, () => {
+    assert.throws(
+      () => loadTrustPolicy(policyPath),
+      (error) => error.code === 'TRUST_POLICY_CONFIG_INVALID' && /public key file is empty/.test(error.message),
+    );
+  });
+});
+
+test('a validly sealed but non-object content is refused', () => {
+  for (const content of [null, ['not', 'an', 'object'], 'primitive']) {
+    const { privateKeyPem, publicKeyPem } = keys();
+    const { policyPath, env } = fixture({ envelope: signedEnvelope(privateKeyPem, { content }), publicKeyPem });
+    withEnv(env, () => {
+      assert.throws(
+        () => loadTrustPolicy(policyPath),
+        (error) => error.code === 'TRUST_POLICY_INVALID_SHAPE',
+        `content ${JSON.stringify(content)} must be refused even with a valid seal`,
+      );
+    });
+  }
 });
 
 test('transparency evidence is required unless the deployment opts out', () => {
@@ -162,7 +204,7 @@ test('transparency evidence is required unless the deployment opts out', () => {
     );
   });
 
-  withEnv({ ...env, HUQAN_TRUST_POLICY_ALLOW_MISSING_TRANSPARENCY: 'true' }, () => {
+  withEnv(trustEnv({ ...env, HUQAN_TRUST_POLICY_ALLOW_MISSING_TRANSPARENCY: 'true' }), () => {
     const policy = loadTrustPolicy(policyPath);
     assert.equal(policy.version, '0.8.0');
   });
