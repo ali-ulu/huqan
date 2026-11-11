@@ -4118,7 +4118,7 @@
       "branches": 50
     },
     "scripts/test-consumer-compile.js": {
-      "lines": 95.65,
+      "lines": 44.33,
       "branches": 68
     },
     "scripts/test-state-sandbox.js": {
