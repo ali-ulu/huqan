@@ -79,6 +79,14 @@ const TEARDOWN_CASES = [
   ['true;terraform destroy -auto-approve', ACTION_CATEGORIES.DEPLOYMENT],
   ['true|helm uninstall app', ACTION_CATEGORIES.DEPLOYMENT],
   ['terraform destroy -auto-approve;echo done', ACTION_CATEGORIES.DEPLOYMENT],
+  // Global options may sit between the program and its subcommand
+  // (`terraform -chdir=prod destroy`, `kubectl --context=prod delete`), so
+  // naming the target environment up front cannot sidestep the block.
+  ['terraform -chdir=prod destroy -auto-approve', ACTION_CATEGORIES.DEPLOYMENT],
+  ['terraform -chdir=prod apply -auto-approve', ACTION_CATEGORIES.DEPLOYMENT],
+  ['kubectl --context=prod delete pod web-1', ACTION_CATEGORIES.DEPLOYMENT],
+  ['helm --namespace prod uninstall app', ACTION_CATEGORIES.DEPLOYMENT],
+  ['git -C /srv/repo push', ACTION_CATEGORIES.DEPLOYMENT],
 ];
 const KINDS = [['read', 'file_read'], ['fetch', 'network'], ['remember', 'memory']];
 
