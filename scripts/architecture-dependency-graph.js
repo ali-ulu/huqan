@@ -54,7 +54,12 @@ const RULES = [
     layer: 'UI',
     why: 'Process entrypoints, and the inbound surfaces a caller drives HUQAN through. Nothing may require these; they require everything below.',
     files: ['cli.js', 'server.js', 'mcpServer.js', 'github-app-server.js', 'index.js', 'lib/authority/service-main.js', 'lib/cognitive-lab-g1-episode.js', // #4065 G1 child process entry
-      'lib/authority/operator-cli.js'],
+      'lib/authority/operator-cli.js',
+      // #perf: the gate hook's daemon is a child process entry (spawned as
+      // `bin/huqan-gate-hook.js daemon serve`) and its per-invocation context
+      // composes the AURA plugin and the approval-authority verifier, so it
+      // reaches plugins/ and lib/http/; only the bin/ entry requires either.
+      'lib/gate-hook-daemon.js', 'lib/gate-hook-context.js'],
     dirs: ['bin/', 'scripts/', 'examples/', 'public/', 'lib/http/', 'lib/mcp/', 'lib/viewer/', 'lib/saml/', 'lib/oidc/', 'lib/workbench/'],
   },
   {
