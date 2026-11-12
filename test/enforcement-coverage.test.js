@@ -141,6 +141,44 @@ test('an open named in a comment or a string is not a call, and a read stays inv
   assert.deepEqual(sitesIn('probe.js', source), []);
 });
 
+// The three shapes below defeated the first string-based flag reader (#4601
+// review). Each is a write the scan must still count, or a read it must not.
+test('the flag initializer stops at the syntax boundary, not the next semicolon', () => {
+  const head = "const fs = require('node:fs');\n";
+  // Automatic semicolon insertion: no `;` after the declaration, so the next
+  // statement is not part of the initializer.
+  const asi = sitesIn('probe.js', head + "const flags = 'w'\nfs.openSync(p, flags);\n");
+  assert.equal(asi.length, 1);
+  assert.equal(asi[0].capability, 'fs_write');
+  // A second declarator must not be read as part of the first initializer.
+  const multi = sitesIn('probe.js', head + "const flags = 'w', mode = 0o600;\nfs.openSync(p, flags, mode);\n");
+  assert.equal(multi.length, 1);
+  assert.equal(multi[0].capability, 'fs_write');
+});
+
+test('punctuation inside a string literal is not an argument boundary', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const path of ["'a,b'", "'a)b('"]) {
+    const found = sitesIn('probe.js', head + `fs.openSync(${path}, 'w');\n`);
+    assert.equal(found.length, 1, path);
+    assert.equal(found[0].capability, 'fs_write', path);
+  }
+});
+
+test('a flag resolves through the call\'s own scope, and a parameter shadows', () => {
+  const head = "const fs = require('node:fs');\n";
+  // Two functions bind `flags`; each call must see its own binding, not the
+  // last one written in the file.
+  const twoScopes = sitesIn('probe.js', head
+    + "function write(p) {\n  const flags = 'w';\n  fs.openSync(p, flags);\n}\n"
+    + "function read(p) {\n  const flags = 'r';\n  fs.openSync(p, flags);\n}\n");
+  assert.equal(twoScopes.length, 1);
+  assert.equal(twoScopes[0].line, 4);
+  // An outer write flag must not resolve a same-named parameter.
+  const shadowed = sitesIn('probe.js', head + "const flags = 'w';\nfunction f(p, flags) { return fs.openSync(p, flags); }\n");
+  assert.deepEqual(shadowed, []);
+});
+
 test('a TLS connection is egress, like the plain sockets beside it (#4093)', () => {
   for (const spec of ['tls', 'node:tls']) {
     const found = sitesIn('probe.js', `const tls = require('${spec}');\ntls.connect({ host: 'siem.example.com' });\n`);
