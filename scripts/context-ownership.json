@@ -4002,7 +4002,7 @@
     },
     "lib/break-glass-ledger.js": {
       "context": "AgentAction",
-      "evidence": "\u0130P-2 break-glass ledger storage split out of lib/break-glass.js"
+      "evidence": "İP-2 break-glass ledger storage split out of lib/break-glass.js"
     },
     "lib/break-glass-gate.js": {
       "context": "AgentAction",
@@ -4118,7 +4118,7 @@
     },
     "lib/protected-store-path.js": {
       "context": "Memory",
-      "evidence": "#3998 ADR-018 \u00a72 protected per-workspace store layout and selection"
+      "evidence": "#3998 ADR-018 §2 protected per-workspace store layout and selection"
     },
     "lib/authority/store-migrate.js": {
       "context": "AgentAction",
@@ -5584,7 +5584,7 @@
     },
     "lib/cli-store-commands.js": {
       "kind": "entry",
-      "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 \u00a72)"
+      "evidence": "#3998 CLI surface for `huqan store migrate` (ADR-018 §2)"
     },
     "lib/mcp/client-envelope.js": {
       "kind": "entry",
@@ -5625,6 +5625,18 @@
     "lib/http/conversation-route.js": {
       "kind": "entry",
       "evidence": "#4393 COG-C PR-2: POST/GET/DELETE /api/conversation/turns transport surface"
+    },
+    "lib/gate-hook-daemon.js": {
+      "kind": "infra",
+      "evidence": "#perf the gate hook's own transport: a local unix-socket (named pipe on Windows) listener that answers hook calls in one long-lived process so a call does not reload the evaluation chain. It carries no domain logic -- every request runs the same runHookEvaluation a one-shot call does -- and is started by the Platform entry bin/huqan-gate-hook.js, so it is infra like lib/node-runtime-guard.js"
+    },
+    "lib/gate-hook-context.js": {
+      "kind": "infra",
+      "evidence": "#perf the per-invocation hook context (AURA signal provider, approval-authority verifier) both bin/huqan-gate-hook.js and lib/gate-hook-daemon.js build before calling runHookEvaluation, so a daemon call cannot drop --aura-signals. It is the composition seam, so it lives at Platform alongside the entry that composes it"
+    },
+    "lib/gate-hook-daemon-state.js": {
+      "kind": "infra",
+      "evidence": "#perf where the gate daemon keeps its machine-local state, split out of lib/gate-hook-daemon.js at the 400-line budget: the socket path and its pid/log/identity siblings under the 0700 state root, symlink-safe writes, and the environment/cwd fingerprint the client compares before it trusts an answer. It carries no domain logic -- it names paths and probes liveness -- and is required only by lib/gate-hook-daemon.js, so it is infra like lib/node-runtime-guard.js"
     }
   },
   "unassigned": {},
@@ -6961,7 +6973,7 @@
       "consumers": [
         "Platform"
       ],
-      "evidence": "\u0130P-2 (#ip-1-3): the hook CLI (bin/huqan-gate-hook.js) dispatches the break-glass verb to this module"
+      "evidence": "İP-2 (#ip-1-3): the hook CLI (bin/huqan-gate-hook.js) dispatches the break-glass verb to this module"
     },
     "lib/gate-hook-identity.js": {
       "owner": "AgentAction",
@@ -7798,7 +7810,7 @@
       "consumers": [
         "Platform"
       ],
-      "evidence": "#3998 ADR-018 \u00a72: the store CLI composes `huqan store migrate` from this module"
+      "evidence": "#3998 ADR-018 §2: the store CLI composes `huqan store migrate` from this module"
     },
     "lib/protected-store-path.js": {
       "owner": "Memory",
@@ -7806,7 +7818,7 @@
         "AgentAction",
         "Platform"
       ],
-      "evidence": "#3998 ADR-018 \u00a72: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
+      "evidence": "#3998 ADR-018 §2: the boundary, the storage factory and the migrate CLI all resolve the protected store through this module"
     },
     "lib/mcp-operator-capability.js": {
       "owner": "AgentAction",
