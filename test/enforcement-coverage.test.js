@@ -92,6 +92,55 @@ test('a call through a bound namespace is found', () => {
   assert.equal(found[0].line, 2);
 });
 
+// ─── flag-aware open/openSync (#4601) ────────────────────────────────────────
+//
+// `open`/`openSync` is not a plain fs_write member: the same call reads with
+// `'r'` and writes with `'w'`/`'a'`. A member entry would report every read as
+// a write, so the flag decides.
+
+test('a flag-based open that writes is a site, and one that reads is not', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const [label, call] of [
+    ['write literal', "fs.openSync(p, 'wx', 0o600);"],
+    ['append literal', "fs.openSync(p, 'a', 0o600);"],
+    ['read-write literal', "fs.openSync(p, 'r+');"],
+    ['async open', "fs.open(p, 'w', 0o600);"],
+    ['constants expression', 'fs.openSync(p, fs.constants.O_WRONLY | fs.constants.O_CREAT, 0o600);'],
+  ]) {
+    const found = sitesIn('probe.js', head + call + '\n');
+    assert.equal(found.length, 1, label);
+    assert.equal(found[0].capability, 'fs_write', label);
+  }
+  for (const [label, call] of [
+    ['read literal', "fs.openSync(p, 'r');"],
+    ['read-only constant', 'fs.openSync(p, fs.constants.O_RDONLY);'],
+    ['a parameter the scan cannot resolve', 'function f(p, flags) { return fs.openSync(p, flags); }'],
+  ]) {
+    assert.deepEqual(sitesIn('probe.js', head + call + '\n'), [], label);
+  }
+});
+
+test('a flag held in a local const is resolved one hop, like an alias', () => {
+  const source = "const fs = require('node:fs');\nconst flags = fs.constants.O_WRONLY | fs.constants.O_APPEND;\nfs.openSync(p, flags, 0o600);\n";
+  const found = sitesIn('probe.js', source);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].capability, 'fs_write');
+  assert.equal(found[0].line, 3);
+
+  const readLocal = "const fs = require('node:fs');\nconst flags = fs.constants.O_RDONLY;\nfs.openSync(p, flags, 0o600);\n";
+  assert.deepEqual(sitesIn('probe.js', readLocal), []);
+});
+
+test('an open named in a comment or a string is not a call, and a read stays invisible', () => {
+  const source = [
+    "const fs = require('node:fs');",
+    "// fs.openSync(p, 'wx')",
+    "const doc = \"fs.openSync(p, 'wx')\";",
+    "fs.openSync(p, 'r');",
+  ].join('\n');
+  assert.deepEqual(sitesIn('probe.js', source), []);
+});
+
 test('a TLS connection is egress, like the plain sockets beside it (#4093)', () => {
   for (const spec of ['tls', 'node:tls']) {
     const found = sitesIn('probe.js', `const tls = require('${spec}');\ntls.connect({ host: 'siem.example.com' });\n`);
