@@ -22,15 +22,6 @@
 // access (`fs[name](...)`) and a handle that arrives with no local binding
 // to a known namespace stay invisible. Alias/default shapes that ARE
 // followed are documented on aliasesFor.
-//
-// A flag-based `open`/`openSync` is not counted either, and it is deliberately
-// not in fs_write's members above: the same call opens for reading with `'r'`
-// and for writing with `'w'`/`'a'`/`O_CREAT`, so a plain member addition would
-// report every read-only open in the repository as a write. A flag-aware rule
-// would add ~22 write sites across 20 files; that is a scanner change with its
-// own classification work, not part of a perf change.
-// shortcut: flag-based open is invisible to fs_write, <when to upgrade: a file
-// whose only write is a flag-based open, or a dedicated scanner change>.
 
 /**
  * The capabilities a receipt is supposed to be able to speak about.
@@ -74,6 +65,33 @@ const CAPABILITIES = Object.freeze({
  */
 const GLOBAL_EGRESS = /(?<![.\w])(?:globalThis\s*\.\s*)?fetch\s*\(/g;
 const GLOBAL_EGRESS_REF = /(?<![.\w])globalThis\s*\.\s*fetch(?![\w$])(?!\s*\()/g;
+
+/**
+ * `open`/`openSync` writes only when its flag says so, so it is not a plain
+ * fs_write member (that would report the read-only opens as writes). A write
+ * flag is a `'w'`/`'a'`/`'r+'` literal, an `O_WRONLY`/`O_CREAT`-marked
+ * expression, or a local name resolved one hop. Anything else -- `'r'`,
+ * `O_RDONLY`, a parameter -- reads as not a write.
+ */
+const WRITE_FLAG_LITERAL = /^(['"])(?:[wa][^'"]*|r\+[^'"]*)\1$/;
+const WRITE_FLAG_MARK = /O_WRONLY|O_RDWR|O_CREAT|O_APPEND|O_TRUNC/;
+const FLAG_LOCAL = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;]*)/g;
+
+/** Did the `open`/`openSync` call whose `(` is at `openParen` open for writing? */
+function openWrites(declarations, openParen, locals) {
+  let depth = 0; let end = -1; let a = -1; let b = -1;
+  for (let i = openParen; i < declarations.length; i += 1) {
+    const c = declarations[i];
+    if (c === '(') depth += 1;
+    else if (c === ')' && --depth === 0) { end = i; break; }
+    else if (c === ',' && depth === 1) { if (a === -1) a = i; else if (b === -1) b = i; }
+  }
+  // Flags are the second argument: after the first comma, before the second or `)`.
+  if (end === -1 || a === -1) return false;
+  let flag = declarations.slice(a + 1, b === -1 ? end : b).trim();
+  for (let hop = 0; hop < 2 && locals.has(flag); hop += 1) flag = locals.get(flag);
+  return WRITE_FLAG_LITERAL.test(flag) || WRITE_FLAG_MARK.test(flag);
+}
 
 /**
  * Blank out comments, and optionally string literals, preserving length and
@@ -329,14 +347,21 @@ function sitesIn(file, source) {
   // blanked. Both transforms preserve length, so the offsets agree.
   const declarations = stripComments(source);
   const text = stripCommentsAndStrings(source);
+  const locals = new Map();
+  for (const match of declarations.matchAll(FLAG_LOCAL)) locals.set(match[1], match[2].trim());
   const found = [];
   for (const [name, capability] of Object.entries(CAPABILITIES)) {
     const { namespaces, direct } = resolveBindings(declarations, text, capability);
     if (namespaces.size === 0 && direct.size === 0) continue;
-    const members = capability.members.join('|');
+    // `open`/`openSync` joins fs_write's members, but only when its flag writes (#4601).
+    const members = capability.members.join('|') + (name === 'fs_write' ? '|open|openSync' : '');
     for (const ns of namespaces) {
       const pattern = new RegExp(`\\b${ns}\\s*\\.\\s*(${members})\\s*\\(`, 'g');
       for (const match of text.matchAll(pattern)) {
+        if (/^open(Sync)?$/.test(match[1])) {
+          const openParen = text.indexOf('(', match.index + match[0].length - 1);
+          if (!openWrites(declarations, openParen, locals)) continue;
+        }
         found.push({ file, line: lineOf(text, match.index), capability: name, call: `${ns}.${match[1]}` });
       }
     }
