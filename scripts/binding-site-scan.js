@@ -1,5 +1,7 @@
 'use strict';
 
+const { writeOpenParens } = require('./open-write-scan');
+
 // Binding-aware call-site scanning core for the enforcement-coverage gate
 // (#2188).
 //
@@ -68,30 +70,11 @@ const GLOBAL_EGRESS_REF = /(?<![.\w])globalThis\s*\.\s*fetch(?![\w$])(?!\s*\()/g
 
 /**
  * `open`/`openSync` writes only when its flag says so, so it is not a plain
- * fs_write member (that would report the read-only opens as writes). A write
- * flag is a `'w'`/`'a'`/`'r+'` literal, an `O_WRONLY`/`O_CREAT`-marked
- * expression, or a local name resolved one hop. Anything else -- `'r'`,
- * `O_RDONLY`, a parameter -- reads as not a write.
+ * fs_write member (that would report the read-only opens as writes). The flag
+ * is read from the AST in `open-write-scan.js`: a `'w'`/`'a'`/`'r+'` literal,
+ * an `O_WRONLY`/`O_CREAT`-marked expression, or a local name resolved through
+ * the scope at the call. `'r'`, `O_RDONLY` and a parameter are not writes.
  */
-const WRITE_FLAG_LITERAL = /^(['"])(?:[wa][^'"]*|r\+[^'"]*)\1$/;
-const WRITE_FLAG_MARK = /O_WRONLY|O_RDWR|O_CREAT|O_APPEND|O_TRUNC/;
-const FLAG_LOCAL = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;]*)/g;
-
-/** Did the `open`/`openSync` call whose `(` is at `openParen` open for writing? */
-function openWrites(declarations, openParen, locals) {
-  let depth = 0; let end = -1; let a = -1; let b = -1;
-  for (let i = openParen; i < declarations.length; i += 1) {
-    const c = declarations[i];
-    if (c === '(') depth += 1;
-    else if (c === ')' && --depth === 0) { end = i; break; }
-    else if (c === ',' && depth === 1) { if (a === -1) a = i; else if (b === -1) b = i; }
-  }
-  // Flags are the second argument: after the first comma, before the second or `)`.
-  if (end === -1 || a === -1) return false;
-  let flag = declarations.slice(a + 1, b === -1 ? end : b).trim();
-  for (let hop = 0; hop < 2 && locals.has(flag); hop += 1) flag = locals.get(flag);
-  return WRITE_FLAG_LITERAL.test(flag) || WRITE_FLAG_MARK.test(flag);
-}
 
 /**
  * Blank out comments, and optionally string literals, preserving length and
@@ -347,8 +330,10 @@ function sitesIn(file, source) {
   // blanked. Both transforms preserve length, so the offsets agree.
   const declarations = stripComments(source);
   const text = stripCommentsAndStrings(source);
-  const locals = new Map();
-  for (const match of declarations.matchAll(FLAG_LOCAL)) locals.set(match[1], match[2].trim());
+  // The `(` offset of every open call whose flag writes. Null when the source
+  // does not parse: then every open call is counted rather than dropped, since
+  // a missed write is the failure a coverage gate exists to catch.
+  const writeOpen = writeOpenParens(source);
   const found = [];
   for (const [name, capability] of Object.entries(CAPABILITIES)) {
     const { namespaces, direct } = resolveBindings(declarations, text, capability);
@@ -360,7 +345,7 @@ function sitesIn(file, source) {
       for (const match of text.matchAll(pattern)) {
         if (/^open(Sync)?$/.test(match[1])) {
           const openParen = text.indexOf('(', match.index + match[0].length - 1);
-          if (!openWrites(declarations, openParen, locals)) continue;
+          if (writeOpen && !writeOpen.has(openParen)) continue;
         }
         found.push({ file, line: lineOf(text, match.index), capability: name, call: `${ns}.${match[1]}` });
       }
