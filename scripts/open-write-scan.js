@@ -23,18 +23,26 @@
 // the flag makes one a write. The offsets agree because that scanner's blanking
 // is length-preserving.
 //
-// A write flag is a `'w'`/`'a'`/`'r+'` literal, an expression naming
+// A write flag is a `'w'`/`'a'`/`'r+'`/`'rs+'` literal, an expression naming
 // `O_WRONLY`/`O_RDWR`/`O_CREAT`/`O_APPEND`/`O_TRUNC`, or a local name resolved
-// through the scope visible at the call (a `const`/`let`/`var` or a default
-// parameter). `'r'`, `O_RDONLY` and a parameter with no default are not writes.
+// through the scope visible at the call (a `const`/`let`/`var`, a default
+// parameter, or a `let`/`var` reassigned in its own scope). `'r'`, `O_RDONLY`
+// and a parameter with no default are not writes. String literals are compared
+// decoded, so `'\x77'` is a write.
 //
 // `writeOpenParens` returns null when the source does not parse, and the caller
 // then counts the call rather than dropping a site it cannot resolve: for a
 // coverage gate a missed write is the failure that matters.
 
-const acorn = require('acorn');
+// `acorn` is required lazily, inside `writeOpenParens`. The scanner is loaded
+// by `scripts/binding-site-scan.js`, and the dependency-free `static-gates` CI
+// job loads that module for its blanking helper alone; a top-level require
+// would make that job fail with MODULE_NOT_FOUND (#4601 review). The gate that
+// does ask the AST question runs where the dependencies are installed.
 
-const WRITE_FLAG_LITERAL = /^(['"])(?:[wa][^'"]*|r\+[^'"]*)\1$/;
+// Tested against the decoded value, not the raw source: `'\x77'` is `'w'`, and
+// `'rs+'` is read-write, so both must count (#4601 review).
+const WRITE_FLAG_LITERAL = /^(?:[wa]|rs?\+)/;
 const WRITE_FLAG_MARK = /O_WRONLY|O_RDWR|O_CREAT|O_APPEND|O_TRUNC/;
 // Bounded so `let a = a` and longer chains terminate rather than loop.
 const MAX_FLAG_HOPS = 4;
@@ -73,7 +81,7 @@ function writeOpenParens(source) {
   // the caller's match -- keyed on the real paren -- is dropped as a read.
   const parens = [];
   try {
-    ast = acorn.parse(source, {
+    ast = require('acorn').parse(source, {
       ecmaVersion: 2024,
       sourceType: 'script',
       allowHashBang: true,
@@ -110,7 +118,7 @@ function writeOpenParens(source) {
         bindPattern(pattern.left, scope);
         // A default (`flags = 'w'`) is a binding with an initializer.
         if (pattern.left.type === 'Identifier') {
-          scope.bindings.set(pattern.left.name, { init: pattern.right, scope });
+          scope.bindings.set(pattern.left.name, { inits: [pattern.right], scope });
         }
         break;
       case 'RestElement': bindPattern(pattern.argument, scope); break;
@@ -126,7 +134,9 @@ function writeOpenParens(source) {
 
   // Bind the names the scope rooted at `root` declares. `var` hoists to the
   // nearest function, `let`/`const` stay here. A nested scope node is not
-  // descended into; it is collected when walked as its own scope.
+  // descended into; it is collected when walked as its own scope. A nested
+  // block still reaches an outer binding for an assignment, because its own
+  // collect() looks the name up through the parent chain.
   function collect(scope, node, root) {
     if (!node || typeof node.type !== 'string') return;
     if (node !== root && SCOPE_NODES.has(node.type)) {
@@ -139,9 +149,27 @@ function writeOpenParens(source) {
       const target = node.kind === 'var' ? nearestFunction(scope) : scope;
       for (const declarator of node.declarations) {
         if (declarator.id.type === 'Identifier') {
-          target.bindings.set(declarator.id.name, { init: declarator.init, scope: target });
+          target.bindings.set(declarator.id.name, {
+            inits: [declarator.init],
+            scope: target,
+            mutable: node.kind !== 'const',
+          });
+        } else {
+          // A destructuring declarator cannot be resolved, but the names it
+          // binds still shadow an outer binding of the same name (#4601 review).
+          bindPattern(declarator.id, target);
         }
       }
+    }
+    // A `let`/`var` reassigned in its own scope may hold a write flag by the
+    // time the call runs, so every assigned value joins the binding's inits.
+    // shortcut: an assignment in a sibling scope, or one acorn visits before
+    // the declaration, is not recorded, <when to upgrade: a file whose only
+    // open write reaches its flag through such an assignment>.
+    if (node.type === 'AssignmentExpression' && node.operator === '='
+      && node.left.type === 'Identifier') {
+      const binding = lookup(node.left.name, scope);
+      if (binding && binding.mutable) binding.inits.push(node.right);
     }
     if ((node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') && node.id) {
       scope.bindings.set(node.id.name, UNRESOLVED);
@@ -164,24 +192,46 @@ function writeOpenParens(source) {
     return null;
   }
 
+  // A string literal's decoded value, or null. `'\x77'` decodes to `'w'`.
+  function literalString(node) {
+    if (node.type === 'Literal') return typeof node.value === 'string' ? node.value : null;
+    if (node.type === 'TemplateLiteral' && node.expressions.length === 0) {
+      return node.quasis[0] ? node.quasis[0].value.cooked : null;
+    }
+    return null;
+  }
+
+  // Is any identifier in this expression a write-flag mark? Reading the nodes,
+  // not the raw text, keeps an `O_CREAT` inside a comment or a string from
+  // being read as a flag (#4601 review).
+  function namesWriteMark(node) {
+    if (!node || typeof node.type !== 'string') return false;
+    if (node.type === 'Identifier') return WRITE_FLAG_MARK.test(node.name);
+    for (const key of Object.keys(node)) {
+      if (key === 'start' || key === 'end') continue;
+      const value = node[key];
+      if (Array.isArray(value)) {
+        if (value.some((child) => namesWriteMark(child))) return true;
+      } else if (namesWriteMark(value)) return true;
+    }
+    return false;
+  }
+
   function flagWrites(node, scope, hops) {
     if (!node) return false;
-    if (node.type === 'Literal') {
-      return typeof node.value === 'string' && WRITE_FLAG_LITERAL.test(node.raw);
-    }
-    if (node.type === 'TemplateLiteral' && node.expressions.length === 0) {
-      const raw = node.quasis[0] ? node.quasis[0].value.raw : '';
-      return WRITE_FLAG_LITERAL.test(`'${raw}'`);
-    }
+    const literal = literalString(node);
+    if (literal !== null) return WRITE_FLAG_LITERAL.test(literal);
     if (node.type === 'Identifier') {
       if (hops >= MAX_FLAG_HOPS) return false;
       const binding = lookup(node.name, scope);
-      if (!binding || binding.param || !binding.init) return false;
-      return flagWrites(binding.init, binding.scope, hops + 1);
+      if (!binding || binding.param || !binding.inits) return false;
+      // A write is possible if any value the binding may hold at the call is a
+      // write flag -- a later assignment can change it (#4601 review).
+      return binding.inits.some((init) => flagWrites(init, binding.scope, hops + 1));
     }
     // Any other expression (`fs.constants.O_WRONLY | fs.constants.O_CREAT`):
-    // the marks are named constants, so the source text is the signal.
-    return WRITE_FLAG_MARK.test(source.slice(node.start, node.end));
+    // the marks are named constants, so the identifiers are the signal.
+    return namesWriteMark(node);
   }
 
   function walk(node, scope) {
