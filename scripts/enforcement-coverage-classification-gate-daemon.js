@@ -20,9 +20,9 @@ const GATE_DAEMON_CLASSIFIED = Object.freeze({
       + ' at the 400-line budget): the socket path and its pid/log/identity siblings under the 0700 state'
       + ' root, plus symlink-safe writes (O_NOFOLLOW/O_EXCL, 0600) and a pid-liveness probe. The fs_write'
       + ' sites the inventory records are the daemon\'s own pid, log and identity files, reached through'
-      + ' rmSync and writeFileSync; openLogPrivate opens the log through a flag-based openSync, which the'
-      + ' scanner does not count today (see the flag-based-open blind spot in scripts/binding-site-scan.js),'
-      + ' so this entry names the files, not every call that touches them. The egress site is a connect()'
+      + ' rmSync, writeFileSync and a flag-based openSync (the log, opened O_WRONLY|O_CREAT|O_APPEND'
+      + ' 0600); openLogPrivate opens it without following a symlink, the same concern as writePrivate.'
+      + ' The egress site is a connect()'
       + ' to the local unix socket to prove a listener owns a pid before SIGTERM, never a remote host. It'
       + ' decides nothing: it only says where the transport lives and whether it is alive',
   }),
