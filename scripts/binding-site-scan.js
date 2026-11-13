@@ -22,6 +22,15 @@
 // access (`fs[name](...)`) and a handle that arrives with no local binding
 // to a known namespace stay invisible. Alias/default shapes that ARE
 // followed are documented on aliasesFor.
+//
+// A flag-based `open`/`openSync` is not counted either, and it is deliberately
+// not in fs_write's members above: the same call opens for reading with `'r'`
+// and for writing with `'w'`/`'a'`/`O_CREAT`, so a plain member addition would
+// report every read-only open in the repository as a write. A flag-aware rule
+// would add ~22 write sites across 20 files; that is a scanner change with its
+// own classification work, not part of a perf change.
+// shortcut: flag-based open is invisible to fs_write, <when to upgrade: a file
+// whose only write is a flag-based open, or a dedicated scanner change>.
 
 /**
  * The capabilities a receipt is supposed to be able to speak about.
