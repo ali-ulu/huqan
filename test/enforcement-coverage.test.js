@@ -245,6 +245,20 @@ test('a value assigned before its declaration still resolves', () => {
   assert.deepEqual(sitesIn('probe.js', head + "mode = 'r';\nvar mode;\nfs.openSync(p, mode);\n"), []);
 });
 
+test('a redeclared var keeps the initializer it already had', () => {
+  const head = "const fs = require('node:fs');\n";
+  // `var flags;` after `var flags = 'w'` does not reset the value: JavaScript
+  // leaves it as `'w'`, so the write must still be counted.
+  const redeclared = sitesIn('probe.js', head + "var flags = 'w';\nvar flags;\nfs.openSync(p, flags);\n");
+  assert.equal(redeclared.length, 1);
+  assert.equal(redeclared[0].capability, 'fs_write');
+  // A read-only value stays out, with or without the redeclaration.
+  assert.deepEqual(sitesIn('probe.js', head + "var flags = 'r';\nvar flags;\nfs.openSync(p, flags);\n"), []);
+  // A write assigned after the redeclaration still counts.
+  assert.equal(sitesIn('probe.js', head
+    + "var flags = 'r';\nvar flags;\nflags = 'w';\nfs.openSync(p, flags);\n").length, 1);
+});
+
 test('a write mark inside a comment or a string is not a flag', () => {
   const head = "const fs = require('node:fs');\n";
   for (const expr of [

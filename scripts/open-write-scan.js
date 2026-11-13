@@ -165,10 +165,20 @@ function writeOpenParens(source) {
           // function), but its initializer resolves in the lexical scope where
           // the declarator is written: a `var` inside a block reads names bound
           // by that block (#4601 review).
-          target.bindings.set(declarator.id.name, {
-            inits: [{ node: declarator.init, scope }],
-            mutable: node.kind !== 'const',
-          });
+          const entry = { node: declarator.init, scope };
+          const existing = node.kind === 'var' ? target.bindings.get(declarator.id.name) : null;
+          if (existing && existing.mutable) {
+            // A second `var flags` (with or without an initializer) reuses the
+            // binding: JavaScript leaves the value of `var flags = 'w'; var
+            // flags;` unchanged, so the earlier initializer must stay in its
+            // history (#4601 review).
+            existing.inits.push(entry);
+          } else {
+            target.bindings.set(declarator.id.name, {
+              inits: [entry],
+              mutable: node.kind !== 'const',
+            });
+          }
         } else {
           // A destructuring declarator cannot be resolved, but the names it
           // binds still shadow an outer binding of the same name (#4601 review).
