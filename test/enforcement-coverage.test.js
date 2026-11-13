@@ -207,6 +207,19 @@ test('a reassigned mutable flag counts as a possible write', () => {
   assert.deepEqual(sitesIn('probe.js', head + "const flags = 'r';\nfs.openSync(p, flags);\n"), []);
 });
 
+test('an assigned value resolves in the scope it was written in', () => {
+  const head = "const fs = require('node:fs');\n";
+  // The inner `flags` shadows the outer `'r'`, so `mode` holds a write flag by
+  // the call; resolving the assignment against the outer binding would drop it.
+  const nested = sitesIn('probe.js', head
+    + "const flags = 'r';\nlet mode = 'r';\n{\n  const flags = 'w';\n  mode = flags;\n  fs.openSync(p, mode);\n}\n");
+  assert.equal(nested.length, 1);
+  assert.equal(nested[0].capability, 'fs_write');
+  // The same shape with a read-only inner binding is not a write.
+  assert.deepEqual(sitesIn('probe.js', head
+    + "const flags = 'w';\nlet mode = 'r';\n{\n  const flags = 'r';\n  mode = flags;\n  fs.openSync(p, mode);\n}\n"), []);
+});
+
 test('a write mark inside a comment or a string is not a flag', () => {
   const head = "const fs = require('node:fs');\n";
   for (const expr of [
