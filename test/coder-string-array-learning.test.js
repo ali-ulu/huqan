@@ -58,7 +58,10 @@ test('CLI remembers only accepted array candidates and reuses a verified candida
     assert.equal(readSealedStringArrayEvidence(store.journal, 'wrong-run', workspaceId), null);
     const events = store.journal.read(runId);
     const serialized = JSON.stringify(events);
-    assert.equal(serialized.includes(source), false);
+    const escapedSource = JSON.stringify(source).slice(1, -1);
+    assert.equal(serialized.includes(escapedSource), false);
+    const change = events.find(event => event.type === 'execution_finished').payload.changes[0];
+    assert.equal(change.beforeSha256, evidence.sourcePin.sha256);
     assert.equal(serialized.includes('GET,POST'), false);
     const reSeal = mutate => {
       const journal = createExperienceJournal();
@@ -71,9 +74,13 @@ test('CLI remembers only accepted array candidates and reuses a verified candida
       return journal;
     };
     assert.ok(readSealedStringArrayEvidence(reSeal(() => {}), runId, workspaceId));
+    const poisoned = reSeal(event => { if (event.type === 'action_proposed') event.payload.rawSource = source; });
+    assert.equal(JSON.stringify(poisoned.read(runId)).includes(escapedSource), true, 'privacy check must detect escaped raw source');
     const mutations = [
+      e => { if (e.type === 'action_proposed') e.payload.semanticEvidence.sourcePin.sha256 = '0'.repeat(64); },
       e => { if (e.type === 'execution_finished') e.payload.changes = []; },
       e => { if (e.type === 'execution_finished') e.payload.changes[0].path = 'wrong.js'; },
+      e => { if (e.type === 'execution_finished') e.payload.changes[0].beforeSha256 = '0'.repeat(64); },
       e => { if (e.type === 'execution_finished') e.payload.changes[0].afterSha256 = '0'.repeat(64); },
       e => { if (e.type === 'verification') e.payload.checks = []; },
       ...['path', 'expectedSha256', 'actualSha256', 'match'].map(key => e => {
