@@ -1621,6 +1621,7 @@
     "lib/coder/string-synthesis.js",
     "lib/experience/string-array-program.js",
     "lib/experience/string-array-target.js",
+    "lib/experience/string-array-evidence.js",
     "lib/coder/string-array-synthesis.js",
     "lib/evidence-pack/collect.js",
     "lib/evidence-pack/collector-seals.js",

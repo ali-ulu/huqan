@@ -70,6 +70,35 @@ değiştirilerek aktarım desteklenmez. Değiştirilmiş aday veya seçici yazma
 reddedilir. Başarılı bellek kullanımında sonlu arama yapılmaz (`enumerated: 0`);
 kabul testi yine çalışır. Test başarısızlığı mevcut rollback davranışını korur.
 
+### Mühürlü yöntem kanıtı
+
+Yeni sentez ve bellekten tekrar kullanım, seçilen somut işlem için kapalı
+string-array-join yöntem bilgisini mevcut action_proposed olayına bağlar.
+Bu bilgi kaynak dosyadan ve seçilen replacement'tan yeniden türetilir;
+görevdeki alan tek başına doğrulanmış kanıt veya yürütme yetkisi değildir.
+Kaynak seçicisi, ham UTF-8 kaynak özeti ve mevcut find/replace özetleri
+birlikte doğrulanır. Ham kaynak ve LF-normalize derivation özetleri farklı
+temsillerdir. Yöntem özeti yalnız sürüm, aile ve önceki/sonraki kapalı programı
+bağlar; somut dosya, seçici ve run/workspace/olay bağları ayrıca korunur.
+
+Tam çıktı dosyasının ham UTF-8 özeti ayrıca türetilir. Okuyucu, yürütmenin
+bildirdiği hedefi ve çıktı özetini diskten doğrulama kaydının beklenen/gerçek
+özetleriyle eşleştirir; replacement ifadesinin özeti tam dosya özeti değildir.
+Kapalı yöntem ve binding ayrıca canonical renderer çıktısının replacement
+özetiyle karşılaştırılır; yalnız yöntem özetini yeniden hesaplamak yetmez.
+Journal'a kaynak dosya, replacement gövdesi veya örnek listesi eklenmez.
+Yalnız sınırları belli program türü ve literal ayraç gibi kapalı yöntem
+bilgisi ile somut işlem bağları saklanır. Genel JavaScript gövdesi saklanmaz.
+Mevcut olay zinciri ve mühür doğrulaması kullanılmaya devam eder.
+
+Salt okunur okuyucu doğru run/workspace'e ait mühürlü, bağımsız kabul testi
+geçen ve tutulmuş kaydı ister. Açık kayıt, başarısız kabul, dry-run veya
+uyuşmayan yöntem/işlem/çıktı bağı pozitif yöntem kanıtı sayılmaz.
+Kaynak yazmadan önce değişirse mevcut ret ve rollback sınırları korunur.
+Bu üretici bağlantısı farklı raw patch'leri M3'te birleştirmez. Replay,
+derleyici, bağımsız kaynak sayımı, terfi ve varsayılanlar değişmez; üç
+bağımsız support veya gerçek corpus kazanımı iddia edilmez.
+
 ## Doğrulama ve iddia sınırı
 
 Program ve hedef testleri, gerçek CLI kabul/ret/rollback testleri ve yeni süreçte

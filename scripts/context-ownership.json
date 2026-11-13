@@ -4108,6 +4108,10 @@
       "context": "Trust",
       "evidence": "parse-only bounded expression selection and sealed method adaptation"
     },
+    "lib/experience/string-array-evidence.js": {
+      "context": "Trust",
+      "evidence": "bounded string-array method evidence bound to native source and operation hashes"
+    },
     "lib/coder/string-array-synthesis.js": {
       "context": "AgentAction",
       "evidence": "model-free single-expression string-array repair planning"
@@ -8253,6 +8257,13 @@
         "AgentAction"
       ],
       "evidence": "string-array synthesis and memory consume the parse-only expression reader"
+    },
+    "lib/experience/string-array-evidence.js": {
+      "owner": "Trust",
+      "consumers": [
+        "AgentAction"
+      ],
+      "evidence": "native Coder execution derives and reports the closed method evidence without granting authority"
     },
     "lib/cognition/percept-adapters.js": {
       "owner": "Knowledge",

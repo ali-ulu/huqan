@@ -75,7 +75,7 @@ test('prepared synthesis refuses source drift before apply and at the pre-write 
         if (phase === 'pre-write') fs.writeFileSync(file, changed);
         return { decision: 'allow' };
       } } });
-    assert.equal(checked, true);
+    assert.equal(checked, phase === 'pre-write');
     assert.equal(result.ok, false); assert.equal(result.reason, 'SYNTHESIS_SOURCE_CHANGED');
     assert.equal(fs.readFileSync(file, 'utf8'), changed);
   }
@@ -95,4 +95,38 @@ test('source pins reject unsafe or mismatched metadata before reading a path', (
   assert.equal(matchesSynthesisSourcePin(pin, [{ path: 'target.js', before: 'changed' }], read), false);
   assert.equal(reads, 0);
   assert.equal(matchesSynthesisSourcePin(pin, patch, read), true); assert.equal(reads, 1);
+});
+
+test('controlled fix loop rolls back c1 and seals only the accepted c2 evidence', t => {
+  const { runFixLoop } = require('../lib/coder/fix-loop');
+  const { createExperienceJournal } = require('../lib/experience/journal');
+  const { readSealedStringArrayEvidence } = require('../lib/experience/string-array-evidence');
+  const { renderStringArrayProgram } = require('../lib/experience/string-array-program');
+  const { createHash } = require('node:crypto');
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'coder-array-loop-')));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = "module.exports = value => value.join(',');\n";
+  fs.writeFileSync(path.join(root, 'target.js'), source);
+  fs.writeFileSync(path.join(root, 'accept.js'), "const assert=require('node:assert/strict');assert.equal(require('./target')(['POST','GET','POST']),'POST,GET');\n");
+  const find = "value.join(',')";
+  const candidate = type => ({ type: 'replace_text', path: 'target.js', find,
+    replace: renderStringArrayProgram({ type, separator: ',' }, 'value').slice(7, -1) });
+  const sha256 = createHash('sha256').update(source).digest('hex');
+  const task = { id: 'controlled', level: 'l0', allowedPaths: ['target.js'], operation: candidate('join'),
+    candidates: [candidate('join'), candidate('stableUniqueJoin')], test: { command: 'node accept.js' },
+    synthesisEvidenceTarget: { binding: 'value', separator: ',' }, synthesisSourcePin: { path: 'target.js', sha256 } };
+  const journal = createExperienceJournal();
+  const result = runFixLoop({ task, root, journal, runId: 'controlled', authorized: true,
+    repoState: { known: true, branch: 'feat/test', dirty: false, hasUntracked: false } });
+  assert.equal(result.outcome, 'applied_tested', JSON.stringify(result));
+  assert.equal(result.attempts.length, 2);
+  assert.equal(result.attempts[0].rolledBack, true);
+  assert.equal(result.attempts[1].kept, true);
+  assert.equal(readSealedStringArrayEvidence(journal, 'controlled:c1', 'default'), null);
+  const evidence = readSealedStringArrayEvidence(journal, 'controlled:c2', 'default');
+  assert.ok(evidence);
+  assert.equal(evidence.context.runId, 'controlled:c2');
+  assert.equal(evidence.context.eventId, 'controlled:c2:action_proposed');
+  assert.equal(evidence.sourcePin.sha256, sha256);
+  assert.equal(evidence.after.type, 'stableUniqueJoin');
 });

@@ -730,22 +730,22 @@
       ],
       "sites": [
         {
-          "line": 104,
+          "line": 98,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
         },
         {
-          "line": 105,
+          "line": 99,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         },
         {
-          "line": 123,
+          "line": 117,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 124,
+          "line": 118,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
         }
