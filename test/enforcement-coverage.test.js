@@ -180,6 +180,47 @@ test('a comment between the callee and the paren does not hide the write', () =>
   assert.deepEqual(sitesIn('probe.js', head + "fs.openSync /* ( */ (p, 'r');\n"), []);
 });
 
+test('a decoded or rs+ write flag is a write, and a read stays out', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const [label, flag] of [['rs+', "'rs+'"], ['escaped w', "'\\x77'"], ['escaped a', "'\\x61'"]]) {
+    const found = sitesIn('probe.js', head + `fs.openSync(p, ${flag});\n`);
+    assert.equal(found.length, 1, label);
+    assert.equal(found[0].capability, 'fs_write', label);
+  }
+  // `rs` (no plus) is read-only, like `r`.
+  assert.deepEqual(sitesIn('probe.js', head + "fs.openSync(p, 'rs');\n"), []);
+});
+
+test('a destructured declaration shadows an outer flag', () => {
+  const head = "const fs = require('node:fs');\n";
+  const shadowed = sitesIn('probe.js', head
+    + "const flags = 'w';\n{ const { flags } = { flags: 'r' }; fs.openSync(p, flags); }\n");
+  assert.deepEqual(shadowed, []);
+});
+
+test('a reassigned mutable flag counts as a possible write', () => {
+  const head = "const fs = require('node:fs');\n";
+  const reassigned = sitesIn('probe.js', head + "let flags = 'r';\nflags = 'w';\nfs.openSync(p, flags);\n");
+  assert.equal(reassigned.length, 1);
+  assert.equal(reassigned[0].capability, 'fs_write');
+  // A `const` cannot be reassigned, so only its initializer decides.
+  assert.deepEqual(sitesIn('probe.js', head + "const flags = 'r';\nfs.openSync(p, flags);\n"), []);
+});
+
+test('a write mark inside a comment or a string is not a flag', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const expr of [
+    'fs.constants.O_RDONLY | 0 /* O_CREAT */',
+    'fs.constants.O_RDONLY /* O_CREAT */ | 0',
+    'fs.constants.O_RDONLY | Number("O_CREAT")',
+  ]) {
+    assert.deepEqual(sitesIn('probe.js', head + `fs.openSync(p, ${expr});\n`), [], expr);
+  }
+  // The real constants still count.
+  const real = sitesIn('probe.js', head + 'fs.openSync(p, fs.constants.O_WRONLY | fs.constants.O_CREAT);\n');
+  assert.equal(real.length, 1);
+});
+
 test('a flag resolves through the call\'s own scope, and a parameter shadows', () => {
   const head = "const fs = require('node:fs');\n";
   // Two functions bind `flags`; each call must see its own binding, not the
