@@ -165,6 +165,21 @@ test('punctuation inside a string literal is not an argument boundary', () => {
   }
 });
 
+test('a comment between the callee and the paren does not hide the write', () => {
+  const head = "const fs = require('node:fs');\n";
+  // The `(` inside the comment is not the call's parenthesis, so a text search
+  // from the callee's end would key the write on the wrong offset and drop it.
+  const block = sitesIn('probe.js', head + "fs.openSync /* ( */ (p, 'w');\n");
+  assert.equal(block.length, 1);
+  assert.equal(block[0].capability, 'fs_write');
+  // A block comment with no `(` between the callee and the paren still writes.
+  const plain = sitesIn('probe.js', head + "fs.openSync /* c */ (p, 'w');\n");
+  assert.equal(plain.length, 1);
+  assert.equal(plain[0].capability, 'fs_write');
+  // And the flag still decides: a read behind a comment stays invisible.
+  assert.deepEqual(sitesIn('probe.js', head + "fs.openSync /* ( */ (p, 'r');\n"), []);
+});
+
 test('a flag resolves through the call\'s own scope, and a parameter shadows', () => {
   const head = "const fs = require('node:fs');\n";
   // Two functions bind `flags`; each call must see its own binding, not the
