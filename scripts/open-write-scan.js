@@ -118,7 +118,7 @@ function writeOpenParens(source) {
         bindPattern(pattern.left, scope);
         // A default (`flags = 'w'`) is a binding with an initializer.
         if (pattern.left.type === 'Identifier') {
-          scope.bindings.set(pattern.left.name, { inits: [pattern.right], scope });
+          scope.bindings.set(pattern.left.name, { inits: [{ node: pattern.right, scope }] });
         }
         break;
       case 'RestElement': bindPattern(pattern.argument, scope); break;
@@ -150,8 +150,7 @@ function writeOpenParens(source) {
       for (const declarator of node.declarations) {
         if (declarator.id.type === 'Identifier') {
           target.bindings.set(declarator.id.name, {
-            inits: [declarator.init],
-            scope: target,
+            inits: [{ node: declarator.init, scope: target }],
             mutable: node.kind !== 'const',
           });
         } else {
@@ -163,13 +162,13 @@ function writeOpenParens(source) {
     }
     // A `let`/`var` reassigned in its own scope may hold a write flag by the
     // time the call runs, so every assigned value joins the binding's inits.
-    // shortcut: an assignment in a sibling scope, or one acorn visits before
-    // the declaration, is not recorded, <when to upgrade: a file whose only
-    // open write reaches its flag through such an assignment>.
+    // Each value keeps the scope it was written in: a nested block that assigns
+    // a name shadowed there must resolve against that inner binding, not the
+    // outer one (#4601 review).
     if (node.type === 'AssignmentExpression' && node.operator === '='
       && node.left.type === 'Identifier') {
       const binding = lookup(node.left.name, scope);
-      if (binding && binding.mutable) binding.inits.push(node.right);
+      if (binding && binding.mutable) binding.inits.push({ node: node.right, scope });
     }
     if ((node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') && node.id) {
       scope.bindings.set(node.id.name, UNRESOLVED);
@@ -226,8 +225,10 @@ function writeOpenParens(source) {
       const binding = lookup(node.name, scope);
       if (!binding || binding.param || !binding.inits) return false;
       // A write is possible if any value the binding may hold at the call is a
-      // write flag -- a later assignment can change it (#4601 review).
-      return binding.inits.some((init) => flagWrites(init, binding.scope, hops + 1));
+      // write flag -- a later assignment can change it (#4601 review). Each
+      // value resolves in the scope it was written in, so a nested block's
+      // shadowed name resolves to the inner binding, not the outer one.
+      return binding.inits.some((init) => flagWrites(init.node, init.scope, hops + 1));
     }
     // Any other expression (`fs.constants.O_WRONLY | fs.constants.O_CREAT`):
     // the marks are named constants, so the identifiers are the signal.
