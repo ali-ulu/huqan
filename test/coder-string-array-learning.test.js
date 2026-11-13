@@ -41,7 +41,63 @@ test('CLI remembers only accepted array candidates and reuses a verified candida
   const trained = cli(train, 0); assert.equal(trained.outcome, 'applied_tested'); assert.equal(trained.synthesis.memory.ok, true, JSON.stringify(trained));
   const candidate = path.join(root, train.synthesis.rememberFile);
   const store = openCoderJournal(path.join(root, 'journal.db'));
-  try { assert.equal(store.journal.manifest(trained.synthesis.sourceRunId).learningEligibility, 'positive_procedure'); } finally { store.close(); }
+  try {
+    assert.equal(store.journal.manifest(trained.synthesis.sourceRunId).learningEligibility, 'positive_procedure');
+    const action = store.journal.read(trained.synthesis.sourceRunId).find(event => event.type === 'action_proposed');
+    assert.ok(action.payload.semanticEvidence, 'accepted native synthesis must journal semantic evidence');
+    const { readSealedStringArrayEvidence } = require('../lib/experience/string-array-evidence');
+    const { createExperienceJournal } = require('../lib/experience/journal');
+    const { createHash } = require('node:crypto');
+    const digest = text => createHash('sha256').update(text, 'utf8').digest('hex');
+    const runId = trained.synthesis.sourceRunId, workspaceId = action.workspaceId;
+    const evidence = readSealedStringArrayEvidence(store.journal, runId, workspaceId);
+    assert.ok(evidence, 'fresh SQLite reader must validate sealed semantic evidence');
+    assert.equal(evidence.sourcePin.sha256, digest(source));
+    assert.equal(evidence.afterSourceSha256, digest(fs.readFileSync(path.join(root, 'src/train.js'), 'utf8')));
+    assert.equal(readSealedStringArrayEvidence(store.journal, runId, 'wrong-workspace'), null);
+    assert.equal(readSealedStringArrayEvidence(store.journal, 'wrong-run', workspaceId), null);
+    const events = store.journal.read(runId);
+    const serialized = JSON.stringify(events);
+    assert.equal(serialized.includes(source), false);
+    assert.equal(serialized.includes('GET,POST'), false);
+    const reSeal = mutate => {
+      const journal = createExperienceJournal();
+      for (const original of events) {
+        const event = structuredClone(original); delete event.sequence;
+        mutate(event);
+        assert.equal(journal.append(event).ok, true, event.type);
+      }
+      assert.equal(journal.manifest(runId).learningEligibility, 'positive_procedure');
+      return journal;
+    };
+    assert.ok(readSealedStringArrayEvidence(reSeal(() => {}), runId, workspaceId));
+    const mutations = [
+      e => { if (e.type === 'execution_finished') e.payload.changes = []; },
+      e => { if (e.type === 'execution_finished') e.payload.changes[0].path = 'wrong.js'; },
+      e => { if (e.type === 'execution_finished') e.payload.changes[0].afterSha256 = '0'.repeat(64); },
+      e => { if (e.type === 'verification') e.payload.checks = []; },
+      ...['path', 'expectedSha256', 'actualSha256', 'match'].map(key => e => {
+        if (e.type === 'verification') e.payload.checks[0][key] = key === 'path' ? 'wrong.js' : key === 'match' ? false : '0'.repeat(64);
+      }),
+    ];
+    for (const mutate of mutations) assert.equal(readSealedStringArrayEvidence(reSeal(mutate), runId, workspaceId), null);
+    for (const mutate of [
+      ev => { ev.after.type = 'unknown'; },
+      ev => { ev.selector.separator = ev.before.separator = ev.after.separator = 'x'.repeat(65); },
+      ev => { ev.selector.binding = 'not valid'; },
+      ev => { ev.after.type = 'join'; },
+      ev => { ev.before.type = 'stableUniqueJoin'; },
+      ev => { ev.selector.binding = 'otherValidName'; },
+    ]) {
+      const changed = reSeal(event => {
+        if (event.type !== 'action_proposed') return;
+        const ev = event.payload.semanticEvidence; mutate(ev);
+        ev.methodHash = digest(JSON.stringify({ schemaVersion: 1, family: ev.family,
+          before: { type: ev.before.type, separator: ev.before.separator }, after: { type: ev.after.type, separator: ev.after.separator } }));
+      });
+      assert.equal(readSealedStringArrayEvidence(changed, runId, workspaceId), null);
+    }
+  } finally { store.close(); }
   commit();
   const other = task('other'); other.synthesis.target.binding = 'methods';
   other.qualificationPaths = ['qualify/drift.js', 'qualify/other-ambiguous.js'];
@@ -50,7 +106,16 @@ test('CLI remembers only accepted array candidates and reuses a verified candida
   commit();
   const reused = cli(task('reuse'), 0); assert.equal(reused.outcome, 'applied_tested');
   assert.equal(reused.synthesis.memoryReuse.outcome, 'applied_tested'); assert.equal(reused.synthesis.enumerated, 0);
-  assert.equal(reused.attempts.length, 1); assert.equal(reused.attempts[0].test.exitCode, 0); commit();
+  assert.equal(reused.attempts.length, 1); assert.equal(reused.attempts[0].test.exitCode, 0);
+  const reopened = openCoderJournal(path.join(root, 'journal.db'));
+  try {
+    const { readSealedStringArrayEvidence } = require('../lib/experience/string-array-evidence');
+    const original = readSealedStringArrayEvidence(reopened.journal, trained.synthesis.sourceRunId, 'default');
+    const transferred = readSealedStringArrayEvidence(reopened.journal, 'reuse:memory:c1', 'default');
+    assert.ok(original); assert.ok(transferred);
+    assert.equal(transferred.methodHash, original.methodHash);
+  } finally { reopened.close(); }
+  commit();
   const badSelector = task('selector'); badSelector.synthesis.target.binding = 'wrong';
   const refused = cli(badSelector, 6); assert.equal(refused.attempts.length, 0, JSON.stringify(refused));
   assert.equal(fs.readFileSync(path.join(root, 'src/selector.js'), 'utf8'), source);
