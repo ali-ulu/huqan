@@ -66,6 +66,12 @@ const SCOPE_NODES = new Set([
  */
 function writeOpenParens(source) {
   let ast;
+  // The `(` of a call is taken from the token stream, not from
+  // `source.indexOf('(', node.callee.end)`: a comment between the callee and
+  // the parenthesis (`fs.openSync /* ( */ (p, 'w')`) holds a `(` that the text
+  // search finds first, so the recorded offset points inside the comment and
+  // the caller's match -- keyed on the real paren -- is dropped as a read.
+  const parens = [];
   try {
     ast = acorn.parse(source, {
       ecmaVersion: 2024,
@@ -74,10 +80,18 @@ function writeOpenParens(source) {
       // Widening acceptance is the safe direction: a file acorn would reject
       // yields no answer at all, which the caller counts as a write.
       allowReturnOutsideFunction: true,
+      onToken: (token) => { if (token.type.label === '(') parens.push(token.start); },
     });
   } catch {
     return null;
   }
+
+  // The first `(` token at or after `offset`, or -1. Tokens are in source
+  // order, so the scan starts where the callee ended.
+  const parenAt = (offset) => {
+    for (const start of parens) if (start >= offset) return start;
+    return -1;
+  };
 
   const writes = new Set();
 
@@ -191,7 +205,8 @@ function writeOpenParens(source) {
 
     if (node.type === 'CallExpression' && isOpen(node.callee)
       && node.arguments.length >= 2 && flagWrites(node.arguments[1], current, 0)) {
-      writes.add(source.indexOf('(', node.callee.end));
+      const paren = parenAt(node.callee.end);
+      if (paren !== -1) writes.add(paren);
     }
 
     for (const key of Object.keys(node)) {
