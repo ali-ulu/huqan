@@ -233,6 +233,18 @@ test('a hoisted var initializer resolves in its lexical scope', () => {
     + "{\n  const flags = 'r';\n  var mode = flags;\n  fs.openSync(p, mode);\n}\n"), []);
 });
 
+test('a value assigned before its declaration still resolves', () => {
+  const head = "const fs = require('node:fs');\n";
+  // `var` hoists, so the binding exists when the earlier assignment runs; a
+  // declaration-order walk would resolve the assignment against nothing.
+  const beforeVar = sitesIn('probe.js', head + "mode = 'w';\nvar mode;\nfs.openSync(p, mode);\n");
+  assert.equal(beforeVar.length, 1);
+  assert.equal(beforeVar[0].capability, 'fs_write');
+  // The same shape through `let`, and with a read value, is not a write.
+  assert.equal(sitesIn('probe.js', head + "mode = 'w';\nlet mode;\nfs.openSync(p, mode);\n").length, 1);
+  assert.deepEqual(sitesIn('probe.js', head + "mode = 'r';\nvar mode;\nfs.openSync(p, mode);\n"), []);
+});
+
 test('a write mark inside a comment or a string is not a flag', () => {
   const head = "const fs = require('node:fs');\n";
   for (const expr of [

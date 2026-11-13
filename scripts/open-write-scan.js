@@ -132,12 +132,24 @@ function writeOpenParens(source) {
     }
   }
 
+  // Bind the names the scope rooted at `root` declares. Declarations are
+  // recorded in a pass of their own, before the values assigned to them, so a
+  // value written before its declaration (`mode = 'w'; var mode`) still
+  // resolves: `var` hoists, so the binding exists when the assignment runs
+  // (#4601 review).
+  function collect(scope, node, root) {
+    collectPass(scope, node, root, 'declarations');
+    collectPass(scope, node, root, 'assignments');
+  }
+
   // Bind the names the scope rooted at `root` declares. `var` hoists to the
   // nearest function, `let`/`const` stay here. A nested scope node is not
   // descended into; it is collected when walked as its own scope. A nested
   // block still reaches an outer binding for an assignment, because its own
-  // collect() looks the name up through the parent chain.
-  function collect(scope, node, root) {
+  // collect() looks the name up through the parent chain. `pass` selects what
+  // this traversal records: a declaration's name and initializer, or the value
+  // assigned to an existing name.
+  function collectPass(scope, node, root, pass) {
     if (!node || typeof node.type !== 'string') return;
     if (node !== root && SCOPE_NODES.has(node.type)) {
       if ((node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') && node.id) {
@@ -145,7 +157,7 @@ function writeOpenParens(source) {
       }
       return;
     }
-    if (node.type === 'VariableDeclaration') {
+    if (pass === 'declarations' && node.type === 'VariableDeclaration') {
       const target = node.kind === 'var' ? nearestFunction(scope) : scope;
       for (const declarator of node.declarations) {
         if (declarator.id.type === 'Identifier') {
@@ -169,21 +181,22 @@ function writeOpenParens(source) {
     // Each value keeps the scope it was written in: a nested block that assigns
     // a name shadowed there must resolve against that inner binding, not the
     // outer one (#4601 review).
-    if (node.type === 'AssignmentExpression' && node.operator === '='
+    if (pass === 'assignments' && node.type === 'AssignmentExpression' && node.operator === '='
       && node.left.type === 'Identifier') {
       const binding = lookup(node.left.name, scope);
       if (binding && binding.mutable) binding.inits.push({ node: node.right, scope });
     }
-    if ((node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') && node.id) {
+    if (pass === 'declarations'
+      && (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') && node.id) {
       scope.bindings.set(node.id.name, UNRESOLVED);
     }
     for (const key of Object.keys(node)) {
       if (key === 'start' || key === 'end') continue;
       const value = node[key];
       if (Array.isArray(value)) {
-        for (const child of value) if (child && typeof child.type === 'string') collect(scope, child, root);
+        for (const child of value) if (child && typeof child.type === 'string') collectPass(scope, child, root, pass);
       } else if (value && typeof value.type === 'string') {
-        collect(scope, value, root);
+        collectPass(scope, value, root, pass);
       }
     }
   }
