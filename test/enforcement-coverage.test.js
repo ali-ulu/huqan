@@ -220,6 +220,19 @@ test('an assigned value resolves in the scope it was written in', () => {
     + "const flags = 'w';\nlet mode = 'r';\n{\n  const flags = 'r';\n  mode = flags;\n  fs.openSync(p, mode);\n}\n"), []);
 });
 
+test('a hoisted var initializer resolves in its lexical scope', () => {
+  const head = "const fs = require('node:fs');\n";
+  // `var mode` hoists to the program scope, but its initializer reads the
+  // block-local `flags`, so `mode` holds a write flag by the call.
+  const hoisted = sitesIn('probe.js', head
+    + "{\n  const flags = 'w';\n  var mode = flags;\n  fs.openSync(p, mode);\n}\n");
+  assert.equal(hoisted.length, 1);
+  assert.equal(hoisted[0].capability, 'fs_write');
+  // A read-only block-local binding is not a write.
+  assert.deepEqual(sitesIn('probe.js', head
+    + "{\n  const flags = 'r';\n  var mode = flags;\n  fs.openSync(p, mode);\n}\n"), []);
+});
+
 test('a write mark inside a comment or a string is not a flag', () => {
   const head = "const fs = require('node:fs');\n";
   for (const expr of [

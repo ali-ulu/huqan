@@ -149,8 +149,12 @@ function writeOpenParens(source) {
       const target = node.kind === 'var' ? nearestFunction(scope) : scope;
       for (const declarator of node.declarations) {
         if (declarator.id.type === 'Identifier') {
+          // The binding is placed in `target` (`var` hoists to the nearest
+          // function), but its initializer resolves in the lexical scope where
+          // the declarator is written: a `var` inside a block reads names bound
+          // by that block (#4601 review).
           target.bindings.set(declarator.id.name, {
-            inits: [{ node: declarator.init, scope: target }],
+            inits: [{ node: declarator.init, scope }],
             mutable: node.kind !== 'const',
           });
         } else {
