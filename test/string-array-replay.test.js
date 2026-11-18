@@ -113,6 +113,19 @@ test('fresh CLI groups independently sealed semantic runs and preserves the jour
     assert.equal(failure.experience.failed, null);
     assert.equal(journal.manifest('native-failed').learningEligibility, 'negative_example', JSON.stringify(journal.read('native-failed')));
     const negativeEvents = journal.read('native-failed').map(event => structuredClone(event));
+    const invalidTimeDb = path.join(f.dir, 'invalid-negative-time.db');
+    fs.copyFileSync(bridgeDb, invalidTimeDb);
+    const invalidTimeStore = openJournalConnection({ dbPath: invalidTimeDb });
+    try {
+      const invalidTimeJournal = createExperienceJournal({ store: invalidTimeStore });
+      for (const event of structuredClone(negativeEvents)) {
+        delete event.sequence;
+        delete event.hash;
+        if (event.type === 'run_started') event.payload.createdAt = 'not-a-date';
+        assert.equal(invalidTimeJournal.append(event).ok, true);
+      }
+      assert.equal(invalidTimeJournal.manifest('native-failed').learningEligibility, 'negative_example');
+    } finally { invalidTimeStore.close(); }
     const proposed = negativeEvents.find(event => event.type === 'action_proposed');
     delete proposed.payload.semanticEvidence;
     const policy = negativeEvents.find(event => event.type === 'policy_decided');
@@ -131,6 +144,11 @@ test('fresh CLI groups independently sealed semantic runs and preserves the jour
   fs.writeFileSync(requestPath, JSON.stringify(request));
   const negativeArgs = [...args]; negativeArgs[negativeArgs.indexOf('--as-of') + 1] = new Date().toISOString();
   const withNegative = run(negativeArgs, f.dir);
+  const invalidTimeArgs = [...negativeArgs];
+  invalidTimeArgs[invalidTimeArgs.indexOf('--journal') + 1] = path.join(f.dir, 'invalid-negative-time.db');
+  const invalidTimeResult = run(invalidTimeArgs, f.dir);
+  assert.equal(invalidTimeResult.status, 'INSUFFICIENT');
+  assert.deepEqual(invalidTimeResult.candidates, []);
   assert.ok(withNegative.selected.some(row => row.episodeId === 'native-failed'));
   assert.ok(withNegative.signals.some(row => row.episodeId === 'native-failed' && row.reward.reward === -1));
   assert.equal(withNegative.status, 'INSUFFICIENT');
