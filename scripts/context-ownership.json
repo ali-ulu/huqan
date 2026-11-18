@@ -4112,6 +4112,10 @@
       "context": "Trust",
       "evidence": "bounded string-array method evidence bound to native source and operation hashes"
     },
+    "lib/experience/string-array-replay.js": {
+      "context": "Trust",
+      "evidence": "read-only closed string-array replay qualification over sealed native source evidence; candidate data only"
+    },
     "lib/coder/string-array-synthesis.js": {
       "context": "AgentAction",
       "evidence": "model-free single-expression string-array repair planning"
@@ -8230,6 +8234,13 @@
       ],
       "evidence": "ownership-map-2446.md#coder-project-recipe; #4069 lib/cli-replay.js qualifies source-bound candidate data without registration or promotion"
     },
+    "lib/experience/string-array-replay.js": {
+      "owner": "Trust",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "lib/cli-replay.js uses closed semantic evidence and qualification only for read-only candidate previews"
+    },
     "lib/task-identifier-lexer.js": {
       "owner": "AgentAction",
       "consumers": [
@@ -8343,16 +8354,18 @@
     "lib/cognition/replay-generalize.js": {
       "owner": "Knowledge",
       "consumers": [
-        "Platform"
+        "Platform",
+        "Trust"
       ],
-      "evidence": "#4069 lib/cli-replay.js lists source-bound replay candidates for the operator without registering or proposing promotion"
+      "evidence": "#4069 lib/cli-replay.js lists source-bound replay candidates; string-array-replay.js reuses the unchanged support and consistency constants for read-only qualification"
     },
     "lib/cognition/independent-sources.js": {
       "owner": "Knowledge",
       "consumers": [
-        "Platform"
+        "Platform",
+        "Trust"
       ],
-      "evidence": "#4069 lib/cli-replay.js selects independent compilation sources under the existing intake bound"
+      "evidence": "#4069 lib/cli-replay.js and string-array-replay.js count independent support against the complete sealed dependency universe without promotion"
     },
     "lib/agent-coder-execution.js": {
       "owner": "AgentAction",
