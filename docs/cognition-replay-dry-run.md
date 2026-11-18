@@ -2,6 +2,31 @@
 
 İlgili iş: #4069. Bu dilim opt-in aday önizlemesidir; ölçülmüş öğrenme kazanımı değildir.
 
+## Kapalı string-array yöntemi için semantik önizleme
+
+`params: { "family": "string-array-join", "methodHash": "<64 haneli SHA-256>" }`
+isteği, aynı kapalı yöntemi farklı dosya ve değişken adlarında kaydetmiş mühürlü
+Coder kaynaklarını önizlemek içindir. `methodHash` kaynak bağımsızlığı kanıtı
+değildir; yalnız yöntem gruplama anahtarıdır. Kaynak dosyalarının ve kayıtlı
+ataların ortaklığı mevcut bağımsız destek hesabında korunur.
+
+Bu istek de `capabilityId`, `parentVersion: 0` ve `qualificationInputs`
+gerektirir. Her qualification girdisi `id`, `binding`, `before`,
+`expectedAfter`, `input` ve `expected` alanlarını taşır. Operatörün sağladığı
+ayrı kaynak metni kapalı AST okuyucusuyla okunur; dönüştürülmüş metin ve
+string-array davranışı açık beklenen değerlerle doğrulanır.
+Beklenen sonuç kaynak kaydından veya yöntemin kendi çıktısından türetilmez.
+
+Semantik aday yalnız salt okunur önizlemedir: `promotionInput: null`,
+`registered: false`, `CANDIDATE_ONLY`. Bu yol yeni bir derleyici türü, terfi
+fişi veya Coder yürütme yetkisi üretmez. Ayrı metinlerde başarılı qualification,
+gerçek bağımsız görev corpus'u veya öğrenme kazanımı kanıtı değildir.
+
+`--as-of <ISO zamanı>` aynı başlangıç-zamanı kesitini yeni CLI süreçlerinde
+yeniden kullanır. Bu sınır `run_started.createdAt` alanına uygulanır; journal
+kapanış zamanını kaydetmediği için geçmişte o anda tamamlanmış kayıtların
+atomik görüntüsünü kanıtlamaz. Varsayılan kesim mevcut çalışma zamanıdır.
+
 ```text
 huqan terfi --from-replay --dry-run --journal experience.db --workspace default --request replay.json --json
 ```
