@@ -92,6 +92,201 @@ test('a call through a bound namespace is found', () => {
   assert.equal(found[0].line, 2);
 });
 
+// ─── flag-aware open/openSync (#4601) ────────────────────────────────────────
+//
+// `open`/`openSync` is not a plain fs_write member: the same call reads with
+// `'r'` and writes with `'w'`/`'a'`. A member entry would report every read as
+// a write, so the flag decides.
+
+test('a flag-based open that writes is a site, and one that reads is not', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const [label, call] of [
+    ['write literal', "fs.openSync(p, 'wx', 0o600);"],
+    ['append literal', "fs.openSync(p, 'a', 0o600);"],
+    ['read-write literal', "fs.openSync(p, 'r+');"],
+    ['async open', "fs.open(p, 'w', 0o600);"],
+    ['constants expression', 'fs.openSync(p, fs.constants.O_WRONLY | fs.constants.O_CREAT, 0o600);'],
+  ]) {
+    const found = sitesIn('probe.js', head + call + '\n');
+    assert.equal(found.length, 1, label);
+    assert.equal(found[0].capability, 'fs_write', label);
+  }
+  for (const [label, call] of [
+    ['read literal', "fs.openSync(p, 'r');"],
+    ['read-only constant', 'fs.openSync(p, fs.constants.O_RDONLY);'],
+    ['a parameter the scan cannot resolve', 'function f(p, flags) { return fs.openSync(p, flags); }'],
+  ]) {
+    assert.deepEqual(sitesIn('probe.js', head + call + '\n'), [], label);
+  }
+});
+
+test('a flag held in a local const is resolved one hop, like an alias', () => {
+  const source = "const fs = require('node:fs');\nconst flags = fs.constants.O_WRONLY | fs.constants.O_APPEND;\nfs.openSync(p, flags, 0o600);\n";
+  const found = sitesIn('probe.js', source);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].capability, 'fs_write');
+  assert.equal(found[0].line, 3);
+
+  const readLocal = "const fs = require('node:fs');\nconst flags = fs.constants.O_RDONLY;\nfs.openSync(p, flags, 0o600);\n";
+  assert.deepEqual(sitesIn('probe.js', readLocal), []);
+});
+
+test('an open named in a comment or a string is not a call, and a read stays invisible', () => {
+  const source = [
+    "const fs = require('node:fs');",
+    "// fs.openSync(p, 'wx')",
+    "const doc = \"fs.openSync(p, 'wx')\";",
+    "fs.openSync(p, 'r');",
+  ].join('\n');
+  assert.deepEqual(sitesIn('probe.js', source), []);
+});
+
+// The three shapes below defeated the first string-based flag reader (#4601
+// review). Each is a write the scan must still count, or a read it must not.
+test('the flag initializer stops at the syntax boundary, not the next semicolon', () => {
+  const head = "const fs = require('node:fs');\n";
+  // Automatic semicolon insertion: no `;` after the declaration, so the next
+  // statement is not part of the initializer.
+  const asi = sitesIn('probe.js', head + "const flags = 'w'\nfs.openSync(p, flags);\n");
+  assert.equal(asi.length, 1);
+  assert.equal(asi[0].capability, 'fs_write');
+  // A second declarator must not be read as part of the first initializer.
+  const multi = sitesIn('probe.js', head + "const flags = 'w', mode = 0o600;\nfs.openSync(p, flags, mode);\n");
+  assert.equal(multi.length, 1);
+  assert.equal(multi[0].capability, 'fs_write');
+});
+
+test('punctuation inside a string literal is not an argument boundary', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const path of ["'a,b'", "'a)b('"]) {
+    const found = sitesIn('probe.js', head + `fs.openSync(${path}, 'w');\n`);
+    assert.equal(found.length, 1, path);
+    assert.equal(found[0].capability, 'fs_write', path);
+  }
+});
+
+test('a comment between the callee and the paren does not hide the write', () => {
+  const head = "const fs = require('node:fs');\n";
+  // The `(` inside the comment is not the call's parenthesis, so a text search
+  // from the callee's end would key the write on the wrong offset and drop it.
+  const block = sitesIn('probe.js', head + "fs.openSync /* ( */ (p, 'w');\n");
+  assert.equal(block.length, 1);
+  assert.equal(block[0].capability, 'fs_write');
+  // A block comment with no `(` between the callee and the paren still writes.
+  const plain = sitesIn('probe.js', head + "fs.openSync /* c */ (p, 'w');\n");
+  assert.equal(plain.length, 1);
+  assert.equal(plain[0].capability, 'fs_write');
+  // And the flag still decides: a read behind a comment stays invisible.
+  assert.deepEqual(sitesIn('probe.js', head + "fs.openSync /* ( */ (p, 'r');\n"), []);
+});
+
+test('a decoded or rs+ write flag is a write, and a read stays out', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const [label, flag] of [['rs+', "'rs+'"], ['escaped w', "'\\x77'"], ['escaped a', "'\\x61'"]]) {
+    const found = sitesIn('probe.js', head + `fs.openSync(p, ${flag});\n`);
+    assert.equal(found.length, 1, label);
+    assert.equal(found[0].capability, 'fs_write', label);
+  }
+  // `rs` (no plus) is read-only, like `r`.
+  assert.deepEqual(sitesIn('probe.js', head + "fs.openSync(p, 'rs');\n"), []);
+});
+
+test('a destructured declaration shadows an outer flag', () => {
+  const head = "const fs = require('node:fs');\n";
+  const shadowed = sitesIn('probe.js', head
+    + "const flags = 'w';\n{ const { flags } = { flags: 'r' }; fs.openSync(p, flags); }\n");
+  assert.deepEqual(shadowed, []);
+});
+
+test('a reassigned mutable flag counts as a possible write', () => {
+  const head = "const fs = require('node:fs');\n";
+  const reassigned = sitesIn('probe.js', head + "let flags = 'r';\nflags = 'w';\nfs.openSync(p, flags);\n");
+  assert.equal(reassigned.length, 1);
+  assert.equal(reassigned[0].capability, 'fs_write');
+  // A `const` cannot be reassigned, so only its initializer decides.
+  assert.deepEqual(sitesIn('probe.js', head + "const flags = 'r';\nfs.openSync(p, flags);\n"), []);
+});
+
+test('an assigned value resolves in the scope it was written in', () => {
+  const head = "const fs = require('node:fs');\n";
+  // The inner `flags` shadows the outer `'r'`, so `mode` holds a write flag by
+  // the call; resolving the assignment against the outer binding would drop it.
+  const nested = sitesIn('probe.js', head
+    + "const flags = 'r';\nlet mode = 'r';\n{\n  const flags = 'w';\n  mode = flags;\n  fs.openSync(p, mode);\n}\n");
+  assert.equal(nested.length, 1);
+  assert.equal(nested[0].capability, 'fs_write');
+  // The same shape with a read-only inner binding is not a write.
+  assert.deepEqual(sitesIn('probe.js', head
+    + "const flags = 'w';\nlet mode = 'r';\n{\n  const flags = 'r';\n  mode = flags;\n  fs.openSync(p, mode);\n}\n"), []);
+});
+
+test('a hoisted var initializer resolves in its lexical scope', () => {
+  const head = "const fs = require('node:fs');\n";
+  // `var mode` hoists to the program scope, but its initializer reads the
+  // block-local `flags`, so `mode` holds a write flag by the call.
+  const hoisted = sitesIn('probe.js', head
+    + "{\n  const flags = 'w';\n  var mode = flags;\n  fs.openSync(p, mode);\n}\n");
+  assert.equal(hoisted.length, 1);
+  assert.equal(hoisted[0].capability, 'fs_write');
+  // A read-only block-local binding is not a write.
+  assert.deepEqual(sitesIn('probe.js', head
+    + "{\n  const flags = 'r';\n  var mode = flags;\n  fs.openSync(p, mode);\n}\n"), []);
+});
+
+test('a value assigned before its declaration still resolves', () => {
+  const head = "const fs = require('node:fs');\n";
+  // `var` hoists, so the binding exists when the earlier assignment runs; a
+  // declaration-order walk would resolve the assignment against nothing.
+  const beforeVar = sitesIn('probe.js', head + "mode = 'w';\nvar mode;\nfs.openSync(p, mode);\n");
+  assert.equal(beforeVar.length, 1);
+  assert.equal(beforeVar[0].capability, 'fs_write');
+  // The same shape through `let`, and with a read value, is not a write.
+  assert.equal(sitesIn('probe.js', head + "mode = 'w';\nlet mode;\nfs.openSync(p, mode);\n").length, 1);
+  assert.deepEqual(sitesIn('probe.js', head + "mode = 'r';\nvar mode;\nfs.openSync(p, mode);\n"), []);
+});
+
+test('a redeclared var keeps the initializer it already had', () => {
+  const head = "const fs = require('node:fs');\n";
+  // `var flags;` after `var flags = 'w'` does not reset the value: JavaScript
+  // leaves it as `'w'`, so the write must still be counted.
+  const redeclared = sitesIn('probe.js', head + "var flags = 'w';\nvar flags;\nfs.openSync(p, flags);\n");
+  assert.equal(redeclared.length, 1);
+  assert.equal(redeclared[0].capability, 'fs_write');
+  // A read-only value stays out, with or without the redeclaration.
+  assert.deepEqual(sitesIn('probe.js', head + "var flags = 'r';\nvar flags;\nfs.openSync(p, flags);\n"), []);
+  // A write assigned after the redeclaration still counts.
+  assert.equal(sitesIn('probe.js', head
+    + "var flags = 'r';\nvar flags;\nflags = 'w';\nfs.openSync(p, flags);\n").length, 1);
+});
+
+test('a write mark inside a comment or a string is not a flag', () => {
+  const head = "const fs = require('node:fs');\n";
+  for (const expr of [
+    'fs.constants.O_RDONLY | 0 /* O_CREAT */',
+    'fs.constants.O_RDONLY /* O_CREAT */ | 0',
+    'fs.constants.O_RDONLY | Number("O_CREAT")',
+  ]) {
+    assert.deepEqual(sitesIn('probe.js', head + `fs.openSync(p, ${expr});\n`), [], expr);
+  }
+  // The real constants still count.
+  const real = sitesIn('probe.js', head + 'fs.openSync(p, fs.constants.O_WRONLY | fs.constants.O_CREAT);\n');
+  assert.equal(real.length, 1);
+});
+
+test('a flag resolves through the call\'s own scope, and a parameter shadows', () => {
+  const head = "const fs = require('node:fs');\n";
+  // Two functions bind `flags`; each call must see its own binding, not the
+  // last one written in the file.
+  const twoScopes = sitesIn('probe.js', head
+    + "function write(p) {\n  const flags = 'w';\n  fs.openSync(p, flags);\n}\n"
+    + "function read(p) {\n  const flags = 'r';\n  fs.openSync(p, flags);\n}\n");
+  assert.equal(twoScopes.length, 1);
+  assert.equal(twoScopes[0].line, 4);
+  // An outer write flag must not resolve a same-named parameter.
+  const shadowed = sitesIn('probe.js', head + "const flags = 'w';\nfunction f(p, flags) { return fs.openSync(p, flags); }\n");
+  assert.deepEqual(shadowed, []);
+});
+
 test('a TLS connection is egress, like the plain sockets beside it (#4093)', () => {
   for (const spec of ['tls', 'node:tls']) {
     const found = sitesIn('probe.js', `const tls = require('${spec}');\ntls.connect({ host: 'siem.example.com' });\n`);

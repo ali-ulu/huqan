@@ -2,19 +2,19 @@
   "schemaVersion": "huqan.enforcement-coverage.v1",
   "establishes": "The inventory of call sites that can act on the world, and the recorded role of each. It does NOT establish that any site is enforced at run time: that would need call-graph analysis this build does not perform. A local alias, and a parameter or destructuring default whose right-hand side is a known binding, are followed; dynamic property access (`fs[name](...)`) and a handle that is never locally bound to a known namespace are invisible to it. Nor does any entry here describe what an approved process goes on to do: the guard evaluates the command it is shown, so a process it allowed can write, spawn and transmit without a further decision, and an action refused when requested directly succeeds silently when a permitted process performs it. That boundary decides what \"protected\" means for this package; it is demonstrated in test/subprocess-boundary.contract.test.js.",
   "totals": {
-    "files": 117,
-    "sites": 311,
+    "files": 118,
+    "sites": 334,
     "byCapability": {
       "process": 56,
       "egress": 25,
-      "fs_write": 230
+      "fs_write": 253
     },
     "byRole": {
-      "enforcement": 61,
+      "enforcement": 63,
       "adapter_read": 11,
-      "operator_tool": 150,
-      "persistence": 59,
-      "evidence": 16,
+      "operator_tool": 155,
+      "persistence": 70,
+      "evidence": 21,
       "egress_operator_gated": 11,
       "unguarded": 3
     }
@@ -162,6 +162,11 @@
       ],
       "sites": [
         {
+          "line": 177,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 178,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -176,6 +181,11 @@
         "fs_write"
       ],
       "sites": [
+        {
+          "line": 108,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
         {
           "line": 109,
           "capability": "fs_write",
@@ -192,6 +202,16 @@
       ],
       "sites": [
         {
+          "line": 29,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
+          "line": 31,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 32,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -206,6 +226,11 @@
         "fs_write"
       ],
       "sites": [
+        {
+          "line": 92,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
         {
           "line": 93,
           "capability": "fs_write",
@@ -424,6 +449,21 @@
       ]
     },
     {
+      "file": "lib/authority/ledger-store.js",
+      "role": "evidence",
+      "why": "the approval authority's append-only ledger (#3860, ADR-016 item 8): one hash-chained JSONL line per registration, decision, consumption and outcome, appended with an fsync. It is the audit trail `huqan audit --authority` checks local approvals and receipts against, so gating its own append would drop exactly the decisions worth recording. The target is path.join(stateDir, LEDGER_FILE) that the service resolves (lib/authority/service-main.js), never an agent-supplied path; the write reaches it through the `io` handle defaulting to node:fs, opened `'a'` 0600, so the inventory now records the append the flag-aware open rule sees",
+      "capabilities": [
+        "fs_write"
+      ],
+      "sites": [
+        {
+          "line": 46,
+          "capability": "fs_write",
+          "call": "io.openSync"
+        }
+      ]
+    },
+    {
       "file": "lib/authority/posix-path-trust.js",
       "role": "enforcement",
       "why": "the POSIX counterpart of install-trust.js: it decides whether the installed pin path is root-owned, closed to group and other, and link-free before a parsed pin is trusted, and on darwin runs a fixed `/bin/ls -lde` probe for extended ACLs. Paths are fixed in source, it writes nothing, and a component it cannot inspect fails closed to install_path_untrusted",
@@ -470,6 +510,11 @@
           "line": 29,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        },
+        {
+          "line": 34,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         },
         {
           "line": 41,
@@ -660,6 +705,11 @@
           "call": "spawn"
         },
         {
+          "line": 123,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 131,
           "capability": "fs_write",
           "call": "fs.rmSync"
@@ -730,6 +780,11 @@
           "call": "fs.mkdirSync"
         },
         {
+          "line": 105,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 106,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -765,6 +820,11 @@
         "fs_write"
       ],
       "sites": [
+        {
+          "line": 325,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
         {
           "line": 326,
           "capability": "fs_write",
@@ -1349,6 +1409,11 @@
       ],
       "sites": [
         {
+          "line": 60,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 68,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
@@ -1691,6 +1756,11 @@
           "call": "fs.appendFileSync"
         },
         {
+          "line": 128,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 132,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -1750,6 +1820,11 @@
           "line": 107,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
+        },
+        {
+          "line": 108,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         }
       ]
     },
@@ -1771,7 +1846,7 @@
     {
       "file": "lib/gate-hook-daemon-state.js",
       "role": "enforcement",
-      "why": "where the gate daemon keeps its machine-local state (#perf, split out of lib/gate-hook-daemon.js at the 400-line budget): the socket path and its pid/log/identity siblings under the 0700 state root, plus symlink-safe writes (O_NOFOLLOW/O_EXCL, 0600) and a pid-liveness probe. The fs_write sites the inventory records are the daemon's own pid, log and identity files, reached through rmSync and writeFileSync; openLogPrivate opens the log through a flag-based openSync, which the scanner does not count today (see the flag-based-open blind spot in scripts/binding-site-scan.js), so this entry names the files, not every call that touches them. The egress site is a connect() to the local unix socket to prove a listener owns a pid before SIGTERM, never a remote host. It decides nothing: it only says where the transport lives and whether it is alive",
+      "why": "where the gate daemon keeps its machine-local state (#perf, split out of lib/gate-hook-daemon.js at the 400-line budget): the socket path and its pid/log/identity siblings under the 0700 state root, plus symlink-safe writes (O_NOFOLLOW/O_EXCL, 0600) and a pid-liveness probe. The fs_write sites the inventory records are the daemon's own pid, log and identity files, reached through rmSync, writeFileSync and a flag-based openSync (the log, opened O_WRONLY|O_CREAT|O_APPEND 0600); openLogPrivate opens it without following a symlink, the same concern as writePrivate. The egress site is a connect() to the local unix socket to prove a listener owns a pid before SIGTERM, never a remote host. It decides nothing: it only says where the transport lives and whether it is alive",
       "capabilities": [
         "egress",
         "fs_write"
@@ -1786,6 +1861,11 @@
           "line": 130,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        },
+        {
+          "line": 141,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         },
         {
           "line": 170,
@@ -1900,6 +1980,11 @@
           "call": "fs.mkdirSync"
         },
         {
+          "line": 159,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 160,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -1958,6 +2043,11 @@
           "line": 39,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
+        },
+        {
+          "line": 57,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         },
         {
           "line": 58,
@@ -2410,6 +2500,11 @@
       ],
       "sites": [
         {
+          "line": 56,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 58,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
@@ -2433,6 +2528,11 @@
           "line": 122,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
+        },
+        {
+          "line": 134,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         }
       ]
     },
@@ -2459,6 +2559,11 @@
         "fs_write"
       ],
       "sites": [
+        {
+          "line": 92,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
         {
           "line": 93,
           "capability": "fs_write",
@@ -2526,6 +2631,11 @@
       ],
       "sites": [
         {
+          "line": 19,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
+        {
           "line": 36,
           "capability": "fs_write",
           "call": "fs.rmSync"
@@ -2554,6 +2664,11 @@
           "line": 87,
           "capability": "fs_write",
           "call": "fs.mkdirSync"
+        },
+        {
+          "line": 95,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         },
         {
           "line": 97,
@@ -2585,6 +2700,11 @@
         "fs_write"
       ],
       "sites": [
+        {
+          "line": 67,
+          "capability": "fs_write",
+          "call": "fs.openSync"
+        },
         {
           "line": 117,
           "capability": "fs_write",
@@ -2700,6 +2820,11 @@
           "line": 95,
           "capability": "fs_write",
           "call": "fs.writeFileSync"
+        },
+        {
+          "line": 101,
+          "capability": "fs_write",
+          "call": "fs.openSync"
         }
       ]
     },
