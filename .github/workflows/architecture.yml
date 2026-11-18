@@ -107,19 +107,6 @@ jobs:
       - name: Require the V5 agent-identity readiness verdict
         run: npm run check:v5-identity
 
-      # #3418: these two shipped as `npm run` scripts and ran only indirectly,
-      # through the tests that import their functions. A regression that broke
-      # the scan while leaving the imported function green could land. Both are
-      # dependency-free and sub-second, so they belong in this no-install job.
-      - name: Require every world-acting call site to carry a recorded role
-        run: node scripts/enforcement-coverage.js
-
-      # The check above rewrites coverage-manifest.json, so a committed manifest
-      # that no longer matches the tree is the same drift it reports. Fail here
-      # rather than leaving it for the next author to regenerate.
-      - name: Require the committed enforcement manifest to match the tree
-        run: git diff --exit-code coverage-manifest.json
-
       - name: Require the benign false-block rate to hold its recorded baseline
         run: node scripts/benign-false-block-rate.js
 
@@ -150,3 +137,14 @@ jobs:
 
       - name: Enforce a lint-clean tree
         run: npm run lint
+
+      # #4601: the world-acting scan resolves an `open` flag from the AST, so it
+      # needs `acorn` -- a runtime dependency. It moved here from static-gates,
+      # which installs nothing, when the scanner gained that import. The manifest
+      # diff stays beside the run: that step rewrites coverage-manifest.json, so
+      # a committed manifest that no longer matches the tree is the same drift.
+      - name: Require every world-acting call site to carry a recorded role
+        run: node scripts/enforcement-coverage.js
+
+      - name: Require the committed enforcement manifest to match the tree
+        run: git diff --exit-code coverage-manifest.json

@@ -1,5 +1,7 @@
 'use strict';
 
+const { writeOpenParens } = require('./open-write-scan');
+
 // Binding-aware call-site scanning core for the enforcement-coverage gate
 // (#2188).
 //
@@ -22,15 +24,6 @@
 // access (`fs[name](...)`) and a handle that arrives with no local binding
 // to a known namespace stay invisible. Alias/default shapes that ARE
 // followed are documented on aliasesFor.
-//
-// A flag-based `open`/`openSync` is not counted either, and it is deliberately
-// not in fs_write's members above: the same call opens for reading with `'r'`
-// and for writing with `'w'`/`'a'`/`O_CREAT`, so a plain member addition would
-// report every read-only open in the repository as a write. A flag-aware rule
-// would add ~22 write sites across 20 files; that is a scanner change with its
-// own classification work, not part of a perf change.
-// shortcut: flag-based open is invisible to fs_write, <when to upgrade: a file
-// whose only write is a flag-based open, or a dedicated scanner change>.
 
 /**
  * The capabilities a receipt is supposed to be able to speak about.
@@ -74,6 +67,14 @@ const CAPABILITIES = Object.freeze({
  */
 const GLOBAL_EGRESS = /(?<![.\w])(?:globalThis\s*\.\s*)?fetch\s*\(/g;
 const GLOBAL_EGRESS_REF = /(?<![.\w])globalThis\s*\.\s*fetch(?![\w$])(?!\s*\()/g;
+
+/**
+ * `open`/`openSync` writes only when its flag says so, so it is not a plain
+ * fs_write member (that would report the read-only opens as writes). The flag
+ * is read from the AST in `open-write-scan.js`: a `'w'`/`'a'`/`'r+'` literal,
+ * an `O_WRONLY`/`O_CREAT`-marked expression, or a local name resolved through
+ * the scope at the call. `'r'`, `O_RDONLY` and a parameter are not writes.
+ */
 
 /**
  * Blank out comments, and optionally string literals, preserving length and
@@ -329,14 +330,23 @@ function sitesIn(file, source) {
   // blanked. Both transforms preserve length, so the offsets agree.
   const declarations = stripComments(source);
   const text = stripCommentsAndStrings(source);
+  // The `(` offset of every open call whose flag writes. Null when the source
+  // does not parse: then every open call is counted rather than dropped, since
+  // a missed write is the failure a coverage gate exists to catch.
+  const writeOpen = writeOpenParens(source);
   const found = [];
   for (const [name, capability] of Object.entries(CAPABILITIES)) {
     const { namespaces, direct } = resolveBindings(declarations, text, capability);
     if (namespaces.size === 0 && direct.size === 0) continue;
-    const members = capability.members.join('|');
+    // `open`/`openSync` joins fs_write's members, but only when its flag writes (#4601).
+    const members = capability.members.join('|') + (name === 'fs_write' ? '|open|openSync' : '');
     for (const ns of namespaces) {
       const pattern = new RegExp(`\\b${ns}\\s*\\.\\s*(${members})\\s*\\(`, 'g');
       for (const match of text.matchAll(pattern)) {
+        if (/^open(Sync)?$/.test(match[1])) {
+          const openParen = text.indexOf('(', match.index + match[0].length - 1);
+          if (writeOpen && !writeOpen.has(openParen)) continue;
+        }
         found.push({ file, line: lineOf(text, match.index), capability: name, call: `${ns}.${match[1]}` });
       }
     }
