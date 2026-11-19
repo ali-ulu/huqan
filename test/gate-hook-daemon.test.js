@@ -289,6 +289,97 @@ test('a live socket is not removed when its pid file is missing', async (t) => {
   assert.equal(allowed.stdout.trim(), '{}');
 });
 
+// #4603: `daemon stop` used to reach `process.kill(NaN, 'SIGTERM')` when the
+// listener was alive but the pid file was gone, and Node rejects that with
+// ERR_INVALID_ARG_TYPE. The stop must instead refuse in a structured way, keep
+// the live socket, and leave the daemon serving. `socketIn()` makes this the
+// posix unix-socket case on Linux/macOS and the Windows named-pipe case on
+// Windows, so one test covers both transports the issue names.
+test('a stop with a missing pid file refuses instead of signalling NaN', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  startDaemon(t, sock, dir);
+  fs.rmSync(daemon.pidPath(sock), { force: true });
+
+  const stopped = spawnSync(process.execPath, [HOOK, 'daemon', 'stop'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
+  assert.equal(stopped.status, 0, `stop must report a refusal, not crash: ${stopped.stderr}`);
+  const report = JSON.parse(stopped.stdout);
+  assert.equal(report.stopped, false);
+  assert.match(report.reason, /pid file missing or malformed/);
+  // The refusal must not have removed the live socket: a second daemon binding
+  // over it would leave two processes answering one socket.
+  if (process.platform !== 'win32') {
+    assert.equal(fs.existsSync(sock), true, 'the live socket survives a refused stop');
+  }
+  const env = { ...baseEnv(sock, dir), HUQAN_GATE_DAEMON: '1' };
+  const allowed = callHook(['--profile', 'claude-code'], ALLOW, env);
+  assert.equal(allowed.status, 0);
+  assert.equal(allowed.stdout.trim(), '{}', 'the daemon is still serving after the refused stop');
+});
+
+// The same recovery case with a pid file that exists but does not hold a pid.
+// `Number('abc')` is already NaN, but `Number('')` is 0 and `Number('0x10')` is
+// 16, so the file content is what has to be validated, not just its presence.
+test('a stop with a malformed pid file refuses instead of signalling a wrong pid', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  startDaemon(t, sock, dir);
+  fs.writeFileSync(daemon.pidPath(sock), 'not-a-pid\n', 'utf8');
+
+  const stopped = spawnSync(process.execPath, [HOOK, 'daemon', 'stop'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
+  assert.equal(stopped.status, 0, `stop must report a refusal, not crash: ${stopped.stderr}`);
+  const report = JSON.parse(stopped.stdout);
+  assert.equal(report.stopped, false);
+  assert.match(report.reason, /pid file missing or malformed/);
+  assert.equal(report.pid, null, 'a malformed pid is never reported back as one');
+
+  const env = { ...baseEnv(sock, dir), HUQAN_GATE_DAEMON: '1' };
+  const allowed = callHook(['--profile', 'claude-code'], ALLOW, env);
+  assert.equal(allowed.status, 0);
+  assert.equal(allowed.stdout.trim(), '{}', 'the daemon is still serving after the refused stop');
+});
+
+// `readPid` is the only reader of the pid file, and `Number()` accepts shapes
+// this daemon never writes. Pinning the parser keeps a `''` or `0x10` pid file
+// from turning into pid 0 or 16 at the signal site.
+test('the pid parser accepts only a decimal pid', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  const { readPid } = require('../lib/gate-hook-daemon-state');
+  const file = daemon.pidPath(sock);
+  const cases = [['4321', 4321], [' 4321\n', 4321], ['', NaN], ['0', NaN], ['0x10', NaN],
+    ['1e3', NaN], ['-5', NaN], ['12.5', NaN], ['not-a-pid', NaN]];
+  for (const [content, expected] of cases) {
+    fs.writeFileSync(file, content, 'utf8');
+    const pid = readPid(sock);
+    if (Number.isNaN(expected)) assert.ok(Number.isNaN(pid), `"${content}" must read as NaN, got ${pid}`);
+    else assert.equal(pid, expected, `"${content}" must read as ${expected}`);
+  }
+  fs.rmSync(file, { force: true });
+  assert.ok(Number.isNaN(readPid(sock)), 'a missing pid file reads as NaN');
+});
+
+// A pid file that outlives the daemon must not block a later start, and a stop
+// with no listener must still clean up rather than signal whatever pid it holds.
+test('a stop with no listener cleans stale state without signalling', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  const file = daemon.pidPath(sock);
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  // A pid that is certainly alive and certainly not a daemon: this process.
+  fs.writeFileSync(file, `${process.pid}\n`, 'utf8');
+
+  const stopped = spawnSync(process.execPath, [HOOK, 'daemon', 'stop'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
+  assert.equal(stopped.status, 0);
+  assert.equal(JSON.parse(stopped.stdout).stopped, false);
+  assert.equal(fs.existsSync(file), false, 'the stale pid file is cleaned up');
+  assert.equal(isAlive(process.pid), true, 'an unrelated live process is never signalled');
+});
+
+function isAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+}
+
 // A client that connects and sends nothing must not stall a graceful shutdown.
 // server.close() waits for open connections, so an idle one is dropped.
 test('an idle connection does not stall the daemon stop', (t) => {
