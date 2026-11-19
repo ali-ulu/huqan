@@ -352,12 +352,12 @@ test('the pid parser accepts only a decimal pid', (t) => {
     ['1e3', NaN], ['-5', NaN], ['12.5', NaN], ['not-a-pid', NaN]];
   for (const [content, expected] of cases) {
     fs.writeFileSync(file, content, 'utf8');
-    const pid = readPid(sock);
+    const pid = readPid(sock, baseEnv(sock, dir));
     if (Number.isNaN(expected)) assert.ok(Number.isNaN(pid), `"${content}" must read as NaN, got ${pid}`);
     else assert.equal(pid, expected, `"${content}" must read as ${expected}`);
   }
   fs.rmSync(file, { force: true });
-  assert.ok(Number.isNaN(readPid(sock)), 'a missing pid file reads as NaN');
+  assert.ok(Number.isNaN(readPid(sock, baseEnv(sock, dir))), 'a missing pid file reads as NaN');
 });
 
 // A pid file that outlives the daemon must not block a later start, and a stop
