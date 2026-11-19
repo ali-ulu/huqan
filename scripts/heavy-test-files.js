@@ -64,6 +64,15 @@ const HEAVY_FILE_TIMEOUT_OVERRIDES = Object.freeze({
   // #4516): the same ~2x spawn cost the entry above documents, on a cohort that
   // cannot be shortened without dropping below the margin-provable size (59).
   'test/g3-breakeven-retention.test.js': 420_000,
+  // The G3 closure-gate dimensions (#4470) runs ~81 real `cli.js coder`
+  // children across power, restart, shift and prior-skill arms, at ~73s locally
+  // on Node 24. Windows passes it in 133.7s (run 44485794658, shard 3) and was
+  // still working when the 240s shared cap killed it (elapsed 240.829s,
+  // SIGTERM, nightly 44505401181, #4619). The file is slow, not hung: the same
+  // runner passed it twice at roughly 2x local cost, so it gets the headroom
+  // the break-even entry above needed. Its arms cannot be shortened without
+  // dropping below the margin-provable size.
+  'test/g3-closure-dimensions.test.js': 420_000,
 });
 const HEAVY_FILES = Object.freeze(new Set([
   // Real per-case Git/approval/rollback checks passed in 221s under local load.
