@@ -59,6 +59,21 @@ function pidPathIn(sock, dir) {
   return daemon.pidPath(sock, baseEnv(sock, dir));
 }
 
+// A direct daemon request, not a hook call: the hook CLI falls back to the
+// one-shot path when the daemon cannot answer, so its exit 0 would not prove
+// the daemon still serves. This rejects instead of falling back.
+// The payload travels as an argument, not an env var: the daemon fingerprints
+// its whole environment, so an extra variable would make the probe's identity
+// differ from the daemon's and the request would be refused before sending.
+function callDaemonDirect(sock, dir, payload) {
+  const script = `const d = require(${JSON.stringify(path.join(ROOT, 'lib', 'gate-hook-daemon'))});
+    d.requestDaemon({ argv: ['node', 'hook', '--profile', 'claude-code'], stdin: process.argv[1] })
+      .then(r => process.stdout.write(JSON.stringify(r)))
+      .catch(e => { process.stderr.write('ERR:' + e.message); process.exitCode = 1; });`;
+  return spawnSync(process.execPath, ['-e', script, payload], { cwd: ROOT, encoding: 'utf8', timeout: 8000,
+    env: baseEnv(sock, dir) });
+}
+
 function startDaemon(t, sock, dir) {
   const env = baseEnv(sock, dir);
   const started = spawnSync(process.execPath, [HOOK, 'daemon', 'start'], { cwd: ROOT, encoding: 'utf8', env });
@@ -314,10 +329,9 @@ test('a stop with a missing pid file refuses instead of signalling NaN', (t) => 
   if (process.platform !== 'win32') {
     assert.equal(fs.existsSync(sock), true, 'the live socket survives a refused stop');
   }
-  const env = { ...baseEnv(sock, dir), HUQAN_GATE_DAEMON: '1' };
-  const allowed = callHook(['--profile', 'claude-code'], ALLOW, env);
-  assert.equal(allowed.status, 0);
-  assert.equal(allowed.stdout.trim(), '{}', 'the daemon is still serving after the refused stop');
+  const served = callDaemonDirect(sock, dir, ALLOW);
+  assert.equal(served.status, 0, `the daemon must still answer directly: ${served.stderr}`);
+  assert.equal(JSON.parse(served.stdout).stdout.trim(), '{}');
 });
 
 // A pid file that exists but holds no pid: Number('') is 0 and Number('0x10')
@@ -335,10 +349,9 @@ test('a stop with a malformed pid file refuses instead of signalling a wrong pid
   assert.match(report.reason, /pid file missing or malformed/);
   assert.equal(report.pid, null, 'a malformed pid is never reported back as one');
 
-  const env = { ...baseEnv(sock, dir), HUQAN_GATE_DAEMON: '1' };
-  const allowed = callHook(['--profile', 'claude-code'], ALLOW, env);
-  assert.equal(allowed.status, 0);
-  assert.equal(allowed.stdout.trim(), '{}', 'the daemon is still serving after the refused stop');
+  const served = callDaemonDirect(sock, dir, ALLOW);
+  assert.equal(served.status, 0, `the daemon must still answer directly: ${served.stderr}`);
+  assert.equal(JSON.parse(served.stdout).stdout.trim(), '{}');
 });
 
 // readPid is the only reader of the pid file, and Number() accepts shapes this
@@ -348,8 +361,11 @@ test('the pid parser accepts only a decimal pid', (t) => {
   const sock = socketIn(dir);
   const { readPid } = require('../lib/gate-hook-daemon-state');
   const file = pidPathIn(sock, dir);
+  // 2147483648 is a valid decimal but past the signal API's range: Node throws
+  // ERR_INVALID_ARG_TYPE instead of ESRCH, so it must not reach the signal.
   const cases = [['4321', 4321], [' 4321\n', 4321], ['', NaN], ['0', NaN], ['0x10', NaN],
-    ['1e3', NaN], ['-5', NaN], ['12.5', NaN], ['not-a-pid', NaN]];
+    ['1e3', NaN], ['-5', NaN], ['12.5', NaN], ['not-a-pid', NaN],
+    ['2147483648', NaN], ['99999999999999999999', NaN], ['2147483647', 2147483647]];
   for (const [content, expected] of cases) {
     fs.writeFileSync(file, content, 'utf8');
     const pid = readPid(sock, baseEnv(sock, dir));
