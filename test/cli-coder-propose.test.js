@@ -43,9 +43,18 @@ function withFailureFile(content, run) {
 describe('coder propose', () => {
   it('parses the failure file and root without mistaking flags for it', () => {
     assert.deepEqual(parseProposeArgs(['failure.json', '--root', '/tmp/x']),
-      { failureFile: 'failure.json', root: '/tmp/x' });
+      { failureFile: 'failure.json', root: '/tmp/x', sourceFile: '' });
     assert.deepEqual(parseProposeArgs(['--json', 'failure.json']),
-      { failureFile: 'failure.json', root: '' });
+      { failureFile: 'failure.json', root: '', sourceFile: '' });
+  });
+
+  it('parses --source as the learning source and never as the failure file', () => {
+    assert.deepEqual(parseProposeArgs(['--source', 'source.json', 'failure.json']),
+      { failureFile: 'failure.json', root: '', sourceFile: 'source.json' });
+    // A trailing --source has no value, and a missing value must not be read as
+    // "no source": the caller asked for validation and the evidence is missing.
+    assert.throws(() => parseProposeArgs(['failure.json', '--source']), /needs a file path/u);
+    assert.throws(() => parseProposeArgs(['failure.json', '--source', '--json']), /needs a file path/u);
   });
 
   it('prints a task that the coder command can then run', () => {

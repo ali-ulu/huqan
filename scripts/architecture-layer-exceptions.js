@@ -66,6 +66,18 @@ const LAYER_EXCEPTIONS = Object.freeze([
     review_by: '2026-12-31',
   },
   {
+    from: 'lib/cli-coder-propose.js',
+    to: 'lib/experience/learning-source.js',
+    why: 'The coder propose command resolves the learning-source contract it attaches to the'
+      + ' task it prints (#4599); the command lives beside the other coder CLI handlers (Core)'
+      + ' while the contract lives with the experience pipeline (Application) -- the same shape'
+      + ' as the cli-coder -> coder/journal-store and cli-experience-learn -> learning-intake'
+      + ' edges above. The module is a pure predicate with no fs, network or clock, so the'
+      + ' follow-up fix is to lift it into Core beside the other pure contracts once a second'
+      + ' consumer exists, rather than to pass a resolver through the cli.js entrypoint.',
+    review_by: '2026-12-31',
+  },
+  {
     from: 'lib/cli-promote.js',
     to: 'lib/experience/capability-trust.js',
     why: 'The terfi command seeds the trust ladder the loop promotes through; the ladder'

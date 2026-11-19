@@ -685,6 +685,7 @@
     "lib/experience/journal-connection.js",
     "lib/experience/learning.js",
     "lib/experience/learning-intake.js",
+    "lib/experience/learning-source.js",
     "lib/experience/optimization-hypothesis.js",
     "lib/experience/promotion-ci-gate.js",
     "lib/experience/promotion-staged-eval.js",
