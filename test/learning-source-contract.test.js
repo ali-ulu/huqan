@@ -20,6 +20,7 @@ const { PRODUCER_STATUSES, produceTask } = require('../lib/task-producer');
 const {
   CODES, ELIGIBILITY, sealedFailureHash, resolveLearningSource, attachLearningSource,
 } = require('../lib/experience/learning-source');
+const { LEARNING_ELIGIBILITY } = require('../lib/experience/contract');
 
 function verifiedFailure(overrides = {}) {
   const prevention = createErrorPrevention(new MemoryStore({ useSQLite: false }), {
@@ -46,6 +47,16 @@ function sourceFor(failure, overrides = {}) {
     ...overrides,
   };
 }
+
+test('the eligibility vocabulary is the journal contract\'s, not a private copy', () => {
+  // canary.js and capability-trust.js compare against the contract's exact
+  // strings; a private spelling would publish a value nothing downstream reads.
+  assert.deepEqual(ELIGIBILITY, LEARNING_ELIGIBILITY);
+  assert.equal(ELIGIBILITY.INELIGIBLE, 'ineligible');
+  const failure = verifiedFailure();
+  const refused = resolveLearningSource({ failure, source: sourceFor(failure, { hash: 'b'.repeat(64) }) });
+  assert.equal(refused.eligibility, LEARNING_ELIGIBILITY.INELIGIBLE);
+});
 
 test('a verified failure with an independent oracle resolves as a positive procedure', () => {
   const failure = verifiedFailure();
