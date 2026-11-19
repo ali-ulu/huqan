@@ -74,6 +74,20 @@ const TEARDOWN_CASES = [
   ['pulumi destroy --yes', ACTION_CATEGORIES.DEPLOYMENT],
   ['pulumi up --yes', ACTION_CATEGORIES.DEPLOYMENT],
   ['npm unpublish huqan --force', ACTION_CATEGORIES.DEPLOYMENT],
+  // #4596: cloud CLIs with deploy/teardown verbs
+  ['aws cloudformation delete-stack --stack-name prod', ACTION_CATEGORIES.DEPLOYMENT],
+  ['aws s3 rm s3://prod-bucket --recursive', ACTION_CATEGORIES.DEPLOYMENT],
+  ['aws s3 rb s3://prod-bucket --force', ACTION_CATEGORIES.DEPLOYMENT],
+  ['aws ec2 terminate-instances --instance-ids i-1', ACTION_CATEGORIES.DEPLOYMENT],
+  ['gcloud run deploy svc --region us', ACTION_CATEGORIES.DEPLOYMENT],
+  ['gcloud compute instances delete vm-1', ACTION_CATEGORIES.DEPLOYMENT],
+  ['gcloud container clusters delete prod', ACTION_CATEGORIES.DEPLOYMENT],
+  ['az group delete -n prod --yes', ACTION_CATEGORIES.DEPLOYMENT],
+  ['az aks delete -g rg -n cluster', ACTION_CATEGORIES.DEPLOYMENT],
+  ['vercel deploy --prod', ACTION_CATEGORIES.DEPLOYMENT],
+  ['vercel rm my-deployment', ACTION_CATEGORIES.DEPLOYMENT],
+  ['aws --region us-east-1 cloudformation delete-stack --stack-name prod', ACTION_CATEGORIES.DEPLOYMENT],
+  ['az --subscription x group delete -n prod', ACTION_CATEGORIES.DEPLOYMENT],
   // Chained forms: `;`, `|` and `&&` are command boundaries too, so the
   // operator cannot smuggle a destroy past the block by prefixing a no-op.
   ['true;terraform destroy -auto-approve', ACTION_CATEGORIES.DEPLOYMENT],
