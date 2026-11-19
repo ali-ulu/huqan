@@ -53,6 +53,27 @@ function baseEnv(sock, dir) {
   };
 }
 
+// A Windows named pipe keeps its pid beside it in HUQAN_STATE_ROOT, so the
+// path must be resolved with the sandbox environment the daemon ran under.
+function pidPathIn(sock, dir) {
+  return daemon.pidPath(sock, baseEnv(sock, dir));
+}
+
+// A direct daemon request, not a hook call: the hook CLI falls back to the
+// one-shot path when the daemon cannot answer, so its exit 0 would not prove
+// the daemon still serves. This rejects instead of falling back.
+// The payload travels as an argument, not an env var: the daemon fingerprints
+// its whole environment, so an extra variable would make the probe's identity
+// differ from the daemon's and the request would be refused before sending.
+function callDaemonDirect(sock, dir, payload) {
+  const script = `const d = require(${JSON.stringify(path.join(ROOT, 'lib', 'gate-hook-daemon'))});
+    d.requestDaemon({ argv: ['node', 'hook', '--profile', 'claude-code'], stdin: process.argv[1] })
+      .then(r => process.stdout.write(JSON.stringify(r)))
+      .catch(e => { process.stderr.write('ERR:' + e.message); process.exitCode = 1; });`;
+  return spawnSync(process.execPath, ['-e', script, payload], { cwd: ROOT, encoding: 'utf8', timeout: 8000,
+    env: baseEnv(sock, dir) });
+}
+
 function startDaemon(t, sock, dir) {
   const env = baseEnv(sock, dir);
   const started = spawnSync(process.execPath, [HOOK, 'daemon', 'start'], { cwd: ROOT, encoding: 'utf8', env });
@@ -265,14 +286,13 @@ test('the environment identity does not collide across a newline in a value', ()
     'a newline in a value must not mimic a second variable');
 });
 
-// A live daemon's socket must never be removed just because its pid file is
-// missing: removing it would let a second daemon bind while the first still
-// serves. Ownership is decided by the socket answering, not by the pid file.
+// Removing a live daemon's socket would let a second daemon bind while the
+// first still serves, so ownership is decided by the socket answering.
 test('a live socket is not removed when its pid file is missing', async (t) => {
   const dir = scratch(t);
   const sock = socketIn(dir);
   startDaemon(t, sock, dir);
-  fs.rmSync(daemon.pidPath(sock), { force: true });
+  fs.rmSync(pidPathIn(sock, dir), { force: true });
 
   const second = spawnSync(process.execPath, [HOOK, 'daemon', 'serve'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
   assert.notEqual(second.status, 0, 'a second serve must refuse a socket a daemon already owns');
@@ -288,6 +308,94 @@ test('a live socket is not removed when its pid file is missing', async (t) => {
   assert.equal(allowed.status, 0);
   assert.equal(allowed.stdout.trim(), '{}');
 });
+
+// #4603: a live listener with no pid file used to reach process.kill(NaN) and
+// throw ERR_INVALID_ARG_TYPE. It must refuse structurally, keep the socket and
+// keep serving. socketIn() makes this the unix socket on posix and the named
+// pipe on Windows, so one test covers both transports.
+test('a stop with a missing pid file refuses instead of signalling NaN', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  startDaemon(t, sock, dir);
+  fs.rmSync(pidPathIn(sock, dir), { force: true });
+
+  const stopped = spawnSync(process.execPath, [HOOK, 'daemon', 'stop'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
+  assert.equal(stopped.status, 0, `stop must report a refusal, not crash: ${stopped.stderr}`);
+  const report = JSON.parse(stopped.stdout);
+  assert.equal(report.stopped, false);
+  assert.match(report.reason, /pid file missing or malformed/);
+  // The refusal must not have removed the live socket: a second daemon binding
+  // over it would leave two processes answering one socket.
+  if (process.platform !== 'win32') {
+    assert.equal(fs.existsSync(sock), true, 'the live socket survives a refused stop');
+  }
+  const served = callDaemonDirect(sock, dir, ALLOW);
+  assert.equal(served.status, 0, `the daemon must still answer directly: ${served.stderr}`);
+  assert.equal(JSON.parse(served.stdout).stdout.trim(), '{}');
+});
+
+// A pid file that exists but holds no pid: Number('') is 0 and Number('0x10')
+// is 16, so the content has to be validated, not just its presence.
+test('a stop with a malformed pid file refuses instead of signalling a wrong pid', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  startDaemon(t, sock, dir);
+  fs.writeFileSync(pidPathIn(sock, dir), 'not-a-pid\n', 'utf8');
+
+  const stopped = spawnSync(process.execPath, [HOOK, 'daemon', 'stop'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
+  assert.equal(stopped.status, 0, `stop must report a refusal, not crash: ${stopped.stderr}`);
+  const report = JSON.parse(stopped.stdout);
+  assert.equal(report.stopped, false);
+  assert.match(report.reason, /pid file missing or malformed/);
+  assert.equal(report.pid, null, 'a malformed pid is never reported back as one');
+
+  const served = callDaemonDirect(sock, dir, ALLOW);
+  assert.equal(served.status, 0, `the daemon must still answer directly: ${served.stderr}`);
+  assert.equal(JSON.parse(served.stdout).stdout.trim(), '{}');
+});
+
+// readPid is the only reader of the pid file, and Number() accepts shapes this
+// daemon never writes. Pin the parser so '' or 0x10 cannot become 0 or 16.
+test('the pid parser accepts only a decimal pid', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  const { readPid } = require('../lib/gate-hook-daemon-state');
+  const file = pidPathIn(sock, dir);
+  // 2147483648 is a valid decimal but past the signal API's range: Node throws
+  // ERR_INVALID_ARG_TYPE instead of ESRCH, so it must not reach the signal.
+  const cases = [['4321', 4321], [' 4321\n', 4321], ['', NaN], ['0', NaN], ['0x10', NaN],
+    ['1e3', NaN], ['-5', NaN], ['12.5', NaN], ['not-a-pid', NaN],
+    ['2147483648', NaN], ['99999999999999999999', NaN], ['2147483647', 2147483647]];
+  for (const [content, expected] of cases) {
+    fs.writeFileSync(file, content, 'utf8');
+    const pid = readPid(sock, baseEnv(sock, dir));
+    if (Number.isNaN(expected)) assert.ok(Number.isNaN(pid), `"${content}" must read as NaN, got ${pid}`);
+    else assert.equal(pid, expected, `"${content}" must read as ${expected}`);
+  }
+  fs.rmSync(file, { force: true });
+  assert.ok(Number.isNaN(readPid(sock, baseEnv(sock, dir))), 'a missing pid file reads as NaN');
+});
+
+// A pid file that outlives the daemon must not block a later start, and a stop
+// with no listener must clean up rather than signal whatever pid it holds.
+test('a stop with no listener cleans stale state without signalling', (t) => {
+  const dir = scratch(t);
+  const sock = socketIn(dir);
+  const file = pidPathIn(sock, dir);
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  // A pid that is certainly alive and certainly not a daemon: this process.
+  fs.writeFileSync(file, `${process.pid}\n`, 'utf8');
+
+  const stopped = spawnSync(process.execPath, [HOOK, 'daemon', 'stop'], { cwd: ROOT, encoding: 'utf8', env: baseEnv(sock, dir), timeout: 8000 });
+  assert.equal(stopped.status, 0);
+  assert.equal(JSON.parse(stopped.stdout).stopped, false);
+  assert.equal(fs.existsSync(file), false, 'the stale pid file is cleaned up');
+  assert.equal(isAlive(process.pid), true, 'an unrelated live process is never signalled');
+});
+
+function isAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+}
 
 // A client that connects and sends nothing must not stall a graceful shutdown.
 // server.close() waits for open connections, so an idle one is dropped.

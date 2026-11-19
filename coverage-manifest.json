@@ -1868,7 +1868,7 @@
           "call": "fs.openSync"
         },
         {
-          "line": 170,
+          "line": 183,
           "capability": "egress",
           "call": "net.connect"
         }
@@ -1920,17 +1920,17 @@
           "call": "spawn"
         },
         {
-          "line": 344,
+          "line": 351,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 345,
+          "line": 352,
           "capability": "fs_write",
           "call": "fs.rmSync"
         },
         {
-          "line": 346,
+          "line": 353,
           "capability": "fs_write",
           "call": "fs.rmSync"
         }
