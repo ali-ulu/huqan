@@ -51,9 +51,10 @@ describe('coder propose', () => {
   it('parses --source as the learning source and never as the failure file', () => {
     assert.deepEqual(parseProposeArgs(['--source', 'source.json', 'failure.json']),
       { failureFile: 'failure.json', root: '', sourceFile: 'source.json' });
-    // A trailing --source with no value must not swallow the failure file.
-    assert.deepEqual(parseProposeArgs(['failure.json', '--source']),
-      { failureFile: 'failure.json', root: '', sourceFile: '' });
+    // A trailing --source has no value, and a missing value must not be read as
+    // "no source": the caller asked for validation and the evidence is missing.
+    assert.throws(() => parseProposeArgs(['failure.json', '--source']), /needs a file path/u);
+    assert.throws(() => parseProposeArgs(['failure.json', '--source', '--json']), /needs a file path/u);
   });
 
   it('prints a task that the coder command can then run', () => {
