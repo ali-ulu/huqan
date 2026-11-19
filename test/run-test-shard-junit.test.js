@@ -39,6 +39,17 @@ describe('run-test-shard per-file deadlines (#1847 follow-up)', () => {
     // Boots a full server per case, seven of them; it crossed 90s on the
     // Windows Node 22 shard of main (54559c77) and passes in 7s locally.
     assert.equal(fileTimeoutMs('test/production-http-adversarial.test.js'), HEAVY_FILE_TIMEOUT_MS);
+    // ~81 real `cli.js coder` children across the G3 closure arms: 133.7s on a
+    // passing Windows shard, and still working at 240.829s when the shared cap
+    // killed it (#4619). It is slow, not hung, so it needs its own budget.
+    assert.equal(
+      fileTimeoutMs('test/g3-closure-dimensions.test.js'),
+      HEAVY_FILE_TIMEOUT_OVERRIDES['test/g3-closure-dimensions.test.js'],
+    );
+    assert.ok(
+      HEAVY_FILE_TIMEOUT_OVERRIDES['test/g3-closure-dimensions.test.js'] > HEAVY_FILE_TIMEOUT_MS,
+      'the override has to be larger than the shared heavy budget it escapes',
+    );
     assert.ok(HEAVY_FILE_TIMEOUT_MS > DEFAULT_FILE_TIMEOUT_MS);
   });
 
