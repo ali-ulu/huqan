@@ -43,9 +43,17 @@ function withFailureFile(content, run) {
 describe('coder propose', () => {
   it('parses the failure file and root without mistaking flags for it', () => {
     assert.deepEqual(parseProposeArgs(['failure.json', '--root', '/tmp/x']),
-      { failureFile: 'failure.json', root: '/tmp/x' });
+      { failureFile: 'failure.json', root: '/tmp/x', sourceFile: '' });
     assert.deepEqual(parseProposeArgs(['--json', 'failure.json']),
-      { failureFile: 'failure.json', root: '' });
+      { failureFile: 'failure.json', root: '', sourceFile: '' });
+  });
+
+  it('parses --source as the learning source and never as the failure file', () => {
+    assert.deepEqual(parseProposeArgs(['--source', 'source.json', 'failure.json']),
+      { failureFile: 'failure.json', root: '', sourceFile: 'source.json' });
+    // A trailing --source with no value must not swallow the failure file.
+    assert.deepEqual(parseProposeArgs(['failure.json', '--source']),
+      { failureFile: 'failure.json', root: '', sourceFile: '' });
   });
 
   it('prints a task that the coder command can then run', () => {

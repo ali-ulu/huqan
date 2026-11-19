@@ -4171,6 +4171,10 @@
     "lib/conversation-ingress.js": {
       "context": "Memory",
       "evidence": "#4393 COG-C PR-3: the Core ingress adapter the plan asks for between the existing surfaces (lib/http/answer-route.js, lib/llm-proxy/proxy-handler.js) and the workspace-bound conversation service; Core ring because both a UI surface and the Adapters proxy require it, with the Trust-owned admission gate injected by the caller"
+    },
+    "lib/experience/learning-source.js": {
+      "context": "Trust",
+      "evidence": "#4599 the acceptance-oracle contract the coder propose command attaches to a task before the experience intake may learn from it"
     }
   },
   "platform": {
@@ -7483,6 +7487,13 @@
         "AgentAction"
       ],
       "evidence": "ownership-map-2446.md#coder-candidate-memory: lib/coder/learned-candidate.js revalidates sealed evidence without installing authority"
+    },
+    "lib/experience/learning-source.js": {
+      "owner": "Trust",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "#4599 the coder propose CLI handler (Platform) resolves the eligibility contract before it prints a task; the contract decides, executes nothing and writes nothing"
     },
     "lib/mcp-gate-adapter.js": {
       "owner": "AgentAction",
