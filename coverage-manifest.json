@@ -1868,7 +1868,7 @@
           "call": "fs.openSync"
         },
         {
-          "line": 177,
+          "line": 183,
           "capability": "egress",
           "call": "net.connect"
         }
