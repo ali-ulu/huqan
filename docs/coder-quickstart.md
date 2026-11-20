@@ -107,13 +107,15 @@ huqan-authority request huqan.acceptance_oracle --workspace default --args '{
 Then decide it in the HUQAN Authority window and apply it:
 
 ```bash
-huqan-authority apply ops-<id> > attestation.json
+huqan-authority apply ops-<id> | jq .attestation > attestation.json
 HUQAN_ACCEPTANCE_ATTESTATION=attestation.json huqan coder propose failure.json --source source.json
 ```
 
 `apply` prints the attestation under the `attestation` key because this
 approval has no side effect to perform — the signed envelope is the whole
-result. Save it and point the variable at it.
+result. The `jq` pipe matters: the verifier reads `channel` and `envelope` at
+the top level, so the saved file must be that nested object and not the whole
+report. Saving the raw output points the variable at a file that cannot verify.
 
 The signed payload binds the exact evidence it authorizes, so one attestation
 authorizes one failure, one command and one path set
