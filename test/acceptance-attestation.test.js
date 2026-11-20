@@ -30,22 +30,28 @@ const SOURCE_HASH = crypto.createHash('sha256').update('failure-record', 'utf8')
 const COMMAND = 'node --test test/version.test.js';
 const PATHS = ['docs/version.md'];
 
+const WORKSPACE = 'default';
+const APPROVAL = 'acceptance-1';
+
 function evidence(overrides = {}) {
   return {
     sourceHash: SOURCE_HASH,
     commandHash: crypto.createHash('sha256').update(COMMAND, 'utf8').digest('hex'),
     allowedPathsHash: allowedPathsHash(PATHS),
     channel: 'ci',
+    approvalId: APPROVAL,
+    workspaceId: WORKSPACE,
     ...overrides,
   };
 }
 
 function mint({
   channel = 'ci', key = AUTHORITY.privateKey, decidedAt = at(-60_000), validUntil = at(9 * 60_000),
-  approvalId = 'acceptance-1', tool = ATTESTATION_TOOL, actionHash = acceptanceActionHash(evidence({ channel })),
+  approvalId = APPROVAL, workspaceId = WORKSPACE, tool = ATTESTATION_TOOL,
+  actionHash = acceptanceActionHash(evidence({ channel, approvalId, workspaceId })),
 } = {}) {
   const envelope = signDecision({
-    v: DECISION_VERSION, approvalId, workspaceId: 'default', tool, actionHash,
+    v: DECISION_VERSION, approvalId, workspaceId, tool, actionHash,
     decision: 'approved', reason: '', decidedAt, validUntil, ledgerSeq: 4,
     ledgerHash: 'c'.repeat(64), operator: 'totp:primary',
   }, key);
@@ -55,7 +61,7 @@ function mint({
 function verify(attestation, overrides = {}) {
   return verifyAcceptanceAttestation(attestation, {
     sourceHash: SOURCE_HASH, command: COMMAND, allowedPaths: PATHS,
-    trustedKey: AUTHORITY.publicKey, now: NOW, ...overrides,
+    trustedKey: AUTHORITY.publicKey, workspaceId: WORKSPACE, now: NOW, ...overrides,
   });
 }
 
@@ -155,9 +161,64 @@ test('the action hash covers the tool, so two evidence shapes never collide', ()
   assert.match(hash, /^[0-9a-f]{64}$/u);
   assert.equal(acceptanceActionHash({ ...base, channel: 'operator' }) === hash, false);
   assert.equal(acceptanceActionHash({ ...base, sourceHash: 'e'.repeat(64) }) === hash, false);
+  // The workspace and the approval are inside the hash: a grant for one
+  // workspace is not a grant for another.
+  assert.equal(acceptanceActionHash({ ...base, workspaceId: 'other' }) === hash, false);
+  assert.equal(acceptanceActionHash({ ...base, approvalId: 'acceptance-2' }) === hash, false);
   assert.equal(acceptanceActionHash({ ...base, channel: 'nope' }), null);
   assert.equal(acceptanceActionHash({ ...base, commandHash: '' }), null);
   // Order-insensitivity is a property of the path hash, not the action hash.
   assert.equal(allowedPathsHash(['a.js', 'b.js']), allowedPathsHash(['b.js', 'a.js']));
   assert.equal(allowedPathsHash([]), null);
+});
+
+test('a registration through the real authority path produces an attestation that verifies', () => {
+  // The finding: registration hashed {tool, workspaceId, approvalId, arguments}
+  // while the verifier hashed only the evidence, so no envelope the documented
+  // workflow could mint ever verified. This drives the real registration and
+  // validation code instead of minting a hand-built hash, so the two recipes
+  // are compared rather than assumed equal.
+  const { validateRegistration } = require('../lib/authority/approval-registration');
+  const { buildOperationalRegistration } = require('../lib/authority/registration-payload');
+  const { OPERATIONAL_TOOLS } = require('../lib/authority/operational-guard');
+  const { acceptanceArguments } = require('../lib/experience/acceptance-attestation');
+
+  assert.equal(OPERATIONAL_TOOLS.ACCEPTANCE_ORACLE, ATTESTATION_TOOL,
+    'the acceptance oracle must be registrable with the authority, or the workflow stops at request');
+
+  const args = acceptanceArguments(evidence());
+  assert.ok(args, 'the evidence must be registrable');
+  const body = buildOperationalRegistration({
+    tool: ATTESTATION_TOOL, workspaceId: WORKSPACE, args,
+    consumeKey: crypto.randomBytes(32), now: NOW, ttlMs: 10 * 60_000,
+  });
+  const validated = validateRegistration(body, NOW);
+  assert.equal(validated.ok, true, `registration must validate: ${JSON.stringify(validated)}`);
+
+  const envelope = signDecision({
+    v: DECISION_VERSION, approvalId: body.approvalId, workspaceId: WORKSPACE, tool: body.tool,
+    actionHash: body.actionHash, decision: 'approved', reason: '', decidedAt: at(-60_000),
+    validUntil: at(9 * 60_000), ledgerSeq: 7, ledgerHash: 'd'.repeat(64), operator: 'totp:primary',
+  }, AUTHORITY.privateKey);
+
+  const result = verify({ channel: 'ci', envelope });
+  assert.equal(result.ok, true, `the registered grant must verify: ${JSON.stringify(result)}`);
+  assert.equal(result.approvalId, body.approvalId);
+  assert.equal(result.workspaceId, WORKSPACE);
+});
+
+test('a grant for one workspace does not authorize a failure from another', () => {
+  // The finding: the workspace check compared the envelope with itself, so an
+  // approval for A passed for any failure. The workspace now comes from the
+  // caller (which reads it from the failure record), so a mismatch refuses.
+  const forDefault = mint();
+  assert.equal(verify(forDefault, { workspaceId: 'default' }).ok, true);
+  const result = verify(forDefault, { workspaceId: 'other' });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, CODES.BINDING_MISMATCH);
+
+  // A missing workspace is refused rather than defaulted: an unscoped grant is
+  // a grant to every workspace.
+  assert.equal(verify(forDefault, { workspaceId: undefined }).code, CODES.MALFORMED);
+  assert.equal(verify(forDefault, { workspaceId: '' }).code, CODES.MALFORMED);
 });

@@ -58,6 +58,8 @@ function attestationFor(failure, {
     commandHash: crypto.createHash('sha256').update(command, 'utf8').digest('hex'),
     allowedPathsHash: allowedPathsHash(allowedPaths),
     channel,
+    approvalId,
+    workspaceId,
   });
   assert.ok(actionHash, 'the fixture evidence must be hashable');
   const envelope = signDecision({
@@ -568,4 +570,41 @@ test('a flag that names a file must name one', () => {
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('a grant is scoped to the workspace the failure came from', () => {
+  // #4624: the workspace must be resolved from the failure record, not from the
+  // envelope, or the check compares the envelope with itself and an approval
+  // for workspace A covers a failure from workspace B.
+  const failure = verifiedFailure();
+  assert.equal(failure.workspaceId, 'default', 'the producer records the workspace');
+
+  // A grant minted for another workspace cannot attach learning eligibility.
+  const otherWorkspace = attestationFor(failure, { workspaceId: 'other' });
+  const refused = resolveLearningSource({
+    failure, source: sourceFor(failure), attestation: otherWorkspace, trustedKey: TRUSTED, now: NOW,
+  });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.code, CODES.ORACLE_SUPPLY_UNVERIFIED);
+
+  // The failure's workspace is inside the sealed hash, so relabelling the
+  // record invalidates the hash the source declares rather than silently
+  // moving the grant to another workspace.
+  const relabelled = { ...failure, workspaceId: 'other' };
+  assert.notEqual(sealedFailureHash(relabelled), sealedFailureHash(failure));
+
+  // An explicitly declared workspace that disagrees with the record is refused
+  // outright: two disagreeing declarations are ambiguous evidence.
+  const mismatched = resolve(failure, sourceFor(failure), { workspaceId: 'other' });
+  assert.equal(mismatched.ok, false);
+  assert.equal(mismatched.code, CODES.WORKSPACE_MISMATCH);
+
+  // A failure with no workspace at all has no grant to attach.
+  const { workspaceId: _omitted, ...anonymous } = failure;
+  const missing = resolveLearningSource({
+    failure: anonymous, source: sourceFor(failure), attestation: attestationFor(failure),
+    trustedKey: TRUSTED, now: NOW,
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.code, CODES.WORKSPACE_MISSING);
 });

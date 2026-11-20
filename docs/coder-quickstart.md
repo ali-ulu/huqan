@@ -88,6 +88,33 @@ uses (`lib/authority/decision-envelope.js`). That envelope is the attestation:
 { "channel": "ci", "envelope": { "alg": "Ed25519", "keyId": "...", "sig": "...", "payload": { ... } } }
 ```
 
+### Registering the oracle
+
+`huqan.acceptance_oracle` is an operational approval, like `terfi` and
+`huqan.agent_resume`: it is registered with the authority rather than stored as
+a runtime approval row. The `--args` object is exactly the evidence the
+decision will bind, so registration and verification hash the same bytes.
+
+```bash
+huqan-authority request huqan.acceptance_oracle --workspace default --args '{
+  "sourceHash":     "<sealedFailureHash of the failure record>",
+  "commandHash":    "<sha256 of the acceptance command>",
+  "allowedPathsHash": "<allowedPathsHash of the declared path set>",
+  "channel":        "ci"
+}'
+```
+
+Then decide it in the HUQAN Authority window and apply it:
+
+```bash
+huqan-authority apply ops-<id> > attestation.json
+HUQAN_ACCEPTANCE_ATTESTATION=attestation.json huqan coder propose failure.json --source source.json
+```
+
+`apply` prints the attestation under the `attestation` key because this
+approval has no side effect to perform — the signed envelope is the whole
+result. Save it and point the variable at it.
+
 The signed payload binds the exact evidence it authorizes, so one attestation
 authorizes one failure, one command and one path set
 (`lib/experience/acceptance-attestation.js`):
@@ -98,6 +125,8 @@ authorizes one failure, one command and one path set
 | `commandHash` | the acceptance command itself |
 | `allowedPathsHash` | the exact path set the candidate may touch |
 | `channel` | `operator` or `ci` |
+| `approvalId` | this one approval, not a sibling's |
+| `workspaceId` | the workspace the failure record came from |
 
 Replaying the attestation against a different record, a swapped command or a
 wider path set fails the binding check. A file the agent writes itself fails
