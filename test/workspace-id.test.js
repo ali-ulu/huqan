@@ -55,3 +55,18 @@ test('Graph rejects a numeric workspace instead of writing it into default', () 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('workspace ids carrying control characters are refused, not silently re-scoped', () => {
+  // #4235 fixed this shape at one MCP call site. The stop lookup is an exact
+  // string match, so "w\u0000" missed a stop on "w" while every other layer
+  // still read it as a workspace of its own -- the boundary helper is where the
+  // refusal belongs, because all 106 callers inherit it from here.
+  for (const value of ['w\u0000', 'w\u0001', 'w\u007f', 'w\nx', 'a\tb']) {
+    assert.throws(
+      () => normalizeWorkspaceId(value),
+      (error) => error?.code === WORKSPACE_ID_INVALID && /control characters/u.test(error.message),
+      `${JSON.stringify(value)} must be refused`,
+    );
+  }
+  assert.equal(normalizeWorkspaceId(' w '), 'w', 'trimming whitespace still normalizes');
+});
