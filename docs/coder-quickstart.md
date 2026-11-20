@@ -96,13 +96,18 @@ a runtime approval row. The `--args` object is exactly the evidence the
 decision will bind, so registration and verification hash the same bytes.
 
 ```bash
-huqan-authority request huqan.acceptance_oracle --workspace default --args '{
+huqan-authority request huqan.acceptance_oracle --workspace <the failure record's workspaceId> --args '{
   "sourceHash":     "<sealedFailureHash of the failure record>",
   "commandHash":    "<sha256 of the acceptance command>",
   "allowedPathsHash": "<allowedPathsHash of the declared path set>",
   "channel":        "ci"
 }'
 ```
+
+`--workspace` must be the failure record's own `workspaceId`, not a fixed
+`default`: the attestation is scoped to a workspace, so a grant registered under
+the wrong one authorizes nothing the record can use
+(`lib/experience/acceptance-attestation.js`).
 
 Then decide it in the HUQAN Authority window and apply it:
 
@@ -172,10 +177,11 @@ A conflicting outcome (`verificationConflicting: true`) is escalated as
 unattested record is refused at the oracle check before it can reach that
 branch, so nothing is escalated as if it had been verified.
 
-## The acceptance test is `node <file>` only
+## The acceptance test is a `node` program
 
-The acceptance test is executed as `node <file>` and nothing else. The allowed
-executable list is exactly `['node']` (`lib/coder/test-execution.js`). `node -e`,
+The acceptance test is executed as `node <file>` or `node --test <file>`, and
+nothing else. The allowed executable list is exactly `['node']`
+(`lib/coder/test-execution.js`). `node -e`,
 `node -r`, `node --import`, `npm test`, `grep`, shell pipelines and any other
 executable are rejected before any test process runs. Write the acceptance
 check as a Node script that exits non-zero on failure.
