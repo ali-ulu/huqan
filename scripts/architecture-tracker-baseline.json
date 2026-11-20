@@ -485,6 +485,7 @@
       "lib/evidence-pack/manifest.js": "Application",
       "lib/evidence-pack/signature.js": "Application",
       "lib/evidence-pack/verify.js": "Application",
+      "lib/experience/acceptance-attestation.js": "Application",
       "lib/experience/adapter-scope.js": "Application",
       "lib/experience/arithmetic-function.js": "Application",
       "lib/experience/array-filter-program.js": "Application",
@@ -515,6 +516,7 @@
       "lib/experience/journal.js": "Application",
       "lib/experience/learn-read-back.js": "Application",
       "lib/experience/learning-intake.js": "Application",
+      "lib/experience/learning-source.js": "Application",
       "lib/experience/learning.js": "Application",
       "lib/experience/optimization-hypothesis.js": "Application",
       "lib/experience/personal-execution-model.js": "Application",
@@ -531,7 +533,9 @@
       "lib/experience/run-repair.js": "Application",
       "lib/experience/runtime-seam.js": "Application",
       "lib/experience/step-lifecycle.js": "Application",
+      "lib/experience/string-array-evidence.js": "Application",
       "lib/experience/string-array-program.js": "Application",
+      "lib/experience/string-array-replay.js": "Application",
       "lib/experience/string-array-target.js": "Application",
       "lib/experience/string-program.js": "Application",
       "lib/experience/verifier.js": "Application",
@@ -616,6 +620,9 @@
       "lib/fractal-learn.js": "Core",
       "lib/fuzzy-normalization.js": "Core",
       "lib/gate-hook-break-glass.js": "Core",
+      "lib/gate-hook-context.js": "UI",
+      "lib/gate-hook-daemon-state.js": "Core",
+      "lib/gate-hook-daemon.js": "UI",
       "lib/gate-hook-evaluate.js": "Core",
       "lib/gate-hook-identity.js": "Core",
       "lib/gate-hook-input.js": "Core",
@@ -1289,6 +1296,7 @@
       "lib/type-lattice.js": "Core",
       "lib/unexpected-egress-doctor.js": "Core",
       "lib/unexpected-egress-gate.js": "Core",
+      "lib/use-sqlite-flag.js": "Core",
       "lib/v5/cryptographic-profile-contract.js": "Application",
       "lib/v5/cryptographic-verification-adapter.js": "Application",
       "lib/v5/public-trust-receipt.js": "Application",
@@ -1525,6 +1533,8 @@
       "scripts/create-signed-commit.js": "UI",
       "scripts/dead-code-symbols.js": "UI",
       "scripts/deprecation-policy.js": "UI",
+      "scripts/enforcement-coverage-classification-authority-ledger.js": "UI",
+      "scripts/enforcement-coverage-classification-gate-daemon.js": "UI",
       "scripts/enforcement-coverage-classification-injected-fetch.js": "UI",
       "scripts/enforcement-coverage-classification-m10.js": "UI",
       "scripts/enforcement-coverage-classification-m4.js": "UI",
@@ -1570,6 +1580,7 @@
       "scripts/migrate-prov-ids.js": "UI",
       "scripts/nightly-failure-alarm.js": "UI",
       "scripts/npm-release-state.js": "UI",
+      "scripts/open-write-scan.js": "UI",
       "scripts/pr-guardian-self-review.js": "UI",
       "scripts/release-verify.js": "UI",
       "scripts/replay-impact-thresholds.js": "UI",
@@ -1752,23 +1763,22 @@
         "lib/cognitive-lab-m3-experiment.js"
       ],
       "bin/huqan-gate-hook.js": [
-        "lib/authority/autonomy-activation.js",
         "lib/browser-session-observer.js",
         "lib/cli-operator-presence.js",
         "lib/context-canary.js",
         "lib/enterprise-module.js",
-        "lib/environment-compat.js",
         "lib/external-action-identity-issue.js",
         "lib/gate-hook-break-glass.js",
+        "lib/gate-hook-context.js",
+        "lib/gate-hook-daemon.js",
         "lib/gate-hook-evaluate.js",
         "lib/gate-hook-identity.js",
         "lib/gate-hook-input.js",
         "lib/gate-hook-management.js",
         "lib/gate-hook-reports.js",
-        "lib/gate-signal-provider.js",
         "lib/http/process-failure-handlers.js",
         "lib/http/structured-log.js",
-        "plugins/aura-risk.js"
+        "lib/node-runtime-guard.js"
       ],
       "bin/huqan-mcp.js": [
         "lib/mcp/stdio-proxy.js",
@@ -2623,7 +2633,9 @@
         "lib/cli-helpers.js"
       ],
       "lib/cli-coder-propose.js": [
+        "lib/authority/authority-mode.js",
         "lib/cli-workflow-envelope.js",
+        "lib/experience/learning-source.js",
         "lib/task-producer.js"
       ],
       "lib/cli-coder-verify.js": [
@@ -2793,6 +2805,7 @@
         "lib/experience/journal-connection.js",
         "lib/experience/journal.js",
         "lib/experience/learning-intake.js",
+        "lib/experience/string-array-replay.js",
         "lib/is-plain-object.js"
       ],
       "lib/cli-runtime-methods.js": [
@@ -2873,6 +2886,7 @@
         "lib/deterministic-task-runner.js",
         "lib/experience/coder-routing-runtime.js",
         "lib/experience/contract.js",
+        "lib/experience/string-array-evidence.js",
         "lib/path-safety.js"
       ],
       "lib/coder/arithmetic-synthesis.js": [
@@ -3741,6 +3755,11 @@
         "lib/path-safety.js",
         "lib/receipt/receipt-export.js"
       ],
+      "lib/experience/acceptance-attestation.js": [
+        "lib/authority/decision-envelope.js",
+        "lib/hash-chain.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/experience/array-filter-program.js": [
         "lib/experience/array-map-program.js"
       ],
@@ -3854,6 +3873,11 @@
         "lib/experience/learning.js",
         "lib/experience/read-model.js"
       ],
+      "lib/experience/learning-source.js": [
+        "lib/experience/acceptance-attestation.js",
+        "lib/experience/contract.js",
+        "lib/is-plain-object.js"
+      ],
       "lib/experience/optimization-hypothesis.js": [
         "lib/experience/canary.js"
       ],
@@ -3901,6 +3925,20 @@
         "lib/experience/learn-read-back.js",
         "lib/experience/runtime-seam.js",
         "lib/experience/verifier.js"
+      ],
+      "lib/experience/string-array-evidence.js": [
+        "lib/experience/learning-intake.js",
+        "lib/experience/string-array-program.js",
+        "lib/experience/string-array-target.js"
+      ],
+      "lib/experience/string-array-replay.js": [
+        "lib/cognition/contract.js",
+        "lib/cognition/independent-sources.js",
+        "lib/cognition/replay-generalize.js",
+        "lib/experience/string-array-evidence.js",
+        "lib/experience/string-array-program.js",
+        "lib/experience/string-array-target.js",
+        "lib/is-plain-object.js"
       ],
       "lib/experience/string-array-target.js": [
         "lib/experience/string-array-program.js"
@@ -4249,6 +4287,22 @@
       ],
       "lib/gate-hook-break-glass.js": [
         "lib/break-glass.js",
+        "lib/gate-hook-input.js"
+      ],
+      "lib/gate-hook-context.js": [
+        "lib/authority/autonomy-activation.js",
+        "lib/environment-compat.js",
+        "lib/gate-signal-provider.js",
+        "lib/http/structured-log.js",
+        "plugins/aura-risk.js"
+      ],
+      "lib/gate-hook-daemon-state.js": [
+        "lib/huqan-state-root.js"
+      ],
+      "lib/gate-hook-daemon.js": [
+        "lib/gate-hook-context.js",
+        "lib/gate-hook-daemon-state.js",
+        "lib/gate-hook-evaluate.js",
         "lib/gate-hook-input.js"
       ],
       "lib/gate-hook-evaluate.js": [
@@ -5217,7 +5271,8 @@
       "lib/kernel-factory.js": [
         "kernel.js",
         "kernel.v2.js",
-        "lib/environment-compat.js"
+        "lib/environment-compat.js",
+        "lib/use-sqlite-flag.js"
       ],
       "lib/kernel-inference-methods.js": [
         "lib/inference-belief-revision.js",
@@ -5999,6 +6054,7 @@
         "lib/default-persistence-path.js",
         "lib/memory-persistence-paths.js",
         "lib/sqlite-busy-retry.js",
+        "lib/use-sqlite-flag.js",
         "lib/workspace-id.js"
       ],
       "lib/memory-store-write-methods.js": [
@@ -6888,7 +6944,8 @@
       "lib/trust-policy.js": [
         "lib/environment-compat.js",
         "lib/json-clone.js",
-        "lib/path-safety.js"
+        "lib/path-safety.js",
+        "lib/receipt/policy-seal.js"
       ],
       "lib/trust-score-aggregator.js": [
         "lib/ai-dependency-ratio.js"
@@ -7471,6 +7528,9 @@
       "scripts/benign-false-block-rate.js": [
         "lib/external-action-guard.js"
       ],
+      "scripts/binding-site-scan.js": [
+        "scripts/open-write-scan.js"
+      ],
       "scripts/build-contradiction-eval-fixture.js": [
         "scripts/contradiction-eval-freeze-contract.js",
         "scripts/contradiction-eval-freeze.js"
@@ -7584,6 +7644,8 @@
         "scripts/contradiction-eval-freeze-contract.js"
       ],
       "scripts/enforcement-coverage-classification.js": [
+        "scripts/enforcement-coverage-classification-authority-ledger.js",
+        "scripts/enforcement-coverage-classification-gate-daemon.js",
         "scripts/enforcement-coverage-classification-injected-fetch.js",
         "scripts/enforcement-coverage-classification-m10.js",
         "scripts/enforcement-coverage-classification-m4.js"
@@ -7840,6 +7902,7 @@
         "lib/http/trust-query-routes.js",
         "lib/http/viewer-mount.js",
         "lib/kernel-factory.js",
+        "lib/node-runtime-guard.js",
         "lib/server-graph-data.js",
         "lib/server-response-helpers.js",
         "mcpServer.js",
@@ -8070,6 +8133,12 @@
       {
         "from": "lib/cli-coder-format.js",
         "to": "lib/coder/derivation-record.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/cli-coder-propose.js",
+        "to": "lib/experience/learning-source.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },
@@ -8556,6 +8625,12 @@
       {
         "from": "lib/trust-evidence-ledger.js",
         "to": "lib/verdict/action-verdict.js",
+        "fromLayer": "Core",
+        "toLayer": "Application"
+      },
+      {
+        "from": "lib/trust-policy.js",
+        "to": "lib/receipt/policy-seal.js",
         "fromLayer": "Core",
         "toLayer": "Application"
       },

@@ -83,6 +83,9 @@ const ALLOWED = Object.freeze({
   'docs/launch-uat.md': {
     'demo/index.html': 'the UAT step names the planned surface and says it is not in the repo yet',
   },
+  'docs/coder-quickstart.md': {
+    '`huqan.acceptance_oracle`': 'an operational approval registered with the authority (lib/authority/operational-guard.js), not an MCP tool; it is decided in the operator window, never called by a model',
+  },
   'docs/product-surfaces.md': {
     'demo/index.html': 'this document exists to record that the surface is planned and absent',
   },

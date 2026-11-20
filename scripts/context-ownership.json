@@ -4175,6 +4175,10 @@
     "lib/experience/learning-source.js": {
       "context": "Trust",
       "evidence": "#4599 the acceptance-oracle contract the coder propose command attaches to a task before the experience intake may learn from it"
+    },
+    "lib/experience/acceptance-attestation.js": {
+      "context": "Trust",
+      "evidence": "#4624 the verifier that decides whether a supplied acceptance oracle is independent; independence is a property of the signer, so the module reads a signed envelope and never a label or environment variable"
     }
   },
   "platform": {

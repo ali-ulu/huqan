@@ -116,6 +116,11 @@ const OPERATIONAL_EXECUTORS = Object.freeze({
   },
   // The consumption itself is the activation: the gate hook reads it back.
   [OPERATIONAL_TOOLS.AUTONOMY_ACTIVATION]: () => ({ ok: true, data: { activated: true } }),
+  // #4624: nothing runs here -- the signed envelope *is* the attestation that
+  // `coder propose --source` verifies; the channel only labels which grant it is.
+  [OPERATIONAL_TOOLS.ACCEPTANCE_ORACLE]: ({ args, workspaceId, authority }) => (args && typeof args.channel === 'string'
+    ? { ok: true, data: { attestation: { channel: args.channel.toLowerCase(), envelope: authority.envelope }, workspaceId } }
+    : { ok: false, error: { code: 'INVALID_ACTION', message: 'the acceptance approval names no channel' } }),
 });
 
 function defaults(deps) {
@@ -238,6 +243,10 @@ async function runOperational(approvalId, fetched, { client, mode, consumeProof,
     result = { ok: false, error: { code: error.exitCode ? 'EXECUTION_REFUSED' : 'EXECUTION_THREW', message: error.message } };
   }
   const report = { approvalId, decision, tool: approval.tool, executed: result.ok === true,
+    // #4624: an acceptance approval produces no side effect; its output *is* the
+    // signed attestation. Print it so the operator can save it and point
+    // HUQAN_ACCEPTANCE_ATTESTATION at the file.
+    ...(result.ok && result.data && result.data.attestation ? { attestation: result.data.attestation } : {}),
     ...(result.ok ? {} : { error: result.error?.code, message: result.error?.message }) };
   // The action already ran. Without a recorded outcome a second apply would run
   // it again, so an unrecorded outcome is its own failure and says so.
