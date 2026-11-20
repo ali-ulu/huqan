@@ -242,6 +242,7 @@
     "lib/session-impact.js",
     "lib/run-impact.js",
     "lib/emergency-stop.js",
+    "lib/emergency-stop-key.js",
     "lib/emergency-stop-chain.js",
     "lib/emergency-stop-detection.js",
     "lib/authority-anchor-detection.js",
