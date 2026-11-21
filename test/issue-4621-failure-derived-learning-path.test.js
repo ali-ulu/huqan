@@ -81,8 +81,8 @@ function acceptanceFor(file) {
 }
 
 /** A real Git repository on a feature branch, with the base tree committed. */
-function repo() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4621-repo-')));
+function repo(root) {
+  fs.mkdirSync(root, { recursive: true });
   const git = (...args) => execFileSync('git', args, { cwd: root, stdio: 'ignore', windowsHide: true });
   git('init', '-qb', 'feat/failure-derived');
   git('config', 'user.email', 'fixture@example.test');
@@ -99,7 +99,6 @@ function repo() {
   fs.writeFileSync(path.join(root, 'other.test.js'), acceptanceFor('docs/other.md'), 'utf8');
   git('add', '-A');
   git('commit', '-qm', 'base');
-  return root;
 }
 
 /** A real verified failure record, produced by the real error-prevention engine. */
@@ -352,11 +351,20 @@ test('#4621 a failure-derived candidate refuses unattested, expired, forged and 
 test('#4621 a verified failure traverses the sealed journal, promotion, Authority approval and a fresh process', async (t) => {
   const savedEnv = { HUQAN_MEMORY_PATH: process.env.HUQAN_MEMORY_PATH, HUQAN_DB_PATH: process.env.HUQAN_DB_PATH };
   const fixture = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-4621-')));
-  const root = repo();
+  // Inside the fixture on purpose: the path-escape control below writes a
+  // sibling of the repository, and the test must own that sibling.
+  const root = path.join(fixture, 'repo');
+  repo(root);
   const sandbox = path.join(fixture, 'sandbox');
   fs.mkdirSync(sandbox, { recursive: true });
   const journalPath = path.join(fixture, 'evidence.db');
   const taskFile = path.join(fixture, 'task.json');
+  // The Authority service and every CLI child read the operator RBAC policy
+  // from the environment. A host policy would judge this fixture's operator, so
+  // the single-user default applies here, as it does on a clean install.
+  const rbacKeys = ['HUQAN_RBAC_POLICY_PATH', 'AXIOM_RBAC_POLICY_PATH'];
+  const savedRbac = Object.fromEntries(rbacKeys.map((key) => [key, process.env[key]]));
+  for (const key of rbacKeys) delete process.env[key];
   const authority = await openAuthority(fixture);
   process.env.HUQAN_MEMORY_PATH = path.join(sandbox, 'cli-memory.json');
   process.env.HUQAN_DB_PATH = path.join(sandbox, 'cli-memory.db');
@@ -364,6 +372,9 @@ test('#4621 a verified failure traverses the sealed journal, promotion, Authorit
     await authority.close();
     process.env.HUQAN_MEMORY_PATH = savedEnv.HUQAN_MEMORY_PATH;
     process.env.HUQAN_DB_PATH = savedEnv.HUQAN_DB_PATH;
+    for (const [key, value] of Object.entries(savedRbac)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
     fs.rmSync(fixture, { recursive: true, force: true });
   });
 
@@ -622,16 +633,20 @@ test('#4621 a verified failure traverses the sealed journal, promotion, Authorit
   assert.match(JSON.stringify(wrongCapability.json), /promotion_binding_mismatch/);
   assert.equal(fs.readFileSync(path.join(root, 'docs', 'version.md'), 'utf8'), BASE);
 
-  // 9. A path escape is refused before any write, and the tree is untouched.
+  // 9. A declared path that leaves the root is refused by path resolution, not
+  //    by the runner's allowlist, and the sibling keeps its bytes.
+  const sibling = path.join(fixture, 'escape.md');
+  fs.writeFileSync(sibling, BASE, 'utf8');
   const escapeFile = path.join(fixture, 'escape.json');
   fs.writeFileSync(escapeFile, JSON.stringify({
-    id: 'path-escape', level: 'l0', allowedPaths: ['docs/version.md'],
+    id: 'path-escape', level: 'l0', allowedPaths: ['docs/version.md', '../escape.md'],
     operation: { type: 'replace_text', path: '../escape.md', find: 'v1.0.0', replace: 'v1.1.0' },
     test: { command: COMMAND },
   }), 'utf8');
   const escaped = await coderRun({ root, taskFile: escapeFile, runId: 'path-escape', journalPath, sandbox });
   assert.notEqual(escaped.status, 0, JSON.stringify(escaped.json));
-  assert.equal(fs.existsSync(path.join(fixture, 'escape.md')), false);
+  assert.match(JSON.stringify(escaped.json), /PATH_ESCAPES_ROOT/);
+  assert.equal(fs.readFileSync(sibling, 'utf8'), BASE, 'a refused escape must not write the sibling');
   assert.equal(fs.readFileSync(path.join(root, 'docs', 'version.md'), 'utf8'), BASE);
 
   // 10. A rejected approval carries no receipt, so the fresh process has
