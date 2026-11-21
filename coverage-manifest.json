@@ -2100,7 +2100,7 @@
           "call": "fs.unlinkSync"
         },
         {
-          "line": 162,
+          "line": 166,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
