@@ -497,3 +497,71 @@ test('a baseline whose record is corrupt is refused as an integrity mismatch', a
     runId: 'run-b', workspaceId: 'workspace-a', sourceRunIds: ['run-a'],
   }).ok, true);
 });
+
+// #4621: a `coder propose --source` task carries sealed acceptance evidence.
+// The coder path writes it into run_started; intake must read it back out of
+// the sealed record, so the proposal names the failure and the oracle rather
+// than only proving the run is unedited.
+test('a run with sealed learning evidence reports its source and oracle back', () => {
+  const { applyDerivation } = require('../lib/coder/apply-derivation');
+  const { createExperienceJournal } = require('../lib/experience/journal');
+
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-intake-4621-')));
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'docs/notes.md'), 'release v1.0.0 shipped\n', 'utf8');
+
+  const LEARNING_SOURCE = {
+    eligibility: 'positive_procedure',
+    sourceHash: 'a'.repeat(64),
+    outcomeStatus: 'verified',
+    observedHash: 'b'.repeat(64),
+    expectedHash: 'c'.repeat(64),
+    allowedPaths: ['docs/notes.md'],
+    oracle: { commandHash: 'd'.repeat(64), channel: 'ci', approvalId: 'acceptance-1', actionHash: 'e'.repeat(64) },
+  };
+
+  const journal = createExperienceJournal();
+  const applied = applyDerivation({
+    task: {
+      id: 'task-4621', level: 'l0', allowedPaths: ['docs/notes.md'],
+      operation: { type: 'replace_text', path: 'docs/notes.md', find: 'v1.0.0', replace: 'v1.1.0' },
+      learningSource: { ...LEARNING_SOURCE, oracle: { ...LEARNING_SOURCE.oracle } },
+    },
+    root, repoState: { branch: 'feat/intake', dirty: false, hasUntracked: false },
+    now: () => '2026-11-20T00:00:00.000Z', journal, workspaceId: 'default',
+  });
+  assert.equal(applied.ok, true, JSON.stringify(applied));
+
+  const proposal = buildLearningProposal(journal, { runId: applied.experience.runId, workspaceId: 'default' });
+  assert.equal(proposal.ok, true, proposal.code);
+  assert.equal(proposal.eligibility, 'positive_procedure');
+  // The evidence is read from the record, field for field.
+  assert.deepEqual({ ...proposal.learningSource, allowedPaths: [...proposal.learningSource.allowedPaths],
+    oracle: { ...proposal.learningSource.oracle } }, LEARNING_SOURCE);
+  // ...and it is inside the sealed proposal hash, so editing it is detectable.
+  assert.match(proposal.hash, /^[a-f0-9]{64}$/u);
+});
+
+test('a run with no learning evidence reports none rather than an empty shell', () => {
+  const { applyDerivation } = require('../lib/coder/apply-derivation');
+  const { createExperienceJournal } = require('../lib/experience/journal');
+
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-intake-plain-')));
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'docs/notes.md'), 'release v1.0.0 shipped\n', 'utf8');
+
+  const journal = createExperienceJournal();
+  const applied = applyDerivation({
+    task: {
+      id: 'task-plain', level: 'l0', allowedPaths: ['docs/notes.md'],
+      operation: { type: 'replace_text', path: 'docs/notes.md', find: 'v1.0.0', replace: 'v1.1.0' },
+    },
+    root, repoState: { branch: 'feat/intake', dirty: false, hasUntracked: false },
+    now: () => '2026-11-20T00:00:00.000Z', journal, workspaceId: 'default',
+  });
+  assert.equal(applied.ok, true, JSON.stringify(applied));
+
+  const proposal = buildLearningProposal(journal, { runId: applied.experience.runId, workspaceId: 'default' });
+  assert.equal(proposal.ok, true, proposal.code);
+  assert.equal(proposal.learningSource, null);
+});
