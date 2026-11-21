@@ -285,3 +285,31 @@ test('an emergency stop survives ledger restart', (t) => {
   assert.equal(status.stopped, true);
   assert.equal(status.record.reason, 'restart-proof');
 });
+
+test('a control character in a stop key cannot step around the stop', (t) => {
+  const ledger = ledgerIn(t);
+  ledger.stop({ scope: 'workspace', workspaceId: 'w', reason: 'containment', actor: 'operator:ali' });
+  ledger.stop({ scope: 'agent', workspaceId: 'w', agentId: 'a1', reason: 'containment', actor: 'operator:ali' });
+
+  // The stop is an exact-string lookup, so an id that differs only by a control
+  // character used to read as "not stopped". It is now refused at the key, which
+  // fails closed instead of returning a verdict the caller could act on.
+  for (const workspaceId of ['w\u0000', 'w\u0001', 'w\u007f']) {
+    assert.throws(
+      () => ledger.check({ workspaceId }),
+      /control characters/u,
+      `${JSON.stringify(workspaceId)} must not read as an unstoppered workspace`,
+    );
+  }
+  for (const agentId of ['a1\u0000', 'a1\u0007']) {
+    assert.throws(
+      () => ledger.check({ workspaceId: 'w', agentId }),
+      /control characters/u,
+      `${JSON.stringify(agentId)} must not read as an unstoppered agent`,
+    );
+  }
+
+  assert.equal(ledger.check({ workspaceId: 'w' }).stopped, true, 'the stop itself still holds');
+  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a1' }).stopped, true);
+  assert.equal(ledger.check({ workspaceId: 'w', agentId: 'a2' }).stopped, true, 'a workspace stop covers its agents');
+});

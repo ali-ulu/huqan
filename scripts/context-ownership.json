@@ -2204,6 +2204,10 @@
       "context": "AgentAction",
       "evidence": "ownership-map-2446.md#R-GATES-A"
     },
+    "lib/emergency-stop-key.js": {
+      "context": "AgentAction",
+      "evidence": "ownership-map-2446.md#R-GATES-A"
+    },
     "lib/blast-radius.js": {
       "context": "AgentAction",
       "evidence": "ownership-map-2446.md#R-GATES-A"
