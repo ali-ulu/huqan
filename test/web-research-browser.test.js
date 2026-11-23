@@ -8,6 +8,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { launchBrowserSession, browserSmokeSkipReason } = require('./helpers/cdp-browser');
+// A loaded CI runner reaches READY slower than a laptop; the sibling UI smokes
+// already give the wait 30s on CI (ui-claim-workspace-browser-smoke).
+const WAIT_TIMEOUT_MS = process.env.CI ? 30_000 : 15_000;
 const skip = browserSmokeSkipReason();
 if (skip && process.env.HUQAN_REQUIRE_BROWSER_SMOKE === '1') throw Error(skip);
 
@@ -15,7 +18,7 @@ describe('Web research real-browser UI with provider fixtures', { skip: skip || 
   let server, browser, tempDir;
   const previous = {};
   async function waitFor(expression) {
-    const deadline = Date.now() + 15000;
+    const deadline = Date.now() + WAIT_TIMEOUT_MS;
     while (Date.now() < deadline) {
       if (await browser.evaluate(expression)) return;
       await new Promise(resolve => setTimeout(resolve, 50));
