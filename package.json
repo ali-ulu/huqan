@@ -1652,7 +1652,7 @@
   },
   "optionalDependencies": {
     "pdfjs-dist": "^6.2.108",
-    "pdfkit": "^0.20.2"
+    "pdfkit": "^0.21.0"
   },
   "devDependencies": {
     "c8": "^12.0.0",
