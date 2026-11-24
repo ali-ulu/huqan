@@ -58,23 +58,21 @@ describe('coder propose', () => {
     assert.throws(() => parseProposeArgs(['failure.json', '--source', '--json']), /needs a file path/u);
   });
 
-  it('lists every supported option in the no-operand usage error', () => {
+  it('quotes the public help synopsis in the no-operand usage error', () => {
     assert.throws(() => runCliCoderPropose([]), (error) => {
       assert.equal(error.message, PROPOSE_USAGE);
       return true;
     });
-    for (const option of ['<failure.json>', '[--root <dir>]', '[--source <source.json>]', '[--json]']) {
+    for (const option of ['<failure.json>', '[--source <source.json>]', '[--root <dir>]', '[--json]']) {
       assert.ok(PROPOSE_USAGE.includes(option), `usage must list ${option}`);
     }
-    // The help text is the public command reference. An option it advertises
-    // must not be missing from the refusal, or the command contradicts the
-    // documentation a caller reads before typing it.
-    const synopsis = cliHelpText().match(/coder propose [^\n]*/u)[0];
-    const advertised = synopsis.match(/--[a-z]+/gu) || [];
-    assert.ok(advertised.includes('--source'), 'the help must keep advertising --source');
-    for (const option of advertised) {
-      assert.ok(PROPOSE_USAGE.includes(option), `usage error must list ${option}`);
-    }
+    // Equality, not a subset: the help line is the public reference and the
+    // refusal must say the same thing, so neither can quietly drop an option
+    // the other still advertises.
+    const synopsis = cliHelpText().split('\n')
+      .find(line => line.includes('coder propose <failure.json>'))
+      .replace(/^\s*\|\s*/u, '');
+    assert.equal(PROPOSE_USAGE.replace(/^Usage: /u, ''), synopsis);
   });
 
   it('prints a task that the coder command can then run', () => {
