@@ -2080,7 +2080,7 @@
       ],
       "sites": [
         {
-          "line": 103,
+          "line": 123,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
@@ -2100,7 +2100,7 @@
           "call": "fs.unlinkSync"
         },
         {
-          "line": 166,
+          "line": 182,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
