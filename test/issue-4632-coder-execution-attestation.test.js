@@ -219,6 +219,17 @@ test('#4632 an unchanged learning task keeps its signed evidence; every edited b
     workspaceId: WORKSPACE,
   }), sealedSource.oracle.actionHash);
 
+  // A backslash entry names the same path the signature covered, and the task
+  // the runner receives must carry that normalized set, not the raw one.
+  const windowsPath = JSON.parse(fs.readFileSync(baseTaskFile, 'utf8'));
+  windowsPath.allowedPaths = ['docs\\version.md'];
+  const normalized = verifyExecutionLearningSource(windowsPath, {
+    environment: { [ACCEPTANCE_ENV.ATTESTATION]: attestationFile },
+    authorityMode: TRUSTED_MODE, workspaceId: WORKSPACE, now: NOW,
+  });
+  assert.equal(normalized.ok, true, JSON.stringify(normalized));
+  assert.deepEqual([...normalized.task.allowedPaths], ['docs/version.md']);
+
   // Negative controls: each edits one fact the signature binds. Every one must
   // refuse before a write and leave no journal run behind.
   const tampered = [
@@ -235,9 +246,12 @@ test('#4632 an unchanged learning task keeps its signed evidence; every edited b
       'action_hash_mismatch'],
     ['swapped-channel', (value) => { value.learningSource.oracle.channel = 'source-file'; },
       'channel_mismatch'],
-    ['forged-eligibility', (value) => { value.learningSource.eligibility = 'needs_review'; },
+    ['forged-eligibility', (value) => { value.learningSource.eligibility = 'negative_example'; },
       'eligibility'],
     ['dropped-outcome-hash', (value) => { delete value.learningSource.observedHash; }, 'outcome_hashes'],
+    ['equal-outcome-hashes', (value) => {
+      value.learningSource.expectedHash = value.learningSource.observedHash;
+    }, 'outcome_hashes'],
   ];
   for (const [name, mutate, detail] of tampered) {
     fs.writeFileSync(path.join(root, 'docs', 'version.md'), BASE, 'utf8');
