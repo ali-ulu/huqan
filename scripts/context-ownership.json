@@ -4183,6 +4183,14 @@
     "lib/experience/acceptance-attestation.js": {
       "context": "Trust",
       "evidence": "#4624 the verifier that decides whether a supplied acceptance oracle is independent; independence is a property of the signer, so the module reads a signed envelope and never a label or environment variable"
+    },
+    "lib/acceptance-attestation-source.js": {
+      "context": "Trust",
+      "evidence": "#4632 the reader that locates the signed acceptance attestation and resolves the OS-boundary pin; both the propose and the execution boundary verify against it, so a task edited between them is judged by the same anchor"
+    },
+    "lib/experience/coder-execution-attestation.js": {
+      "context": "Trust",
+      "evidence": "#4632 re-verifies the Authority-signed acceptance attestation at execution and binds it to the test command, allowlist, failure source hash, workspace, approval id and action hash before a write"
     }
   },
   "platform": {
@@ -8441,6 +8449,20 @@
         "Platform"
       ],
       "evidence": "#4393 COG-C PR-3: the existing ingress surfaces (Platform-owned UI route and Adapters proxy) reach the Memory-owned conversation service through this one Core adapter"
+    },
+    "lib/acceptance-attestation-source.js": {
+      "owner": "Trust",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "#4632 the coder CLI handlers (Platform) read the attestation and the pin through this port; it verifies nothing itself"
+    },
+    "lib/experience/coder-execution-attestation.js": {
+      "owner": "Trust",
+      "consumers": [
+        "Platform"
+      ],
+      "evidence": "#4632 the coder CLI handler (Platform) asks this port to verify a task's learning evidence before it runs; the port decides, and writes nothing"
     }
   },
   "legacyEdges": {

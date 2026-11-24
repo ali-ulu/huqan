@@ -76,6 +76,7 @@
       "lib/a2a/routes.js": "Application",
       "lib/a2a/task-route.js": "Application",
       "lib/a2a/task-store.js": "Application",
+      "lib/acceptance-attestation-source.js": "Core",
       "lib/action-ir.js": "Core",
       "lib/action-risk-classifier.js": "Core",
       "lib/admission-horizon.js": "Core",
@@ -501,6 +502,7 @@
       "lib/experience/capability-trust-fallback-extension.js": "Application",
       "lib/experience/capability-trust.js": "Application",
       "lib/experience/coder-canary-runtime.js": "Application",
+      "lib/experience/coder-execution-attestation.js": "Application",
       "lib/experience/coder-promotion-acceptance.js": "Application",
       "lib/experience/coder-promotion-receipt.js": "Application",
       "lib/experience/coder-routing-runtime.js": "Application",
@@ -2062,6 +2064,9 @@
         "lib/environment-compat.js",
         "lib/server-response-helpers.js"
       ],
+      "lib/acceptance-attestation-source.js": [
+        "lib/authority/authority-mode.js"
+      ],
       "lib/action-ir.js": [
         "lib/common-semantic-ir.js",
         "lib/external-action-envelope.js",
@@ -2627,13 +2632,14 @@
         "lib/cli-helpers.js"
       ],
       "lib/cli-coder-format.js": [
+        "lib/cli-helpers.js",
         "lib/coder/derivation-record.js"
       ],
       "lib/cli-coder-project-memory.js": [
         "lib/cli-helpers.js"
       ],
       "lib/cli-coder-propose.js": [
-        "lib/authority/authority-mode.js",
+        "lib/acceptance-attestation-source.js",
         "lib/cli-workflow-envelope.js",
         "lib/experience/learning-source.js",
         "lib/task-producer.js"
@@ -2915,6 +2921,7 @@
         "lib/coder/project-method-memory.js",
         "lib/coder/project-producer.js",
         "lib/coder/requirements-parser.js",
+        "lib/experience/coder-execution-attestation.js",
         "lib/experience/coder-promotion-acceptance.js"
       ],
       "lib/coder/conditional-expression-search.js": [
@@ -3646,6 +3653,7 @@
         "lib/authority/authority-mode.js",
         "lib/authority/operational-guard.js",
         "lib/emergency-stop-chain.js",
+        "lib/emergency-stop-key.js",
         "lib/huqan-state-root.js",
         "lib/receipt/canonical-receipt.js",
         "lib/workspace-id.js"
@@ -3758,7 +3766,8 @@
       "lib/experience/acceptance-attestation.js": [
         "lib/authority/decision-envelope.js",
         "lib/hash-chain.js",
-        "lib/is-plain-object.js"
+        "lib/is-plain-object.js",
+        "lib/mcp-operator-capability.js"
       ],
       "lib/experience/array-filter-program.js": [
         "lib/experience/array-map-program.js"
@@ -3794,6 +3803,13 @@
         "lib/experience/canary.js",
         "lib/experience/learning-intake.js",
         "lib/experience/optimization-hypothesis.js"
+      ],
+      "lib/experience/coder-execution-attestation.js": [
+        "lib/acceptance-attestation-source.js",
+        "lib/experience/acceptance-attestation.js",
+        "lib/experience/contract.js",
+        "lib/experience/learning-source.js",
+        "lib/is-plain-object.js"
       ],
       "lib/experience/coder-promotion-acceptance.js": [
         "lib/authority/authority-client.js",
@@ -3870,10 +3886,12 @@
       ],
       "lib/experience/learning-intake.js": [
         "lib/experience/compiler.js",
+        "lib/experience/contract.js",
         "lib/experience/learning.js",
         "lib/experience/read-model.js"
       ],
       "lib/experience/learning-source.js": [
+        "lib/acceptance-attestation-source.js",
         "lib/experience/acceptance-attestation.js",
         "lib/experience/contract.js",
         "lib/is-plain-object.js"
