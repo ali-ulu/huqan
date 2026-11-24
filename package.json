@@ -685,6 +685,8 @@
     "lib/experience/journal-manifest.js",
     "lib/experience/journal-connection.js",
     "lib/experience/acceptance-attestation.js",
+    "lib/acceptance-attestation-source.js",
+    "lib/experience/coder-execution-attestation.js",
     "lib/experience/learning.js",
     "lib/experience/learning-intake.js",
     "lib/experience/learning-source.js",
