@@ -1,11 +1,17 @@
 # Current Operating Roadmap
 
 **Audited live baseline:** `main` at
-`df1eed1ac9831085e966704ba7b0de21f052707d` (observed 2026-09-01T20:47:36Z).
+`a0d7c9a663ba514c6856f490a68bcd463979a8e2` (observed 2026-11-24T21:03:54Z).
 
 This is an observation, not an implementation base pin. Live source, exact Git
 SHA, tests and current CI outrank this compact execution source. Detailed
 history remains in merged PRs, task-packs, ADRs and issue evidence.
+
+The refresh re-verified only what current source and live GitHub state can
+settle: the issue states named below, the `#1766` Faz A–E table, the A2A
+conformance count with its report digest, and the non-claims list. The V4/V5
+verdicts and their historical CI runs are carried forward, not re-executed, and
+this refresh upgrades none of them.
 
 ## Current classification
 
@@ -176,7 +182,8 @@ third party has spoken to it.
 
 ## Multi-agent control plane (`#1766`)
 
-The roadmap issue `#1766` sequences five phases. Three are merged:
+The roadmap issue `#1766` sequences five phases. All five are merged and `#1766`
+is closed `completed`, as are `#1767`–`#1771`:
 
 | Faz | Issue | State | Evidence |
 | --- | --- | --- | --- |
@@ -184,7 +191,7 @@ The roadmap issue `#1766` sequences five phases. Three are merged:
 | B — inter-agent trust receipt chain | `#1768` | merged | `df1eed1a` (PR `#1774`) |
 | C — persistent agent identity | `#1769` | merged | `lib/external-action-identity.js`, `lib/external-action-identity-log.js` |
 | D — graduated autonomy | `#1770` | merged | `lib/graduated-autonomy.js`, `test/graduated-autonomy.test.js` |
-| E — continuous monitoring | `#1771` | implementation | `lib/post-action-monitor.js`, `test/post-action-monitor.test.js` |
+| E — continuous monitoring | `#1771` | merged | `lib/post-action-monitor.js`, `test/post-action-monitor.test.js` |
 
 Faz A resolves the delegated policy before an exchange and refuses when it is
 absent; an unreadable firewall decision defaults to `block`, so the delegated
