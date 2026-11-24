@@ -253,6 +253,22 @@ test('#4632 an unchanged learning task keeps its signed evidence; every edited b
       `${name}: a refused task must seal no run`);
   }
 
+  // A present-but-falsy `learningSource` is still a claim the task makes. It
+  // must refuse, not read as "no learning evidence" and run unverified.
+  for (const [name, falsy] of [['falsy-false', false], ['falsy-zero', 0], ['falsy-empty', '']]) {
+    fs.writeFileSync(path.join(root, 'docs', 'version.md'), BASE, 'utf8');
+    const value = JSON.parse(fs.readFileSync(baseTaskFile, 'utf8'));
+    value.learningSource = falsy;
+    const refused = runTask({ root, taskFile: write(name, value), runId: name, journalPath,
+      environment: { [ACCEPTANCE_ENV.ATTESTATION]: attestationFile } });
+    assert.equal(refused.status, 'refused', `${name}: ${JSON.stringify(refused)}`);
+    assert.equal(refused.data.reason, SOURCE_CODES.INVALID_INPUT, `${name}: ${JSON.stringify(refused)}`);
+    assert.equal(fs.readFileSync(path.join(root, 'docs', 'version.md'), 'utf8'), BASE,
+      `${name}: a refused task must not write`);
+    assert.deepEqual(sealedEvents(journalPath, `${name}:c1`).events, [],
+      `${name}: a refused task must seal no run`);
+  }
+
   // An attestation that is absent, signed by another key, expired, edited, or
   // resolved without an OS-boundary pin is no attestation.
   const attestationCases = [
