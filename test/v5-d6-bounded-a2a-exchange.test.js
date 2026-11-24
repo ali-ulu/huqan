@@ -60,8 +60,12 @@ test('the documented A2A conformance count, digest and non-claims match the meas
   assert.equal(evidence.length, 1, 'exactly one checkpoint entry records the A2A conformance result');
   assert.ok(evidence[0].includes(count), `checkpoint entry must report ${count}`);
   assert.ok(evidence[0].includes(reportSha256), 'checkpoint entry must carry the report digest');
+  assert.ok(evidence[0].includes(report.verdict), `checkpoint entry must carry verdict ${report.verdict}`);
   assert.ok(evidence[0].includes(`productionTransportClaimed=${report.productionTransportClaimed}`),
     'the checkpoint must keep the artifact local-only claim next to the count');
+  for (const nonClaim of report.nonClaims) {
+    assert.ok(evidence[0].includes(nonClaim), `checkpoint entry must carry nonClaim ${nonClaim}`);
+  }
 
   // 54/54 is a bounded-exchange result, not a transport claim, so the three
   // non-claims the artifact carries must stay visible to the operator.
