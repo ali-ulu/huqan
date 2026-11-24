@@ -222,8 +222,11 @@ Planning documents do not make those surfaces implemented or production-ready.
 
 A2A exchange has left that list. Its bounded transport is shipped and mounted
 (P0-B..P0-F, `docs/v5/v5-p0-a2a-transport-closeout.md`) and `npm run
-conformance:a2a` holds at 52/52. Shipped and deployment-gated is still not
-externally interoperable: nothing here claims a third party has connected.
+conformance:a2a` reports 54/54 with verdict
+`V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT` (`reportSha256
+76536d75d87e44e0fc0956110dc19d5fb56ce43772067cccd3511425f69c5c4b`). Shipped and
+deployment-gated is still not externally interoperable: nothing here claims a
+third party has connected.
 
 ## Current non-claims
 

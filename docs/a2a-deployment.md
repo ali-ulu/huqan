@@ -215,13 +215,18 @@ may bind exactly one workspace.
 
 | Claim | Where it is proved |
 |---|---|
-| Bounded exchange rules hold under 52 adversarial cases | `npm run conformance:a2a` — 52/52, verdict `V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT` |
+| Bounded exchange rules hold under 54 adversarial cases | `npm run conformance:a2a` — 54/54, verdict `V5_D6_BOUNDED_A2A_EXCHANGE_SUFFICIENT`, `reportSha256 76536d75d87e44e0fc0956110dc19d5fb56ce43772067cccd3511425f69c5c4b`; the same report is the `a2a-conformance` artifact of External Conformance run [#44847381281](https://github.com/ali-ulu/huqan/actions/runs/44847381281) |
 | A real HTTP request reaches those rules unchanged | `test/a2a-exchange-route.test.js` and its sibling route tests |
 | Booting `node server.js` with these variables serves the surface | `test/a2a-deployment-smoke.test.js` |
 | Booting without them serves `404`, not `401` | same file |
 | A replayed exchange is refused by the real server | same file |
 | An AB5-blocked exchange produces no effect | `test/a2a-deployment-smoke.test.js` |
 | Entry into the V5 track is authorized | `docs/v5/v5-implementation-entry-successor-audit.md` — `V5_IMPLEMENTATION_ENTRY: PASS` |
+
+The case count and the digest are pinned to the runner output by
+`test/v5-d6-bounded-a2a-exchange.test.js`: a suite change that is not reflected
+in this row fails CI. The report is local — `productionTransportClaimed` is
+`false` and the non-claims below are part of the same artifact.
 
 ## What configuring this does not claim
 
