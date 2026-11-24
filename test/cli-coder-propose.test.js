@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { parseProposeArgs, runCliCoderPropose } = require('../lib/cli-coder-propose');
+const { parseProposeArgs, PROPOSE_USAGE, runCliCoderPropose } = require('../lib/cli-coder-propose');
+const { cliHelpText } = require('../lib/cli-help');
 const { runCliCoder } = require('../lib/cli-coder');
 const { PRODUCER_STATUSES } = require('../lib/task-producer');
 
@@ -55,6 +56,25 @@ describe('coder propose', () => {
     // "no source": the caller asked for validation and the evidence is missing.
     assert.throws(() => parseProposeArgs(['failure.json', '--source']), /needs a file path/u);
     assert.throws(() => parseProposeArgs(['failure.json', '--source', '--json']), /needs a file path/u);
+  });
+
+  it('lists every supported option in the no-operand usage error', () => {
+    assert.throws(() => runCliCoderPropose([]), (error) => {
+      assert.equal(error.message, PROPOSE_USAGE);
+      return true;
+    });
+    for (const option of ['<failure.json>', '[--root <dir>]', '[--source <source.json>]', '[--json]']) {
+      assert.ok(PROPOSE_USAGE.includes(option), `usage must list ${option}`);
+    }
+    // The help text is the public command reference. An option it advertises
+    // must not be missing from the refusal, or the command contradicts the
+    // documentation a caller reads before typing it.
+    const synopsis = cliHelpText().match(/coder propose [^\n]*/u)[0];
+    const advertised = synopsis.match(/--[a-z]+/gu) || [];
+    assert.ok(advertised.includes('--source'), 'the help must keep advertising --source');
+    for (const option of advertised) {
+      assert.ok(PROPOSE_USAGE.includes(option), `usage error must list ${option}`);
+    }
   });
 
   it('prints a task that the coder command can then run', () => {
