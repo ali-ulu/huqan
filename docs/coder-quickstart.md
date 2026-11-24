@@ -151,6 +151,42 @@ no longer read at all: setting `HUQAN_ACCEPTANCE_CHANNEL=ci` grants nothing
 (#4624). A launcher still exporting them just gets the same refusal as no
 attestation, which is the correct answer for a self-declared channel.
 
+### The signature must survive to execution
+
+`coder propose --source` prints a task file, and a task file is editable
+between that command and `coder <task.json>`. The copy of `learningSource` a
+task carries is therefore a claim, not evidence, so the execution boundary
+re-verifies the attestation before it runs anything (#4632):
+
+```bash
+HUQAN_ACCEPTANCE_ATTESTATION=attestation.json huqan coder task.json --journal evidence.db --authorize
+```
+
+The same file, the same installed pin, and the same binding — but now checked
+against the facts this run is about to use:
+
+| Bound value | Compared with |
+|---|---|
+| `commandHash` | `sha256` of `task.test.command`, the command about to run |
+| `allowedPathsHash` | `task.allowedPaths`, the set the gate will enforce |
+| `sourceHash` | `task.learningSource.sourceHash` |
+| `workspaceId` | the workspace this run writes into |
+| `approvalId` | `task.learningSource.oracle.approvalId` |
+| `actionHash` | `task.learningSource.oracle.actionHash` |
+
+Editing the command, widening the allowlist, rewriting a hash or naming a
+different approval breaks one of those comparisons, and the run is refused
+before a file is written. The journal then seals the values that were verified,
+not the ones the task happened to contain.
+
+A task without `learningSource` is an ordinary Coder task and runs exactly as
+before; the check only applies to tasks that claim learning evidence.
+
+The transform's own parameters (`operation.find`, `operation.replace`) are not
+covered by the envelope. The journal's `action_proposed` event records the
+operation that actually ran beside the signed source, so a swapped transform is
+visible in the record rather than attributed to the signed failure.
+
 ### What refuses, and why that is correct
 
 | Situation | Result |
@@ -162,8 +198,10 @@ attestation, which is the correct answer for a self-declared channel.
 | Attestation past `validUntil` | `oracle_supply_unverified` (`expired`). |
 | `suppliedBy: "source-file"` | `oracle_not_independent`. |
 | No `os-service` authority installed | `oracle_supply_unverified`. |
+| Task edited after propose | `oracle_supply_unverified` (`command_hash_mismatch`, `allowed_paths_mismatch`, `approval_id_mismatch`, `action_hash_mismatch` or `channel_mismatch` in `detail`). |
+| Task carries learning evidence, no attestation at execution | `oracle_supply_unverified`, nothing written. |
 
-That last row is the one worth reading twice. Only an `os-service` authority
+The `os-service` row is the one worth reading twice. Only an `os-service` authority
 counts as a trust anchor. An `env-override` pin (`HUQAN_AUTHORITY_PIN_PATH`) is
 refused for the same reason a channel variable is: the proposing agent chooses
 its own launcher, so it could point at a pin and keypair it minted itself.

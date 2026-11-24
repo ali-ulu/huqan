@@ -14,10 +14,11 @@
  * Ed25519 decision, and fresh child processes for dispatch.
  *
  * Two boundary notes:
- *   - `coder propose` resolves its trust anchor itself, and a child process
- *     cannot be handed an OS-boundary pin, so the accepting propose case calls
- *     the command handler through the same `authorityMode` seam the CLI fills
- *     from the installed pin. The refusals (no anchor, expired, forged,
+ *   - `coder propose` and the learning-evidence check at execution resolve their
+ *     trust anchor themselves (#4632), and a child process cannot be handed an
+ *     OS-boundary pin, so the accepting propose case and the two learning runs
+ *     call the command handlers through the same `authorityMode` seam the CLI
+ *     fills from the installed pin. The refusals (no anchor, expired, forged,
  *     conflicting, tampered failure) run through that same seam.
  *   - The promotion runs through the real `terfi` command and the real
  *     `huqan-authority apply`; only pin/consume-key resolution is injected,
@@ -38,6 +39,9 @@ const MemoryStore = require('../lib/memory-store');
 const { createErrorPrevention } = require('../lib/error-prevention');
 const { PRODUCER_STATUSES } = require('../lib/task-producer');
 const { runCliCoderPropose } = require('../lib/cli-coder-propose');
+const { runCliCoder } = require('../lib/cli-coder');
+const { runFixLoop, formatLoopText } = require('../lib/coder/fix-loop');
+const { verifyExecutionLearningSource } = require('../lib/experience/coder-execution-attestation');
 const { openCoderJournal } = require('../lib/coder/journal-store');
 const { buildLearningProposal } = require('../lib/experience/learning-intake');
 const { qualify } = require('../lib/experience/compiler');
@@ -197,6 +201,25 @@ async function coderRun({ root, taskFile, runId, journalPath, sandbox, extra = [
   } catch (error) {
     return { status: error.code, json: error.stdout ? JSON.parse(error.stdout) : null, stderr: error.stderr };
   }
+}
+
+/**
+ * Run the public `coder` handler in-process for a task that carries learning
+ * evidence (#4632). A child process cannot be handed the OS-boundary pin, so
+ * the accepting runs go through the same `authorityMode` seam the CLI fills
+ * from the installed pin; the attestation itself still arrives as a file named
+ * by the environment, exactly as a host hands it over.
+ */
+function coderRunTrusted({ root, taskFile, runId, journalPath, attestation }) {
+  const result = runCliCoder([taskFile, '--root', root, '--json', '--authorize',
+    '--journal', journalPath, '--run-id', runId], {
+    json: true,
+    coderLoop: { runFixLoop, formatLoopText, verifyExecutionLearningSource },
+    authorityMode: TRUSTED_MODE,
+    environment: { [ACCEPTANCE_ENV.ATTESTATION]: attestation },
+    workspaceId: WORKSPACE,
+  });
+  return { status: result.status === 'completed' ? 0 : 1, json: result, stderr: '' };
 }
 
 function runs(prefix, cost, startAt) {
@@ -396,8 +419,9 @@ test('#4621 a verified failure traverses the sealed journal, promotion, Authorit
   // 2. The task runs through the public CLI and the run is sealed with that
   //    evidence inside it, not with what a caller now claims.
   fs.writeFileSync(taskFile, JSON.stringify(task), 'utf8');
-  const sourceRun = await coderRun({ root, taskFile, runId: 'failure-source', journalPath, sandbox });
-  assert.equal(sourceRun.status, 0, sourceRun.stderr);
+  const sourceRun = coderRunTrusted({ root, taskFile, runId: 'failure-source', journalPath,
+    attestation: path.join(fixture, 'attestation.json') });
+  assert.equal(sourceRun.status, 0, JSON.stringify(sourceRun.json));
   assert.equal(sourceRun.json.status, 'completed', JSON.stringify(sourceRun.json));
   assert.equal(sourceRun.json.data.outcome, 'applied_tested');
   assert.equal(fs.readFileSync(path.join(root, 'docs', 'version.md'), 'utf8'), FIXED);
@@ -458,7 +482,8 @@ test('#4621 a verified failure traverses the sealed journal, promotion, Authorit
   assert.equal(negativeTask.learningSource.eligibility, ELIGIBILITY.POSITIVE_PROCEDURE);
   const negativeTaskFile = path.join(fixture, 'negative-task.json');
   fs.writeFileSync(negativeTaskFile, JSON.stringify(negativeTask), 'utf8');
-  const negativeRun = await coderRun({ root, taskFile: negativeTaskFile, runId: 'failure-negative', journalPath, sandbox });
+  const negativeRun = coderRunTrusted({ root, taskFile: negativeTaskFile, runId: 'failure-negative', journalPath,
+    attestation: path.join(fixture, 'attestation.json') });
   assert.notEqual(negativeRun.json?.status, 'completed', JSON.stringify(negativeRun.json));
   assert.equal(negativeRun.json.data.attempts[0].test.ok, false, 'the declared test must actually run and fail');
   assert.equal(fs.readFileSync(path.join(root, 'docs', 'version.md'), 'utf8'), BASE, 'a failed test must roll back');
