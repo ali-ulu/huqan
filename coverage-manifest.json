@@ -2937,7 +2937,7 @@
       ],
       "sites": [
         {
-          "line": 241,
+          "line": 242,
           "capability": "process",
           "call": "childProcess.spawnSync"
         }
