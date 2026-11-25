@@ -358,7 +358,10 @@ const GOLDEN = {
   // `coder subcommands:` block (seven wrapped usage lines) pointing at
   // docs/coder-quickstart.md; diffing the help text against main shows
   // exactly that added block and nothing else.
-  'yardım': '001f8f364a19f837aa92b08b0529481fe61ebf2f271f5f0fa813db178834b0e1',
+  // #4633 adds the remaining `coder propose` options (--root, --json) to that
+  // block's propose line, so the refusal and the reference quote one synopsis;
+  // diffing the help text against main shows exactly that one changed line.
+  'yardım': 'd46169596a1e46500f59c41ead268c2ffd31c241f41626fde1f7cce420551b57',
   // #4339 adds `[--journal <existing-experience.db>]` to the terfi usage line; re-recorded.
   'terfi': '51b73aa264d7598f4a4279e41bc0e2463ff2bb43c00366eddd9d9223176b5a88',
   'memory-lifecycle': '7830730a1e83241a0ebc41c89460db08cb00c70664781a049c9cb7f3a7f1000f',
