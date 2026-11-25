@@ -123,3 +123,36 @@ test('the redo record keeps the real before-images when hashes are supplied', ()
   assert.equal(record.files.embeddings.beforeHash, sha256(fs.readFileSync(graph._embeddingPath)));
   fs.rmSync(redoPath, { force: true });
 });
+
+test('a completed operation is replayed instead of being applied twice', () => {
+  const { graph } = makeGraph('replay-completed');
+  let runs = 0;
+  const mutate = () => { runs += 1; graph.addNode('tek', 'Tek'); return { ok: true }; };
+
+  graph.runMutationOnce('op-replay', mutate);
+  const outcome = graph.runMutationOnce('op-replay', mutate);
+
+  assert.equal(outcome.replayed, true);
+  assert.deepEqual(outcome.result, { ok: true });
+  assert.equal(runs, 1, 'the callback must not run a second time');
+});
+
+test('a failure after the journal lands is reported as committed, not re-applied', () => {
+  const { graph } = makeGraph('after-journal-publish');
+  let runs = 0;
+  const mutate = () => { runs += 1; graph.addNode('iki', 'Iki'); return { ok: true }; };
+  graph._jsonTransactionFault = point => {
+    if (point === 'after-journal-publish') throw new Error('crash-after-journal');
+  };
+
+  // The journal is already published when the fault fires, so the operation did
+  // commit: the caller must get its result, not an error that invites a retry
+  // which would apply it a second time.
+  const first = graph.runMutationOnce('op-after-journal', mutate);
+  const retry = graph.runMutationOnce('op-after-journal', mutate);
+
+  assert.deepEqual({ replayed: first.replayed, result: first.result }, { replayed: true, result: { ok: true } });
+  assert.equal(retry.replayed, true);
+  assert.equal(runs, 1, 'the committed operation must not be re-applied on retry');
+  assert.equal(graph._nodes.iki?.id, 'iki');
+});
