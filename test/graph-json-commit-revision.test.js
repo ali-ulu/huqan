@@ -156,3 +156,19 @@ test('a failure after the journal lands is reported as committed, not re-applied
   assert.equal(runs, 1, 'the committed operation must not be re-applied on retry');
   assert.equal(graph._nodes.iki?.id, 'iki');
 });
+
+test('a stale before-image hash is refused and leaves no record that blocks the store', () => {
+  const { graph } = makeGraph('stale-before-image');
+  graph.runMutationOnce('op-seed', () => { graph.addNode('a', 'A'); return { ok: true }; });
+  graph._jsonSnapshotHashes = { ...graph._jsonSnapshotHashes, memory: 'a'.repeat(64) };
+
+  assert.throws(
+    () => graph.runMutationOnce('op-stale', () => { graph.addNode('b', 'B'); return { ok: true }; }),
+    error => error.code === 'GRAPH_JSON_RECOVERY_CONFLICT',
+  );
+  assert.equal(fs.existsSync(redoPathFor(graph.jsonJournalPath())), false,
+    'a commit that published nothing must not leave its recovery record behind');
+
+  const next = graph.runMutationOnce('op-next', () => { graph.addNode('c', 'C'); return { ok: true }; });
+  assert.equal(next.persisted, true);
+});
