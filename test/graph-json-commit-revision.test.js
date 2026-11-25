@@ -17,7 +17,7 @@ const crypto = require('node:crypto');
 
 const Graph = require('../graph');
 const { revision, snapshotHashes } = require('../lib/graph-json-snapshot');
-const { commitJsonTransaction, redoPathFor } = require('../lib/graph-json-transaction');
+const { commitJsonTransaction, recoverJsonTransaction, redoPathFor } = require('../lib/graph-json-transaction');
 
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const emptyJournal = () => ({ operations: {}, receipts: {}, receiptsById: {}, chainTips: {}, seals: {} });
@@ -171,4 +171,69 @@ test('a stale before-image hash is refused and leaves no record that blocks the 
 
   const next = graph.runMutationOnce('op-next', () => { graph.addNode('c', 'C'); return { ok: true }; });
   assert.equal(next.persisted, true);
+});
+
+test('a commit stages its after-images and leaves no staged copy behind', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-staged-'));
+  const graph = new Graph({ memoryPath: path.join(dir, 'memory.json'), useSQLite: false, noLoad: true });
+  graph.runMutationOnce('op-staged', () => { graph.addNode('kus', 'Kus'); return { ok: true }; });
+
+  assert.deepEqual(fs.readdirSync(dir).filter(name => name.endsWith('.staged')), [],
+    'the after-images are renamed into place, not copied');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('recovery refuses a redo whose staged after-image is gone, and keeps the record', () => {
+  const { graph, memoryPath } = makeGraph('staged-missing');
+  graph.runMutationOnce('op-seed', () => { graph.addNode('a', 'A'); return { ok: true }; });
+  const before = fs.readFileSync(memoryPath);
+  graph._jsonTransactionFault = (point) => { if (point === 'after-prepared') throw new Error('process died'); };
+  assert.throws(() => graph.runMutationOnce('op-dies', () => { graph.addNode('b', 'B'); return { ok: true }; }), /process died/);
+  const redoPath = redoPathFor(graph.jsonJournalPath());
+  fs.rmSync(`${memoryPath}.staged`);
+
+  assert.throws(() => recoverJsonTransaction(graph), error => error.code === 'GRAPH_JSON_RECOVERY_CONFLICT');
+  assert.deepEqual(fs.readFileSync(memoryPath), before, 'nothing may be published from a missing after-image');
+  assert.equal(fs.existsSync(redoPath), true, 'the record stays as evidence for the operator');
+});
+
+test('a version 1 record that carries its after-images still recovers', () => {
+  const { graph, memoryPath } = makeGraph('v1-redo');
+  graph.runMutationOnce('op-seed', () => { graph.addNode('a', 'A'); return { ok: true }; });
+  graph._jsonTransactionFault = (point) => { if (point === 'after-prepared') throw new Error('process died'); };
+  assert.throws(() => graph.runMutationOnce('op-dies', () => { graph.addNode('b', 'B'); return { ok: true }; }), /process died/);
+
+  const redoPath = redoPathFor(graph.jsonJournalPath());
+  const redo = JSON.parse(fs.readFileSync(redoPath, 'utf8'));
+  redo.version = 1;
+  for (const entry of Object.values(redo.files)) {
+    const bytes = fs.readFileSync(entry.staged);
+    entry.after = bytes.toString('base64');
+    delete entry.staged;
+  }
+  fs.writeFileSync(redoPath, JSON.stringify(redo));
+  fs.rmSync(`${memoryPath}.staged`);
+
+  assert.equal(recoverJsonTransaction(graph), true);
+  const reloaded = new Graph({ memoryPath, useSQLite: false });
+  reloaded.load();
+  assert.equal(reloaded.getNode('b').id, 'b');
+  reloaded.close();
+});
+
+test('a record cannot point its staged after-image at a file of its choosing', () => {
+  const { graph, memoryPath } = makeGraph('staged-outside');
+  graph.runMutationOnce('op-seed', () => { graph.addNode('a', 'A'); return { ok: true }; });
+  graph._jsonTransactionFault = (point) => { if (point === 'after-prepared') throw new Error('process died'); };
+  assert.throws(() => graph.runMutationOnce('op-dies', () => { graph.addNode('b', 'B'); return { ok: true }; }), /process died/);
+
+  const redoPath = redoPathFor(graph.jsonJournalPath());
+  const outside = path.join(path.dirname(memoryPath), 'outside.json');
+  const redo = JSON.parse(fs.readFileSync(redoPath, 'utf8'));
+  redo.files.memory.staged = outside;
+  fs.writeFileSync(redoPath, JSON.stringify(redo));
+
+  assert.throws(() => recoverJsonTransaction(graph), error => error.code === 'GRAPH_JSON_RECOVERY_CONFLICT');
+  assert.equal(fs.existsSync(outside), false);
+  assert.equal(fs.existsSync(redoPath), true, 'the record stays as evidence');
 });

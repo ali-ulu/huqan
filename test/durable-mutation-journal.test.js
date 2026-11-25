@@ -711,6 +711,7 @@ test('[json] recovery refuses a redo target outside the exact store paths', asyn
   const redoPath = redoPathFor(journalPath);
   const redo = JSON.parse(fs.readFileSync(redoPath, 'utf8'));
   redo.files.memory.path = outsidePath;
+  redo.files.memory.staged = `${outsidePath}.staged`;
   fs.writeFileSync(redoPath, JSON.stringify(redo));
 
   const retry = await runJsonRetryWorker(memoryPath, operationId);
