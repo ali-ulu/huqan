@@ -237,3 +237,17 @@ test('a record cannot point its staged after-image at a file of its choosing', (
   assert.equal(fs.existsSync(outside), false);
   assert.equal(fs.existsSync(redoPath), true, 'the record stays as evidence');
 });
+
+test('a staging failure drops the after-images it had already written', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'huqan-json-stage-fail-'));
+  const graph = new Graph({ memoryPath: path.join(dir, 'memory.json'), useSQLite: false, noLoad: true });
+  // The embeddings staging rename cannot land on a directory, which fails the
+  // second staged write after the memory after-image is already on disk.
+  fs.mkdirSync(`${graph._embeddingPath}.staged`, { recursive: true });
+
+  assert.throws(() => graph.runMutationOnce('op-stage-fails', () => { graph.addNode('a', 'A'); return { ok: true }; }));
+
+  assert.equal(fs.existsSync(`${graph.memoryPath}.staged`), false, 'the first staged copy must not outlive the failed commit');
+  assert.equal(fs.existsSync(redoPathFor(graph.jsonJournalPath())), false);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

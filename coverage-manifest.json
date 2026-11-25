@@ -2110,12 +2110,12 @@
           "call": "fs.unlinkSync"
         },
         {
-          "line": 239,
+          "line": 236,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         },
         {
-          "line": 248,
+          "line": 245,
           "capability": "fs_write",
           "call": "fs.unlinkSync"
         }
