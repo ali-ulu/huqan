@@ -417,6 +417,29 @@ describe('MCP Server', () => {
     assert.equal(captured.depth, 5);
   });
 
+  it('scrubs a detected secret out of a tool result before it leaves the server', () => {
+    // A structurally recognisable JWT (three base64url segments) in a field the
+    // tool's output schema allows: conformance passes, AB7 must still redact.
+    // Built from parts so the fixture is not a committed credential-shaped
+    // literal that a secret scanner has to be taught to ignore.
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ sub: 'test-fixture' })).toString('base64url');
+    const jwt = `${header}.${payload}.${'x'.repeat(32)}`;
+    const kernel = {
+      graph: {},
+      reason() {
+        return { subject: 'kedi', answer: `the value is ${jwt}`, forward: [], backward: [], cycles: [] };
+      },
+    };
+
+    const response = callTool(kernel, { name: 'huqan.reason', arguments: { subject: 'kedi' } });
+
+    assert.equal(response.ok, true);
+    assert.equal(response.answer.includes(jwt), false);
+    assert.match(response.answer, /REDACTED/);
+    assert.match(response.answer, /^the value is /);
+  });
+
   it('keeps plan maxSteps within the declared maximum at runtime', async () => {
     const plan = await request('tools/call', {
       name: 'huqan.plan',

@@ -1037,6 +1037,7 @@
     "lib/mcp/gate-refusal.js",
     "lib/mcp-call-binding.js",
     "lib/mcp/tool-dispatch.js",
+    "lib/mcp/tool-result-finalizer.js",
     "lib/mcp/session-protocol.js",
     "lib/mcp/json-rpc-handler.js",
     "lib/mcp/agent-presence.js",
