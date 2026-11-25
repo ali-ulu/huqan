@@ -136,3 +136,38 @@ test('a store rewritten with different bytes is a conflict when this process als
   );
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('a caller mutating the returned result cannot change the committed journal', () => {
+  const { graph, root } = makeGraph();
+  const first = graph.runMutationOnce('op-a', () => ({ ok: true, data: { n: 1 } }));
+  first.result.data.n = 99;
+  graph.runMutationOnce('op-b', () => ({ ok: true }));
+
+  assert.equal(readMutationJournal(graph.jsonJournalPath()).operations['op-a'].result.data.n, 1);
+  const replayed = graph.runMutationOnce('op-a', () => { throw new Error('this operation must replay'); });
+  assert.equal(replayed.replayed, true);
+  assert.equal(replayed.result.data.n, 1);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('a snapshot records the file identity before it reads the bytes', () => {
+  const { graph, root } = makeGraph();
+  graph.runMutationOnce('op-a', () => { graph.addNode('a', 'A'); return { ok: true }; });
+
+  const events = [];
+  const { statSync, readFileSync } = fs;
+  fs.statSync = function patched(file, ...rest) {
+    if (String(file) === graph.memoryPath) events.push('stat');
+    return statSync.call(this, file, ...rest);
+  };
+  fs.readFileSync = function patched(file, ...rest) {
+    if (String(file) === graph.memoryPath) events.push('read');
+    return readFileSync.call(this, file, ...rest);
+  };
+  try { graph.load(); }
+  finally { fs.statSync = statSync; fs.readFileSync = readFileSync; }
+
+  assert.ok(events.includes('stat') && events.indexOf('stat') < events.indexOf('read'),
+    `expected the stat before the read, saw ${events.join(',')}`);
+  fs.rmSync(root, { recursive: true, force: true });
+});
