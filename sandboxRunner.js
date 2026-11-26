@@ -13,6 +13,7 @@ const {
   CHILD_STARTUP_GRACE_MS,
   CHILD_MODE,
   byteLength,
+  buildSandboxChildEnvironment,
   makeLimitError,
   boundedErrorMessage,
 } = require('./sandboxRunner-limits');
@@ -225,8 +226,8 @@ function runSandboxed(source, bindings = {}, opts = {}) {
     };
   }
 
-  const environment = { ...process.env };
-  delete environment.NODE_OPTIONS;
+  // Default-deny: only the OS path variables a bare `node <script>` needs.
+  const environment = buildSandboxChildEnvironment();
   // The verdict travels with the result, so a receipt records that the gate ran
   // and what it decided -- not merely that execution happened.
   const meta = {

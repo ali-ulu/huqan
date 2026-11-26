@@ -23,6 +23,36 @@ const FORBIDDEN_PATTERNS = [
   /\bfs\b/i,
 ];
 
+// The child runs only this repository's own code, and the sandboxed realm
+// cannot reach `process` at all (`process` is a forbidden token and the vm is
+// built with no host object to walk to it). So the child needs none of the
+// operator's environment -- and handing it over wholesale also hands over every
+// credential the deployment exported, plus knobs like NODE_OPTIONS that change
+// how the interpreter starts. Default-deny, with the path variables a bare
+// `node <script>` needs on Windows and the coverage instrumentation path.
+const SANDBOX_CHILD_ENV_ALLOWLIST = Object.freeze([
+  'SystemRoot',
+  'SystemDrive',
+  'windir',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  // Instrumentation path, not a credential. c8 attributes the child's own
+  // coverage through it, so dropping it hides sandboxRunner-child.js and
+  // sandboxRunner-context.js from the coverage floors. The child runs only this
+  // repository's code, so the path is the only thing it learns.
+  'NODE_V8_COVERAGE',
+]);
+
+function buildSandboxChildEnvironment(environment = process.env) {
+  const env = {};
+  for (const key of SANDBOX_CHILD_ENV_ALLOWLIST) {
+    const value = environment && environment[key];
+    if (typeof value === 'string' && value) env[key] = value;
+  }
+  return env;
+}
+
 function byteLength(value) {
   return Buffer.byteLength(String(value), 'utf8');
 }
@@ -62,6 +92,8 @@ module.exports = {
   MAX_ERROR_MESSAGE_BYTES,
   CHILD_MODE,
   FORBIDDEN_PATTERNS,
+  SANDBOX_CHILD_ENV_ALLOWLIST,
+  buildSandboxChildEnvironment,
   byteLength,
   makeLimitError,
   cloneValue,

@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 
 const {
   DEFAULT_MAX_SOURCE_BYTES,
@@ -7,6 +8,7 @@ const {
   runSandboxed,
   validateSandboxSource,
 } = require('./sandboxRunner');
+const { buildSandboxChildEnvironment } = require('./sandboxRunner-limits');
 
 describe('Sandbox Runner', () => {
   it('executes simple code with cloned input', () => {
@@ -115,5 +117,46 @@ describe('Sandbox Runner', () => {
     const followup = runSandboxed('({ alive: true })');
     assert.strictEqual(followup.ok, true);
     assert.deepStrictEqual(followup.data, { alive: true });
+  });
+});
+
+describe('Sandbox child environment', () => {
+  it('forwards only the OS path variables, never the operator environment', () => {
+    const env = buildSandboxChildEnvironment({
+      SystemRoot: 'C:\\Windows',
+      TEMP: '/tmp',
+      PATH: '/usr/local/bin',
+      GITHUB_TOKEN: 'ghp_example',
+      AWS_SECRET_ACCESS_KEY: 'example',
+      NODE_OPTIONS: '--require ./evil.js',
+      NODE_V8_COVERAGE: '/tmp/coverage',
+    });
+    assert.deepStrictEqual(env, {
+      SystemRoot: 'C:\\Windows',
+      TEMP: '/tmp',
+      NODE_V8_COVERAGE: '/tmp/coverage',
+    });
+  });
+
+  it('does not hand the child a credential the parent exported', () => {
+    const key = 'HUQAN_SANDBOX_TEST_SECRET';
+    const previous = process.env[key];
+    process.env[key] = 'must-not-reach-the-child';
+    try {
+      const child = spawnSync(process.execPath, ['-e', `process.stdout.write(String(process.env.${key}))`], {
+        env: buildSandboxChildEnvironment(),
+        encoding: 'utf8',
+      });
+      assert.strictEqual(child.stdout, 'undefined');
+    } finally {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    }
+  });
+
+  it('still executes with the reduced environment', () => {
+    const result = runSandboxed('({ envReduced: true })');
+    assert.strictEqual(result.ok, true);
+    assert.deepStrictEqual(result.data, { envReduced: true });
   });
 });
