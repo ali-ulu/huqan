@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
+const { spawnSync } = require('node:child_process');
 
 const {
   DEFAULT_MAX_SOURCE_BYTES,
@@ -130,7 +131,23 @@ describe('Sandbox child environment', () => {
       NODE_OPTIONS: '--require ./evil.js',
       NODE_V8_COVERAGE: '/tmp/coverage',
     });
-    assert.deepStrictEqual(env, { SystemRoot: 'C:\\Windows', TEMP: '/tmp' });
+    assert.deepStrictEqual(env, { NODE_V8_COVERAGE: undefined, SystemRoot: 'C:\\Windows', TEMP: '/tmp' });
+  });
+
+  it('does not hand the child the parent coverage directory', () => {
+    const key = 'NODE_V8_COVERAGE';
+    const previous = process.env[key];
+    process.env[key] = '/tmp/huqan-sandbox-should-not-write-here';
+    try {
+      const child = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.env.NODE_V8_COVERAGE))'], {
+        env: buildSandboxChildEnvironment(),
+        encoding: 'utf8',
+      });
+      assert.strictEqual(child.stdout, 'undefined');
+    } finally {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    }
   });
 
   it('does not forward a credential exported in the live process environment', () => {

@@ -40,7 +40,11 @@ const SANDBOX_CHILD_ENV_ALLOWLIST = Object.freeze([
 ]);
 
 function buildSandboxChildEnvironment(environment = process.env) {
-  const env = {};
+  // Since Node 22.14 a child whose env object has no own `NODE_V8_COVERAGE`
+  // gets the parent's value restored into it, which would hand the child a
+  // coverage directory outside the allowlist. An own `undefined` makes Node
+  // skip that restore and the variable is never forwarded.
+  const env = { NODE_V8_COVERAGE: undefined };
   for (const key of SANDBOX_CHILD_ENV_ALLOWLIST) {
     const value = environment && environment[key];
     if (typeof value === 'string' && value) env[key] = value;
