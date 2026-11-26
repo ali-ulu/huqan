@@ -29,7 +29,7 @@ const FORBIDDEN_PATTERNS = [
 // operator's environment -- and handing it over wholesale also hands over every
 // credential the deployment exported, plus knobs like NODE_OPTIONS that change
 // how the interpreter starts. Default-deny, with the path variables a bare
-// `node <script>` needs on Windows.
+// `node <script>` needs on Windows and the coverage instrumentation path.
 const SANDBOX_CHILD_ENV_ALLOWLIST = Object.freeze([
   'SystemRoot',
   'SystemDrive',
@@ -37,14 +37,15 @@ const SANDBOX_CHILD_ENV_ALLOWLIST = Object.freeze([
   'TEMP',
   'TMP',
   'TMPDIR',
+  // Instrumentation path, not a credential. c8 attributes the child's own
+  // coverage through it, so dropping it hides sandboxRunner-child.js and
+  // sandboxRunner-context.js from the coverage floors. The child runs only this
+  // repository's code, so the path is the only thing it learns.
+  'NODE_V8_COVERAGE',
 ]);
 
 function buildSandboxChildEnvironment(environment = process.env) {
-  // Since Node 22.14 a child whose env object has no own `NODE_V8_COVERAGE`
-  // gets the parent's value restored into it, which would hand the child a
-  // coverage directory outside the allowlist. An own `undefined` makes Node
-  // skip that restore and the variable is never forwarded.
-  const env = { NODE_V8_COVERAGE: undefined };
+  const env = {};
   for (const key of SANDBOX_CHILD_ENV_ALLOWLIST) {
     const value = environment && environment[key];
     if (typeof value === 'string' && value) env[key] = value;
