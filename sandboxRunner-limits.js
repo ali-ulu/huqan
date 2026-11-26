@@ -53,8 +53,11 @@ function buildSandboxChildEnvironment(environment = process.env) {
   const entries = Object.entries(environment || {});
   for (const key of SANDBOX_CHILD_ENV_ALLOWLIST) {
     const wanted = key.toLowerCase();
-    const found = entries.find(([name]) => name.toLowerCase() === wanted);
-    if (found && typeof found[1] === 'string' && found[1]) env[key] = found[1];
+    // Skip a match whose value is unusable, so an empty `tmpdir` cannot shadow a
+    // valid `TMPDIR` later in the block (POSIX keeps both spellings distinct).
+    const found = entries.find(([name, value]) => name.toLowerCase() === wanted
+      && typeof value === 'string' && value);
+    if (found) env[key] = found[1];
   }
   return env;
 }
