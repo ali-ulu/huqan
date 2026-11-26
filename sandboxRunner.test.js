@@ -159,4 +159,18 @@ describe('Sandbox child environment', () => {
     assert.strictEqual(result.ok, true);
     assert.deepStrictEqual(result.data, { envReduced: true });
   });
+
+  it('matches allowlisted keys case-insensitively, as a Windows environment block does', () => {
+    const env = buildSandboxChildEnvironment({
+      SYSTEMROOT: 'C:\\Windows',
+      WINDIR: 'C:\\Windows',
+      PATH: '/usr/local/bin',
+    });
+    assert.deepStrictEqual(env, { SystemRoot: 'C:\\Windows', windir: 'C:\\Windows' });
+  });
+
+  it('does not let an empty case variant shadow a valid one', () => {
+    const env = buildSandboxChildEnvironment({ tmpdir: '', TMPDIR: '/sandbox/tmp' });
+    assert.deepStrictEqual(env, { TMPDIR: '/sandbox/tmp' });
+  });
 });
