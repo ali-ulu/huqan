@@ -46,9 +46,15 @@ const SANDBOX_CHILD_ENV_ALLOWLIST = Object.freeze([
 
 function buildSandboxChildEnvironment(environment = process.env) {
   const env = {};
+  // A Windows environment block is case-insensitive: `SYSTEMROOT` and
+  // `SystemRoot` name the same variable. `process.env` hides that behind a
+  // proxy, but a plain object handed in by a caller does not, so the allowlist
+  // is matched case-insensitively here.
+  const entries = Object.entries(environment || {});
   for (const key of SANDBOX_CHILD_ENV_ALLOWLIST) {
-    const value = environment && environment[key];
-    if (typeof value === 'string' && value) env[key] = value;
+    const wanted = key.toLowerCase();
+    const found = entries.find(([name]) => name.toLowerCase() === wanted);
+    if (found && typeof found[1] === 'string' && found[1]) env[key] = found[1];
   }
   return env;
 }

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { sanitizeToolArgsForStorage, executeReadOnlyDryRun } = require('../mcpServer');
+const { finalizeMcpToolResult } = require('../lib/mcp/tool-result-finalizer');
 
 test('sanitizeToolArgsForStorage redacts secret-looking values before they reach the approval store', () => {
   const clean = sanitizeToolArgsForStorage('axiom.agent', {
@@ -48,4 +49,22 @@ test('executeReadOnlyDryRun scrubs secrets from the raw-args echo for unmapped t
   assert.equal(result.tool, 'huqan.compare');
   assert.equal(result.args.left, 'kedi');
   assert.equal(result.args.token, '[REDACTED]');
+});
+
+test('finalizeMcpToolResult scrubs a bare string result the conformance gate passes through', () => {
+  // A JWT built from parts, so no committed fixture looks like a credential.
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: 'test-fixture' })).toString('base64url');
+  const jwt = `${header}.${payload}.${'x'.repeat(32)}`;
+
+  // A tool with no advertised output schema is the path where the gate hands a
+  // non-object result back untouched instead of refusing it, so AB7 is the only
+  // thing left between the handler's string and the client.
+  const embedded = finalizeMcpToolResult({}, 'huqan.no-schema', `the value is ${jwt}`);
+  assert.equal(typeof embedded, 'string');
+  assert.equal(embedded.includes(jwt), false);
+  assert.match(embedded, /^the value is /);
+
+  const whole = finalizeMcpToolResult({}, 'huqan.no-schema', 'sk-abcdefghijklmnop');
+  assert.equal(whole, '[REDACTED]');
 });
